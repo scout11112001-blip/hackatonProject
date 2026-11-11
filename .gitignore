@@ -1,0 +1,23 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Django
+db.sqlite3
+/media/
+/staticfiles/
+
+# Tools / OS
+.claude/.cc-writes/
+.DS_Store
+.idea/
+.vscode/
