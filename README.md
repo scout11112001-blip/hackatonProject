@@ -33,7 +33,30 @@ ruff format --check .
 python manage.py check
 python manage.py makemigrations --check --dry-run
 python manage.py test
+DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop \
+  ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ \
+  python manage.py check --deploy --fail-level WARNING
+python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"
 ```
+
+## Demo data
+
+```bash
+python manage.py migrate
+python manage.py seed_demo   # needs DEMO_PASSWORD in .env or the environment
+```
+
+All demo data is fictional. Logins (password: the value of `DEMO_PASSWORD`):
+
+| Login | Faculty | Group |
+|---|---|---|
+| `student1` | FDD | ЦД-101 |
+| `student2` | FAE | ЭД-201 |
+| `student3` | FDD | ЦД-101 |
+| `staff1` | FDD | — |
+| `staff2` | FAE | — |
+
+Superuser (Django admin only): `python manage.py createsuperuser`.
 
 ## Environment variables
 
@@ -50,3 +73,4 @@ python manage.py test
 | `SECURE_HSTS_INCLUDE_SUBDOMAINS` | `true` | Apply HSTS to subdomains (production only). |
 | `SECURE_HSTS_PRELOAD` | `false` | Opt in to HSTS preload (production only). |
 | `LOG_LEVEL` | `INFO` | Logging level. |
+| `DEMO_PASSWORD` | (none) | Password for demo accounts; required by `seed_demo`. |

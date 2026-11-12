@@ -19,7 +19,7 @@ class ResolveSecretKeyTests(SimpleTestCase):
         self.assertEqual(resolve_secret_key("", True), DEV_SECRET_KEY)
 
     def test_missing_key_in_production_raises(self):
-        with self.assertRaisesMessage(Exception, "SECRET_KEY"):
+        with self.assertRaisesMessage(ImproperlyConfigured, "SECRET_KEY"):
             resolve_secret_key("", False)
 
     def test_whitespace_key_in_production_raises(self):
@@ -32,7 +32,7 @@ class ResolveAdminUrlTests(SimpleTestCase):
         self.assertEqual(resolve_admin_url("", True), "admin/")
 
     def test_missing_in_production_raises(self):
-        with self.assertRaisesMessage(Exception, "ADMIN_URL"):
+        with self.assertRaisesMessage(ImproperlyConfigured, "ADMIN_URL"):
             resolve_admin_url("", False)
 
     def test_adds_trailing_slash(self):

@@ -30,3 +30,13 @@ class SettingsTests(SimpleTestCase):
 
     def test_only_w021_silenced(self):
         self.assertEqual(settings.SILENCED_SYSTEM_CHECKS, ["security.W021"])
+
+    def test_custom_user_model(self):
+        self.assertEqual(settings.AUTH_USER_MODEL, "accounts.User")
+
+    def test_login_required_middleware_after_auth(self):
+        self.assertEqual(
+            settings.MIDDLEWARE.index("django.contrib.auth.middleware.LoginRequiredMiddleware"),
+            settings.MIDDLEWARE.index("django.contrib.auth.middleware.AuthenticationMiddleware")
+            + 1,
+        )

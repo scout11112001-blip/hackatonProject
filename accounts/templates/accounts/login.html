@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Вход — Цифровой деканат будущего{% endblock %}
+{% block content %}
+  <h1>Вход</h1>
+  <form method="post" class="form">
+    {% csrf_token %}
+    {{ form }}
+    <input type="hidden" name="next" value="{{ next }}">
+    <button type="submit">Войти</button>
+  </form>
+{% endblock %}

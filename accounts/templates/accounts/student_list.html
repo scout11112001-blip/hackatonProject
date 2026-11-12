@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Студенты факультета</h1>
+  <p>{{ faculty.name }}</p>
+  <ul class="student-list">
+    {% for student in students %}
+      <li>
+        <a href="{% url 'accounts:staff_student_detail' student.pk %}">{{ student.full_name }}</a>
+        · {{ student.group.name }}, {{ student.course }} курс
+      </li>
+    {% empty %}
+      <p>Студентов нет.</p>
+    {% endfor %}
+  </ul>
+{% endblock %}

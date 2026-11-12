@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Мой профиль</h1>
+  <p>Роль: {{ user.get_role_display|default:"Администратор системы" }}</p>
+  {% if student_profile %}
+    {% include "accounts/includes/student_fields.html" with profile=student_profile %}
+  {% elif staff_profile %}
+    {% include "accounts/includes/staff_fields.html" with profile=staff_profile %}
+  {% else %}
+    <p>Профиль не заполнен.</p>
+  {% endif %}
+{% endblock %}

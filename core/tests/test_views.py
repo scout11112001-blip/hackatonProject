@@ -1,8 +1,23 @@
 from django.test import TestCase
 from django.urls import reverse
 
+from accounts.models import User
+
 
 class HomeViewTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user("home-user", role="student")
+
+    def setUp(self):
+        self.client.force_login(self.user)
+
+    def test_home_requires_login(self):
+        self.client.logout()
+        response = self.client.get(reverse("core:home"))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], "/login/?next=/")
+
     def test_home_status_and_templates(self):
         response = self.client.get(reverse("core:home"))
         self.assertEqual(response.status_code, 200)

@@ -34,6 +34,13 @@ jobs:
         run: python manage.py makemigrations --check --dry-run
       - name: Tests
         run: python manage.py test
+      - name: Migrate and seed demo data twice
+        env:
+          DEMO_PASSWORD: "ci-dummy-demo-password-2026"
+        run: |
+          python manage.py migrate --noinput
+          python manage.py seed_demo
+          python manage.py seed_demo
       - name: Deploy check (production-like env)
         env:
           DEBUG: "false"

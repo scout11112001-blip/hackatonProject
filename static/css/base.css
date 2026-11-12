@@ -55,3 +55,39 @@ svg {
     padding: var(--space-4);
   }
 }
+
+.site-nav-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+}
+
+.site-nav-logout {
+  margin: 0;
+}
+
+.form input {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+}
+
+.form button {
+  margin-top: var(--space-3);
+}
+
+.fields dt {
+  font-weight: bold;
+  margin-top: var(--space-2);
+}
+
+.fields dd {
+  margin: 0;
+}
+
+.student-list {
+  padding-left: var(--space-4);
+}

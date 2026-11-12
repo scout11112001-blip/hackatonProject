@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>{{ student.full_name }}</h1>
+  {% include "accounts/includes/student_fields.html" with profile=student %}
+  <p><a href="{% url 'accounts:staff_student_list' %}">← К списку студентов</a></p>
+{% endblock %}
