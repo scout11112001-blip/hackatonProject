@@ -546,3 +546,102 @@ In the `REPORT`, paste the output tail of commands 1–7.
 - **Custom user model (important for next tasks)**: this skeleton uses `auth.User`. The next task that adds users/roles must define `AUTH_USER_MODEL` before any app migration depends on users, and the local `db.sqlite3` must then be recreated. No production DB exists yet, so this costs nothing now.
 - **Static storage switch** depends on DEBUG: production must run `python manage.py collectstatic --noinput` before start, otherwise pages with `{% static %}` return 500.
 - **SQLite relative path in `.env.example`**: commands must run from the repo root.
+
+---
+
+## Amendment 1: production settings tests
+
+Source: Team lead, accepted Reviewer `TEST PROPOSAL`. Base commit: `2492a70`.
+
+### A1.1 Goal
+All existing tests run with `DEBUG=true`, so the `DEBUG` default and the `if not DEBUG:` block of `config/settings.py` are never exercised. Add 3 tests that load the settings module hermetically with a production environment.
+
+### A1.2 Scope
+- Create only `core/tests/test_production_settings.py`.
+- Do not change production code. If a test reveals a real defect in `config/settings.py`, keep the failing test, describe the defect in the `REPORT`, and do not redesign anything. A minimal fix is allowed only if it keeps every design decision of this spec; describe it in the `REPORT`.
+- No subprocess (ruff S603/S607). No new dependencies.
+
+### A1.3 Mechanism (hermetic settings loader)
+`config/settings.py` is evaluated at import time, so the tests execute a **fresh copy** of the file under a private module name. The copy is never put into `sys.modules` and never touches `django.conf.settings`.
+
+Module-level code in `core/tests/test_production_settings.py`:
+
+```python
+import importlib.util
+import os
+from pathlib import Path
+from types import ModuleType
+from unittest import mock
+
+import environ
+from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
+from django.test import Client, SimpleTestCase, override_settings
+
+SETTINGS_PATH = Path(settings.BASE_DIR) / "config" / "settings.py"
+
+PRODUCTION_ENV = {
+    "DEBUG": "false",
+    "SECRET_KEY": "test-dummy-secret-key-not-for-production-0123456789abcdefghij",
+    "ALLOWED_HOSTS": "testserver",
+    "ADMIN_URL": "staff-panel/",
+}
+```
+
+#### `_new_settings_module() -> ModuleType`
+- Purpose: create an empty module object for `config/settings.py` without executing it.
+- Algorithm:
+  1. `spec = importlib.util.spec_from_file_location("_hermetic_settings", SETTINGS_PATH)`.
+  2. `assert spec is not None and spec.loader is not None`.
+  3. Return `importlib.util.module_from_spec(spec)`.
+- Do not add the module to `sys.modules`.
+
+#### `_exec_settings(module: ModuleType, env_vars: dict[str, str]) -> None`
+- Purpose: execute the settings file in `module` with exactly `env_vars` as the process environment and with `.env` reading disabled.
+- Algorithm:
+  1. Enter `mock.patch.dict(os.environ, env_vars, clear=True)`.
+  2. Enter `mock.patch.object(environ.Env, "read_env", return_value=None)` — the developer's real `.env` must not affect results.
+  3. Call `module.__spec__.loader.exec_module(module)`.
+  4. Exceptions from step 3 propagate to the caller. Both patches are undone on exit (use `with`).
+- Edge case: if `exec_module` raises, attributes assigned before the error (for example `DEBUG`) stay on `module`. Test 1 relies on this.
+
+#### `_load_production_settings() -> ModuleType`
+- Purpose: convenience for tests 2 and 3.
+- Algorithm: `module = _new_settings_module()`; `_exec_settings(module, PRODUCTION_ENV)`; return `module`.
+
+### A1.4 Tests (`class ProductionSettingsTests(SimpleTestCase)`)
+
+#### 1. `test_debug_defaults_to_false`
+1. `module = _new_settings_module()`.
+2. `with self.assertRaisesMessage(ImproperlyConfigured, "SECRET_KEY"): _exec_settings(module, {})`.
+3. `self.assertIs(module.DEBUG, False)`.
+
+#### 2. `test_health_exempt_from_ssl_redirect_in_production`
+1. `prod = _load_production_settings()`.
+2. `self.assertIs(prod.SECURE_SSL_REDIRECT, True)` (default when the env var is unset).
+3. Inside `with override_settings(SECURE_SSL_REDIRECT=prod.SECURE_SSL_REDIRECT, SECURE_REDIRECT_EXEMPT=prod.SECURE_REDIRECT_EXEMPT, SECURE_PROXY_SSL_HEADER=prod.SECURE_PROXY_SSL_HEADER):`
+   - create a new `client = Client()` **inside** the `with` block (the middleware chain reads settings when it is built);
+   - `response = client.get("/health/")` (plain HTTP, no `X-Forwarded-Proto` header) → `status_code == 200`, `response.json() == {"status": "ok"}`;
+   - `response = client.get("/")` → `status_code == 301`, `response["Location"] == "https://testserver/"`.
+- Use literal paths `"/health/"` and `"/"` (not `reverse`) because the test checks the real URL that the exemption regex matches.
+
+#### 3. `test_production_security_flags`
+1. `prod = _load_production_settings()`.
+2. Assert:
+   - `prod.DEBUG is False`;
+   - `prod.SESSION_COOKIE_SECURE is True`, `prod.CSRF_COOKIE_SECURE is True`;
+   - `prod.SECURE_PROXY_SSL_HEADER == ("HTTP_X_FORWARDED_PROTO", "https")`;
+   - `prod.ALLOWED_HOSTS == ["testserver"]` (debug defaults must not leak);
+   - `prod.ADMIN_URL == "staff-panel/"`;
+   - `prod.STORAGES["staticfiles"]["BACKEND"] == "whitenoise.storage.CompressedManifestStaticFilesStorage"`.
+
+### A1.5 Implementation order
+1. Write `core/tests/test_production_settings.py` per A1.3–A1.4.
+2. `DEBUG=true python manage.py test core.tests.test_production_settings -v 2` → 3 tests OK.
+3. `ruff format .` then run all of section 8. `python manage.py test` count = previous count + 3.
+4. Run `python manage.py test` a second time and confirm `git status --short` shows only the new test file (the loader must not create files or change the environment).
+5. Send the `REPORT` to the Reviewer. Do not commit (only the Team lead commits).
+
+### A1.6 Risks
+- `mock.patch.dict(..., clear=True)` empties `os.environ` only for the duration of `exec_module`; it is restored on exit even on exceptions. Do not run anything else inside that block.
+- If a future change makes `config/settings.py` import other project modules with import-time side effects, this loader runs them again. Keep settings free of side effects.
