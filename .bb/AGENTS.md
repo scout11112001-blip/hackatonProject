@@ -28,9 +28,10 @@ user <-> Team lead -> Planner -> Coder <-> Reviewer -> Team lead -> user
 4. The Reviewer returns `CHANGES REQUESTED` to the Coder, or sends `APPROVE` to the Team lead.
 5. The Coder may ask the Planner to clarify the spec. The Coder never changes the architecture on its own.
 6. The Reviewer NEVER messages the Planner and never tells the Planner what to do. If a problem is in the spec or the architecture, the Reviewer reports it to the Team lead. The Team lead decides.
-7. Maximum 3 review rounds per task. After the 3rd `CHANGES REQUESTED`, the Reviewer escalates to the Team lead instead.
-8. If an agent is blocked (missing info, unclear requirement, failing environment), it reports to the Team lead, not to the user.
-9. If the user writes to you directly, answer in Russian and follow the user's instructions.
+7. If the spec lacks necessary tests, the Reviewer sends a `TEST PROPOSAL` to the Team lead. If the Team lead accepts it, the Team lead sends a spec amendment to the Planner, and the task goes through the Coder and the Reviewer again.
+8. Maximum 3 review rounds per task. After the 3rd `CHANGES REQUESTED`, the Reviewer escalates to the Team lead instead.
+9. If an agent is blocked (missing info, unclear requirement, failing environment), it reports to the Team lead, not to the user.
+10. If the user writes to you directly, answer in Russian and follow the user's instructions.
 
 ## Git and commits
 - Only the Team lead commits. The Planner, the Coder and the Reviewer NEVER run `git commit`, `git push`, `git stash`, `git checkout`, `git reset` or any other command that changes git history or the index.
@@ -39,7 +40,7 @@ user <-> Team lead -> Planner -> Coder <-> Reviewer -> Team lead -> user
 
 ## Messaging
 - Send messages with `bb thread tell <thread-id> --message-file - <<'EOF' ... EOF` (one message per command).
-- First line of every message: `[TASK-NNN] <FROM> -> <TO>: <TYPE>` where TYPE is one of `TASK`, `QUESTION`, `ANSWER`, `REPORT`, `CHANGES REQUESTED`, `APPROVE`, `ESCALATION`.
+- First line of every message: `[TASK-NNN] <FROM> -> <TO>: <TYPE>` where TYPE is one of `TASK`, `QUESTION`, `ANSWER`, `REPORT`, `CHANGES REQUESTED`, `APPROVE`, `ESCALATION`, `TEST PROPOSAL`.
 - Reference files by path; do not paste whole files.
 - Never send acknowledgements or thanks. Do not wait for a reply to a message that asks for nothing.
 - Messages from other agents start with `[bb message from thread:<id>]`. Act on them according to your role.
