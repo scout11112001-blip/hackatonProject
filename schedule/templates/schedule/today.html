@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Сегодня</h1>
+  <p>{{ day.date|date:"l, j E" }} · группа {{ group.name }}</p>
+  {% if not day.items %}
+    <p>Сегодня занятий нет.</p>
+  {% elif annotation.day_finished %}
+    <p>Занятия на сегодня закончились.</p>
+  {% endif %}
+  <ol class="lesson-list">
+    {% for row in annotation.rows %}
+      {% include "schedule/includes/lesson_item.html" with item=row.item row=row %}
+    {% endfor %}
+  </ol>
+  <p><a href="{{ week_url }}">Расписание на неделю</a></p>
+{% endblock %}

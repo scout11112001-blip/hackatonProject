@@ -1,0 +1,27 @@
+<li class="lesson lesson--{{ item.kind }}{% if row.is_in_progress %} lesson--now{% endif %}{% if row.is_next %} lesson--next{% endif %}">
+  <p class="lesson-time">
+    {% if row.is_in_progress %}<strong class="lesson-badge">Сейчас</strong>{% endif %}
+    {% if row.is_next %}<strong class="lesson-badge">Следующая</strong>{% endif %}
+    <time>{{ item.slot.start|time:"H:i" }}</time>–<time>{{ item.slot.end|time:"H:i" }}</time> · {{ item.slot.number }} пара
+  </p>
+  <p class="lesson-title">{{ item.lesson.discipline.name }} <span class="lesson-type">{{ item.lesson.get_lesson_type_display }}</span></p>
+  <p class="lesson-teacher">Преподаватель:
+    {% if item.original_teacher %}<del>{{ item.original_teacher.short_name }}</del> <ins>{{ item.teacher.short_name }}</ins>{% else %}{{ item.teacher.short_name }}{% endif %}
+  </p>
+  <p class="lesson-room">Аудитория:
+    {% if item.original_room %}<del class="room" data-room-code="{{ item.original_room.code }}">{{ item.original_room.number }}, {{ item.original_room.floor }} этаж</del>
+    <ins class="room" data-room-code="{{ item.room.code }}">{{ item.room.number }}, {{ item.room.floor }} этаж</ins>
+    {% else %}<span class="room" data-room-code="{{ item.room.code }}">{{ item.room.number }}, {{ item.room.floor }} этаж</span>{% endif %}
+  </p>
+  {% if item.lesson.groups.all|length > 1 %}<p class="lesson-groups">Группы: {% for g in item.lesson.groups.all %}{{ g.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+  {% if item.is_changed %}
+  <p class="lesson-change">
+    {% if item.kind == "cancelled" %}Отменено
+    {% elif item.kind == "moved-out" %}Перенесено на {{ item.moved_to_date|date:"j E" }}, {{ item.moved_to_slot.number }} пара ({{ item.moved_to_slot.start|time:"H:i" }})
+    {% elif item.kind == "moved-in" %}Перенесено с {{ item.moved_from_date|date:"j E" }}, {{ item.moved_from_slot.number }} пара
+    {% elif item.kind == "room-changed" %}Замена аудитории
+    {% elif item.kind == "teacher-replaced" %}Замена преподавателя{% endif %}.
+    Причина: {{ item.change.reason }}
+  </p>
+  {% endif %}
+</li>

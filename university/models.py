@@ -1,4 +1,4 @@
-from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models
 
 
@@ -62,3 +62,80 @@ class StudyGroup(models.Model):
     @property
     def faculty(self) -> Faculty:
         return self.program.faculty
+
+
+class Room(models.Model):
+    code = models.CharField(
+        "код",
+        max_length=32,
+        unique=True,
+        validators=[
+            RegexValidator(
+                r"^[a-z][a-z0-9-]*$",
+                "Код: латинские строчные буквы, цифры и дефис; начинается с буквы.",
+            )
+        ],
+    )
+    floor = models.PositiveSmallIntegerField(
+        "этаж", validators=[MinValueValidator(1), MaxValueValidator(20)]
+    )
+    number = models.CharField("номер", max_length=10, unique=True)
+
+    class Meta:
+        ordering = ["floor", "number"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(floor__gte=1) & models.Q(floor__lte=20),
+                name="university_room_floor_1_20",
+            )
+        ]
+        verbose_name = "аудитория"
+        verbose_name_plural = "аудитории"
+
+    def __str__(self) -> str:
+        return f"ауд. {self.number}"
+
+
+class Teacher(models.Model):
+    last_name = models.CharField("фамилия", max_length=100)
+    first_name = models.CharField("имя", max_length=100)
+    middle_name = models.CharField("отчество", max_length=100, blank=True, default="")
+    title = models.CharField("учёная степень, звание", max_length=100, blank=True, default="")
+
+    class Meta:
+        ordering = ["last_name", "first_name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["last_name", "first_name", "middle_name"],
+                name="university_teacher_unique_name",
+            )
+        ]
+        verbose_name = "преподаватель"
+        verbose_name_plural = "преподаватели"
+
+    def __str__(self) -> str:
+        return self.full_name
+
+    @property
+    def full_name(self) -> str:
+        return " ".join(
+            part for part in (self.last_name, self.first_name, self.middle_name) if part
+        )
+
+    @property
+    def short_name(self) -> str:
+        middle = f" {self.middle_name[0]}." if self.middle_name else ""
+        return f"{self.last_name} {self.first_name[0]}.{middle}"
+
+
+class Discipline(models.Model):
+    name = models.CharField("название", max_length=200, unique=True)
+    short_name = models.CharField("краткое название", max_length=50)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "дисциплина"
+        verbose_name_plural = "дисциплины"
+
+    def __str__(self) -> str:
+        return self.name

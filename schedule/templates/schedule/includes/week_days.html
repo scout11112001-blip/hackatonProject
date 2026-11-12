@@ -1,0 +1,14 @@
+{% for day in week.days %}
+<section class="day{% if day.is_today %} day--today{% endif %}">
+  <h2>{{ day.date|date:"l, j E" }}{% if day.is_today %} (сегодня){% endif %}</h2>
+  {% if day.items %}
+  <ol class="lesson-list">
+    {% for item in day.items %}
+      {% include "schedule/includes/lesson_item.html" with item=item %}
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p>Занятий нет.</p>
+  {% endif %}
+</section>
+{% endfor %}

@@ -5,7 +5,7 @@ from django.test import RequestFactory, TestCase
 
 from accounts.access import get_profile_for_role, role_required
 from accounts.models import User
-from accounts.selectors import students_visible_to
+from accounts.selectors import groups_visible_to, students_visible_to
 
 from .helpers import make_faculty, make_group, make_staff, make_student
 
@@ -130,3 +130,35 @@ class StudentsVisibleToTests(TestCase):
         inactive.save(update_fields=["is_active"])
         qs = students_visible_to(self.staff_x)
         self.assertNotIn(inactive.student_profile, list(qs))
+
+
+class GroupsVisibleToTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.faculty_x = make_faculty("GX")
+        cls.faculty_y = make_faculty("GY")
+        cls.group_x1 = make_group(cls.faculty_x, "GX1")
+        cls.group_x2 = make_group(cls.faculty_x, "GX2")
+        cls.group_y = make_group(cls.faculty_y, "GY")
+        cls.student = make_student("stu", cls.group_x1, "REC-1")
+        cls.staff_x = make_staff("sx", cls.faculty_x)
+        cls.staff_y = make_staff("sy", cls.faculty_y)
+
+    def test_staff_sees_own_faculty_groups(self):
+        qs = groups_visible_to(self.staff_x)
+        self.assertEqual(set(qs), {self.group_x1, self.group_x2})
+
+    def test_student_sees_only_own_group(self):
+        qs = groups_visible_to(self.student)
+        self.assertEqual(list(qs), [self.group_x1])
+
+    def test_superuser_sees_nothing(self):
+        superuser = User.objects.create_superuser("root-g", password=None)
+        self.assertFalse(groups_visible_to(superuser).exists())
+
+    def test_anonymous_sees_nothing(self):
+        self.assertFalse(groups_visible_to(AnonymousUser()).exists())
+
+    def test_staff_without_profile_sees_nothing(self):
+        user = User.objects.create_user(username="noprofile-staff-g", role=User.Role.STAFF)
+        self.assertFalse(groups_visible_to(user).exists())

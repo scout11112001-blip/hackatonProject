@@ -1,0 +1,6 @@
+<nav class="week-nav" aria-label="Недели">
+  <a href="{{ prev_url }}">← Предыдущая</a>
+  {% if not is_current_week %}<a href="{{ current_url }}">Текущая</a>{% endif %}
+  <a href="{{ next_url }}">Следующая →</a>
+  <p>{{ week.start|date:"j E" }} — {{ week.end|date:"j E Y" }}</p>
+</nav>

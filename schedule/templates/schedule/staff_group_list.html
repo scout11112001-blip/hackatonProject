@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Расписание групп</h1>
+  <ul>
+    {% for group in groups %}
+      <li>
+        <a href="{% url 'schedule:staff_group_week' group.pk %}">{{ group.name }}</a>
+        · {{ group.program.name }}, {{ group.course }} курс
+      </li>
+    {% empty %}
+      <li>Групп нет.</li>
+    {% endfor %}
+  </ul>
+{% endblock %}

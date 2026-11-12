@@ -91,3 +91,50 @@ svg {
 .student-list {
   padding-left: var(--space-4);
 }
+
+.lesson-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lesson {
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-2) 0;
+}
+
+.lesson p {
+  margin: 0;
+}
+
+.lesson--now {
+  background: var(--color-now-bg);
+}
+
+.lesson-badge {
+  margin-right: var(--space-2);
+}
+
+.lesson-type,
+.lesson-groups {
+  color: var(--color-muted);
+}
+
+.lesson-change {
+  color: var(--color-changed);
+}
+
+.lesson--cancelled .lesson-title,
+.lesson--moved-out .lesson-title {
+  text-decoration: line-through;
+}
+
+.week-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.day {
+  margin-top: var(--space-4);
+}

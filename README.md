@@ -58,6 +58,15 @@ All demo data is fictional. Logins (password: the value of `DEMO_PASSWORD`):
 
 Superuser (Django admin only): `python manage.py createsuperuser`.
 
+The demo schedule covers 8 weeks before and 12 weeks after the run date.
+Re-running `seed_demo` replaces the demo schedule changes with fresh ones for
+the current and next week.
+
+## Schedule
+
+Students: `/schedule/` (today) and `/schedule/week/` (week view). Staff:
+`/staff/schedule/` (group list). Schedule editing happens in Django admin.
+
 ## Environment variables
 
 | Name | Default | Purpose |

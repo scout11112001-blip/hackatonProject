@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "university",
     "accounts",
+    "schedule",
     "core",
 ]
 
