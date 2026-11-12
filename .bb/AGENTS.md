@@ -32,6 +32,11 @@ user <-> Team lead -> Planner -> Coder <-> Reviewer -> Team lead -> user
 8. If an agent is blocked (missing info, unclear requirement, failing environment), it reports to the Team lead, not to the user.
 9. If the user writes to you directly, answer in Russian and follow the user's instructions.
 
+## Git and commits
+- Only the Team lead commits. The Planner, the Coder and the Reviewer NEVER run `git commit`, `git push`, `git stash`, `git checkout`, `git reset` or any other command that changes git history or the index.
+- The Coder leaves all changes uncommitted. The Reviewer reviews the uncommitted changes (`git status`, `git diff`, and untracked files).
+- After `APPROVE`, the Team lead commits the task as one commit `TASK-NNN: <summary>` and updates `CHANGELOG.md`.
+
 ## Messaging
 - Send messages with `bb thread tell <thread-id> --message-file - <<'EOF' ... EOF` (one message per command).
 - First line of every message: `[TASK-NNN] <FROM> -> <TO>: <TYPE>` where TYPE is one of `TASK`, `QUESTION`, `ANSWER`, `REPORT`, `CHANGES REQUESTED`, `APPROVE`, `ESCALATION`.
