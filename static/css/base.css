@@ -1,0 +1,57 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  background: var(--color-bg);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+img,
+svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.site-header,
+.site-main,
+.site-footer {
+  padding: var(--space-3);
+}
+
+.site-main {
+  max-width: var(--content-max-width);
+  margin-inline: auto;
+}
+
+.skip-link {
+  position: absolute;
+  left: -10000px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.skip-link:focus {
+  left: var(--space-3);
+  top: var(--space-3);
+  width: auto;
+  height: auto;
+  overflow: visible;
+}
+
+@media (min-width: 48rem) {
+  .site-header,
+  .site-main,
+  .site-footer {
+    padding: var(--space-4);
+  }
+}
