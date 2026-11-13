@@ -8,5 +8,6 @@ urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
     path("", include("accounts.urls")),
     path("", include("schedule.urls")),
+    path("", include("academics.urls")),
     path("", include("core.urls")),
 ]

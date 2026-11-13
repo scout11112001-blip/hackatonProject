@@ -2,5 +2,6 @@
 {% block content %}
   <h1>{{ student.full_name }}</h1>
   {% include "accounts/includes/student_fields.html" with profile=student %}
+  <p><a href="{% url 'academics:staff_student_grades' student.pk %}">Успеваемость и посещаемость</a></p>
   <p><a href="{% url 'accounts:staff_student_list' %}">← К списку студентов</a></p>
 {% endblock %}

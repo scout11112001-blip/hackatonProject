@@ -342,3 +342,85 @@ class ChangeRenderingTests(TestCase):
         self.assertIn("101", content)  # old room number
         self.assertIn("Лебедев", content)
         self.assertIn("Воронцова", content)
+
+
+class ScheduleUiFixTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.faculty = make_faculty("FU")
+        cls.group = make_group(cls.faculty, "GU")
+        cls.student = make_student("su", cls.group, "REC-U")
+        cls.room = make_room("room-101")
+        cls.room2 = make_room("room-205", floor=2)
+        cls.teacher = make_teacher("Лебедев")
+        cls.teacher2 = make_teacher("Воронцова")
+        cls.lesson_cancel = make_lesson(
+            [cls.group], 0, 1, cls.room, discipline=make_discipline("Отмен"), teacher=cls.teacher
+        )
+        cls.lesson_move = make_lesson(
+            [cls.group], 1, 1, cls.room, discipline=make_discipline("Перенос"), teacher=cls.teacher
+        )
+        cls.lesson_room = make_lesson(
+            [cls.group], 2, 1, cls.room, discipline=make_discipline("Ауд"), teacher=cls.teacher
+        )
+        cls.lesson_teacher = make_lesson(
+            [cls.group], 3, 1, cls.room, discipline=make_discipline("Преп"), teacher=cls.teacher
+        )
+        save_lesson_change(
+            LessonChange(
+                weekly_lesson=cls.lesson_cancel,
+                original_date=date(2026, 11, 16),
+                kind=ChangeKind.CANCELLED,
+                reason="Отмена",
+            )
+        )
+        save_lesson_change(
+            LessonChange(
+                weekly_lesson=cls.lesson_move,
+                original_date=date(2026, 11, 17),
+                kind=ChangeKind.MOVED,
+                new_date=date(2026, 11, 19),
+                new_slot=5,
+                reason="Перенос",
+            )
+        )
+        save_lesson_change(
+            LessonChange(
+                weekly_lesson=cls.lesson_room,
+                original_date=date(2026, 11, 18),
+                kind=ChangeKind.ROOM_CHANGED,
+                new_room=cls.room2,
+                reason="Ремонт",
+            )
+        )
+        save_lesson_change(
+            LessonChange(
+                weekly_lesson=cls.lesson_teacher,
+                original_date=date(2026, 11, 19),
+                kind=ChangeKind.TEACHER_REPLACED,
+                new_teacher=cls.teacher2,
+                reason="Болезнь",
+            )
+        )
+
+    def test_student_week_has_no_back_link(self):
+        self.client.force_login(self.student)
+        content = self.client.get("/schedule/week/2026-11-16/").content.decode()
+        self.assertNotIn("К списку групп", content)
+
+    def test_staff_week_back_link_url(self):
+        staff = make_staff("sfu", self.faculty)
+        self.client.force_login(staff)
+        content = self.client.get(f"/staff/schedule/{self.group.pk}/2026-11-16/").content.decode()
+        self.assertIn('href="/staff/schedule/"', content)
+        self.assertIn("К списку групп", content)
+
+    def test_change_label_no_space_before_period(self):
+        self.client.force_login(self.student)
+        content = self.client.get("/schedule/week/2026-11-16/").content.decode()
+        self.assertIn("Отменено. Причина:", content)
+        self.assertIn("Замена аудитории. Причина:", content)
+        self.assertIn("Замена преподавателя. Причина:", content)
+        self.assertIn("). Причина:", content)  # moved-out
+        self.assertIn("пара. Причина:", content)  # moved-in
+        self.assertNotIn(" . Причина", content)

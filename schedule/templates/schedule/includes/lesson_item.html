@@ -15,13 +15,6 @@
   </p>
   {% if item.lesson.groups.all|length > 1 %}<p class="lesson-groups">Группы: {% for g in item.lesson.groups.all %}{{ g.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
   {% if item.is_changed %}
-  <p class="lesson-change">
-    {% if item.kind == "cancelled" %}Отменено
-    {% elif item.kind == "moved-out" %}Перенесено на {{ item.moved_to_date|date:"j E" }}, {{ item.moved_to_slot.number }} пара ({{ item.moved_to_slot.start|time:"H:i" }})
-    {% elif item.kind == "moved-in" %}Перенесено с {{ item.moved_from_date|date:"j E" }}, {{ item.moved_from_slot.number }} пара
-    {% elif item.kind == "room-changed" %}Замена аудитории
-    {% elif item.kind == "teacher-replaced" %}Замена преподавателя{% endif %}.
-    Причина: {{ item.change.reason }}
-  </p>
+  <p class="lesson-change">{% if item.kind == "cancelled" %}Отменено{% elif item.kind == "moved-out" %}Перенесено на {{ item.moved_to_date|date:"j E" }}, {{ item.moved_to_slot.number }} пара ({{ item.moved_to_slot.start|time:"H:i" }}){% elif item.kind == "moved-in" %}Перенесено с {{ item.moved_from_date|date:"j E" }}, {{ item.moved_from_slot.number }} пара{% elif item.kind == "room-changed" %}Замена аудитории{% elif item.kind == "teacher-replaced" %}Замена преподавателя{% endif %}. Причина: {{ item.change.reason }}</p>
   {% endif %}
 </li>

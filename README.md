@@ -63,10 +63,24 @@ Re-running `seed_demo` replaces the demo schedule changes with fresh ones for
 the current and next week. Demo schedule rows carry a `seed_key`; rows created
 by a person in Django admin are never touched by `seed_demo`.
 
+Demo academics: `student1` is strong (average 5.00, no debts); `student3` has a
+retake and an open debt («Основы права») and low attendance; `student2` is from
+the other faculty (average 4.50). The seed only creates missing academic rows.
+
 ## Schedule
 
 Students: `/schedule/` (today) and `/schedule/week/` (week view). Staff:
 `/staff/schedule/` (group list). Schedule editing happens in Django admin.
+
+## Grades
+
+Students: `/grades/` and `/grades/<term_code>/`. Staff open a student's report
+from the student card (`/staff/students/<pk>/grades/`). Definitions: the
+average is the arithmetic mean of numeric effective results (2–5, including 2),
+rounded to 2 decimals half-up; a debt is a finished-session curriculum item
+with a missing or failing effective result; attendance percent is
+present/(present+absent), rounded half-up, with excused absences excluded and
+shown as «не отмечено» when a past occurrence has no record.
 
 ## Login protection
 

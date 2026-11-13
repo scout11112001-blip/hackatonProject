@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>{% if is_staff_view %}Успеваемость: {{ student.full_name }}{% else %}Моя успеваемость{% endif %}</h1>
+  {% if is_staff_view %}<p><a href="{{ back_url }}">← К карточке студента</a></p>{% endif %}
+  <p class="status {% if overview.debts %}status--debt{% else %}status--ok{% endif %}"><strong>{{ overview.status_text }}</strong></p>
+  {% if overview.debts %}<ul class="debt-list">{% for item in overview.debts %}<li>{{ item.discipline.name }} — {{ item.term.name }}</li>{% endfor %}</ul>{% endif %}
+  <p>Средний балл за всё время: {{ overview.overall_average|default:"—" }}</p>
+  {% if term_links %}<nav class="term-nav" aria-label="Семестры"><ul>{% for link in term_links %}<li>{% if link.is_selected %}<strong>{{ link.term.name }}</strong>{% else %}<a href="{{ link.url }}">{{ link.term.name }}</a>{% endif %}</li>{% endfor %}</ul></nav>{% endif %}
+  {% if not term %}<p>Семестров пока нет.</p>
+  {% else %}
+    <h2>{{ term.name }}</h2>
+    <p>Сессия: {{ term.session_start|date:"j E" }} — {{ term.session_end|date:"j E Y" }}{% if report.session_finished %} (завершена){% endif %}</p>
+    <p>Средний балл за семестр: {{ report.average|default:"—" }}</p>
+    {% if report.disciplines %}<ul class="discipline-list">{% for d in report.disciplines %}{% include "academics/includes/discipline.html" %}{% endfor %}</ul>
+    {% else %}<p>За этот семестр данных нет.</p>{% endif %}
+  {% endif %}
+{% endblock %}

@@ -20,6 +20,7 @@
         <li><a href="{% url 'accounts:profile' %}">Профиль</a></li>
         {% if user.is_student %}
         <li><a href="{% url 'schedule:today' %}">Расписание</a></li>
+        <li><a href="{% url 'academics:my_grades' %}">Успеваемость</a></li>
         {% elif user.is_deanery_staff %}
         <li><a href="{% url 'schedule:staff_groups' %}">Расписание</a></li>
         {% endif %}

@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "university",
     "accounts",
     "schedule",
+    "academics",
     "core",
 ]
 

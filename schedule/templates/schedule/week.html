@@ -3,7 +3,7 @@
   <h1>{{ title }}</h1>
   {% if group %}
     <p>{{ group.program }}, {{ group.course }} курс</p>
-    <p><a href="{{ back_url }}">← К списку групп</a></p>
+    {% if back_url %}<p><a href="{{ back_url }}">← К списку групп</a></p>{% endif %}
   {% endif %}
   {% include "schedule/includes/week_nav.html" %}
   {% include "schedule/includes/week_days.html" %}

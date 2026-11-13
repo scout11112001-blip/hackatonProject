@@ -138,3 +138,30 @@ svg {
 .day {
   margin-top: var(--space-4);
 }
+
+.discipline-list {
+  list-style: none;
+  padding: 0;
+}
+
+.discipline {
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-2) 0;
+}
+
+.discipline--debt summary,
+.status--debt {
+  color: var(--color-changed);
+}
+
+.term-nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  list-style: none;
+  padding: 0;
+}
+
+details summary {
+  cursor: pointer;
+}
