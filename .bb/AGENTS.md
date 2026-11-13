@@ -22,7 +22,7 @@
 ```
 user <-> Team lead -> Planner -> Coder <-> Reviewer -> Team lead -> user
 ```
-1. The Team lead sends a request to the Planner ONLY after explicit user approval. Each request has an ID `TASK-NNN`.
+1. The Team lead sends a request to the Planner ONLY after explicit user approval. Each request has an ID `TASK-NNN`. A fix task for the small defects of a finished task has the ID `TASK-NNN-FIX` (then `TASK-NNN-FIX2`, ...) and its spec is `docs/tasks/TASK-NNN-FIX.md`.
 2. The Planner writes `docs/tasks/TASK-NNN.md` and hands it to the Coder.
 3. The Coder implements the spec and sends a report to the Reviewer.
 4. The Reviewer returns `CHANGES REQUESTED` to the Coder, or sends `APPROVE` to the Team lead.
