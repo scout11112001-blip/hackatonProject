@@ -21,6 +21,7 @@ class WeeklyLessonAdmin(admin.ModelAdmin):
     list_filter = ("weekday", "lesson_type", "groups")
     filter_horizontal = ("groups",)
     list_select_related = ("discipline", "teacher", "room")
+    readonly_fields = ("seed_key",)
 
     def get_queryset(self, request):
         return super().get_queryset(request).prefetch_related("groups")
@@ -45,3 +46,4 @@ class LessonChangeAdmin(admin.ModelAdmin):
     list_filter = ("kind",)
     date_hierarchy = "original_date"
     list_select_related = ("weekly_lesson__discipline", "new_room", "new_teacher")
+    readonly_fields = ("seed_key",)

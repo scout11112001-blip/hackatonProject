@@ -1,8 +1,9 @@
 """Business rules for the schedule, called from mutations and admin forms."""
 
 from collections.abc import Collection
-from datetime import date
+from datetime import date, timedelta
 
+from . import locking
 from .models import ChangeKind, LessonChange, WeeklyLesson
 from .services import occurrences_between
 
@@ -17,6 +18,7 @@ def validate_weekly_lesson(
     group_ids: Collection[int],
     exclude_pk: int | None,
 ) -> list[str]:
+    locking.lock_rooms_and_groups([room_id], group_ids)
     errors: list[str] = []
     if not group_ids:
         errors.append("Выберите хотя бы одну группу.")
@@ -53,7 +55,117 @@ def validate_weekly_lesson(
                     "расписанию. Сначала удалите его."
                 )
 
+    if not errors:
+        errors.extend(
+            _occurrence_conflicts(
+                lesson_pk=exclude_pk,
+                weekday=weekday,
+                slot=slot,
+                valid_from=valid_from,
+                valid_until=valid_until,
+                room_id=room_id,
+                group_ids=group_ids,
+            )
+        )
+
     return errors
+
+
+def _occurrence_conflicts(
+    *,
+    lesson_pk: int | None,
+    weekday: int,
+    slot: int,
+    valid_from: date,
+    valid_until: date,
+    room_id: int,
+    group_ids: Collection[int],
+) -> list[str]:
+    own_changes = (
+        {
+            c.original_date: c
+            for c in LessonChange.objects.filter(weekly_lesson_id=lesson_pk).select_related(
+                "new_room"
+            )
+        }
+        if lesson_pk
+        else {}
+    )
+
+    # Proposed own occurrences P: (date, slot_number, room_id, original_date).
+    p: list[tuple[date, int, int | None, date]] = []
+    d = valid_from
+    while d <= valid_until:
+        if d.weekday() == weekday:
+            c = own_changes.get(d)
+            if c is None:
+                p.append((d, slot, room_id, d))
+            elif c.kind == ChangeKind.ROOM_CHANGED:
+                p.append((d, slot, c.new_room_id, d))
+            # CANCELLED or MOVED: the regular occurrence is skipped.
+        d += timedelta(days=1)
+
+    for c in own_changes.values():
+        if c.kind == ChangeKind.MOVED:
+            p.append((c.new_date, c.new_slot, c.new_room_id or room_id, c.original_date))
+
+    if not p:
+        return []
+
+    min_date = min(entry[0] for entry in p)
+    max_date = max(entry[0] for entry in p)
+    others = [
+        i
+        for i in occurrences_between(min_date, max_date, None)
+        if i.is_happening and i.lesson.id != lesson_pk
+    ]
+    index: dict[tuple[date, int], list] = {}
+    for item in others:
+        index.setdefault((item.date, item.slot.number), []).append(item)
+
+    errors: list[str] = []
+
+    # Conflicts with other lessons' occurrences at the proposed date/slot.
+    for p_date, p_slot, p_room, _ in p:
+        for item in index.get((p_date, p_slot), []):
+            if item.room.id == p_room:
+                errors.append(
+                    f"{p_date:%d.%m.%Y}, {p_slot} пара: аудитория {item.room.number} занята "
+                    f"({item.lesson.discipline.name})."
+                )
+            for g in item.lesson.groups.all():
+                if g.id in group_ids:
+                    errors.append(
+                        f"{p_date:%d.%m.%Y}, {p_slot} пара: группа {g.name} занята "
+                        f"({item.lesson.discipline.name})."
+                    )
+
+    # Own duplicates: the same (date, slot) proposed twice (a move onto its own slot).
+    seen: set[tuple[date, int]] = set()
+    for p_date, p_slot, _room, _orig in p:
+        key = (p_date, p_slot)
+        if key in seen:
+            errors.append(f"{p_date:%d.%m.%Y}, {p_slot} пара: занятие стоит дважды из-за переноса.")
+        seen.add(key)
+
+    # Own ROOM_CHANGED whose new room equals the lesson's (now) room.
+    for c in own_changes.values():
+        if c.kind == ChangeKind.ROOM_CHANGED and c.new_room_id == room_id:
+            errors.append(
+                f"Изменение на {c.original_date:%d.%m.%Y}: новая аудитория совпадает с аудиторией "
+                "занятия. Удалите изменение."
+            )
+
+    deduped: list[str] = []
+    seen_set: set[str] = set()
+    for msg in errors:
+        if msg not in seen_set:
+            seen_set.add(msg)
+            deduped.append(msg)
+
+    if len(deduped) > 10:
+        deduped = deduped[:10] + [f"…и ещё {len(deduped) - 10} конфликтов."]
+    return deduped
 
 
 def change_conflicts(change: LessonChange) -> list[str]:
@@ -70,6 +182,8 @@ def change_conflicts(change: LessonChange) -> list[str]:
 
     target_room_id = change.new_room_id or lesson.room_id
     group_ids = set(lesson.groups.values_list("id", flat=True))
+
+    locking.lock_rooms_and_groups([target_room_id], group_ids)
 
     items = occurrences_between(target_date, target_date, None)
     conflicts: list[str] = []

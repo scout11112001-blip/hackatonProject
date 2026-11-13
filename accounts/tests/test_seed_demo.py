@@ -9,6 +9,8 @@ from django.test import TestCase
 from accounts.models import StaffProfile, StudentProfile, User
 from university.models import Faculty, Program, StudyGroup
 
+from .helpers import make_faculty, make_group, make_student
+
 
 class SeedDemoTests(TestCase):
     def test_creates_expected_data(self):
@@ -74,3 +76,18 @@ class SeedDemoTests(TestCase):
         with mock.patch.dict(os.environ, {"DEMO_PASSWORD": password}):
             call_command("seed_demo", stdout=out)
         self.assertNotIn(password, out.getvalue())
+
+    def test_record_number_collision_fails_cleanly(self):
+        faculty = make_faculty("FF")
+        group = make_group(faculty, "GG")
+        make_student("other", group, "ST-2026-0001")
+        users_before = User.objects.count()
+        faculties_before = Faculty.objects.count()
+        groups_before = StudyGroup.objects.count()
+        with mock.patch.dict(os.environ, {"DEMO_PASSWORD": "Demo-Pass-2026-test!"}):
+            with self.assertRaisesMessage(CommandError, "ST-2026-0001"):
+                call_command("seed_demo")
+        self.assertEqual(User.objects.count(), users_before)
+        self.assertEqual(Faculty.objects.count(), faculties_before)
+        self.assertEqual(StudyGroup.objects.count(), groups_before)
+        self.assertFalse(User.objects.filter(username="student1").exists())

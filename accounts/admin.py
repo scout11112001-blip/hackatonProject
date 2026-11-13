@@ -2,7 +2,10 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import AdminUserCreationForm, UserChangeForm
 
-from .models import StaffProfile, StudentProfile, User
+from .forms import ThrottledAdminAuthenticationForm
+from .models import LoginThrottle, StaffProfile, StudentProfile, User
+
+admin.site.login_form = ThrottledAdminAuthenticationForm
 
 
 class UserCreationAdminForm(AdminUserCreationForm):
@@ -43,3 +46,26 @@ class StaffProfileAdmin(admin.ModelAdmin):
     list_display = ("full_name", "position", "faculty", "user")
     list_filter = ("faculty",)
     search_fields = ("last_name", "first_name", "user__username")
+
+
+@admin.register(LoginThrottle)
+class LoginThrottleAdmin(admin.ModelAdmin):
+    list_display = (
+        "username_key",
+        "ip_address",
+        "failures",
+        "locked_until",
+        "last_failure_at",
+    )
+    search_fields = ("username_key", "ip_address")
+    readonly_fields = (
+        "username_key",
+        "ip_address",
+        "failures",
+        "first_failure_at",
+        "last_failure_at",
+        "locked_until",
+    )
+
+    def has_add_permission(self, request):
+        return False

@@ -47,6 +47,7 @@ class DisciplineSeed:
 
 @dataclass(frozen=True)
 class LessonSeed:
+    key: str
     weekday: int
     slot: int
     discipline: str
@@ -58,6 +59,7 @@ class LessonSeed:
 
 @dataclass(frozen=True)
 class ChangeSeed:
+    key: str
     lesson_index: int
     week: int
     kind: str
@@ -107,77 +109,137 @@ DISCIPLINE_SEEDS = [
 
 LESSON_SEEDS = [
     LessonSeed(
-        0, 1, "Введение в цифровую дипломатию", "lecture", "Лебедев", "room-101", ("ЦД-101",)
+        "lesson-01",
+        0,
+        1,
+        "Введение в цифровую дипломатию",
+        "lecture",
+        "Лебедев",
+        "room-101",
+        ("ЦД-101",),
     ),
-    LessonSeed(0, 2, "Английский язык", "seminar", "Назарова", "room-308", ("ЦД-101",)),
-    LessonSeed(0, 2, "Микроэкономика", "lecture", "Воронцова", "room-114", ("ЭД-201",)),
-    LessonSeed(0, 3, "Анализ данных на Python", "lab", "Глебов", "room-205", ("ЭД-201",)),
-    LessonSeed(1, 1, "Английский язык", "seminar", "Назарова", "room-315", ("ЭД-201",)),
     LessonSeed(
-        1, 2, "Теория международных отношений", "lecture", "Лебедев", "room-101", ("ЦД-101",)
+        "lesson-02", 0, 2, "Английский язык", "seminar", "Назарова", "room-308", ("ЦД-101",)
     ),
-    LessonSeed(1, 2, "Микроэкономика", "seminar", "Воронцова", "room-402", ("ЭД-201",)),
-    LessonSeed(1, 3, "Анализ данных на Python", "lab", "Глебов", "room-205", ("ЦД-101",)),
-    LessonSeed(2, 1, "Философия", "lecture", "Фомин", "room-101", ("ЦД-101", "ЭД-201")),
     LessonSeed(
-        2, 2, "Введение в цифровую дипломатию", "seminar", "Лебедев", "room-212", ("ЦД-101",)
+        "lesson-03", 0, 2, "Микроэкономика", "lecture", "Воронцова", "room-114", ("ЭД-201",)
     ),
-    LessonSeed(2, 3, "Микроэкономика", "seminar", "Воронцова", "room-402", ("ЭД-201",)),
-    LessonSeed(3, 2, "Анализ данных на Python", "lab", "Глебов", "room-205", ("ЭД-201",)),
-    LessonSeed(3, 3, "Английский язык", "seminar", "Назарова", "room-308", ("ЦД-101",)),
     LessonSeed(
-        3, 4, "Теория международных отношений", "seminar", "Лебедев", "room-212", ("ЦД-101",)
+        "lesson-04", 0, 3, "Анализ данных на Python", "lab", "Глебов", "room-205", ("ЭД-201",)
     ),
-    LessonSeed(3, 4, "Английский язык", "seminar", "Назарова", "room-315", ("ЭД-201",)),
-    LessonSeed(4, 1, "Микроэкономика", "lecture", "Воронцова", "room-114", ("ЭД-201",)),
-    LessonSeed(4, 2, "Анализ данных на Python", "lab", "Глебов", "room-205", ("ЦД-101",)),
-    LessonSeed(4, 3, "Философия", "seminar", "Фомин", "room-212", ("ЭД-201",)),
+    LessonSeed(
+        "lesson-05", 1, 1, "Английский язык", "seminar", "Назарова", "room-315", ("ЭД-201",)
+    ),
+    LessonSeed(
+        "lesson-06",
+        1,
+        2,
+        "Теория международных отношений",
+        "lecture",
+        "Лебедев",
+        "room-101",
+        ("ЦД-101",),
+    ),
+    LessonSeed(
+        "lesson-07", 1, 2, "Микроэкономика", "seminar", "Воронцова", "room-402", ("ЭД-201",)
+    ),
+    LessonSeed(
+        "lesson-08", 1, 3, "Анализ данных на Python", "lab", "Глебов", "room-205", ("ЦД-101",)
+    ),
+    LessonSeed(
+        "lesson-09", 2, 1, "Философия", "lecture", "Фомин", "room-101", ("ЦД-101", "ЭД-201")
+    ),
+    LessonSeed(
+        "lesson-10",
+        2,
+        2,
+        "Введение в цифровую дипломатию",
+        "seminar",
+        "Лебедев",
+        "room-212",
+        ("ЦД-101",),
+    ),
+    LessonSeed(
+        "lesson-11", 2, 3, "Микроэкономика", "seminar", "Воронцова", "room-402", ("ЭД-201",)
+    ),
+    LessonSeed(
+        "lesson-12", 3, 2, "Анализ данных на Python", "lab", "Глебов", "room-205", ("ЭД-201",)
+    ),
+    LessonSeed(
+        "lesson-13", 3, 3, "Английский язык", "seminar", "Назарова", "room-308", ("ЦД-101",)
+    ),
+    LessonSeed(
+        "lesson-14",
+        3,
+        4,
+        "Теория международных отношений",
+        "seminar",
+        "Лебедев",
+        "room-212",
+        ("ЦД-101",),
+    ),
+    LessonSeed(
+        "lesson-15", 3, 4, "Английский язык", "seminar", "Назарова", "room-315", ("ЭД-201",)
+    ),
+    LessonSeed(
+        "lesson-16", 4, 1, "Микроэкономика", "lecture", "Воронцова", "room-114", ("ЭД-201",)
+    ),
+    LessonSeed(
+        "lesson-17", 4, 2, "Анализ данных на Python", "lab", "Глебов", "room-205", ("ЦД-101",)
+    ),
+    LessonSeed("lesson-18", 4, 3, "Философия", "seminar", "Фомин", "room-212", ("ЭД-201",)),
 ]
 
 CHANGE_SEEDS = [
-    ChangeSeed(lesson_index=0, week=0, kind="cancelled", reason="Преподаватель на конференции"),
-    ChangeSeed(lesson_index=15, week=1, kind="cancelled", reason="Мероприятие факультета"),
+    ChangeSeed("change-1", 0, 0, "cancelled", reason="Преподаватель на конференции"),
+    ChangeSeed("change-2", 15, 1, "cancelled", reason="Мероприятие факультета"),
     ChangeSeed(
-        lesson_index=7,
-        week=0,
-        kind="moved",
+        "change-3",
+        7,
+        0,
+        "moved",
         new_date_offset=3,
         new_slot=5,
         reason="Перенос по просьбе преподавателя",
     ),
     ChangeSeed(
-        lesson_index=17,
-        week=0,
-        kind="moved",
+        "change-4",
+        17,
+        0,
+        "moved",
         new_date_offset=7,
         new_slot=4,
         reason="Перенос из-за олимпиады",
     ),
     ChangeSeed(
-        lesson_index=12,
-        week=0,
-        kind="room_changed",
+        "change-5",
+        12,
+        0,
+        "room_changed",
         new_room="room-402",
         reason="Ремонт в аудитории 308",
     ),
     ChangeSeed(
-        lesson_index=6,
-        week=1,
-        kind="room_changed",
+        "change-6",
+        6,
+        1,
+        "room_changed",
         new_room="room-114",
         reason="Аудитория занята мероприятием",
     ),
     ChangeSeed(
-        lesson_index=9,
-        week=0,
-        kind="teacher_replaced",
+        "change-7",
+        9,
+        0,
+        "teacher_replaced",
         new_teacher="Шестакова",
         reason="Болезнь преподавателя",
     ),
     ChangeSeed(
-        lesson_index=11,
-        week=1,
-        kind="teacher_replaced",
+        "change-8",
+        11,
+        1,
+        "teacher_replaced",
         new_teacher="Шестакова",
         reason="Командировка преподавателя",
     ),
@@ -219,14 +281,10 @@ def seed_schedule_demo(today: date) -> ScheduleSeedSummary:
         lessons: list[WeeklyLesson] = []
         for seed in LESSON_SEEDS:
             discipline = disciplines[seed.discipline]
-            lesson = WeeklyLesson.objects.filter(
-                discipline=discipline,
-                lesson_type=seed.lesson_type,
-                weekday=seed.weekday,
-                slot=seed.slot,
-            ).first()
+            lesson = WeeklyLesson.objects.filter(seed_key=seed.key).first()
             if lesson is None:
                 lesson = WeeklyLesson(
+                    seed_key=seed.key,
                     weekday=seed.weekday,
                     slot=seed.slot,
                     discipline=discipline,
@@ -240,8 +298,7 @@ def seed_schedule_demo(today: date) -> ScheduleSeedSummary:
 
         # Refresh demo changes (spec 6.9 step 6) BEFORE saving lessons (step 7), so that
         # save_weekly_lesson -> validate_weekly_lesson(exclude_pk) does not see stale changes.
-        existing_ids = [lesson.id for lesson in lessons if lesson.id is not None]
-        LessonChange.objects.filter(weekly_lesson_id__in=existing_ids).delete()
+        LessonChange.objects.exclude(seed_key="").delete()
 
         for seed, lesson in zip(LESSON_SEEDS, lessons, strict=True):
             save_weekly_lesson(lesson, [groups[name] for name in seed.groups])
@@ -254,6 +311,7 @@ def seed_schedule_demo(today: date) -> ScheduleSeedSummary:
                 "original_date": original_date,
                 "kind": seed.kind,
                 "reason": seed.reason,
+                "seed_key": seed.key,
             }
             if seed.new_date_offset is not None:
                 kwargs["new_date"] = monday + timedelta(days=seed.new_date_offset)

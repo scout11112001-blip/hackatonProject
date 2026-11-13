@@ -161,3 +161,16 @@ class AccessViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("Профиль не заполнен", response.content.decode())
         self.assertEqual(self.client.get(reverse("accounts:staff_student_list")).status_code, 403)
+
+    def test_staff_list_empty_state_markup(self):
+        empty_faculty = make_faculty("FE")
+        empty_staff = make_staff("se", empty_faculty)
+        self.client.force_login(empty_staff)
+        empty_content = self.client.get(reverse("accounts:staff_student_list")).content.decode()
+        self.assertIn("<p>Студентов нет.</p>", empty_content)
+        self.assertNotIn('class="student-list"', empty_content)
+
+        self.client.force_login(self.staff_x)
+        full_content = self.client.get(reverse("accounts:staff_student_list")).content.decode()
+        self.assertIn('<ul class="student-list">', full_content)
+        self.assertIn("<li>", full_content)

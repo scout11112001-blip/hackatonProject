@@ -33,3 +33,15 @@ def resolve_admin_url(raw: str, debug: bool) -> str:
     if not re.fullmatch(r"[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*", value):
         raise ImproperlyConfigured("ADMIN_URL may contain only letters, digits, '-', '_' and '/'.")
     return value + "/"
+
+
+def resolve_client_ip_header(raw: str) -> str:
+    """Map the CLIENT_IP_HEADER env value to a request.META key; empty = trust no proxy header."""
+    value = raw.strip().lower()
+    if value == "":
+        return ""
+    if value == "x-real-ip":
+        return "HTTP_X_REAL_IP"
+    if value == "x-forwarded-for":
+        return "HTTP_X_FORWARDED_FOR"
+    raise ImproperlyConfigured("CLIENT_IP_HEADER must be empty, 'X-Real-IP' or 'X-Forwarded-For'.")

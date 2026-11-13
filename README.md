@@ -60,12 +60,24 @@ Superuser (Django admin only): `python manage.py createsuperuser`.
 
 The demo schedule covers 8 weeks before and 12 weeks after the run date.
 Re-running `seed_demo` replaces the demo schedule changes with fresh ones for
-the current and next week.
+the current and next week. Demo schedule rows carry a `seed_key`; rows created
+by a person in Django admin are never touched by `seed_demo`.
 
 ## Schedule
 
 Students: `/schedule/` (today) and `/schedule/week/` (week view). Staff:
 `/staff/schedule/` (group list). Schedule editing happens in Django admin.
+
+## Login protection
+
+Failed login attempts are throttled per (username, client IP) and stored in
+the database (`LOGIN_FAILURE_LIMIT` failures → lockout for
+`LOGIN_LOCKOUT_SECONDS` seconds). Behind a reverse proxy, set
+`CLIENT_IP_HEADER=X-Real-IP` **only** if nginx overwrites the header, e.g.:
+
+```nginx
+proxy_set_header X-Real-IP $remote_addr;
+```
 
 ## Environment variables
 
@@ -83,3 +95,6 @@ Students: `/schedule/` (today) and `/schedule/week/` (week view). Staff:
 | `SECURE_HSTS_PRELOAD` | `false` | Opt in to HSTS preload (production only). |
 | `LOG_LEVEL` | `INFO` | Logging level. |
 | `DEMO_PASSWORD` | (none) | Password for demo accounts; required by `seed_demo`. |
+| `LOGIN_FAILURE_LIMIT` | `5` | Failures per (username, IP) before login lockout. |
+| `LOGIN_LOCKOUT_SECONDS` | `900` | Login lockout duration in seconds. |
+| `CLIENT_IP_HEADER` | (empty) | Proxy header for the client IP (`X-Real-IP` or `X-Forwarded-For`). |

@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -39,6 +40,25 @@ class User(AbstractUser):
 
     def __str__(self) -> str:
         return self.username
+
+    def clean(self):
+        super().clean()
+        if self.pk is None:
+            return
+        errors = []
+        if (
+            self.role != self.Role.STUDENT
+            and StudentProfile.objects.filter(user_id=self.pk).exists()
+        ):
+            errors.append(
+                "У пользователя есть профиль студента. Удалите профиль, затем меняйте роль."
+            )
+        if self.role != self.Role.STAFF and StaffProfile.objects.filter(user_id=self.pk).exists():
+            errors.append(
+                "У пользователя есть профиль сотрудника. Удалите профиль, затем меняйте роль."
+            )
+        if errors:
+            raise ValidationError(errors)
 
 
 class StudentProfile(models.Model):
@@ -86,6 +106,17 @@ class StudentProfile(models.Model):
     def course(self) -> int:
         return self.group.course
 
+    def clean(self):
+        super().clean()
+        if self.user_id is None:
+            return
+        if self.user.role != User.Role.STUDENT:
+            raise ValidationError(
+                "Профиль студента можно привязать только к пользователю с ролью «Студент»."
+            )
+        if StaffProfile.objects.filter(user_id=self.user_id).exists():
+            raise ValidationError("У пользователя уже есть профиль сотрудника.")
+
 
 class StaffProfile(models.Model):
     user = models.OneToOneField(
@@ -119,3 +150,37 @@ class StaffProfile(models.Model):
         return " ".join(
             part for part in (self.last_name, self.first_name, self.middle_name) if part
         )
+
+    def clean(self):
+        super().clean()
+        if self.user_id is None:
+            return
+        if self.user.role != User.Role.STAFF:
+            raise ValidationError(
+                "Профиль сотрудника можно привязать только к пользователю "
+                "с ролью «Сотрудник деканата»."
+            )
+        if StudentProfile.objects.filter(user_id=self.user_id).exists():
+            raise ValidationError("У пользователя уже есть профиль студента.")
+
+
+class LoginThrottle(models.Model):
+    username_key = models.CharField("логин", max_length=150)
+    ip_address = models.GenericIPAddressField("IP-адрес")
+    failures = models.PositiveIntegerField("неудачных попыток", default=0)
+    first_failure_at = models.DateTimeField("первая неудача")
+    last_failure_at = models.DateTimeField("последняя неудача")
+    locked_until = models.DateTimeField("заблокирован до", null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["username_key", "ip_address"], name="accounts_loginthrottle_unique_key"
+            )
+        ]
+        indexes = [models.Index(fields=["last_failure_at"], name="accounts_throttle_last_idx")]
+        verbose_name = "блокировка входа"
+        verbose_name_plural = "блокировки входа"
+
+    def __str__(self) -> str:
+        return f"{self.username_key} @ {self.ip_address}"

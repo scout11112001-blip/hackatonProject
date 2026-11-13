@@ -54,6 +54,9 @@ class WeeklyLesson(models.Model):
     )
     valid_from = models.DateField("действует с")
     valid_until = models.DateField("действует по")
+    seed_key = models.SlugField(
+        "ключ демо-данных", max_length=40, blank=True, default="", editable=False
+    )
 
     class Meta:
         ordering = ["weekday", "slot"]
@@ -70,6 +73,11 @@ class WeeklyLesson(models.Model):
             models.CheckConstraint(
                 condition=models.Q(slot__gte=1) & models.Q(slot__lte=MAX_SLOT),
                 name="schedule_weekly_slot_range",
+            ),
+            models.UniqueConstraint(
+                fields=["seed_key"],
+                condition=~models.Q(seed_key=""),
+                name="schedule_weekly_unique_seed_key",
             ),
         ]
         verbose_name = "занятие (еженедельное)"
@@ -119,6 +127,9 @@ class LessonChange(models.Model):
     )
     reason = models.CharField("причина", max_length=200)
     created_at = models.DateTimeField("создано", auto_now_add=True)
+    seed_key = models.SlugField(
+        "ключ демо-данных", max_length=40, blank=True, default="", editable=False
+    )
 
     class Meta:
         ordering = ["original_date"]
@@ -133,6 +144,11 @@ class LessonChange(models.Model):
             ),
             models.CheckConstraint(
                 condition=~models.Q(reason=""), name="schedule_change_reason_required"
+            ),
+            models.UniqueConstraint(
+                fields=["seed_key"],
+                condition=~models.Q(seed_key=""),
+                name="schedule_change_unique_seed_key",
             ),
             models.CheckConstraint(
                 name="schedule_change_fields_match_kind",

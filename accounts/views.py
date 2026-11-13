@@ -5,6 +5,7 @@ from django.db.models import QuerySet
 from django.views.generic import DetailView, ListView, TemplateView
 
 from .access import StaffRequiredMixin
+from .forms import ThrottledAuthenticationForm
 from .models import StaffProfile, StudentProfile
 from .selectors import students_visible_to
 
@@ -12,6 +13,7 @@ from .selectors import students_visible_to
 class DeaneryLoginView(LoginView):
     template_name = "accounts/login.html"
     redirect_authenticated_user = True
+    authentication_form = ThrottledAuthenticationForm
 
 
 class ProfileView(TemplateView):

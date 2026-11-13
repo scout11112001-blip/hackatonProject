@@ -152,6 +152,18 @@ def seed_demo_data(password: str) -> SeedSummary:
     if not password:
         raise DemoSeedError("DEMO_PASSWORD is empty.")
     with transaction.atomic():
+        for seed in STUDENT_SEEDS:
+            taken = (
+                StudentProfile.objects.filter(record_number=seed.record_number)
+                .exclude(user__username=seed.username)
+                .exists()
+            )
+            if taken:
+                raise DemoSeedError(
+                    f"Record number {seed.record_number} is already used by another student; "
+                    f"cannot create demo user '{seed.username}'."
+                )
+
         faculties = {}
         for seed in FACULTY_SEEDS:
             faculty, _ = Faculty.objects.update_or_create(

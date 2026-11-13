@@ -4,6 +4,7 @@ from django.test import SimpleTestCase
 from config.env_utils import (
     DEV_SECRET_KEY,
     resolve_admin_url,
+    resolve_client_ip_header,
     resolve_secret_key,
 )
 
@@ -49,3 +50,19 @@ class ResolveAdminUrlTests(SimpleTestCase):
             with self.subTest(bad=bad):
                 with self.assertRaises(ImproperlyConfigured):
                     resolve_admin_url(bad, False)
+
+
+class ResolveClientIpHeaderTests(SimpleTestCase):
+    def test_empty(self):
+        self.assertEqual(resolve_client_ip_header(""), "")
+        self.assertEqual(resolve_client_ip_header("   "), "")
+
+    def test_real_ip(self):
+        self.assertEqual(resolve_client_ip_header("X-Real-IP"), "HTTP_X_REAL_IP")
+
+    def test_forwarded_for(self):
+        self.assertEqual(resolve_client_ip_header("x-forwarded-for"), "HTTP_X_FORWARDED_FOR")
+
+    def test_unknown_raises(self):
+        with self.assertRaises(ImproperlyConfigured):
+            resolve_client_ip_header("X-Client-IP")

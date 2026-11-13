@@ -1,3 +1,6 @@
+import os
+from unittest import skipUnless
+
 from django.conf import settings
 from django.test import SimpleTestCase
 from django.urls import reverse
@@ -40,3 +43,14 @@ class SettingsTests(SimpleTestCase):
             settings.MIDDLEWARE.index("django.contrib.auth.middleware.AuthenticationMiddleware")
             + 1,
         )
+
+    @skipUnless(
+        "LOGIN_FAILURE_LIMIT" not in os.environ
+        and "LOGIN_LOCKOUT_SECONDS" not in os.environ
+        and "CLIENT_IP_HEADER" not in os.environ,
+        "login throttle env vars are set",
+    )
+    def test_login_throttle_defaults(self):
+        self.assertEqual(settings.LOGIN_FAILURE_LIMIT, 5)
+        self.assertEqual(settings.LOGIN_LOCKOUT_SECONDS, 900)
+        self.assertEqual(settings.CLIENT_IP_HEADER, "")

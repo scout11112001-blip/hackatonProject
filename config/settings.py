@@ -3,8 +3,9 @@
 from pathlib import Path
 
 import environ
+from django.core.exceptions import ImproperlyConfigured
 
-from config.env_utils import resolve_admin_url, resolve_secret_key
+from config.env_utils import resolve_admin_url, resolve_client_ip_header, resolve_secret_key
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env()
@@ -21,6 +22,12 @@ ALLOWED_HOSTS = env.list(
 )
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 ADMIN_URL = resolve_admin_url(env.str("ADMIN_URL", default=""), DEBUG)
+
+LOGIN_FAILURE_LIMIT = env.int("LOGIN_FAILURE_LIMIT", default=5)
+LOGIN_LOCKOUT_SECONDS = env.int("LOGIN_LOCKOUT_SECONDS", default=900)
+if LOGIN_FAILURE_LIMIT < 1 or LOGIN_LOCKOUT_SECONDS < 1:
+    raise ImproperlyConfigured("LOGIN_FAILURE_LIMIT and LOGIN_LOCKOUT_SECONDS must be positive.")
+CLIENT_IP_HEADER = resolve_client_ip_header(env.str("CLIENT_IP_HEADER", default=""))
 
 INSTALLED_APPS = [
     "django.contrib.admin",
