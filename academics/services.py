@@ -6,6 +6,7 @@ from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.db.models import Q
+from django.utils import timezone
 
 from accounts.models import StudentProfile
 from schedule.models import ChangeKind, LessonChange, WeeklyLesson
@@ -286,3 +287,43 @@ def student_overview(student: StudentProfile, today: date) -> StudentOverview:
         status_text=status_text(len(debts)),
         overall_average=average_grade(eff.values()),
     )
+
+
+def attendance_change_guard(change: LessonChange, deleting: bool) -> list[str]:
+    """Reject changes that would hide existing attendance records.
+
+    Registered via schedule.guards so that the schedule app never imports academics.
+    """
+    if change.weekly_lesson_id is None or change.original_date is None:
+        return []
+    count = Attendance.objects.filter(
+        weekly_lesson_id=change.weekly_lesson_id, original_date=change.original_date
+    ).count()
+    if count == 0:
+        return []
+    today = timezone.localdate()
+    d = f"{change.original_date:%d.%m.%Y}"
+    if not deleting:
+        if change.kind == ChangeKind.CANCELLED:
+            return [
+                f"Нельзя отменить занятие {d}: есть отметки посещения ({count}). "
+                "Сначала удалите их."
+            ]
+        effective = change.new_date if change.kind == ChangeKind.MOVED else change.original_date
+        if effective is not None and effective > today:
+            if change.kind == ChangeKind.MOVED:
+                return [
+                    f"Нельзя перенести занятие {d} на будущую дату: есть отметки посещения "
+                    f"({count}). Сначала удалите их."
+                ]
+            return [
+                f"Нельзя сохранить изменение занятия {d}: занятие окажется в будущем, "
+                f"а отметки посещения ({count}) уже есть. Сначала удалите их."
+            ]
+    else:
+        if change.kind == ChangeKind.MOVED and change.original_date > today:
+            return [
+                f"Нельзя удалить перенос занятия {d}: занятие вернётся на будущую дату, "
+                f"а отметки посещения ({count}) уже есть. Сначала удалите их."
+            ]
+    return []

@@ -7,6 +7,7 @@ from django.core.management import call_command
 from django.test import TestCase
 
 from accounts.demo import seed_demo_data
+from core.testing import FrozenClockMixin
 from schedule.demo import seed_schedule_demo
 from schedule.models import ChangeKind, LessonChange, WeeklyLesson
 from schedule.services import week_schedule
@@ -16,7 +17,7 @@ from university.models import Discipline, Room, StudyGroup, Teacher
 from .helpers import aware
 
 
-class ScheduleDemoTests(TestCase):
+class ScheduleDemoTests(FrozenClockMixin, TestCase):
     def _seed(self, today: date):
         seed_demo_data("Demo-Pass-2026-test!")
         return seed_schedule_demo(today)

@@ -5,6 +5,7 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase
 
 from accounts.tests.helpers import make_faculty, make_group
+from core.testing import FrozenClockMixin
 from schedule.forms import WeeklyLessonAdminForm
 from schedule.models import ChangeKind, LessonChange, WeeklyLesson
 from schedule.mutations import save_lesson_change, save_weekly_lesson
@@ -12,7 +13,7 @@ from schedule.mutations import save_lesson_change, save_weekly_lesson
 from .helpers import make_discipline, make_lesson, make_room, make_teacher
 
 
-class ValidationFixture(TestCase):
+class ValidationFixture(FrozenClockMixin, TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.faculty = make_faculty("FX")

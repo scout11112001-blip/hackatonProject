@@ -6219,3 +6219,386 @@ All existing verification commands pass (check, deploy check, makemigrations --c
 - Новые тесты проверят поведение в 23:59:59 и 00:00:00 по Москве. Отдельный тест покажет, что часовой пояс компьютера на результат не влияет.
 
 **Ограничения.** Два ограничения, которые вы приняли, будут записаны в README в разделе «Known limitations». Первое: после перевода студента в другую группу не видна посещаемость прежней группы. Второе: `seed_demo` не обновляет уже существующие строки успеваемости.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-005-FIX] Team lead -> Planner: TASK
+Spec amendment 1 (approved by the user after a Reviewer ESCALATION). Add a section "Amendment 1" to `docs/tasks/TASK-005-FIX.md` and hand it to the Coder. The current implementation is otherwise correct; keep it.
+
+## A1. Edit path of the "restored occurrence" defect
+The spec closed only the DELETE path. Editing a LessonChange can restore a hidden occurrence without checks. Reproduced by the Reviewer:
+- Setup: lesson A (G1, R1, Mon slot 2) is CANCELLED on 23.11.2026; lesson B is MOVED into 23.11 slot 2 with new_room=R1.
+- Edit A's change kind CANCELLED -> TEACHER_REPLACED (+ new_teacher) via save_lesson_change -> saved; R1 has 2 happening occurrences on 23.11 slot 2.
+- Edit A's change original_date 23.11 -> 30.11 -> saved; same double booking on 23.11.
+- Same blind spot in the attendance guard: editing the original_date of a MOVED change can return an occurrence that has attendance records to a future date.
+Cause: LessonChange.clean() validates only the NEW state and never the effect of leaving the OLD state.
+Required behaviour: when an existing change is edited so that it stops hiding its old occurrence (old kind CANCELLED / MOVED / ROOM_CHANGED and the new kind is TEACHER_REPLACED, or original_date or weekly_lesson changes, or the move target changes), run the same checks as delete for the OLD state (restored-occurrence conflicts and the delete guards) in addition to the existing checks for the NEW state, inside the same transaction and locking order. Reviewer's suggestion (your decision): in clean() when pk is set, load the stored row and run restored_occurrence_conflicts(old_row) and run_change_guards(old_row, deleting=True). Admin edits must show a form error, never 500.
+Regression tests: both scenarios above, the attendance scenario, and a positive case (an edit that does not restore a conflicting occurrence is still allowed).
+
+## A2. Exclude the process archive from ruff
+`docs/process/` holds verbatim agent dialog backups (Markdown). ruff 0.17 formats code blocks inside .md files, so `ruff format --check .` (a CI step) fails on the committed archive and `ruff format .` rewrites it. Add `docs/process` to `extend-exclude` in `pyproject.toml`. Verify: `ruff format --check .` and `ruff check .` pass without touching docs/process. Never run `ruff format` on docs/process.
+
+## Reminder for the Coder (protocol)
+Do not delete or recreate the local `db.sqlite3` (or any database) without Team lead approval. Use a temporary database (e.g. DATABASE_URL=sqlite:///$TMPDIR/...) for seed checks.
+
+── Ran 4 commands ──────────────────────────────────────────
+  ── Thought for 39s
+    I'm checking where the implementation stands: the coder's uncommitted changes are expected for this task, so they're fine. I'm looking at the current `LessonChange.clean`, `restored_occurrence_conflicts`, the pyproject, whether the docs/process files exist, and the failing ruff format check.
+
+    I also need to make sure the old-state check accounts for the new state as well, for example when a CANCELLED occurrence is changed to TEACHER_REPLACED on the same date.
+
+    I'm checking whether the old-state check also has to account for the new state, such as a cancelled occurrence being changed to a teacher replacement on the same date. If the edit keeps the old occurrence hidden, I don't need the check, but when it is released or its kind changes, the conflict check on the old row applies.
+
+    I'm working out when the old-state check is actually needed: only when the edit releases a hidden occurrence and its old kind was CANCELLED, MOVED, or ROOM_CHANGED. Switching from CANCELLED to MOVED or ROOM_CHANGED doesn't free the original slot in a way that needs a restore check, since the new-state check already covers the target and groups. Running the old check there would wrongly block a valid edit because of another lesson in room R1.
+
+    I'm working out the ROOM_CHANGED-to-TEACHER_REPLACED case: the occurrence returns to the lesson's room, so the restore check on room R1 applies there. The group check at that slot already ran under the ROOM_CHANGED state, so it shouldn't need to run again.
+
+    I'm working out when the old-state restore check is actually needed: when the edit releases a hidden occurrence whose old kind was CANCELLED, MOVED, or ROOM_CHANGED, or when it ends up as a TEACHER_REPLACED. Switching between CANCELLED, MOVED, and ROOM_CHANGED doesn't need it, since the new-state check already covers the target slot and groups.
+
+    I'm checking the old-state restore case for a MOVED occurrence whose edit changes it to ROOM_CHANGED on the same date: the occurrence returns to its original date, and if that date is still in the future with attendance records, it stays hidden. My current rule doesn't catch that, so I need to account for it.
+
+    I'm settling on the guard rule: when an old MOVED occurrence moves back to its original date, I'll run the old-state attendance guard, and I'll apply the restored-occurrence conflict check to the cases where the occurrence returns to the lesson's room.
+
+    I'm settling on a generalized new-state attendance guard: if records exist for the new lesson and original date, a cancelled occurrence is rejected, and so is one whose effective date lies in the future. For the old state, I'll run the deleting guard whenever the occurrence's lesson or original date changes, or its kind changes.
+
+    I'm settling the guard conditions: the old-state restore check applies only when the occurrence's identity (lesson or original date) changes, or when the new kind is TEACHER_REPLACED. If the identity stays the same, the new-state guard already evaluates the same records against the new effective date, so it's enough. I'm also checking whether widening the non-deleting guard would break any existing tests.
+
+    For an identity change, the restore check on the old row is still needed, but `change_conflicts` would read the old row from the DB. That old row still holds the MOVED_IN item at the original date, so the new target would collide with the edit's own former move target. The check has to exclude the row being edited before it reads the DB.
+
+    I'm adding a skip in `change_conflicts` for items whose `change` pk matches the row being edited, so the edit doesn't collide with its own old moved-in item. That same false positive already shows up when editing the original date of a MOVED occurrence, and it should be fixed at the same time.
+
+    I'm planning to take all the locks in one pass before running the checks, so the rooms and groups are always locked in the same global order and two transactions can't deadlock against each other.
+
+    I'm sketching a helper, `released_occurrence_errors`, that checks whether an edit frees an occurrence's original slot, and I'm planning to call it from `LessonChange.clean()` once the old row is loaded.
+
+    I'm settling the error handling for the edit path: the restore conflicts get a prefix that fits an edit rather than a delete, and the guards run against the old row when the identity changed. I'm also planning to lock the rooms and groups from both the old and new lesson in one pass before running any checks.
+
+    I'm adjusting the attendance guard for non-deleting edits: a cancelled occurrence is still rejected, and an effective date in the future is rejected when records exist, with the message differing for moved occurrences. Next I'll check the existing implementation names, whether the docs and process files exist, and whether `ruff format --check` currently fails.
+  ── Ran git status --short | head -30 && ls docs/process 2>&1 | head -5 && grep -n "extend-exclude" pyproject.toml && source .venv/bin/activate && ruff --version && ruff format --check . 2>&1 | tail -3; ruff check . 2>&1 | tail -2; grep -n "def restored_occurrence_conflicts\|def change_conflicts" -A 30 schedule/validation.py | grep -n "skip\|continue\|def \|lock" ; grep -n "def attendance_change_guard" -A 30 academics/services.py; grep -n "run_change_guards\|change_conflicts" schedule/models.py (2s)
+    $ git status --short | head -30 && ls docs/process 2>&1 | head -5 && grep -n "extend-exclude" pyproject.toml && source .venv/bin/activate && ruff --version && ruff format --check . 2>&1 | tail -3; ruff check . 2>&1 | tail -2; grep -n "def restored_occurrence_conflicts\|def change_conflicts" -A 30 schedule/validation.py | grep -n "skip\|continue\|def \|lock" ; grep -n "def attendance_change_guard" -A 30 academics/services.py; grep -n "run_change_guards\|change_conflicts" schedule/models.py
+    M .github/workflows/ci.yml
+     M README.md
+     M academics/apps.py
+     M academics/services.py
+     M academics/tests/test_demo.py
+     M academics/tests/test_models.py
+     M academics/tests/test_services.py
+     M academics/tests/test_views.py
+     M accounts/tests/test_seed_demo.py
+     M plan.md
+     M schedule/admin.py
+     M schedule/models.py
+     M schedule/mutations.py
+     M schedule/tests/test_demo.py
+     M schedule/tests/test_demo_marker.py
+     M schedule/tests/test_locking.py
+     M schedule/tests/test_revalidation.py
+     M schedule/tests/test_services.py
+     M schedule/tests/test_validation.py
+     M schedule/tests/test_views.py
+     M schedule/validation.py
+    ?? academics/tests/test_change_guard.py
+    ?? academics/tests/test_clock_boundaries.py
+    ?? core/testing.py
+    ?? docs/tasks/TASK-005-FIX.md
+    ?? schedule/guards.py
+    ?? schedule/tests/test_change_delete.py
+    ?? scripts/
+    README.md
+    dialogs
+    screenshots
+    4:extend-exclude = ["*/migrations/*", ".venv", "staticfiles"]
+    ruff 0.17.4
+          |
+
+    1 file would be reformatted, 108 files already formatted
+    All checks passed!
+    1:171:def change_conflicts(change: LessonChange) -> list[str]:
+    16:186-    locking.lock_rooms_and_groups([target_room_id], group_ids)
+    22:192-            continue
+    24:194-            continue
+    33:209:def restored_occurrence_conflicts(change: LessonChange) -> list[str]:
+    41:217-    locking.lock_rooms_and_groups([lesson.room_id], group_ids)
+    47:223-            continue
+    49:225-            continue
+    292:def attendance_change_guard(change: LessonChange, deleting: bool) -> list[str]:
+    293-    """Reject changes that would hide existing attendance records.
+    294-
+    295-    Registered via schedule.guards so that the schedule app never imports academics.
+    296-    """
+    297-    if change.weekly_lesson_id is None or change.original_date is None:
+    298-        return []
+    299-    count = Attendance.objects.filter(
+    300-        weekly_lesson_id=change.weekly_lesson_id, original_date=change.original_date
+    301-    ).count()
+    302-    if count == 0:
+    303-        return []
+    304-    today = timezone.localdate()
+    305-    d = f"{change.original_date:%d.%m.%Y}"
+    306-    if not deleting:
+    307-        if change.kind == ChangeKind.CANCELLED:
+    308-            return [
+    309-                f"Нельзя отменить занятие {d}: есть отметки посещения ({count}). "
+    310-                "Сначала удалите их."
+    311-            ]
+    312-        if (
+    313-            change.kind == ChangeKind.MOVED
+    314-            and change.new_date is not None
+    315-            and change.new_date > today
+    316-        ):
+    317-            return [
+    318-                f"Нельзя перенести занятие {d} на будущую дату: есть отметки посещения ({count}). "
+    319-                "Сначала удалите их."
+    320-            ]
+    321-    else:
+    322-        if change.kind == ChangeKind.MOVED and change.original_date > today:
+    245:        from .guards import run_change_guards
+    247:        guard_errors = run_change_guards(self, deleting=False)
+    251:        from .validation import change_conflicts
+    253:        conflicts = change_conflicts(self)
+  ── Thought for 8ms
+    I'm checking whether the file that would be reformatted is in docs/process. I also want to look at the restored_occurrence_conflicts signature and message, along with the skip rule lines in change_conflicts.
+  ── Ran source .venv/bin/activate && ruff format --check . 2>&1 | grep -i "would reformat"; sed -n 171,245p schedule/validation.py; sed -n 225,260p schedule/models.py
+    $ source .venv/bin/activate && ruff format --check . 2>&1 | grep -i "would reformat"; sed -n 171,245p schedule/validation.py; sed -n 225,260p schedule/models.py
+    def change_conflicts(change: LessonChange) -> list[str]:
+        if change.kind in (ChangeKind.CANCELLED, ChangeKind.TEACHER_REPLACED):
+            return []
+
+        lesson = change.weekly_lesson
+        if change.kind == ChangeKind.MOVED:
+            target_date = change.new_date
+            target_slot = change.new_slot
+        else:  # ROOM_CHANGED
+            target_date = change.original_date
+            target_slot = lesson.slot
+
+        target_room_id = change.new_room_id or lesson.room_id
+        group_ids = set(lesson.groups.values_list("id", flat=True))
+
+        locking.lock_rooms_and_groups([target_room_id], group_ids)
+
+        items = occurrences_between(target_date, target_date, None)
+        conflicts: list[str] = []
+        for item in items:
+            if not item.is_happening or item.slot.number != target_slot:
+                continue
+            if item.lesson.id == lesson.id and item.original_date == change.original_date:
+                continue
+            if item.room.id == target_room_id:
+                conflicts.append(
+                    f"Аудитория {item.room.number} занята: {item.lesson.discipline.name}, "
+                    f"{target_date:%d.%m.%Y}, {target_slot} пара."
+                )
+            for g in item.lesson.groups.all():
+                if g.id in group_ids:
+                    conflicts.append(
+                        f"Группа {g.name} занята: {item.lesson.discipline.name}, "
+                        f"{target_date:%d.%m.%Y}, {target_slot} пара."
+                    )
+        return conflicts
+
+
+    def restored_occurrence_conflicts(change: LessonChange) -> list[str]:
+        """Conflicts when ``change`` is removed and its original occurrence becomes regular again."""
+        if change.kind == ChangeKind.TEACHER_REPLACED:
+            return []
+
+        lesson = change.weekly_lesson
+        group_ids = set(lesson.groups.values_list("id", flat=True))
+
+        locking.lock_rooms_and_groups([lesson.room_id], group_ids)
+
+        items = occurrences_between(change.original_date, change.original_date, None)
+        conflicts: list[str] = []
+        for item in items:
+            if not item.is_happening or item.slot.number != lesson.slot:
+                continue
+            if item.lesson.id == lesson.id and item.original_date == change.original_date:
+                continue
+            if item.room.id == lesson.room_id:
+                conflicts.append(
+                    f"Нельзя удалить изменение: {change.original_date:%d.%m.%Y}, {lesson.slot} пара, "
+                    f"аудитория {item.room.number} уже занята ({item.lesson.discipline.name})."
+                )
+            for g in item.lesson.groups.all():
+                if g.id in group_ids:
+                    conflicts.append(
+                        f"Нельзя удалить изменение: {change.original_date:%d.%m.%Y}, "
+                        f"{lesson.slot} пара, группа {g.name} уже занята "
+                        f"({item.lesson.discipline.name})."
+                    )
+        return conflicts
+            }
+            for field in forbidden.get(self.kind, ()):
+                if getattr(self, field) is not None:
+                    errors.setdefault(field, []).append("Не заполняйте для этого вида изменения.")
+
+            if self.kind == ChangeKind.MOVED:
+                if (self.new_date, self.new_slot) == (self.original_date, lesson.slot) and (
+                    self.new_room is None or self.new_room_id == lesson.room_id
+                ):
+                    errors.setdefault("new_date", []).append("Новое время совпадает со старым.")
+            elif self.kind == ChangeKind.ROOM_CHANGED:
+                if self.new_room_id == lesson.room_id:
+                    errors.setdefault("new_room", []).append("Аудитория не изменилась.")
+            elif self.kind == ChangeKind.TEACHER_REPLACED:
+                if self.new_teacher_id == lesson.teacher_id:
+                    errors.setdefault("new_teacher", []).append("Преподаватель не изменился.")
+
+            if errors:
+                raise ValidationError(errors)
+
+            from .guards import run_change_guards
+
+            guard_errors = run_change_guards(self, deleting=False)
+            if guard_errors:
+                raise ValidationError(guard_errors)
+
+            from .validation import change_conflicts
+
+            conflicts = change_conflicts(self)
+            if conflicts:
+                raise ValidationError(conflicts)
+  ── Ran source .venv/bin/activate && ruff format --check . 2>&1 | head -5; ruff format --check --extend-exclude docs/process . 2>&1 | tail -1
+    $ source .venv/bin/activate && ruff format --check . 2>&1 | head -5; ruff format --check --extend-exclude docs/process . 2>&1 | tail -1
+    unformatted: File would be reformatted
+         --> docs/process/dialogs/03-coder-deepseek.md:148:47
+          |
+    147   |          if _env_file.is_file():
+          -              environ.Env.read_env(_env_file)   # overwrite=False (default): real env vars win
+    104 files already formatted
+  ── Thought for 3ms
+    I've confirmed that the `docs/process` exclusion works in pyproject's `extend-exclude`, the same as it did on the command line. Now I'm writing the amendment.
+  ── Ran cat >> docs/tasks/TASK-005-FIX.md <<'EOF' --- ## Amendment 1 (Team lead, approved by the user after a Reviewer ESCALATION) Keep the current implementation. Add only what is below. ### A1. Edit path of the "restored occurrence" defect #### A1.1 Analysis — which edits release the old occurrence `LessonChange.clean()` validates only the new state. An edit can also **release** the old state. Identity = `(weekly_lesson_id, original_date)`. For an existing row (`pk` set) compare the stored row `old` with the edited instance `new`: | Edit | Effect on the old occurrence | Check needed for the OLD state | |---|---|---| | identity changed (`weekly_lesson` or `original_date`), old kind CANCELLED / MOVED / ROOM_CHANGED | old occurrence becomes regular again | restored-occurrence conflicts **and** delete guards | | identity changed, old kind TEACHER_REPLACED | old occurrence keeps room/slot | delete guards only (no room/group effect) | | same identity, old kind CANCELLED / MOVED / ROOM_CHANGED → new kind TEACHER_REPLACED | occurrence returns to `lesson.room` at the original slot | restored-occurrence conflicts | | same identity, CANCELLED/ROOM_CHANGED → MOVED, CANCELLED/MOVED → ROOM_CHANGED, any → CANCELLED, MOVED target change | the original slot stays free or the new placement is fully checked by the existing new-state checks (`change_conflicts` checks room **and** groups of the new placement) | none (a check here would give false positives: the freed room may already be used legitimately) | The Team lead's list included "the move target changes". Analysis: changing `new_date`/`new_slot`/`new_room` of a MOVED change with the same identity frees the old target (freeing never conflicts), and the new target is checked by `change_conflicts`. So no old-state check is needed for this case. Attendance with the same identity: the records stay with the occurrence, so the **new-state** guard must judge the new placement for **every** kind, not only MOVED (example: MOVED to a past date with records → edited to ROOM_CHANGED; the occurrence goes back to its future original date and the records disappear from the report). See A1.3. Self-conflict found during the analysis: when the identity of a MOVED/ROOM_CHANGED change is edited, `change_conflicts` reads the DB, where the old row still produces an item (for example the old MOVED_IN item) with another `original_date`. That item is not skipped and reports a conflict with itself. Fix in A1.4. #### A1.2 New function `schedule/validation.py` ```python def released_occurrence_errors(old: LessonChange, new: LessonChange) -> list[str] ``` 1. `identity_changed = old.weekly_lesson_id != new.weekly_lesson_id or old.original_date != new.original_date`. 2. `hides = old.kind in (CANCELLED, MOVED, ROOM_CHANGED)`. 3. `restores = hides and (identity_changed or new.kind == TEACHER_REPLACED)`. 4. If not `restores` and not `identity_changed` → `[]`. 5. Locking (one call, before any check, keeps the global order): rooms = `{old.weekly_lesson.room_id, new.weekly_lesson.room_id, new.new_room_id}`; groups = groups of `old.weekly_lesson` ∪ groups of `new.weekly_lesson`; `locking.lock_rooms_and_groups(rooms, groups)`. The later lock calls in `restored_occurrence_conflicts` / `change_conflicts` only re-lock rows that are already held. 6. `errors = []`; if `restores`: `errors += restored_occurrence_conflicts(old, prefix="Нельзя так изменить запись")`; if `identity_changed`: `errors += run_change_guards(old, deleting=True)`. 7. Return `errors`. `restored_occurrence_conflicts(change, prefix: str = "Нельзя удалить изменение")`: add the keyword parameter and use it instead of the fixed text "Нельзя удалить изменение" in both messages. Existing callers and tests stay unchanged. #### A1.3 `attendance_change_guard` — new-state branch (`deleting=False`) for every kind Replace the non-deleting branch with: 1. `kind == CANCELLED` → existing message (unchanged). 2. `effective = change.new_date if change.kind == MOVED else change.original_date`; if `effective is not None and effective > today`:    - `kind == MOVED` → existing MOVED message (unchanged);    - otherwise → `f"Нельзя сохранить изменение занятия {d}: занятие окажется в будущем, а отметки посещения ({count}) уже есть. Сначала удалите их."`. The deleting branch is unchanged. #### A1.4 `change_conflicts` — skip the row being edited In the loop, after the existing "same occurrence" skip, add: `if change.pk is not None and item.change is not None and item.change.pk == change.pk: continue` (the DB items produced by the stored version of this same change are replaced by the new state). Do the same in `restored_occurrence_conflicts` is **not** needed (it receives the stored row itself). #### A1.5 `LessonChange.clean()` order After the field-rule errors (unchanged) and before the new-state guards: ```python if self.pk is not None:     old = LessonChange.objects.select_related("weekly_lesson").filter(pk=self.pk).first()     if old is not None:         from .validation import released_occurrence_errors         released = released_occurrence_errors(old, self)         if released:             raise ValidationError(released) ``` Then the existing `run_change_guards(self, deleting=False)` and `change_conflicts(self)`. All errors are non-field → admin shows a form error, no 500. `clean()` runs inside `save_lesson_change`'s and the admin's transaction, so locks are held until commit. #### A1.6 Tests — `schedule/tests/test_change_edit.py` (new) `EditLessonChangeTests(FrozenClockMixin, TestCase)`; clock `2026-11-18 12:00`; fixture as in 6.3: L_A (G1, R1, Mon s2), cancel C on 23.11; L_B (G2, R2, Tue s1) MOVED 17.11 → 23.11 s2 with `new_room=R1`. Edits go through `save_lesson_change` on the fetched row (`LessonChange.objects.get(pk=...)`, change fields, save). 1. `test_cancel_to_teacher_replaced_rejected` — C: kind → TEACHER_REPLACED, `new_teacher=T2` → `ValidationError` with `f"аудитория {R1.number}"` and «23.11.2026»; DB row still CANCELLED. 2. `test_cancel_original_date_change_rejected` — C: `original_date` → 30.11 → rejected; DB row still 23.11. 3. `test_room_changed_to_teacher_replaced_rejected` — L_A ROOM_CHANGED on 23.11 to R5 (instead of C); L_D (G3, R6, Mon s2) ROOM_CHANGED on 23.11 to R1; edit L_A's change to TEACHER_REPLACED → rejected. 4. `test_group_conflict_on_restore_rejected` — L_C (G1, R3, Tue s1) MOVED to 23.11 s2 (own room); edit C to 30.11 → rejected with group G1. 5. `test_allowed_edits` (subTests, each from a fresh C): reason change → saved; `original_date` 23.11 → 30.11 when nothing occupies 23.11 s2 (delete L_B's move first) → saved; CANCELLED → MOVED to Wed 25.11 s4 (B still in R1 on 23.11) → saved (no false positive). 6. `test_move_target_change_allowed` — L_A MOVED 23.11 → 25.11 s4; edit `new_slot` to 5 → saved. 7. `test_move_original_date_change_no_self_conflict` — L_A MOVED 23.11 → 25.11 s4; edit `original_date` → 30.11 (same target) → saved (A1.4). 8. `test_admin_edit_shows_form_error` — superuser POST to `admin:schedule_lessonchange_change` for scenario 1 → 200, error text, no 500, DB unchanged. 9. `test_edit_locks_once_in_order` — patch `schedule.locking.lock_rooms_and_groups` with `wraps`; scenario 2 → the first call receives rooms `{R1}` and groups `{G1}` (union of old/new). `academics/tests/test_change_guard.py` — add to `AttendanceChangeGuardTests`: 10. `test_edit_move_original_date_returns_records_to_future_rejected` — L2 (G1, R2, Mon s3) MOVED 23.11 → 17.11 s4; attendance for (L2, 23.11); edit the move's `original_date` to 30.11 (new target unchanged) → rejected «отметки посещения» (old occurrence 23.11 returns to the future with records). 11. `test_edit_move_to_room_change_returns_records_to_future_rejected` — same setup; edit kind → ROOM_CHANGED (`new_date=None`, `new_slot=None`, `new_room=R3`) → rejected (A1.3). 12. `test_edit_without_releasing_records_allowed` — MOVED 16.11 → 17.11 with records on 16.11; edit `reason` → saved. ### A2. Exclude the process archive from ruff `pyproject.toml`: `extend-exclude = ["*/migrations/*", ".venv", "staticfiles", "docs/process"]`. Never run `ruff format` on `docs/process`. Feasibility evidence: today `ruff format --check .` → "1 file would be reformatted" (`docs/process/dialogs/03-coder-deepseek.md:148`); `ruff format --check --extend-exclude docs/process .` → "104 files already formatted". ### A3. Protocol reminder Do not delete or recreate `db.sqlite3` (or any database) without Team lead approval. For seed checks use a temporary DB: `DATABASE_URL=sqlite:///$TMPDIR/seedcheck.sqlite3 python manage.py migrate && DATABASE_URL=sqlite:///$TMPDIR/seedcheck.sqlite3 python manage.py seed_demo` (twice). ### A4. Feasibility check (amendment, 2026-11-13, working tree of TASK-005-FIX in progress) 1. Clean start — uncommitted files are this task's own changes (listed by `git status`) plus `plan.md`. OK for an amendment of the same task. 2. Referenced objects — `restored_occurrence_conflicts(change)` and `change_conflicts(change)` (`schedule/validation.py:171, 209`), `LessonChange.clean()` guard/conflict calls (`schedule/models.py:245-253`), `attendance_change_guard(change, deleting)` (`academics/services.py:292`), `ScheduleItem.change` field, `FrozenClockMixin` (`core/testing.py`), test file `academics/tests/test_change_guard.py`. OK. 3. No collisions — `released_occurrence_errors`, `schedule/tests/test_change_edit.py` do not exist. OK. 4. Migrations — none. OK. 5–7. Tools/framework/env — unchanged. OK. 8. Verification — ruff state recorded in A2; the rest as in section 9. 9. Conflicts — "move target changes" from the request needs no old-state check (A1.1); the new-state guard is extended instead (A1.3). Not a contradiction of the requirement (every release of an occurrence is checked). 10. Assumptions / blockers — none. ### A5. Order and verification 1. A2 first (`ruff format --check .` passes). 2. Write A1.6 tests; confirm 1–4, 7, 8, 10, 11 fail. 3. Implement A1.2–A1.5. 4. Section 9 commands (seed checks with the temporary DB from A3). `REPORT` to the Reviewer with the regression evidence. Do not commit. EOF bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF' [TASK-005-FIX] Planner -> Coder: TASK Spec amendment: docs/tasks/TASK-005-FIX.md, section "Amendment 1" (approved by the user). Keep the current implementation; add: - A1: new `released_occurrence_errors(old, new)` in schedule/validation.py called from `LessonChange.clean()` when pk is set (edit path): restored-occurrence conflicts when an edit releases a hidden occurrence, delete guards when the identity changes; one lock call over old+new rooms/groups first. `restored_occurrence_conflicts` gets a `prefix` kwarg. `change_conflicts` skips items produced by the row being edited. `attendance_change_guard` new-state branch applies to every kind (effective date in the future with records -> reject). - A2: add "docs/process" to ruff extend-exclude; never format docs/process. - A3: never delete db.sqlite3; seed checks on a temporary DATABASE_URL. - Tests: schedule/tests/test_change_edit.py (9) + 3 in academics/tests/test_change_guard.py; confirm regressions fail first (A5). EOF (1s)
+    $ cat >> docs/tasks/TASK-005-FIX.md <<'EOF'
+
+  ---
+
+  ## Amendment 1 (Team lead, approved by the user after a Reviewer ESCALATION)
+
+  Keep the current implementation. Add only what is below.
+
+  ### A1. Edit path of the "restored occurrence" defect
+
+  #### A1.1 Analysis — which edits release the old occurrence
+  `LessonChange.clean()` validates only the new state. An edit can also **release** the old state. Identity = `(weekly_lesson_id, original_date)`. For an existing row (`pk` set) compare the stored row `old` with the edited instance `new`:
+
+  | Edit | Effect on the old occurrence | Check needed for the OLD state |
+  |---|---|---|
+  | identity changed (`weekly_lesson` or `original_date`), old kind CANCELLED / MOVED / ROOM_CHANGED | old occurrence becomes regular again | restored-occurrence conflicts **and** delete guards |
+  | identity changed, old kind TEACHER_REPLACED | old occurrence keeps room/slot | delete guards only (no room/group effect) |
+  | same identity, old kind CANCELLED / MOVED / ROOM_CHANGED → new kind TEACHER_REPLACED | occurrence returns to `lesson.room` at the original slot | restored-occurrence conflicts |
+  | same identity, CANCELLED/ROOM_CHANGED → MOVED, CANCELLED/MOVED → ROOM_CHANGED, any → CANCELLED, MOVED target change | the original slot stays free or the new placement is fully checked by the existing new-state checks (`change_conflicts` checks room **and** groups of the new placement) | none (a check here would give false positives: the freed room may already be used legitimately) |
+
+  The Team lead's list included "the move target changes". Analysis: changing `new_date`/`new_slot`/`new_room` of a MOVED change with the same identity frees the old target (freeing never conflicts), and the new target is checked by `change_conflicts`. So no old-state check is needed for this case.
+
+  Attendance with the same identity: the records stay with the occurrence, so the **new-state** guard must judge the new placement for **every** kind, not only MOVED (example: MOVED to a past date with records → edited to ROOM_CHANGED; the occurrence goes back to its future original date and the records disappear from the report). See A1.3.
+
+  Self-conflict found during the analysis: when the identity of a MOVED/ROOM_CHANGED change is edited, `change_conflicts` reads the DB, where the old row still produces an item (for example the old MOVED_IN item) with another `original_date`. That item is not skipped and reports a conflict with itself. Fix in A1.4.
+
+  #### A1.2 New function `schedule/validation.py`
+  ```python
+  def released_occurrence_errors(old: LessonChange, new: LessonChange) -> list[str]
+  ```
+  1. `identity_changed = old.weekly_lesson_id != new.weekly_lesson_id or old.original_date != new.original_date`.
+  2. `hides = old.kind in (CANCELLED, MOVED, ROOM_CHANGED)`.
+  3. `restores = hides and (identity_changed or new.kind == TEACHER_REPLACED)`.
+  4. If not `restores` and not `identity_changed` → `[]`.
+  5. Locking (one call, before any check, keeps the global order): rooms = `{old.weekly_lesson.room_id, new.weekly_lesson.room_id, new.new_room_id}`; groups = groups of `old.weekly_lesson` ∪ groups of `new.weekly_lesson`; `locking.lock_rooms_and_groups(rooms, groups)`. The later lock calls in `restored_occurrence_conflicts` / `change_conflicts` only re-lock rows that are already held.
+  6. `errors = []`; if `restores`: `errors += restored_occurrence_conflicts(old, prefix="Нельзя так изменить запись")`; if `identity_changed`: `errors += run_change_guards(old, deleting=True)`.
+  7. Return `errors`.
+
+  `restored_occurrence_conflicts(change, prefix: str = "Нельзя удалить изменение")`: add the keyword parameter and use it instead of the fixed text "Нельзя удалить изменение" in both messages. Existing callers and tests stay unchanged.
+
+  #### A1.3 `attendance_change_guard` — new-state branch (`deleting=False`) for every kind
+  Replace the non-deleting branch with:
+  1. `kind == CANCELLED` → existing message (unchanged).
+  2. `effective = change.new_date if change.kind == MOVED else change.original_date`; if `effective is not None and effective > today`:
+     - `kind == MOVED` → existing MOVED message (unchanged);
+     - otherwise → `f"Нельзя сохранить изменение занятия {d}: занятие окажется в будущем, а отметки посещения ({count}) уже есть. Сначала удалите их."`.
+  The deleting branch is unchanged.
+
+  #### A1.4 `change_conflicts` — skip the row being edited
+  In the loop, after the existing "same occurrence" skip, add: `if change.pk is not None and item.change is not None and item.change.pk == change.pk: continue` (the DB items produced by the stored version of this same change are replaced by the new state). Do the same in `restored_occurrence_conflicts` is **not** needed (it receives the stored row itself).
+
+  #### A1.5 `LessonChange.clean()` order
+  After the field-rule errors (unchanged) and before the new-state guards:
+  ```python
+  if self.pk is not None:
+      old = LessonChange.objects.select_related("weekly_lesson").filter(pk=self.pk).first()
+      if old is not None:
+          from .validation import released_occurrence_errors
+          released = released_occurrence_errors(old, self)
+          if released:
+              raise ValidationError(released)
+  ```
+  Then the existing `run_change_guards(self, deleting=False)` and `change_conflicts(self)`. All errors are non-field → admin shows a form error, no 500. `clean()` runs inside `save_lesson_change`'s and the admin's transaction, so locks are held until commit.
+
+  #### A1.6 Tests — `schedule/tests/test_change_edit.py` (new)
+  `EditLessonChangeTests(FrozenClockMixin, TestCase)`; clock `2026-11-18 12:00`; fixture as in 6.3: L_A (G1, R1, Mon s2), cancel C on 23.11; L_B (G2, R2, Tue s1) MOVED 17.11 → 23.11 s2 with `new_room=R1`. Edits go through `save_lesson_change` on the fetched row (`LessonChange.objects.get(pk=...)`, change fields, save).
+  1. `test_cancel_to_teacher_replaced_rejected` — C: kind → TEACHER_REPLACED, `new_teacher=T2` → `ValidationError` with `f"аудитория {R1.number}"` and «23.11.2026»; DB row still CANCELLED.
+  2. `test_cancel_original_date_change_rejected` — C: `original_date` → 30.11 → rejected; DB row still 23.11.
+  3. `test_room_changed_to_teacher_replaced_rejected` — L_A ROOM_CHANGED on 23.11 to R5 (instead of C); L_D (G3, R6, Mon s2) ROOM_CHANGED on 23.11 to R1; edit L_A's change to TEACHER_REPLACED → rejected.
+  4. `test_group_conflict_on_restore_rejected` — L_C (G1, R3, Tue s1) MOVED to 23.11 s2 (own room); edit C to 30.11 → rejected with group G1.
+  5. `test_allowed_edits` (subTests, each from a fresh C): reason change → saved; `original_date` 23.11 → 30.11 when nothing occupies 23.11 s2 (delete L_B's move first) → saved; CANCELLED → MOVED to Wed 25.11 s4 (B still in R1 on 23.11) → saved (no false positive).
+  6. `test_move_target_change_allowed` — L_A MOVED 23.11 → 25.11 s4; edit `new_slot` to 5 → saved.
+  7. `test_move_original_date_change_no_self_conflict` — L_A MOVED 23.11 → 25.11 s4; edit `original_date` → 30.11 (same target) → saved (A1.4).
+  8. `test_admin_edit_shows_form_error` — superuser POST to `admin:schedule_lessonchange_change` for scenario 1 → 200, error text, no 500, DB unchanged.
+  9. `test_edit_locks_once_in_order` — patch `schedule.locking.lock_rooms_and_groups` with `wraps`; scenario 2 → the first call receives rooms `{R1}` and groups `{G1}` (union of old/new).
+
+  `academics/tests/test_change_guard.py` — add to `AttendanceChangeGuardTests`:
+  10. `test_edit_move_original_date_returns_records_to_future_rejected` — L2 (G1, R2, Mon s3) MOVED 23.11 → 17.11 s4; attendance for (L2, 23.11); edit the move's `original_date` to 30.11 (new target unchanged) → rejected «отметки посещения» (old occurrence 23.11 returns to the future with records).
+  11. `test_edit_move_to_room_change_returns_records_to_future_rejected` — same setup; edit kind → ROOM_CHANGED (`new_date=None`, `new_slot=None`, `new_room=R3`) → rejected (A1.3).
+  12. `test_edit_without_releasing_records_allowed` — MOVED 16.11 → 17.11 with records on 16.11; edit `reason` → saved.
+
+  ### A2. Exclude the process archive from ruff
+  `pyproject.toml`: `extend-exclude = ["*/migrations/*", ".venv", "staticfiles", "docs/process"]`. Never run `ruff format` on `docs/process`.
+  Feasibility evidence: today `ruff format --check .` → "1 file would be reformatted" (`docs/process/dialogs/03-coder-deepseek.md:148`); `ruff format --check --extend-exclude docs/process .` → "104 files already formatted".
+
+  ### A3. Protocol reminder
+  Do not delete or recreate `db.sqlite3` (or any database) without Team lead approval. For seed checks use a temporary DB: `DATABASE_URL=sqlite:///$TMPDIR/seedcheck.sqlite3 python manage.py migrate && DATABASE_URL=sqlite:///$TMPDIR/seedcheck.sqlite3 python manage.py seed_demo` (twice).
+
+  ### A4. Feasibility check (amendment, 2026-11-13, working tree of TASK-005-FIX in progress)
+  1. Clean start — uncommitted files are this task's own changes (listed by `git status`) plus `plan.md`. OK for an amendment of the same task.
+  2. Referenced objects — `restored_occurrence_conflicts(change)` and `change_conflicts(change)` (`schedule/validation.py:171, 209`), `LessonChange.clean()` guard/conflict calls (`schedule/models.py:245-253`), `attendance_change_guard(change, deleting)` (`academics/services.py:292`), `ScheduleItem.change` field, `FrozenClockMixin` (`core/testing.py`), test file `academics/tests/test_change_guard.py`. OK.
+  3. No collisions — `released_occurrence_errors`, `schedule/tests/test_change_edit.py` do not exist. OK.
+  4. Migrations — none. OK.
+  5–7. Tools/framework/env — unchanged. OK.
+  8. Verification — ruff state recorded in A2; the rest as in section 9.
+  9. Conflicts — "move target changes" from the request needs no old-state check (A1.1); the new-state guard is extended instead (A1.3). Not a contradiction of the requirement (every release of an occurrence is checked).
+  10. Assumptions / blockers — none.
+
+  ### A5. Order and verification
+  1. A2 first (`ruff format --check .` passes). 2. Write A1.6 tests; confirm 1–4, 7, 8, 10, 11 fail. 3. Implement A1.2–A1.5. 4. Section 9 commands (seed checks with the temporary DB from A3). `REPORT` to the Reviewer with the regression evidence. Do not commit.
+  EOF
+  bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF'
+  [TASK-005-FIX] Planner -> Coder: TASK
+  Spec amendment: docs/tasks/TASK-005-FIX.md, section "Amendment 1" (approved by the user). Keep the current implementation; add:
+  - A1: new `released_occurrence_errors(old, new)` in schedule/validation.py called from `LessonChange.clean()` when pk is set (edit path): restored-occurrence conflicts when an edit releases a hidden occurrence, delete guards when the identity changes; one lock call over old+new rooms/groups first. `restored_occurrence_conflicts` gets a `prefix` kwarg. `change_conflicts` skips items produced by the row being edited. `attendance_change_guard` new-state branch applies to every kind (effective date in the future with records -> reject).
+  - A2: add "docs/process" to ruff extend-exclude; never format docs/process.
+  - A3: never delete db.sqlite3; seed checks on a temporary DATABASE_URL.
+  - Tests: schedule/tests/test_change_edit.py (9) + 3 in academics/tests/test_change_guard.py; confirm regressions fail first (A5).
+  EOF
+    Thread thr_ng6cbgatm6 steered
+    [This command modified 1 file you've previously read: docs/tasks/TASK-005-FIX.md. Call Read before editing.]
+
+── Assistant ───────────────────────────────────────────────
+Я дописал в [docs/tasks/TASK-005-FIX.md](docs/tasks/TASK-005-FIX.md) раздел «Amendment 1» и передал его кодеру. Код по дополнению ещё не написан.
+
+**A1. Проверка при редактировании изменения.** Раньше проверялось только удаление. Ревьюер нашёл, что тот же результат можно получить правкой записи. Например, поменять отмену на «замену преподавателя» или сменить дату отмены — и в одной аудитории окажутся два занятия одновременно.
+
+Я разобрал, какие правки возвращают скрытое занятие на прежнее место:
+- **Смена даты или самого занятия в записи.** Если старая запись отменяла, переносила или меняла аудиторию, прежнее занятие возвращается. Проверяю его так же, как при удалении: на пересечения и на отметки посещения.
+- **Отмена, перенос или замена аудитории превращается в замену преподавателя.** Занятие возвращается в свою аудиторию. Проверяю на пересечения.
+- **Остальные правки** — например, отмена превращается в перенос или у переноса меняется цель. Старое место остаётся свободным, а новое уже проверяется существующей проверкой. Тимлид предлагал проверять и смену цели переноса. Я не стал: здесь это дало бы ложные ошибки, и в спецификации объяснено почему.
+
+При разборе нашлись ещё две проблемы:
+- **Ложное пересечение с самим собой.** Если поменять дату у переноса, проверка находит в базе старую версию этой же записи и сообщает о пересечении с ней. Теперь такие элементы пропускаются.
+- **Отметки посещения.** Перенос в прошлое с отметками можно было переделать в замену аудитории. Тогда занятие возвращалось на будущую дату, и отметки пропадали из отчёта. Теперь проверка отметок учитывает итоговую дату занятия для любого вида изменения.
+
+Блокировка аудиторий и групп берётся один раз на старое и новое состояние вместе, в общем порядке. Админка показывает ошибку в форме, без ошибки 500. Добавил 12 регрессионных тестов, в том числе положительные случаи: допустимые правки должны проходить.
+
+**A2. Ruff и архив диалогов.** Подтвердил на текущем коде: `ruff format --check .` падает на `docs/process/dialogs/03-coder-deepseek.md`. После исключения папки `docs/process` из проверки ruff все 104 файла проходят.
+
+**A3. Напоминание кодеру.** Удалять локальную базу нельзя. Проверять `seed_demo` нужно на временной базе.

@@ -14,6 +14,7 @@ from academics.mutations import save_validated
 from academics.services import student_overview
 from accounts.demo import seed_demo_data
 from accounts.models import StudentProfile
+from core.testing import FrozenClockMixin
 from schedule.demo import seed_schedule_demo
 from schedule.tests.helpers import aware
 
@@ -35,7 +36,7 @@ class TermBoundsTests(SimpleTestCase):
         self.assertEqual(term_bounds(autumn[2] - timedelta(days=1))[0], "2026-spring")
 
 
-class AcademicsDemoTests(TestCase):
+class AcademicsDemoTests(FrozenClockMixin, TestCase):
     def _seed(self, day: date = D):
         with mock.patch("django.utils.timezone.now", return_value=aware(f"{day} 12:00")):
             seed_demo_data("Demo-Pass-2026-test!")

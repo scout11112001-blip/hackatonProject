@@ -34,6 +34,8 @@ jobs:
         run: python manage.py makemigrations --check --dry-run
       - name: Tests
         run: python manage.py test
+      - name: Tests with a frozen far-future clock
+        run: python scripts/run_tests_at.py 2027-03-01T12:00:00
       - name: Migrate and seed demo data twice
         env:
           DEMO_PASSWORD: "ci-dummy-demo-password-2026"

@@ -242,6 +242,21 @@ class LessonChange(models.Model):
         if errors:
             raise ValidationError(errors)
 
+        if self.pk is not None:
+            old = LessonChange.objects.select_related("weekly_lesson").filter(pk=self.pk).first()
+            if old is not None:
+                from .validation import released_occurrence_errors
+
+                released = released_occurrence_errors(old, self)
+                if released:
+                    raise ValidationError(released)
+
+        from .guards import run_change_guards
+
+        guard_errors = run_change_guards(self, deleting=False)
+        if guard_errors:
+            raise ValidationError(guard_errors)
+
         from .validation import change_conflicts
 
         conflicts = change_conflicts(self)

@@ -6,6 +6,7 @@ from django.test import TestCase, TransactionTestCase
 from django.test.utils import CaptureQueriesContext
 
 from accounts.tests.helpers import make_faculty, make_group
+from core.testing import FrozenClockMixin
 from schedule.forms import WeeklyLessonAdminForm
 from schedule.locking import lock_rooms_and_groups
 from schedule.models import ChangeKind, LessonChange, WeeklyLesson
@@ -14,7 +15,7 @@ from schedule.mutations import save_lesson_change, save_weekly_lesson
 from .helpers import make_discipline, make_lesson, make_room, make_teacher
 
 
-class LockingTests(TestCase):
+class LockingTests(FrozenClockMixin, TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.faculty = make_faculty("FX")

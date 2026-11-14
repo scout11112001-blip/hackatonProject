@@ -33,6 +33,7 @@ ruff format --check .
 python manage.py check
 python manage.py makemigrations --check --dry-run
 python manage.py test
+python scripts/run_tests_at.py 2027-03-01T12:00:00   # tests must not depend on the real date
 DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop \
   ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ \
   python manage.py check --deploy --fail-level WARNING
@@ -92,6 +93,14 @@ the database (`LOGIN_FAILURE_LIMIT` failures → lockout for
 ```nginx
 proxy_set_header X-Real-IP $remote_addr;
 ```
+
+## Known limitations
+
+- After a student moves to another group, attendance for the former group's
+  lessons is not shown (group transfers are out of scope for the prototype).
+- `seed_demo` never updates existing academic rows, so data edited in the admin
+  is never overwritten. Re-running it only adds missing rows (new past
+  occurrences); run it daily on the server to keep the demo fresh.
 
 ## Environment variables
 

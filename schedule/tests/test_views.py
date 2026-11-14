@@ -7,6 +7,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from accounts.tests.helpers import make_faculty, make_group, make_staff, make_student
+from core.testing import FrozenClockMixin
 from schedule.converters import IsoDateConverter
 from schedule.models import ChangeKind, LessonChange
 from schedule.mutations import save_lesson_change
@@ -31,7 +32,7 @@ class IsoDateConverterTests(SimpleTestCase):
         self.assertEqual(conv.to_url(date(2026, 11, 16)), "2026-11-16")
 
 
-class ScheduleViewsTests(TestCase):
+class ScheduleViewsTests(FrozenClockMixin, TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.faculty_x = make_faculty("FX")
@@ -239,7 +240,7 @@ class ScheduleViewsTests(TestCase):
         self.assertEqual(count2, count1)
 
 
-class ChangeRenderingTests(TestCase):
+class ChangeRenderingTests(FrozenClockMixin, TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.faculty = make_faculty("FX")
@@ -344,7 +345,7 @@ class ChangeRenderingTests(TestCase):
         self.assertIn("Воронцова", content)
 
 
-class ScheduleUiFixTests(TestCase):
+class ScheduleUiFixTests(FrozenClockMixin, TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.faculty = make_faculty("FU")

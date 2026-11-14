@@ -5,13 +5,14 @@ import django.apps
 from django.test import TestCase
 
 from accounts.demo import seed_demo_data
+from core.testing import FrozenClockMixin
 from schedule.demo import seed_schedule_demo
 from schedule.models import LessonChange, WeeklyLesson
 from schedule.mutations import save_lesson_change, save_weekly_lesson
 from university.models import Discipline, Room, StudyGroup, Teacher
 
 
-class DemoMarkerTests(TestCase):
+class DemoMarkerTests(FrozenClockMixin, TestCase):
     def _seed(self, today: date = date(2026, 11, 18)):
         seed_demo_data("Demo-Pass-2026-test!")
         return seed_schedule_demo(today)

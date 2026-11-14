@@ -15,6 +15,7 @@ from academics.models import (
 )
 from academics.mutations import save_validated
 from accounts.tests.helpers import make_faculty, make_group, make_student
+from core.testing import FrozenClockMixin
 from schedule.tests.helpers import aware, make_discipline, make_lesson, make_room
 
 from .helpers import make_attendance, make_item, make_term
@@ -22,7 +23,7 @@ from .helpers import make_attendance, make_item, make_term
 TODAY = "2026-11-18 12:00"
 
 
-class ModelFixture(TestCase):
+class ModelFixture(FrozenClockMixin, TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.faculty = make_faculty("FX")

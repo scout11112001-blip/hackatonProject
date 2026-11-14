@@ -7,8 +7,9 @@ from django.db import transaction
 
 from university.models import StudyGroup
 
+from .guards import run_change_guards
 from .models import LessonChange, WeeklyLesson
-from .validation import validate_weekly_lesson
+from .validation import restored_occurrence_conflicts, validate_weekly_lesson
 
 
 def save_weekly_lesson(lesson: WeeklyLesson, groups: Sequence[StudyGroup]) -> WeeklyLesson:
@@ -35,3 +36,11 @@ def save_lesson_change(change: LessonChange) -> LessonChange:
         change.full_clean()
         change.save()
         return change
+
+
+def delete_lesson_change(change: LessonChange) -> None:
+    with transaction.atomic():
+        errors = restored_occurrence_conflicts(change) + run_change_guards(change, deleting=True)
+        if errors:
+            raise ValidationError(errors)
+        change.delete()

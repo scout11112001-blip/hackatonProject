@@ -5,6 +5,7 @@ from django.test import SimpleTestCase, TestCase
 from django.test.utils import CaptureQueriesContext
 
 from accounts.tests.helpers import make_faculty, make_group
+from core.testing import FrozenClockMixin
 from schedule.models import ChangeKind, LessonChange
 from schedule.mutations import save_lesson_change
 from schedule.services import (
@@ -27,7 +28,7 @@ class WeekStartTests(SimpleTestCase):
         self.assertEqual(week_start(date(2026, 11, 18)), date(2026, 11, 16))
 
 
-class OccurrencesTests(TestCase):
+class OccurrencesTests(FrozenClockMixin, TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.faculty = make_faculty("FX")
@@ -270,7 +271,7 @@ class OccurrencesTests(TestCase):
         self.assertLessEqual(count1, 4)
 
 
-class AnnotateTodayTests(TestCase):
+class AnnotateTodayTests(FrozenClockMixin, TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.faculty = make_faculty("FA")

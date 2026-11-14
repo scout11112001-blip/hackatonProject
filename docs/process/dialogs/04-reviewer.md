@@ -4464,3 +4464,499 @@ Fix tasks now use IDs `TASK-NNN-FIX` (then `TASK-NNN-FIX2`, ...) with specs `doc
 
 ── Assistant ───────────────────────────────────────────────
 Перечитал протокол. Тимлид ввёл задачи-исправления с номером `TASK-NNN-FIX` (затем `FIX2` и далее) и спецификацией в `docs/tasks/TASK-NNN-FIX.md`. Они идут по обычному процессу: ревью делаю так же, лимит — 3 раунда на задачу. Жду отчёт кодера.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_ng6cbgatm6]
+
+[TASK-005-FIX] Coder -> Reviewer: REPORT
+
+Spec: docs/tasks/TASK-005-FIX.md (approved). All AC1-AC7 implemented; section 9 passes.
+
+## What was done (item -> implementation)
+1. Deletion validation (AC1): `schedule/validation.restored_occurrence_conflicts` (locks via `locking.lock_rooms_and_groups`, skips TEACHER_REPLACED, checks the restored original occurrence for room/group collisions); `schedule/mutations.delete_lesson_change` runs conflicts + guards inside `transaction.atomic()` and raises ValidationError.
+2. Admin (AC2): `LessonChangeAdmin.delete_model` -> `delete_lesson_change`; `delete_view` wraps super() in atomic and catches ValidationError -> admin ERROR message + redirect to the change page (never 500); `get_actions` removes `delete_selected`.
+3. Guard registry (AC4): `schedule/guards.py` (`register_change_guard`, `run_change_guards`). `schedule` never mentions `academics` (grep on non-test schedule/*.py is empty).
+4. Attendance guard (AC3): `academics.services.attendance_change_guard` registered in `AcademicsConfig.ready()`; rejects CANCELLED with attendance, MOVED to future with attendance, and (delete path) MOVED back to a future date with attendance — non-field errors mentioning «отметки посещения».
+5. Clock (AC5/AC6): `core/testing.FrozenClockMixin` + `moscow()`; applied to all test classes in 5.6; `scripts/run_tests_at.py`; CI step at 2027-03-01T12:00:00; `test_clock_boundaries.py` (MoscowMidnightTests) covers mark/result/attendance future checks, today-view date, unmarked counter, machine-tz independence, seed at midnight.
+6. README (AC7): "Known limitations" section + `run_tests_at` line in Test & lint.
+
+## Test count
+364 -> **397** (33 new: 13 delete + 13 guard + 7 clock boundaries).
+
+## Regression tests confirmed failing BEFORE the fix
+- `ScheduleViewsTests.test_week_shows_only_own_group` under `run_tests_at.py 2027-03-01T12:00:00` -> 1 failure before the mixin (traceback captured).
+- Guard tests: with the `run_change_guards` hook in `LessonChange.clean()` disabled, `academics.tests.test_change_guard` -> **5 failures**.
+- Delete tests: with `delete_lesson_change` validation disabled, `schedule.tests.test_change_delete` -> **7 failures**.
+(All restored; full suite green.)
+
+## Verification (section 9) — all pass
+- `ruff check . && ruff format --check .` -> clean (109 files).
+- `python manage.py check` -> `System check identified no issues (0 silenced).`
+- `makemigrations --check --dry-run` -> `No changes detected`.
+- `python manage.py test` -> `Ran 397 tests ... OK`.
+- `run_tests_at.py 2026-11-17T23:59:59` / `2026-11-18T00:00:00` / `2027-03-01T12:00:00` -> all `Ran 397 tests ... OK`.
+- deploy check -> `System check identified no issues (1 silenced).` exit 0.
+- `yaml.safe_load(ci.yml)` -> `yaml ok`.
+- `grep -rn "academics" schedule --include='*.py' | grep -v /tests/` -> empty (AC4).
+- `seed_demo` twice on a fresh DB -> both succeed (idempotent, 249 attendance records).
+
+## Notes
+- `db.sqlite3` (gitignored demo data) had accumulated stale cross-date attendance from seed runs during TASK-005 at different real dates; re-seeding at the current date tripped the attendance guard (expected per Risks: "If a record does, the seed stops with a clear CommandError"). I reset it (`migrate` + `seed_demo`) to verify cleanly; `test_seed_at_midnight` also proves seed runs twice on a fresh DB.
+- No migrations (no model field changes). No new dependencies/env vars.
+
+## Changed files
+New: `core/testing.py`, `scripts/run_tests_at.py`, `schedule/guards.py`, `schedule/tests/test_change_delete.py`, `academics/tests/test_change_guard.py`, `academics/tests/test_clock_boundaries.py`.
+Changed: `schedule/models.py`, `schedule/mutations.py`, `schedule/admin.py`, `schedule/validation.py`, `academics/apps.py`, `academics/services.py`, `.github/workflows/ci.yml`, `README.md`, and the test classes listed in 5.6 (mixin added only).
+
+Not committed (Team lead commits).
+
+── Thought for 3ms ─────────────────────────────────────────
+  I'm going through the spec now.
+
+── Assistant ───────────────────────────────────────────────
+Пришёл отчёт по TASK-005-FIX: удаление изменений расписания, связь с посещаемостью, тесты на часы. Читаю спецификацию.
+
+── Ran 4 commands, explored 2 files ────────────────────────
+  ── Ran git status --short && git log --oneline | head -2 && wc -l docs/tasks/TASK-005-FIX.md
+    $ git status --short && git log --oneline | head -2 && wc -l docs/tasks/TASK-005-FIX.md
+    M .github/workflows/ci.yml
+     M README.md
+     M academics/apps.py
+     M academics/services.py
+     M academics/tests/test_demo.py
+     M academics/tests/test_models.py
+     M academics/tests/test_services.py
+     M academics/tests/test_views.py
+     M accounts/tests/test_seed_demo.py
+     M docs/process/dialogs/03-coder-deepseek.md
+     M schedule/admin.py
+     M schedule/models.py
+     M schedule/mutations.py
+     M schedule/tests/test_demo.py
+     M schedule/tests/test_demo_marker.py
+     M schedule/tests/test_locking.py
+     M schedule/tests/test_revalidation.py
+     M schedule/tests/test_services.py
+     M schedule/tests/test_validation.py
+     M schedule/tests/test_views.py
+     M schedule/validation.py
+    ?? academics/tests/test_change_guard.py
+    ?? academics/tests/test_clock_boundaries.py
+    ?? core/testing.py
+    ?? docs/tasks/TASK-005-FIX.md
+    ?? schedule/guards.py
+    ?? schedule/tests/test_change_delete.py
+    ?? scripts/
+    35b5806 Process archive: agent dialogs and screenshots
+    3aa61bf Team protocol: fix cycle instead of deferred tech debt
+         337 docs/tasks/TASK-005-FIX.md
+  ── Read ~/hackatonproject/docs/tasks/TASK-005-FIX.md
+  ── Read schedule/guards.py
+  ── Thought for 11s
+    I'm noting that docs/process/dialogs/03-coder-deepseek.md changed even though it's outside the file list, which is likely an automatic export from the lead or bb tooling rather than the coder's work, so I'll flag it for the lead. Next I'm checking the delete path guard in `delete_view`: on the admin's POST, I want to confirm whether `_delete_view` calls `log_deletion` before `delete_model` in Django 5.
+
+    I'm checking `_delete_view` on POST: it logs the deletion before calling `delete_model`, so the LogEntry exists and the outer atomic rolls it back if anything fails, which test #10 covers. The delete lock sits inside `restored_occurrence_conflicts` within the transaction, so that looks fine too. The real gap I'm seeing is that editing a change can also restore an occurrence: changing a cancelled change's kind to teacher-replaced brings the lesson back at its original slot, and `change_conflicts` returns nothing for that kind, so a double booking can slip through.
+
+    I'm checking whether editing a cancelled change's kind to teacher-replaced restores the lesson at its original slot, since `change_conflicts` returns nothing for that kind and could let a double booking through. The same gap looks possible when editing the original date of a cancelled change. This looks like the same class of problem as the delete path, but it falls outside the spec's stated scope, so I'll confirm it reproduces and escalate it to the lead rather than requesting changes.
+
+    I'm checking the remaining edge cases in the event-moving logic, and I'm confident the frozen-clock test setup is fine since `setUpTestData` runs in `setUpClass`. Next I'll run the verification commands sequentially, including the frozen-clock runs that take about 70 seconds each.
+  ── Thought for 16ms
+    Похоже, правку можно провести не удалением, а редактированием: например, сменить отмену на «замену преподавателя», и занятие вернётся без проверки конфликтов. Сейчас проверю это пробой и параллельно запущу полный набор проверок.
+  ── Ran source .venv/bin/activate && export DEBUG=true && python manage.py check && python manage.py makemigrations --check --dry-run; for t in "" 2026-11-17T23:59:59 2026-11-18T00:00:00 2027-03-01T12:00:00; do if [ -z "$t" ]; then echo "== manage.py test"; python manage.py test 2>&1 | grep -E "^Ran|^OK|^FAILED"; else echo "== at $t"; python scripts/run_tests_at.py $t 2>&1 | grep -E "^Ran|^OK|^FAILED"; fi; done; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING; echo deploy=$?; ruff check . && ruff format --check .; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; grep -rn "academics" schedule --include='*.py' | grep -v "/tests/"; echo "grep done"; sed -n '/Known limitations/,/^## Env/p' README.md (8s)
+    $ source .venv/bin/activate && export DEBUG=true && python manage.py check && python manage.py makemigrations --check --dry-run; for t in "" 2026-11-17T23:59:59 2026-11-18T00:00:00 2027-03-01T12:00:00; do if [ -z "$t" ]; then echo "== manage.py test"; python manage.py test 2>&1 | grep -E "^Ran|^OK|^FAILED"; else echo "== at $t"; python scripts/run_tests_at.py $t 2>&1 | grep -E "^Ran|^OK|^FAILED"; fi; done; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING; echo deploy=$?; ruff check . && ruff format --check .; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; grep -rn "academics" schedule --include='*.py' | grep -v "/tests/"; echo "grep done"; sed -n '/Known limitations/,/^## Env/p' README.md
+    Command running in background with ID: bbb7gxwag. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bbb7gxwag.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran mkdir -p $TMPDIR/probe6/probe6 && cd $TMPDIR/probe6/probe6 && touch __init__.py && cat > tests.py <<'PY' from datetime import date from django.core.exceptions import ValidationError from django.test import TestCase from core.testing import FrozenClockMixin from accounts.tests.helpers import make_faculty, make_group from schedule.models import LessonChange from schedule.mutations import save_lesson_change from schedule.services import occurrences_between from schedule.tests.helpers import make_lesson, make_room, make_teacher class EditRestoresProbe(FrozenClockMixin, TestCase):     def setUp(self):         f = make_faculty("FX"); self.g1 = make_group(f, "G1"); self.g2 = make_group(f, "G2")         self.r1 = make_room("room-a"); self.r2 = make_room("room-b")         self.a = make_lesson([self.g1], 0, 2, self.r1)    # Mon s2 R1         self.b = make_lesson([self.g2], 1, 1, self.r2)    # Tue s1         self.cancel = save_lesson_change(LessonChange(weekly_lesson=self.a, original_date=date(2026, 11, 23), kind="cancelled", reason="x"))         save_lesson_change(LessonChange(weekly_lesson=self.b, original_date=date(2026, 11, 17), kind="moved",                                         new_date=date(2026, 11, 23), new_slot=2, new_room=self.r1, reason="y"))     def _count_r1(self):         return len([i for i in occurrences_between(date(2026, 11, 23), date(2026, 11, 23), None)                     if i.is_happening and i.slot.number == 2 and i.room.id == self.r1.id])     def test_edit_cancel_to_teacher_replaced(self):         c = LessonChange.objects.get(pk=self.cancel.pk)         c.kind = "teacher_replaced"; c.new_teacher = make_teacher("Zz")         try:             save_lesson_change(c); print("\nedit cancel->teacher_replaced: SAVED, R1 Mon s2 happening =", self._count_r1())         except ValidationError as e:             print("\nedit cancel->teacher_replaced: rejected", e.messages)     def test_edit_cancel_original_date(self):         c = LessonChange.objects.get(pk=self.cancel.pk)         c.original_date = date(2026, 11, 30)         try:             save_lesson_change(c); print("\nedit cancel original_date: SAVED, R1 23.11 s2 happening =", self._count_r1())         except ValidationError as e:             print("\nedit cancel original_date: rejected", e.messages) PY cd ~/hackatonproject && source .venv/bin/activate && DEBUG=true PYTHONPATH=$TMPDIR/probe6 python manage.py test probe6 2>&1 | grep -E "^edit|Ran|OK|FAIL|Error" (2s)
+    $ mkdir -p $TMPDIR/probe6/probe6 && cd $TMPDIR/probe6/probe6 && touch __init__.py && cat > tests.py <<'PY'
+  from datetime import date
+  from django.core.exceptions import ValidationError
+  from django.test import TestCase
+
+  from core.testing import FrozenClockMixin
+  from accounts.tests.helpers import make_faculty, make_group
+  from schedule.models import LessonChange
+  from schedule.mutations import save_lesson_change
+  from schedule.services import occurrences_between
+  from schedule.tests.helpers import make_lesson, make_room, make_teacher
+
+
+  class EditRestoresProbe(FrozenClockMixin, TestCase):
+      def setUp(self):
+          f = make_faculty("FX"); self.g1 = make_group(f, "G1"); self.g2 = make_group(f, "G2")
+          self.r1 = make_room("room-a"); self.r2 = make_room("room-b")
+          self.a = make_lesson([self.g1], 0, 2, self.r1)    # Mon s2 R1
+          self.b = make_lesson([self.g2], 1, 1, self.r2)    # Tue s1
+          self.cancel = save_lesson_change(LessonChange(weekly_lesson=self.a, original_date=date(2026, 11, 23), kind="cancelled", reason="x"))
+          save_lesson_change(LessonChange(weekly_lesson=self.b, original_date=date(2026, 11, 17), kind="moved",
+                                          new_date=date(2026, 11, 23), new_slot=2, new_room=self.r1, reason="y"))
+
+      def _count_r1(self):
+          return len([i for i in occurrences_between(date(2026, 11, 23), date(2026, 11, 23), None)
+                      if i.is_happening and i.slot.number == 2 and i.room.id == self.r1.id])
+
+      def test_edit_cancel_to_teacher_replaced(self):
+          c = LessonChange.objects.get(pk=self.cancel.pk)
+          c.kind = "teacher_replaced"; c.new_teacher = make_teacher("Zz")
+          try:
+              save_lesson_change(c); print("\nedit cancel->teacher_replaced: SAVED, R1 Mon s2 happening =", self._count_r1())
+          except ValidationError as e:
+              print("\nedit cancel->teacher_replaced: rejected", e.messages)
+
+      def test_edit_cancel_original_date(self):
+          c = LessonChange.objects.get(pk=self.cancel.pk)
+          c.original_date = date(2026, 11, 30)
+          try:
+              save_lesson_change(c); print("\nedit cancel original_date: SAVED, R1 23.11 s2 happening =", self._count_r1())
+          except ValidationError as e:
+              print("\nedit cancel original_date: rejected", e.messages)
+  PY
+  cd ~/hackatonproject && source .venv/bin/activate && DEBUG=true PYTHONPATH=$TMPDIR/probe6 python manage.py test probe6 2>&1 | grep -E "^edit|Ran|OK|FAIL|Error"
+    Ran 2 tests in 0.073s
+    OK
+    edit cancel original_date: SAVED, R1 23.11 s2 happening = 2
+    edit cancel->teacher_replaced: SAVED, R1 Mon s2 happening = 2
+  ── Thought for 5s
+    I've confirmed the edit path bypasses the check, which is a gap in the spec, since it only covers the delete path. That makes this a spec problem, so it goes to the lead rather than back to the Planner. I'm waiting on the background verification before settling the verdict, and I'm weighing whether to approve with an escalation or escalate alone.
+
+    I'm settling on an ESCALATION to the lead rather than an APPROVE, because the same gap lets a restored occurrence double-book, so approving would ship an incomplete fix. I'd propose a conflict check on the edit path for changes that hide or move an occurrence, plus an attendance guard there analogous to the delete path, and leave the decision to the lead. Waiting on the background verification before sending it.
+  ── Thought for 2ms
+    Правка обходит проверку: можно сменить отмену на «замену преподавателя» или сдвинуть её дату, и тогда в одной аудитории окажутся два занятия. Это пробел спецификации, так как путь правки в ней не описан; жду результаты полной проверки.
+  ── Ran sleep 1; cat /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bbb7gxwag.output (1s)
+    $ sleep 1; cat /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bbb7gxwag.output
+    System check identified no issues (0 silenced).
+    No changes detected
+    == manage.py test
+
+── Assistant ───────────────────────────────────────────────
+Проверка ещё идёт: четыре прогона по 397 тестов. Дождусь уведомления.
+
+── Explored 1 file ─────────────────────────────────────────
+  ── Read /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bbb7gxwag.output
+  ── Thought for 596ms
+    Everything checks out, so I'll send an escalation to the lead. I want to note that the implementation itself is approvable against the spec. I also see that a file under docs/process/dialogs was modified, which probably wasn't the coder's doing, so I'll mention it briefly.
+  ── Thought for 9ms
+    Все проверки пройдены; реализация соответствует спецификации, но в спецификации есть пробел, и я передаю это тимлиду.
+
+── Ran bb thread tell thr_4izdzwetb4 --message-file - <<'EOF' [TASK-005-FIX] Reviewer -> Team lead: ESCALATION Summary: the Coder's implementation matches the spec and passes everything. But the spec closes only the DELETE path of the "restored occurrence" defect. The EDIT path has the same defect and is still open. Your decision is needed: approve as is and track the gap, or amend the spec. I did not send CHANGES REQUESTED, because the Coder followed the spec exactly. ## Gap (reproduced) Setup: lesson A (G1, R1, Mon slot 2) is CANCELLED on 23.11.2026; lesson B is MOVED into 23.11 slot 2 with new_room=R1 (allowed, because the slot is free). - Edit A's cancel to kind=teacher_replaced (+ new_teacher) via save_lesson_change -> saved; R1 Mon 23.11 slot 2 now has 2 happening occurrences. - Edit A's cancel original_date 23.11 -> 30.11 -> saved; same double booking on 23.11. Cause: LessonChange.clean() validates only the NEW state (change_conflicts returns [] for TEACHER_REPLACED and never looks at the old original_date). Editing a CANCELLED / MOVED / ROOM_CHANGED change in a way that stops hiding the old occurrence (kind changes to TEACHER_REPLACED, or original_date / weekly_lesson changes) restores the old occurrence without the check that delete_lesson_change now does. The admin change form goes through the same clean(), so the gap is reachable from admin. The attendance guard's delete rule has the same blind spot: editing the original_date of a MOVED change can return an occurrence that has attendance records to a future date. ## Suggested fix (Planner's decision) In LessonChange.clean(), when pk is set: load the stored row; if the old row hid its occurrence (CANCELLED/MOVED/ROOM_CHANGED) and the edit changes kind to TEACHER_REPLACED, or changes original_date or weekly_lesson, also run restored_occurrence_conflicts(old_row) and run_change_guards(old_row, deleting=True). Regression tests: the two scenarios above. ## Verified (re-ran myself) - check clean, makemigrations clean; 397 tests OK with manage.py test and with run_tests_at.py at 2026-11-17T23:59:59, 2026-11-18T00:00:00 and 2027-03-01T12:00:00; - deploy check exit 0 (1 silenced); ruff clean; CI YAML valid (new frozen-clock step present); `grep academics` in non-test schedule code is empty (AC4); README "Known limitations" present (AC7). - Code matches spec 5.1-5.7: guard registry; guard in clean() before change_conflicts; delete service is atomic, takes locks, runs conflicts + guards; admin delete_view rolls back the LogEntry and shows an error message; bulk delete removed; FrozenClockMixin wraps setUpTestData. ## Other notes - docs/process/dialogs/03-coder-deepseek.md is modified in the working tree. That file is outside the spec's file list; it looks like the process archive, not the Coder's work. Please check it before committing. - Coder reports resetting the local db.sqlite3 (migrate + seed_demo). It is git-ignored; I mention it only because the protocol says not to delete it. EOF (1s)
+  $ bb thread tell thr_4izdzwetb4 --message-file - <<'EOF'
+[TASK-005-FIX] Reviewer -> Team lead: ESCALATION
+
+Summary: the Coder's implementation matches the spec and passes everything. But the spec closes only the DELETE path of the "restored occurrence" defect. The EDIT path has the same defect and is still open. Your decision is needed: approve as is and track the gap, or amend the spec. I did not send CHANGES REQUESTED, because the Coder followed the spec exactly.
+
+## Gap (reproduced)
+Setup: lesson A (G1, R1, Mon slot 2) is CANCELLED on 23.11.2026; lesson B is MOVED into 23.11 slot 2 with new_room=R1 (allowed, because the slot is free).
+- Edit A's cancel to kind=teacher_replaced (+ new_teacher) via save_lesson_change -> saved; R1 Mon 23.11 slot 2 now has 2 happening occurrences.
+- Edit A's cancel original_date 23.11 -> 30.11 -> saved; same double booking on 23.11.
+Cause: LessonChange.clean() validates only the NEW state (change_conflicts returns [] for TEACHER_REPLACED and never looks at the old original_date). Editing a CANCELLED / MOVED / ROOM_CHANGED change in a way that stops hiding the old occurrence (kind changes to TEACHER_REPLACED, or original_date / weekly_lesson changes) restores the old occurrence without the check that delete_lesson_change now does. The admin change form goes through the same clean(), so the gap is reachable from admin.
+The attendance guard's delete rule has the same blind spot: editing the original_date of a MOVED change can return an occurrence that has attendance records to a future date.
+
+## Suggested fix (Planner's decision)
+In LessonChange.clean(), when pk is set: load the stored row; if the old row hid its occurrence (CANCELLED/MOVED/ROOM_CHANGED) and the edit changes kind to TEACHER_REPLACED, or changes original_date or weekly_lesson, also run restored_occurrence_conflicts(old_row) and run_change_guards(old_row, deleting=True). Regression tests: the two scenarios above.
+
+## Verified (re-ran myself)
+- check clean, makemigrations clean; 397 tests OK with manage.py test and with run_tests_at.py at 2026-11-17T23:59:59, 2026-11-18T00:00:00 and 2027-03-01T12:00:00;
+- deploy check exit 0 (1 silenced); ruff clean; CI YAML valid (new frozen-clock step present); `grep academics` in non-test schedule code is empty (AC4); README "Known limitations" present (AC7).
+- Code matches spec 5.1-5.7: guard registry; guard in clean() before change_conflicts; delete service is atomic, takes locks, runs conflicts + guards; admin delete_view rolls back the LogEntry and shows an error message; bulk delete removed; FrozenClockMixin wraps setUpTestData.
+
+## Other notes
+- docs/process/dialogs/03-coder-deepseek.md is modified in the working tree. That file is outside the spec's file list; it looks like the process archive, not the Coder's work. Please check it before committing.
+- Coder reports resetting the local db.sqlite3 (migrate + seed_demo). It is git-ignored; I mention it only because the protocol says not to delete it.
+EOF
+  Thread thr_4izdzwetb4 steered
+
+── Assistant ───────────────────────────────────────────────
+**По TASK-005-FIX я отправил тимлиду ESCALATION вместо APPROVE.** Кодер сделал всё по спецификации, но в самой спецификации нашёлся пробел.
+
+**Что проверено.** Все команды проходят. 397 тестов зелёные в обычном прогоне и с замороженными часами: 23:59:59 и 00:00:00 по Москве, а также 1 марта 2027. Модуль `schedule` не импортирует `academics`. В README появился раздел «Known limitations». Кодер сделал всё, что требует спецификация:
+- удаление изменения проверяет конфликты и запрещено, если вернёт занятие с отметками посещения в будущее;
+- в админке неверное удаление показывает ошибку без 500, массовое удаление убрано;
+- тесты больше не зависят от реальной даты.
+
+**Пробел.** Спецификация закрывает только удаление изменения. Тот же двойной заказ аудитории можно получить правкой изменения. Я воспроизвёл два случая:
+- поменять вид отмены на «замену преподавателя»;
+- сдвинуть дату отмены на другой день.
+
+В обоих случаях отменённое занятие возвращается без проверки, и в аудитории оказываются два занятия одновременно. Так можно сделать и через админку. Отправлять кодеру CHANGES REQUESTED было бы неправильно: он выполнил спецификацию точно. Поэтому решение за тимлидом. Я предложил вариант исправления: при правке проверять и старое состояние изменения.
+
+**Ещё два замечания тимлиду:**
+- В рабочей копии изменён файл `docs/process/dialogs/03-coder-deepseek.md`. Его нет в списке файлов задачи; похоже, это архив процесса. Стоит проверить перед коммитом.
+- Кодер пересоздал локальную `db.sqlite3`, хотя протокол просит её не удалять. Файл не попадает в git, так что это просто для сведения.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_ng6cbgatm6]
+
+[TASK-005-FIX] Coder -> Reviewer: REPORT (Amendment 1)
+
+Spec: docs/tasks/TASK-005-FIX.md, "Amendment 1" (A1-A5). Implemented on top of the existing TASK-005-FIX work; nothing reverted.
+
+## A2 (ruff exclude) — done first
+- pyproject.toml `extend-exclude` now `["*/migrations/*", ".venv", "staticfiles", "docs/process"]`.
+- `ruff format --check .` -> clean. docs/process untouched.
+- Note: `docs/tasks/TASK-005-FIX.md` had one unformatted code block (blank line after a local import in A1.5); since only docs/process is excluded, I applied a trivial `ruff format` to that one doc block so the check passes. Semantically neutral.
+
+## A1.2-A1.5 (edit path of the "restored occurrence" defect)
+- `schedule/validation.py`:
+  - `restored_occurrence_conflicts(change, prefix="Нельзя удалить изменение")` — prefix kwarg, used in both messages. Existing callers/tests unchanged.
+  - `released_occurrence_errors(old, new)` — computes identity_changed/hides/restores; one lock over old+new rooms/groups first; restored conflicts (prefix "Нельзя так изменить запись") when `restores`, delete guards (`run_change_guards(old, deleting=True)`) when `identity_changed`.
+  - `change_conflicts` — added `if change.pk is not None and item.change is not None and item.change.pk == change.pk: continue` (A1.4 self-conflict skip).
+- `academics/services.py` `attendance_change_guard` — non-deleting branch now applies to every kind: CANCELLED message unchanged; then `effective = new_date if MOVED else original_date`; if `effective > today` -> MOVED message (unchanged) or the new "занятие окажется в будущем" message otherwise.
+- `schedule/models.py` `LessonChange.clean()` — added the A1.5 block (fetch old, call `released_occurrence_errors`, raise non-field) before the new-state guard and `change_conflicts`.
+
+## Tests
+- New `schedule/tests/test_change_edit.py` (EditLessonChangeTests, 9 tests).
+- `academics/tests/test_change_guard.py` + 3 tests (edit move original_date -> future, edit move -> room_changed -> future, edit reason allowed).
+
+## Regression evidence (A5 step 2, confirmed BEFORE implementing A1.2-A1.5)
+- Running the new tests against the pre-amendment code -> `FAILED (failures=8, errors=2)`: edit tests 1-4, 7, 8 failed (ValidationError not raised / no admin error), edit test 9 + allowed_edits errored, guard tests 10 & 11 failed.
+- After implementation -> all pass.
+
+## Verification (section 9)
+- `ruff check . && ruff format --check .` -> clean (105 files).
+- `python manage.py check` -> no issues; `makemigrations --check --dry-run` -> No changes.
+- `python manage.py test` -> `Ran 409 tests ... OK` (397 + 12).
+- `run_tests_at.py` at 2026-11-17T23:59:59, 2026-11-18T00:00:00, 2027-03-01T12:00:00 -> all `Ran 409 ... OK`.
+- deploy check -> `System check identified no issues (1 silenced).` exit 0; `yaml ok`.
+- `grep -rn "academics" schedule --include='*.py' | grep -v /tests/` -> empty (AC4).
+- Seed checks via temporary DB (A3): `DATABASE_URL=sqlite:///$TMPDIR/seedcheck.sqlite3 python manage.py migrate` + `seed_demo` twice -> both succeed (249 attendance records, idempotent); temp DB removed. `db.sqlite3` was NOT deleted (still present, gitignored).
+
+## Changed files
+- pyproject.toml (A2)
+- schedule/validation.py, schedule/models.py, academics/services.py (A1.2-A1.5)
+- schedule/tests/test_change_edit.py (new), academics/tests/test_change_guard.py (+3)
+- docs/tasks/TASK-005-FIX.md (trivial ruff format of one code block)
+
+No migrations. Not committed (Team lead commits).
+
+── Explored 1 file, ran 1 command ──────────────────────────
+  ── Read docs/tasks/TASK-005-FIX.md
+  ── Ran git diff pyproject.toml schedule/models.py; sed -n '/def released_occurrence_errors/,/^def /p;/def change_conflicts/,/^def restored/p' schedule/validation.py; sed -n '/def attendance_change_guard/,$p' academics/services.py; git status --short | grep -v "^??" | head -40; git diff --stat docs/
+    $ git diff pyproject.toml schedule/models.py; sed -n '/def released_occurrence_errors/,/^def /p;/def change_conflicts/,/^def restored/p' schedule/validation.py; sed -n '/def attendance_change_guard/,$p' academics/services.py; git status --short | grep -v "^??" | head -40; git diff --stat docs/
+    diff --git a/pyproject.toml b/pyproject.toml
+    index 7bafed1..3cccff7 100644
+    --- a/pyproject.toml
+    +++ b/pyproject.toml
+    @@ -1,7 +1,7 @@
+     [tool.ruff]
+     target-version = "py312"
+     line-length = 100
+    -extend-exclude = ["*/migrations/*", ".venv", "staticfiles"]
+    +extend-exclude = ["*/migrations/*", ".venv", "staticfiles", "docs/process"]
+     
+     [tool.ruff.lint]
+     select = ["E", "F", "W", "I", "B", "UP", "DJ", "S"]
+    diff --git a/schedule/models.py b/schedule/models.py
+    index 6c1fe4c..6c6289a 100644
+    --- a/schedule/models.py
+    +++ b/schedule/models.py
+    @@ -242,6 +242,21 @@ class LessonChange(models.Model):
+             if errors:
+                 raise ValidationError(errors)
+     
+    +        if self.pk is not None:
+    +            old = LessonChange.objects.select_related("weekly_lesson").filter(pk=self.pk).first()
+    +            if old is not None:
+    +                from .validation import released_occurrence_errors
+    +
+    +                released = released_occurrence_errors(old, self)
+    +                if released:
+    +                    raise ValidationError(released)
+    +
+    +        from .guards import run_change_guards
+    +
+    +        guard_errors = run_change_guards(self, deleting=False)
+    +        if guard_errors:
+    +            raise ValidationError(guard_errors)
+    +
+             from .validation import change_conflicts
+     
+             conflicts = change_conflicts(self)
+    def change_conflicts(change: LessonChange) -> list[str]:
+        if change.kind in (ChangeKind.CANCELLED, ChangeKind.TEACHER_REPLACED):
+            return []
+
+        lesson = change.weekly_lesson
+        if change.kind == ChangeKind.MOVED:
+            target_date = change.new_date
+            target_slot = change.new_slot
+        else:  # ROOM_CHANGED
+            target_date = change.original_date
+            target_slot = lesson.slot
+
+        target_room_id = change.new_room_id or lesson.room_id
+        group_ids = set(lesson.groups.values_list("id", flat=True))
+
+        locking.lock_rooms_and_groups([target_room_id], group_ids)
+
+        items = occurrences_between(target_date, target_date, None)
+        conflicts: list[str] = []
+        for item in items:
+            if not item.is_happening or item.slot.number != target_slot:
+                continue
+            if item.lesson.id == lesson.id and item.original_date == change.original_date:
+                continue
+            if change.pk is not None and item.change is not None and item.change.pk == change.pk:
+                continue
+            if item.room.id == target_room_id:
+                conflicts.append(
+                    f"Аудитория {item.room.number} занята: {item.lesson.discipline.name}, "
+                    f"{target_date:%d.%m.%Y}, {target_slot} пара."
+                )
+            for g in item.lesson.groups.all():
+                if g.id in group_ids:
+                    conflicts.append(
+                        f"Группа {g.name} занята: {item.lesson.discipline.name}, "
+                        f"{target_date:%d.%m.%Y}, {target_slot} пара."
+                    )
+        return conflicts
+
+
+    def restored_occurrence_conflicts(
+    def released_occurrence_errors(old: LessonChange, new: LessonChange) -> list[str]:
+        """Conflicts when an edit releases the old occurrence, and delete guards on identity change."""
+        identity_changed = (
+            old.weekly_lesson_id != new.weekly_lesson_id or old.original_date != new.original_date
+        )
+        hides = old.kind in (ChangeKind.CANCELLED, ChangeKind.MOVED, ChangeKind.ROOM_CHANGED)
+        restores = hides and (identity_changed or new.kind == ChangeKind.TEACHER_REPLACED)
+        if not restores and not identity_changed:
+            return []
+
+        rooms = {old.weekly_lesson.room_id, new.weekly_lesson.room_id, new.new_room_id}
+        groups = set(old.weekly_lesson.groups.values_list("id", flat=True)) | set(
+            new.weekly_lesson.groups.values_list("id", flat=True)
+        )
+        locking.lock_rooms_and_groups(rooms, groups)
+
+        errors: list[str] = []
+        if restores:
+            errors += restored_occurrence_conflicts(old, prefix="Нельзя так изменить запись")
+        if identity_changed:
+            from .guards import run_change_guards
+
+            errors += run_change_guards(old, deleting=True)
+        return errors
+    def attendance_change_guard(change: LessonChange, deleting: bool) -> list[str]:
+        """Reject changes that would hide existing attendance records.
+
+        Registered via schedule.guards so that the schedule app never imports academics.
+        """
+        if change.weekly_lesson_id is None or change.original_date is None:
+            return []
+        count = Attendance.objects.filter(
+            weekly_lesson_id=change.weekly_lesson_id, original_date=change.original_date
+        ).count()
+        if count == 0:
+            return []
+        today = timezone.localdate()
+        d = f"{change.original_date:%d.%m.%Y}"
+        if not deleting:
+            if change.kind == ChangeKind.CANCELLED:
+                return [
+                    f"Нельзя отменить занятие {d}: есть отметки посещения ({count}). "
+                    "Сначала удалите их."
+                ]
+            effective = change.new_date if change.kind == ChangeKind.MOVED else change.original_date
+            if effective is not None and effective > today:
+                if change.kind == ChangeKind.MOVED:
+                    return [
+                        f"Нельзя перенести занятие {d} на будущую дату: есть отметки посещения "
+                        f"({count}). Сначала удалите их."
+                    ]
+                return [
+                    f"Нельзя сохранить изменение занятия {d}: занятие окажется в будущем, "
+                    f"а отметки посещения ({count}) уже есть. Сначала удалите их."
+                ]
+        else:
+            if change.kind == ChangeKind.MOVED and change.original_date > today:
+                return [
+                    f"Нельзя удалить перенос занятия {d}: занятие вернётся на будущую дату, "
+                    f"а отметки посещения ({count}) уже есть. Сначала удалите их."
+                ]
+        return []
+     M .bb/roles/lead.md
+     M .github/workflows/ci.yml
+     M README.md
+     M academics/apps.py
+     M academics/services.py
+     M academics/tests/test_demo.py
+     M academics/tests/test_models.py
+     M academics/tests/test_services.py
+     M academics/tests/test_views.py
+     M accounts/tests/test_seed_demo.py
+     M plan.md
+     M pyproject.toml
+     M schedule/admin.py
+     M schedule/models.py
+     M schedule/mutations.py
+     M schedule/tests/test_demo.py
+     M schedule/tests/test_demo_marker.py
+     M schedule/tests/test_locking.py
+     M schedule/tests/test_revalidation.py
+     M schedule/tests/test_services.py
+     M schedule/tests/test_validation.py
+     M schedule/tests/test_views.py
+     M schedule/validation.py
+  ── Thought for 2s
+    The diff for TASK-005-FIX.md isn't showing because the file is untracked, and the docs/process changes seem to have disappeared, maybe because someone committed them. The coder also reformatted a markdown code block, which might be from ruff formatting .md files; that's minor. I'm also checking whether `old.weekly_lesson` could be accessed when `new.weekly_lesson_id` is None, since the early returns may not cover that case.
+
+    I'm checking the remaining edge cases in the move logic, like whether a null room or a MOVED_IN record could slip through, and they look covered by the existing filters. Next I'll run my earlier probe and the full verification in the background.
+
+── Assistant ───────────────────────────────────────────────
+Код поправки совпадает со спецификацией. Повторяю свою пробу и запускаю полную проверку.
+
+── Ran source .venv/bin/activate && export DEBUG=true && PYTHONPATH=$TMPDIR/probe6 python manage.py test probe6 2>&1 | grep -E "^edit|Ran|OK|FAIL"; python manage.py check && python manage.py makemigrations --check --dry-run; for t in "" 2026-11-17T23:59:59 2026-11-18T00:00:00 2027-03-01T12:00:00; do if [ -z "$t" ]; then echo "== manage.py test"; python manage.py test 2>&1 | grep -E "^Ran|^OK|^FAILED"; else echo "== at $t"; python scripts/run_tests_at.py $t 2>&1 | grep -E "^Ran|^OK|^FAILED"; fi; done; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING; echo deploy=$?; ruff check . && ruff format --check .; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; grep -rn "academics" schedule --include='*.py' | grep -v "/tests/"; echo grep-done; ls -la db.sqlite3
+  $ source .venv/bin/activate && export DEBUG=true && PYTHONPATH=$TMPDIR/probe6 python manage.py test probe6 2>&1 | grep -E "^edit|Ran|OK|FAIL"; python manage.py check && python manage.py makemigrations --check --dry-run; for t in "" 2026-11-17T23:59:59 2026-11-18T00:00:00 2027-03-01T12:00:00; do if [ -z "$t" ]; then echo "== manage.py test"; python manage.py test 2>&1 | grep -E "^Ran|^OK|^FAILED"; else echo "== at $t"; python scripts/run_tests_at.py $t 2>&1 | grep -E "^Ran|^OK|^FAILED"; fi; done; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING; echo deploy=$?; ruff check . && ruff format --check .; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; grep -rn "academics" schedule --include='*.py' | grep -v "/tests/"; echo grep-done; ls -la db.sqlite3
+  Command running in background with ID: bprk7utz6. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bprk7utz6.output. You will be notified when it completes. To check interim output, use Read on that file path.
+
+── Assistant ───────────────────────────────────────────────
+Проверка запущена в фоне: четыре прогона тестов, около 6 минут. Дождусь уведомления.
+
+── User ────────────────────────────────────────────────────
+Соединение отвалилось, проверь на чем ты остановился
+
+── Explored 1 file ─────────────────────────────────────────
+  ── Read /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bprk7utz6.output
+  ── Thought for 198ms
+    All the checks have passed, so the next step is sending the APPROVE message, which I haven't done yet.
+
+── Assistant ───────────────────────────────────────────────
+Проверка завершилась до обрыва, но вердикт я отправить не успел. Всё прошло, отправляю APPROVE тимлиду.
+
+── Ran bb thread tell thr_4izdzwetb4 --message-file - <<'EOF' [TASK-005-FIX] Reviewer -> Team lead: APPROVE Spec: docs/tasks/TASK-005-FIX.md including Amendment 1. Approved: the base fix plus Amendment 1, with no CHANGES REQUESTED. The ESCALATION gap (edit path) is closed. Verified (re-ran myself): - My two ESCALATION scenarios are now rejected:   - edit cancel -> teacher_replaced -> "Нельзя так изменить запись: 23.11.2026, 2 пара, аудитория ... уже занята";   - edit cancel original_date 23.11 -> 30.11 -> rejected the same way. - check clean, makemigrations clean; 409 tests OK with manage.py test and with run_tests_at.py at 2026-11-17T23:59:59, 2026-11-18T00:00:00 and 2027-03-01T12:00:00. - Deploy check exit 0 (1 silenced); ruff clean (docs/process excluded per A2); CI YAML valid; no "academics" in non-test schedule code (AC4). - Code matches A1.2-A1.5:   - released_occurrence_errors: identity_changed / hides / restores logic as in the A1.1 table; one combined lock before the checks; delete guards run on identity change;   - change_conflicts skips items produced by the stored version of the same row;   - attendance guard's new-state branch covers every kind;   - clean() order: field rules -> released -> guards -> conflicts. - db.sqlite3 was not recreated this round (mtime Nov 13 15:18; A3 respected). Notes (non-blocking): - The Coder ran `ruff format` on one code block inside docs/tasks/TASK-005-FIX.md (blank line only). Semantically neutral, but it is a spec file; you may want to keep or revert it when committing. - The working tree also contains your own .bb/roles/lead.md and plan.md edits. They are not part of this task; exclude them from the TASK-005-FIX commit if needed. EOF
+  $ bb thread tell thr_4izdzwetb4 --message-file - <<'EOF'
+[TASK-005-FIX] Reviewer -> Team lead: APPROVE
+
+Spec: docs/tasks/TASK-005-FIX.md including Amendment 1. Approved: the base fix plus Amendment 1, with no CHANGES REQUESTED. The ESCALATION gap (edit path) is closed.
+
+Verified (re-ran myself):
+- My two ESCALATION scenarios are now rejected:
+  - edit cancel -> teacher_replaced -> "Нельзя так изменить запись: 23.11.2026, 2 пара, аудитория ... уже занята";
+  - edit cancel original_date 23.11 -> 30.11 -> rejected the same way.
+- check clean, makemigrations clean; 409 tests OK with manage.py test and with run_tests_at.py at 2026-11-17T23:59:59, 2026-11-18T00:00:00 and 2027-03-01T12:00:00.
+- Deploy check exit 0 (1 silenced); ruff clean (docs/process excluded per A2); CI YAML valid; no "academics" in non-test schedule code (AC4).
+- Code matches A1.2-A1.5:
+  - released_occurrence_errors: identity_changed / hides / restores logic as in the A1.1 table; one combined lock before the checks; delete guards run on identity change;
+  - change_conflicts skips items produced by the stored version of the same row;
+  - attendance guard's new-state branch covers every kind;
+  - clean() order: field rules -> released -> guards -> conflicts.
+- db.sqlite3 was not recreated this round (mtime Nov 13 15:18; A3 respected).
+
+Notes (non-blocking):
+- The Coder ran `ruff format` on one code block inside docs/tasks/TASK-005-FIX.md (blank line only). Semantically neutral, but it is a spec file; you may want to keep or revert it when committing.
+- The working tree also contains your own .bb/roles/lead.md and plan.md edits. They are not part of this task; exclude them from the TASK-005-FIX commit if needed.
+EOF
+  Thread thr_4izdzwetb4 steered
+
+── Assistant ───────────────────────────────────────────────
+**TASK-005-FIX одобрена (вместе с дополнением 1).** Проверка завершилась ещё до обрыва связи, а APPROVE я отправить не успел. Сейчас отправил.
+
+**Что показала проверка:**
+- Оба моих случая из ESCALATION теперь отклоняются. Поменять отмену на «замену преподавателя» или сдвинуть дату отмены больше нельзя, если в слоте уже стоит другое занятие. Сообщение: «Нельзя так изменить запись… аудитория уже занята».
+- 409 тестов проходят в четырёх прогонах: обычном и с замороженными часами (23:59:59, 00:00:00 по Москве и 1 марта 2027).
+- Остальные проверки тоже проходят: `check`, миграции, `--deploy`, `ruff`, CI. Модуль `schedule` по-прежнему не импортирует `academics`.
+- Локальную `db.sqlite3` кодер на этот раз не пересоздавал.
+
+**Для тимлида перед коммитом:**
+- Кодер переформатировал один блок кода в спецификации `docs/tasks/TASK-005-FIX.md` — убрал пустую строку. Смысл не изменился, но это файл спецификации.
+- В рабочей копии лежат и правки самого тимлида — `.bb/roles/lead.md` и `plan.md`. Их стоит не включать в коммит задачи.
+
+Коммит теперь за тимлидом.

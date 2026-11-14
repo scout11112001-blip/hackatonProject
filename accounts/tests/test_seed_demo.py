@@ -7,12 +7,13 @@ from django.core.management.base import CommandError
 from django.test import TestCase
 
 from accounts.models import StaffProfile, StudentProfile, User
+from core.testing import FrozenClockMixin
 from university.models import Faculty, Program, StudyGroup
 
 from .helpers import make_faculty, make_group, make_student
 
 
-class SeedDemoTests(TestCase):
+class SeedDemoTests(FrozenClockMixin, TestCase):
     def test_creates_expected_data(self):
         with mock.patch.dict(os.environ, {"DEMO_PASSWORD": "Demo-Pass-2026-test!"}):
             call_command("seed_demo")

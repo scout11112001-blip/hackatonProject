@@ -192,6 +192,8 @@ def change_conflicts(change: LessonChange) -> list[str]:
             continue
         if item.lesson.id == lesson.id and item.original_date == change.original_date:
             continue
+        if change.pk is not None and item.change is not None and item.change.pk == change.pk:
+            continue
         if item.room.id == target_room_id:
             conflicts.append(
                 f"Аудитория {item.room.number} занята: {item.lesson.discipline.name}, "
@@ -204,3 +206,63 @@ def change_conflicts(change: LessonChange) -> list[str]:
                     f"{target_date:%d.%m.%Y}, {target_slot} пара."
                 )
     return conflicts
+
+
+def restored_occurrence_conflicts(
+    change: LessonChange, prefix: str = "Нельзя удалить изменение"
+) -> list[str]:
+    """Conflicts when ``change`` is removed and its original occurrence becomes regular again."""
+    if change.kind == ChangeKind.TEACHER_REPLACED:
+        return []
+
+    lesson = change.weekly_lesson
+    group_ids = set(lesson.groups.values_list("id", flat=True))
+
+    locking.lock_rooms_and_groups([lesson.room_id], group_ids)
+
+    items = occurrences_between(change.original_date, change.original_date, None)
+    conflicts: list[str] = []
+    for item in items:
+        if not item.is_happening or item.slot.number != lesson.slot:
+            continue
+        if item.lesson.id == lesson.id and item.original_date == change.original_date:
+            continue
+        if item.room.id == lesson.room_id:
+            conflicts.append(
+                f"{prefix}: {change.original_date:%d.%m.%Y}, {lesson.slot} пара, "
+                f"аудитория {item.room.number} уже занята ({item.lesson.discipline.name})."
+            )
+        for g in item.lesson.groups.all():
+            if g.id in group_ids:
+                conflicts.append(
+                    f"{prefix}: {change.original_date:%d.%m.%Y}, "
+                    f"{lesson.slot} пара, группа {g.name} уже занята "
+                    f"({item.lesson.discipline.name})."
+                )
+    return conflicts
+
+
+def released_occurrence_errors(old: LessonChange, new: LessonChange) -> list[str]:
+    """Conflicts when an edit releases the old occurrence, and delete guards on identity change."""
+    identity_changed = (
+        old.weekly_lesson_id != new.weekly_lesson_id or old.original_date != new.original_date
+    )
+    hides = old.kind in (ChangeKind.CANCELLED, ChangeKind.MOVED, ChangeKind.ROOM_CHANGED)
+    restores = hides and (identity_changed or new.kind == ChangeKind.TEACHER_REPLACED)
+    if not restores and not identity_changed:
+        return []
+
+    rooms = {old.weekly_lesson.room_id, new.weekly_lesson.room_id, new.new_room_id}
+    groups = set(old.weekly_lesson.groups.values_list("id", flat=True)) | set(
+        new.weekly_lesson.groups.values_list("id", flat=True)
+    )
+    locking.lock_rooms_and_groups(rooms, groups)
+
+    errors: list[str] = []
+    if restores:
+        errors += restored_occurrence_conflicts(old, prefix="Нельзя так изменить запись")
+    if identity_changed:
+        from .guards import run_change_guards
+
+        errors += run_change_guards(old, deleting=True)
+    return errors

@@ -18,6 +18,7 @@ from academics.services import (
     summarize_attendance,
 )
 from accounts.tests.helpers import make_faculty, make_group, make_student
+from core.testing import FrozenClockMixin
 from schedule.models import WeeklyLesson
 from schedule.services import ItemKind, ScheduleItem
 from schedule.tests.helpers import make_discipline
@@ -74,7 +75,7 @@ class AverageGradeTests(SimpleTestCase):
         self.assertEqual(average_grade(_avg_values([5, 2])), Decimal("3.50"))
 
 
-class IsDebtTests(TestCase):
+class IsDebtTests(FrozenClockMixin, TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.faculty = make_faculty("FX")
@@ -131,7 +132,7 @@ class StatusTextTests(SimpleTestCase):
         self.assertEqual(status_text(3), "Есть задолженности: 3")
 
 
-class SummarizeAttendanceTests(TestCase):
+class SummarizeAttendanceTests(FrozenClockMixin, TestCase):
     def _item(self, lesson_id, d, original, slot_num):
         lesson = WeeklyLesson()
         lesson.id = lesson_id
@@ -233,7 +234,7 @@ class SummarizeAttendanceTests(TestCase):
         self.assertEqual(summary.unmarked, 1)
 
 
-class CurrentTermTests(TestCase):
+class CurrentTermTests(FrozenClockMixin, TestCase):
     def _make(self, code, start, end):
         return make_term(
             code=code,
@@ -264,7 +265,7 @@ class CurrentTermTests(TestCase):
         self.assertIsNone(current_term(date(2026, 11, 18)))
 
 
-class ReportFixture(TestCase):
+class ReportFixture(FrozenClockMixin, TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.faculty = make_faculty("FX")

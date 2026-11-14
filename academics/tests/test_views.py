@@ -9,6 +9,7 @@ from django.urls import reverse
 from academics.models import Attendance, CurrentMark, CurriculumItem, FinalResult, Term
 from accounts.models import User
 from accounts.tests.helpers import make_faculty, make_group, make_staff, make_student
+from core.testing import FrozenClockMixin
 from schedule.models import ChangeKind, LessonChange
 from schedule.mutations import save_lesson_change
 from schedule.tests.helpers import aware, make_discipline, make_lesson, make_room
@@ -18,7 +19,7 @@ from .helpers import make_attendance, make_item, make_mark, make_result, make_te
 NOW = "2026-11-18 12:00"
 
 
-class AccessFixture(TestCase):
+class AccessFixture(FrozenClockMixin, TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.faculty_x = make_faculty("FX")
