@@ -2,7 +2,6 @@
 {% block content %}
   <h1>{{ request_type.name }}</h1>
   {% if request_type.description %}<p>{{ request_type.description }}</p>{% endif %}
-  {% if request_type.comment_required %}<p class="hint">{{ request_type.comment_hint }}</p>{% endif %}
   <form method="post" enctype="multipart/form-data" class="form">
     {% csrf_token %}
     {{ form.non_field_errors }}

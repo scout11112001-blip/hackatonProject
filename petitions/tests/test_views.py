@@ -176,6 +176,22 @@ class FormTests(FrozenClockMixin, TestCase):
         resp = self.client.get(self.req_url)
         self.assertIn("Укажите причину", resp.content.decode())
 
+    def test_hint_rendered_once(self):
+        hint = "Обязательно укажите причину обращения."
+        t = make_type(name="H1", comment_required=True, hint=hint)
+        self.client.force_login(self.student.user)
+        resp = self.client.get(reverse("petitions:submit", args=[t.pk]))
+        self.assertEqual(resp.content.decode().count(hint), 1)
+
+    def test_no_hint_for_optional_type(self):
+        hint = "Можно указать, куда нужна справка."
+        t = make_type(name="H2", comment_required=False, hint=hint)
+        self.client.force_login(self.student.user)
+        resp = self.client.get(reverse("petitions:submit", args=[t.pk]))
+        content = resp.content.decode()
+        self.assertLessEqual(content.count(hint), 1)
+        self.assertNotIn('class="hint"', content)
+
     def test_required_comment_missing_shows_error(self):
         self.client.force_login(self.student.user)
         resp = self.client.post(self.req_url, {"comment": ""})
@@ -281,6 +297,21 @@ class StudentPagesTests(FrozenClockMixin, TestCase):
         self.client.force_login(self.student.user)
         resp = self.client.get(reverse("petitions:my_list"))
         self.assertIn("Заявок пока нет", resp.content.decode())
+
+    def test_catalog_link_on_list_with_requests(self):
+        self.client.force_login(self.student.user)
+        resp = self.client.get(reverse("petitions:my_list"))
+        content = resp.content.decode()
+        self.assertEqual(content.count('href="/requests/new/"'), 1)
+        self.assertIn("Подать заявку", content)
+
+    def test_catalog_link_on_empty_list(self):
+        self.petition.delete()
+        self.client.force_login(self.student.user)
+        resp = self.client.get(reverse("petitions:my_list"))
+        content = resp.content.decode()
+        self.assertEqual(content.count('href="/requests/new/"'), 1)
+        self.assertIn("Заявок пока нет.", content)
 
     def test_detail_shows_history_comments_attachments(self):
         store_attachment(self.petition, ContentFile(b"%PDF-1.4\n%%EOF"), "a.pdf", 12)

@@ -127,13 +127,24 @@ the database (`LOGIN_FAILURE_LIMIT` failures → lockout for
 proxy_set_header X-Real-IP $remote_addr;
 ```
 
+## Deployment notes
+
+- Run `python manage.py seed_demo` once on the server on 2026-11-22 (submission
+  day), after `migrate`. It needs `DEMO_PASSWORD` in the environment.
+- Back up `PRIVATE_MEDIA_ROOT` together with the database: attachments are
+  referenced by database rows, so restoring one without the other breaks
+  downloads.
+- nginx must not serve `PRIVATE_MEDIA_ROOT`; set `client_max_body_size 20m;`
+  (see the «Requests» section).
+
 ## Known limitations
 
 - After a student moves to another group, attendance for the former group's
   lessons is not shown (group transfers are out of scope for the prototype).
 - `seed_demo` never updates existing academic rows, so data edited in the admin
   is never overwritten. Re-running it only adds missing rows (new past
-  occurrences); run it daily on the server to keep the demo fresh.
+  occurrences). On the server it is run once, on 2026-11-22 (submission day);
+  there is no scheduled re-run.
 
 ## Environment variables
 

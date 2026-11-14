@@ -7640,33 +7640,522 @@ Remaining risks / notes (non-blocking):
 ── Assistant ───────────────────────────────────────────────
 Обновляю описание скриншотов, план, историю и архив диалогов, затем делаю коммит:
 
-── Running python3 -I - <<'EOF' p='docs/process/README.md'; t=open(p,encoding='utf-8').read() t=t.rstrip('\n')+""" | `2026-11-14_08_requests-list_student.jpg` | 14.11.2026 | После TASK-006 (заявки и справки). Без дизайна | «Мои заявки» студента `student1`: три заявки в статусах «Подана», «В работе», «Выдана» с ожидаемой датой готовности. Недочёт: при непустом списке нет ссылки «Подать заявку» (исправляется в TASK-006-FIX) | | `2026-11-14_09_request-form_student.jpg` | 14.11.2026 | После TASK-006 | Форма «Справка для стипендиального отдела»: обязательный комментарий с подсказкой о причине, загрузка до 3 PDF по 5 МБ. Недочёт: подсказка повторяется дважды | | `2026-11-14_10_request-detail_student.jpg` | 14.11.2026 | После TASK-006 | Карточка заявки студента: статус, номер, даты, комментарий, прикреплённый PDF, история статусов, комментарии сотрудников | | `2026-11-14_11_requests-queue_staff_overflow.jpg` | 14.11.2026 | После TASK-006 | Очередь заявок сотрудника `staff1` с фильтрами по статусу и виду. Недочёт: список «Вид заявки» шире экрана (367 px при 360) | | `2026-11-14_12_request-detail_staff.jpg` | 14.11.2026 | После TASK-006 | Карточка заявки у сотрудника: данные студента, заявка, вложение, история | """ open(p,'w',encoding='utf-8').write(t) p='plan.md'; t=open(p,encoding='utf-8').read() t=t.replace("| TASK-006 | Заявки и справки, кабинет сотрудника; исключение `docs/` из ruff | У Планировщика |","| TASK-006 | Заявки и справки, кабинет сотрудника; исключение `docs/` из ruff | Готово |\n| TASK-006-FIX | Недочёты TASK-006 | Ждёт решения |") t=t.replace("Сейчас: цикл исправлений TASK-005 закрыт 14.11. Порог снижен до 200 тыс., контекст Кодера (242 тыс.) сжат 14.11.","Сейчас: `TASK-006-FIX` ждёт решения пользователя.") a="- nginx: `client_max_body_size 20m`" t=t.replace(a,"- Резервная копия: папку `PRIVATE_MEDIA_ROOT` копировать вместе с базой. Иначе скачивание вложений после восстановления базы даст ошибку.\n"+a,1) open(p,'w',encoding='utf-8').write(t) p='CHANGELOG.md'; t=open(p,encoding='utf-8').read() entry="""### TASK-006: заявки и справки, кабинет сотрудника - Новое приложение `petitions`. 4 вымышленных типа заявок; для трёх комментарий с причиной обязателен. - Студент: каталог → форма (комментарий и до 3 PDF по 5 МБ) → «Мои заявки» → карточка с историей статусов и комментариями сотрудников. - Сотрудник: очередь заявок своего факультета с фильтрами, карточка, смена статуса (Подана → В работе → Готова → Выдана, «Отклонена» с обязательным комментарием), комментарии. - PDF проверяется по расширению, типу и сигнатуре `%PDF-`. Файлы хранятся вне публичных папок под случайными именами `request_attachments/xx/<32 hex>.pdf` (UUID4), с защитой от коллизий; скачиваются только через проверку доступа. - Одновременные изменения: смена статуса проходит только если статус не изменился с момента просмотра; иначе «Заявка уже изменена, обновите страницу». - Не больше 3 открытых заявок одного типа у студента. В адресах — UUID, а не порядковые номера. - `docs/` исключена из `ruff`. - Ревью: 1 раунд, без замечаний. Всего тестов: 559. """ t=t.replace("## 2026-11-14\n","## 2026-11-14\n"+entry,1) open(p,'w',encoding='utf-8').write(t) EOF O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && python3 -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[логин скрыт][\w.+-]*@gmail\.com','[email скрыт]',t)     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~','gmail.com') if k in t]     assert not bad,(f,bad)     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF git add -A && git status --short | grep -v '^[AM] ' | head; git commit -q -F - <<'EOF' TASK-006: certificates and applications, staff request queue New petitions app: request types with optional/required comment, PDF attachments (extension, content type and %PDF- signature checks, private storage with UUID4 names and collision retry, access-checked downloads), status workflow with history and expected-status concurrency check, append-only staff comments, open-request limit, UUID public ids, staff queue scoped to own faculty, seed_demo extended; exclude docs/ from ruff; process archive and screenshots updated. 559 tests. Approved by the Reviewer agent. Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com> EOF git log --oneline -1; git show --stat --format= HEAD | tail -1; git status --short | wc -l; git ls-files | grep -c private_media (Outside of sandbox)
+── Ran 3 commands, created 1 file ──────────────────────────
+  ── Ran python3 -I - <<'EOF' p='docs/process/README.md'; t=open(p,encoding='utf-8').read() t=t.rstrip('\n')+""" | `2026-11-14_08_requests-list_student.jpg` | 14.11.2026 | После TASK-006 (заявки и справки). Без дизайна | «Мои заявки» студента `student1`: три заявки в статусах «Подана», «В работе», «Выдана» с ожидаемой датой готовности. Недочёт: при непустом списке нет ссылки «Подать заявку» (исправляется в TASK-006-FIX) | | `2026-11-14_09_request-form_student.jpg` | 14.11.2026 | После TASK-006 | Форма «Справка для стипендиального отдела»: обязательный комментарий с подсказкой о причине, загрузка до 3 PDF по 5 МБ. Недочёт: подсказка повторяется дважды | | `2026-11-14_10_request-detail_student.jpg` | 14.11.2026 | После TASK-006 | Карточка заявки студента: статус, номер, даты, комментарий, прикреплённый PDF, история статусов, комментарии сотрудников | | `2026-11-14_11_requests-queue_staff_overflow.jpg` | 14.11.2026 | После TASK-006 | Очередь заявок сотрудника `staff1` с фильтрами по статусу и виду. Недочёт: список «Вид заявки» шире экрана (367 px при 360) | | `2026-11-14_12_request-detail_staff.jpg` | 14.11.2026 | После TASK-006 | Карточка заявки у сотрудника: данные студента, заявка, вложение, история | """ open(p,'w',encoding='utf-8').write(t) p='plan.md'; t=open(p,encoding='utf-8').read() t=t.replace("| TASK-006 | Заявки и справки, кабинет сотрудника; исключение `docs/` из ruff | У Планировщика |","| TASK-006 | Заявки и справки, кабинет сотрудника; исключение `docs/` из ruff | Готово |\n| TASK-006-FIX | Недочёты TASK-006 | Ждёт решения |") t=t.replace("Сейчас: цикл исправлений TASK-005 закрыт 14.11. Порог снижен до 200 тыс., контекст Кодера (242 тыс.) сжат 14.11.","Сейчас: `TASK-006-FIX` ждёт решения пользователя.") a="- nginx: `client_max_body_size 20m`" t=t.replace(a,"- Резервная копия: папку `PRIVATE_MEDIA_ROOT` копировать вместе с базой. Иначе скачивание вложений после восстановления базы даст ошибку.\n"+a,1) open(p,'w',encoding='utf-8').write(t) p='CHANGELOG.md'; t=open(p,encoding='utf-8').read() entry="""### TASK-006: заявки и справки, кабинет сотрудника - Новое приложение `petitions`. 4 вымышленных типа заявок; для трёх комментарий с причиной обязателен. - Студент: каталог → форма (комментарий и до 3 PDF по 5 МБ) → «Мои заявки» → карточка с историей статусов и комментариями сотрудников. - Сотрудник: очередь заявок своего факультета с фильтрами, карточка, смена статуса (Подана → В работе → Готова → Выдана, «Отклонена» с обязательным комментарием), комментарии. - PDF проверяется по расширению, типу и сигнатуре `%PDF-`. Файлы хранятся вне публичных папок под случайными именами `request_attachments/xx/<32 hex>.pdf` (UUID4), с защитой от коллизий; скачиваются только через проверку доступа. - Одновременные изменения: смена статуса проходит только если статус не изменился с момента просмотра; иначе «Заявка уже изменена, обновите страницу». - Не больше 3 открытых заявок одного типа у студента. В адресах — UUID, а не порядковые номера. - `docs/` исключена из `ruff`. - Ревью: 1 раунд, без замечаний. Всего тестов: 559. """ t=t.replace("## 2026-11-14\n","## 2026-11-14\n"+entry,1) open(p,'w',encoding='utf-8').write(t) EOF O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && python3 -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[логин скрыт][\w.+-]*@gmail\.com','[email скрыт]',t)     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~','gmail.com') if k in t]     assert not bad,(f,bad)     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF git add -A && git status --short | grep -v '^[AM] ' | head; git commit -q -F - <<'EOF' TASK-006: certificates and applications, staff request queue New petitions app: request types with optional/required comment, PDF attachments (extension, content type and %PDF- signature checks, private storage with UUID4 names and collision retry, access-checked downloads), status workflow with history and expected-status concurrency check, append-only staff comments, open-request limit, UUID public ids, staff queue scoped to own faculty, seed_demo extended; exclude docs/ from ruff; process archive and screenshots updated. 559 tests. Approved by the Reviewer agent. Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com> EOF git log --oneline -1; git show --stat --format= HEAD | tail -1; git status --short | wc -l; git ls-files | grep -c private_media (Outside of sandbox) (3s)
+    $ python3 -I - <<'EOF'
+  p='docs/process/README.md'; t=open(p,encoding='utf-8').read()
+  t=t.rstrip('\n')+"""
+  | `2026-11-14_08_requests-list_student.jpg` | 14.11.2026 | После TASK-006 (заявки и справки). Без дизайна | «Мои заявки» студента `student1`: три заявки в статусах «Подана», «В работе», «Выдана» с ожидаемой датой готовности. Недочёт: при непустом списке нет ссылки «Подать заявку» (исправляется в TASK-006-FIX) |
+  | `2026-11-14_09_request-form_student.jpg` | 14.11.2026 | После TASK-006 | Форма «Справка для стипендиального отдела»: обязательный комментарий с подсказкой о причине, загрузка до 3 PDF по 5 МБ. Недочёт: подсказка повторяется дважды |
+  | `2026-11-14_10_request-detail_student.jpg` | 14.11.2026 | После TASK-006 | Карточка заявки студента: статус, номер, даты, комментарий, прикреплённый PDF, история статусов, комментарии сотрудников |
+  | `2026-11-14_11_requests-queue_staff_overflow.jpg` | 14.11.2026 | После TASK-006 | Очередь заявок сотрудника `staff1` с фильтрами по статусу и виду. Недочёт: список «Вид заявки» шире экрана (367 px при 360) |
+  | `2026-11-14_12_request-detail_staff.jpg` | 14.11.2026 | После TASK-006 | Карточка заявки у сотрудника: данные студента, заявка, вложение, история |
+  """
+  open(p,'w',encoding='utf-8').write(t)
+  p='plan.md'; t=open(p,encoding='utf-8').read()
+  t=t.replace("| TASK-006 | Заявки и справки, кабинет сотрудника; исключение `docs/` из ruff | У Планировщика |","| TASK-006 | Заявки и справки, кабинет сотрудника; исключение `docs/` из ruff | Готово |\n| TASK-006-FIX | Недочёты TASK-006 | Ждёт решения |")
+  t=t.replace("Сейчас: цикл исправлений TASK-005 закрыт 14.11. Порог снижен до 200 тыс., контекст Кодера (242 тыс.) сжат 14.11.","Сейчас: `TASK-006-FIX` ждёт решения пользователя.")
+  a="- nginx: `client_max_body_size 20m`"
+  t=t.replace(a,"- Резервная копия: папку `PRIVATE_MEDIA_ROOT` копировать вместе с базой. Иначе скачивание вложений после восстановления базы даст ошибку.\n"+a,1)
+  open(p,'w',encoding='utf-8').write(t)
+  p='CHANGELOG.md'; t=open(p,encoding='utf-8').read()
+  entry="""### TASK-006: заявки и справки, кабинет сотрудника
+  - Новое приложение `petitions`. 4 вымышленных типа заявок; для трёх комментарий с причиной обязателен.
+  - Студент: каталог → форма (комментарий и до 3 PDF по 5 МБ) → «Мои заявки» → карточка с историей статусов и комментариями сотрудников.
+  - Сотрудник: очередь заявок своего факультета с фильтрами, карточка, смена статуса (Подана → В работе → Готова → Выдана, «Отклонена» с обязательным комментарием), комментарии.
+  - PDF проверяется по расширению, типу и сигнатуре `%PDF-`. Файлы хранятся вне публичных папок под случайными именами `request_attachments/xx/<32 hex>.pdf` (UUID4), с защитой от коллизий; скачиваются только через проверку доступа.
+  - Одновременные изменения: смена статуса проходит только если статус не изменился с момента просмотра; иначе «Заявка уже изменена, обновите страницу».
+  - Не больше 3 открытых заявок одного типа у студента. В адресах — UUID, а не порядковые номера.
+  - `docs/` исключена из `ruff`.
+  - Ревью: 1 раунд, без замечаний. Всего тестов: 559.
+
+  """
+  t=t.replace("## 2026-11-14\n","## 2026-11-14\n"+entry,1)
+  open(p,'w',encoding='utf-8').write(t)
+  EOF
+  O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && python3 -I - "$O" <<'EOF'
+  import os,re,sys
+  d=sys.argv[1]; out='docs/process/dialogs'
+  for f in sorted(os.listdir(d)):
+      t=open(os.path.join(d,f),encoding='utf-8').read()
+      t=re.sub(r'[логин скрыт][\w.+-]*@gmail\.com','[email скрыт]',t)
+      t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')
+      t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)
+      t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')
+      bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~','gmail.com') if k in t]
+      assert not bad,(f,bad)
+      assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f
+      open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
+  EOF
+  git add -A && git status --short | grep -v '^[AM] ' | head; git commit -q -F - <<'EOF'
+  TASK-006: certificates and applications, staff request queue
+
+  New petitions app: request types with optional/required comment, PDF
+  attachments (extension, content type and %PDF- signature checks, private
+  storage with UUID4 names and collision retry, access-checked downloads),
+  status workflow with history and expected-status concurrency check,
+  append-only staff comments, open-request limit, UUID public ids, staff
+  queue scoped to own faculty, seed_demo extended; exclude docs/ from
+  ruff; process archive and screenshots updated. 559 tests. Approved by
+  the Reviewer agent.
+
+  Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+  EOF
+  git log --oneline -1; git show --stat --format= HEAD | tail -1; git status --short | wc -l; git ls-files | grep -c private_media
+    Traceback (most recent call last):
+      File "<stdin>", line 10, in <module>
+    AssertionError: ('01-team-lead.md', ['gmail.com'])
+    07a88b5 TASK-006: certificates and applications, staff request queue
+     53 files changed, 3765 insertions(+), 5 deletions(-)
+           0
+    0
+  ── Thought for 4s
+    The redaction check tripped on 'gmail.com', which is probably my own assert string or the `@gmail\.com` regex rather than real leaked data. Since it aborted, the dialog files never got updated, so the commit went through without them.
+
+    I'm going to switch the redaction check to match an email pattern like `[\w.+-]+@gmail\.com` instead of the bare string, since the bare string is tripping on my own command text. The dialog files are still stale from the earlier run, but they aren't leaking the old content, so I'll commit the update as a separate follow-up commit rather than amending.
+  ── Thought for 4ms
+    Коммит прошёл, но архив диалогов в него не попал: проверка скрытия сработала на `gmail.com`, который оказался текстом моей же команды, а не вашим адресом. Ищу шаблон адреса и обновлю архив отдельным коммитом.
+  ── Ran O=$(ls -d "$TMPDIR"/dialogs-* | tail -1) && grep -ohE '[A-Za-z0-9._%+-]+@gmail\.com' "$O"/*.md | sort | uniq -c; python3 -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]     assert not bad,(f,bad)     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF git add docs/process/dialogs && git commit -q -F - <<'EOF' Process archive: refresh agent dialogs after TASK-006 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com> EOF git log --oneline -1; git status --short | wc -l; bb thread context thr_ng6cbgatm6 2>&1 | head -1 (Outside of sandbox) (2s)
+    $ O=$(ls -d "$TMPDIR"/dialogs-* | tail -1) && grep -ohE '[A-Za-z0-9._%+-]+@gmail\.com' "$O"/*.md | sort | uniq -c; python3 -I - "$O" <<'EOF'
+  import os,re,sys
+  d=sys.argv[1]; out='docs/process/dialogs'
+  for f in sorted(os.listdir(d)):
+      t=open(os.path.join(d,f),encoding='utf-8').read()
+      t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)
+      t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')
+      t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)
+      t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')
+      bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]
+      assert not bad,(f,bad)
+      assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f
+      assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f
+      open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
+  EOF
+  git add docs/process/dialogs && git commit -q -F - <<'EOF'
+  Process archive: refresh agent dialogs after TASK-006
+
+  Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+  EOF
+  git log --oneline -1; git status --short | wc -l; bb thread context thr_ng6cbgatm6 2>&1 | head -1
+    2 [email скрыт]
+    01-team-lead.md 702 KB
+    02-planner.md 628 KB
+    03-coder-deepseek.md 2387 KB
+    04-reviewer.md 372 KB
+    783ba76 Process archive: refresh agent dialogs after TASK-006
+           0
+    Context window: 226,521 / 1,048,576 tokens
+  ── Thought for 7ms
+    I'm checking whether the regex for the scout address already matched both entries, and it does, so the assertion should pass. The earlier failure was a literal 'gmail.com' string in my code, which I've now fixed. Next I want to find the first contextWindowUsage event after compaction to get the real post-compaction size, since the current coder context is 226,521 at the end of TASK-006.
+
+    I'm pulling the events directly to find the first contextWindowUsage reading after compaction.
+  ── Ran bb thread log thr_ng6cbgatm6 --json --all 2>/dev/null > $TMPDIR/coder-ev2.json; python3 -I - <<'EOF' import json,os,datetime ev=json.load(open(os.environ['TMPDIR']+'/coder-ev2.json')) comp=[e['seq'] for e in ev if e.get('type')=='thread/compacted'] print('compactions at seq', comp) for e in ev:     if e.get('type')=='thread/contextWindowUsage/updated':         u=e['data']['contextWindowUsage']         print(e['seq'], datetime.datetime.fromtimestamp(e['createdAt']/1000).strftime('%d.%m %H:%M'), u['usedTokens'], round(u['cost']['amount'],2)) EOF (1s)
+    $ bb thread log thr_ng6cbgatm6 --json --all 2>/dev/null > $TMPDIR/coder-ev2.json; python3 -I - <<'EOF'
+  import json,os,datetime
+  ev=json.load(open(os.environ['TMPDIR']+'/coder-ev2.json'))
+  comp=[e['seq'] for e in ev if e.get('type')=='thread/compacted']
+  print('compactions at seq', comp)
+  for e in ev:
+      if e.get('type')=='thread/contextWindowUsage/updated':
+          u=e['data']['contextWindowUsage']
+          print(e['seq'], datetime.datetime.fromtimestamp(e['createdAt']/1000).strftime('%d.%m %H:%M'), u['usedTokens'], round(u['cost']['amount'],2))
+  EOF
+    compactions at seq [24023, 31724]
+    43761 14.11 04:06 226521 5.34
+  ── Thought for 1s
+    The only usage event recorded after the second compaction is the one at the end of the TASK-006 turn, since bb seems to log usage only once per turn. That means I can't measure the real post-compaction starting size, and the coder finished TASK-006 in a single long turn that ended at 226k. I'll report that honestly: the start size wasn't recorded and the growth figure is unknown. Now that it's above 200k, I'll wait for the fix cycle to close.
+
+    Next I'll draft the fix as TASK-006-FIX.txt, since the compaction step waits until the fix cycle closes.
+  ── Created ~/.bb/thread-storage/thr_4izdzwetb4/TASK-006-FIX.txt +25
+    --- /dev/null
+    +++ b~/.bb/thread-storage/thr_4izdzwetb4/TASK-006-FIX.txt
+    +[TASK-006-FIX] Team lead -> Planner: TASK
+    +Approved by the user. Write the spec `docs/tasks/TASK-006-FIX.md` and hand it to the Coder.
+    +
+    +## Context
+    +Fix task for small defects found in TASK-006 by the Reviewer and by the Team lead's 360 px browser check (screenshots: `docs/process/screenshots/2026-11-14_08..12_*.jpg`). No new features. Each fix is minimal and has a regression test that fails without it. Apply your "Feasibility check" and "Test plan" sections.
+    +
+    +## Items to fix
+    +1. No way to create a new request when the list is not empty (blocks the jury scenario).
+    +   `petitions/templates/petitions/my_list.html`: the "Подать заявку" link to `petitions:catalog` is shown only in the empty state. Show a clear "Подать заявку" link/button at the top of "Мои заявки" in every state. Test: the list page with and without requests contains a link to the catalog.
+    +2. Staff queue overflows a 360 px screen (367 px).
+    +   The "Вид заявки" `<select>` grows to the width of its longest option ("Заявление на повторную промежуточную аттестацию"). Fix globally in `static/css/base.css`: form controls (`input`, `select`, `textarea`, `button`) must not exceed their container (`max-width: 100%`, `box-sizing: border-box`); keep the change in the layout layer, not the theme. Test: the CSS rule exists (simple file assertion) - the visual check is done by the Team lead.
+    +3. Duplicated hint on the request form.
+    +   For types with `comment_required`, "Обязательно укажите причину обращения." is rendered twice (above the field and as help text under it). Render it once (under the field label/help text). Test: the hint appears exactly once on the form page.
+    +4. Missing attachment file -> HTTP 500 (Reviewer).
+    +   `petitions/views.py` `download_attachment`: if the DB row exists but the file is missing on disk, return 404 and log a warning (no file path or personal data in the log). Test with a row whose file was deleted.
+    +5. Misleading `seed_demo` summary on re-run.
+    +   The second run prints "Requests ready: 4 types, 0 requests, 0 attachments" (it counts only newly created rows). Print totals and newly created counts, e.g. "Requests ready: 4 types, 7 requests (0 new), 3 attachments (0 new)". Make the other seed summary lines consistent if they have the same problem. Test the message on a second run.
+    +6. Outdated README instruction.
+    +   `README.md` "Known limitations" says to run `seed_demo` daily on the server. The decision is: run it once on the server on 2026-11-22 (submission day); no cron. Replace the sentence accordingly and add to the deployment notes that `PRIVATE_MEDIA_ROOT` must be backed up together with the database.
+    +
+    +## Out of scope
+    +New features, visual theme (including styling of the native file input), notifications.
+    +
+    +## Verification
+    +All existing verification commands pass (check, deploy check, makemigrations --check, test, `scripts/run_tests_at.py` at a Moscow midnight boundary, ruff, CI YAML), `seed_demo` twice on a temporary database and temporary PRIVATE_MEDIA_ROOT.
+
+── Assistant ───────────────────────────────────────────────
+TASK-006 готова и закоммичена. При проверке на 360 px нашлись 3 недочёта, и один из них блокирует сценарий жюри. Черновик исправлений готов.
+
+**Коммиты:**
+- `07a88b5` TASK-006: certificates and applications, staff request queue. Изменено 53 файла, +3765 строк.
+- `783ba76` — обновлённый архив диалогов. Он не попал в первый коммит: моя проверка скрытия ошибочно сработала на собственном тексте. Я её исправил.
+
+**Проверки:**
+| Проверка | Результат |
+|---|---|
+| Тесты | 559 из 559 прошли (было 409) |
+| `check`, `check --deploy`, миграции | Прошли |
+| `ruff` (папка `docs/` исключена), YAML для CI | Чисто |
+| `seed_demo` дважды подряд | Без дублей: 7 заявок, 3 вложения |
+| Имена файлов | `request_attachments/93/938cd3b9….pdf` — по схеме |
+| Ширина 360 px | 5 из 6 страниц в порядке, очередь сотрудника — 367 px |
+
+**Ревью:** 1 раунд, без замечаний. Ревьюер дополнительно проверил:
+- имя файла с переводами строк не позволяет подставить заголовок в ответ сервера;
+- `<script>` в комментарии экранируется;
+- файлы сохраняются с правами 0640.
+
+**Скриншоты:** 5 новых в `docs/process/screenshots/` с описанием этапа. Недочёты на них отмечены.
+
+**Контекст Кодера: 226 521 токен.** Это больше порога в 200 тыс., поэтому я сожму контекст после закрытия цикла исправлений. Реальный размер сразу после прошлого сжатия узнать не удалось: bb записывает размер только в конце хода, а всю TASK-006 Кодер сделал за один ход.
+
+**Черновик TASK-006-FIX:** [TASK-006-FIX.txt](~/.bb/thread-storage/thr_4izdzwetb4/TASK-006-FIX.txt).
+| # | Недочёт | Кто нашёл | Рекомендация |
+|---|---|---|---|
+| 1 | **Нет кнопки «Подать заявку», если у студента уже есть заявки.** Ссылка есть только при пустом списке, а сценарий жюри «подать заявку» с заполненными демо-данными не проходит | Я | **Исправить срочно** |
+| 2 | Очередь сотрудника шире экрана: список «Вид заявки» растягивается по длинному названию | Я | Исправить: одно правило CSS для всех полей форм |
+| 3 | Подсказка «Обязательно укажите причину» в форме повторяется дважды | Я | Исправить |
+| 4 | Если файл вложения пропал с диска, скачивание даёт ошибку 500 | Ревьюер | Исправить: отдавать 404 и записывать в лог |
+| 5 | Повторный `seed_demo` пишет «0 requests, 0 attachments», будто данных нет | Я | Исправить: показывать «всего 7 (новых 0)» |
+| 6 | В `README.md` осталось «запускать `seed_demo` ежедневно» | Я | Исправить: «один раз 22.11» и про резервную копию вложений |
+
+Отдельно я добавил в `plan.md`, раздел «Обязательно при деплое»: копировать папку вложений `PRIVATE_MEDIA_ROOT` вместе с базой.
+
+Что исправляем? Если согласны со всеми рекомендациями, ответьте «отправляй».
+
+── User ────────────────────────────────────────────────────
+> Исправить: показывать «всего 7 (новых 0)»
+
+Мы же не будем запускать seed после срока сдачи, может не трогать?
+
+── Thought for 15ms ────────────────────────────────────────
+  I'm taking the point that this is console output only, visible to us developers and not the jury, so I'll drop item 5. The jury may still see code, though not the console. The seed gets run several times, locally and at the 17.11 and 22.11 deploys, but the message is clear enough. I'll remove it from the draft and ask whether they want the rest sent.
+
+── Assistant ───────────────────────────────────────────────
+Да, вы правы. Это сообщение в консоли, его видим только мы с агентами, жюри его не увидит. Мы и так знаем, что «0» при повторном запуске означает «новых записей нет». Тратить на это цикл не стоит.
+
+Убираю пункт 5 из черновика:
+
+── Ran F=~/.bb/thread-storage/thr_4izdzwetb4/TASK-006-FIX.txt && python3 -I - "$F" <<'EOF' import sys,re p=sys.argv[1]; t=open(p,encoding='utf-8').read() s=t.index("5. Misleading `seed_demo` summary on re-run."); e=t.index("6. Outdated README instruction.") t=t[:s]+t[e:].replace("6. Outdated README instruction.","5. Outdated README instruction.",1) t=t.replace("## Out of scope\nNew features,","## Out of scope\nThe `seed_demo` summary wording on re-run (internal console output; user decision: leave as is). New features,") open(p,'w',encoding='utf-8').write(t) EOF grep -nE '^[0-9]\. |seed_demo. summary' $F | cut -c1-90 (1s)
+  $ F=~/.bb/thread-storage/thr_4izdzwetb4/TASK-006-FIX.txt && python3 -I - "$F" <<'EOF'
+import sys,re
+p=sys.argv[1]; t=open(p,encoding='utf-8').read()
+s=t.index("5. Misleading `seed_demo` summary on re-run."); e=t.index("6. Outdated README instruction.")
+t=t[:s]+t[e:].replace("6. Outdated README instruction.","5. Outdated README instruction.",1)
+t=t.replace("## Out of scope\nNew features,","## Out of scope\nThe `seed_demo` summary wording on re-run (internal console output; user decision: leave as is). New features,")
+open(p,'w',encoding='utf-8').write(t)
+EOF
+grep -nE '^[0-9]\. |seed_demo. summary' $F | cut -c1-90
+  8:1. No way to create a new request when the list is not empty (blocks the jury scenario).
+  10:2. Staff queue overflows a 360 px screen (367 px).
+  12:3. Duplicated hint on the request form.
+  14:4. Missing attachment file -> HTTP 500 (Reviewer).
+  16:5. Outdated README instruction.
+  20:The `seed_demo` summary wording on re-run (internal console output; user decision: leav
+
+── Assistant ───────────────────────────────────────────────
+Я убрал этот пункт из TASK-006-FIX. В задаче он отмечен как «не исправлять, решение пользователя», чтобы Планировщик не вернул его по своей инициативе.
+
+В TASK-006-FIX осталось 5 пунктов:
+1. Кнопка «Подать заявку» всегда видна в «Моих заявках». Это срочно.
+2. Поля форм не шире экрана: одно правило CSS для всех полей.
+3. Подсказка о причине обращения показывается один раз.
+4. Пропавший файл вложения даёт 404 вместо ошибки 500.
+5. Исправить `README.md`: запускать `seed_demo` один раз 22.11, а вложения копировать вместе с базой.
+
+Отправить TASK-006-FIX Планировщику?
+
+── User ────────────────────────────────────────────────────
+Отправляй
+
+── Ran git status --short && bb thread tell thr_2imsg4kck2 --message-file ~/.bb/thread-storage/thr_4izdzwetb4/TASK-006-FIX.txt 2>&1 | tail -1 && python3 -I - <<'EOF' p='plan.md'; t=open(p,encoding='utf-8').read() t=t.replace("| TASK-006-FIX | Недочёты TASK-006 | Ждёт решения |","| TASK-006-FIX | Недочёты TASK-006 (5 пунктов) | У Планировщика |") t=t.replace("Сейчас: `TASK-006-FIX` ждёт решения пользователя.","Сейчас: `TASK-006-FIX` у Планировщика.") open(p,'w',encoding='utf-8').write(t) EOF grep -n 'TASK-006-FIX' plan.md (2s)
+  $ git status --short && bb thread tell thr_2imsg4kck2 --message-file ~/.bb/thread-storage/thr_4izdzwetb4/TASK-006-FIX.txt 2>&1 | tail -1 && python3 -I - <<'EOF'
+p='plan.md'; t=open(p,encoding='utf-8').read()
+t=t.replace("| TASK-006-FIX | Недочёты TASK-006 | Ждёт решения |","| TASK-006-FIX | Недочёты TASK-006 (5 пунктов) | У Планировщика |")
+t=t.replace("Сейчас: `TASK-006-FIX` ждёт решения пользователя.","Сейчас: `TASK-006-FIX` у Планировщика.")
+open(p,'w',encoding='utf-8').write(t)
+EOF
+grep -n 'TASK-006-FIX' plan.md
+  Thread thr_2imsg4kck2 steered
+  95:| TASK-006-FIX | Недочёты TASK-006 (5 пунктов) | У Планировщика |
+  100:Сейчас: `TASK-006-FIX` у Планировщика.
+
+── Assistant ───────────────────────────────────────────────
+Я отправил TASK-006-FIX Планировщику: @thread:thr_2imsg4kck2. В `plan.md` у задачи статус «У Планировщика».
+
+После `APPROVE` я сделаю следующее:
+1. Проверю задачу и закоммичу её.
+2. Сам пройду страницы заявок на 360 px: кнопка «Подать заявку», ширина очереди сотрудника, одна подсказка в форме.
+3. Обновлю архив и добавлю скриншоты «после исправления».
+4. Если новых недочётов не будет, сожму контекст Кодера: сейчас он 226 тыс., больше порога.
+5. Напишу вам отчёт и предложу TASK-007 (уведомления).
+
+── User ────────────────────────────────────────────────────
+Если я попрошу тебя сжать контекст агентов на opus, то ты сделаешь это встроенными функциями claude?
+
+── Ran 1 tool, ran 1 command ───────────────────────────────
+  ── Thought for 2s
+    I'm checking whether compacting the Opus agents would go through Claude's built-in functions. The plan is `bb thread compact <id>`, which queues the same structured /compact turn the composer sends, and for the claude-code provider that runs Claude Code's native compaction. I still need to confirm in the bb guide that this is the behavior.
+
+    Next I'm going to check whether the bb guide or the claude-code provider skill has anything specific on compaction, since a brief answer may be enough without it. A quick grep of the bb guide for "claude compact" should settle it.
+  ── Loaded skill bb-global-skills:claude-code-provider
+    Launching skill: bb-global-skills:claude-code-provider
+  ── Thought for 13ms
+    I'm settling that the answer is yes: `bb thread compact <id>` will trigger compaction, sent as the same /compact command the composer uses. For Claude Code threads that's the native compaction, summarized by the same model. Compaction only happens on explicit request, since the current rule is not to touch the context, and I might also show the current context sizes for the planner and the rest.
+
+    I'm checking whether the next part of the answer covers the context sizes of the planner and reviewer, as a quick check for information.
+  ── Ran for t in thr_2imsg4kck2 thr_cpuae9aqw3; do echo "== $t"; bb thread context $t 2>&1 | head -4; done (1s)
+    $ for t in thr_2imsg4kck2 thr_cpuae9aqw3; do echo "== $t"; bb thread context $t 2>&1 | head -4; done
+    == thr_2imsg4kck2
+    Estimated context: 451,073 / 1,000,000 tokens
+    == thr_cpuae9aqw3
+    Estimated context: 409,851 / 1,000,000 tokens
+
+── Assistant ───────────────────────────────────────────────
+Да, но через bb, а не напрямую. Я выполню `bb thread compact <id треда>`. bb отправит в тред ту же команду `/compact`, что и кнопка в поле сообщения. Для тредов Claude Code это встроенное сжатие самого Claude Code: модель треда пересказывает свою историю. Отдельного механизма bb здесь нет, bb только запускает команду.
+
+Чем это отличается от сжатия Кодера:
+- **Сжатие делает Claude Code, а не OpenCode.** Пересказ пишет та же модель Opus, что работает в треде.
+- **Метрика точнее.** Для Claude-тредов bb показывает разбор контекста отдельно от рабочих запросов, а не размер последнего запроса.
+- **Claude Code сам сжимает контекст**, когда окно почти заполнено.
+
+Сейчас у этих тредов занято:
+| Тред | Контекст |
+|---|---|
+| Планировщик | ≈ 451 тыс. из 1 000 тыс. |
+| Ревьюер | ≈ 410 тыс. из 1 000 тыс. |
+
+По нашему правилу контекст Планировщика и Ревьюера я не трогаю. Сожму его только по вашей прямой команде. Если решите сжимать, лучше делать это между задачами, когда тред свободен, а не во время работы над TASK-006-FIX.
+
+── User ────────────────────────────────────────────────────
+В следующий раз (только потому, что я тебе об этом говорю) сожми не только контекст кодера, но и остальных агентов. Свой контекст сжимай последним
+
+── Edited 1 file ───────────────────────────────────────────
+  ── Thought for 3s
+    I'm planning the compaction order for after the TASK-006-FIX cycle: the coder first, since it's at 226k, then the planner, the reviewer, and finally myself. I'm wondering whether `bb thread compact --self` will work on my own thread while it's active, since the command describes idle or errored threads, so it may refuse. One option is to use `--send-at` to schedule it.
+
+    I'm weighing whether to use `/compact` from inside my own thread, since `bb thread compact --self` may refuse while the thread is active. If it does, I'll ask the user to run `/compact` themselves, and I'll try the command at that point before falling back to that.
+  ── Edited ~/.claude/projects/-Users-andreyorlov/memory/hackatonproject-team-lead.md +1 -1
+    --- a~/.claude/projects/-Users-andreyorlov/memory/hackatonproject-team-lead.md
+    +++ b~/.claude/projects/-Users-andreyorlov/memory/hackatonproject-team-lead.md
+    -Exception to the approval rule:
+    +ONE-TIME instruction (given 2026-11-14, for the next compaction only, after the TASK-006-FIX cycle closes): compact the Coder AND the Planner (thr_2imsg4kck2) AND the Reviewer (thr_cpuae9aqw3), each when idle; compact my own thread (thr_4izdzwetb4) last. After that, the default rule (never touch Planner/Reviewer) applies again. Exception to the approval rule:
+
+── Assistant ───────────────────────────────────────────────
+Хорошо. При следующем сжатии, после закрытия цикла TASK-006-FIX, я сожму контекст всех агентов по порядку:
+1. Кодер.
+2. Планировщик.
+3. Ревьюер.
+4. Мой тред — последним.
+
+Каждый тред сжимаю, только когда он свободен. В отчёте укажу размеры до сжатия. Это разовое указание: после него снова действует правило «контекст Планировщика и Ревьюера не трогаем». Указание я записал в свою память как разовое.
+
+**Свой тред я, скорее всего, сжать не смогу.** Команда `bb thread compact` работает только для свободного треда, а мой тред занят, пока я выполняю команду. Я попробую. Если bb откажет, попрошу вас ввести `/compact` в моём треде после моего ответа. Так моё сжатие и будет последним.
+
+── User ────────────────────────────────────────────────────
+Хорошо, тогда просто введу compact
+
+── Edited ~/.claude/projects/-Users-andreyorlov/memory/hackatonproject-team-lead.md +1 -1
+  --- a~/.claude/projects/-Users-andreyorlov/memory/hackatonproject-team-lead.md
+  +++ b~/.claude/projects/-Users-andreyorlov/memory/hackatonproject-team-lead.md
+  -compact my own thread (thr_4izdzwetb4) last.
+  +do NOT compact my own thread — the user will type /compact in it themselves after my report (remind them at the end of the report).
+
+── Assistant ───────────────────────────────────────────────
+Договорились. Я сожму Кодера, Планировщика и Ревьюера, а свой тред трогать не буду. В конце отчёта напомню вам ввести `/compact` в моём треде.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_cpuae9aqw3]
+
+[TASK-006-FIX] Reviewer -> Team lead: APPROVE
+
+Spec: docs/tasks/TASK-006-FIX.md. Approved in round 1, no changes requested.
+
+Verified (re-ran myself):
+- Code matches 4.1-4.5:
+  - my_list has exactly one «Подать заявку» link above the list, and the empty state is kept;
+  - base.css caps input/select/textarea/button with max-width: 100% and min-width: 0 (layout layer only);
+  - the duplicate hint line is removed from form.html;
+  - download_attachment: access lookup first, then FileNotFoundError -> one WARNING with only the attachment UUID -> Http404;
+  - README: "Deployment notes" (seed once on 2026-11-22, back up PRIVATE_MEDIA_ROOT with the DB, nginx) and the updated Known limitations.
+- My TASK-006 probe (file deleted on disk) now returns 404 with the expected WARNING line (UUID only).
+- check clean; makemigrations clean; deploy check exit 0 (1 silenced); ruff clean (123 files); CI YAML valid; git status lists only the spec's files plus plan.md and the spec.
+- Tests: 567 OK with run_tests_at.py at 2026-11-17T23:59:59, 2026-11-18T00:00:00 and 2027-03-01T12:00:00. Plain `manage.py test`: OK in 4 of 5 runs, including one that crossed Moscow midnight (see the note below).
+
+Coder's deviation (accepted): spec 5.2 asked to assert that tokens.css/theme.css do not contain "max-width" at all. tokens.css legitimately defines `--content-max-width`, so that assertion could never pass. The test asserts "max-width: 100%" instead, which keeps the intent. Planner FYI for future specs.
+
+Note (non-blocking, needs watching):
+- One plain `python manage.py test` run (started about 12:45 PST / 23:45 MSK) reported FAILED (failures=1). No files changed during that run (last edit 12:37). I could not reproduce it in 4 further plain runs or 3 frozen-clock runs, so I could not identify the test. This is nondeterminism of unknown origin (clock, ordering or environment). If CI ever shows a failure, keep the test name and send it as a fix task.
+
+── Thought for 3s ──────────────────────────────────────────
+  I'm planning to verify the change by running the test suite, and I want to catch any flakiness, so I'm considering running it more than once. I'm also thinking about running the tests in reverse order and with shuffling, since Django's test runner supports both, to check whether any test depends on execution order.
+
+  I'm weighing whether to investigate the flaky test right away, since a shuffle run might expose it and give me a concrete fix. My plan is to commit, archive the dialogs and screenshots, and then decide on the FIX2 draft. Compaction will wait until the flaky item is settled, since the cycle doesn't close until the user decides.
+
+── Assistant ───────────────────────────────────────────────
+Ревьюер одобрил TASK-006-FIX с первого раунда. Запускаю проверки. Ревьюер видел одно необъяснённое падение теста, поэтому дополнительно гоняю тесты в обратном и случайном порядке: так проверяется зависимость тестов от порядка запуска.
+
+── Ran 4 commands ──────────────────────────────────────────
+  ── Ran git status --short && . .venv/bin/activate && export DEBUG=true SECRET_KEY=local-check-dummy DEMO_PASSWORD='Demo-check-Passw0rd!' DATABASE_URL="sqlite:///$TMPDIR/check6f.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/pm6f" && python manage.py check | tail -1 && python manage.py makemigrations --check --dry-run | tail -1 && ruff check . && ruff format --check . | tail -1 && for mode in "" "--reverse" "--shuffle"; do echo "== test $mode"; python manage.py test $mode 2>&1 | grep -E '^(Ran|OK|FAILED|FAIL:|ERROR:|Used shuffle seed)'; done (4m 42s)
+    $ git status --short && . .venv/bin/activate && export DEBUG=true SECRET_KEY=local-check-dummy DEMO_PASSWORD='Demo-check-Passw0rd!' DATABASE_URL="sqlite:///$TMPDIR/check6f.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/pm6f" && python manage.py check | tail -1 && python manage.py makemigrations --check --dry-run | tail -1 && ruff check . && ruff format --check . | tail -1 && for mode in "" "--reverse" "--shuffle"; do echo "== test $mode"; python manage.py test $mode 2>&1 | grep -E '^(Ran|OK|FAILED|FAIL:|ERROR:|Used shuffle seed)'; done
+    M README.md
+     M petitions/templates/petitions/form.html
+     M petitions/templates/petitions/my_list.html
+     M petitions/tests/test_downloads.py
+     M petitions/tests/test_views.py
+     M petitions/views.py
+     M plan.md
+     M static/css/base.css
+    ?? core/tests/test_css.py
+    ?? docs/tasks/TASK-006-FIX.md
+    System check identified no issues (0 silenced).
+    No changes detected
+    All checks passed!
+    123 files already formatted
+    == test 
+    Ran 567 tests in 91.346s
+    OK
+    == test --reverse
+    Ran 567 tests in 92.340s
+    OK
+    == test --shuffle
+    Ran 567 tests in 93.944s
+    OK
+    Used shuffle seed: 8018876754 (generated)
+  ── Thought for 9s
+    All the tests pass, and the flaky failure didn't come back. The flaky runs keep happening near Moscow midnight, both the earlier one and the "around 23:45 MSK" one, so that looks like a pattern. I'm checking whether the frozen clock in run_tests_at could explain it, since a run starting at 23:45 would finish before midnight.
+
+    The flaky runs keep landing near Moscow midnight, so I'm wondering whether a time-dependent test is behind them. The throttle tests with their 15-minute lockout windows don't obviously explain an hour-specific failure, and the UTC and local time zones don't line up with midnight either. I can't pin it down from here, so the practical next step is to save full test output to a file on the next run so the failing test's name is captured.
+
+    I'm weighing a protocol change over a code fix for the flaky test: have the coder and reviewer save full test output to a file on every run, so the failing test's name gets captured. I also want to try reproducing it by running the tests with the clock frozen at 23:45 and 23:59:30, though the earlier frozen run at 23:59:59 passed. After that I'll commit, take the after-fix screenshots, and archive, then report and recommend the protocol tweak rather than a code task.
+  ── Thought for 4ms
+    Все 567 тестов прошли в прямом, обратном и случайном порядке, так что от порядка они не зависят, и падение, которое заметил Ревьюер, не воспроизводится. Дальше обновляю локальную базу и проверяю исправления в браузере.
+  ── Ran . .venv/bin/activate && python manage.py migrate -v0 && python manage.py shell -c " from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY from django.contrib.sessions.backends.db import SessionStore import json out={} for name in ['student1','staff1']:     u=get_user_model().objects.get(username=name)     s=SessionStore(); s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create()     out[name]=s.session_key open('$TMPDIR/sess.json','w').write(json.dumps(out)); print('ok')" | tail -1 (2s)
+    $ . .venv/bin/activate && python manage.py migrate -v0 && python manage.py shell -c "
+  from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY
+  from django.contrib.sessions.backends.db import SessionStore
+  import json
+  out={}
+  for name in ['student1','staff1']:
+      u=get_user_model().objects.get(username=name)
+      s=SessionStore(); s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create()
+      out[name]=s.session_key
+  open('$TMPDIR/sess.json','w').write(json.dumps(out)); print('ok')" | tail -1
+    ok
+  ── Ran . .venv/bin/activate && exec python manage.py runserver 127.0.0.1:8765 --noreload (1s)
+    $ . .venv/bin/activate && exec python manage.py runserver 127.0.0.1:8765 --noreload
+    Command running in background with ID: b250da97q. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/7250e76a-c320-42a7-b5f5-b6c2995af838/tasks/b250da97q.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran sleep 2; curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8765/health/; bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -1 (5s)
+    $ sleep 2; curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8765/health/; bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -1
+    200
+    {"id":"e774dc43-27a4-4d53-b978-3387e0e593ec","threadId":"thr_4izdzwetb4","hostId":"host_cuvmpv75p3","backend":"local","state":"ready","createdAt":1794690449924,"expiresAt":1794692249924,"previewDirective":"::browser-preview{session=\"e774dc43-27a4-4d53-b978-3387e0e593ec\"}"}
+
+── Assistant ───────────────────────────────────────────────
+::browser-preview{session="e774dc43-27a4-4d53-b978-3387e0e593ec"}
+
+── Ran 2 commands, ran 1 tool ──────────────────────────────
+  ── Ran S=e774dc43-27a4-4d53-b978-3387e0e593ec && J=$TMPDIR/sess.json && K1=$(python3 -c "import json;print(json.load(open('$J'))['student1'])") && KS=$(python3 -c "import json;print(json.load(open('$J'))['staff1'])") && bb browser-automation run $S --timeout 110s --json --script " const p = await browser.getPage('main'); await p.setViewport({width: 360, height: 780, deviceScaleFactor: 1}); await p.goto('http://127.0.0.1:8765/health/'); const res = {}; async function as(k){ await p.deleteCookie({name:'sessionid',domain:'127.0.0.1',path:'/'}); await p.setCookie({name:'sessionid',value:k,domain:'127.0.0.1',path:'/'}); } await as('$K1'); await p.goto('http://127.0.0.1:8765/requests/'); res.list = await p.evaluate(() => ({sw: document.documentElement.scrollWidth, newLinks: [...document.querySelectorAll('a')].filter(a => a.textContent.includes('Подать заявку')).length})); await p.shot({type:'jpeg', maxEdge: 960, quality: 70}); await p.goto('http://127.0.0.1:8765/requests/new/2/'); res.form = await p.evaluate(() => ({sw: document.documentElement.scrollWidth, hints: (document.body.innerText.match(/Обязательно укажите причину/g)||[]).length})); await p.shot({type:'jpeg', maxEdge: 960, quality: 70}); await as('$KS'); await p.goto('http://127.0.0.1:8765/staff/requests/'); res.queue = await p.evaluate(() => ({sw: document.documentElement.scrollWidth})); await p.shot({type:'jpeg', maxEdge: 960, quality: 70}); console.log(JSON.stringify(res));" 2>&1 | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d.get("text"));[print(i["path"]) for i in d.get("images",[])]' (1s)
+    $ S=e774dc43-27a4-4d53-b978-3387e0e593ec && J=$TMPDIR/sess.json && K1=$(python3 -c "import json;print(json.load(open('$J'))['student1'])") && KS=$(python3 -c "import json;print(json.load(open('$J'))['staff1'])") && bb browser-automation run $S --timeout 110s --json --script "
+  const p = await browser.getPage('main');
+  await p.setViewport({width: 360, height: 780, deviceScaleFactor: 1});
+  await p.goto('http://127.0.0.1:8765/health/');
+  const res = {};
+  async function as(k){ await p.deleteCookie({name:'sessionid',domain:'127.0.0.1',path:'/'}); await p.setCookie({name:'sessionid',value:k,domain:'127.0.0.1',path:'/'}); }
+  await as('$K1');
+  await p.goto('http://127.0.0.1:8765/requests/');
+  res.list = await p.evaluate(() => ({sw: document.documentElement.scrollWidth, newLinks: [...document.querySelectorAll('a')].filter(a => a.textContent.includes('Подать заявку')).length}));
+  await p.shot({type:'jpeg', maxEdge: 960, quality: 70});
+  await p.goto('http://127.0.0.1:8765/requests/new/2/');
+  res.form = await p.evaluate(() => ({sw: document.documentElement.scrollWidth, hints: (document.body.innerText.match(/Обязательно укажите причину/g)||[]).length}));
+  await p.shot({type:'jpeg', maxEdge: 960, quality: 70});
+  await as('$KS');
+  await p.goto('http://127.0.0.1:8765/staff/requests/');
+  res.queue = await p.evaluate(() => ({sw: document.documentElement.scrollWidth}));
+  await p.shot({type:'jpeg', maxEdge: 960, quality: 70});
+  console.log(JSON.stringify(res));" 2>&1 | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d.get("text"));[print(i["path"]) for i in d.get("images",[])]'
+    {"list":{"sw":360,"newLinks":1},"form":{"sw":360,"hints":1},"queue":{"sw":360}}
+
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Dqe8Yz/db-Q00n7f/tmp/shot-1794690541694-1.jpg
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Dqe8Yz/db-Q00n7f/tmp/shot-1794690541784-2.jpg
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Dqe8Yz/db-Q00n7f/tmp/shot-1794690541852-3.jpg
+  ── Thought for 3ms
+    Все три исправления проверены: кнопка «Подать заявку» на месте, подсказка одна, очередь сотрудника 360 px. Сохраняю скриншоты и закрываю браузер.
+  ── Ran B=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Dqe8Yz/db-Q00n7f/tmp && D=docs/process/screenshots && cp $B/shot-1794690541694-1.jpg $D/2026-11-14_13_requests-list_student_fixed.jpg && cp $B/shot-1794690541784-2.jpg $D/2026-11-14_14_request-form_student_fixed.jpg && cp $B/shot-1794690541852-3.jpg $D/2026-11-14_15_requests-queue_staff_fixed.jpg && bb browser-automation close e774dc43-27a4-4d53-b978-3387e0e593ec --json 2>&1 | grep -o '"state":"[a-z]*"'; . .venv/bin/activate && python manage.py shell -c " import json from django.contrib.sessions.models import Session d=json.load(open('$TMPDIR/sess.json')) print('deleted', Session.objects.filter(session_key__in=list(d.values())).delete()[0])" | tail -1; rm -f "$TMPDIR/sess.json" (Outside of sandbox) (3s)
+    $ B=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Dqe8Yz/db-Q00n7f/tmp && D=docs/process/screenshots && cp $B/shot-1794690541694-1.jpg $D/2026-11-14_13_requests-list_student_fixed.jpg && cp $B/shot-1794690541784-2.jpg $D/2026-11-14_14_request-form_student_fixed.jpg && cp $B/shot-1794690541852-3.jpg $D/2026-11-14_15_requests-queue_staff_fixed.jpg && bb browser-automation close e774dc43-27a4-4d53-b978-3387e0e593ec --json 2>&1 | grep -o '"state":"[a-z]*"'; . .venv/bin/activate && python manage.py shell -c "
+  import json
+  from django.contrib.sessions.models import Session
+  d=json.load(open('$TMPDIR/sess.json'))
+  print('deleted', Session.objects.filter(session_key__in=list(d.values())).delete()[0])" | tail -1; rm -f "$TMPDIR/sess.json"
+    "state":"closed"
+    Traceback (most recent call last):
+      File "~/hackatonproject/manage.py", line 23, in <module>
+        main()
+      File "~/hackatonproject/manage.py", line 19, in main
+        execute_from_command_line(sys.argv)
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/management/__init__.py", line 442, in execute_from_command_line
+        utility.execute()
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/management/__init__.py", line 436, in execute
+        self.fetch_command(subcommand).run_from_argv(self.argv)
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/management/base.py", line 420, in run_from_argv
+        self.execute(*args, **cmd_options)
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/management/base.py", line 464, in execute
+        output = self.handle(*args, **options)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/management/commands/shell.py", line 247, in handle
+        exec(options["command"], {**globals(), **self.get_namespace(**options)})
+      File "<string>", line 4, in <module>
+    FileNotFoundError: [Errno 2] No such file or directory: '/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T//sess.json'
+  ── Stopped task (3s)
+    {"message":"Successfully stopped task: b250da97q (. .venv/bin/activate && exec python manage.py runserver 127.0.0.1:8765 --noreload)","task_id":"b250da97q","task_type":"local_bash","command":". .venv/bin/activate && exec python manage.py runserver 127.0.0.1:8765 --noreload"}
+  ── Thought for 5ms
+    The sandbox's TMPDIR is different from the system one, so the session file lives in the sandbox location. The sessions are still active in the database, so I need to remove them from inside the sandboxed command.
+
+── Assistant ───────────────────────────────────────────────
+Сессии не удалились: вне песочницы `$TMPDIR` указывает на другую папку. Повторяю удаление внутри песочницы:
+
+── Listed files in $TMPDIR/sess.json ───────────────────────
+  $ ls "$TMPDIR/sess.json" && . .venv/bin/activate && python manage.py shell -c "
+import json
+from django.contrib.sessions.models import Session
+d=json.load(open('$TMPDIR/sess.json'))
+print('deleted', Session.objects.filter(session_key__in=list(d.values())).delete()[0])" | tail -1 && rm -f "$TMPDIR/sess.json" && ls "$TMPDIR/sess.json" 2>&1 | tail -1
+
+── Assistant ───────────────────────────────────────────────
+Сессии удалены. Обновляю описание скриншотов, историю, план и архив, затем делаю коммит:
+
+── Running python3 -I - <<'EOF' p='docs/process/README.md'; t=open(p,encoding='utf-8').read() t=t.rstrip('\n')+""" | `2026-11-14_13_requests-list_student_fixed.jpg` | 14.11.2026 | После TASK-006-FIX | «Мои заявки»: над списком появилась ссылка «Подать заявку» (раньше была только при пустом списке) | | `2026-11-14_14_request-form_student_fixed.jpg` | 14.11.2026 | После TASK-006-FIX | Форма заявки: подсказка «Обязательно укажите причину обращения» показывается один раз | | `2026-11-14_15_requests-queue_staff_fixed.jpg` | 14.11.2026 | После TASK-006-FIX | Очередь сотрудника: список «Вид заявки» укладывается в ширину экрана 360 px | """ open(p,'w',encoding='utf-8').write(t) p='plan.md'; t=open(p,encoding='utf-8').read() t=t.replace("| TASK-006-FIX | Недочёты TASK-006 (5 пунктов) | У Планировщика |","| TASK-006-FIX | Недочёты TASK-006 (5 пунктов) | Готово |") t=t.replace("Сейчас: `TASK-006-FIX` у Планировщика.","Сейчас: `TASK-006-FIX` закрыта 14.11. Ждёт решения: редкое падение теста неизвестного происхождения.") open(p,'w',encoding='utf-8').write(t) p='CHANGELOG.md'; t=open(p,encoding='utf-8').read() entry="""### TASK-006-FIX: недочёты заявок - В «Моих заявках» ссылка «Подать заявку» видна всегда, а не только при пустом списке (без неё не проходил сценарий жюри). - Поля форм не шире контейнера: очередь сотрудника укладывается в 360 px. - Подсказка об обязательной причине обращения показывается один раз. - Пропавший с диска файл вложения даёт 404 и предупреждение в логе (только UUID) вместо ошибки 500. - `README.md`: `seed_demo` запускается на сервере один раз 22.11; папку вложений копировать вместе с базой. - Ревью: 1 раунд, без замечаний. Всего тестов: 567, проходят в обычном, обратном и случайном порядке. """ t=t.replace("## 2026-11-14\n","## 2026-11-14\n"+entry,1) open(p,'w',encoding='utf-8').write(t) EOF O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && python3 -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]     assert not bad,(f,bad)     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF
   $ python3 -I - <<'EOF'
 p='docs/process/README.md'; t=open(p,encoding='utf-8').read()
 t=t.rstrip('\n')+"""
-| `2026-11-14_08_requests-list_student.jpg` | 14.11.2026 | После TASK-006 (заявки и справки). Без дизайна | «Мои заявки» студента `student1`: три заявки в статусах «Подана», «В работе», «Выдана» с ожидаемой датой готовности. Недочёт: при непустом списке нет ссылки «Подать заявку» (исправляется в TASK-006-FIX) |
-| `2026-11-14_09_request-form_student.jpg` | 14.11.2026 | После TASK-006 | Форма «Справка для стипендиального отдела»: обязательный комментарий с подсказкой о причине, загрузка до 3 PDF по 5 МБ. Недочёт: подсказка повторяется дважды |
-| `2026-11-14_10_request-detail_student.jpg` | 14.11.2026 | После TASK-006 | Карточка заявки студента: статус, номер, даты, комментарий, прикреплённый PDF, история статусов, комментарии сотрудников |
-| `2026-11-14_11_requests-queue_staff_overflow.jpg` | 14.11.2026 | После TASK-006 | Очередь заявок сотрудника `staff1` с фильтрами по статусу и виду. Недочёт: список «Вид заявки» шире экрана (367 px при 360) |
-| `2026-11-14_12_request-detail_staff.jpg` | 14.11.2026 | После TASK-006 | Карточка заявки у сотрудника: данные студента, заявка, вложение, история |
+| `2026-11-14_13_requests-list_student_fixed.jpg` | 14.11.2026 | После TASK-006-FIX | «Мои заявки»: над списком появилась ссылка «Подать заявку» (раньше была только при пустом списке) |
+| `2026-11-14_14_request-form_student_fixed.jpg` | 14.11.2026 | После TASK-006-FIX | Форма заявки: подсказка «Обязательно укажите причину обращения» показывается один раз |
+| `2026-11-14_15_requests-queue_staff_fixed.jpg` | 14.11.2026 | После TASK-006-FIX | Очередь сотрудника: список «Вид заявки» укладывается в ширину экрана 360 px |
 """
 open(p,'w',encoding='utf-8').write(t)
 p='plan.md'; t=open(p,encoding='utf-8').read()
-t=t.replace("| TASK-006 | Заявки и справки, кабинет сотрудника; исключение `docs/` из ruff | У Планировщика |","| TASK-006 | Заявки и справки, кабинет сотрудника; исключение `docs/` из ruff | Готово |\n| TASK-006-FIX | Недочёты TASK-006 | Ждёт решения |")
-t=t.replace("Сейчас: цикл исправлений TASK-005 закрыт 14.11. Порог снижен до 200 тыс., контекст Кодера (242 тыс.) сжат 14.11.","Сейчас: `TASK-006-FIX` ждёт решения пользователя.")
-a="- nginx: `client_max_body_size 20m`"
-t=t.replace(a,"- Резервная копия: папку `PRIVATE_MEDIA_ROOT` копировать вместе с базой. Иначе скачивание вложений после восстановления базы даст ошибку.\n"+a,1)
+t=t.replace("| TASK-006-FIX | Недочёты TASK-006 (5 пунктов) | У Планировщика |","| TASK-006-FIX | Недочёты TASK-006 (5 пунктов) | Готово |")
+t=t.replace("Сейчас: `TASK-006-FIX` у Планировщика.","Сейчас: `TASK-006-FIX` закрыта 14.11. Ждёт решения: редкое падение теста неизвестного происхождения.")
 open(p,'w',encoding='utf-8').write(t)
 p='CHANGELOG.md'; t=open(p,encoding='utf-8').read()
-entry="""### TASK-006: заявки и справки, кабинет сотрудника
-- Новое приложение `petitions`. 4 вымышленных типа заявок; для трёх комментарий с причиной обязателен.
-- Студент: каталог → форма (комментарий и до 3 PDF по 5 МБ) → «Мои заявки» → карточка с историей статусов и комментариями сотрудников.
-- Сотрудник: очередь заявок своего факультета с фильтрами, карточка, смена статуса (Подана → В работе → Готова → Выдана, «Отклонена» с обязательным комментарием), комментарии.
-- PDF проверяется по расширению, типу и сигнатуре `%PDF-`. Файлы хранятся вне публичных папок под случайными именами `request_attachments/xx/<32 hex>.pdf` (UUID4), с защитой от коллизий; скачиваются только через проверку доступа.
-- Одновременные изменения: смена статуса проходит только если статус не изменился с момента просмотра; иначе «Заявка уже изменена, обновите страницу».
-- Не больше 3 открытых заявок одного типа у студента. В адресах — UUID, а не порядковые номера.
-- `docs/` исключена из `ruff`.
-- Ревью: 1 раунд, без замечаний. Всего тестов: 559.
+entry="""### TASK-006-FIX: недочёты заявок
+- В «Моих заявках» ссылка «Подать заявку» видна всегда, а не только при пустом списке (без неё не проходил сценарий жюри).
+- Поля форм не шире контейнера: очередь сотрудника укладывается в 360 px.
+- Подсказка об обязательной причине обращения показывается один раз.
+- Пропавший с диска файл вложения даёт 404 и предупреждение в логе (только UUID) вместо ошибки 500.
+- `README.md`: `seed_demo` запускается на сервере один раз 22.11; папку вложений копировать вместе с базой.
+- Ревью: 1 раунд, без замечаний. Всего тестов: 567, проходят в обычном, обратном и случайном порядке.
 
 """
 t=t.replace("## 2026-11-14\n","## 2026-11-14\n"+entry,1)
@@ -7677,27 +8166,13 @@ import os,re,sys
 d=sys.argv[1]; out='docs/process/dialogs'
 for f in sorted(os.listdir(d)):
     t=open(os.path.join(d,f),encoding='utf-8').read()
-    t=re.sub(r'[логин скрыт][\w.+-]*@gmail\.com','[email скрыт]',t)
+    t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)
     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')
     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)
     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')
-    bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~','gmail.com') if k in t]
+    bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]
     assert not bad,(f,bad)
+    assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f
     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f
     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
 EOF
-git add -A && git status --short | grep -v '^[AM] ' | head; git commit -q -F - <<'EOF'
-TASK-006: certificates and applications, staff request queue
-
-New petitions app: request types with optional/required comment, PDF
-attachments (extension, content type and %PDF- signature checks, private
-storage with UUID4 names and collision retry, access-checked downloads),
-status workflow with history and expected-status concurrency check,
-append-only staff comments, open-request limit, UUID public ids, staff
-queue scoped to own faculty, seed_demo extended; exclude docs/ from
-ruff; process archive and screenshots updated. 559 tests. Approved by
-the Reviewer agent.
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-EOF
-git log --oneline -1; git show --stat --format= HEAD | tail -1; git status --short | wc -l; git ls-files | grep -c private_media

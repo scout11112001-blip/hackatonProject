@@ -1,9 +1,11 @@
 """Views for the petitions app."""
 
+import logging
+
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Prefetch
-from django.http import FileResponse, HttpRequest, HttpResponse
+from django.http import FileResponse, Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.views.decorators.http import require_GET
 from django.views.generic import DetailView, FormView, ListView, TemplateView, View
@@ -23,6 +25,8 @@ from petitions.models import (
 from petitions.selectors import attachments_visible_to, petitions_visible_to
 from petitions.services import add_staff_comment, change_status, submit_petition
 from petitions.workflow import ACTION_LABELS, OPEN_STATUSES, allowed_transitions
+
+logger = logging.getLogger(__name__)
 
 
 class CatalogView(StudentRequiredMixin, TemplateView):
@@ -232,8 +236,13 @@ def download_attachment(request: HttpRequest, public_id, file_id) -> HttpRespons
         public_id=file_id,
         petition__public_id=public_id,
     )
+    try:
+        handle = att.file.open("rb")
+    except FileNotFoundError:
+        logger.warning("Attachment file is missing on disk (attachment %s).", att.public_id)
+        raise Http404("Файл не найден.") from None
     response = FileResponse(
-        att.file.open("rb"),
+        handle,
         as_attachment=True,
         filename=att.original_name,
         content_type="application/pdf",

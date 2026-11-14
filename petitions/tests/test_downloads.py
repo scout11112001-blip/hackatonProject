@@ -9,6 +9,7 @@ from django.views import static
 
 from accounts.models import User
 from accounts.tests.helpers import make_faculty, make_group, make_staff, make_student
+from core.storage import get_private_storage
 from core.testing import FrozenClockMixin
 from petitions.files import store_attachment
 from petitions.models import PetitionAttachment
@@ -103,6 +104,49 @@ class DownloadHeadersTests(FrozenClockMixin, TestCase):
         att = store_attachment(self.petition, ContentFile(b"%PDF-1.4\n%%EOF"), "../../x.pdf", 12)
         self.assertRegex(att.file.name, r"^request_attachments/[0-9a-f]{2}/[0-9a-f]{32}\.pdf$")
         self.assertEqual(att.original_name, "x.pdf")
+
+
+class MissingFileTests(FrozenClockMixin, TestCase):
+    def setUp(self):
+        self.fac_x = make_faculty("FX")
+        self.fac_y = make_faculty("FY")
+        self.group_x = make_group(self.fac_x, "GX")
+        self.group_y = make_group(self.fac_y, "GY")
+        self.student_a = make_student("alice", self.group_x, "SA").student_profile
+        self.staff_sx = make_staff("sx", self.fac_x)
+        self.staff_sy = make_staff("sy", self.fac_y)
+        self.type = make_type()
+        self.petition = make_petition(self.student_a, self.type)
+        self.att = store_attachment(self.petition, ContentFile(b"%PDF-1.4\n%%EOF"), "doc.pdf", 12)
+        get_private_storage().delete(self.att.file.name)
+
+    def _url(self):
+        return reverse("petitions:download", args=[self.petition.public_id, self.att.public_id])
+
+    def test_missing_file_returns_404(self):
+        self.client.force_login(self.student_a.user)
+        self.assertEqual(self.client.get(self._url()).status_code, 404)
+        self.client.force_login(self.staff_sx)
+        self.assertEqual(self.client.get(self._url()).status_code, 404)
+
+    def test_missing_file_log_has_no_personal_data(self):
+        self.client.force_login(self.student_a.user)
+        with self.assertLogs("petitions.views", level="WARNING") as logs:
+            self.client.get(self._url())
+        self.assertEqual(len(logs.records), 1)
+        message = logs.output[0]
+        self.assertIn(str(self.att.public_id), message)
+        self.assertNotIn(self.att.file.name, message)
+        self.assertNotIn(self.att.original_name, message)
+        self.assertNotIn(self.student_a.last_name, message)
+        self.assertNotIn(self.student_a.user.username, message)
+        self.assertNotIn(str(settings.PRIVATE_MEDIA_ROOT), message)
+
+    def test_missing_file_of_other_faculty_is_404_without_log(self):
+        self.client.force_login(self.staff_sy)
+        with self.assertNoLogs("petitions.views", level="WARNING"):
+            resp = self.client.get(self._url())
+        self.assertEqual(resp.status_code, 404)
 
 
 class StorageSafetyTests(SimpleTestCase):

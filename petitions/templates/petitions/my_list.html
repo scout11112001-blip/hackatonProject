@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
   <h1>Мои заявки</h1>
+  <p class="page-actions"><a href="{% url 'petitions:catalog' %}">Подать заявку</a></p>
   {% if petitions %}
     <ul class="petition-list">
       {% for petition in petitions %}
@@ -14,6 +15,6 @@
       {% endfor %}
     </ul>
   {% else %}
-    <p>Заявок пока нет. <a href="{% url 'petitions:catalog' %}">Подать заявку</a></p>
+    <p>Заявок пока нет.</p>
   {% endif %}
 {% endblock %}

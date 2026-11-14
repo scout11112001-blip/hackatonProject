@@ -204,3 +204,15 @@ details summary {
 .action-form {
   margin: var(--space-3) 0;
 }
+
+input,
+select,
+textarea,
+button {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.page-actions {
+  margin: var(--space-2) 0 var(--space-3);
+}

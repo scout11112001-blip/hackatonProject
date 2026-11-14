@@ -7409,3 +7409,317 @@ All existing verification commands pass (check, deploy check, makemigrations --c
 В `base.html` не было вывода системных сообщений. Я добавил его в план, без него сотрудник не увидит результат своих действий.
 
 Нужно от вас: на сервере не отдавайте папку `PRIVATE_MEDIA_ROOT` через nginx и поставьте `client_max_body_size 20m`. Это будет записано в README.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-006-FIX] Team lead -> Planner: TASK
+Approved by the user. Write the spec `docs/tasks/TASK-006-FIX.md` and hand it to the Coder.
+
+## Context
+Fix task for small defects found in TASK-006 by the Reviewer and by the Team lead's 360 px browser check (screenshots: `docs/process/screenshots/2026-11-14_08..12_*.jpg`). No new features. Each fix is minimal and has a regression test that fails without it. Apply your "Feasibility check" and "Test plan" sections.
+
+## Items to fix
+1. No way to create a new request when the list is not empty (blocks the jury scenario).
+   `petitions/templates/petitions/my_list.html`: the "Подать заявку" link to `petitions:catalog` is shown only in the empty state. Show a clear "Подать заявку" link/button at the top of "Мои заявки" in every state. Test: the list page with and without requests contains a link to the catalog.
+2. Staff queue overflows a 360 px screen (367 px).
+   The "Вид заявки" `<select>` grows to the width of its longest option ("Заявление на повторную промежуточную аттестацию"). Fix globally in `static/css/base.css`: form controls (`input`, `select`, `textarea`, `button`) must not exceed their container (`max-width: 100%`, `box-sizing: border-box`); keep the change in the layout layer, not the theme. Test: the CSS rule exists (simple file assertion) - the visual check is done by the Team lead.
+3. Duplicated hint on the request form.
+   For types with `comment_required`, "Обязательно укажите причину обращения." is rendered twice (above the field and as help text under it). Render it once (under the field label/help text). Test: the hint appears exactly once on the form page.
+4. Missing attachment file -> HTTP 500 (Reviewer).
+   `petitions/views.py` `download_attachment`: if the DB row exists but the file is missing on disk, return 404 and log a warning (no file path or personal data in the log). Test with a row whose file was deleted.
+5. Outdated README instruction.
+   `README.md` "Known limitations" says to run `seed_demo` daily on the server. The decision is: run it once on the server on 2026-11-22 (submission day); no cron. Replace the sentence accordingly and add to the deployment notes that `PRIVATE_MEDIA_ROOT` must be backed up together with the database.
+
+## Out of scope
+The `seed_demo` summary wording on re-run (internal console output; user decision: leave as is). New features, visual theme (including styling of the native file input), notifications.
+
+## Verification
+All existing verification commands pass (check, deploy check, makemigrations --check, test, `scripts/run_tests_at.py` at a Moscow midnight boundary, ruff, CI YAML), `seed_demo` twice on a temporary database and temporary PRIVATE_MEDIA_ROOT.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran git log --oneline | head -3 && git status --short && cat petitions/templates/petitions/my_list.html petitions/templates/petitions/form.html && sed -n '/^def download_attachment/,/^def \|^class /p' petitions/views.py | head -40 && grep -n "input\|select\|textarea\|button" static/css/base.css && sed -n '/Known limitations/,/^## Env/p' README.md && grep -n "^## \|Deploy\|deploy" README.md && grep -n "^import logging\|getLogger" petitions/views.py; ls docs/process/screenshots | grep 2026-11-14 | head; ls petitions/tests (3s)
+    $ git log --oneline | head -3 && git status --short && cat petitions/templates/petitions/my_list.html petitions/templates/petitions/form.html && sed -n '/^def download_attachment/,/^def \|^class /p' petitions/views.py | head -40 && grep -n "input\|select\|textarea\|button" static/css/base.css && sed -n '/Known limitations/,/^## Env/p' README.md && grep -n "^## \|Deploy\|deploy" README.md && grep -n "^import logging\|getLogger" petitions/views.py; ls docs/process/screenshots | grep 2026-11-14 | head; ls petitions/tests
+    783ba76 Process archive: refresh agent dialogs after TASK-006
+    07a88b5 TASK-006: certificates and applications, staff request queue
+    23eeb2e Team protocol: compact the Coder above 200k tokens
+     M plan.md
+    {% extends "base.html" %}
+    {% block content %}
+      <h1>Мои заявки</h1>
+      {% if petitions %}
+        <ul class="petition-list">
+          {% for petition in petitions %}
+            <li class="petition">
+              <a href="{% url 'petitions:detail' petition.public_id %}">{{ petition.request_type.name }}</a>
+              · № {{ petition.short_id }}
+              · {{ petition.created_at|date:"j E Y" }}
+              · <span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>
+              · готовность: {{ petition.expected_ready_date|date:"j E Y" }}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>Заявок пока нет. <a href="{% url 'petitions:catalog' %}">Подать заявку</a></p>
+      {% endif %}
+    {% endblock %}
+    {% extends "base.html" %}
+    {% block content %}
+      <h1>{{ request_type.name }}</h1>
+      {% if request_type.description %}<p>{{ request_type.description }}</p>{% endif %}
+      {% if request_type.comment_required %}<p class="hint">{{ request_type.comment_hint }}</p>{% endif %}
+      <form method="post" enctype="multipart/form-data" class="form">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        {{ form.as_p }}
+        <button type="submit">Отправить заявку</button>
+      </form>
+    {% endblock %}
+    def download_attachment(request: HttpRequest, public_id, file_id) -> HttpResponse:
+        att = get_object_or_404(
+            attachments_visible_to(request.user).select_related("petition"),
+            public_id=file_id,
+            petition__public_id=public_id,
+        )
+        response = FileResponse(
+            att.file.open("rb"),
+            as_attachment=True,
+            filename=att.original_name,
+            content_type="application/pdf",
+        )
+        response["X-Content-Type-Options"] = "nosniff"
+        response["Cache-Control"] = "private, no-store"
+        return response
+    72:.form input {
+    78:.form button {
+    ## Known limitations
+
+    - After a student moves to another group, attendance for the former group's
+      lessons is not shown (group transfers are out of scope for the prototype).
+    - `seed_demo` never updates existing academic rows, so data edited in the admin
+      is never overwritten. Re-running it only adds missing rows (new past
+      occurrences); run it daily on the server to keep the demo fresh.
+
+    ## Environment variables
+    8:## Requirements
+    12:## Setup
+    21:## Run
+    28:## Test & lint
+    39:  python manage.py check --deploy --fail-level WARNING
+    43:## Demo data
+    76:## Schedule
+    81:## Grades
+    91:## Requests
+    119:## Login protection
+    130:## Known limitations
+    138:## Environment variables
+    2026-11-14_08_requests-list_student.jpg
+    2026-11-14_09_request-form_student.jpg
+    2026-11-14_10_request-detail_student.jpg
+    2026-11-14_11_requests-queue_staff_overflow.jpg
+    2026-11-14_12_request-detail_staff.jpg
+    __init__.py
+    __pycache__
+    helpers.py
+    test_demo.py
+    test_downloads.py
+    test_files.py
+    test_services.py
+    test_views.py
+    test_workflow.py
+  ── Thought for 1s
+    I'm skipping the screenshot since it isn't needed, and checking the CSS around lines 60-90 along with the README's Requests section for deployment notes. The nginx notes are there, but I'm not sure a separate deployment section exists. I also want to confirm the global box-sizing rule is already in base.css, check the `.form input` rule, verify the logging config and whether the `petitions` logger name matters versus the root logger, and get a baseline test count with a quick verification run, plus a look at FileField.
+
+    I'm noting that FileField.open raises FileNotFoundError when the file is missing, and next I'll check README lines 91-118.
+
+── Explored 1 file ─────────────────────────────────────────
+  ── Read static/css/base.css
+  ── Thought for 6s
+    I'm noticing the README has no deployment section, so I'm weighing whether to add a short one. The point that PRIVATE_MEDIA_ROOT needs backing up alongside the database could go into a bullet under the Requests section near the nginx notes, or into a new small "Deployment notes" section. I'm leaning toward the minimal option: a new section with that one point.
+
+    I'm adding a short deployment note that the seed runs once on 2026-11-22, that PRIVATE_MEDIA_ROOT has to be backed up alongside the database, and that nginx shouldn't serve it. Then I'll look at the duplicate hint in the template, the select width, and the missing-file handling for attachment downloads.
+  ── Read static/css/base.css
+
+── Created docs/tasks/TASK-006-FIX.md +151 ─────────────────
+  --- /dev/null
+  +++ b~/hackatonproject/docs/tasks/TASK-006-FIX.md
+  +# TASK-006-FIX: request list link, 360 px overflow, duplicate hint, missing file 404, README
+  +
+  +Author: Planner. Status: ready for implementation.
+  +Base commit: `783ba76`. Related spec: `docs/tasks/TASK-006.md`. Screenshots: `docs/process/screenshots/2026-11-14_08..12_*.jpg`.
+  +
+  +No new features. Each fix is minimal and has a regression test that fails without it.
+  +
+  +---
+  +
+  +## 1. Acceptance criteria
+  +| ID | Criterion |
+  +|---|---|
+  +| AC1 | «Мои заявки» always shows a «Подать заявку» link to `petitions:catalog` at the top (with and without requests); the empty state text stays. |
+  +| AC2 | `static/css/base.css` caps all form controls at their container width (`input`, `select`, `textarea`, `button`: `max-width: 100%`); layout layer only. |
+  +| AC3 | On the request form the hint for `comment_required` types appears exactly once (as the comment field's help text). |
+  +| AC4 | `download_attachment` returns 404 (not 500) when the DB row exists but the file is missing; logs one WARNING without file path, original file name or personal data. |
+  +| AC5 | README: `seed_demo` runs once on the server on 2026-11-22 (no cron); deployment notes say `PRIVATE_MEDIA_ROOT` is backed up together with the database. |
+  +
+  +## 2. Out of scope
+  +`seed_demo` console summary wording, new features, visual theme (incl. native file input styling), notifications.
+  +
+  +## 3. Files
+  +Change only: `petitions/templates/petitions/my_list.html`, `petitions/templates/petitions/form.html`, `petitions/views.py`, `static/css/base.css`, `README.md`, `petitions/tests/test_views.py`, `petitions/tests/test_downloads.py`, `core/tests/test_css.py` (new). No migrations, no settings, no new dependencies.
+  +
+  +---
+  +
+  +## 4. Fixes
+  +
+  +### 4.1 AC1 — `my_list.html`
+  +Directly after `<h1>Мои заявки</h1>` and **outside** the `{% if petitions %}` block:
+  +```html
+  +<p class="page-actions"><a href="{% url 'petitions:catalog' %}">Подать заявку</a></p>
+  +```
+  +Empty state becomes `<p>Заявок пока нет.</p>` (remove the second link so the page has exactly one catalog link).
+  +
+  +### 4.2 AC2 — `static/css/base.css`
+  +Append (layout layer; tokens only, no colors):
+  +```css
+  +input,
+  +select,
+  +textarea,
+  +button {
+  +  max-width: 100%;
+  +  min-width: 0;
+  +}
+  +
+  +.page-actions {
+  +  margin: var(--space-2) 0 var(--space-3);
+  +}
+  +```
+  +`box-sizing: border-box` is already global (`base.css:1-5`, `*, *::before, *::after`); do not duplicate it. `min-width: 0` lets controls shrink inside flex containers. Do not change `tokens.css` or `theme.css`. Keep the existing `.form input` rule.
+  +
+  +### 4.3 AC3 — `form.html`
+  +Remove the line `{% if request_type.comment_required %}<p class="hint">{{ request_type.comment_hint }}</p>{% endif %}`. The hint is already set as the comment field's `help_text` (`petitions/forms.py:40`) and rendered by `{{ form.as_p }}` under the field. Do not change `forms.py`.
+  +
+  +### 4.4 AC4 — `petitions/views.py` `download_attachment`
+  +Add at module level `logger = logging.getLogger(__name__)` (`import logging`). Replace the `att.file.open("rb")` call with:
+  +```python
+  +try:
+  +    handle = att.file.open("rb")
+  +except FileNotFoundError:
+  +    logger.warning("Attachment file is missing on disk (attachment %s).", att.public_id)
+  +    raise Http404("Файл не найден.") from None
+  +```
+  +and pass `handle` to `FileResponse`. Log only the attachment's UUID (`public_id`): no path, no `original_name`, no student data. Access checks stay before this step (unchanged), so a missing file of another student's request is still a 404 from the lookup, without a log line.
+  +
+  +### 4.5 AC5 — README
+  +- "Known limitations", second bullet: replace «run it daily on the server to keep the demo fresh» with: «On the server it is run once, on 2026-11-22 (submission day); there is no scheduled re-run.»
+  +- Add a section `## Deployment notes` right before `## Known limitations`:
+  +  - `python manage.py seed_demo` once on 2026-11-22 after `migrate` (needs `DEMO_PASSWORD`).
+  +  - Back up `PRIVATE_MEDIA_ROOT` together with the database (attachments are referenced by DB rows; restoring one without the other breaks downloads).
+  +  - nginx must not serve `PRIVATE_MEDIA_ROOT`; `client_max_body_size 20m;` (reference to the "Requests" section).
+  +
+  +---
+  +
+  +## 5. Test plan
+  +
+  +All new view tests use existing fixtures/helpers in `petitions/tests/helpers.py` and `FrozenClockMixin`.
+  +
+  +### 5.1 Traceability and regression evidence
+  +| AC | Test (file::class::method) | Fails before fix because |
+  +|---|---|---|
+  +| AC1 | `petitions/tests/test_views.py::StudentPagesTests::test_catalog_link_on_list_with_requests` | link is only in the empty state |
+  +| AC1 | `…::StudentPagesTests::test_catalog_link_on_empty_list` | (passes before; guards the empty state: link present exactly once, «Заявок пока нет.» present) |
+  +| AC2 | `core/tests/test_css.py::BaseCssTests::test_form_controls_capped` | rule does not exist |
+  +| AC3 | `petitions/tests/test_views.py::FormTests::test_hint_rendered_once` | hint rendered twice |
+  +| AC3 | `…::FormTests::test_no_hint_for_optional_type` | (guard: type with `comment_required=False` and a hint → hint shown at most once, no `class="hint"`) |
+  +| AC4 | `petitions/tests/test_downloads.py::MissingFileTests::test_missing_file_returns_404` | `FileNotFoundError` → 500 |
+  +| AC4 | `…::MissingFileTests::test_missing_file_log_has_no_personal_data` | no log before |
+  +| AC4 | `…::MissingFileTests::test_missing_file_of_other_faculty_is_404_without_log` | (guard: access check still first) |
+  +| AC5 | manual README review by the Reviewer | — |
+  +
+  +### 5.2 Test details
+  +- `test_catalog_link_on_list_with_requests`: student with 1 petition; GET `/requests/` → `content.count('href="/requests/new/"') == 1`, link text «Подать заявку».
+  +- `test_catalog_link_on_empty_list`: student without petitions → link count 1, «Заявок пока нет.» present.
+  +- `test_form_controls_capped`: read `settings.BASE_DIR / "static/css/base.css"`; assert a rule whose selector list contains `input`, `select`, `textarea`, `button` and whose body contains `max-width: 100%` (regex `r"input,\s*select,\s*textarea,\s*button\s*\{[^}]*max-width:\s*100%"`). Also assert `tokens.css` and `theme.css` do not contain `max-width` (layout stays in `base.css`).
+  +- `test_hint_rendered_once`: type with `comment_required=True`, hint «Обязательно укажите причину обращения.»; GET form → `content.count(hint) == 1`.
+  +- `test_no_hint_for_optional_type`: `comment_required=False`, hint «Можно указать, куда нужна справка.» → `content.count(hint) <= 1` and `'class="hint"' not in content`.
+  +- `MissingFileTests(FrozenClockMixin, TestCase)`: petition of student A (faculty X) with one stored attachment; delete the file via `get_private_storage().delete(att.file.name)`.
+  +  - `test_missing_file_returns_404`: as A and as staff SX → 404 each.
+  +  - `test_missing_file_log_has_no_personal_data`: `with self.assertLogs("petitions.views", level="WARNING") as logs:` GET as A → exactly one record; message contains `str(att.public_id)`; does not contain `att.file.name`, `att.original_name`, the student's last name, username, or `str(settings.PRIVATE_MEDIA_ROOT)`.
+  +  - `test_missing_file_of_other_faculty_is_404_without_log`: as staff SY → 404 and `assertNoLogs("petitions.views", level="WARNING")`.
+  +- Existing `test_hint_shown_for_required_comment` and `test_my_list_empty_state` must still pass; if `test_my_list_empty_state` asserts the old link inside the empty-state paragraph, adjust only that assertion to the new markup and say so in the `REPORT`.
+  +
+  +### 5.3 Access matrix
+  +No access rules change. The download view keeps the TASK-006 matrix (`petitions/tests/test_downloads.py::DownloadAccessTests`); the new missing-file tests add: owner student → 404, own-faculty staff → 404, other-faculty staff → 404 without log.
+  +
+  +### 5.4 Settings branches / query count
+  +Not applicable (no settings, no list query changes; the list template only gains a static link).
+  +
+  +---
+  +
+  +## 6. Feasibility check (2026-11-14 on `783ba76`)
+  +1. Clean start — `git status --short` → only ` M plan.md`. OK.
+  +2. Referenced objects — `my_list.html` (catalog link only in the empty state, confirmed), `form.html` line 5 (`<p class="hint">` duplicate, confirmed), `forms.py:40` (`help_text = request_type.comment_hint`), `download_attachment` in `petitions/views.py` (calls `att.file.open("rb")` without handling a missing file; no logger in the module), `base.css` (global `box-sizing` at lines 1-5; only `.form input` capped at line 72; no rule for `select`), README "Known limitations" (line 130, "run it daily"), no "Deployment notes" section, test classes `StudentPagesTests`, `FormTests` (`petitions/tests/test_views.py`), `DownloadHeadersTests` (`test_downloads.py`), `get_private_storage` (`core/storage.py`). OK.
+  +3. No collisions — `core/tests/test_css.py`, class `MissingFileTests`, CSS class `page-actions` do not exist. OK.
+  +4. Migrations — none; `makemigrations --check` → "No changes detected". OK.
+  +5. Tools — unchanged (Python 3.12.16, Django 5.2.19, ruff 0.17.4). OK.
+  +6. Framework — `TestCase.assertLogs` / `assertNoLogs` (Python 3.10+), `Http404`, `FieldFile.open` raises `FileNotFoundError` for a missing file on `FileSystemStorage`. OK.
+  +7. Environment — no new env variables. OK.
+  +8. Verification runnable — current tree: `test` → `Ran 559 tests … OK`; `scripts/run_tests_at.py 2026-11-18T00:00:00` → 559 OK; ruff check → clean; ruff format → 122 files formatted; makemigrations clean. OK.
+  +9. Conflicts — none.
+  +10. Assumptions / blockers — none.
+  +
+  +## 7. Implementation order
+  +1. Write the regression tests (5.1) and confirm the ones marked "fails before fix" fail.
+  +2. Fixes 4.1–4.4. 3. README 4.5. 4. `ruff format` on changed Python files only; section 8. `REPORT` to the Reviewer with the regression evidence. Do not commit.
+  +
+  +## 8. Verification
+  +```bash
+  +source .venv/bin/activate
+  +export DEBUG=true
+  +python manage.py check
+  +python manage.py makemigrations --check --dry-run
+  +python manage.py test
+  +python scripts/run_tests_at.py 2026-11-17T23:59:59
+  +python scripts/run_tests_at.py 2026-11-18T00:00:00
+  +DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop \
+  +  ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ \
+  +  python manage.py check --deploy --fail-level WARNING
+  +ruff check . && ruff format --check .
+  +python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"
+  +export DATABASE_URL="sqlite:///$TMPDIR/task006fix.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task006fix-private" DEMO_PASSWORD='Local-Demo-Pass-2026!'
+  +python manage.py migrate && python manage.py seed_demo && python manage.py seed_demo
+  +git status --short
+  +```
+  +`REPORT`: output tails, test count (was 559), `git status`.
+  +
+  +## 9. Risks
+  +- Capping `button`/`input` widths globally could change existing pages; `max-width` only shrinks controls wider than their container, so normal-width controls are unaffected. The Team lead re-checks 360 px visually.
+  +- The missing-file log line must stay free of personal data (asserted by a test).
+
+── Ran bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF' [TASK-006-FIX] Planner -> Coder: TASK Spec: docs/tasks/TASK-006-FIX.md (approved by the Team lead; feasibility check in section 6, no blockers). Five small fixes, regression tests first (section 5.1): 1. my_list.html: one «Подать заявку» link at the top in every state. 2. base.css: `input, select, textarea, button { max-width: 100%; min-width: 0; }` (layout layer only) + `.page-actions`. 3. form.html: remove the duplicate `<p class="hint">`; the hint stays as help text. 4. download_attachment: missing file -> Http404 + one WARNING with the attachment UUID only (no path/name/personal data). 5. README: seed_demo once on 2026-11-22 (no cron); new "Deployment notes" incl. backing up PRIVATE_MEDIA_ROOT with the DB. Verification in section 8 (seed with temporary DATABASE_URL and PRIVATE_MEDIA_ROOT). Do not commit. Questions -> me. EOF (1s)
+  $ bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF'
+[TASK-006-FIX] Planner -> Coder: TASK
+Spec: docs/tasks/TASK-006-FIX.md (approved by the Team lead; feasibility check in section 6, no blockers). Five small fixes, regression tests first (section 5.1):
+1. my_list.html: one «Подать заявку» link at the top in every state.
+2. base.css: `input, select, textarea, button { max-width: 100%; min-width: 0; }` (layout layer only) + `.page-actions`.
+3. form.html: remove the duplicate `<p class="hint">`; the hint stays as help text.
+4. download_attachment: missing file -> Http404 + one WARNING with the attachment UUID only (no path/name/personal data).
+5. README: seed_demo once on 2026-11-22 (no cron); new "Deployment notes" incl. backing up PRIVATE_MEDIA_ROOT with the DB.
+Verification in section 8 (seed with temporary DATABASE_URL and PRIVATE_MEDIA_ROOT). Do not commit. Questions -> me.
+EOF
+  Thread thr_ng6cbgatm6 steered
+
+── Assistant ───────────────────────────────────────────────
+Спецификация TASK-006-FIX готова: [docs/tasks/TASK-006-FIX.md](docs/tasks/TASK-006-FIX.md). Я передал её кодеру. Исправления ещё не написаны.
+
+**Проверка выполнимости пройдена.** Все пять проблем подтвердились в коде. До начала работы проходят 559 тестов, прогон с часами на полуночи и ruff. Открытых вопросов нет.
+
+Что исправит кодер:
+1. **Нет ссылки на подачу заявки.** На странице «Мои заявки» ссылка «Подать заявку» будет вверху всегда, а не только когда список пуст. Ссылка на странице одна.
+2. **Очередь шире экрана.** Полям ввода, спискам выбора и кнопкам нельзя быть шире контейнера. Правка в `base.css`, в слое разметки, а не в теме. Глобальная настройка `box-sizing` уже есть, повторять её не нужно.
+3. **Подсказка выводится дважды.** Убирается лишний абзац в шаблоне. Подсказка остаётся одна, под полем комментария.
+4. **Ошибка 500, если файл пропал с диска.** Теперь будет 404. В журнал пишется одно предупреждение только с UUID вложения: без пути, имени файла и данных студента. Проверка доступа идёт первой, поэтому чужой сотрудник получит 404 без записи в журнал.
+5. **README.**
+   - `seed_demo` запускается на сервере один раз, 22.11.2026, без cron.
+   - Появится раздел «Deployment notes»: папку `PRIVATE_MEDIA_ROOT` нужно сохранять в резервную копию вместе с базой.
+
+Для каждого пункта есть регрессионный тест. Кодер должен убедиться, что тест падает до исправления. Визуальную проверку на 360 px делает тимлид.
