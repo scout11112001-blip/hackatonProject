@@ -4960,3 +4960,299 @@ EOF
 - В рабочей копии лежат и правки самого тимлида — `.bb/roles/lead.md` и `plan.md`. Их стоит не включать в коммит задачи.
 
 Коммит теперь за тимлидом.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_ng6cbgatm6]
+
+[TASK-006] Coder -> Reviewer: REPORT
+
+Spec: docs/tasks/TASK-006.md (implemented in order per section 8; not committed).
+
+## What was done
+- AC0: `pyproject.toml` `extend-exclude = ["*/migrations/*", ".venv", "staticfiles", "docs"]` (whole `docs/`), `known-first-party` += `petitions`. `ruff check .` / `ruff format --check .` never touch `docs/`.
+- `core/storage.py` (PrivateFileStorage: `url()` raises, `get_available_name` raises FileExistsError, dynamic base_location), `core/test_runner.py` (ProjectTestRunner -> temp PRIVATE_MEDIA_ROOT), settings (`petitions` app, `PRIVATE_MEDIA_ROOT`, `FILE_UPLOAD_*_PERMISSIONS`, `TEST_RUNNER`), `.env.example`, `.gitignore` (`/private_media/`), `core/tests/test_storage.py` (7 tests incl. hermetic PRIVATE_MEDIA_ROOT default).
+- App `petitions`: models (RequestType/Petition/PetitionAttachment/PetitionStatusChange/PetitionComment + migration 0001), workflow.py (single TRANSITIONS table), files.py (attachment_upload_to / sanitize_display_name / validate_pdf / validate_attachments / store_attachment with bounded retry + AttachmentStorageError), selectors.py (petitions_visible_to / attachments_visible_to), services.py (submit_petition / change_status with select_for_update + StaleStatusError / add_staff_comment / add_working_days), forms.py, views.py, urls.py (UUID URLs), admin.py (read-only petition admin, no `file` field display), 11 templates + 3 includes, nav «Заявки» + messages block in base.html, CSS tokens.
+- Demo (`petitions/demo.py`): 4 request types (upsert by name) + 7 petitions (every status, both faculties, seed_key-gated, history chain + comments + 3 tiny PDFs); `seed_demo` command adds the «Requests ready» line. README section «Requests» + env row + demo note.
+
+## Tests
+`Ran 559 tests` (was 409 → +150). New: test_storage (7), test_workflow (6), test_files (23), test_services (41), test_views (60), test_downloads (20), test_demo (7).
+Access matrix (6.2) and downloads (6.3), query-count constancy (AC12), PDF validation/signature/size, collision retry, stale-status concurrency, working-days boundaries — all covered per the traceability table.
+
+## Verification (section 9) — all green
+- `check` OK; `makemigrations --check --dry-run` → No changes.
+- `python manage.py test` → 559 OK.
+- `run_tests_at.py` at 2026-11-17T23:59:59, 2026-11-18T00:00:00, 2027-03-01T12:00:00 → all 559 OK (fixed one far-future leak: test helper `make_petition` now passes `created_at` to the submission history row instead of relying on the model default, which captured the unfrozen clock).
+- deploy check exit 0 «(1 silenced)»; `ruff check .` + `ruff format --check .` clean (122 files); yaml ok.
+- Seed on temporary DB+storage: `DATABASE_URL=sqlite:///$TMPDIR/task006.sqlite3 PRIVATE_MEDIA_ROOT=$TMPDIR/task006-private` → first run «Requests ready: 4 types, 7 requests, 3 attachments.», second run «0 requests, 0 attachments» (idempotent); `ls -R` shows 3 files under `request_attachments/xx/`; temp dirs removed.
+
+## Query counts (AC12)
+Constant, no N+1 — verified by `QueryCountTests` (my_list, staff_queue, student detail, staff detail each run the same number of queries after adding 5 petitions / 10 history rows / 5 comments / 5 files). Lists use select_related; details prefetch history/comments/attachments.
+
+## git status (unexpected changes)
+```
+ M .env.example
+ M .gitignore
+ M README.md
+ M accounts/management/commands/seed_demo.py
+ M config/settings.py
+ M config/urls.py
+ M plan.md
+ M pyproject.toml
+ M static/css/base.css
+ M templates/base.html
+?? core/storage.py
+?? core/test_runner.py
+?? core/tests/test_storage.py
+?? docs/tasks/TASK-006.md
+?? petitions/
+```
+All files match the spec's Create/Change lists. Two items are not mine: `plan.md` was already modified before this task (spec §7.1: "only M plan.md"), and `docs/tasks/TASK-006.md` is the task spec itself (untracked, authored by the Planner). No `db.sqlite3` or `private_media/` changes.
+
+## Remains
+- Manual 360px check (student1 submit+PDF / staff1 process; staff2 cannot see FDD queue) — not yet performed.
+- Not committed (Team lead commits).
+
+── Thought for 9ms ─────────────────────────────────────────
+  This is a security-sensitive task involving file uploads, so I'll need to read through the spec carefully before deciding anything.
+
+── Assistant ───────────────────────────────────────────────
+Пришёл отчёт по TASK-006: заявки студентов с вложениями PDF. Здесь загрузка и скачивание файлов, поэтому проверяю особенно внимательно. Читаю спецификацию.
+
+── Ran 1 command, explored 1 file ──────────────────────────
+  ── Ran git log --oneline | head -2; wc -l docs/tasks/TASK-006.md; grep -n "^## \|^### " docs/tasks/TASK-006.md
+    $ git log --oneline | head -2; wc -l docs/tasks/TASK-006.md; grep -n "^## \|^### " docs/tasks/TASK-006.md
+    23eeb2e Team protocol: compact the Coder above 200k tokens
+    18adf49 Coder role: format only task files, protected paths, git status self-check
+         575 docs/tasks/TASK-006.md
+    10:## 1. Acceptance criteria
+    28:## 2. Out of scope
+    33:## 3. Design decisions
+    35:### 3.1 App name `petitions`
+    38:### 3.2 Concurrency: `select_for_update` + expected status
+    41:### 3.3 Private storage
+    44:### 3.4 Test isolation of files
+    47:### 3.5 Later tasks
+    52:## 4. Architecture
+    54:### 4.1 Files
+    101:### 4.2 Tooling (AC0) — do first
+    104:### 4.3 Settings (`config/settings.py`)
+    122:### 4.4 `core/storage.py`
+    142:### 4.5 `core/test_runner.py`
+    151:### 4.6 Models (`petitions/models.py`)
+    227:### 4.7 URLs (`petitions/urls.py`, `app_name = "petitions"`; include in `config/urls.py` after `academics`)
+    242:### 4.8 Navigation and messages (`templates/base.html`)
+    248:## 5. Functions
+    250:### 5.1 `petitions/workflow.py` — single transition table
+    268:### 5.2 `petitions/files.py` — attachments
+    317:### 5.3 `petitions/selectors.py`
+    325:### 5.4 `petitions/services.py`
+    366:### 5.5 Forms (`petitions/forms.py`)
+    400:### 5.6 Views (`petitions/views.py`)
+    413:### 5.7 Templates
+    425:### 5.8 Admin (`petitions/admin.py`)
+    430:### 5.9 Demo data (`petitions/demo.py`)
+    458:### 5.10 README
+    463:## 6. Test plan
+    467:### 6.1 Traceability
+    484:### 6.2 Access matrix (`test_views.AccessMatrixTests`, `test_downloads.DownloadAccessTests`)
+    504:### 6.3 Downloads (`test_downloads.py`)
+    507:### 6.4 Views (`test_views.py`)
+    515:### 6.5 Demo (`test_demo.py`, `PetitionsDemoTests`)
+    518:### 6.6 Settings branches
+    521:### 6.7 Regression and negative cases
+    526:## 7. Feasibility check (2026-11-14 on `23eeb2e`)
+    538:## 8. Implementation order
+    548:## 9. Verification
+    569:## 10. Risks
+  ── Read ~/hackatonproject/docs/tasks/TASK-006.md
+  ── Thought for 6ms
+    I'm kicking off the verification run in the background since it takes a while, and reading through the code while it runs.
+
+── Assistant ───────────────────────────────────────────────
+Запускаю полную проверку в фоне и параллельно читаю код.
+
+── Ran 2 commands, explored 3 files, 1 search ──────────────
+  ── Ran source .venv/bin/activate && export DEBUG=true && python manage.py check && python manage.py makemigrations --check --dry-run; for t in "" 2026-11-17T23:59:59 2026-11-18T00:00:00 2027-03-01T12:00:00; do if [ -z "$t" ]; then echo "== manage.py test"; python manage.py test 2>&1 | grep -E "^Ran|^OK|^FAILED"; else echo "== at $t"; python scripts/run_tests_at.py $t 2>&1 | grep -E "^Ran|^OK|^FAILED"; fi; done; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING; echo deploy=$?; ruff check . && ruff format --check .; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; D=$TMPDIR/rv006; rm -rf $D; mkdir -p $D; export DATABASE_URL="sqlite:///$D/db.sqlite3" PRIVATE_MEDIA_ROOT="$D/private" DEMO_PASSWORD='Local-Demo-Pass-2026!'; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; find $D/private -type f; git status --short (1s)
+    $ source .venv/bin/activate && export DEBUG=true && python manage.py check && python manage.py makemigrations --check --dry-run; for t in "" 2026-11-17T23:59:59 2026-11-18T00:00:00 2027-03-01T12:00:00; do if [ -z "$t" ]; then echo "== manage.py test"; python manage.py test 2>&1 | grep -E "^Ran|^OK|^FAILED"; else echo "== at $t"; python scripts/run_tests_at.py $t 2>&1 | grep -E "^Ran|^OK|^FAILED"; fi; done; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING; echo deploy=$?; ruff check . && ruff format --check .; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; D=$TMPDIR/rv006; rm -rf $D; mkdir -p $D; export DATABASE_URL="sqlite:///$D/db.sqlite3" PRIVATE_MEDIA_ROOT="$D/private" DEMO_PASSWORD='Local-Demo-Pass-2026!'; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; find $D/private -type f; git status --short
+    Command running in background with ID: bynf2m58y. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bynf2m58y.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Read core/storage.py
+  ── Thought for 2s
+    I'm checking that the storage existence check stays within the storage location via safe_join, which looks fine. I'm also confirming that a race during save raises FileExistsError from get_available_name, so the attachment path handles it correctly. Next I'm looking at how a TemporaryUploadedFile in submit_petition gets moved into place.
+
+    I'm confirming that the temporary upload gets moved into place with `file_move_safe` and no overwrite, and that the file permissions are applied. Next I'm checking that `getattr` on `student_profile` falls back cleanly, since the missing-profile error also counts as an AttributeError. Then I'll move on to the services and views.
+  ── Read petitions/services.py
+  ── Thought for 11s
+    I'm checking the dispatch overrides on SubmitPetitionView: it looks up the profile before the mixin's dispatch runs, which double-checks access, but the 404 lookup for the request type still happens in the right order. Anonymous users get redirected by the login middleware first, and staff get a 403 before any 404, so that part looks fine. Now I'm moving on to the attachment download path, where the file is opened in binary mode.
+
+    Now I'm checking the attachment download's file lookup: the path comes from the database and is guarded against traversal, though a file missing on disk would surface as a 500, which I'll note as a minor, non-blocking edge case. The Content-Disposition filename looks sanitized, with quotes and control characters stripped, so header injection seems covered.
+
+    Now I'm checking the upload size handling: Django buffers the whole file before validation runs, so a very large upload hits disk first, though the nginx body limit in the README should cap it. Next I'm confirming the file count limit rejects oversized multi-file posts and that the PDF validation runs on the form's cleaned upload.
+
+    Next I'm checking the templates for any unescaped output, especially `|safe` and how the petition comment gets rendered. I also want to confirm the student detail view and the download view both restrict access properly, which looks right so far.
+
+    Next I'm probing the download with a missing file and a Unicode filename in the header, and checking whether a newline in a student upload's name gets through.
+  ── Searched for safe\|autoescape\|linebreaks\|url\b in petitions/templates
+  ── Thought for 3s
+    I'm checking the admin deletion behavior around PROTECT relations: deleting a StudentProfile or RequestType that has petitions, or a User tied to a history row, should just show the protected-objects page, which is fine. I'm now wondering whether deleting a User cascades into StudentProfile and what that does to the PROTECT chain.
+
+    I'm checking whether a superuser's read-only view of a Petition in the admin works, and whether the change page renders without errors. I also want to test a missing-file download, an upload with line breaks in the filename, and a POST to an inactive request type through the student URL.
+  ── Ran mkdir -p $TMPDIR/probe7/probe7 && cd $TMPDIR/probe7/probe7 && touch __init__.py && cat > tests.py <<'PY' import os from django.core.files.uploadedfile import SimpleUploadedFile from django.test import TestCase from django.urls import reverse from core.testing import FrozenClockMixin from accounts.models import User from accounts.tests.helpers import make_faculty, make_group, make_staff, make_student from core.storage import get_private_storage from petitions.models import Petition, PetitionAttachment from petitions.services import submit_petition from petitions.tests.helpers import make_type, pdf_upload class Probe(FrozenClockMixin, TestCase):     @classmethod     def setUpTestData(cls):         cls.root = User.objects.create_superuser("root", password="x")         f = make_faculty("FX"); g = make_group(f, "G1")         cls.stu = make_student("stu", g, "R1"); cls.stf = make_staff("stf", f)         cls.t = make_type()     def setUp(self):         self.client.raise_request_exception = False     def test_header_injection_name(self):         up = SimpleUploadedFile("a\r\nX-Evil: 1\r\n.pdf", b"%PDF-1.4\n%%EOF", content_type="application/pdf")         p = submit_petition(self.stu.student_profile, self.t, "", [up])         att = p.attachments.get()         self.client.force_login(self.stu)         r = self.client.get(reverse("petitions:download", args=[p.public_id, att.public_id]))         print("\nheader name ->", r.status_code, repr(att.original_name), "X-Evil" in r.headers, repr(r["Content-Disposition"]))     def test_missing_file_on_disk(self):         p = submit_petition(self.stu.student_profile, self.t, "", [pdf_upload()])         att = p.attachments.get()         get_private_storage().delete(att.file.name)         self.client.force_login(self.stu)         r = self.client.get(reverse("petitions:download", args=[p.public_id, att.public_id]))         print("\nmissing file download ->", r.status_code)     def test_admin_views(self):         p = submit_petition(self.stu.student_profile, self.t, "<script>x</script>", [pdf_upload()])         self.client.force_login(self.root)         r1 = self.client.get(reverse("admin:petitions_petition_change", args=[p.pk]))         r2 = self.client.get(reverse("admin:petitions_petition_changelist"))         r3 = self.client.get(reverse("admin:petitions_petitionattachment_changelist")) if self._has("petitionattachment") else None         print("\nadmin petition change/list ->", r1.status_code, r2.status_code, "attachment admin registered:", r3 is not None)         self.client.force_login(self.stf)         r = self.client.get(reverse("petitions:staff_detail", args=[p.public_id]))         print("staff detail escapes comment ->", "<script>x</script>" not in r.content.decode())     def _has(self, name):         from django.contrib import admin         return any(m._meta.model_name == name for m in admin.site._registry)     def test_file_perms_and_location(self):         p = submit_petition(self.stu.student_profile, self.t, "", [pdf_upload()])         path = get_private_storage().path(p.attachments.get().file.name)         from django.conf import settings         print("\nfile mode ->", oct(os.stat(path).st_mode & 0o777), "under private root:", path.startswith(str(settings.PRIVATE_MEDIA_ROOT)))     def test_staff_transition_tamper_expected(self):         p = submit_petition(self.stu.student_profile, self.t, "", [])         self.client.force_login(self.stf)         r = self.client.post(reverse("petitions:staff_transition", args=[p.public_id]), {"expected_status": "submitted", "new_status": "rejected", "comment": "   "})         p.refresh_from_db()         print("\nreject with whitespace comment ->", r.status_code, p.status) PY cd ~/hackatonproject && source .venv/bin/activate && DEBUG=true PYTHONPATH=$TMPDIR/probe7 python manage.py test probe7 2>&1 | grep -E "^(header|missing|admin|staff|file|reject)|Ran|OK|FAIL|Error" (3s)
+    $ mkdir -p $TMPDIR/probe7/probe7 && cd $TMPDIR/probe7/probe7 && touch __init__.py && cat > tests.py <<'PY'
+  import os
+  from django.core.files.uploadedfile import SimpleUploadedFile
+  from django.test import TestCase
+  from django.urls import reverse
+
+  from core.testing import FrozenClockMixin
+  from accounts.models import User
+  from accounts.tests.helpers import make_faculty, make_group, make_staff, make_student
+  from core.storage import get_private_storage
+  from petitions.models import Petition, PetitionAttachment
+  from petitions.services import submit_petition
+  from petitions.tests.helpers import make_type, pdf_upload
+
+
+  class Probe(FrozenClockMixin, TestCase):
+      @classmethod
+      def setUpTestData(cls):
+          cls.root = User.objects.create_superuser("root", password="x")
+          f = make_faculty("FX"); g = make_group(f, "G1")
+          cls.stu = make_student("stu", g, "R1"); cls.stf = make_staff("stf", f)
+          cls.t = make_type()
+
+      def setUp(self):
+          self.client.raise_request_exception = False
+
+      def test_header_injection_name(self):
+          up = SimpleUploadedFile("a\r\nX-Evil: 1\r\n.pdf", b"%PDF-1.4\n%%EOF", content_type="application/pdf")
+          p = submit_petition(self.stu.student_profile, self.t, "", [up])
+          att = p.attachments.get()
+          self.client.force_login(self.stu)
+          r = self.client.get(reverse("petitions:download", args=[p.public_id, att.public_id]))
+          print("\nheader name ->", r.status_code, repr(att.original_name), "X-Evil" in r.headers, repr(r["Content-Disposition"]))
+
+      def test_missing_file_on_disk(self):
+          p = submit_petition(self.stu.student_profile, self.t, "", [pdf_upload()])
+          att = p.attachments.get()
+          get_private_storage().delete(att.file.name)
+          self.client.force_login(self.stu)
+          r = self.client.get(reverse("petitions:download", args=[p.public_id, att.public_id]))
+          print("\nmissing file download ->", r.status_code)
+
+      def test_admin_views(self):
+          p = submit_petition(self.stu.student_profile, self.t, "<script>x</script>", [pdf_upload()])
+          self.client.force_login(self.root)
+          r1 = self.client.get(reverse("admin:petitions_petition_change", args=[p.pk]))
+          r2 = self.client.get(reverse("admin:petitions_petition_changelist"))
+          r3 = self.client.get(reverse("admin:petitions_petitionattachment_changelist")) if self._has("petitionattachment") else None
+          print("\nadmin petition change/list ->", r1.status_code, r2.status_code, "attachment admin registered:", r3 is not None)
+          self.client.force_login(self.stf)
+          r = self.client.get(reverse("petitions:staff_detail", args=[p.public_id]))
+          print("staff detail escapes comment ->", "<script>x</script>" not in r.content.decode())
+
+      def _has(self, name):
+          from django.contrib import admin
+          return any(m._meta.model_name == name for m in admin.site._registry)
+
+      def test_file_perms_and_location(self):
+          p = submit_petition(self.stu.student_profile, self.t, "", [pdf_upload()])
+          path = get_private_storage().path(p.attachments.get().file.name)
+          from django.conf import settings
+          print("\nfile mode ->", oct(os.stat(path).st_mode & 0o777), "under private root:", path.startswith(str(settings.PRIVATE_MEDIA_ROOT)))
+
+      def test_staff_transition_tamper_expected(self):
+          p = submit_petition(self.stu.student_profile, self.t, "", [])
+          self.client.force_login(self.stf)
+          r = self.client.post(reverse("petitions:staff_transition", args=[p.public_id]), {"expected_status": "submitted", "new_status": "rejected", "comment": "   "})
+          p.refresh_from_db()
+          print("\nreject with whitespace comment ->", r.status_code, p.status)
+  PY
+  cd ~/hackatonproject && source .venv/bin/activate && DEBUG=true PYTHONPATH=$TMPDIR/probe7 python manage.py test probe7 2>&1 | grep -E "^(header|missing|admin|staff|file|reject)|Ran|OK|FAIL|Error"
+    ...2026-11-14 15:06:45,457 ERROR django.request Internal Server Error: /requests/dfcac508-8b56-4a17-9a11-8a6f08e7da26/files/f9d2fd99-5289-412d-8f4c-b17b29010016/
+    FileNotFoundError: [Errno 2] No such file or directory: '/tmp/claude-501/test-private-media-ydq3lm7g/request_attachments/f0/f084343f3fca48a6b8507ba26b7cccba.pdf'
+    Ran 5 tests in 0.324s
+    OK
+    admin petition change/list -> 200 200 attachment admin registered: False
+    staff detail escapes comment -> True
+    file mode -> 0o640 under private root: True
+    header name -> 200 'aX-Evil: 1.pdf' False 'attachment; filename="aX-Evil: 1.pdf"'
+    missing file download -> 500
+    reject with whitespace comment -> 302 submitted
+  ── Thought for 3s
+    I'm weighing whether the missing-file case is a real issue. Files would only go missing through external deletion, orphan cleanup, or a database restored without its media files, which is plausible during deployment. It's low to medium severity, the spec doesn't require handling it, and a 500 leaks nothing with DEBUG off, so I'm leaning toward flagging it as recommended but non-blocking.
+
+    I'm deciding whether to flag the missing-file case as a blocker or just a suggestion, which fits since it's a low-to-medium edge case. I'm leaning toward a non-blocking note that suggests returning a 404 on FileNotFoundError, and possibly listing it as a candidate fix in the approval notes given this is a fix cycle. Then I'll wait for the background verification.
+  ── Thought for 4ms
+    Найдена мелочь: если PDF пропал с диска, скачивание отвечает 500, но это не дыра в доступе. Остальные проверки прошли, жду результаты полной проверки.
+  ── Read /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bynf2m58y.output
+
+── Assistant ───────────────────────────────────────────────
+Проверка ещё идёт: четыре прогона по 559 тестов. Дождусь уведомления о завершении.
+
+── Thought for 10ms ────────────────────────────────────────
+  Everything checks out, so I'll send APPROVE with a note about the missing file. The second run reports "0 requests," but the spec doesn't define what to return for petitions, so I'll leave that as is.
+
+── Assistant ───────────────────────────────────────────────
+Все проверки прошли. Отправляю APPROVE тимлиду.
+
+── Ran bb thread tell thr_4izdzwetb4 --message-file - <<'EOF' [TASK-006] Reviewer -> Team lead: APPROVE Spec: docs/tasks/TASK-006.md. Approved in round 1, no changes requested. Verified (re-ran myself): - Section 9:   - check clean, makemigrations clean;   - 559 tests OK with manage.py test and with run_tests_at.py at 2026-11-17T23:59:59, 2026-11-18T00:00:00 and 2027-03-01T12:00:00;   - deploy check exit 0 (1 silenced); ruff clean (122 files; docs/ excluded); CI YAML valid;   - seed on a temporary DB + PRIVATE_MEDIA_ROOT: 7 requests and 3 attachments, re-run 0/0, 3 files at request_attachments/xx/<32hex>.pdf;   - git status: no private_media/, no db changes. - Code matches spec 4-5:   - PrivateFileStorage: dynamic location, url() raises, no overwrite/rename;   - temp PRIVATE_MEDIA_ROOT test runner;   - uuid4-only paths; display name sanitized (path parts, control chars and quotes stripped);   - PDF check: extension + content type + %PDF- signature + size;   - bounded retry on name collision; files deleted on a failed submit;   - one TRANSITIONS table; change_status locks the row, re-checks faculty, compares expected_status, requires a reject comment, writes history;   - open limit checked under a student row lock;   - all lookups via petitions_visible_to / attachments_visible_to; downloads matched by petition AND file UUID, as attachment, application/pdf, nosniff, no-store;   - petition admin is read-only and never renders `file`; no serve/MEDIA URL patterns. - Extra probes (temporary tests outside the repo):   - upload name "a\r\nX-Evil: 1\r\n.pdf" -> stored as "aX-Evil: 1.pdf"; no injected header in Content-Disposition;   - stored file mode 0640, under PRIVATE_MEDIA_ROOT;   - "<script>" in the student comment is escaped on the staff page;   - superuser admin petition list/change pages -> 200;   - reject with a whitespace-only comment -> refused, status unchanged. Remaining risks / notes (non-blocking): - petitions/views.py:236 download_attachment: if the file row exists but the file is missing on disk (orphan cleanup, DB restored without private_media), the view returns HTTP 500 (FileNotFoundError). Nothing leaks with DEBUG=false. Candidate for a fix task: catch FileNotFoundError -> Http404 (and log it). - Deployment: nginx must not serve PRIVATE_MEDIA_ROOT and needs client_max_body_size 20m (README covers both). On deploy, back up private_media together with the DB, or downloads will hit the case above. - Not verified: manual 360 px walkthrough (the Coder also did not do it). EOF
+  $ bb thread tell thr_4izdzwetb4 --message-file - <<'EOF'
+[TASK-006] Reviewer -> Team lead: APPROVE
+
+Spec: docs/tasks/TASK-006.md. Approved in round 1, no changes requested.
+
+Verified (re-ran myself):
+- Section 9:
+  - check clean, makemigrations clean;
+  - 559 tests OK with manage.py test and with run_tests_at.py at 2026-11-17T23:59:59, 2026-11-18T00:00:00 and 2027-03-01T12:00:00;
+  - deploy check exit 0 (1 silenced); ruff clean (122 files; docs/ excluded); CI YAML valid;
+  - seed on a temporary DB + PRIVATE_MEDIA_ROOT: 7 requests and 3 attachments, re-run 0/0, 3 files at request_attachments/xx/<32hex>.pdf;
+  - git status: no private_media/, no db changes.
+- Code matches spec 4-5:
+  - PrivateFileStorage: dynamic location, url() raises, no overwrite/rename;
+  - temp PRIVATE_MEDIA_ROOT test runner;
+  - uuid4-only paths; display name sanitized (path parts, control chars and quotes stripped);
+  - PDF check: extension + content type + %PDF- signature + size;
+  - bounded retry on name collision; files deleted on a failed submit;
+  - one TRANSITIONS table; change_status locks the row, re-checks faculty, compares expected_status, requires a reject comment, writes history;
+  - open limit checked under a student row lock;
+  - all lookups via petitions_visible_to / attachments_visible_to; downloads matched by petition AND file UUID, as attachment, application/pdf, nosniff, no-store;
+  - petition admin is read-only and never renders `file`; no serve/MEDIA URL patterns.
+- Extra probes (temporary tests outside the repo):
+  - upload name "a\r\nX-Evil: 1\r\n.pdf" -> stored as "aX-Evil: 1.pdf"; no injected header in Content-Disposition;
+  - stored file mode 0640, under PRIVATE_MEDIA_ROOT;
+  - "<script>" in the student comment is escaped on the staff page;
+  - superuser admin petition list/change pages -> 200;
+  - reject with a whitespace-only comment -> refused, status unchanged.
+
+Remaining risks / notes (non-blocking):
+- petitions/views.py:236 download_attachment: if the file row exists but the file is missing on disk (orphan cleanup, DB restored without private_media), the view returns HTTP 500 (FileNotFoundError). Nothing leaks with DEBUG=false. Candidate for a fix task: catch FileNotFoundError -> Http404 (and log it).
+- Deployment: nginx must not serve PRIVATE_MEDIA_ROOT and needs client_max_body_size 20m (README covers both). On deploy, back up private_media together with the DB, or downloads will hit the case above.
+- Not verified: manual 360 px walkthrough (the Coder also did not do it).
+EOF
+  Thread thr_4izdzwetb4 steered
+
+── Assistant ───────────────────────────────────────────────
+**TASK-006 одобрена с первого раунда.** Я отправил тимлиду APPROVE, доработка не понадобилась.
+
+**Проверки.** Все команды из спецификации проходят:
+- 559 тестов зелёные в четырёх прогонах: обычном и с замороженными часами (23:59:59, 00:00:00 по Москве и 1 марта 2027);
+- `check`, миграции, `--deploy`, `ruff`, CI;
+- сид на временной базе создаёт 7 заявок и 3 PDF, при повторном запуске ничего не дублирует;
+- закрытая папка с файлами и база проекта не изменились.
+
+**Безопасность файлов я проверил отдельно:**
+- Файлы лежат в закрытой папке под случайными UUID-именами, с правами 0640. Открытой ссылки на них нет.
+- Скачать файл можно только через проверку доступа. Студент видит только свои заявки, сотрудник — только заявки своего факультета.
+- Пара «заявка + файл» проверяется целиком: файл чужой заявки по подставленному номеру не скачать.
+- Попытка подставить свой заголовок через имя файла с переносами строк не сработала, переносы вычищаются.
+- `<script>` в комментарии студента экранируется.
+- Отклонить заявку без причины нельзя, даже если в причине одни пробелы.
+
+**Что я передал тимлиду как риски:**
+- Если запись о файле в базе есть, а сам файл с диска пропал, скачивание отдаёт 500. Утечки нет, но лучше отдавать 404. Это кандидат на задачу-исправление.
+- При развёртывании nginx не должен отдавать закрытую папку напрямую. В README это написано.
+- Папку с файлами нужно сохранять в резервную копию вместе с базой. Иначе после восстановления базы скачивания будут падать.
+- Вручную не проверено: страницы на ширине 360 px. Кодер эту проверку тоже не делал.
+
+Коммит теперь за тимлидом.

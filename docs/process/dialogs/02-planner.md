@@ -6602,3 +6602,810 @@ Do not delete or recreate the local `db.sqlite3` (or any database) without Team 
 **A2. Ruff и архив диалогов.** Подтвердил на текущем коде: `ruff format --check .` падает на `docs/process/dialogs/03-coder-deepseek.md`. После исключения папки `docs/process` из проверки ruff все 104 файла проходят.
 
 **A3. Напоминание кодеру.** Удалять локальную базу нельзя. Проверять `seed_demo` нужно на временной базе.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-006] Team lead -> Planner: TASK
+Approved by the user. Write the spec `docs/tasks/TASK-006.md` and hand it to the Coder.
+
+## Context
+Done: TASK-001..005 and TASK-005-FIX (users and roles, schedule, grades and attendance, change guards, `core/testing.py` FrozenClockMixin, `scripts/run_tests_at.py`). Reuse the existing access helpers (`students_visible_to`, role mixins), the validation pattern (model/service level, admin form errors never 500) and the locking pattern. Read `plan.md`, `README.md` "Known limitations" and the previous specs.
+
+This is a mandatory part of the contest: "order a certificate or submit an application online and see its status". The jury will walk this scenario on a phone: log in as a student -> submit a request -> see its status; log in as dean's-office staff -> process it.
+
+Later tasks depend on this one (design for them, do not implement): notifications (TASK-007) will announce request status changes, so every status change must be stored as a history record with time, actor and comment.
+
+## Item 0 (tooling, do it first)
+Exclude the whole `docs/` directory from ruff in `pyproject.toml` (replace the current `docs/process` exclusion). ruff 0.17 formats code blocks inside Markdown, and it already rewrote a spec once. Verify `ruff check .` and `ruff format --check .` pass and do not touch `docs/`.
+
+## Goal
+Students order certificates and submit applications online and track their status. Dean's-office staff process requests of their own faculty.
+
+## Requirements
+1. New app. Do NOT name it `requests` (it would shadow the popular `requests` library); e.g. `deanery` or `petitions` - justify.
+2. Request types (catalog), managed in admin (superuser): name, kind (certificate / application), short description, expected processing time in working days, `comment_required` flag and a hint text shown above the comment field.
+   The student form has exactly two inputs (user decision): "Комментарий" (text) and PDF attachments. There is no "number of copies" field (always 1) and no other fields.
+   - If `comment_required` is set, the comment is mandatory (validated at form AND service level) and the hint states it, e.g. "Обязательно укажите причину обращения."
+   - Seed exactly these fictional types:
+     - "Справка об обучении" - certificate, comment optional;
+     - "Справка для стипендиального отдела" - certificate, comment required (reason);
+     - "Заявление на повторную промежуточную аттестацию" - application, comment required (reason);
+     - "Заявление на академический отпуск" - application, comment required (reason).
+2a. PDF attachments (security-critical):
+   - Optional, up to 3 files per request, each at most 5 MB (named constants). Attached only when the request is submitted.
+   - Accept only real PDFs: check the extension, the declared content type AND the file signature (`%PDF-`). Reject anything else with a clear form error.
+   - Store files outside any publicly served directory under random, non-guessable names (user decision, exact scheme):
+     - the name comes from a cryptographically secure generator: `uuid.uuid4().hex` (or `secrets.token_hex(16)`); never the `random` module, never a hash of the file name or content;
+     - path format: `request_attachments/<first 2 chars>/<32 hex chars>.pdf`; the `.pdf` extension is fixed by the code;
+     - nothing from the user goes into the path: not the original file name, not the student/request ID, not a date or counter (prevents path traversal and guessing). The `upload_to` callable ignores its `filename` argument;
+     - collision protection: the stored file name/path field has a database UNIQUE constraint; on the (practically impossible) collision, generate a new name and retry a bounded number of times, then fail with a clear error; the storage must never overwrite an existing file;
+     - keep the original file name only as display metadata (sanitized, length-limited) and use it in `Content-Disposition` on download.
+   - Serve files ONLY through a Django view that applies the same access rules as the request (owner student, staff of the student's faculty), with `Content-Disposition: attachment`, the correct content type and `X-Content-Type-Options: nosniff`. No direct media URL. Document in README that nginx must not serve this directory.
+   - Uploads must work with the existing security settings (CSRF, `FILE_UPLOAD_MAX_MEMORY_SIZE`/`DATA_UPLOAD_MAX_MEMORY_SIZE` adjusted only as needed).
+   - Tests use small generated PDFs; `seed_demo` attaches a tiny generated fictional PDF to some demo requests.
+3. Request: student, type, student comment, attachments, created_at, status, expected ready date (computed from working days; weekends only, no holiday calendar). Do NOT store which staff member "took" the request (user decision). Public identifier in URLs must be non-sequential (e.g. UUID); access is still checked on every request.
+3a. Staff comments: ANY staff member with access to the request (staff of the student's faculty) can add comments at any status. Comments are append-only records (author, time, text), visible to the student in the request detail. Appending never overwrites another staff member's comment.
+4. Status workflow (one place, explicit transition table):
+   submitted (Подана) -> in_progress (В работе) -> ready (Готова) -> issued/closed (Выдана);
+   submitted / in_progress -> rejected (Отклонена; comment required).
+   There is no "cancel/withdraw" by the student (user decision).
+   Every transition stores a history record (from, to, actor, time, comment). Invalid transitions are rejected at service level.
+5. Concurrency: two staff members may act on the same request at the same time (status change vs status change, status change vs comment). A transition must succeed only if the current status is still the one the actor saw (e.g. `select_for_update` + expected-status check, or an optimistic version field - justify). The loser gets a clear message "Заявка уже изменена, обновите страницу", never a silent overwrite.
+6. Abuse limit: a student may have at most 3 open (submitted or in_progress) requests of the same type (named constant).
+7. Pages (server-rendered, Russian UI, mobile-first, existing CSS layers, no visual theme; all state changes via POST with CSRF):
+   - Student: catalog of types -> form (comment + PDF files, hint for required comment) -> confirmation; "Мои заявки" list (newest first, status clearly visible, empty state); request detail with status history, staff comments and attachment downloads. No withdraw action.
+   - Staff (dean's office): queue of requests of their own faculty with filter by status and type (default: open requests, oldest first); request detail with student info, student comment, attachments, history and staff comments; actions: take into work, mark ready, mark issued, reject (comment required), add comment.
+   - Navigation: "Заявки" for both roles.
+8. Access: students see only their own requests and attachments; staff only requests and attachments of students of their own faculty (404 otherwise); a student cannot perform staff transitions or add staff comments; no access via guessed IDs (requests and files).
+9. Demo data: extend `seed_demo` (idempotent): requests of demo students in every status with history, so the jury immediately sees a filled list; at least one request per staff faculty waiting in the queue.
+10. Queries: no N+1 on the lists; query-count tests.
+
+## Out of scope
+Attachments added by staff, file types other than PDF, antivirus scanning, generating PDF documents, e-mail, notifications (TASK-007), chat (TASK-009), visual theme, holiday calendar.
+
+## Verification
+All existing verification commands pass (check, deploy check, makemigrations --check, test, `scripts/run_tests_at.py` at a Moscow midnight boundary, ruff, CI YAML), `seed_demo` twice without errors (temporary database), manual check of the student and staff pages at 360 px width.
+
+── Ran 5 commands, created 1 file ──────────────────────────
+  ── Thought for 11ms
+    I'm starting with a feasibility check: pulling the git status, the media, storage and upload settings, the pyproject exclude, the base nav, the accounts selectors, core/testing, the seed command, and the README's known limitations. I also want a baseline of test counts and a look at run_tests_at at midnight.
+  ── Ran git log --oneline | head -4 && git status --short && grep -n "extend-exclude\|known-first" pyproject.toml && grep -n "MEDIA\|STORAGES\|UPLOAD\|STATIC_ROOT\|INSTALLED_APPS" -A0 config/settings.py && sed -n '/STORAGES = {/,/^}/p' config/settings.py && cat .gitignore | grep -n media && sed -n '/site-nav-list/,/<\/ul>/p' templates/base.html && cat core/testing.py | head -40 && cat config/urls.py | tail -8 && ls deanery petitions 2>&1 (2s, error)
+    $ git log --oneline | head -4 && git status --short && grep -n "extend-exclude\|known-first" pyproject.toml && grep -n "MEDIA\|STORAGES\|UPLOAD\|STATIC_ROOT\|INSTALLED_APPS" -A0 config/settings.py && sed -n '/STORAGES = {/,/^}/p' config/settings.py && cat .gitignore | grep -n media && sed -n '/site-nav-list/,/<\/ul>/p' templates/base.html && cat core/testing.py | head -40 && cat config/urls.py | tail -8 && ls deanery petitions 2>&1
+    Exit code 1
+    23eeb2e Team protocol: compact the Coder above 200k tokens
+    18adf49 Coder role: format only task files, protected paths, git status self-check
+    507ee3b TASK-005-FIX: schedule change delete/edit checks, attendance guard, clock-safe tests
+    3bc206f Team protocol: compact the Coder only above 250k tokens
+     M plan.md
+    4:extend-exclude = ["*/migrations/*", ".venv", "staticfiles", "docs/process"]
+    15:known-first-party = ["config", "core", "accounts", "university", "schedule", "academics"]
+    32:INSTALLED_APPS = [
+    110:STATIC_ROOT = BASE_DIR / "staticfiles"
+    111:STORAGES = {
+    STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {
+            "BACKEND": (
+                "django.contrib.staticfiles.storage.StaticFilesStorage"
+                if DEBUG
+                else "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            )
+        },
+    }
+    16:/media/
+          <ul class="site-nav-list">
+            <li><a href="{% url 'accounts:profile' %}">Профиль</a></li>
+            {% if user.is_student %}
+            <li><a href="{% url 'schedule:today' %}">Расписание</a></li>
+            <li><a href="{% url 'academics:my_grades' %}">Успеваемость</a></li>
+            {% elif user.is_deanery_staff %}
+            <li><a href="{% url 'schedule:staff_groups' %}">Расписание</a></li>
+            {% endif %}
+            {% if user.is_deanery_staff %}
+            <li><a href="{% url 'accounts:staff_student_list' %}">Студенты</a></li>
+            {% endif %}
+            <li>
+              <form class="site-nav-logout" method="post" action="{% url 'accounts:logout' %}">
+                {% csrf_token %}
+                <button type="submit">Выйти</button>
+              </form>
+            </li>
+          </ul>
+    """Test clock helpers.
+
+    A plain module (not a test module). It freezes ``django.utils.timezone.now`` for a
+    whole test class so tests do not depend on the real current date.
+    """
+
+    from datetime import datetime
+    from typing import ClassVar
+    from unittest import mock
+    from zoneinfo import ZoneInfo
+
+    MOSCOW = ZoneInfo("Europe/Moscow")
+
+
+    def moscow(dt_str: str) -> datetime:
+        """Parse an ISO string as a Moscow-aware datetime, e.g. "2026-11-18 12:00"."""
+        return datetime.fromisoformat(dt_str).replace(tzinfo=MOSCOW)
+
+
+    class FrozenClockMixin:
+        frozen_now: ClassVar[str] = "2026-11-18 12:00"
+
+        @classmethod
+        def setUpClass(cls) -> None:
+            cls._clock_patcher = mock.patch(
+                "django.utils.timezone.now", return_value=moscow(cls.frozen_now)
+            )
+            cls._clock_patcher.start()
+            try:
+                super().setUpClass()
+            except Exception:
+                cls._clock_patcher.stop()
+                raise
+
+        @classmethod
+        def tearDownClass(cls) -> None:
+            try:
+                super().tearDownClass()
+            finally:
+                cls._clock_patcher.stop()
+
+    urlpatterns = [
+        path(settings.ADMIN_URL, admin.site.urls),
+        path("", include("accounts.urls")),
+        path("", include("schedule.urls")),
+        path("", include("academics.urls")),
+        path("", include("core.urls")),
+    ]
+    ls: deanery: No such file or directory
+    ls: petitions: No such file or directory
+    exit 1
+  ── Thought for 2m
+    I'm settling on the names first, then working out the settings for a private storage location. I'll set `PRIVATE_MEDIA_ROOT` to a `private_media` folder under the base directory, with a dedicated storage instance pointing there and no public base URL. I also need to make sure that folder is ignored by git.
+
+    I'm going to give the storage a custom class that overrides `get_available_name`, so that on a filename collision it picks a new name rather than overwriting the existing file. The private storage itself will be reached through `storages["private"]`, wrapped in a callable so tests can swap it out with override_settings.
+
+    I'm checking whether the custom storage should raise on an existing name rather than renaming, since the default `_save` loop would then just end in an exception. I'm also weighing whether the service should generate the name and check both the database and the file system before saving, rather than letting `upload_to` handle it. Last, I'm looking at whether `unique=True` is allowed on a `FileField` in current Django versions.
+
+    I'm checking the collision path end to end: the storage should raise on an existing name instead of renaming, and the service should retry up to a small fixed number of attempts inside a savepoint when an IntegrityError or FileExistsError comes back. I also want the tests to force a collision by patching the uuid generator so the retry can be exercised deterministically.
+
+    I'm checking that a storage collision raises rather than overwriting, and that the service handles the IntegrityError with a retry. I also need to decide whether to delete orphaned files if the database insert fails, and the plan is to validate all inputs first, then create the request and its attachments.
+
+    I'm setting up PDF validation in the service: checking the extension, the declared content type, a non-zero size under 5 MB, and the `%PDF-` header, with a cap of three files. I'm also looking at how to handle multiple file uploads in the Django form.
+
+    Next I'm looking at how uploads are size-limited: Django's default `FILE_UPLOAD_MAX_MEMORY_SIZE` streams larger files to temp files, and `DATA_UPLOAD_MAX_MEMORY_SIZE` doesn't count file bodies, so I may not need to change either. The real cap will probably have to come from the reverse proxy, and I'm also considering setting `FILE_UPLOAD_PERMISSIONS` to `0o640` for the saved files.
+
+    I'm going to settle on the app name now. `deanery` feels too broad, and `petitions` doesn't fit certificates, so I'm leaning toward a name that covers both applications and certificates without overlapping with a future chat feature.
+
+    I'm going with `petitions` as the app name, since it fits the applications and certificates without clashing with a likely chat feature. Next I'm laying out the `RequestType` model: a unique name, a certificate or application kind, a processing window of 1 to 60 days, an optional comment requirement with a hint, and an active flag so types can be hidden without being deleted.
+
+    I'm settling the fields for the request model: a PROTECT foreign key to the student and to the request type, a comment capped at 2000 characters, a status, timestamps, and an expected-ready date. For concurrency I'm leaning toward a row lock with select_for_update plus an expected-status check, since status changes all go through one service. Comments are append-only and don't touch the request row, so they can't overwrite a status change, but the requirement still asks me to think about concurrency for
+
+    I'm settling on the model names now: `Petition` for the request, since the internal name should stay distinct from Django's HTTP request object. Each attachment needs a private file field with a unique name, an original filename, a size, and its own UUID for public reference.
+
+    I'm defining the persistence layer next: a `PetitionStatusChange` history model that records each transition with its actor and an optional comment, and a `PetitionComment` model for staff notes with a 2000-character limit, where only staff authors are allowed.
+
+    I'm working out the date helper next: a function that adds a number of working days, Monday to Friday, to a start date, where each day is counted after the start. I'm also wondering what to do if the start falls on a weekend, since the processing window is at least one day.
+
+    I'm planning the `submit_petition` service now: first confirm the request type is active, then check the comment's length and require it when the type demands one. Next I'll validate the attachments, and inside a transaction lock the student's row so two simultaneous submissions can't both slip past the per-type open-request limit.
+
+    I'm now working out the service flow for submitting a petition: creating the record with a working-day deadline, logging the initial status in history, saving the attachments with retries, and cleaning up stored files if anything fails. Then I'm turning to the status-change service, which needs a staff permission check and a locked lookup of the petition within what that staff member can see.
+
+    I'm settling the staff-side rules for the status change: the service will re-check that the actor can see the petition, reject the change if the status has moved since the form was loaded, and refuse any transition the workflow doesn't allow. A rejection will also need a comment.
+
+    I'm defining the selectors next: petitions visible to a student are their own, and staff see petitions for students in their faculty, with attachments filtered the same way. I'm also noting that the submit and status-change services lock different rows, so they shouldn't deadlock, and that the expected ready date is fixed at submission.
+
+    I'm laying out the student-facing views now: a catalog of active request types, and a submission form where the student adds a comment and files. After a successful submit, I'm planning to redirect to a confirmation page tied to the new petition's public ID.
+
+    I'm defining the student-facing views: a confirmation page after submitting, a list of the student's own petitions, and a detail view. Then I'm planning one download view shared by both roles, which looks up the attachment only within what that user can see.
+
+    I'm finishing the download view's response headers, adding an explicit nosniff header and a private, no-store cache policy. Then I'm laying out the staff side: a queue filtered by status and request type, defaulting to open requests oldest first, plus a detail page and a POST endpoint for status transitions.
+
+    I'm wrapping up the staff side: the transition form carries the expected and new status plus a comment, and errors will go through the messages framework with a redirect back to the detail page. I still need to check whether base.html renders messages, and the staff comment endpoint and student history view are next on the list.
+
+    I'm setting up the admin: the request type gets full editing, but the petition admin stays read-only so changes can't bypass the workflow and history. I'm also leaving the file field out of the admin display, since a private storage URL would raise an error. Staff access to a petition will be limited to students in their own faculty, and anyone else gets a 404, while students hitting staff URLs get a 403.
+
+    I'm planning the seed command next, keeping it idempotent by keying each petition on a seed key, and I'm deciding whether to write its history rows directly with past timestamps instead of going through the services, which always stamp the current time.
+
+    I'm making the seed command idempotent and planning to store a small PDF for each demo petition through the same attachment helper. The demo set covers a few students across two faculties, starting with a submitted certificate request that has a comment and one file.
+
+    I'm going through the demo petitions now: a seeded in-progress request for the scholarship certificate, a ready re-attestation request with a PDF, a rejected leave application, an issued certificate from twenty days ago, and a submitted certificate in the other faculty's queue with a file attached.
+
+    I'm settling the demo petitions now: a submitted certificate for the scholarship office, a rejected leave application, and an issued certificate, each with a fixed expected date based on its processing window. For the seed command, I'm deciding how to store the attached PDFs so they land in the private storage location without breaking the idempotent run.
+
+    I'm working out how the tests should handle the private storage location, since the existing seed tests would otherwise write files into the project's private media folder. I'm considering a test mixin that points storage at a temporary directory, and whether the other apps' seed tests need the same override.
+
+    I'm checking which test classes call the `seed_demo` command, since those would now write attachment files into the real private storage folder. I'll add a reusable mixin in `core/testing` that points storage at a temporary directory and cleans it up afterward, then apply it to the accounts, schedule, and academics classes that run the command.
+
+    I'm considering a project-wide test runner instead of per-class mixins. It would point the private storage at a temporary directory for the whole run and clean it up afterward, so every test, including the seed command tests, stays out of the real private media folder.
+
+    I'm settling on the private storage setup: a `PRIVATE_MEDIA_ROOT` setting with a private storage backend that has no base URL, so files can't be reached directly. I'm weighing whether that storage class belongs in a shared `core` module instead of the petitions app, since it could serve other private attachments later.
+
+    I'm checking how a callable storage on a FileField behaves, since Django evaluates it once when the model loads and would ignore later setting overrides in tests. That makes a plain callable unreliable here, so I'm considering a lazily resolved storage object that looks up `storages["private"]` at access time instead.
+
+    I'm weighing a lazily resolved storage object for the private field, since Django's own storage handling resets `default_storage` when settings change but would leave a custom alias cached. Running the tests under a global runner that overrides the private storage before anything loads seems like the more reliable route.
+
+    I'm weighing whether the settings can pick the private storage location at import time, since a callable storage on the model would be fixed before any test override applies. The trouble is that redirecting storage after models load doesn't work cleanly, so I'm looking at whether the environment or the settings module should decide the path instead.
+
+    I'm writing a storage class that reads the location from settings on every access, so tests can redirect it without stale cached values. It extends the standard file storage with no public base URL, and I'm defining its location property to return the private media path.
+
+    I'm making the storage class's location a property that reads `PRIVATE_MEDIA_ROOT` on each access, so the test override takes effect. For the migration, I'll point the field at a callable that returns the storage instance, so the migration references a stable function rather than a serialized object.
+
+    I'm setting the test runner up to create a temporary private media directory, overriding the private storage location for the run, and tearing it down afterward.
+
+    I'm writing the test runner's teardown so the temporary private media folder gets removed after the run, and I'm setting `TEST_RUNNER` to point at this custom class. Next I'll add a test check that confirms the private media setting points inside the temporary directory during tests.
+
+    I'm drafting the attachment upload path now: a UUID-based filename under a two-character subfolder, which keeps the path well within the field's length limit. I'm also checking that the storage's name generation will accept it, and planning a store-attachment service that takes the file content and original name.
+
+    I'm writing the save routine so it tries a fresh generated filename on each attempt, wrapping the file write and the database row in one transaction. If the storage reports a name clash, I'll retry, and if the database insert fails I'll clean up the orphaned file before retrying. After the allowed number of attempts, it gives up with a user-facing error.
+
+    I'm checking whether the IntegrityError path could delete a file that an existing row still points to. I'll check the database and storage for the generated name before saving, so I never write over a name that's already taken. Then I'll set the name up front and save without relying on the FileField save behavior.
+
+    I'm checking that the saved name doesn't already exist in the database or storage before writing, and that the file is saved under exactly that name. If the row insert fails, I'll delete the written file and try again. I'm also planning a filename sanitizer that strips any path parts and control characters, normalizes the Unicode, and caps the length while keeping the `.pdf` extension.
+
+    I'm describing the PDF validation helper now: it checks the file name ends in .pdf, the content type is application/pdf, the size is within the limit, and the first bytes match the PDF signature, then rewinds the file. Next I'm defining the petition form with an optional comment field and an optional multiple-file field, where the comment becomes required depending on the request type.
+
+    Still writing the multiple-file field...
+
+    I'm making sure the form's file field validates correctly when nothing is uploaded, then checking the template needs multipart encoding and how upload size limits apply.
+
+    I'm settling the staff transitions: the action buttons will record who acted only through the history actor, since there's no separate field for who took a request into work. I'll cap open requests at three per type for each student, checking that count under a row lock on the student profile, and compute the expected ready date from the working-day helper applied to today's local date.
+
+    I'm sketching the student list and detail views now: the student list will show their own petitions newest first, and the staff queue will filter by status and request type, defaulting to open requests and ignoring invalid parameters. For the detail page, I'll load the petition with its related records and prefetch the history along with the actor names, using the staff profile name for staff and the student name for students.
+
+    I'm defining the history actor display so staff show their full name and students show as "Студент", and I'm loading the actor's staff profile with the history. I'm also making comments show the author's full name, then checking who can see what across the access matrix: anonymous users, students on their own and others' requests, staff in their own and other faculties, and superusers. Finally I'm sketching a concurrency test where a second staff member tries a transition on a petition that has already moved on.
+
+    I'm planning the concurrency check by having a second staff member try a transition with a stale status, then confirming the petition stays unchanged with a single history entry. I'll wrap the locking helper in a mock to verify it gets called, and add tests that every disallowed status pair is rejected and that rejecting without a comment fails.
+
+    I'm checking the deploy settings to confirm nothing changes there, and that no debug branches are needed since media isn't served statically. I'll also make sure the private media path isn't inside the static directories and that no URL pattern routes to the static serve view. Then I'll confirm the existing public-routes test still passes with the new login-required views, and check whether the base template renders messages.
+  ── Thought for 8ms
+    Имена `petitions` и `deanery` свободны, а папки для приватных файлов в настройках пока нет. Сейчас сверю возможности Django и прогоню базовые проверки.
+  ── Ran source .venv/bin/activate && grep -n "messages" templates/base.html | head -3; python -c "import petitions" 2>&1 | tail -1; python -c "import deanery" 2>&1 | tail -1; DEBUG=true python - <<'EOF' import django, os os.environ.setdefault("DJANGO_SETTINGS_MODULE","config.settings"); django.setup() from django.db import models from django.core import checks class T(models.Model):     f = models.FileField(unique=True, max_length=100)     class Meta: app_label="core" print("FileField unique checks:", [e.id for e in T.check()]) from django.core.files.storage import FileSystemStorage print("base_location is cached_property:", type(FileSystemStorage.__dict__["base_location"]).__name__) import inspect; src=inspect.getsource(FileSystemStorage._save); print("O_EXCL" in src, "get_available_name" in src) from django.urls import converters; print("uuid converter:", "uuid" in converters.DEFAULT_CONVERTERS) from django.conf import settings; print("TEST_RUNNER:", settings.TEST_RUNNER, "FILE_UPLOAD_MAX_MEMORY_SIZE:", settings.FILE_UPLOAD_MAX_MEMORY_SIZE, "PERMS:", settings.FILE_UPLOAD_PERMISSIONS) from django.http import FileResponse; print("FileResponse ok") EOF grep -rln 'call_command("seed_demo")' --include='*.py' . | grep -v .venv; ruff format --check --extend-exclude docs . | tail -1; ruff check --extend-exclude docs . | tail -1 (1s)
+    $ source .venv/bin/activate && grep -n "messages" templates/base.html | head -3; python -c "import petitions" 2>&1 | tail -1; python -c "import deanery" 2>&1 | tail -1; DEBUG=true python - <<'EOF'
+  import django, os
+  os.environ.setdefault("DJANGO_SETTINGS_MODULE","config.settings"); django.setup()
+  from django.db import models
+  from django.core import checks
+  class T(models.Model):
+      f = models.FileField(unique=True, max_length=100)
+      class Meta: app_label="core"
+  print("FileField unique checks:", [e.id for e in T.check()])
+  from django.core.files.storage import FileSystemStorage
+  print("base_location is cached_property:", type(FileSystemStorage.__dict__["base_location"]).__name__)
+  import inspect; src=inspect.getsource(FileSystemStorage._save); print("O_EXCL" in src, "get_available_name" in src)
+  from django.urls import converters; print("uuid converter:", "uuid" in converters.DEFAULT_CONVERTERS)
+  from django.conf import settings; print("TEST_RUNNER:", settings.TEST_RUNNER, "FILE_UPLOAD_MAX_MEMORY_SIZE:", settings.FILE_UPLOAD_MAX_MEMORY_SIZE, "PERMS:", settings.FILE_UPLOAD_PERMISSIONS)
+  from django.http import FileResponse; print("FileResponse ok")
+  EOF
+  grep -rln 'call_command("seed_demo")' --include='*.py' . | grep -v .venv; ruff format --check --extend-exclude docs . | tail -1; ruff check --extend-exclude docs . | tail -1
+    ModuleNotFoundError: No module named 'petitions'
+    ModuleNotFoundError: No module named 'deanery'
+    FileField unique checks: []
+    base_location is cached_property: cached_property
+    True True
+    uuid converter: True
+    TEST_RUNNER: django.test.runner.DiscoverRunner FILE_UPLOAD_MAX_MEMORY_SIZE: 2621440 PERMS: 420
+    FileResponse ok
+    academics/tests/test_clock_boundaries.py
+    accounts/tests/test_seed_demo.py
+    99 files already formatted
+    All checks passed!
+  ── Thought for 5ms
+    The base template doesn't render messages yet, so I need to add that. I also want to run the baseline tests and check run_tests_at midnight.
+  ── Ran source .venv/bin/activate && export DEBUG=true && python manage.py check | tail -1 && python manage.py makemigrations --check --dry-run | tail -1 && python manage.py test 2>&1 | grep -E "^(Ran|OK|FAILED)" && python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | grep -E "^(Ran|OK|FAILED)" && DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; grep -n "^## " README.md (2m 38s)
+    $ source .venv/bin/activate && export DEBUG=true && python manage.py check | tail -1 && python manage.py makemigrations --check --dry-run | tail -1 && python manage.py test 2>&1 | grep -E "^(Ran|OK|FAILED)" && python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | grep -E "^(Ran|OK|FAILED)" && DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; grep -n "^## " README.md
+    System check identified no issues (0 silenced).
+    No changes detected
+    Ran 409 tests in 77.367s
+    OK
+    Ran 409 tests in 77.375s
+    OK
+    System check identified no issues (1 silenced).
+    All checks passed!
+    105 files already formatted
+    yaml ok
+    8:## Requirements
+    12:## Setup
+    21:## Run
+    28:## Test & lint
+    43:## Demo data
+    71:## Schedule
+    76:## Grades
+    86:## Login protection
+    97:## Known limitations
+    105:## Environment variables
+  ── Thought for 5ms
+    I'm going to seed the baseline using a temporary database, since `DATABASE_URL` is set to a temp instance, and I want to keep this quick.
+  ── Ran source .venv/bin/activate && export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/feas6.sqlite3" DEMO_PASSWORD='Local-Demo-Pass-2026!' && rm -f "$TMPDIR/feas6.sqlite3" && python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; grep -n "seed_academics_demo\|today = " accounts/management/commands/seed_demo.py; grep -n "def students_visible_to\|def groups_visible_to" accounts/selectors.py (5s)
+    $ source .venv/bin/activate && export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/feas6.sqlite3" DEMO_PASSWORD='Local-Demo-Pass-2026!' && rm -f "$TMPDIR/feas6.sqlite3" && python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; grep -n "seed_academics_demo\|today = " accounts/management/commands/seed_demo.py; grep -n "def students_visible_to\|def groups_visible_to" accounts/selectors.py
+    Academics ready: 2 terms, 17 curriculum items, 13 final results, 70 marks, 249 attendance records.
+    Academics ready: 2 terms, 17 curriculum items, 13 final results, 70 marks, 249 attendance records.
+    8:from academics.demo import seed_academics_demo
+    24:                today = timezone.localdate()
+    27:                a = seed_academics_demo(today)
+    18:def students_visible_to(
+    37:def groups_visible_to(
+  ── Thought for 2s
+    I'm moving on to writing the spec now, aiming for something thorough but tight.
+  ── Thought for 6ms
+    Базовые проверки прошли (409 тестов, CI, ruff и прочие); при этом `base.html` пока не выводит системные сообщения, а папка для файлов должна читаться из настроек при каждом обращении, иначе тесты не смогут её подменить. Сейчас пишу спецификацию.
+  ── Created docs/tasks/TASK-006.md +575
+    --- /dev/null
+    +++ b~/hackatonproject/docs/tasks/TASK-006.md
+    +# TASK-006: Certificates and applications (requests) with private PDF attachments
+    +
+    +Author: Planner. Status: ready for implementation.
+    +Base commit: `23eeb2e`. Reused: role mixins (`accounts/access.py`), selectors pattern (`accounts/selectors.py`), validation pattern (model/service level, non-field errors, admin never 500), locking pattern (`select_for_update` in services), `core/testing.FrozenClockMixin`, `scripts/run_tests_at.py`.
+    +
+    +Jury scenario (phone): student logs in → submits a request → sees its status; staff logs in → processes it.
+    +
+    +---
+    +
+    +## 1. Acceptance criteria
+    +
+    +| ID | Criterion |
+    +|---|---|
+    +| AC0 | `pyproject.toml` excludes the whole `docs/` from ruff; `ruff check .` / `ruff format --check .` pass and never touch `docs/`. |
+    +| AC1 | New app `petitions` with `RequestType`, `Petition`, `PetitionAttachment`, `PetitionStatusChange`, `PetitionComment`; migrations exist. |
+    +| AC2 | Student form has exactly two inputs: «Комментарий» and PDF files. `comment_required` types require a comment (form **and** service) and show the hint. |
+    +| AC3 | Attachments: optional, ≤ 3 files, each ≤ 5 MB; accepted only if extension `.pdf`, declared content type `application/pdf` **and** signature `%PDF-`. |
+    +| AC4 | Files are stored in a private directory outside static/media, at `request_attachments/<2 hex>/<32 hex>.pdf`, name from `uuid.uuid4().hex`, nothing user-derived in the path, DB-unique path, bounded retry on collision, storage never overwrites. Original name kept only as sanitized display metadata. |
+    +| AC5 | Files are served only by a Django view with the request's access rules, `Content-Disposition: attachment`, `Content-Type: application/pdf`, `X-Content-Type-Options: nosniff`; no public URL exists. |
+    +| AC6 | Workflow in one explicit transition table; every status change (and the initial submission) stores a history row (from, to, actor, time, comment); invalid transitions and reject without comment are rejected at service level. No student withdraw. |
+    +| AC7 | Concurrency: a transition succeeds only if the locked current status equals the status the actor saw; otherwise «Заявка уже изменена, обновите страницу». Comments are append-only and never conflict. |
+    +| AC8 | A student has at most 3 open (submitted / in_progress) requests of the same type. |
+    +| AC9 | Pages: student catalog → form → confirmation, «Мои заявки», detail (history, staff comments, downloads); staff queue (own faculty, filter status/type, default open oldest first), detail, actions, comments; nav «Заявки» for both roles; all state changes via POST + CSRF. |
+    +| AC10 | Access: students only own requests/files; staff only own faculty (404 otherwise); students cannot transition or comment as staff; URLs use UUIDs. |
+    +| AC11 | `seed_demo` (idempotent) creates demo requests in every status with history, comments and tiny PDFs; each staff faculty has a request waiting in the queue. |
+    +| AC12 | Lists and details run a constant number of queries. |
+    +
+    +## 2. Out of scope
+    +Staff attachments, non-PDF files, antivirus, PDF generation, e-mail, notifications (TASK-007), chat, visual theme, holiday calendar, editing a submitted request, pagination of lists, student withdraw.
+    +
+    +---
+    +
+    +## 3. Design decisions
+    +
+    +### 3.1 App name `petitions`
+    +Not `requests` (would shadow the `requests` library on `import requests`). `deanery` is too broad (chat and notifications are also "dean's office"). `petitions` names exactly this bounded context: requests for certificates and applications. `import petitions` / `import deanery` currently fail in `.venv` (no clash). Model names use `Petition*` to avoid confusion with `HttpRequest`. UI text says «заявка».
+    +
+    +### 3.2 Concurrency: `select_for_update` + expected status
+    +All transitions go through one service. It locks the petition row (`select_for_update`) and compares the locked status with `expected_status` posted by the form (the status the actor saw). No version field is needed: the status itself is the version for transitions, and comments are separate append-only rows (a comment never modifies the petition row, so "status vs comment" cannot overwrite anything). On PostgreSQL the second writer waits for the lock and then sees the new status; on SQLite writes are serialized by the database lock — the expected-status check gives the same result.
+    +
+    +### 3.3 Private storage
+    +`PRIVATE_MEDIA_ROOT` (env, default `BASE_DIR / "private_media"`), never under `STATIC_ROOT`/`static/`, never served by Django URLs or nginx. Storage class `core.storage.PrivateFileStorage` reads `settings.PRIVATE_MEDIA_ROOT` **on every access** (properties, not `cached_property`), because a model field's storage object is created once at model load; reading the setting dynamically lets tests redirect it. `url()` raises (no public URL). `get_available_name()` raises `FileExistsError` instead of renaming → the storage never overwrites and never silently renames.
+    +
+    +### 3.4 Test isolation of files
+    +`TEST_RUNNER = "core.test_runner.ProjectTestRunner"`: creates a temporary `PRIVATE_MEDIA_ROOT` for the whole run and deletes it afterwards. All tests (including existing `seed_demo` tests and `scripts/run_tests_at.py`) never write into the repository.
+    +
+    +### 3.5 Later tasks
+    +Notifications (TASK-007) read `PetitionStatusChange` rows (time, actor, from/to, comment) and `PetitionComment` rows.
+    +
+    +---
+    +
+    +## 4. Architecture
+    +
+    +### 4.1 Files
+    +Create:
+    +```
+    +core/storage.py
+    +core/test_runner.py
+    +core/tests/test_storage.py
+    +petitions/__init__.py
+    +petitions/apps.py
+    +petitions/models.py
+    +petitions/workflow.py
+    +petitions/files.py
+    +petitions/selectors.py
+    +petitions/services.py
+    +petitions/forms.py
+    +petitions/views.py
+    +petitions/urls.py
+    +petitions/admin.py
+    +petitions/demo.py
+    +petitions/migrations/__init__.py
+    +petitions/migrations/0001_initial.py                (generated)
+    +petitions/templates/petitions/catalog.html
+    +petitions/templates/petitions/form.html
+    +petitions/templates/petitions/submitted.html
+    +petitions/templates/petitions/my_list.html
+    +petitions/templates/petitions/detail.html            (student)
+    +petitions/templates/petitions/staff_queue.html
+    +petitions/templates/petitions/staff_detail.html
+    +petitions/templates/petitions/includes/history.html
+    +petitions/templates/petitions/includes/comments.html
+    +petitions/templates/petitions/includes/attachments.html
+    +petitions/tests/__init__.py
+    +petitions/tests/helpers.py
+    +petitions/tests/test_files.py
+    +petitions/tests/test_workflow.py
+    +petitions/tests/test_services.py
+    +petitions/tests/test_views.py
+    +petitions/tests/test_downloads.py
+    +petitions/tests/test_demo.py
+    +```
+    +Change:
+    +```
+    +pyproject.toml (AC0, known-first-party), config/settings.py, config/urls.py, .env.example, .gitignore,
+    +templates/base.html (nav + messages), static/css/base.css,
+    +accounts/management/commands/seed_demo.py, README.md
+    +```
+    +No other files. No new dependencies.
+    +
+    +### 4.2 Tooling (AC0) — do first
+    +`pyproject.toml`: `extend-exclude = ["*/migrations/*", ".venv", "staticfiles", "docs"]` (replaces `"docs/process"`); `known-first-party` += `"petitions"`. Never run `ruff format` on `docs/`.
+    +
+    +### 4.3 Settings (`config/settings.py`)
+    +- `INSTALLED_APPS`: add `"petitions"` after `"academics"`.
+    +- After `STORAGES`:
+    +  ```python
+    +  PRIVATE_MEDIA_ROOT = Path(env.str("PRIVATE_MEDIA_ROOT", default=str(BASE_DIR / "private_media")))
+    +  FILE_UPLOAD_PERMISSIONS = 0o640
+    +  FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o750
+    +  ```
+    +  `FILE_UPLOAD_MAX_MEMORY_SIZE` / `DATA_UPLOAD_MAX_MEMORY_SIZE` stay at Django defaults (2.5 MB): larger uploads are streamed to temporary files, and `DATA_UPLOAD_MAX_MEMORY_SIZE` does not count file data. The 5 MB limit is enforced by validation.
+    +- `TEST_RUNNER = "core.test_runner.ProjectTestRunner"`.
+    +- No `MEDIA_ROOT`/`MEDIA_URL` and no `static()`/`serve` URL patterns.
+    +`.env.example` append:
+    +```
+    +# Private uploads (request attachments). Must NOT be served by nginx or be inside static/.
+    +PRIVATE_MEDIA_ROOT=
+    +```
+    +(empty = default `<repo>/private_media`; `env.str` with empty value → treat `""` as default: `env.str("PRIVATE_MEDIA_ROOT", default="") or str(BASE_DIR / "private_media")`.) `.gitignore`: add `/private_media/`.
+    +
+    +### 4.4 `core/storage.py`
+    +```python
+    +class PrivateFileStorage(FileSystemStorage):
+    +    def __init__(self) -> None                      # super().__init__(base_url=None)
+    +    @property
+    +    def base_location(self) -> str                  # str(settings.PRIVATE_MEDIA_ROOT)
+    +    @property
+    +    def location(self) -> str                       # os.path.abspath(self.base_location)
+    +    def url(self, name: str | None) -> str          # raise ValueError("Private files have no public URL.")
+    +    def get_available_name(self, name: str, max_length: int | None = None) -> str
+    +        # if self.exists(name): raise FileExistsError(name); return name
+    +
+    +_private_storage = PrivateFileStorage()
+    +
+    +def get_private_storage() -> PrivateFileStorage:
+    +    return _private_storage
+    +```
+    +`FileSystemStorage._save` opens with `O_EXCL` and on a race calls `get_available_name` again → our override raises `FileExistsError`; the file is never overwritten.
+    +Tests (`core/tests/test_storage.py`): `test_location_follows_setting` (`override_settings(PRIVATE_MEDIA_ROOT=tmp)` → `location == tmp`); `test_url_raises`; `test_existing_name_is_not_overwritten` (save `a/x.pdf`, saving again the same name → `FileExistsError`, original content intact); `test_test_runner_uses_temp_dir` (`settings.PRIVATE_MEDIA_ROOT` is not inside `BASE_DIR`).
+    +
+    +### 4.5 `core/test_runner.py`
+    +```python
+    +class ProjectTestRunner(DiscoverRunner):
+    +    def setup_test_environment(self, **kwargs) -> None
+    +    def teardown_test_environment(self, **kwargs) -> None
+    +```
+    +- setup: `super()…`; `self._private_dir = tempfile.mkdtemp(prefix="test-private-media-")`; `self._private_override = override_settings(PRIVATE_MEDIA_ROOT=Path(self._private_dir))`; `.enable()`.
+    +- teardown: `.disable()`; `shutil.rmtree(self._private_dir, ignore_errors=True)`; `super()…`.
+    +
+    +### 4.6 Models (`petitions/models.py`)
+    +Enums:
+    +```python
+    +class RequestKind(models.TextChoices):
+    +    CERTIFICATE = "certificate", "Справка"
+    +    APPLICATION = "application", "Заявление"
+    +
+    +class PetitionStatus(models.TextChoices):
+    +    SUBMITTED = "submitted", "Подана"
+    +    IN_PROGRESS = "in_progress", "В работе"
+    +    READY = "ready", "Готова"
+    +    ISSUED = "issued", "Выдана"
+    +    REJECTED = "rejected", "Отклонена"
+    +```
+    +Constants (`petitions/models.py`): `MAX_COMMENT_LENGTH = 2000`.
+    +
+    +**`RequestType`**
+    +| Field | Definition |
+    +|---|---|
+    +| `name` | `CharField("название", max_length=200, unique=True)` |
+    +| `kind` | `CharField("вид", max_length=16, choices=RequestKind.choices)` |
+    +| `description` | `TextField("описание", blank=True, default="")` |
+    +| `processing_days` | `PositiveSmallIntegerField("срок, рабочих дней", validators=[MinValueValidator(1), MaxValueValidator(60)])` |
+    +| `comment_required` | `BooleanField("комментарий обязателен", default=False)` |
+    +| `comment_hint` | `CharField("подсказка к комментарию", max_length=255, blank=True, default="")` |
+    +| `is_active` | `BooleanField("доступна для подачи", default=True)` |
+    +- `Meta`: `ordering = ["kind", "name"]`; `CheckConstraint(condition=Q(processing_days__gte=1) & Q(processing_days__lte=60), name="petitions_type_days_1_60")`. `__str__` → `name`.
+    +- `clean()`: `comment_required` and empty `comment_hint` → non-field error «Для обязательного комментария заполните подсказку.»
+    +
+    +**`Petition`**
+    +| Field | Definition |
+    +|---|---|
+    +| `public_id` | `UUIDField("номер", default=uuid.uuid4, unique=True, editable=False)` |
+    +| `student` | `ForeignKey("accounts.StudentProfile", PROTECT, related_name="petitions")` |
+    +| `request_type` | `ForeignKey(RequestType, PROTECT, related_name="petitions")` |
+    +| `comment` | `TextField("комментарий", blank=True, default="", max_length=MAX_COMMENT_LENGTH)` |
+    +| `status` | `CharField("статус", max_length=16, choices=PetitionStatus.choices, default=SUBMITTED)` |
+    +| `created_at` | `DateTimeField("подана", default=timezone.now)` |
+    +| `status_changed_at` | `DateTimeField("статус изменён", default=timezone.now)` |
+    +| `expected_ready_date` | `DateField("ожидаемая дата готовности")` |
+    +| `seed_key` | `SlugField(max_length=40, blank=True, default="", editable=False)` |
+    +- `Meta`: `ordering = ["-created_at"]`; `indexes = [Index(fields=["status", "created_at"], name="petitions_status_created_idx")]`; `CheckConstraint(condition=Q(status__in=[...5 values]), name="petitions_status_value")`; `UniqueConstraint(fields=["seed_key"], condition=~Q(seed_key=""), name="petitions_unique_seed_key")`.
+    +- `__str__` → `f"{self.request_type} — {self.student} ({self.get_status_display()})"`. Property `short_id` → `str(self.public_id)[:8]` (display only).
+    +- No "taken by" field (user decision). No `clean()` (all rules are in services; admin is read-only for petitions).
+    +
+    +**`PetitionAttachment`**
+    +| Field | Definition |
+    +|---|---|
+    +| `public_id` | `UUIDField(default=uuid.uuid4, unique=True, editable=False)` (download URL id; never the file path) |
+    +| `petition` | `ForeignKey(Petition, CASCADE, related_name="attachments")` |
+    +| `file` | `FileField(upload_to=attachment_upload_to, storage=get_private_storage, max_length=100, unique=True)` |
+    +| `original_name` | `CharField("имя файла", max_length=120)` |
+    +| `size` | `PositiveIntegerField("размер, байт")` |
+    +| `uploaded_at` | `DateTimeField(default=timezone.now)` |
+    +- `Meta`: `ordering = ["uploaded_at", "pk"]`. `__str__` → `original_name`.
+    +
+    +**`PetitionStatusChange`** (history)
+    +| Field | Definition |
+    +|---|---|
+    +| `petition` | `ForeignKey(Petition, CASCADE, related_name="history")` |
+    +| `from_status` | `CharField(max_length=16, choices=PetitionStatus.choices, blank=True, default="")` (`""` = submission) |
+    +| `to_status` | `CharField(max_length=16, choices=PetitionStatus.choices)` |
+    +| `actor` | `ForeignKey(settings.AUTH_USER_MODEL, PROTECT, related_name="petition_status_changes")` |
+    +| `created_at` | `DateTimeField(default=timezone.now)` |
+    +| `comment` | `TextField(blank=True, default="", max_length=MAX_COMMENT_LENGTH)` |
+    +- `Meta`: `ordering = ["created_at", "pk"]`; `Index(fields=["created_at"], name="petitions_history_created_idx")`.
+    +
+    +**`PetitionComment`** (staff comments, append-only)
+    +| Field | Definition |
+    +|---|---|
+    +| `petition` | `ForeignKey(Petition, CASCADE, related_name="staff_comments")` |
+    +| `author` | `ForeignKey(settings.AUTH_USER_MODEL, PROTECT, related_name="petition_comments")` |
+    +| `created_at` | `DateTimeField(default=timezone.now)` |
+    +| `text` | `TextField(max_length=MAX_COMMENT_LENGTH)` |
+    +- `Meta`: `ordering = ["created_at", "pk"]`; `CheckConstraint(condition=~Q(text=""), name="petitions_comment_not_empty")`.
+    +
+    +### 4.7 URLs (`petitions/urls.py`, `app_name = "petitions"`; include in `config/urls.py` after `academics`)
+    +| Path | View | Name | Method |
+    +|---|---|---|---|
+    +| `requests/` | `MyPetitionsView` | `my_list` | GET |
+    +| `requests/new/` | `CatalogView` | `catalog` | GET |
+    +| `requests/new/<int:type_id>/` | `SubmitPetitionView` | `submit` | GET, POST |
+    +| `requests/<uuid:public_id>/` | `StudentPetitionDetailView` | `detail` | GET |
+    +| `requests/<uuid:public_id>/submitted/` | `SubmittedView` | `submitted` | GET |
+    +| `requests/<uuid:public_id>/files/<uuid:file_id>/` | `download_attachment` | `download` | GET (both roles) |
+    +| `staff/requests/` | `StaffQueueView` | `staff_queue` | GET |
+    +| `staff/requests/<uuid:public_id>/` | `StaffPetitionDetailView` | `staff_detail` | GET |
+    +| `staff/requests/<uuid:public_id>/status/` | `StaffTransitionView` | `staff_transition` | POST only |
+    +| `staff/requests/<uuid:public_id>/comments/` | `StaffCommentView` | `staff_comment` | POST only |
+    +`type_id` is the `RequestType` pk (the catalog is public to students; not a secret).
+    +
+    +### 4.8 Navigation and messages (`templates/base.html`)
+    +- Student block: add `<li><a href="{% url 'petitions:my_list' %}">Заявки</a></li>`; staff block: `<li><a href="{% url 'petitions:staff_queue' %}">Заявки</a></li>`.
+    +- Inside `<main>` before `{% block content %}`: `{% if messages %}<ul class="messages">{% for m in messages %}<li class="message message--{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}`.
+    +
+    +---
+    +
+    +## 5. Functions
+    +
+    +### 5.1 `petitions/workflow.py` — single transition table
+    +```python
+    +TRANSITIONS: dict[str, tuple[str, ...]] = {
+    +    SUBMITTED: (IN_PROGRESS, REJECTED),
+    +    IN_PROGRESS: (READY, REJECTED),
+    +    READY: (ISSUED,),
+    +    ISSUED: (),
+    +    REJECTED: (),
+    +}
+    +OPEN_STATUSES = frozenset({SUBMITTED, IN_PROGRESS})
+    +COMMENT_REQUIRED_FOR = frozenset({REJECTED})
+    +ACTION_LABELS = {IN_PROGRESS: "Взять в работу", READY: "Отметить готовой", ISSUED: "Отметить выданной", REJECTED: "Отклонить"}
+    +
+    +def allowed_transitions(status: str) -> tuple[str, ...]      # TRANSITIONS.get(status, ())
+    +def can_transition(from_status: str, to_status: str) -> bool
+    +```
+    +Tests (`test_workflow.py`, `SimpleTestCase`): every allowed pair → `True`; every other pair of the 5×5 matrix (incl. same→same) → `False`; `ISSUED`/`REJECTED` final; every target in `TRANSITIONS` has a label; `OPEN_STATUSES` exact.
+    +
+    +### 5.2 `petitions/files.py` — attachments
+    +Constants: `MAX_ATTACHMENTS = 3`, `MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024`, `PDF_CONTENT_TYPE = "application/pdf"`, `PDF_SIGNATURE = b"%PDF-"`, `MAX_NAME_ATTEMPTS = 5`, `ATTACHMENT_DIR = "request_attachments"`, `MAX_DISPLAY_NAME = 120`.
+    +
+    +```python
+    +def attachment_upload_to(instance: object, filename: str) -> str
+    +```
+    +Ignores both arguments. `name = uuid.uuid4().hex`; return `f"{ATTACHMENT_DIR}/{name[:2]}/{name}.pdf"`. Never use `random`, hashes, the file name, IDs or dates.
+    +
+    +```python
+    +def sanitize_display_name(raw: str) -> str
+    +```
+    +1. `name = unicodedata.normalize("NFC", raw or "")`; take the part after the last `/` or `\\`.
+    +2. Remove control characters (`unicodedata.category(c).startswith("C")`) and `"`; collapse whitespace; strip.
+    +3. If not `name.lower().endswith(".pdf")` → append `".pdf"`. If the stem is empty → `"document.pdf"`.
+    +4. If `len(name) > MAX_DISPLAY_NAME`: keep `stem[: MAX_DISPLAY_NAME - 4] + ".pdf"`.
+    +Tests: `"../../etc/passwd.pdf"` → `"passwd.pdf"`; `"C:\\x\\Справка.PDF"` → `"Справка.PDF"`; control chars removed; 300-char name → length 120, ends `.pdf`; `""` → `"document.pdf"`.
+    +
+    +```python
+    +def validate_pdf(upload: UploadedFile) -> None
+    +```
+    +Raises `ValidationError` (non-field, Russian, names the sanitized file) when: name does not end with `.pdf` (case-insensitive) → «Файл «X»: допускаются только PDF.»; `upload.content_type != PDF_CONTENT_TYPE` → same message; `upload.size == 0` → «Файл «X» пустой.»; `upload.size > MAX_ATTACHMENT_SIZE` → «Файл «X» больше 5 МБ.»; `upload.seek(0); head = upload.read(5); upload.seek(0)`; `head != PDF_SIGNATURE` → «Файл «X» не является PDF.».
+    +
+    +```python
+    +def validate_attachments(uploads: Sequence[UploadedFile]) -> None
+    +```
+    +`len(uploads) > MAX_ATTACHMENTS` → «Можно приложить не больше 3 файлов.»; then `validate_pdf` for each; collect all messages; raise one `ValidationError(list)`.
+    +
+    +```python
+    +def store_attachment(petition: Petition, upload: File, original_name: str, size: int) -> PetitionAttachment
+    +```
+    +Must be called inside a transaction (service). Algorithm, up to `MAX_NAME_ATTEMPTS` times:
+    +1. `name = attachment_upload_to(None, "")`; `storage = get_private_storage()`.
+    +2. If `storage.exists(name)` or `PetitionAttachment.objects.filter(file=name).exists()` → next attempt.
+    +3. `upload.seek(0)`; `try: saved = storage.save(name, upload)` / `except FileExistsError: continue`. Assert `saved == name` (if not: `storage.delete(saved)`; raise `RuntimeError`).
+    +4. `try: with transaction.atomic(): att = PetitionAttachment.objects.create(petition=petition, file=saved, original_name=sanitize_display_name(original_name), size=size)` / `except IntegrityError: storage.delete(saved); continue`.
+    +5. Return `att`.
+    +After all attempts → `raise AttachmentStorageError("Не удалось сохранить файл. Попробуйте ещё раз.")` (`class AttachmentStorageError(Exception)` in this module).
+    +
+    +Tests (`test_files.py`, `FrozenClockMixin, TestCase`):
+    +- `test_upload_to_format` — regex `^request_attachments/[0-9a-f]{2}/[0-9a-f]{32}\.pdf$`, prefix equals first 2 chars; filename argument (`"../../evil.exe"`) ignored.
+    +- `test_upload_to_uses_uuid4` — `mock.patch("petitions.files.uuid.uuid4", return_value=uuid.UUID(int=1))` → name derived from it.
+    +- `test_store_retries_on_existing_file` — patch `uuid4` with `side_effect=[U1, U1, U2]`, pre-create a file at U1's path → stored at U2's path; the pre-existing file content is unchanged.
+    +- `test_store_retries_on_db_collision` — an attachment row with U1's path exists (file absent) → stored at U2.
+    +- `test_store_gives_up` — `uuid4` always U1 and file exists → `AttachmentStorageError`; no new rows.
+    +- `test_db_unique_path` — two rows with the same `file` → `IntegrityError`.
+    +- `validate_pdf`: valid; wrong extension; wrong content type; renamed non-PDF (`.pdf`, `application/pdf`, content `MZ...`); empty; 5 MB exactly OK; 5 MB + 1 rejected (use `SimpleUploadedFile` with `b"%PDF-" + b"0" * (n - 5)`); uppercase `.PDF` OK.
+    +- `validate_attachments`: 3 OK, 4 rejected; messages for several bad files are all reported.
+    +- sanitize tests above.
+    +
+    +### 5.3 `petitions/selectors.py`
+    +```python
+    +def petitions_visible_to(user) -> QuerySet[Petition]
+    +def attachments_visible_to(user) -> QuerySet[PetitionAttachment]
+    +```
+    +`petitions_visible_to`: base `Petition.objects.select_related("request_type", "student__group__program__faculty")`; not authenticated/inactive → `none()`; STUDENT with profile → `filter(student__user=user)`; STAFF with profile → `filter(student__group__program__faculty=profile.faculty)`; else `none()`. `attachments_visible_to`: `PetitionAttachment.objects.filter(petition__in=petitions_visible_to(user))`.
+    +Tests in `test_services.py::SelectorTests`: student sees own only; staff own faculty only; superuser/anonymous/staff without profile → empty; attachments follow petitions.
+    +
+    +### 5.4 `petitions/services.py`
+    +Exceptions: `class StaleStatusError(ValidationError)` with default message `"Заявка уже изменена, обновите страницу."`. Constant `MAX_OPEN_PER_TYPE = 3`.
+    +
+    +#### `add_working_days(start: date, days: int) -> date`
+    +Counts `days` working days (Mon–Fri) strictly after `start`. `days < 1` → `ValueError`. Tests: Mon+1 → Tue; Fri+1 → Mon; Sat+1 → Mon; Sun+1 → Mon; Fri+5 → next Fri; Wed+10 → Wed two weeks later.
+    +
+    +#### `submit_petition(student: StudentProfile, request_type: RequestType, comment: str, uploads: Sequence[UploadedFile]) -> Petition`
+    +1. `comment = (comment or "").strip()`. Errors (collect, non-field): `not request_type.is_active` → «Этот вид заявки сейчас недоступен.»; `len(comment) > MAX_COMMENT_LENGTH` → «Комментарий слишком длинный.»; `request_type.comment_required and not comment` → «Для этой заявки комментарий обязателен.»; plus `validate_attachments(uploads)` messages. Any → `raise ValidationError(errors)`.
+    +2. `stored: list[str] = []`; `try: with transaction.atomic():`
+    +   - `StudentProfile.objects.select_for_update().get(pk=student.pk)` (serializes the limit check per student);
+    +   - `open_count = Petition.objects.filter(student=student, request_type=request_type, status__in=OPEN_STATUSES).count()`; `>= MAX_OPEN_PER_TYPE` → `ValidationError(f"У вас уже {MAX_OPEN_PER_TYPE} открытые заявки этого вида. Дождитесь их выполнения.")`;
+    +   - `now = timezone.now()`; `petition = Petition.objects.create(student=student, request_type=request_type, comment=comment, status=SUBMITTED, created_at=now, status_changed_at=now, expected_ready_date=add_working_days(timezone.localdate(), request_type.processing_days))`;
+    +   - `PetitionStatusChange.objects.create(petition=petition, from_status="", to_status=SUBMITTED, actor=student.user, created_at=now)`;
+    +   - for each upload: `att = store_attachment(petition, upload, upload.name, upload.size)`; `stored.append(att.file.name)`.
+    +   `except BaseException: for name in stored: get_private_storage().delete(name); raise`.
+    +3. Return `petition`.
+    +- Access: only the student themself (views pass `self.profile`).
+    +
+    +#### `change_status(petition: Petition, actor: User, expected_status: str, new_status: str, comment: str = "") -> Petition`
+    +1. `staff = get_profile_for_role(actor, User.Role.STAFF)` (→ `PermissionDenied` for students/superusers).
+    +2. `comment = (comment or "").strip()`; too long → `ValidationError`.
+    +3. `with transaction.atomic():`
+    +   - `locked = _lock_petition(petition.pk)`; where `def _lock_petition(pk: int) -> Petition: return Petition.objects.select_for_update().select_related("student__group__program").get(pk=pk)`;
+    +   - `locked.student.group.program.faculty_id != staff.faculty_id` → `PermissionDenied`;
+    +   - `locked.status != expected_status` → `raise StaleStatusError(StaleStatusError.default_message)`;
+    +   - `not can_transition(locked.status, new_status)` → `ValidationError(f"Нельзя перевести заявку из «{label(from)}» в «{label(to)}».")`;
+    +   - `new_status in COMMENT_REQUIRED_FOR and not comment` → `ValidationError("Укажите причину отклонения.")`;
+    +   - `now = timezone.now()`; `PetitionStatusChange.objects.create(petition=locked, from_status=locked.status, to_status=new_status, actor=actor, created_at=now, comment=comment)`; `locked.status = new_status`; `locked.status_changed_at = now`; `locked.save(update_fields=["status", "status_changed_at"])`.
+    +4. Return `locked`.
+    +
+    +#### `add_staff_comment(petition: Petition, actor: User, text: str) -> PetitionComment`
+    +1. `staff = get_profile_for_role(actor, STAFF)`; `petition.student.group.program.faculty_id != staff.faculty_id` → `PermissionDenied`.
+    +2. `text = (text or "").strip()`; empty → «Комментарий не может быть пустым.»; too long → «Комментарий слишком длинный.».
+    +3. `return PetitionComment.objects.create(petition=petition, author=actor, text=text)`. Allowed at any status. Never updates existing rows.
+    +
+    +Tests (`test_services.py`, `FrozenClockMixin, TestCase`, clock Wed 2026-11-18 12:00):
+    +`SubmitTests`: `test_submit_creates_petition_and_history` (status, expected date = Mon 2026-11-23 for 3 working days, 1 history row from "" by the student); `test_comment_required_rejected`; `test_comment_whitespace_only_rejected_when_required`; `test_comment_optional_ok`; `test_comment_too_long`; `test_inactive_type_rejected`; `test_attachments_stored_privately` (file under `settings.PRIVATE_MEDIA_ROOT`, path format, content equal); `test_invalid_attachment_rejected_nothing_stored` (no petition, no file); `test_limit_three_open_per_type` (3 OK, 4th rejected; other type OK; after one becomes ISSUED → OK again); `test_limit_counts_in_progress`; `test_files_removed_on_failure` (patch `store_attachment` to raise on the 2nd file → no petition, first file deleted from disk); `test_student_row_locked` (`mock.patch.object(StudentProfile.objects, "select_for_update", wraps=...)` or capture SQL on PostgreSQL — assert the lock call happens).
+    +`TransitionTests`: every allowed transition succeeds and writes history (from, to, actor, time = frozen now, comment); every disallowed one → `ValidationError`, no history; reject without comment → error; reject with comment stored in history; `test_stale_expected_status_rejected` (status IN_PROGRESS, expected SUBMITTED → `StaleStatusError` with «Заявка уже изменена, обновите страницу», status unchanged, no history row); `test_concurrent_take_and_reject` (staff A takes with expected SUBMITTED → ok; staff B rejects with expected SUBMITTED → `StaleStatusError`); `test_student_cannot_transition` (`PermissionDenied`); `test_other_faculty_staff_cannot_transition`; `test_superuser_cannot_transition`; `test_lock_used` (`mock.patch("petitions.services._lock_petition", wraps=_lock_petition)` called once with pk).
+    +`CommentTests`: append at every status; two staff of the faculty both add → 2 rows, first unchanged; empty rejected; student → `PermissionDenied`; other faculty staff → `PermissionDenied`; comment after a concurrent transition (stale page) still succeeds.
+    +`WorkingDaysTests`: cases above.
+    +
+    +### 5.5 Forms (`petitions/forms.py`)
+    +```python
+    +class MultipleFileInput(forms.ClearableFileInput):
+    +    allow_multiple_selected = True
+    +
+    +class MultipleFileField(forms.FileField):
+    +    def __init__(self, *args, **kwargs): kwargs.setdefault("widget", MultipleFileInput(attrs={"accept": "application/pdf,.pdf"})); super().__init__(*args, **kwargs)
+    +    def clean(self, data, initial=None) -> list[UploadedFile]:
+    +        if not data: return []
+    +        items = data if isinstance(data, (list, tuple)) else [data]
+    +        return [super().clean(item, initial) for item in items]
+    +
+    +class PetitionForm(forms.Form):
+    +    comment = forms.CharField(label="Комментарий", required=False, max_length=MAX_COMMENT_LENGTH, widget=forms.Textarea(attrs={"rows": 4}))
+    +    files = MultipleFileField(label="PDF-файлы (необязательно, до 3 файлов по 5 МБ)", required=False)
+    +    def __init__(self, *args, request_type: RequestType, **kwargs)
+    +    def clean_comment(self) -> str
+    +    def clean_files(self) -> list[UploadedFile]
+    +```
+    +- `__init__`: `self.request_type = request_type`; `self.fields["comment"].required = request_type.comment_required`; `self.fields["comment"].help_text = request_type.comment_hint`.
+    +- `clean_comment`: strip; required and empty → `ValidationError("Для этой заявки комментарий обязателен.")`.
+    +- `clean_files`: `validate_attachments(files)`; return files.
+    +Exactly two fields — test `test_form_has_exactly_two_fields`.
+    +
+    +```python
+    +class TransitionForm(forms.Form):
+    +    expected_status = forms.ChoiceField(choices=PetitionStatus.choices)
+    +    new_status = forms.ChoiceField(choices=PetitionStatus.choices)
+    +    comment = forms.CharField(required=False, max_length=MAX_COMMENT_LENGTH)
+    +
+    +class StaffCommentForm(forms.Form):
+    +    text = forms.CharField(label="Комментарий", max_length=MAX_COMMENT_LENGTH, widget=forms.Textarea(attrs={"rows": 3}))
+    +```
+    +
+    +### 5.6 Views (`petitions/views.py`)
+    +- `CatalogView(StudentRequiredMixin, TemplateView)` — `types = RequestType.objects.filter(is_active=True)` grouped by kind (two lists).
+    +- `SubmitPetitionView(StudentRequiredMixin, FormView)` — `request_type = get_object_or_404(RequestType, pk=type_id, is_active=True)` in `dispatch` after the mixin; `get_form_kwargs` adds `request_type`; `form_valid`: `try: petition = submit_petition(self.profile, self.request_type, form.cleaned_data["comment"], form.cleaned_data["files"])` / `except ValidationError as exc: form.add_error(None, exc); return self.form_invalid(form)`; redirect to `petitions:submitted`. Template uses `enctype="multipart/form-data"`, shows the hint above the textarea when `comment_required`.
+    +- `SubmittedView(StudentRequiredMixin, DetailView)` — queryset `petitions_visible_to(user)`, `slug_field = slug_url_kwarg = "public_id"`; shows «Заявка подана», type, short number, expected date, links to detail and list.
+    +- `MyPetitionsView(StudentRequiredMixin, ListView)` — `petitions_visible_to(user).order_by("-created_at")`; empty state «Заявок пока нет.» + link to the catalog.
+    +- `StudentPetitionDetailView(StudentRequiredMixin, DetailView)` — queryset `petitions_visible_to(user).prefetch_related(Prefetch("history", queryset=PetitionStatusChange.objects.select_related("actor__staff_profile")), Prefetch("staff_comments", queryset=PetitionComment.objects.select_related("author__staff_profile")), "attachments")`; no action forms.
+    +- `StaffQueueView(StaffRequiredMixin, ListView)` — filters from GET: `status` ∈ {`"open"` (default), `"all"`, any status value}; invalid → `"open"`; `type` = `RequestType` pk or empty; invalid → ignored. Queryset `petitions_visible_to(user)` + filters, `.order_by("created_at")` (oldest first), annotated `attachment_count=Count("attachments")`. Context: filter choices, selected values, `types` list.
+    +- `StaffPetitionDetailView(StaffRequiredMixin, DetailView)` — same prefetch as the student detail + student info (`student__user`, group, 
+    …[20,741 more characters truncated]
+  ── Thought for 3s
+    I'm cleaning up two inconsistencies: the PRIVATE_MEDIA_ROOT default, where the code and the note disagree on how the fallback works, and the download access check for superusers in the access matrix.
+
+    Checking the superuser download case gives a 404 since no attachments are visible to them, and the student request returns 404 as expected. For the status endpoint, a GET from staff hits the method check before any lookup runs, so it should return 405 rather than 404; I'll set the matrix to 405 to remove the ambiguity.
+  ── Ran python3 - <<'EOF' p="docs/tasks/TASK-006.md" s=open(p).read() reps=[ ('  PRIVATE_MEDIA_ROOT = Path(env.str("PRIVATE_MEDIA_ROOT", default=str(BASE_DIR / "private_media")))','  PRIVATE_MEDIA_ROOT = Path(env.str("PRIVATE_MEDIA_ROOT", default="") or str(BASE_DIR / "private_media"))'), ('(empty = default `<repo>/private_media`; `env.str` with empty value → treat `""` as default: `env.str("PRIVATE_MEDIA_ROOT", default="") or str(BASE_DIR / "private_media")`.) `.gitignore`: add `/private_media/`.','(empty or unset = default `<repo>/private_media`.) `.gitignore`: add `/private_media/`.'), ("   - `StudentProfile.objects.select_for_update().get(pk=student.pk)` (serializes the limit check per student);","   - `_lock_student(student.pk)` where `def _lock_student(pk: int) -> None: StudentProfile.objects.select_for_update().filter(pk=pk).values_list(\"pk\", flat=True).get()` (serializes the limit check per student);"), ("`test_student_row_locked` (`mock.patch.object(StudentProfile.objects, \"select_for_update\", wraps=...)` or capture SQL on PostgreSQL — assert the lock call happens).","`test_student_row_locked` (`mock.patch(\"petitions.services._lock_student\", wraps=_lock_student)` → called once with the student pk)."), ("| `/staff/requests/<PA>/status/` GET | 302 | 403 | — | 405 | 404/405 | 403 |","| `/staff/requests/<PA>/status/` GET | 302 | 403 | — | 405 | 405 | 403 |"), ("- **Disk usage**: max 9 open requests × 3 files × 5 MB per student type set; acceptable for the demo.","- **Disk usage**: at most 3 open requests per type × 4 types × 3 files × 5 MB per student at a time; closed requests keep their files. Acceptable for the demo."), ] for a,b in reps:     assert a in s, a[:60]; s=s.replace(a,b) open(p,"w").write(s) EOF bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF' [TASK-006] Planner -> Coder: TASK Spec: docs/tasks/TASK-006.md (approved by the Team lead; feasibility check in section 7, no blockers). Start with AC0: exclude the whole docs/ from ruff. Summary: - New app `petitions` (RequestType, Petition with UUID public_id, PetitionAttachment, PetitionStatusChange history, PetitionComment). Workflow in one table (`petitions/workflow.py`); `change_status` locks the row and compares `expected_status` (stale -> "Заявка уже изменена, обновите страницу"); comments are append-only. - PDF uploads: ≤3 files, ≤5 MB, extension + content type + `%PDF-` signature; stored by `petitions/files.store_attachment` in `core.storage.PrivateFileStorage` (reads settings.PRIVATE_MEDIA_ROOT dynamically, never overwrites, url() raises) at `request_attachments/<2>/<uuid4 hex>.pdf`, DB-unique, bounded retry. Downloads only via `download_attachment` with access checks and attachment headers. - `core.test_runner.ProjectTestRunner` puts PRIVATE_MEDIA_ROOT in a temp dir for all tests. Messages block + "Заявки" nav in base.html. - Seed: 4 exact request types + 7 demo petitions (every status, both faculties) created only if missing. - Follow section 8 order; verification in section 9 (seed with temporary DATABASE_URL and PRIVATE_MEDIA_ROOT). Do not commit. Questions -> me. EOF (2s)
+    $ python3 - <<'EOF'
+  p="docs/tasks/TASK-006.md"
+  s=open(p).read()
+  reps=[
+  ('  PRIVATE_MEDIA_ROOT = Path(env.str("PRIVATE_MEDIA_ROOT", default=str(BASE_DIR / "private_media")))','  PRIVATE_MEDIA_ROOT = Path(env.str("PRIVATE_MEDIA_ROOT", default="") or str(BASE_DIR / "private_media"))'),
+  ('(empty = default `<repo>/private_media`; `env.str` with empty value → treat `""` as default: `env.str("PRIVATE_MEDIA_ROOT", default="") or str(BASE_DIR / "private_media")`.) `.gitignore`: add `/private_media/`.','(empty or unset = default `<repo>/private_media`.) `.gitignore`: add `/private_media/`.'),
+  ("   - `StudentProfile.objects.select_for_update().get(pk=student.pk)` (serializes the limit check per student);","   - `_lock_student(student.pk)` where `def _lock_student(pk: int) -> None: StudentProfile.objects.select_for_update().filter(pk=pk).values_list(\"pk\", flat=True).get()` (serializes the limit check per student);"),
+  ("`test_student_row_locked` (`mock.patch.object(StudentProfile.objects, \"select_for_update\", wraps=...)` or capture SQL on PostgreSQL — assert the lock call happens).","`test_student_row_locked` (`mock.patch(\"petitions.services._lock_student\", wraps=_lock_student)` → called once with the student pk)."),
+  ("| `/staff/requests/<PA>/status/` GET | 302 | 403 | — | 405 | 404/405 | 403 |","| `/staff/requests/<PA>/status/` GET | 302 | 403 | — | 405 | 405 | 403 |"),
+  ("- **Disk usage**: max 9 open requests × 3 files × 5 MB per student type set; acceptable for the demo.","- **Disk usage**: at most 3 open requests per type × 4 types × 3 files × 5 MB per student at a time; closed requests keep their files. Acceptable for the demo."),
+  ]
+  for a,b in reps:
+      assert a in s, a[:60]; s=s.replace(a,b)
+  open(p,"w").write(s)
+  EOF
+  bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF'
+  [TASK-006] Planner -> Coder: TASK
+  Spec: docs/tasks/TASK-006.md (approved by the Team lead; feasibility check in section 7, no blockers). Start with AC0: exclude the whole docs/ from ruff.
+  Summary:
+  - New app `petitions` (RequestType, Petition with UUID public_id, PetitionAttachment, PetitionStatusChange history, PetitionComment). Workflow in one table (`petitions/workflow.py`); `change_status` locks the row and compares `expected_status` (stale -> "Заявка уже изменена, обновите страницу"); comments are append-only.
+  - PDF uploads: ≤3 files, ≤5 MB, extension + content type + `%PDF-` signature; stored by `petitions/files.store_attachment` in `core.storage.PrivateFileStorage` (reads settings.PRIVATE_MEDIA_ROOT dynamically, never overwrites, url() raises) at `request_attachments/<2>/<uuid4 hex>.pdf`, DB-unique, bounded retry. Downloads only via `download_attachment` with access checks and attachment headers.
+  - `core.test_runner.ProjectTestRunner` puts PRIVATE_MEDIA_ROOT in a temp dir for all tests. Messages block + "Заявки" nav in base.html.
+  - Seed: 4 exact request types + 7 demo petitions (every status, both faculties) created only if missing.
+  - Follow section 8 order; verification in section 9 (seed with temporary DATABASE_URL and PRIVATE_MEDIA_ROOT). Do not commit. Questions -> me.
+  EOF
+    Thread thr_ng6cbgatm6 steered
+
+── Assistant ───────────────────────────────────────────────
+Спецификация TASK-006 готова: [docs/tasks/TASK-006.md](docs/tasks/TASK-006.md). Я передал её кодеру. Открытых вопросов в ней нет. Код по задаче ещё не написан.
+
+**Проверка выполнимости пройдена.** Не закоммичен только `plan.md` тимлида. До начала работы проходят:
+- все 409 тестов;
+- прогон с часами на московской полуночи;
+- `check --deploy`;
+- ruff и проверка файла CI;
+- `seed_demo` дважды на временной базе.
+
+Если исключить из ruff всю папку `docs/`, проверки проходят.
+
+**Основные решения:**
+- **Название части проекта — `petitions`.** `requests` перекрыло бы известную библиотеку с тем же именем. `deanery` слишком широкое: чат и уведомления тоже относятся к деканату.
+- **Статусы.** Переходы заданы одной таблицей: «Подана» → «В работе» → «Готова» → «Выдана». Из «Подана» и «В работе» можно перейти в «Отклонена», для этого нужен комментарий. Каждая смена статуса записывается в историю: кто, когда, откуда, куда, с каким комментарием. Эти записи понадобятся уведомлениям в TASK-007.
+- **Два сотрудника одновременно.** Сервис блокирует заявку и сравнивает текущий статус с тем, который видел сотрудник. Если они разошлись, второй получает «Заявка уже изменена, обновите страницу». Комментарии только добавляются и не конфликтуют ни с чем.
+- **PDF-файлы:**
+  - не больше трёх файлов по 5 МБ;
+  - проверяются расширение, заявленный тип и сигнатура `%PDF-`;
+  - имя файла генерируется через `uuid4` по схеме `request_attachments/xx/<32 символа>.pdf`, от пользователя в пути ничего нет;
+  - путь уникален в базе, при совпадении имени делается ограниченное число повторных попыток;
+  - хранилище никогда не перезаписывает файл и не выдаёт публичную ссылку;
+  - скачать файл можно только через страницу с проверкой доступа, и только как вложение.
+- **Папка для файлов** задаётся в `PRIVATE_MEDIA_ROOT`. Она лежит вне статики и не отдаётся nginx; в README будет предупреждение. Настройка читается при каждом обращении. Иначе Django запомнил бы путь при загрузке моделей, и тесты не смогли бы его подменить.
+- **Тесты не пишут файлы в репозиторий.** Для них сделан свой запуск тестов: на время прогона, включая старые тесты `seed_demo`, папка для файлов временная.
+- **Лимит:** не больше трёх открытых заявок одного вида у одного студента.
+- **Демо-данные:**
+  - 4 вида заявок ровно по списку;
+  - 7 заявок во всех статусах, с историей, комментариями и маленькими PDF;
+  - в очереди каждого факультета есть хотя бы одна новая заявка.
+
+В `base.html` не было вывода системных сообщений. Я добавил его в план, без него сотрудник не увидит результат своих действий.
+
+Нужно от вас: на сервере не отдавайте папку `PRIVATE_MEDIA_ROOT` через nginx и поставьте `client_max_body_size 20m`. Это будет записано в README.
