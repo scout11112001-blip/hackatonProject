@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Заявка подана</h1>
+  <p>{{ petition.request_type.name }}</p>
+  <p>№ {{ petition.short_id }}</p>
+  <p>Ожидаемая дата готовности: {{ petition.expected_ready_date|date:"j E Y" }}</p>
+  <p><a href="{% url 'petitions:detail' petition.public_id %}">К заявке</a></p>
+  <p><a href="{% url 'petitions:my_list' %}">Мои заявки</a></p>
+{% endblock %}

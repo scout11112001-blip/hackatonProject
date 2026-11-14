@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Заявка № {{ petition.short_id }}</h1>
+  <h2>Студент</h2>
+  <p>{{ petition.student.full_name }}</p>
+  <p>{{ petition.student.group.name }}</p>
+  <p>№ зачётной книжки: {{ petition.student.record_number }}</p>
+  <h2>Заявка</h2>
+  <p>{{ petition.request_type.name }}</p>
+  <p class="status status--{{ petition.status }}">{{ petition.get_status_display }}</p>
+  <p>Подана: {{ petition.created_at|date:"j E Y H:i" }}</p>
+  <p>Ожидаемая дата готовности: {{ petition.expected_ready_date|date:"j E Y" }}</p>
+  {% if petition.comment %}<p>{{ petition.comment }}</p>{% endif %}
+  {% include "petitions/includes/attachments.html" %}
+  {% include "petitions/includes/history.html" %}
+  {% include "petitions/includes/comments.html" %}
+  {% if actions %}
+    <h2>Действия</h2>
+    {% for status, label in actions %}
+      <form method="post" action="{% url 'petitions:staff_transition' petition.public_id %}" class="action-form">
+        {% csrf_token %}
+        <input type="hidden" name="expected_status" value="{{ petition.status }}">
+        <input type="hidden" name="new_status" value="{{ status }}">
+        {% if status == "rejected" %}
+          <p><label for="comment-{{ status }}">Причина отклонения</label></p>
+          <textarea name="comment" id="comment-{{ status }}" rows="3" required></textarea>
+        {% endif %}
+        <button type="submit">{{ label }}</button>
+      </form>
+    {% endfor %}
+  {% endif %}
+  <h2>Комментарий</h2>
+  <form method="post" action="{% url 'petitions:staff_comment' petition.public_id %}" class="action-form">
+    {% csrf_token %}
+    {{ comment_form.as_p }}
+    <button type="submit">Добавить комментарий</button>
+  </form>
+{% endblock %}

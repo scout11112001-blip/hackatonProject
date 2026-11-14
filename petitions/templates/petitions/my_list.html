@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Мои заявки</h1>
+  {% if petitions %}
+    <ul class="petition-list">
+      {% for petition in petitions %}
+        <li class="petition">
+          <a href="{% url 'petitions:detail' petition.public_id %}">{{ petition.request_type.name }}</a>
+          · № {{ petition.short_id }}
+          · {{ petition.created_at|date:"j E Y" }}
+          · <span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>
+          · готовность: {{ petition.expected_ready_date|date:"j E Y" }}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Заявок пока нет. <a href="{% url 'petitions:catalog' %}">Подать заявку</a></p>
+  {% endif %}
+{% endblock %}

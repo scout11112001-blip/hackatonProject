@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Подать заявку</h1>
+  <h2>Справки</h2>
+  {% for type in certificates %}
+    <p>
+      <a href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>
+      {% if type.description %} — {{ type.description }}{% endif %}
+      · Срок: {{ type.processing_days }} раб. дн.
+    </p>
+  {% empty %}
+    <p>Справок пока нет.</p>
+  {% endfor %}
+  <h2>Заявления</h2>
+  {% for type in applications %}
+    <p>
+      <a href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>
+      {% if type.description %} — {{ type.description }}{% endif %}
+      · Срок: {{ type.processing_days }} раб. дн.
+    </p>
+  {% empty %}
+    <p>Заявлений пока нет.</p>
+  {% endfor %}
+{% endblock %}

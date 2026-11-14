@@ -68,6 +68,11 @@ Demo academics: `student1` is strong (average 5.00, no debts); `student3` has a
 retake and an open debt («Основы права») and low attendance; `student2` is from
 the other faculty (average 4.50). The seed only creates missing academic rows.
 
+Demo requests: `student1` has a submitted certificate and issued/processing
+requests; `student3` has a ready and a rejected request; `student2` has a
+submitted and an in-progress request. Each staff faculty has at least one
+request waiting in its queue.
+
 ## Schedule
 
 Students: `/schedule/` (today) and `/schedule/week/` (week view). Staff:
@@ -82,6 +87,34 @@ rounded to 2 decimals half-up; a debt is a finished-session curriculum item
 with a missing or failing effective result; attendance percent is
 present/(present+absent), rounded half-up, with excused absences excluded and
 shown as «не отмечено» when a past occurrence has no record.
+
+## Requests
+
+Students: `/requests/` (my requests), `/requests/new/` (catalog) and a
+per-request detail with history and downloads. Staff: `/staff/requests/` (queue,
+own faculty, filtered by status/type, open oldest first) and per-request actions
+(take in progress, mark ready, mark issued, reject) and staff comments.
+
+Status workflow:
+
+| Status | Allowed transitions |
+|---|---|
+| Подана (submitted) | В работе, Отклонена |
+| В работе (in_progress) | Готова, Отклонена |
+| Готова (ready) | Выдана |
+| Выдана (issued) | — |
+| Отклонена (rejected) | — |
+
+Limits: at most 3 open requests of the same type per student; up to 3
+attachments, each ≤ 5 MB, PDF only (extension, content type and `%PDF-`
+signature are all checked). Attachments are stored in `PRIVATE_MEDIA_ROOT`,
+which must **never** be served by nginx or live inside `static/`; downloads go
+through Django access checks only. nginx should allow larger request bodies for
+multipart uploads:
+
+```nginx
+client_max_body_size 20m;
+```
 
 ## Login protection
 
@@ -121,3 +154,4 @@ proxy_set_header X-Real-IP $remote_addr;
 | `LOGIN_FAILURE_LIMIT` | `5` | Failures per (username, IP) before login lockout. |
 | `LOGIN_LOCKOUT_SECONDS` | `900` | Login lockout duration in seconds. |
 | `CLIENT_IP_HEADER` | (empty) | Proxy header for the client IP (`X-Real-IP` or `X-Forwarded-For`). |
+| `PRIVATE_MEDIA_ROOT` | `<repo>/private_media` | Private uploads (request attachments); never served by nginx. |

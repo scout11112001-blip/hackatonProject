@@ -21,8 +21,10 @@
         {% if user.is_student %}
         <li><a href="{% url 'schedule:today' %}">Расписание</a></li>
         <li><a href="{% url 'academics:my_grades' %}">Успеваемость</a></li>
+        <li><a href="{% url 'petitions:my_list' %}">Заявки</a></li>
         {% elif user.is_deanery_staff %}
         <li><a href="{% url 'schedule:staff_groups' %}">Расписание</a></li>
+        <li><a href="{% url 'petitions:staff_queue' %}">Заявки</a></li>
         {% endif %}
         {% if user.is_deanery_staff %}
         <li><a href="{% url 'accounts:staff_student_list' %}">Студенты</a></li>
@@ -39,6 +41,13 @@
     </nav>
   </header>
   <main id="main" class="site-main">
+    {% if messages %}
+    <ul class="messages">
+      {% for message in messages %}
+      <li class="message message--{{ message.tags }}">{{ message }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
     {% block content %}{% endblock %}
   </main>
   <footer class="site-footer">

@@ -165,3 +165,42 @@ svg {
 details summary {
   cursor: pointer;
 }
+
+.messages {
+  list-style: none;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+}
+
+.message {
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  margin-bottom: var(--space-2);
+}
+
+.message--error {
+  color: var(--color-changed);
+}
+
+.status {
+  font-weight: bold;
+}
+
+.petition-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.petition {
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-2) 0;
+}
+
+.petition p {
+  margin: 0;
+}
+
+.action-form {
+  margin: var(--space-3) 0;
+}

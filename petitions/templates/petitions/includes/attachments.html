@@ -1,0 +1,12 @@
+{% if petition.attachments.all %}
+  <ul>
+    {% for att in petition.attachments.all %}
+      <li>
+        <a href="{% url 'petitions:download' petition.public_id att.public_id %}">{{ att.original_name }}</a>
+        ({{ att.size|filesizeformat }})
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p>Файлов нет.</p>
+{% endif %}

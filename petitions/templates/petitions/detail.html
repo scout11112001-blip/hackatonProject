@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>{{ petition.request_type.name }}</h1>
+  <p class="status status--{{ petition.status }}">{{ petition.get_status_display }}</p>
+  <p>№ {{ petition.short_id }}</p>
+  <p>Подана: {{ petition.created_at|date:"j E Y H:i" }}</p>
+  <p>Ожидаемая дата готовности: {{ petition.expected_ready_date|date:"j E Y" }}</p>
+  {% if petition.comment %}<p>{{ petition.comment }}</p>{% endif %}
+  {% include "petitions/includes/attachments.html" %}
+  {% include "petitions/includes/history.html" %}
+  {% include "petitions/includes/comments.html" %}
+{% endblock %}

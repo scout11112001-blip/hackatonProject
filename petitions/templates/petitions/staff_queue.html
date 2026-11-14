@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Заявки</h1>
+  <form method="get" class="form">
+    <p>
+      <label for="status">Статус</label>
+      <select name="status" id="status">
+        {% for value, label in status_choices %}
+          <option value="{{ value }}"{% if value == selected_status %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </p>
+    <p>
+      <label for="type">Вид заявки</label>
+      <select name="type" id="type">
+        <option value="">Все</option>
+        {% for t in types %}
+          <option value="{{ t.pk }}"{% if t.pk|stringformat:"s" == selected_type %} selected{% endif %}>{{ t.name }}</option>
+        {% endfor %}
+      </select>
+    </p>
+    <button type="submit">Показать</button>
+  </form>
+  {% if petitions %}
+    <ul class="petition-list">
+      {% for petition in petitions %}
+        <li class="petition">
+          <a href="{% url 'petitions:staff_detail' petition.public_id %}">{{ petition.student.full_name }}</a>
+          · {{ petition.student.group.name }}
+          · {{ petition.request_type.name }}
+          · {{ petition.created_at|date:"j E Y" }}
+          · <span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>
+          · файлов: {{ petition.attachment_count }}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Заявок нет.</p>
+  {% endif %}
+{% endblock %}

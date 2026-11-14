@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "accounts",
     "schedule",
     "academics",
+    "petitions",
     "core",
 ]
 
@@ -118,6 +119,14 @@ STORAGES = {
         )
     },
 }
+
+PRIVATE_MEDIA_ROOT = Path(
+    env.str("PRIVATE_MEDIA_ROOT", default="") or str(BASE_DIR / "private_media")
+)
+FILE_UPLOAD_PERMISSIONS = 0o640
+FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o750
+
+TEST_RUNNER = "core.test_runner.ProjectTestRunner"
 
 # Security
 X_FRAME_OPTIONS = "DENY"

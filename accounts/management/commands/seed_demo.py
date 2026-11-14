@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from academics.demo import seed_academics_demo
 from accounts.demo import DemoSeedError, seed_demo_data
+from petitions.demo import seed_petitions_demo
 from schedule.demo import seed_schedule_demo
 
 
@@ -25,6 +26,7 @@ class Command(BaseCommand):
                 summary = seed_demo_data(password)
                 s = seed_schedule_demo(today)
                 a = seed_academics_demo(today)
+                p = seed_petitions_demo(today)
         except DemoSeedError as exc:
             raise CommandError(str(exc)) from None
         except ValidationError as exc:
@@ -48,5 +50,11 @@ class Command(BaseCommand):
             self.style.SUCCESS(
                 f"Academics ready: {a.terms} terms, {a.curriculum_items} curriculum items, "
                 f"{a.results} final results, {a.marks} marks, {a.attendance} attendance records."
+            )
+        )
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Requests ready: {p.types} types, {p.petitions} requests, "
+                f"{p.attachments} attachments."
             )
         )
