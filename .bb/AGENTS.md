@@ -45,6 +45,10 @@ user <-> Team lead -> Planner -> Coder <-> Reviewer -> Team lead -> user
 - Never send acknowledgements or thanks. Do not wait for a reply to a message that asks for nothing.
 - Messages from other agents start with `[bb message from thread:<id>]`. Act on them according to your role.
 
+## Test runs
+- Always save the full output of every test run to a file, e.g. `python manage.py test 2>&1 | tee "$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log"`.
+- If any run fails, even once and even if a re-run passes, report the failing test name(s), the time of the run (Moscow time) and the relevant part of the traceback to the Team lead (Coder: in the REPORT; Reviewer: in the verdict message). Never dismiss a failure as flaky without the test name.
+
 ## Safety
 - Never read, print or send the contents of `.env` or any secret.
 - Never run destructive commands (`rm -rf`, `git reset --hard`, dropping databases) without explicit Team lead approval.
