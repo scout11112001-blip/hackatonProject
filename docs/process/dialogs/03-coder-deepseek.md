@@ -66483,3 +66483,7237 @@ Change only templates/includes/site_nav_items.html and core/tests/test_nav.py. R
 - `test_badge_computed_once` остаётся зелёным (`spy.call_count == 1`).
 - Вся верификация §7 зелёная: `check`, `makemigrations --check`, 3× полный прогон (`833 OK`), 2 midnight-прогона (`833 OK`), `check --deploy`, `ruff`, yaml, сид дважды идемпотентно.
 - `git status` сверен — изменены только два целевых файла (плюс прежние изменения задачи).
+
+── User ────────────────────────────────────────────────────
+/compact
+
+── Worked for (1m 16s) ─────────────────────────────────────
+  ── Context compacted
+
+  ── Thought for 49s
+    The user is asking me to produce a structured summary of the conversation. I need to combine the prior summary with the latest conversation content (which is actually a continuation of the TASK-007-FIX and then TASK-008 and TASK-008-FIX work). Wait, let me carefully read what happened in the conversation.
+
+    Actually, looking at the conversation, it contains:
+
+    1. A large chunk showing the completion of TASK-007-FIX (applying fixes, running tests, sending REPORT). The user then gave a new task:
+    2. TASK-008: room map implementation - detailed work happens.
+    3. TASK-008-FIX: three fixes - the conversation ends mid-way through Item 3 implementation (after fixing a failing ruff check and running a test command for core.tests.test_nav). The final test command showed 27 tests OK in the earlier run.
+
+    Wait, actually the conversation shown is cut off. Let me look at what's the actual current state.
+
+    The conversation ends with:
+    - After applying fixes for Item 3 (include + base.html + CSS + test_nav.py)
+    - Running `python manage.py test core.tests.test_nav core.tests.test_css core.tests.test_views notifications.tests.test_views.NavTests academics.tests.test_views.StudentGradesViewTests.test_details_elements_present` → initially ERROR because wrong class name, then re-ran with correct class → Ran 27 tests OK
+    - Then ran ruff format on changed files → 1 file reformatted, 8 left unchanged
+    - Then `ruff check` → Found 2 errors: E501 at accounts/tests/test_views.py:178 and core/tests/test_css.py:31
+    - Fixed accounts/tests/test_views.py E501 by computing detail_url separately
+    - The conversation is cut off right after that edit, before fixing the core/test_css.py E501 and before finishing Item 3 verification.
+
+    Wait, but looking at the `<conversation>` content more carefully, it ends with the edit to accounts/tests/test_views.py. The two E501 errors were:
+    1. accounts/tests/test_views.py:178 - fixed (detail_url refactor)
+    2. core/tests/test_css.py:31 - NOT yet fixed (the regex line too long)
+
+    So the current state: TASK-008-FIX Item 3 mostly implemented, but:
+    - core/tests/test_css.py line 31 E501 not yet fixed
+    - Haven't re-run tests after fixing accounts/tests E501
+    - Haven't completed Item 3 verification (full suite, etc.)
+    - Haven't done ruff format final
+    - Haven't done section 7 verification
+    - Haven't sent REPORT
+
+    But wait - the prior summary says TASK-007-FIX was Active, but the conversation shows it was completed and reported. So the new summary should reflect:
+    - TASK-007-FIX: completed, reported
+    - TASK-008: completed, reported
+    - TASK-008-FIX: in progress (Items 1 & 2 done, Item 3 mostly done but with lingering E501 fix needed)
+
+    Let me reconstruct the important details and state.
+
+    Actually, let me carefully re-read the conversation to capture all the completed work and exact state.
+
+    From the conversation:
+
+    ### TASK-007-FIX completion (in conversation start)
+    - All 6 fixes applied
+    - 748 tests OK (baseline 735, +13)
+    - Section 8 verification green
+    - REPORT sent to `thr_cpuae9aqw3`
+    - Fixes: home_summary exclusion, form label, audience_label, NBSP, clock defaults, import
+    - git status matched spec
+
+    ### TASK-008 assignment
+    Spec: `docs/tasks/TASK-008.md`, base `bf09738`.
+
+    Completed:
+    1. `university/building.py` - MapCell, STAIRS_CELL, Landmark, LANDMARKS, landmarks_on, blocked_cells
+    2. `university/models.py` Room changes - floor 1-9, number RegexValidator, map_cell field, constraints, clean()
+    3. Migration `university/migrations/0003_room_number_format_and_map_cell.py`
+    4. `schedule/tests/helpers.py` make_room derives floor from number
+    5. `university/admin.py` - list_display += map_cell
+    6. University tests: test_building.py (5), test_admin.py (5), test_models.py additions (RoomNumberTests 7 + RoomMapCellTests 6)
+    7. `campusmap` app: apps.py, layout.py, views.py, urls.py, map.html, tests/__init__.py, test_layout.py (8 tests), test_views.py (MapAccessTests 6, MapViewTests 16, MapQueryTests 2, MapNavTests 3)
+    8. Wired settings.py, urls.py, pyproject.toml
+    9. CSS: `--color-map-highlight` token, base.css map rules; CSS test `test_map_highlight_rule`
+    10. Nav «Карта» in base.html (student + staff)
+    11. `lesson_item.html` room links (happening → link, cancelled/moved-out plain, original `<del>` no href, moved-in new room)
+    12. `schedule/demo.py`: RoomSeed.map_cell, 7 demo cells, full_clean() before save
+    13. `schedule/tests/test_views.py` RoomLinkTests (8 tests)
+    14. `schedule/tests/test_demo.py` +2 tests
+    15. README `## Map` + Known limitations bullet
+    16. 817 tests OK (baseline 748, +69)
+    17. Section 8 verification green (run_tests_at 2359, 0000 both 817 OK)
+    18. REPORT sent to Reviewer `thr_cpuae9aqw3`
+
+    Note: during dev two test issues fixed:
+    - `test_landmarks_per_floor` checked whole page (legend lists all landmark names) → now asserts SVG part only
+    - moved-in lesson double-render → lesson_move_in weekday=Mon/slot 2, original_date 2026-11-16
+
+    ### TASK-008-FIX assignment
+    Spec: `docs/tasks/TASK-008-FIX.md`, base `caf7601`. Three fixes, regression tests first.
+
+    Message from Planner says:
+    - Item 1: random CSRF token flaky page needles; fix 6 hits marked "fix" in 4.1.2 exactly as 4.1.3; add 2 schedule tests (leak detection via patched `groups_visible_to`, token containing "GY" via patched `django.middleware.csrf._mask_cipher_secret`); mutation check for REPORT; one README bullet.
+    - Item 2: campusmap/layout.py LABEL_PADDING + estimated_label_width + label_text_length; MapShape.text_length; textLength + lengthAdjust in map.html (only «Лестница» gets 56).
+    - Item 3: header = wide inline nav + `<details class="site-menu">` for <48rem, both from new `templates/includes/site_nav_items.html`; badge computed once in base.html, shown as link outside menu; `aria-current="page"`; CSS in 4.3; tests in new `core/tests/test_nav.py`.
+    - Verification section 7: full suite 3 times + midnight runs, logs with tee (baseline 817). Do not commit.
+
+    ### TASK-008-FIX work done in conversation:
+
+    **Item 1 (completed):**
+    - `schedule/tests/test_views.py::test_staff_group_list_scoped`: now asserts hrefs `f'href="/staff/schedule/{group.pk}/"'` for group_x1/group_x2, assertNotIn for group_y, and `set(response.context["groups"]) == {group_x1, group_x2}`
+    - `schedule/tests/test_views.py::ChangeRenderingTests::test_change_rendering`: changed `assertIn("205", content)` to `assertIn('data-room-code="room-205"', content)` and `assertIn('101', content)` to `assertIn('<del class="room" data-room-code="room-101">', content)`
+    - `notifications/tests/test_views.py` line ~557: `assertIn("x", response.content.decode())` → `assertEqual(response.context["form"].non_field_errors(), ["x"])`
+    - `petitions/tests/test_views.py`: `assertIn(self.student.group.name, content)` → `assertIn(f"<p>{self.student.group.name}</p>", content)`
+    - `accounts/tests/test_views.py::test_staff_list_empty_state_markup`: `assertIn("<li>", full_content)` → `assertIn(f'href="{reverse("accounts:staff_student_detail", args=[self.student_a.student_profile.pk])}"', full_content)` (later refactored to detail_url variable to fix E501)
+    - Added to `schedule/tests/test_views.py::ScheduleViewsTests`:
+      - `test_scope_check_detects_leak` (mock.patch `schedule.views.groups_visible_to` returning all groups ordered by name, asserts href for group_y present)
+      - `test_scope_check_ignores_csrf_token` (mock.patch `django.middleware.csrf._mask_cipher_secret` return "GY"*32, asserts token in content + hrefs)
+    - `from university.models import StudyGroup, Teacher` (added StudyGroup)
+    - README bullet added (Test & lint section)
+    - Ran mutation check: temporarily changed `test_staff_group_list_scoped` to force_login(staff_y), ran → `AssertionError: 'href="/staff/schedule/1/"' not found` (page only showed GY at href="/staff/schedule/3/"). Then reverted to staff_x. ✓
+    - Ran targeted tests (22 tests OK)
+
+    **Item 2 (completed):**
+    - `campusmap/layout.py`:
+      - Added `LABEL_PADDING = 8`, `LABEL_CHAR_EM_NUM = 13`, `LABEL_CHAR_EM_DEN = 20`
+      - Added `estimated_label_width(label, size) -> int` and `label_text_length(label, rect, size) -> int | None`
+      - Added `MapShape.text_length: int | None = None` (last field)
+      - floor_plan landmark shapes: `text_length=label_text_length(lm.label, rect, LANDMARK_LABEL_SIZE)` using walrus `(rect := span_rect(lm.cells))`
+      - FIXED an ordering bug: `label_text_length` referenced `Rect` before it was defined → reordered so Rect/OUTLINE/CORRIDOR defined before label_text_length
+    - `campusmap/templates/campusmap/map.html`: added `{% if s.text_length %} textLength="{{ s.text_length }}" lengthAdjust="spacingAndGlyphs"{% endif %}` to `<text>` element
+    - `campusmap/tests/test_layout.py`:
+      - Updated imports: added LABEL_PADDING, estimated_label_width
+      - DELETED `test_labels_fit` (fully covered by new tests; to note in REPORT)
+      - Added `test_landmark_labels_fit_with_padding` (floors 1-9, min(estimated, text_length or 10**6) <= rect.width - 2*LABEL_PADDING)
+      - Added `test_stairs_label_clamped` (text_length == CELL_WIDTH - 2*LABEL_PADDING == 56)
+      - Added `test_rooms_never_clamped` (room shapes text_length is None; estimated_label_width("888", ROOM_LABEL_SIZE) <= CELL_WIDTH - 2*LABEL_PADDING)
+    - `campusmap/tests/test_views.py`: added `MapViewTests::test_stairs_label_has_text_length` (asserts `textLength="56" lengthAdjust="spacingAndGlyphs">Лестница</text>`, entrance text element no textLength, room label 101 no textLength)
+    - Ran `campusmap.tests` → 38 tests OK
+
+    **Item 3 (in progress, mostly done):**
+    - Created `templates/includes/site_nav_items.html`:
+      - `<ul class="site-nav-list">` with `<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>...</a></li>` for each item
+      - Student: Профиль, Расписание, Карта, Успеваемость, Заявки, Уведомления (plain, no count)
+      - Staff: Профиль, Расписание, Карта, Заявки, Объявления, Студенты
+      - Superuser: Профиль only
+      - Logout form in `<li>` with csrf_token
+      - No `{% notifications_badge %}` inside
+    - Updated `templates/base.html` header:
+      - `{% if user.is_student %}{% notifications_badge as badge %}{% endif %}` before navs
+      - `<nav class="site-nav site-nav--wide" aria-label="...">{% block nav %}{% if user.is_authenticated %}{% include "includes/site_nav_items.html" %}{% endif %}{% endblock %}</nav>`
+      - `<div class="site-nav-compact">` with `<details class="site-menu"><summary>Меню</summary><nav>...include...</nav></details>` and badge link `{% if badge %}<a class="site-menu-badge" href="{% url 'notifications:feed' %}">Уведомления ({{ badge }})</a>{% endif %}`
+    - Appended CSS to `static/css/base.css`:
+      - `.site-nav--wide { display: none; }`
+      - `.site-nav-compact { display: flex; ... }`
+      - `.site-menu-toggle`, `.site-menu-badge` min-height 2.75rem line-height
+      - `.site-menu[open] { flex-basis: 100%; }`
+      - `.site-menu .site-nav-list` column layout
+      - `@media (min-width: 48rem) { .site-nav--wide { display: block; } .site-nav-compact { display: none; } }`
+    - Added `test_compact_nav_rules` to `core/tests/test_css.py` (assertRegex for both patterns)
+    - Created `core/tests/test_nav.py`:
+      - Helpers: `_wide`, `_menu`, `_hrefs`
+      - `NavMarkupTests`: test_student_menu, test_staff_menu, test_superuser_menu, test_logout_form_in_both_lists, test_current_page_marked, test_anonymous_unchanged
+      - `NavBadgeTests(FrozenClockMixin)`: frozen_now = "2026-11-11 12:00"; test_badge_outside_menu, test_no_badge_without_unread, test_no_badge_for_staff, test_badge_computed_once
+    - Test runs showed tests pass. Ran:
+      - `python manage.py test core.tests.test_nav core.tests.test_css core.tests.test_views notifications.tests.test_views.NavTests academics.tests.test_views.StudentGradesViewTests.test_details_elements_present` → first error (wrong class name), then correct rerun → **Ran 27 tests OK**
+
+    Then ruff format/check:
+    - `ruff format` 9 files → 1 file reformatted (core/tests/test_nav.py), 8 left unchanged
+    - `ruff check` → Found 2 errors (E501 line too long):
+      1. `accounts/tests/test_views.py:178` → fixed by computing `detail_url` separately
+      2. `core/tests/test_css.py:31:101` → regex line too long — **NOT yet fixed**
+
+    The conversation ends after fixing the accounts/tests/test_views.py E501.
+
+    So current state:
+    - Item 3 implementation essentially complete but has an E501 error in `core/tests/test_css.py` line 31 that needs fixing (the big regex for the media query).
+    - Also, the accounts/tests/test_views.py fix was just applied, need to re-run the test to confirm.
+    - Need to re-run ruff check to confirm clean.
+    - Need to run full suite 3 times + midnight runs (section 7).
+    - Need mutation check for item 1 (already done for the leak test, but the REPORT needs to mention it).
+    - Need to send REPORT to Reviewer (`thr_cpuae9aqw3`).
+
+    Wait, also important: the conversation shows the item 3 tests passed (27 OK) BEFORE the E501 fixes. So after fixing the E501, need to re-run.
+
+    Let me also note the baseline: TASK-008-FIX baseline is 817 tests. The test_nav.py adds 10 new tests (6 + 4), test_css adds 1 new test, and the Item 1/2 tests were already counted... Let me count new tests for TASK-008-FIX:
+    - schedule test_views: 2 new tests (test_scope_check_detects_leak, test_scope_check_ignores_csrf_token)
+    - campusmap test_layout: net +2 (deleted test_labels_fit, added 3 new = +2)
+    - campusmap test_views: +1 (test_stairs_label_has_text_length)
+    - core test_nav: +10 (6 NavMarkupTests + 4 NavBadgeTests)
+    - core test_css: +1 (test_compact_nav_rules)
+
+    Total new = 2 + 2 + 1 + 10 + 1 = 16. Expected final = 817 + 16 = 833.
+
+    But no full suite has been run for TASK-008-FIX yet in the conversation. Need to run full suite 3 times per section 7.
+
+    Also, ruff check fix needed:
+    - Fix `core/tests/test_css.py` line 31 E501: break the regex string or use a shorter approach. The line is 142 chars. Need to reformat. Options: use a raw string with a separate variable, or split the regex.
+
+    Let me look at the exact line from the error:
+    ```
+    31 | …-nav--wide\s*\{\s*display:\s*block;\s*\}\s*\.site-nav-compact\s*\{\s*display:\s*none;",
+    ```
+    It's too long because the regex string itself is long. I can break it by concatenating strings or storing the pattern differently.
+
+    Actually, in Python, the assertRegex pattern can be a single string. To break it, I could:
+    - Use `re.escape`? No, it's a regex.
+    - Break the string across multiple lines with implicit concatenation.
+
+    Let me think. The current line is:
+    ```python
+                r"@media \(min-width: 48rem\)\s*\{\s*\.site-nav--wide\s*\{\s*display:\s*block;\s*\}\s*\.site-nav-compact\s*\{\s*display:\s*none;",
+    ```
+
+    I can break this into two string concatenations:
+    ```python
+                (
+                    r"@media \(min-width: 48rem\)\s*\{\s*\.site-nav--wide\s*\{\s*display:\s*block;"
+                    r"\s*\}\s*\.site-nav-compact\s*\{\s*display:\s*none;"
+                ),
+    ```
+
+    That's the fix I need to make.
+
+    Now let me also note the exact test command that was run with correct class:
+    `python manage.py test core.tests.test_nav core.tests.test_css core.tests.test_views notifications.tests.test_views.NavTests academics.tests.test_views.StudentGradesViewTests.test_details_elements_present`
+
+    This gave 27 OK.
+
+    For section 7 verification, the spec says full suite 3 times + midnight runs. I need to run these after fixing ruff.
+
+    Let me also capture important details about the Item 3 CSS and base.html exact wording, since those are needed for the final REPORT and potential further fixes.
+
+    Also, I need to remember: the include file is `templates/includes/site_nav_items.html`.
+
+    Badge details:
+    - badge_for_user returns str, `{% if badge %}` is truthy for non-empty.
+    - badge label for 1 unread is "1" → "Уведомления (1)".
+    - test_badge_outside_menu asserts index of "site-menu-badge" > content.index("</details>").
+
+    Existing notifications NavTests still pass (already confirmed in 27 OK test run).
+
+    Let me also note: `test_details_elements_present` counts bare `<details>` == 2 — my `<details class="site-menu">` won't count. This was verified in the 27 OK test run.
+
+    Also, `test_home_base_layout` `assertIn("<nav", content)` still passes despite new nav structure.
+
+    Now, what about the `mutation check for the REPORT`? The conversation shows it was done: temporarily changed `test_staff_group_list_scoped` to force_login(staff_y), ran, observed `AssertionError: 'href="/staff/schedule/1/"' not found in '...'`, then reverted. This needs to be mentioned in the final REPORT.
+
+    The README bullet was added under "Test & lint" section:
+    «Assertions on whole pages: use exact markup (e.g. `href="/staff/schedule/12/"`) or `response.context`; never a short alphanumeric needle — the page contains a random CSRF token.»
+
+    Now, for the REPORT, the Item 2 note about deleting `test_labels_fit` must say it was deleted as fully covered.
+
+    Let me also note that the base for TASK-008-FIX is `caf7601`, and the baseline is 817 tests.
+
+    Also note: `run_tests_at.py` dates for section 7 are midnight runs. The spec for TASK-008-FIX section 7 says "full suite 3 times + midnight runs" — I need to check what exact commands. The Planner's TASK message says: "Verification section 7: full suite 3 times + midnight runs, logs with tee (baseline 817)."
+
+    For TASK-008-FIX, the midnight runs would be `run_tests_at.py` at some dates. Probably `2026-11-17T23:59:59` and `2026-11-18T00:00:00` like TASK-008.
+
+    Now, let me construct the final summary.
+
+    Important files changed in TASK-008-FIX:
+    - `schedule/tests/test_views.py` (Item 1 + RoomLinkTests from TASK-008)
+    - `notifications/tests/test_views.py` (Item 1 fix)
+    - `petitions/tests/test_views.py` (Item 1 fix)
+    - `accounts/tests/test_views.py` (Item 1 fix)
+    - `campusmap/layout.py` (Item 2)
+    - `campusmap/templates/campusmap/map.html` (Item 2)
+    - `campusmap/tests/test_layout.py` (Item 2)
+    - `campusmap/tests/test_views.py` (Item 2)
+    - `core/tests/test_css.py` (Item 3)
+    - `core/tests/test_nav.py` (Item 3, new)
+    - `templates/base.html` (Item 3)
+    - `templates/includes/site_nav_items.html` (Item 3, new)
+    - `static/css/base.css` (Item 3)
+    - `README.md` (Item 1 bullet)
+
+    Now, for the current active work and next moves:
+    Active: TASK-008-FIX Item 3 — mostly implemented, tests passing but ruff check has 1 remaining E501 in `core/tests/test_css.py`.
+    Blocked: none.
+    Next Move:
+    1. Fix E501 in `core/tests/test_css.py` (break the long regex string).
+    2. Re-run ruff format + ruff check on changed files.
+    3. Re-run targeted tests (core.tests.test_nav, core.tests.test_css, etc.) to confirm.
+    4. Run full suite 3x + midnight `run_tests_at.py` runs with tee logs (baseline 817).
+    5. Run check, makemigrations --check, deploy, ruff check ., format --check ., yaml.
+    6. Compare git status to spec file list; send TASK-008-FIX REPORT to Reviewer `thr_cpuae9aqw3`.
+
+    Let me also include the important detail about `run_tests_at.py` dates if known. For TASK-008-FIX, the midnight runs are probably same as before: `2026-11-17T23:59:59` and `2026-11-18T00:00:00`. I'll mention they need to be run.
+
+    Now, I should also carry forward the completed TASK-007-FIX and TASK-008 reports, since they were completed in the conversation and user should know the thread state.
+
+    Actually, the user's question/prompt is just to produce the summary. The whole conversation includes the TASK-008 and TASK-008-FIX work. I need to produce a summary that reflects the final state.
+
+    Let me write the summary now, combining everything.
+
+    For the Work State:
+    ### Completed
+    - TASK-006-FIX: 567 tests OK, reported.
+    - TASK-007: 735 tests OK, reported.
+    - TASK-007 round 1: test fixes, 735 tests OK x4, reported.
+    - TASK-007-FIX: all 6 fixes applied, 748 tests OK (baseline 735, +13), section 8 verification green, REPORT sent to `thr_cpuae9aqw3`.
+    - TASK-008: fully implemented, 817 tests OK (baseline 748, +69), section 8 verification green, REPORT sent to `thr_cpuae9aqw3`.
+    - TASK-008-FIX Item 1: all 5 test fixes + 2 new schedule tests, README bullet, mutation check done (passed), targeted tests 22 OK.
+    - TASK-008-FIX Item 2: layout.py LABEL_PADDING+estimated_label_width+label_text_length+MapShape.text_length, map.html textLength/lengthAdjust, test_layout.py updated (deleted test_labels_fit, added 3 tests), test_views.py added test_stairs_label_has_text_length; 38 campusmap tests OK.
+    - TASK-008-FIX Item 3: include + base.html + CSS + core/tests/test_nav.py + core/tests/test_css.py all written; targeted test run 27 OK (after correcting class name); fixed E501 in accounts/tests/test_views.py by storing `detail_url` separately.
+
+    ### Active
+    - TASK-008-FIX Item 3: finalizing ruff clean; 1 E501 remaining in `core/tests/test_css.py` regex line.
+
+    Wait, but the Item 3 implementation is essentially complete. Just ruff formatting issue. Let me keep "Active" for the remaining work.
+
+    ### Blocked
+    - (none)
+
+    Let me also mention the exact E501 error details.
+
+    For Next Move, let me be precise.
+
+    Now let me write it all out. I need to preserve exact file paths and key snippets.
+
+    Let me also mention the exact test command that gave 27 OK so it can be re-run.
+
+    For the Item 3 CSRF/leak details:
+    - `test_scope_check_detects_leak`: `mock.patch("schedule.views.groups_visible_to", return_value=StudyGroup.objects.select_related("program__faculty").order_by("name"))` → `assertIn(f'href="/staff/schedule/{self.group_y.pk}/"', content)`
+    - `test_scope_check_ignores_csrf_token`: `mock.patch("django.middleware.csrf._mask_cipher_secret", return_value="GY" * 32)` → `assertIn("GY" * 32, content)`, then hrefs asserted.
+
+    Let me note the key files:
+
+    - `core/tests/test_css.py`: has E501 at line 31 that needs fixing.
+    - `accounts/tests/test_views.py`: E501 fixed with `detail_url` var.
+    - `core/tests/test_nav.py`: new, 10 tests.
+    - `templates/includes/site_nav_items.html`: new, shared nav items.
+    - `templates/base.html`: header restructure.
+    - `static/css/base.css`: compact nav rules appended.
+
+    OK, I think I have all the info. Let me produce the summary now.
+
+    One more thing: the spec for TASK-008-FIX Item 3 says the include uses aria-current via `{% url ... as nav_url %}{% if request.path == nav_url %}`. And test_current_page_marked expects `content.count('href="/profile/" aria-current="page"') == 2` and `content.count('aria-current="page"') == 2` on /profile/.
+
+    Also, important: the badge link is `{% if badge %}<a class="site-menu-badge" href="{% url 'notifications:feed' %}">Уведомления ({{ badge }})</a>{% endif %}`.
+
+    Let me finalize.
+
+── Assistant ───────────────────────────────────────────────
+## Objective
+- Implement `docs/tasks/TASK-008-FIX.md` (base `caf7601`) from Planner (`thr_2imsg4kck2`): three fixes with regression tests first; verify section 7 (full suite 3x + midnight runs, baseline 817); send REPORT to Reviewer (`thr_cpuae9aqw3`); do not commit.
+
+## Important Details
+- Protocol: save every test run with `tee "$TMPDIR/test-<timestamp>.log"`; report Moscow time + failing test name + traceback for any failed run; ruff only on task files (never `ruff format .`); don't touch `docs/`, `.bb/`; use temp DB/private media for seed checks.
+- Prior completed work (already reported): TASK-007-FIX → 748 tests OK (baseline 735, +13); TASK-008 → 817 tests OK (baseline 748, +69).
+- TASK-008-FIX item 1 mutation check performed: temporarily changed `test_staff_group_list_scoped` to `force_login(self.staff_y)`; observed `AssertionError: 'href="/staff/schedule/1/"' not found in '...'`; reverted to `staff_x`.
+- `badge_for_user` returns a string; `{% if badge %}` is truthy for non-empty. `badge_for_user` patched via `notifications.templatetags.notifications_tags.badge_for_user`.
+- Item 2 old `test_labels_fit` was deleted (fully covered by new tests) — to note in REPORT.
+- The `<details>` count in `academics/tests/test_views.py::test_details_elements_present` remains 2 because the new menu uses `<details class="site-menu">`, not bare `<details>`.
+- Exact rust check error still open: `E501 Line too long (142 > 100)` at `core/tests/test_css.py:31:101` (the long `@media (min-width: 48rem)` regex string in `test_compact_nav_rules`).
+
+## Work State
+### Completed
+- TASK-007-FIX: all 6 fixes applied; 748 tests OK; section 8 verification green; REPORT sent to Reviewer.
+- TASK-008: room map fully implemented (`campusmap` app, Room rules, migration 0003, seed, schedule links, tests); 817 tests OK; section 8 verification green; REPORT sent to Reviewer.
+- TASK-008-FIX Item 1:
+  - `schedule/tests/test_views.py::test_staff_group_list_scoped` now asserts hrefs + `response.context["groups"]`.
+  - `ChangeRenderingTests::test_change_rendering` changed `assertIn("205"/"101", content)` to `assertIn('data-room-code="room-205"', content)` and `assertIn('<del class="room" data-room-code="room-101">', content)`.
+  - `notifications/tests/test_views.py` `test_service_error_shown_as_form_error` changed `assertIn("x", response.content.decode())` → `assertEqual(response.context["form"].non_field_errors(), ["x"])`.
+  - `petitions/tests/test_views.py` group assertion changed to `assertIn(f"<p>{self.student.group.name}</p>", content)`.
+  - `accounts/tests/test_views.py` `test_staff_list_empty_state_markup` now asserts exact href for student detail URL (`detail_url = reverse("accounts:staff_student_detail", args=[self.student_a.student_profile.pk])`).
+  - Added 2 tests to `ScheduleViewsTests`: `test_scope_check_detects_leak` (mock `schedule.views.groups_visible_to`, assert GY href) and `test_scope_check_ignores_csrf_token` (mock `django.middleware.csrf._mask_cipher_secret`, return `"GY"*32`, assert token + hrefs).
+  - `from university.models import StudyGroup, Teacher` added.
+  - README bullet added after "Test & lint" code block.
+  - Targeted run of changed tests: `Ran 22 tests OK`.
+- TASK-008-FIX Item 2:
+  - `campusmap/layout.py`: added `LABEL_PADDING = 8`, `LABEL_CHAR_EM_NUM = 13`, `LABEL_CHAR_EM_DEN = 20`, `estimated_label_width`, `label_text_length`, `MapShape.text_length: int | None = None`; floor_plan landmark shapes use `text_length=label_text_length(lm.label, rect, LANDMARK_LABEL_SIZE)`. Fixed ordering so `Rect` is defined before `label_text_length`.
+  - `campusmap/templates/campusmap/map.html`: added `{% if s.text_length %} textLength="{{ s.text_length }}" lengthAdjust="spacingAndGlyphs"{% endif %}`.
+  - `campusmap/tests/test_layout.py`: removed old `test_labels_fit`, added `test_landmark_labels_fit_with_padding`, `test_stairs_label_clamped` (expects 56), `test_rooms_never_clamped`.
+  - `campusmap/tests/test_views.py`: added `test_stairs_label_has_text_length`.
+  - Campusmap tests: `Ran 38 tests OK`.
+- TASK-008-FIX Item 3 (implementation complete, final ruff check pending):
+  - Created `templates/includes/site_nav_items.html` (shared wide/menu list with aria-current via `{% url ... as nav_url %}`).
+  - Updated `templates/base.html` header: badge computed once for students, wide `<nav class="site-nav site-nav--wide">`, compact `<details class="site-menu"><summary>Меню</summary>...` + `site-menu-badge` link.
+  - Appended compact-nav CSS rules to `static/css/base.css` (`.site-nav--wide display:none`, `.site-nav-compact`, `@media (min-width: 48rem)` switching).
+  - Added `test_compact_nav_rules` to `core/tests/test_css.py`; created `core/tests/test_nav.py` (NavMarkupTests 6 + NavBadgeTests 4).
+  - Targeted tests passed: `Ran 27 tests OK` (after correcting class name to `StudentGradesViewTests.test_details_elements_present`).
+  - Fixed E501 at `accounts/tests/test_views.py:178` by storing `detail_url` separately.
+  - Ran `ruff format` on 9 changed Python files → 1 file reformatted (`core/tests/test_nav.py`), 8 unchanged.
+  - `ruff check` on changed Python files → **2 errors**: E501 at `accounts/tests/test_views.py` (fixed) and `core/tests/test_css.py:31` (open).
+
+### Active
+- TASK-008-FIX: fix the remaining `core/tests/test_css.py` E501 (break the long regex string inside `test_compact_nav_rules`), then re-run ruff + targeted/full verification.
+
+### Blocked
+- (none)
+
+## Next Move
+1. Fix E501 in `core/tests/test_css.py` (break the long `@media (min-width: 48rem)` regex string across concatenated raw strings).
+2. Re-run `ruff check` on the changed Python files (must be `All checks passed!`).
+3. Re-run targeted tests: `python manage.py test core.tests.test_nav core.tests.test_css core.tests.test_views notifications.tests.test_views.NavTests academics.tests.test_views.StudentGradesViewTests.test_details_elements_present` and `campusmap.tests` + `schedule.tests.test_views.ScheduleViewsTests`.
+4. Run full suite 3x + `run_tests_at.py` midnight runs (`2026-11-17T23:59:59` and `2026-11-18T00:00:00`) with tee logs; run `check`, `makemigrations --check --dry-run`, `check --deploy`, `ruff check .`, `ruff format --check .`, yaml check.
+5. Compare `git status` to spec file list; send TASK-008-FIX REPORT to Reviewer (`thr_cpuae9aqw3`) noting Item 1 mutation check result and Item 2 `test_labels_fit` deletion.
+
+## Relevant Files
+- `core/tests/test_css.py`: has the open E501 (line 31, long regex); already has `test_map_highlight_rule` and new `test_compact_nav_rules`.
+- `core/tests/test_nav.py`: new file, 10 nav/badge tests (NavMarkupTests + NavBadgeTests).
+- `templates/base.html`: restructured header with `{% notifications_badge as badge %}` once, wide nav, and compact `<details class="site-menu">` + badge link.
+- `templates/includes/site_nav_items.html`: new shared nav items for student/staff/superuser + logout form; aria-current via `{% url ... as nav_url %}`.
+- `static/css/base.css`: compact nav CSS appended (`site-nav--wide`, `site-nav-compact`, `site-menu`, `@media (min-width: 48rem)`).
+- `accounts/tests/test_views.py`: E501 fixed via `detail_url` variable.
+- `schedule/tests/test_views.py`: Item 1 fixes + 2 new scope-check tests.
+- `notifications/tests/test_views.py`: Item 1 fix.
+- `petitions/tests/test_views.py`: Item 1 fix.
+- `campusmap/layout.py`: Item 2 LABEL_PADDING/estimated_label_width/label_text_length/MapShape.text_length.
+- `campusmap/templates/campusmap/map.html`: Item 2 `textLength`/`lengthAdjust` attributes.
+- `campusmap/tests/test_layout.py` and `campusmap/tests/test_views.py`: Item 2 tests.
+- `README.md`: Item 1 random-CSRF assertion bullet.
+
+── Explored 22 files, ran 1 tool ───────────────────────────
+  ── Read ~/hackatonproject/accounts/models.py
+  ── Read ~/hackatonproject/schedule/tests/test_views.py
+  ── Read ~/hackatonproject/core/testing.py
+  ── Read ~/hackatonproject/accounts/tests/helpers.py
+  ── Read ~/hackatonproject/notifications/urls.py
+  ── Read ~/hackatonproject/notifications/apps.py
+  ── Read ~/hackatonproject/university/tests/__init__.py
+  ── Read ~/hackatonproject/schedule/tests/test_demo.py
+  ── Read ~/hackatonproject/university/tests/test_models.py
+  ── Read ~/hackatonproject/core/tests/test_css.py
+  ── Read ~/hackatonproject/static/css/tokens.css
+  ── Read ~/hackatonproject/pyproject.toml
+  ── Read ~/hackatonproject/config/urls.py
+  ── Read ~/hackatonproject/config/settings.py
+  ── Read ~/hackatonproject/templates/base.html
+  ── Read ~/hackatonproject/schedule/services.py
+  ── Read ~/hackatonproject/schedule/templates/schedule/includes/lesson_item.html
+  ── Read ~/hackatonproject/schedule/demo.py
+  ── Read ~/hackatonproject/schedule/tests/helpers.py
+  ── Read ~/hackatonproject/university/admin.py
+  ── Read ~/hackatonproject/university/models.py
+  ── Ran tool 6 todos
+    {"output":"[\n  {\n    \"content\": \"Step 1: building.py + Room changes + migration 0003 + make_room helper + university tests\",\n    \"status\": \"in_progress\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 2: campusmap app skeleton + settings/urls/pyproject + layout.py + test_layout.py\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 3: view, template, CSS, nav + test_views.py + CSS test\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 4: schedule template links + RoomLinkTests\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 5: seed + seed tests + admin list_display + README\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 6: ruff format + section 8 verification + REPORT\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  }\n]","metadata":{"todos":[{"content":"Step 1: building.py + Room changes + migration 0003 + make_room helper + university tests","status":"in_progress","priority":"high"},{"content":"Step 2: campusmap app skeleton + settings/urls/pyproject + layout.py + test_layout.py","status":"pending","priority":"high"},{"content":"Step 3: view, template, CSS, nav + test_views.py + CSS test","status":"pending","priority":"high"},{"content":"Step 4: schedule template links + RoomLinkTests","status":"pending","priority":"high"},{"content":"Step 5: seed + seed tests + admin list_display + README","status":"pending","priority":"high"},{"content":"Step 6: ruff format + section 8 verification + REPORT","status":"pending","priority":"high"}],"truncated":false}}
+  ── Read ~/hackatonproject/docs/tasks/TASK-008.md
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_2imsg4kck2]
+
+[TASK-009] Planner -> Coder: TASK
+Spec: docs/tasks/TASK-009.md (base b3dcb37). Chat with the dean's office: new app `chat`.
+- Models `Dialog` (one per student, UUID in URLs, read markers `student_read_id`/`staff_read_id` as message ids) and append-only `Message` (author_role, text ≤ 2000, `client_token` unique per dialog for double-submit). Services lock the dialog row before inserting (ordering = id, D3); student rate limit 20/10 min; PRG redirect to `#chat-form`.
+- Views: `/chat/` (+ `/chat/updates/?after=<id>` fragment), `/staff/chats/`, `/staff/chats/<uuid>/` (+ `updates/`); fragments: GET only, never_cache, 204 when empty, 400 bad `after`, header `X-Chat-Fragment: 1`, mark read up to the last returned id.
+- `static/js/chat.js`: vanilla IIFE, setTimeout polling 5 s, DOMParser + importNode (no innerHTML etc.), pause on hidden tab, stop after 5 errors. No fetch-send.
+- `ChatReplySource` appended to FEED_SOURCES (registry test 6 → 7); nav «Чат (N)» / «Чаты» (update `core/tests/test_nav.py` lists); `StaffProfile.short_name`; seed 3 dialogs / 8 messages; read-only admin.
+- Tests: section 6 (access matrix 6.2, one method per cell; query counts). Verification section 8 incl. `node --check static/js/chat.js`, logs with tee (baseline 833). Do not commit.
+
+── Worked for (28m 15s) ────────────────────────────────────
+  ── Ran 1 tool
+    ── Thought for 267ms
+      Let me start by reading the spec file for TASK-009.
+    ── Read file read
+      # TASK-009: chat with the dean's office (polling, server-rendered fragments)
+
+      Author: Planner. Status: ready for implementation.
+      Base commit: `b3dcb37`. Related specs: `TASK-007.md` (feed sources, badge, D3 GET read marker, D5 clock), `TASK-008-FIX.md` (compact header, page-assertion rule), `TASK-006.md` (staff scoping, admin read-only pattern).
+
+      A student writes to the dean's office of their faculty in one dialog. Any staff member of that faculty reads and answers from «Чаты». Without JavaScript everything works with normal pages, POST forms and an «Обновить» link. With JavaScript the page asks the server every 5 seconds for new messages and appends the server-rendered HTML.
+
+      ---
+
+      ## 1. Acceptance criteria
+      | ID | Criterion |
+      |---|---|
+      | AC1 | New app `chat` with models `Dialog` and `Message`, migrations, read-only admin for the superuser. |
+      | AC2 | One dialog per student (DB unique), with the dean's office of the student's faculty; created on the student's first message. Staff of the student's faculty read and answer; staff cannot start dialogs. |
+      | AC3 | Messages are append-only plain text (autoescaped, `linebreaksbr`), `MESSAGE_MAX_LENGTH` = 2000 after normalising line breaks; empty/whitespace-only rejected; author, role and time (`core.clock.now`) stored. No edit/delete anywhere (admin read-only). |
+      | AC4 | Order = message `id` ascending. Inserts into one dialog are serialised by a row lock on the dialog, so id order = creation order = commit order (D3). Two concurrent staff replies are both kept. |
+      | AC5 | Student rate limit: at most `RATE_LIMIT_MESSAGES` = 20 messages per `RATE_LIMIT_MINUTES` = 10 minutes (service level). Double submit of one form (same `client_token`) creates one message (DB unique + idempotent service). All sends end with a redirect (PRG). |
+      | AC6 | Polling: `static/js/chat.js` (vanilla, deferred, no inline script, no `innerHTML`/`insertAdjacentHTML`/`outerHTML`/`document.write`/`eval`) requests the fragment view every `POLL_INTERVAL_SECONDS` = 5 s with `after=<last shown id>`, appends ne
+
+      [... output truncated by retention policy; showing beginning and end ...]
+
+      udent_id")` (an `F()` across a join, like `ChatReplySource`) runs as ONE query; `annotate(Count(…, filter=Q(…, rel__id__gt=F("field"))))` + `Case/When` + `order_by("has_unread", F(…).desc(nulls_last=True))` + `select_related` runs as ONE query. `select_for_update(of=("self",))` is ignored on SQLite (TASK-007). `never_cache`, `http_method_names`, `simple_tag … as`. Browser APIs (`fetch`, `DOMParser`, `document.importNode`, `visibilitychange`, `response.redirected`) are standard; the JS is checked in a real browser by the Team lead. OK.
+      7. Environment — nothing new. OK.
+      8. Verification runnable — see 9a.
+      9. Conflicts — none.
+      10. Assumptions / blockers — none.
+
+      ### 9a. Verification results on the current tree
+      Logs `$TMPDIR/test-20261115-202032-t009-feas*.log`.
+      - `check` → no issues; `makemigrations --check --dry-run` → «No changes detected».
+      - `test` → `Ran 833 tests … OK`; `run_tests_at.py 2026-11-17T23:59:59` → 833 OK; `run_tests_at.py 2026-11-18T00:00:00` → 833 OK. No failed or stalled runs.
+      - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` → all passed; `ruff format --check .` → 161 files already formatted; CI YAML ok.
+      - `seed_demo` twice on a temporary DB and PRIVATE_MEDIA_ROOT → OK (second run «Notifications ready: 0 announcements.»).
+
+      ## 10. Risks
+      - **Data leaks**: every lookup goes through `dialogs_visible_to`; fragment views apply the same scope; access matrix covers each cell.
+      - **XSS**: text is autoescaped server-side; the client never assigns HTML strings; `DOMParser` documents are inert; the static test forbids `innerHTML` & co.
+      - **Lost messages on screen**: prevented by the dialog lock (D3) and by de-duplicating appended ids.
+      - **Polling load**: one request per open tab every 5 s, paused when hidden; a fragment costs a fixed small number of queries; 204 when idle.
+      - **Session expiry during polling**: redirected responses are errors, never appended; polling stops after 5 errors with a visible notice.
+      - **GET side effect** (read markers): same justification as TASK-007 D3.
+    ── Thought for 2s
+      This is a large task. Let me start by exploring the existing codebase to understand the patterns I need to follow. I need to look at several existing files:
+
+      1. `accounts/models.py` - StaffProfile, full_name, to add short_name
+      2. `accounts/selectors.py` - students_visible_to
+      3. `accounts/access.py` - get_profile_for_role, StudentRequiredMixin, StaffRequiredMixin
+      4. `university/models.py` - NBSP, Teacher.short_name
+      5. `core/clock.py` - clock.now
+      6. `notifications/sources.py` - FeedSource, FeedItem, FEED_SOURCES
+      7. `templates/base.html` - badge line, extra_head block
+      8. `templates/includes/site_nav_items.html` - current state
+      9. `core/tests/test_nav.py` - current expected lists
+      10. `notifications/tests/test_feed.py` - registry test
+      11. `accounts/management/commands/seed_demo.py` - seed order
+      12. `accounts/tests/helpers.py` - helpers
+      13. `notifications/templatetags/notifications_tags.py` - badge_for_user
+      14. Existing apps like campusmap for patterns (apps.py, urls.py, views.py, admin.py, demo.py)
+
+      Let me read a bunch of these in parallel to get oriented. This is a big task, so I'll use a todo list and be systematic.
+
+      Let me start reading key files.
+
+  ── Assistant
+  This is a substantial task. Let me start by exploring the existing codebase to understand the patterns I must follow.
+
+  ── Ran 41 tools, edited 48 files, explored 5 searches, 1 file, 2 lists, ran 22 commands
+    ── Read file read
+      from django.conf import settings
+      from django.contrib.auth.models import AbstractUser
+      from django.core.exceptions import ValidationError
+      from django.db import models
+
+
+      class User(AbstractUser):
+          class Role(models.TextChoices):
+              STUDENT = "student", "Студент"
+              STAFF = "staff", "Сотрудник деканата"
+
+          role = models.CharField("роль", max_length=16, choices=Role.choices, blank=True, default="")
+
+          class Meta:
+              verbose_name = "пользователь"
+              verbose_name_plural = "пользователи"
+              constraints = [
+                  models.CheckConstraint(
+                      condition=(models.Q(is_superuser=False) & models.Q(role__in=["student", "staff"]))
+                      | (models.Q(is_superuser=True) & models.Q(role="")),
+                      name="accounts_user_role_matches_superuser",
+                      violation_error_message=(
+                          "Обычный пользователь должен иметь роль; у суперпользователя роли нет."
+                      ),
+                  ),
+                  models.CheckConstraint(
+                      condition=models.Q(is_staff=False) | models.Q(is_superuser=True),
+                      name="accounts_user_admin_access_superuser_only",
+                      violation_error_message="Доступ к админке есть только у суперпользователя.",
+                  ),
+              ]
+
+          @property
+          def is_student(self) -> bool:
+              return self.role == self.Role.STUDENT
+
+          @property
+          def is_deanery_staff(self) -> bool:
+              return self.role == self.Role.STAFF
+
+          def __str__(self) -> str:
+              return self.username
+
+          def clean(self):
+              super().clean()
+              if self.pk is None:
+                  return
+              errors = []
+              if (
+                  self.role != self.Role.STUDENT
+                  and StudentProfile.objects.filter(user_id=self.pk).exists()
+              ):
+                  errors.append(
+                      "У пользователя есть профиль студента. Удалите профиль, затем меняйте роль."
+                  )
+              if self.role != self.Role.STAFF and StaffProfile.objects.filter(user_id=self.pk).exists():
+                  errors.append(
+                      "У пользователя есть профиль сотрудника. Удалите профиль, затем меняйте роль."
+                  )
+              if errors:
+                  raise ValidationError(errors)
+
+
+      class StudentProfile(models.Model):
+          user = models.OneToOneField(
+              settings.AUTH_USER_MODEL,
+              on_delete=models.CASCADE,
+              related_name="student_profile",
+              limit_choices_to={"role": "student"},
+              verbose_name="пользователь",
+          )
+          last_name = models.CharField("фамилия", max_length=100)
+          first_name = models.CharField("имя", max_length=100)
+          middle_name = models.CharField("отчество", max_length=100, blank=True, default="")
+          group = models.ForeignKey(
+              "university.StudyGroup",
+              on_delete=models.PROTECT,
+              related_name="students",
+              verbose_name="группа",
+          )
+          record_number = models.CharField("номер зачётной книжки", max_length=20, unique=True)
+
+          class Meta:
+              ordering = ["last_name", "first_name"]
+              verbose_name = "профиль студента"
+              verbose_name_plural = "профили студентов"
+
+          def __str__(self) -> str:
+              return self.full_name
+
+          @property
+          def full_name(self) -> str:
+              return " ".join(
+                  part for part in (self.last_name, self.first_name, self.middle_name) if part
+              )
+
+          @property
+          def program(self):
+              return self.group.program
+
+          @property
+          def faculty(self):
+              return self.group.program.faculty
+
+          @property
+          def course(self) -> int:
+              return self.group.course
+
+          def clean(self):
+              super().clean()
+              if self.user_id is None:
+                  return
+              if self.user.role != User.Role.STUDENT:
+                  raise ValidationError(
+                      "Профиль студента можно привязать только к пользователю с ролью «Студент»."
+                  )
+              if StaffProfile.objects.filter(user_id=self.user_id).exists():
+                  raise ValidationError("У пользователя уже есть профиль сотрудника.")
+
+
+      class StaffProfile(models.Model):
+          user = models.OneToOneField(
+              settings.AUTH_USER_MODEL,
+              on_delete=models.CASCADE,
+              related_name="staff_profile",
+              limit_choices_to={"role": "staff"},
+              verbose_name="пользователь",
+          )
+          last_name = models.CharField("фамилия", max_length=100)
+          first_name = models.CharField("имя", max_length=100)
+          middle_name = models.CharField("отчество", max_length=100, blank=True, default="")
+          position = models.CharField("должность", max_length=150)
+          faculty = models.ForeignKey(
+              "university.Faculty",
+              on_delete=models.PROTECT,
+              related_name="staff_members",
+              verbose_name="факультет",
+          )
+
+          class Meta:
+              ordering = ["last_name", "first_name"]
+              verbose_name = "профиль сотрудника"
+              verbose_name_plural = "профили сотрудников"
+
+          def __str__(self) -> str:
+              return self.full_name
+
+          @property
+          def full_name(self) -> str:
+              return " ".join(
+                  part for part in (self.last_name, self.first_name, self.middle_name) if part
+              )
+
+          def clean(self):
+              super().clean()
+              if self.user_id is None:
+                  return
+              if self.user.role != User.Role.STAFF:
+                  raise ValidationError(
+                      "Профиль сотрудника можно привязать только к пользователю "
+                      "с ролью «Сотрудник деканата»."
+                  )
+              if StudentProfile.objects.filter(user_id=self.user_id).exists():
+                  raise ValidationError("У пользователя уже есть профиль студента.")
+
+
+      class LoginThrottle(models.Model):
+          username_key = models.CharField("логин", max_length=150)
+          ip_address = models.GenericIPAddressField("IP-адрес")
+          failures = models.PositiveIntegerField("неудачных попыток", default=0)
+          first_failure_at = models.DateTimeField("первая неудача")
+          last_failure_at = models.DateTimeField("последняя неудача")
+          locked_until = models.DateTimeField("заблокирован до", null=True, blank=True)
+
+          class Meta:
+              constraints = [
+                  models.UniqueConstraint(
+                      fields=["username_key", "ip_address"], name="accounts_loginthrottle_unique_key"
+                  )
+              ]
+              indexes = [models.Index(fields=["last_failure_at"], name="accounts_throttle_last_idx")]
+              verbose_name = "блокировка входа"
+              verbose_name_plural = "блокировки входа"
+
+          def __str__(self) -> str:
+              return f"{self.username_key} @ {self.ip_address}"
+    ── Read file read
+      """Queryset scoping for student data.
+
+      Every student-data lookup must start from ``students_visible_to``. Never look
+      up a ``StudentProfile`` by a raw primary key without it.
+      """
+
+      from typing import Any
+
+      from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
+      from django.core.exceptions import ObjectDoesNotExist
+      from django.db.models import QuerySet
+
+      from university.models import StudyGroup
+
+      from .models import StudentProfile, User
+
+
+      def students_visible_to(
+          user: AbstractBaseUser | AnonymousUser,
+      ) -> QuerySet[StudentProfile]:
+          qs: QuerySet[StudentProfile] = StudentProfile.objects.select_related(
+              "user", "group__program__faculty"
+          )
+          if not user.is_authenticated or not user.is_active:
+              return qs.none()
+          if user.role == User.Role.STAFF:
+              try:
+                  profile: Any = user.staff_profile
+              except ObjectDoesNotExist:
+                  return qs.none()
+              return qs.filter(group__program__faculty=profile.faculty, user__is_active=True)
+          if user.role == User.Role.STUDENT:
+              return qs.filter(user=user)
+          return qs.none()
+
+
+      def groups_visible_to(
+          user: AbstractBaseUser | AnonymousUser,
+      ) -> QuerySet[StudyGroup]:
+          qs: QuerySet[StudyGroup] = StudyGroup.objects.select_related("program__faculty")
+          if not user.is_authenticated or not user.is_active:
+              return qs.none()
+          if user.role == User.Role.STAFF:
+              try:
+                  profile: Any = user.staff_profile
+              except ObjectDoesNotExist:
+                  return qs.none()
+              return qs.filter(program__faculty=profile.faculty)
+          if user.role == User.Role.STUDENT:
+              try:
+                  profile: Any = user.student_profile
+              except ObjectDoesNotExist:
+                  return qs.none()
+              return qs.filter(pk=profile.group_id)
+          return qs.none()
+    ── Read file read
+      """Role checks and view guards.
+
+      Every function here decides whether ``request.user`` may act in a role and
+      returns the matching profile, raising ``PermissionDenied`` on any failure.
+      """
+
+      from collections.abc import Callable
+      from functools import wraps
+      from typing import Any, ClassVar, TypeVar
+
+      from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
+      from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
+      from django.http import HttpRequest, HttpResponse
+
+      from .models import StaffProfile, StudentProfile, User
+
+      ViewFunc = TypeVar("ViewFunc", bound=Callable[..., HttpResponse])
+
+
+      def get_profile_for_role(
+          user: AbstractBaseUser | AnonymousUser, role: str
+      ) -> StudentProfile | StaffProfile:
+          if role not in (User.Role.STUDENT, User.Role.STAFF):
+              raise ValueError
+          if not user.is_authenticated or not user.is_active:
+              raise PermissionDenied
+          if user.role != role:
+              raise PermissionDenied
+          attr = "student_profile" if role == User.Role.STUDENT else "staff_profile"
+          try:
+              return getattr(user, attr)
+          except ObjectDoesNotExist:
+              raise PermissionDenied from None
+
+
+      class RoleRequiredMixin:
+          required_role: ClassVar[str]
+
+          def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+              self.profile = get_profile_for_role(request.user, self.required_role)
+              return super().dispatch(request, *args, **kwargs)
+
+
+      class StudentRequiredMixin(RoleRequiredMixin):
+          required_role = User.Role.STUDENT
+
+
+      class StaffRequiredMixin(RoleRequiredMixin):
+          required_role = User.Role.STAFF
+
+
+      def role_required(role: str) -> Callable[[ViewFunc], ViewFunc]:
+          def decorator(view_func: ViewFunc) -> ViewFunc:
+              @wraps(view_func)
+              def wrapper(request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+                  request.profile = get_profile_for_role(request.user, role)
+                  return view_func(request, *args, **kwargs)
+
+              return wrapper
+
+          return decorator
+    ── Thought for 642ms
+      Now let me read more files: university/models.py (NBSP, Teacher.short_name), core/clock.py, notifications/sources.py, notifications/templatetags/notifications_tags.py, templates/base.html, templates/includes/site_nav_items.html, core/tests/test_nav.py, notifications/tests/test_feed.py, accounts/management/commands/seed_demo.py, accounts/tests/helpers.py.
+    ── Read file read
+      from django.core.exceptions import ValidationError
+      from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
+      from django.db import models
+      from django.db.models.functions import Cast
+
+      from university.building import MapCell, blocked_cells
+
+      NBSP = "\u00a0"
+
+      ROOM_NUMBER_RE = r"^[1-9][0-9]{2}$"
+      MAX_FLOOR = 9
+
+
+      class Faculty(models.Model):
+          code = models.CharField("код", max_length=20, unique=True)
+          name = models.CharField("название", max_length=200, unique=True)
+
+          class Meta:
+              ordering = ["name"]
+              verbose_name = "факультет"
+              verbose_name_plural = "факультеты"
+
+          def __str__(self) -> str:
+              return self.name
+
+
+      class Program(models.Model):
+          faculty = models.ForeignKey(
+              Faculty, on_delete=models.PROTECT, related_name="programs", verbose_name="факультет"
+          )
+          code = models.CharField("код", max_length=20)
+          name = models.CharField("название", max_length=200)
+
+          class Meta:
+              ordering = ["faculty__name", "name"]
+              constraints = [
+                  models.UniqueConstraint(
+                      fields=["faculty", "code"], name="university_program_unique_faculty_code"
+                  )
+              ]
+              verbose_name = "направление подготовки"
+              verbose_name_plural = "направления подготовки"
+
+          def __str__(self) -> str:
+              return f"{self.code} {self.name}"
+
+
+      class StudyGroup(models.Model):
+          program = models.ForeignKey(
+              Program, on_delete=models.PROTECT, related_name="groups", verbose_name="направление"
+          )
+          name = models.CharField("название", max_length=20, unique=True)
+          course = models.PositiveSmallIntegerField(
+              "курс", validators=[MinValueValidator(1), MaxValueValidator(6)]
+          )
+
+          class Meta:
+              ordering = ["name"]
+              constraints = [
+                  models.CheckConstraint(
+                      condition=models.Q(course__gte=1) & models.Q(course__lte=6),
+                      name="university_studygroup_course_1_6",
+                  )
+              ]
+              verbose_name = "учебная группа"
+              verbose_name_plural = "учебные группы"
+
+          def __str__(self) -> str:
+              return self.name
+
+          @property
+          def faculty(self) -> Faculty:
+              return self.program.faculty
+
+
+      class Room(models.Model):
+          code = models.CharField(
+              "код",
+              max_length=32,
+              unique=True,
+              validators=[
+                  RegexValidator(
+                      r"^[a-z][a-z0-9-]*$",
+                      "Код: латинские строчные буквы, цифры и дефис; начинается с буквы.",
+                  )
+              ],
+          )
+          floor = models.PositiveSmallIntegerField(
+              "этаж", validators=[MinValueValidator(1), MaxValueValidator(MAX_FLOOR)]
+          )
+          number = models.CharField(
+              "номер",
+              max_length=10,
+              unique=True,
+              validators=[
+                  RegexValidator(
+                      ROOM_NUMBER_RE, "Номер аудитории: ровно три цифры, первая цифра — этаж (1–9)."
+                  )
+              ],
+              help_text="Три цифры, первая — этаж: 205 — аудитория на 2 этаже.",
+          )
+          map_cell = models.CharField(
+              "место на схеме",
+              max_length=2,
+              blank=True,
+              default="",
+              choices=MapCell.choices,
+              help_text="Пусто — аудитории нет на схеме.",
+          )
+
+          class Meta:
+              ordering = ["floor", "number"]
+              constraints = [
+                  models.CheckConstraint(
+                      condition=models.Q(floor__gte=1) & models.Q(floor__lte=MAX_FLOOR),
+                      name="university_room_floor_1_9",
+                  ),
+                  models.CheckConstraint(
+                      condition=models.Q(number__regex=ROOM_NUMBER_RE),
+                      name="university_room_number_nnn",
+    ── Read file read
+      """Feed sources registry.
+
+      Each ``FeedSource`` computes the personal feed items of one event kind from the
+      rows that already exist (no stored notification rows). To add a new kind (e.g.
+      chat in TASK-009), subclass ``FeedSource`` and append it to ``FEED_SOURCES``;
+      nothing else changes.
+      """
+
+      from dataclasses import dataclass, replace
+      from datetime import date, datetime, timedelta
+      from typing import Any, ClassVar
+
+      from django.db.models import Q, QuerySet
+      from django.urls import reverse
+
+      from academics.models import CurrentMark, FinalResult
+      from accounts.models import StudentProfile
+      from petitions.models import PetitionComment, PetitionStatusChange
+      from schedule.models import LessonChange
+
+      from .constants import LESSON_CHANGE_HORIZON_DAYS
+      from .dates import relative_day_label
+      from .models import Announcement
+      from .selectors import announcements_for_student
+
+      STATUS_TITLES = {
+          "in_progress": "Заявка «{name}» взята в работу",
+          "ready": "Заявка «{name}» готова — заберите документ в деканате",
+          "issued": "Заявка «{name}» выдана",
+          "rejected": "Заявка «{name}» отклонена",
+      }
+
+
+      @dataclass(frozen=True)
+      class FeedContext:
+          user_id: int
+          student: StudentProfile
+          group_id: int
+          faculty_id: int
+          now: datetime
+          today: date
+          window_start: datetime
+          seen_until: datetime | None
+
+          def is_new(self, ts: datetime) -> bool:
+              return self.seen_until is None or ts > self.seen_until
+
+          @property
+          def horizon_end(self) -> date:
+              return self.today + timedelta(days=LESSON_CHANGE_HORIZON_DAYS)
+
+
+      @dataclass(frozen=True)
+      class FeedItem:
+          key: str
+          kind: str
+          tag: str
+          timestamp: datetime
+          title: str
+          body: str = ""
+          url: str = ""
+          deadline: date | None = None
+          deadline_label: str = ""
+          audience_label: str = ""
+          is_new: bool = False
+
+
+      class FeedSource:
+          kind: ClassVar[str]
+          tag: ClassVar[str]
+          event_field: ClassVar[str]
+          related: ClassVar[tuple[str, ...]] = ()
+
+          def base_queryset(self, ctx: FeedContext) -> QuerySet:
+              raise NotImplementedError
+
+          def to_item(self, obj: Any, ctx: FeedContext) -> FeedItem:
+              raise NotImplementedError
+
+          def window_queryset(self, ctx: FeedContext) -> QuerySet:
+              f = self.event_field
+              return (
+                  self.base_queryset(ctx)
+                  .filter(**{f"{f}__gt": ctx.window_start, f"{f}__lte": ctx.now})
+                  .order_by()
+              )
+
+          def unread_values(self, ctx: FeedContext) -> QuerySet:
+              qs = self.window_queryset(ctx)
+              if ctx.seen_until is not None:
+                  qs = qs.filter(**{f"{self.event_field}__gt": ctx.seen_until})
+              return qs.values_list(self.event_field)
+
+          def latest(self, ctx: FeedContext, limit: int) -> list[FeedItem]:
+              qs = (
+                  self.window_queryset(ctx)
+                  .select_related(*self.related)
+                  .order_by(f"-{self.event_field}", "-pk")[:limit]
+              )
+              return [
+                  replace(item, is_new=ctx.is_new(item.timestamp))
+                  for item in (self.to_item(o, ctx) for o in qs)
+              ]
+
+
+      class NewsSource(FeedSource):
+          kind = "news"
+          tag = "Новость"
+          event_field = "published_at"
+          related = ("faculty", "group")
+
+          def base_queryset(self, ctx: FeedContext) -> QuerySet:
+              return announcements_for_student(ctx.student)
+
+          def to_item(self, obj: Announcement, ctx: FeedContext) -> FeedItem:
+              return FeedItem(
+                  key=f"news-{obj.public_id}",
+                  kind=self.kind,
+                  tag="Дедлайн" if obj.deadline else "Новость",
+                  timestamp=obj.published_at,
+                  title=obj.title,
+                  body=obj.body,
+                  deadline=obj.deadline,
+                  deadline_label=relative_day_label(obj.deadline, ctx.today) if obj.deadline else "",
+                  audience_label=obj.audience_label,
+              )
+
+
+      class PetitionStatusSource(FeedSource):
+          kind = "petition_status"
+          tag = "Заявка"
+          event_field = "created_at"
+          related = ("petition__request_type",)
+
+          def base_queryset(self, ctx: FeedContext) -> QuerySet:
+              return PetitionStatusChange.objects.filter(petition__student_id=ctx.student.pk).exclude(
+                  actor_id=ctx.user_id
+              )
+
+          def to_item(self, obj: PetitionStatusChange, ctx: FeedContext) -> FeedItem:
+              name = obj.petition.request_type.name
+              title = STATUS_TITLES.get(obj.to_status, "").format(name=name)
+              if not title:
+                  title = f"Заявка «{name}»: статус «{obj.get_to_status_display()}»"
+              return FeedItem(
+                  key=f"petition-status-{obj.pk}",
+                  kind=self.kind,
+                  tag=self.tag,
+                  timestamp=obj.created_at,
+                  title=title,
+                  body=obj.comment,
+                  url=reverse("petitions:detail", kwargs={"public_id": obj.petition.public_id}),
+              )
+
+
+      class PetitionCommentSource(FeedSource):
+          kind = "petition_comment"
+          tag = "Заявка"
+          event_field = "created_at"
+          related = ("petition__request_type",)
+
+          def base_queryset(self, ctx: FeedContext) -> QuerySet:
+              return PetitionComment.objects.filter(petition__student_id=ctx.student.pk).exclude(
+                  author_id=ctx.user_id
+              )
+
+          def to_item(self, obj: PetitionComment, ctx: FeedContext) -> FeedItem:
+              name = obj.petition.request_type.name
+              return FeedItem(
+                  key=f"petition-comment-{obj.pk}",
+                  kind=self.kind,
+                  tag=self.tag,
+                  timestamp=obj.created_at,
+                  title=f"Комментарий деканата к заявке «{name}»",
+                  body=obj.text,
+                  url=reverse("petitions:detail", kwargs={"public_id": obj.petition.public_id}),
+              )
+
+
+      class LessonChangeSource(FeedSource):
+          kind = "lesson_change"
+          tag = "Расписание"
+          event_field = "updated_at"
+          related = ("weekly_lesson__discipline", "new_room", "new_teacher")
+
+          def base_queryset(self, ctx: FeedContext) -> QuerySet:
+              return LessonChange.objects.filter(weekly_lesson__groups=ctx.group_id).filter(
+                  Q(original_date__range=(ctx.today, ctx.horizon_end))
+                  | Q(new_date__range=(ctx.today, ctx.horizon_end))
+              )
+
+          def to_item(self, obj: LessonChange, ctx: FeedContext) -> FeedItem:
+              lesson = obj.weekly_lesson
+              when = f"{lesson.discipline.name}, {obj.original_date:%d.%m}, {lesson.slot} пара"
+              if obj.kind == "cancelled":
+                  title = f"Отмена занятия: {when}"
+              elif obj.kind == "moved":
+                  title = f"Перенос занятия: {when} → {obj.new_date:%d.%m}, {obj.new_slot} пара"
+                  if obj.new_room:
+                      title += f", {obj.new_room}"
+              elif obj.kind == "room_changed":
+                  title = f"Замена аудитории: {when} → {obj.new_room}"
+              else:
+                  title = f"Замена преподавателя: {when} → {obj.new_teacher.short_name}"
+              if ctx.today <= obj.original_date <= ctx.horizon_end:
+                  affected_day = obj.original_date
+              else:
+                  affected_day = obj.new_date
+              return FeedItem(
+                  key=f"lesson-change-{obj.pk}",
+                  kind=self.kind,
+                  tag=self.tag,
+                  timestamp=obj.updated_at,
+                  title=title,
+                  body=obj.reason,
+                  url=reverse("schedule:week_of", kwargs={"day": affected_day}),
+              )
+
+
+      class CurrentMarkSource(FeedSource):
+          kind = "mark"
+          tag = "Оценка"
+          event_field = "created_at"
+          related = ("curriculum_item__discipline", "curriculum_item__term")
+
+          def base_queryset(self, ctx: FeedContext) -> QuerySet:
+              return CurrentMark.objects.filter(student_id=ctx.student.pk)
+
+          def to_item(self, obj: CurrentMark, ctx: FeedContext) -> FeedItem:
+              discipline = obj.curriculum_item.discipline
+              term = obj.curriculum_item.term
+              return FeedItem(
+                  key=f"mark-{obj.pk}",
+                  kind=self.kind,
+                  tag=self.tag,
+                  timestamp=obj.created_at,
+                  title=f"Новая оценка {obj.value} — {discipline.name} ({obj.kind})",
+                  url=reverse("academics:my_grades_term", kwargs={"term_code": term.code}),
+              )
+
+
+      class FinalResultSource(FeedSource):
+          kind = "final_result"
+          tag = "Оценка"
+          event_field = "created_at"
+          related = ("curriculum_item__discipline", "curriculum_item__term")
+
+          def base_queryset(self, ctx: FeedContext) -> QuerySet:
+              return FinalResult.objects.filter(student_id=ctx.student.pk)
+
+          def to_item(self, obj: FinalResult, ctx: FeedContext) -> FeedItem:
+              discipline = obj.curriculum_item.discipline
+              term = obj.curriculum_item.term
+              title = f"Итоговый результат — {discipline.name}: {obj.get_result_display()}"
+              if obj.attempt > 1:
+                  title += f" (попытка {obj.attempt})"
+              return FeedItem(
+                  key=f"final-result-{obj.pk}",
+                  kind=self.kind,
+                  tag=self.tag,
+                  timestamp=obj.created_at,
+                  title=title,
+                  url=reverse("academics:my_grades_term", kwargs={"term_code": term.code}),
+              )
+
+
+      FEED_SOURCES = (
+          NewsSource(),
+          PetitionStatusSource(),
+          PetitionCommentSource(),
+          LessonChangeSource(),
+          CurrentMarkSource(),
+          FinalResultSource(),
+      )
+
+
+      def get_feed_sources() -> tuple[FeedSource, ...]:
+          return FEED_SOURCES
+    ── Read file read
+      from django import template
+
+      from notifications.feed import badge_for_user
+
+      register = template.Library()
+
+
+      @register.simple_tag(takes_context=True)
+      def notifications_badge(context) -> str:
+          request = context.get("request")
+          if request is None:
+              return ""
+          return badge_for_user(request.user)
+    ── Thought for 788ms
+      Let me continue reading key files: Teacher model (short_name), core/clock.py, templates/base.html, site_nav_items.html (already read), core/tests/test_nav.py, notifications/tests/test_feed.py (registry test), seed_demo command, accounts/tests/helpers.py, notifications/feed.py (badge_for_user), and campusmap app files for patterns.
+    ── Read file read
+      name="university_room_number_nnn",
+                      violation_error_message=(
+                          "Номер аудитории: ровно три цифры, первая цифра — этаж (1–9)."
+                      ),
+                  ),
+                  models.CheckConstraint(
+                      condition=models.Q(
+                          number__startswith=Cast("floor", output_field=models.CharField())
+                      ),
+                      name="university_room_floor_matches_number",
+                      violation_error_message="Этаж должен совпадать с первой цифрой номера аудитории.",
+                  ),
+                  models.CheckConstraint(
+                      condition=models.Q(map_cell__in=["", *MapCell.values]),
+                      name="university_room_map_cell_value",
+                  ),
+                  models.UniqueConstraint(
+                      fields=["floor", "map_cell"],
+                      condition=~models.Q(map_cell=""),
+                      name="university_room_unique_map_cell",
+                      violation_error_message="Это место на схеме этажа уже занято другой аудиторией.",
+                  ),
+              ]
+              verbose_name = "аудитория"
+              verbose_name_plural = "аудитории"
+
+          def __str__(self) -> str:
+              return f"ауд. {self.number}"
+
+          def clean(self):
+              super().clean()
+              if self.map_cell and isinstance(self.floor, int) and 1 <= self.floor <= MAX_FLOOR:
+                  landmark = blocked_cells(self.floor).get(self.map_cell)
+                  if landmark is not None:
+                      raise ValidationError(f"Это место на {self.floor} этаже занято: {landmark.label}.")
+
+
+      class Teacher(models.Model):
+          last_name = models.CharField("фамилия", max_length=100)
+          first_name = models.CharField("имя", max_length=100)
+          middle_name = models.CharField("отчество", max_length=100, blank=True, default="")
+          title = models.CharField("учёная степень, звание", max_length=100, blank=True, default="")
+
+          class Meta:
+              ordering = ["last_name", "first_name"]
+              constraints = [
+                  models.UniqueConstraint(
+                      fields=["last_name", "first_name", "middle_name"],
+                      name="university_teacher_unique_name",
+                  )
+              ]
+              verbose_name = "преподаватель"
+              verbose_name_plural = "преподаватели"
+
+          def __str__(self) -> str:
+              return self.full_name
+
+          @property
+          def full_name(self) -> str:
+              return " ".join(
+                  part for part in (self.last_name, self.first_name, self.middle_name) if part
+              )
+
+          @property
+          def short_name(self) -> str:
+              middle = f"{NBSP}{self.middle_name[0]}." if self.middle_name else ""
+              return f"{self.last_name}{NBSP}{self.first_name[0]}.{middle}"
+
+
+      class Discipline(models.Model):
+          name = models.CharField("название", max_length=200, unique=True)
+          short_name = models.CharField("краткое название", max_length=50)
+
+          class Meta:
+              ordering = ["name"]
+              verbose_name = "дисциплина"
+              verbose_name_plural = "дисциплины"
+
+          def __str__(self) -> str:
+              return self.name
+    ── Read file read
+      """Call-time clock for model defaults (test clock patches apply)."""
+
+      from datetime import datetime
+
+      from django.utils import timezone
+
+
+      def now() -> datetime:
+          return timezone.now()
+    ── Read file read
+      {% load static notifications_tags %}<!doctype html>
+      <html lang="ru">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>{% block title %}Цифровой деканат будущего{% endblock %}</title>
+        <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+        <link rel="stylesheet" href="{% static 'css/base.css' %}">
+        <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+        {% block extra_head %}{% endblock %}
+      </head>
+      <body>
+        <a class="skip-link" href="#main">Перейти к содержимому</a>
+        <header class="site-header">
+          <a class="site-title" href="{% url 'core:home' %}">Цифровой деканат будущего</a>
+          {% if user.is_student %}{% notifications_badge as badge %}{% endif %}
+          <nav class="site-nav site-nav--wide" aria-label="Основная навигация">
+            {% block nav %}{% if user.is_authenticated %}{% include "includes/site_nav_items.html" %}{% endif %}{% endblock %}
+          </nav>
+          {% if user.is_authenticated %}
+          <div class="site-nav-compact">
+            <details class="site-menu">
+              <summary class="site-menu-toggle">Меню</summary>
+              <nav class="site-nav" aria-label="Основная навигация">
+                {% include "includes/site_nav_items.html" %}
+              </nav>
+            </details>
+            {% if badge %}<a class="site-menu-badge" href="{% url 'notifications:feed' %}">Уведомления ({{ badge }})</a>{% endif %}
+          </div>
+          {% endif %}
+        </header>
+        <main id="main" class="site-main">
+          {% if messages %}
+          <ul class="messages">
+            {% for message in messages %}
+            <li class="message message--{{ message.tags }}">{{ message }}</li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+          {% block content %}{% endblock %}
+        </main>
+        <footer class="site-footer">
+          <p class="site-disclaimer">Концепт для конкурса MGIMO AI Challenge. Не является официальным сервисом вуза. Все данные вымышлены.</p>
+        </footer>
+      </body>
+      </html>
+    ── Read file read
+      """Feed composition, unread counter and home summary."""
+
+      from dataclasses import dataclass
+      from datetime import date, datetime, timedelta
+      from uuid import UUID
+
+      from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
+      from django.utils import timezone
+
+      from accounts.models import StudentProfile, User
+
+      from .constants import FEED_MAX_ITEMS, FEED_WINDOW_DAYS, HOME_ITEMS
+      from .dates import relative_day_label
+      from .models import NotificationState
+      from .selectors import announcements_for_student
+      from .sources import FeedContext, FeedItem, NewsSource, get_feed_sources
+
+
+      def student_context(
+          user: AbstractBaseUser | AnonymousUser, now: datetime | None = None
+      ) -> FeedContext | None:
+          if not user.is_authenticated or not user.is_active or user.role != User.Role.STUDENT:
+              return None
+          student = (
+              StudentProfile.objects.select_related("group__program").filter(user_id=user.pk).first()
+          )
+          if student is None:
+              return None
+          seen = (
+              NotificationState.objects.filter(user_id=user.pk)
+              .values_list("seen_until", flat=True)
+              .first()
+          )
+          now = now or timezone.now()
+          return FeedContext(
+              user_id=user.pk,
+              student=student,
+              group_id=student.group_id,
+              faculty_id=student.group.program.faculty_id,
+              now=now,
+              today=timezone.localdate(now),
+              window_start=now - timedelta(days=FEED_WINDOW_DAYS),
+              seen_until=seen,
+          )
+
+
+      def build_feed(ctx: FeedContext) -> list[FeedItem]:
+          items = [item for source in get_feed_sources() for item in source.latest(ctx, FEED_MAX_ITEMS)]
+          items.sort(key=lambda i: (i.timestamp, i.key), reverse=True)
+          return items[:FEED_MAX_ITEMS]
+
+
+      def unread_count(ctx: FeedContext) -> int:
+          querysets = [s.unread_values(ctx) for s in get_feed_sources()]
+          if not querysets:
+              return 0
+          return querysets[0].union(*querysets[1:], all=True).count()
+
+
+      def badge_label(count: int) -> str:
+          if count == 0:
+              return ""
+          if count > FEED_MAX_ITEMS:
+              return f"{FEED_MAX_ITEMS}+"
+          return str(count)
+
+
+      def badge_for_user(user: AbstractBaseUser | AnonymousUser) -> str:
+          ctx = student_context(user)
+          if ctx is None:
+              return ""
+          return badge_label(unread_count(ctx))
+
+
+      @dataclass(frozen=True)
+      class DeadlineItem:
+          public_id: UUID
+          title: str
+          deadline: date
+          label: str
+          audience_label: str
+
+
+      def upcoming_deadlines(ctx: FeedContext, limit: int) -> list[DeadlineItem]:
+          announcements = (
+              announcements_for_student(ctx.student)
+              .filter(deadline__gte=ctx.today, published_at__lte=ctx.now)
+              .select_related("faculty", "group")
+              .order_by("deadline", "-published_at", "pk")[:limit]
+          )
+          return [
+              DeadlineItem(
+                  public_id=a.public_id,
+                  title=a.title,
+                  deadline=a.deadline,
+                  label=relative_day_label(a.deadline, ctx.today),
+                  audience_label=a.audience_label,
+              )
+              for a in announcements
+          ]
+
+
+      @dataclass(frozen=True)
+      class HomeSummary:
+          deadlines: list[DeadlineItem]
+          news: list[FeedItem]
+
+
+      def home_summary(user: AbstractBaseUser | AnonymousUser) -> HomeSummary | None:
+          ctx = student_context(user)
+          if ctx is None:
+              return None
+          deadlines = upcoming_deadlines(ctx, HOME_ITEMS)
+          shown = {f"news-{d.public_id}" for d in deadlines}
+          candidates = NewsSource().latest(ctx, HOME_ITEMS + len(shown))
+          news = [item for item in candidates if item.key not in shown][:HOME_ITEMS]
+          return HomeSummary(deadlines=deadlines, news=news)
+    ── Thought for 434ms
+      Now let me read the seed_demo command, accounts/tests/helpers.py, core/tests/test_nav.py, notifications/tests/test_feed.py (registry test area), and campusmap app patterns.
+    ── Read file read
+      import os
+
+      from django.core.exceptions import ValidationError
+      from django.core.management.base import BaseCommand, CommandError
+      from django.db import transaction
+      from django.utils import timezone
+
+      from academics.demo import seed_academics_demo
+      from accounts.demo import DemoSeedError, seed_demo_data
+      from notifications.demo import seed_notifications_demo
+      from petitions.demo import seed_petitions_demo
+      from schedule.demo import seed_schedule_demo
+
+
+      class Command(BaseCommand):
+          help = "Create or update fictional demo data. Password comes from DEMO_PASSWORD."
+
+          def handle(self, *args, **options):
+              password = os.environ.get("DEMO_PASSWORD", "")
+              if not password:
+                  raise CommandError(
+                      "DEMO_PASSWORD environment variable is required. Set it in .env or the environment."
+                  )
+              try:
+                  with transaction.atomic():
+                      today = timezone.localdate()
+                      summary = seed_demo_data(password)
+                      s = seed_schedule_demo(today)
+                      a = seed_academics_demo(today)
+                      p = seed_petitions_demo(today)
+                      n = seed_notifications_demo(today)
+              except DemoSeedError as exc:
+                  raise CommandError(str(exc)) from None
+              except ValidationError as exc:
+                  raise CommandError(
+                      "Demo data conflicts with existing data: " + " ".join(exc.messages)
+                  ) from None
+              self.stdout.write(
+                  self.style.SUCCESS(
+                      f"Demo data ready: {summary.faculties} faculties, {summary.programs} programs, "
+                      f"{summary.groups} groups, {summary.students} students, {summary.staff} staff."
+                  )
+              )
+              self.stdout.write(
+                  self.style.SUCCESS(
+                      f"Schedule ready: {s.rooms} rooms, {s.teachers} teachers, "
+                      f"{s.disciplines} disciplines, {s.weekly_lessons} weekly lessons, "
+                      f"{s.changes} changes."
+                  )
+              )
+              self.stdout.write(
+                  self.style.SUCCESS(
+                      f"Academics ready: {a.terms} terms, {a.curriculum_items} curriculum items, "
+                      f"{a.results} final results, {a.marks} marks, {a.attendance} attendance records."
+                  )
+              )
+              self.stdout.write(
+                  self.style.SUCCESS(
+                      f"Requests ready: {p.types} types, {p.petitions} requests, "
+                      f"{p.attachments} attachments."
+                  )
+              )
+              self.stdout.write(
+                  self.style.SUCCESS(f"Notifications ready: {n.announcements} announcements.")
+              )
+    ── Read file read
+      """Plain helper functions for account tests (no extra dependencies)."""
+
+      from accounts.models import StaffProfile, StudentProfile, User
+      from university.models import Faculty, Program, StudyGroup
+
+
+      def make_faculty(code: str) -> Faculty:
+          return Faculty.objects.create(code=code, name=f"Факультет {code}")
+
+
+      def make_group(faculty: Faculty, name: str, course: int = 1) -> StudyGroup:
+          program = Program.objects.create(faculty=faculty, code=f"PR-{name}", name=f"Программа {name}")
+          return StudyGroup.objects.create(program=program, name=name, course=course)
+
+
+      def make_student(username: str, group: StudyGroup, record_number: str) -> User:
+          user = User.objects.create_user(username=username, role=User.Role.STUDENT)
+          StudentProfile.objects.create(
+              user=user,
+              last_name=f"{username}-last",
+              first_name=f"{username}-first",
+              group=group,
+              record_number=record_number,
+          )
+          return user
+
+
+      def make_staff(username: str, faculty: Faculty) -> User:
+          user = User.objects.create_user(username=username, role=User.Role.STAFF)
+          StaffProfile.objects.create(
+              user=user,
+              last_name=f"{username}-last",
+              first_name=f"{username}-first",
+              position="Специалист деканата",
+              faculty=faculty,
+          )
+          return user
+    ── Read file read
+      import re
+      from unittest import mock
+
+      from django.test import TestCase
+
+      from accounts.models import User
+      from accounts.tests.helpers import make_faculty, make_group, make_staff, make_student
+      from core.testing import FrozenClockMixin
+      from notifications.feed import badge_for_user
+      from notifications.models import Audience
+      from notifications.tests.helpers import make_announcement
+
+
+      def _wide(content: str) -> str:
+          start = content.index('<nav class="site-nav site-nav--wide"')
+          return content[start : content.index("</nav>", start)]
+
+
+      def _menu(content: str) -> str:
+          start = content.index('<details class="site-menu">')
+          return content[start : content.index("</details>", start)]
+
+
+      def _hrefs(part: str) -> list[str]:
+          return re.findall(r'<a href="([^"]+)"', part)
+
+
+      class NavMarkupTests(TestCase):
+          @classmethod
+          def setUpTestData(cls):
+              cls.faculty = make_faculty("FX")
+              cls.group = make_group(cls.faculty, "GX")
+              cls.student = make_student("stu", cls.group, "REC-1")
+              cls.staff = make_staff("stf", cls.faculty)
+              cls.superuser = User.objects.create_superuser("root", password="Super-Pass-2026!")
+
+          def test_student_menu(self):
+              self.client.force_login(self.student)
+              content = self.client.get("/profile/").content.decode()
+              self.assertEqual(content.count('<details class="site-menu">'), 1)
+              self.assertIn('<summary class="site-menu-toggle">Меню</summary>', content)
+              self.assertEqual(_hrefs(_wide(content)), _hrefs(_menu(content)))
+              self.assertEqual(
+                  _hrefs(_wide(content)),
+                  ["/profile/", "/schedule/", "/map/", "/grades/", "/requests/", "/notifications/"],
+              )
+
+          def test_staff_menu(self):
+              self.client.force_login(self.staff)
+              content = self.client.get("/profile/").content.decode()
+              self.assertEqual(_hrefs(_wide(content)), _hrefs(_menu(content)))
+              self.assertEqual(
+                  _hrefs(_wide(content)),
+                  [
+                      "/profile/",
+                      "/staff/schedule/",
+                      "/map/",
+                      "/staff/requests/",
+                      "/staff/announcements/",
+                      "/staff/students/",
+                  ],
+              )
+
+          def test_superuser_menu(self):
+              self.client.force_login(self.superuser)
+              content = self.client.get("/profile/").content.decode()
+              self.assertEqual(_hrefs(_wide(content)), _hrefs(_menu(content)))
+              self.assertEqual(_hrefs(_wide(content)), ["/profile/"])
+
+          def test_logout_form_in_both_lists(self):
+              self.client.force_login(self.student)
+              content = self.client.get("/profile/").content.decode()
+              for part in (_wide(content), _menu(content)):
+                  self.assertIn('<form class="site-nav-logout" method="post" action="/logout/">', part)
+                  self.assertIn('name="csrfmiddlewaretoken"', part)
+              self.client.post("/logout/")
+              self.assertEqual(self.client.get("/profile/").status_code, 302)
+
+          def test_current_page_marked(self):
+              self.client.force_login(self.student)
+              content = self.client.get("/profile/").content.decode()
+              self.assertEqual(content.count('href="/profile/" aria-current="page"'), 2)
+              self.assertEqual(content.count('aria-current="page"'), 2)
+
+          def test_anonymous_unchanged(self):
+              content = self.client.get("/login/").content.decode()
+              self.assertNotIn("site-menu", content)
+              self.assertNotIn("site-menu-badge", content)
+              self.assertIn(
+                  '<nav class="site-nav site-nav--wide" aria-label="Основная навигация">', content
+              )
+
+
+      class NavBadgeTests(FrozenClockMixin, TestCase):
+          frozen_now = "2026-11-11 12:00"
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.faculty = make_faculty("FX")
+              cls.group = make_group(cls.faculty, "GX")
+              cls.student = make_student("stu", cls.group, "REC-1")
+              cls.staff = make_staff("stf", cls.faculty)
+
+          def test_badge_outside_menu(self):
+              make_announcement(self.staff, audience=Audience.UNIVERSITY)
+              self.client.force_login(self.student)
+              content = self.client.get("/profile/").content.decode()
+              self.assertIn(
+                  '<a class="site-menu-badge" href="/notifications/">Уведомления (1)</a>', content
+              )
+              self.assertGreater(content.index("site-menu-badge"), content.index("</details>"))
+              self.assertIn(">Уведомления (1)</a>", _wide(content))
+
+          def test_no_badge_without_unread(self):
+              self.client.force_login(self.student)
+              content = self.client.get("/profile/").content.decode()
+              self.assertNotIn("site-menu-badge", content)
+
+          def test_no_badge_for_staff(self):
+              make_announcement(self.staff, audience=Audience.UNIVERSITY)
+              self.client.force_login(self.staff)
+              content = self.client.get("/profile/").content.decode()
+              self.assertNotIn("site-menu-badge", content)
+
+          def test_badge_computed_once(self):
+              make_announcement(self.staff, audience=Audience.UNIVERSITY)
+              self.client.force_login(self.student)
+              with mock.patch(
+                  "notifications.templatetags.notifications_tags.badge_for_user",
+                  wraps=badge_for_user,
+              ) as spy:
+                  self.client.get("/profile/")
+              self.assertEqual(spy.call_count, 1)
+    ── Thought for 660ms
+      Now let me read the campusmap app for patterns (apps.py, urls.py, views.py, admin.py, demo.py), the notifications test_feed registry test, notifications/tests/helpers.py, and config/settings.py + config/urls.py + pyproject.toml.
+    ── Read file read
+      from dataclasses import dataclass
+
+      from django.http import Http404
+      from django.urls import reverse
+      from django.views.generic import TemplateView
+
+      from campusmap.layout import floor_plan
+      from university.building import blocked_cells
+      from university.models import Room
+
+
+      @dataclass(frozen=True)
+      class RoomEntry:
+          number: str
+          url: str
+          on_map: bool
+          is_current: bool
+
+
+      @dataclass(frozen=True)
+      class FloorEntry:
+          number: int
+          url: str
+          is_current: bool
+          rooms: list[RoomEntry]
+
+
+      class MapView(TemplateView):
+          template_name = "campusmap/map.html"
+          http_method_names = ["get"]
+
+          def get_context_data(self, **kwargs):
+              context = super().get_context_data(**kwargs)
+              rooms = list(Room.objects.order_by("floor", "number"))
+              floors = sorted({r.floor for r in rooms})
+              code = self.kwargs.get("code")
+              floor = self.kwargs.get("floor")
+              current = None
+              if code is not None:
+                  current = next((r for r in rooms if r.code == code), None)
+                  if current is None:
+                      raise Http404
+                  floor = current.floor
+              elif floor is not None:
+                  if floor not in floors:
+                      raise Http404
+              else:
+                  floor = floors[0] if floors else None
+              plan = floor_plan(floor, rooms, current) if floor is not None else None
+              floor_entries = [
+                  FloorEntry(
+                      f,
+                      reverse("campusmap:floor", args=[f]),
+                      f == floor,
+                      [
+                          RoomEntry(
+                              r.number,
+                              reverse("campusmap:room", args=[r.code]),
+                              bool(r.map_cell) and r.map_cell not in blocked_cells(f),
+                              current is not None and r.pk == current.pk,
+                          )
+                          for r in rooms
+                          if r.floor == f
+                      ],
+                  )
+                  for f in floors
+              ]
+              context["plan"] = plan
+              context["floors"] = floor_entries
+              context["current"] = current
+              return context
+    ── Read file read
+      from django.urls import path
+
+      from . import views
+
+      app_name = "campusmap"
+      urlpatterns = [
+          path("map/", views.MapView.as_view(), name="map"),
+          path("map/floor/<int:floor>/", views.MapView.as_view(), name="floor"),
+          path("map/room/<slug:code>/", views.MapView.as_view(), name="room"),
+      ]
+    ── Read file read
+      from django.apps import AppConfig
+
+
+      class CampusmapConfig(AppConfig):
+          name = "campusmap"
+          verbose_name = "Карта"
+          default_auto_field = "django.db.models.BigAutoField"
+    ── Read file read (error)
+      File not found: ~/hackatonproject/campusmap/admin.py
+    ── Read file read (error)
+      File not found: ~/hackatonproject/campusmap/demo.py
+    ── Thought for 965ms
+      campusmap has no admin.py or demo.py. Let me look at the petitions app which likely has both admin.py and demo.py for patterns, and its views (for StaffRequiredMixin usage), and the notifications/tests/helpers.py and test_feed.py registry test.
+
+      Let me read petitions/views.py, petitions/admin.py, petitions/demo.py, notifications/tests/helpers.py, and the relevant part of notifications/tests/test_feed.py.
+    ── Read file read
+      """Views for the petitions app."""
+
+      import logging
+
+      from django.contrib import messages
+      from django.core.exceptions import ValidationError
+      from django.db.models import Count, Prefetch
+      from django.http import FileResponse, Http404, HttpRequest, HttpResponse
+      from django.shortcuts import get_object_or_404, redirect
+      from django.views.decorators.http import require_GET
+      from django.views.generic import DetailView, FormView, ListView, TemplateView, View
+
+      from accounts.access import StaffRequiredMixin, StudentRequiredMixin, get_profile_for_role
+      from accounts.models import User
+      from petitions.forms import PetitionForm, StaffCommentForm, TransitionForm
+      from petitions.models import (
+          STATUS_VALUES,
+          Petition,
+          PetitionComment,
+          PetitionStatus,
+          PetitionStatusChange,
+          RequestKind,
+          RequestType,
+      )
+      from petitions.selectors import attachments_visible_to, petitions_visible_to
+      from petitions.services import add_staff_comment, change_status, submit_petition
+      from petitions.workflow import ACTION_LABELS, OPEN_STATUSES, allowed_transitions
+
+      logger = logging.getLogger(__name__)
+
+
+      class CatalogView(StudentRequiredMixin, TemplateView):
+          template_name = "petitions/catalog.html"
+
+          def get_context_data(self, **kwargs):
+              context = super().get_context_data(**kwargs)
+              types = RequestType.objects.filter(is_active=True)
+              context["certificates"] = types.filter(kind=RequestKind.CERTIFICATE)
+              context["applications"] = types.filter(kind=RequestKind.APPLICATION)
+              return context
+
+
+      class SubmitPetitionView(StudentRequiredMixin, FormView):
+          template_name = "petitions/form.html"
+          form_class = PetitionForm
+
+          def dispatch(self, request: HttpRequest, *args, **kwargs):
+              self.profile = get_profile_for_role(request.user, User.Role.STUDENT)
+              self.request_type = get_object_or_404(
+                  RequestType, pk=self.kwargs["type_id"], is_active=True
+              )
+              return super().dispatch(request, *args, **kwargs)
+
+          def get_form_kwargs(self):
+              kwargs = super().get_form_kwargs()
+              kwargs["request_type"] = self.request_type
+              return kwargs
+
+          def get_context_data(self, **kwargs):
+              context = super().get_context_data(**kwargs)
+              context["request_type"] = self.request_type
+              return context
+
+          def form_valid(self, form):
+              try:
+                  petition = submit_petition(
+                      self.profile,
+                      self.request_type,
+                      form.cleaned_data["comment"],
+                      form.cleaned_data["files"],
+                  )
+              except ValidationError as exc:
+                  form.add_error(None, exc)
+                  return self.form_invalid(form)
+              return redirect("petitions:submitted", public_id=petition.public_id)
+
+
+      class SubmittedView(StudentRequiredMixin, DetailView):
+          model = Petition
+          template_name = "petitions/submitted.html"
+          slug_field = "public_id"
+          slug_url_kwarg = "public_id"
+
+          def get_queryset(self):
+              return petitions_visible_to(self.request.user)
+
+
+      class MyPetitionsView(StudentRequiredMixin, ListView):
+          template_name = "petitions/my_list.html"
+          context_object_name = "petitions"
+
+          def get_queryset(self):
+              return petitions_visible_to(self.request.user).order_by("-created_at")
+
+
+      class StudentPetitionDetailView(StudentRequiredMixin, DetailView):
+          model = Petition
+          template_name = "petitions/detail.html"
+          slug_field = "public_id"
+          slug_url_kwarg = "public_id"
+
+          def get_queryset(self):
+              return petitions_visible_to(self.request.user).prefetch_related(
+                  Prefetch(
+                      "history",
+                      queryset=PetitionStatusChange.objects.select_related("actor__staff_profile"),
+                  ),
+                  Prefetch(
+                      "staff_comments",
+                      queryset=PetitionComment.objects.select_related("author__staff_profile"),
+                  ),
+                  "attachments",
+              )
+
+
+      class StaffQueueView(StaffRequiredMixin, ListView):
+          template_name = "petitions/staff_queue.html"
+          context_object_name = "petitions"
+
+          def get_queryset(self):
+              qs = petitions_visible_to(self.request.user)
+              status = self.request.GET.get("status", "open")
+              if status == "open":
+                  qs = qs.filter(status__in=OPEN_STATUSES)
+              elif status == "all":
+                  pass
+              elif status in STATUS_VALUES:
+                  qs = qs.filter(status=status)
+              else:
+                  qs = qs.filter(status__in=OPEN_STATUSES)
+              type_id = self.request.GET.get("type", "")
+              if type_id:
+                  try:
+                      qs = qs.filter(request_type_id=int(type_id))
+                  except (TypeError, ValueError):
+                      pass
+              return qs.order_by("created_at").annotate(attachment_count=Count("attachments"))
+
+          def get_context_data(self, **kwargs):
+              context = super().get_context_data(**kwargs)
+              context["status_choices"] = [("open", "Открытые"), ("all", "Все")] + list(
+                  PetitionStatus.choices
+              )
+              context["selected_status"] = self.request.GET.get("status", "open")
+              context["selected_type"] = self.request.GET.get("type", "")
+              context["types"] = RequestType.objects.all()
+              return context
+
+
+      class StaffPetitionDetailView(StaffRequiredMixin, DetailView):
+          model = Petition
+          template_name = "petitions/staff_detail.html"
+          slug_field = "public_id"
+          slug_url_kwarg = "public_id"
+
+          def get_queryset(self):
+              return (
+                  petitions_visible_to(self.request.user)
+                  .select_related("student__user")
+                  .prefetch_related(
+                      Prefetch(
+                          "history",
+                          queryset=PetitionStatusChange.objects.select_related("actor__staff_profile"),
+                      ),
+                      Prefetch(
+                          "staff_comments",
+                          queryset=PetitionComment.objects.select_related("author__staff_profile"),
+                      ),
+                      "attachments",
+                  )
+              )
+
+          def get_context_data(self, **kwargs):
+              context = super().get_context_data(**kwargs)
+              petition = self.object
+              context["actions"] = [
+                  (status, ACTION_LABELS[status]) for status in allowed_transitions(petition.status)
+              ]
+              context["transition_form"] = TransitionForm(initial={"expected_status": petition.status})
+              context["comment_form"] = StaffCommentForm()
+              return context
+
+
+      def _flatten_form_errors(form) -> list[str]:
+          return [str(err) for errors in form.errors.values() for err in errors]
+
+
+      class StaffTransitionView(StaffRequiredMixin, View):
+          http_method_names = ["post"]
+
+          def post(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
+              petition = get_object_or_404(
+                  petitions_visible_to(request.user), public_id=kwargs["public_id"]
+              )
+              form = TransitionForm(request.POST)
+              if not form.is_valid():
+                  messages.error(request, " ".join(_flatten_form_errors(form)))
+                  return redirect("petitions:staff_detail", public_id=petition.public_id)
+              try:
+                  new = change_status(
+                      petition,
+                      request.user,
+                      form.cleaned_data["expected_status"],
+                      form.cleaned_data["new_status"],
+                      form.cleaned_data["comment"],
+                  )
+              except ValidationError as exc:
+                  messages.error(request, " ".join(exc.messages))
+                  return redirect("petitions:staff_detail", public_id=petition.public_id)
+              messages.success(request, f"Статус изменён: {dict(PetitionStatus.choices)[new.status]}.")
+              return redirect("petitions:staff_detail", public_id=petition.public_id)
+
+
+      class StaffCommentView(StaffRequiredMixin, View):
+          http_method_names = ["post"]
+
+          def post(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
+              petition = get_object_or_404(
+                  petitions_visible_to(request.user), public_id=kwargs["public_id"]
+              )
+              form = StaffCommentForm(request.POST)
+              if not form.is_valid():
+                  messages.error(request, " ".join(_flatten_form_errors(form)))
+                  return redirect("petitions:staff_detail", public_id=petition.public_id)
+              try:
+                  add_staff_comment(petition, request.user, form.cleaned_data["text"])
+              except ValidationError as exc:
+                  messages.error(request, " ".join(exc.messages))
+              return redirect("petitions:staff_detail", public_id=petition.public_id)
+
+
+      @require_GET
+      def download_attachment(request: HttpRequest, public_id, file_id) -> HttpResponse:
+          att = get_object_or_404(
+              attachments_visible_to(request.user).select_related("petition"),
+              public_id=file_id,
+              petition__public_id=public_id,
+          )
+          try:
+              handle = att.file.open("rb")
+          except FileNotFoundError:
+              logger.warning("Attachment file is missing on disk (attachment %s).", att.public_id)
+              raise Http404("Файл не найден.") from None
+          response = FileResponse(
+              handle,
+              as_attachment=True,
+              filename=att.original_name,
+              content_type="application/pdf",
+          )
+          response["X-Content-Type-Options"] = "nosniff"
+          response["Cache-Control"] = "private, no-store"
+          return response
+    ── Read file read
+      from django.contrib import admin
+
+      from .models import Petition, PetitionAttachment, PetitionComment, PetitionStatusChange, RequestType
+
+
+      @admin.register(RequestType)
+      class RequestTypeAdmin(admin.ModelAdmin):
+          list_display = ("name", "kind", "processing_days", "comment_required", "is_active")
+          list_filter = ("kind", "is_active")
+
+
+      class PetitionHistoryInline(admin.TabularInline):
+          model = PetitionStatusChange
+          extra = 0
+          can_delete = False
+          fields = ("from_status", "to_status", "actor", "created_at", "comment")
+          readonly_fields = ("from_status", "to_status", "actor", "created_at", "comment")
+
+          def has_add_permission(self, request, obj=None):
+              return False
+
+
+      class PetitionCommentInline(admin.TabularInline):
+          model = PetitionComment
+          extra = 0
+          can_delete = False
+          fields = ("author", "created_at", "text")
+          readonly_fields = ("author", "created_at", "text")
+
+          def has_add_permission(self, request, obj=None):
+              return False
+
+
+      class PetitionAttachmentInline(admin.TabularInline):
+          model = PetitionAttachment
+          extra = 0
+          can_delete = False
+          fields = ("original_name", "size", "uploaded_at")
+          readonly_fields = ("original_name", "size", "uploaded_at")
+
+          def has_add_permission(self, request, obj=None):
+              return False
+
+
+      @admin.register(Petition)
+      class PetitionAdmin(admin.ModelAdmin):
+          list_display = ("public_id", "request_type", "student", "status", "created_at")
+          list_filter = ("status", "request_type")
+          inlines = [PetitionHistoryInline, PetitionCommentInline, PetitionAttachmentInline]
+
+          def has_add_permission(self, request):
+              return False
+
+          def has_change_permission(self, request, obj=None):
+              return False
+
+          def has_delete_permission(self, request, obj=None):
+              return False
+    ── Read file read
+      """Fictional petitions demo data.
+
+      Request types are reference data (upsert by name). Demo petitions are created
+      only if their ``seed_key`` is absent — existing rows are never updated.
+      """
+
+      from dataclasses import dataclass
+      from datetime import date, timedelta
+
+      from django.core.files.base import ContentFile
+      from django.db import transaction
+      from django.utils import timezone
+
+      from accounts.models import StaffProfile, StudentProfile
+      from petitions.files import store_attachment
+      from petitions.models import Petition, PetitionComment, PetitionStatusChange, RequestType
+      from petitions.services import add_working_days
+
+      DEMO_PDF = (
+          b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
+          b"2 0 obj<</Type/Pages/Kids[]/Count 0>>endobj\n"
+          b"trailer<</Root 1 0 R>>\n%%EOF\n"
+      )
+
+
+      @dataclass(frozen=True)
+      class PetitionsSeedSummary:
+          types: int
+          petitions: int
+          attachments: int
+
+
+      REQUEST_TYPES = [
+          (
+              "Справка об обучении",
+              "certificate",
+              3,
+              False,
+              "Можно указать, куда нужна справка.",
+              "Справка, подтверждающая факт обучения в университете.",
+          ),
+          (
+              "Справка для стипендиального отдела",
+              "certificate",
+              3,
+              True,
+              "Обязательно укажите причину обращения.",
+              "Справка для оформления стипендий и иных выплат.",
+          ),
+          (
+              "Заявление на повторную промежуточную аттестацию",
+              "application",
+              10,
+              True,
+              "Обязательно укажите причину обращения.",
+              "Заявление о повторной сдаче промежуточной аттестации.",
+          ),
+          (
+              "Заявление на академический отпуск",
+              "application",
+              15,
+              True,
+              "Обязательно укажите причину обращения.",
+              "Заявление о предоставлении академического отпуска.",
+          ),
+      ]
+
+      STUDENT_STAFF = {"student1": "staff1", "student2": "staff2", "student3": "staff1"}
+
+      PETITIONS = [
+          {
+              "seed_key": "p-1",
+              "student": "student1",
+              "type": "Справка об обучении",
+              "age": 2,
+              "path": ["submitted"],
+              "comment": "Для предоставления по месту требования.",
+              "files": ["spravka-zapros.pdf"],
+          },
+          {
+              "seed_key": "p-2",
+              "student": "student1",
+              "type": "Справка для стипендиального отдела",
+              "age": 4,
+              "path": ["submitted", "in_progress"],
+              "comment": "Для оформления повышенной стипендии.",
+              "staff_comment": ("staff1", "Справка будет готова к пятнице."),
+          },
+          {
+              "seed_key": "p-3",
+              "student": "student3",
+              "type": "Заявление на повторную промежуточную аттестацию",
+              "age": 6,
+              "path": ["submitted", "in_progress", "ready"],
+              "comment": "Пропустила экзамен по болезни, справка прилагается.",
+              "files": ["spravka-bolezn.pdf"],
+          },
+          {
+              "seed_key": "p-4",
+              "student": "student3",
+              "type": "Заявление на академический отпуск",
+              "age": 9,
+              "path": ["submitted", "rejected"],
+              "comment": "Прошу предоставить академический отпуск по семейным обстоятельствам.",
+              "reject_comment": "Не приложены подтверждающие документы.",
+          },
+          {
+              "seed_key": "p-5",
+              "student": "student1",
+              "type": "Справка об обучении",
+              "age": 20,
+              "path": ["submitted", "in_progress", "ready", "issued"],
+              "comment": "Для военкомата.",
+          },
+          {
+              "seed_key": "p-6",
+              "student": "student2",
+              "type": "Справка об обучении",
+              "age": 1,
+              "path": ["submitted"],
+              "comment": "Для банка.",
+              "files": ["zayavlenie.pdf"],
+          },
+          {
+              "seed_key": "p-7",
+              "student": "student2",
+              "type": "Справка для стипендиального отдела",
+              "age": 5,
+              "path": ["submitted", "in_progress"],
+              "comment": "Для назначения социальной стипендии.",
+              "staff_comment": ("staff2", "Проверяем данные о стипендии."),
+          },
+      ]
+
+
+      def seed_petitions_demo(today: date) -> PetitionsSeedSummary:
+          with transaction.atomic():
+              types = {}
+              for name, kind, days, required, hint, description in REQUEST_TYPES:
+                  types[name], _ = RequestType.objects.update_or_create(
+                      name=name,
+                      defaults={
+                          "kind": kind,
+                          "processing_days": days,
+                          "comment_required": required,
+                          "comment_hint": hint,
+                          "description": description,
+                          "is_active": True,
+                      },
+                  )
+
+              students = {
+                  s.user.username: s
+                  for s in StudentProfile.objects.filter(
+                      user__username__in=("student1", "student2", "student3")
+                  )
+              }
+              staff = {
+                  s.user.username: s.user
+                  for s in StaffProfile.objects.filter(user__username__in=("staff1", "staff2"))
+              }
+
+              base = timezone.now()
+              created = 0
+              attachments = 0
+              for seed in PETITIONS:
+                  if Petition.objects.filter(seed_key=seed["seed_key"]).exists():
+                      continue
+                  student = students[seed["student"]]
+                  rtype = types[seed["type"]]
+                  created_at = base - timedelta(days=seed["age"])
+                  path = seed["path"]
+                  petition = Petition.objects.create(
+                      student=student,
+                      request_type=rtype,
+                      comment=seed["comment"],
+                      status=path[-1],
+                      created_at=created_at,
+                      status_changed_at=created_at,
+                      expected_ready_date=add_working_days(
+                          timezone.localdate(created_at), rtype.processing_days
+                      ),
+                      seed_key=seed["seed_key"],
+                  )
+                  actor = staff[STUDENT_STAFF[seed["student"]]]
+                  steps = [("", "submitted", "", student.user)]
+                  for i in range(1, len(path)):
+                      comment = seed.get("reject_comment", "") if path[i] == "rejected" else ""
+                      steps.append((path[i - 1], path[i], comment, actor))
+                  for i, (from_s, to_s, comment, who) in enumerate(steps):
+                      PetitionStatusChange.objects.create(
+                          petition=petition,
+                          from_status=from_s,
+                          to_status=to_s,
+                          actor=who,
+                          created_at=created_at + timedelta(hours=i * 20),
+                          comment=comment,
+                      )
+                  if seed.get("staff_comment"):
+                      who, text = seed["staff_comment"]
+                      PetitionComment.objects.create(
+                          petition=petition,
+                          author=staff[who],
+                          text=text,
+                          created_at=created_at + timedelta(hours=20 * len(steps)),
+                      )
+                  for fname in seed.get("files", []):
+                      store_attachment(petition, ContentFile(DEMO_PDF), fname, len(DEMO_PDF))
+                      attachments += 1
+                  created += 1
+
+          return PetitionsSeedSummary(
+              types=len(REQUEST_TYPES), petitions=created, attachments=attachments
+          )
+    ── Thought for 600ms
+      Now let me read the notifications/tests/test_feed.py registry test, notifications/tests/helpers.py, config/settings.py, config/urls.py, pyproject.toml, and the schedule demo.py for seed patterns (RoomSeed, how seed summary looks).
+    ── Read file read
+      """Test helpers for the notifications app (reuse accounts helpers)."""
+
+      from types import SimpleNamespace
+
+      from django.utils import timezone
+
+      from accounts.models import User
+      from accounts.tests.helpers import make_faculty, make_group, make_staff, make_student
+      from notifications.models import Announcement, NotificationState
+
+
+      def make_announcement(
+          author,
+          *,
+          audience,
+          faculty=None,
+          group=None,
+          title="Объявление",
+          body="Текст объявления",
+          deadline=None,
+          published_at=None,
+          is_published=True,
+      ) -> Announcement:
+          ts = published_at or timezone.now()
+          kwargs = {
+              "author": author,
+              "audience": audience,
+              "faculty": faculty,
+              "group": group,
+              "title": title,
+              "body": body,
+              "deadline": deadline,
+              "published_at": ts,
+              "is_published": is_published,
+          }
+          if not is_published:
+              kwargs["unpublished_at"] = ts
+              kwargs["unpublished_by"] = author
+          return Announcement.objects.create(**kwargs)
+
+
+      def set_seen(user, when) -> None:
+          NotificationState.objects.update_or_create(user=user, defaults={"seen_until": when})
+
+
+      def make_world() -> SimpleNamespace:
+          fx = make_faculty("FX")
+          fy = make_faculty("FY")
+          gx1 = make_group(fx, "GX1")
+          gx2 = make_group(fx, "GX2")
+          gy1 = make_group(fy, "GY1")
+          ax = make_student("ax", gx1, "ST-AX-1")
+          bx = make_student("bx", gx1, "ST-BX-1")
+          cx = make_student("cx", gx2, "ST-CX-1")
+          ay = make_student("ay", gy1, "ST-AY-1")
+          sx = make_staff("sx", fx)
+          sy = make_staff("sy", fy)
+          root = User.objects.create_superuser("root", password="Super-Pass-2026!")
+          return SimpleNamespace(
+              fx=fx,
+              fy=fy,
+              gx1=gx1,
+              gx2=gx2,
+              gy1=gy1,
+              ax=ax,
+              bx=bx,
+              cx=cx,
+              ay=ay,
+              sx=sx,
+              sy=sy,
+              root=root,
+              ax_profile=ax.student_profile,
+              bx_profile=bx.student_profile,
+              cx_profile=cx.student_profile,
+              ay_profile=ay.student_profile,
+              sx_profile=sx.staff_profile,
+              sy_profile=sy.staff_profile,
+          )
+    ── Read file read
+      def test_unpublish_decrements_count(self):
+              announcement = make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+              self.assertEqual(unread_count(_ctx(self.w.ax)), 1)
+              announcement.is_published = False
+              announcement.save(update_fields=["is_published"])
+              self.assertEqual(unread_count(_ctx(self.w.ax)), 0)
+
+          def test_badge_label(self):
+              self.assertEqual(badge_label(0), "")
+              self.assertEqual(badge_label(7), "7")
+              self.assertEqual(badge_label(50), "50")
+              self.assertEqual(badge_label(51), "50+")
+
+          def test_badge_for_staff_and_anonymous_is_empty(self):
+              make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+              self.assertEqual(badge_for_user(self.w.sx), "")
+              self.assertEqual(badge_for_user(self.w.root), "")
+
+
+      class SourceRegistryTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+
+          def test_default_registry_has_six_sources(self):
+              self.assertEqual(len(get_feed_sources()), 6)
+
+          def test_feed_and_counter_use_registry(self):
+              make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+              rtype = make_type("Справка")
+              petition = make_petition(self.w.ax_profile, rtype)
+              change_status(petition, self.w.sx, "submitted", "in_progress")
+              with mock.patch("notifications.feed.get_feed_sources", return_value=(NewsSource(),)):
+                  ctx = _ctx(self.w.ax)
+                  items = build_feed(ctx)
+                  self.assertTrue(items)
+                  self.assertTrue(all(i.kind == "news" for i in items))
+                  self.assertEqual(unread_count(ctx), len(items))
+    ── Read file read
+      """Django settings for the Digital Dean's Office of the Future prototype."""
+
+      from pathlib import Path
+
+      import environ
+      from django.core.exceptions import ImproperlyConfigured
+
+      from config.env_utils import resolve_admin_url, resolve_client_ip_header, resolve_secret_key
+
+      BASE_DIR = Path(__file__).resolve().parent.parent
+      env = environ.Env()
+      _env_file = BASE_DIR / ".env"
+      if _env_file.is_file():
+          environ.Env.read_env(_env_file)
+
+      # Core flags
+      DEBUG = env.bool("DEBUG", default=False)
+      SECRET_KEY = resolve_secret_key(env.str("SECRET_KEY", default=""), DEBUG)
+      ALLOWED_HOSTS = env.list(
+          "ALLOWED_HOSTS",
+          default=["localhost", "127.0.0.1", "[::1]"] if DEBUG else [],
+      )
+      CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+      ADMIN_URL = resolve_admin_url(env.str("ADMIN_URL", default=""), DEBUG)
+
+      LOGIN_FAILURE_LIMIT = env.int("LOGIN_FAILURE_LIMIT", default=5)
+      LOGIN_LOCKOUT_SECONDS = env.int("LOGIN_LOCKOUT_SECONDS", default=900)
+      if LOGIN_FAILURE_LIMIT < 1 or LOGIN_LOCKOUT_SECONDS < 1:
+          raise ImproperlyConfigured("LOGIN_FAILURE_LIMIT and LOGIN_LOCKOUT_SECONDS must be positive.")
+      CLIENT_IP_HEADER = resolve_client_ip_header(env.str("CLIENT_IP_HEADER", default=""))
+
+      INSTALLED_APPS = [
+          "django.contrib.admin",
+          "django.contrib.auth",
+          "django.contrib.contenttypes",
+          "django.contrib.sessions",
+          "django.contrib.messages",
+          "whitenoise.runserver_nostatic",
+          "django.contrib.staticfiles",
+          "university",
+          "accounts",
+          "schedule",
+          "academics",
+          "petitions",
+          "notifications",
+          "campusmap",
+          "core",
+      ]
+
+      AUTH_USER_MODEL = "accounts.User"
+
+      MIDDLEWARE = [
+          "django.middleware.security.SecurityMiddleware",
+          "whitenoise.middleware.WhiteNoiseMiddleware",
+          "django.contrib.sessions.middleware.SessionMiddleware",
+          "django.middleware.common.CommonMiddleware",
+          "django.middleware.csrf.CsrfViewMiddleware",
+          "django.contrib.auth.middleware.AuthenticationMiddleware",
+          "django.contrib.auth.middleware.LoginRequiredMiddleware",
+          "django.contrib.messages.middleware.MessageMiddleware",
+          "django.middleware.clickjacking.XFrameOptionsMiddleware",
+      ]
+
+      LOGIN_URL = "accounts:login"
+      LOGIN_REDIRECT_URL = "accounts:profile"
+      LOGOUT_REDIRECT_URL = "accounts:login"
+
+      ROOT_URLCONF = "config.urls"
+      WSGI_APPLICATION = "config.wsgi.application"
+      ASGI_APPLICATION = "config.asgi.application"
+
+      TEMPLATES = [
+          {
+              "BACKEND": "django.template.backends.django.DjangoTemplates",
+              "DIRS": [BASE_DIR / "templates"],
+              "APP_DIRS": True,
+              "OPTIONS": {
+                  "context_processors": [
+                      "django.template.context_processors.debug",
+                      "django.template.context_processors.request",
+                      "django.contrib.auth.context_processors.auth",
+                      "django.contrib.messages.context_processors.messages",
+                  ],
+              },
+          },
+      ]
+
+      DATABASES = {"default": env.db("DATABASE_URL", default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}")}
+      DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+      AUTH_PASSWORD_VALIDATORS = [
+          {
+              "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+          },
+          {
+              "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+          },
+          {
+              "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
+          },
+          {
+              "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+          },
+      ]
+
+      LANGUAGE_CODE = "ru"
+      TIME_ZONE = "Europe/Moscow"
+      USE_I18N = True
+      USE_TZ = True
+
+      STATIC_URL = "static/"
+      STATICFILES_DIRS = [BASE_DIR / "static"]
+      STATIC_ROOT = BASE_DIR / "staticfiles"
+      STORAGES = {
+          "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+          "staticfiles": {
+              "BACKEND": (
+                  "django.contrib.staticfiles.storage.StaticFilesStorage"
+                  if DEBUG
+                  else "whitenoise.storage.CompressedManifestStaticFilesStorage"
+              )
+          },
+      }
+
+      PRIVATE_MEDIA_ROOT = Path(
+          env.str("PRIVATE_MEDIA_ROOT", default="") or str(BASE_DIR / "private_media")
+      )
+      FILE_UPLOAD_PERMISSIONS = 0o640
+      FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o750
+
+      TEST_RUNNER = "core.test_runner.ProjectTestRunner"
+
+      # Security
+      X_FRAME_OPTIONS = "DENY"
+      SECURE_CONTENT_TYPE_NOSNIFF = True
+      SECURE_REFERRER_POLICY = "same-origin"
+      SESSION_COOKIE_HTTPONLY = True
+
+      if not DEBUG:
+          SESSION_COOKIE_SECURE = True
+          CSRF_COOKIE_SECURE = True
+          SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+          SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
+          SECURE_REDIRECT_EXEMPT = [r"^health/$"]
+          SECURE_HSTS_SECONDS = env.int("SECURE_HSTS_SECONDS", default=3600)
+          SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True)
+          SECURE_HSTS_PRELOAD = env.bool("SECURE_HSTS_PRELOAD", default=False)
+
+      # security.W021: HSTS preload is an irreversible browser-list commitment.
+      # A contest prototype must not opt in. Enable via SECURE_HSTS_PRELOAD only deliberately.
+      SILENCED_SYSTEM_CHECKS = ["security.W021"]
+
+      LOG_LEVEL = env.str("LOG_LEVEL", default="INFO").upper()
+      LOGGING = {
+          "version": 1,
+          "disable_existing_loggers": False,
+          "formatters": {"simple": {"format": "{asctime} {levelname} {name} {message}", "style": "{"}},
+          "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "simple"}},
+          "root": {"handlers": ["console"], "level": LOG_LEVEL},
+          "loggers": {"django": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False}},
+      }
+    ── Read file read
+      """URL configuration for the deanery project."""
+
+      from django.conf import settings
+      from django.contrib import admin
+      from django.urls import include, path
+
+      urlpatterns = [
+          path(settings.ADMIN_URL, admin.site.urls),
+          path("", include("accounts.urls")),
+          path("", include("schedule.urls")),
+          path("", include("academics.urls")),
+          path("", include("petitions.urls")),
+          path("", include("notifications.urls")),
+          path("", include("campusmap.urls")),
+          path("", include("core.urls")),
+      ]
+    ── Read file read
+      [tool.ruff]
+      target-version = "py312"
+      line-length = 100
+      extend-exclude = ["*/migrations/*", ".venv", "staticfiles", "docs"]
+
+      [tool.ruff.lint]
+      select = ["E", "F", "W", "I", "B", "UP", "DJ", "S"]
+      ignore = []
+
+      [tool.ruff.lint.per-file-ignores]
+      "*/tests/*" = ["S101", "S105", "S106"]
+      "config/env_utils.py" = ["S105"]
+
+      [tool.ruff.lint.isort]
+      known-first-party = ["config", "core", "accounts", "university", "schedule", "academics", "petitions", "notifications", "campusmap"]
+
+      [tool.ruff.format]
+      quote-style = "double"
+    ── Thought for 1s
+      Now I have a good understanding. Let me check a few more things: the `notifications/models.py` NotificationState (seen_until), the `core/testing.py` FrozenClockMixin, `schedule/demo.py` for seed summary pattern, and the `notifications/tests/test_feed.py` top (imports, _ctx helper, make_type, make_petition).
+
+      Let me also check the `notifications/views.py` for how the feed page works and how read markers are set (NotificationState seen_until).
+
+      Let me read core/testing.py, notifications/models.py, notifications/tests/test_feed.py top section, schedule/demo.py top.
+    ── Read file read
+      """Test clock helpers.
+
+      A plain module (not a test module). It freezes ``django.utils.timezone.now`` for a
+      whole test class so tests do not depend on the real current date.
+      """
+
+      from datetime import datetime
+      from typing import ClassVar
+      from unittest import mock
+      from zoneinfo import ZoneInfo
+
+      MOSCOW = ZoneInfo("Europe/Moscow")
+
+
+      def moscow(dt_str: str) -> datetime:
+          """Parse an ISO string as a Moscow-aware datetime, e.g. "2026-11-18 12:00"."""
+          return datetime.fromisoformat(dt_str).replace(tzinfo=MOSCOW)
+
+
+      class FrozenClockMixin:
+          frozen_now: ClassVar[str] = "2026-11-18 12:00"
+
+          @classmethod
+          def setUpClass(cls) -> None:
+              cls._clock_patcher = mock.patch(
+                  "django.utils.timezone.now", return_value=moscow(cls.frozen_now)
+              )
+              cls._clock_patcher.start()
+              try:
+                  super().setUpClass()
+              except Exception:
+                  cls._clock_patcher.stop()
+                  raise
+
+          @classmethod
+          def tearDownClass(cls) -> None:
+              try:
+                  super().tearDownClass()
+              finally:
+                  cls._clock_patcher.stop()
+    ── Read file read
+      import uuid
+
+      from django.conf import settings
+      from django.db import models
+
+      from core.clock import now
+
+      from .constants import BODY_MAX_LENGTH, TITLE_MAX_LENGTH
+
+
+      class Audience(models.TextChoices):
+          UNIVERSITY = "university", "Весь университет"
+          FACULTY = "faculty", "Факультет"
+          GROUP = "group", "Группа"
+
+
+      class Announcement(models.Model):
+          public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+          title = models.CharField("заголовок", max_length=TITLE_MAX_LENGTH)
+          body = models.TextField("текст", max_length=BODY_MAX_LENGTH)
+          audience = models.CharField("кому", max_length=16, choices=Audience.choices)
+          faculty = models.ForeignKey(
+              "university.Faculty",
+              on_delete=models.PROTECT,
+              null=True,
+              blank=True,
+              related_name="announcements",
+              verbose_name="факультет",
+          )
+          group = models.ForeignKey(
+              "university.StudyGroup",
+              on_delete=models.PROTECT,
+              null=True,
+              blank=True,
+              related_name="announcements",
+              verbose_name="группа",
+          )
+          deadline = models.DateField("срок (включительно)", null=True, blank=True)
+          author = models.ForeignKey(
+              settings.AUTH_USER_MODEL,
+              on_delete=models.PROTECT,
+              related_name="announcements",
+              verbose_name="автор",
+          )
+          published_at = models.DateTimeField("опубликовано", default=now, editable=False)
+          is_published = models.BooleanField("опубликовано", default=True)
+          unpublished_at = models.DateTimeField(
+              "снято с публикации", null=True, blank=True, editable=False
+          )
+          unpublished_by = models.ForeignKey(
+              settings.AUTH_USER_MODEL,
+              on_delete=models.PROTECT,
+              null=True,
+              blank=True,
+              editable=False,
+              related_name="+",
+              verbose_name="снял с публикации",
+          )
+          seed_key = models.SlugField(max_length=40, blank=True, default="", editable=False)
+
+          class Meta:
+              ordering = ["-published_at", "-pk"]
+              indexes = [
+                  models.Index(fields=["is_published", "published_at"], name="notif_ann_published_idx"),
+                  models.Index(fields=["deadline"], name="notif_ann_deadline_idx"),
+              ]
+              constraints = [
+                  models.CheckConstraint(
+                      name="notifications_announcement_audience_target",
+                      condition=(
+                          models.Q(audience="university", faculty__isnull=True, group__isnull=True)
+                          | models.Q(audience="faculty", faculty__isnull=False, group__isnull=True)
+                          | models.Q(audience="group", faculty__isnull=True, group__isnull=False)
+                      ),
+                      violation_error_message=(
+                          "Получатели не соответствуют аудитории: для всего университета не выбирайте "
+                          "ни факультет, ни группу; для факультета выберите только факультет; "
+                          "для группы выберите только группу."
+                      ),
+                  ),
+                  models.CheckConstraint(
+                      condition=~models.Q(title=""), name="notifications_announcement_title_not_empty"
+                  ),
+                  models.CheckConstraint(
+                      condition=~models.Q(body=""), name="notifications_announcement_body_not_empty"
+                  ),
+                  models.CheckConstraint(
+                      condition=models.Q(audience__in=["university", "faculty", "group"]),
+                      name="notifications_announcement_audience_value",
+                  ),
+                  models.UniqueConstraint(
+                      fields=["seed_key"],
+                      condition=~models.Q(seed_key=""),
+                      name="notifications_announcement_unique_seed_key",
+                  ),
+              ]
+              verbose_name = "объявление"
+              verbose_name_plural = "объявления"
+
+          def __str__(self) -> str:
+              return self.title
+
+          @property
+          def audience_label(self) -> str:
+              if self.audience == Audience.UNIVERSITY:
+                  return "Для всех студентов"
+              if self.audience == Audience.FACULTY:
+                  return self.faculty.name
+              return f"Группа {self.group.name}"
+
+
+      class NotificationState(models.Model):
+          user = models.OneToOneField(
+              settings.AUTH_USER_MODEL,
+              on_delete=models.CASCADE,
+              related_name="notification_state",
+              verbose_name="пользователь",
+          )
+          seen_until = models.DateTimeField("просмотрено до", null=True, blank=True)
+
+          class Meta:
+              verbose_name = "состояние уведомлений"
+              verbose_name_plural = "состояния уведомлений"
+
+          def __str__(self) -> str:
+              return f"{self.user_id}: {self.seen_until}"
+    ── Read file read
+      from datetime import date, timedelta
+      from unittest import mock
+
+      from django.test import TestCase
+      from django.urls import reverse
+      from django.utils import timezone
+
+      from academics.models import CurrentMark, FinalResult
+      from academics.tests.helpers import make_item, make_mark, make_result, make_term
+      from core.testing import FrozenClockMixin, moscow
+      from notifications.feed import (
+          badge_for_user,
+          badge_label,
+          build_feed,
+          student_context,
+          unread_count,
+          upcoming_deadlines,
+      )
+      from notifications.models import Audience
+      from notifications.sources import NewsSource, get_feed_sources
+      from petitions.models import PetitionComment, PetitionStatusChange
+      from petitions.services import change_status
+      from petitions.tests.helpers import make_petition, make_type
+      from schedule.models import ChangeKind, LessonChange
+      from schedule.mutations import save_lesson_change
+      from schedule.tests.helpers import make_discipline, make_lesson, make_room, make_teacher
+
+      from .helpers import make_announcement, make_world, set_seen
+
+      NOW = "2026-11-11 12:00"
+      D = date(2026, 11, 11)
+
+
+      def _ctx(user, now=None):
+          return student_context(user, now)
+
+
+      def _keys(user, now=None):
+          return [i.key for i in build_feed(_ctx(user, now))]
+
+
+      class StudentScopeTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+
+          def test_university_item_visible_to_all_students(self):
+              announcement = make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+              key = f"news-{announcement.public_id}"
+              for student in (self.w.ax, self.w.bx, self.w.cx, self.w.ay):
+                  self.assertIn(key, _keys(student))
+
+          def test_faculty_item_only_for_that_faculty(self):
+              announcement = make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+              key = f"news-{announcement.public_id}"
+              self.assertIn(key, _keys(self.w.ax))
+              self.assertIn(key, _keys(self.w.cx))
+              self.assertNotIn(key, _keys(self.w.ay))
+
+          def test_group_item_only_for_that_group(self):
+              announcement = make_announcement(self.w.sx, audience=Audience.GROUP, group=self.w.gx1)
+              key = f"news-{announcement.public_id}"
+              self.assertIn(key, _keys(self.w.ax))
+              self.assertIn(key, _keys(self.w.bx))
+              self.assertNotIn(key, _keys(self.w.cx))
+              self.assertNotIn(key, _keys(self.w.ay))
+
+          def test_unpublished_hidden_everywhere(self):
+    ── Read file read
+      """Fictional schedule demo data.
+
+      Re-running replaces the demo changes (of the 18 demo lessons) with fresh ones
+      for the current and next week relative to the run date.
+      """
+
+      from dataclasses import dataclass
+      from datetime import date, timedelta
+
+      from django.db import transaction
+
+      from schedule.models import LessonChange, WeeklyLesson
+      from schedule.mutations import save_lesson_change, save_weekly_lesson
+      from schedule.services import week_start
+      from university.models import Discipline, Room, StudyGroup, Teacher
+
+
+      @dataclass(frozen=True)
+      class ScheduleSeedSummary:
+          rooms: int
+          teachers: int
+          disciplines: int
+          weekly_lessons: int
+          changes: int
+
+
+      @dataclass(frozen=True)
+      class RoomSeed:
+          code: str
+          floor: int
+          number: str
+          map_cell: str
+
+
+      @dataclass(frozen=True)
+      class TeacherSeed:
+          last_name: str
+          first_name: str
+          middle_name: str
+          title: str
+
+
+      @dataclass(frozen=True)
+      class DisciplineSeed:
+          name: str
+          short_name: str
+
+
+      @dataclass(frozen=True)
+      class LessonSeed:
+          key: str
+          weekday: int
+          slot: int
+          discipline: str
+          lesson_type: str
+          teacher: str
+          room: str
+          groups: tuple[str, ...]
+    ── Thought for 1s
+      I now have a comprehensive understanding of the codebase. Let me also check the notifications/views.py to understand how feed page works and how read marker is set (the notifications seen_until marker), and check the notifications/urls.py for the feed URL, and the accounts/models.py (StaffProfile) — already read. Also need to check `notifications/selectors.py` for `announcements_for_student`.
+
+      Actually, I have enough. Let me also quickly look at the notifications/views.py feed view to understand the pattern for the read marker (for AC8, `test_reply_counts_in_badge_once` requires that visiting notifications moves the notifications marker but not the chat marker).
+
+      Let me check notifications/views.py and notifications/urls.py.
+    ── Read file read
+      from django.contrib import messages
+      from django.core.exceptions import PermissionDenied, ValidationError
+      from django.http import Http404
+      from django.shortcuts import redirect
+      from django.utils import timezone
+      from django.utils.decorators import method_decorator
+      from django.views.decorators.cache import never_cache
+      from django.views.generic import TemplateView, View
+
+      from accounts.access import StaffRequiredMixin, StudentRequiredMixin
+      from accounts.selectors import groups_visible_to
+
+      from .constants import DEADLINES_MAX_ITEMS, STAFF_LIST_MAX_ITEMS
+      from .feed import build_feed, student_context, upcoming_deadlines
+      from .forms import AnnouncementForm
+      from .models import Announcement
+      from .selectors import announcements_managed_by
+      from .services import create_announcement, mark_seen, unpublish_announcement
+
+
+      @method_decorator(never_cache, name="dispatch")
+      class NotificationsView(StudentRequiredMixin, TemplateView):
+          template_name = "notifications/feed.html"
+          http_method_names = ["get"]
+
+          def get_context_data(self, **kwargs):
+              context = super().get_context_data(**kwargs)
+              ctx = student_context(self.request.user)
+              if ctx is None:
+                  raise PermissionDenied
+              context["deadlines"] = upcoming_deadlines(ctx, DEADLINES_MAX_ITEMS)
+              context["items"] = build_feed(ctx)
+              mark_seen(ctx.user_id, ctx.now)
+              return context
+
+
+      class StaffAnnouncementsView(StaffRequiredMixin, TemplateView):
+          template_name = "notifications/staff_list.html"
+          http_method_names = ["get", "post"]
+
+          def _form(self, data=None):
+              return AnnouncementForm(
+                  data,
+                  groups=list(groups_visible_to(self.request.user).order_by("name")),
+                  today=timezone.localdate(),
+              )
+
+          def _render(self, form):
+              announcements = (
+                  announcements_managed_by(self.request.user)
+                  .select_related("faculty", "group")
+                  .order_by("-published_at", "-pk")[:STAFF_LIST_MAX_ITEMS]
+              )
+              return self.render_to_response(
+                  self.get_context_data(form=form, announcements=announcements)
+              )
+
+          def get(self, request, *args, **kwargs):
+              return self._render(self._form())
+
+          def post(self, request, *args, **kwargs):
+              form = self._form(request.POST)
+              if form.is_valid():
+                  try:
+                      create_announcement(
+                          request.user,
+                          title=form.cleaned_data["title"],
+                          body=form.cleaned_data["body"],
+                          audience=form.cleaned_data["audience"],
+                          group=form.cleaned_data["group"],
+                          deadline=form.cleaned_data["deadline"],
+                      )
+                  except ValidationError as exc:
+                      form.add_error(None, ValidationError(exc.messages))
+                  else:
+                      messages.success(request, "Объявление опубликовано.")
+                      return redirect("notifications:staff_announcements")
+              return self._render(form)
+
+
+      class StaffUnpublishView(StaffRequiredMixin, View):
+          http_method_names = ["post"]
+
+          def post(self, request, public_id):
+              try:
+                  changed = unpublish_announcement(request.user, public_id)
+              except Announcement.DoesNotExist:
+                  raise Http404 from None
+              if changed:
+                  messages.success(request, "Объявление снято с публикации.")
+              else:
+                  messages.info(request, "Объявление уже снято с публикации.")
+              return redirect("notifications:staff_announcements")
+    ── Read file read
+      from django.urls import path
+
+      from . import views
+
+      app_name = "notifications"
+      urlpatterns = [
+          path("notifications/", views.NotificationsView.as_view(), name="feed"),
+          path(
+              "staff/announcements/", views.StaffAnnouncementsView.as_view(), name="staff_announcements"
+          ),
+          path(
+              "staff/announcements/<uuid:public_id>/unpublish/",
+              views.StaffUnpublishView.as_view(),
+              name="staff_unpublish",
+          ),
+      ]
+    ── Thought for 6s
+      I now have a full understanding. Let me set up my todo list and start implementing.
+
+      Let me plan the implementation order following section 7 of the spec:
+
+      1. App skeleton (chat/__init__.py, apps.py, constants.py, models.py), settings.py, urls.py include, pyproject.toml; StaffProfile.short_name; migration; test_models.py.
+      2. Selectors and services + tests.
+      3. Forms, views, templates, CSS, nav + core/tests/test_nav.py update + view tests.
+      4. static/js/chat.js + test_static.py.
+      5. Feed source + registry test update + test_feed.py.
+      6. Admin + seed + command + test_demo.py; README.
+      7. ruff format; section 8 verification; REPORT.
+
+      Let me create the todo list and start.
+
+      Let me start with the app skeleton. I'll create all the chat files.
+
+      First, `chat/__init__.py`, `chat/apps.py`, `chat/constants.py`, `chat/models.py`.
+
+      Let me write these files.
+
+      For the models, I need to be careful with the exact spec:
+
+      ```python
+      class AuthorRole(models.TextChoices):
+          STUDENT = "student", "Студент"
+          STAFF = "staff", "Деканат"
+      ```
+
+      `Dialog`:
+      - public_id: UUIDField(default=uuid.uuid4, unique=True, editable=False)
+      - student: OneToOneField("accounts.StudentProfile", on_delete=PROTECT, related_name="chat_dialog", verbose_name="студент")
+      - created_at: DateTimeField("создан", default=core.clock.now, editable=False)
+      - last_message_at: DateTimeField("последнее сообщение", null=True, blank=True, editable=False)
+      - last_message_id: PositiveBigIntegerField(default=0, editable=False)
+      - student_read_id: PositiveBigIntegerField(default=0, editable=False)
+      - staff_read_id: PositiveBigIntegerField(default=0, editable=False)
+
+      Meta: ordering = ["-last_message_at", "-pk"], indexes = [Index(fields=["last_message_at"], name="chat_dialog_last_msg_idx")], verbose_name = "диалог", verbose_name_plural = "диалоги". __str__ → f"Чат: {self.student}"
+
+      `Message`:
+      - dialog: ForeignKey(Dialog, on_delete=PROTECT, related_name="messages", verbose_name="диалог")
+      - author: ForeignKey(settings.AUTH_USER_MODEL, on_delete=PROTECT, related_name="chat_messages", verbose_name="автор")
+      - author_role: CharField("роль автора", max_length=16, choices=AuthorRole.choices)
+      - text: TextField("текст", max_length=MESSAGE_MAX_LENGTH)
+      - created_at: DateTimeField("отправлено", default=core.clock.now, editable=False)
+      - client_token: UUIDField(null=True, blank=True, editable=False)
+      - seed_key: SlugField(max_length=40, blank=True, default="", editable=False)
+
+      Meta: ordering = ["id"]; indexes = [Index(fields=["dialog", "id"], name="chat_msg_dialog_id_idx"), Index(fields=["author", "created_at"], name="chat_msg_author_time_idx")]; constraints:
+      - CheckConstraint(condition=~Q(text=""), name="chat_message_text_not_empty")
+      - CheckConstraint(condition=Q(author_role__in=["student", "staff"]), name="chat_message_author_role_value")
+      - UniqueConstraint(fields=["dialog", "client_token"], condition=Q(client_token__isnull=False), name="chat_message_unique_client_token")
+      - UniqueConstraint(fields=["seed_key"], condition=~Q(seed_key=""), name="chat_message_unique_seed_key")
+      verbose_name = "сообщение", verbose_name_plural = "сообщения". __str__ → f"{self.get_author_role_display()}: {self.text[:40]}"
+
+      Now, `core.clock.now` import: `from core.clock import now`.
+
+      Let me write all the files now. I'll batch the writes.
+
+      Actually let me be careful about `PositiveBigIntegerField` for last_message_id and read markers. These need to hold message IDs which are BigAutoField (BigIntegerField). `PositiveBigIntegerField` is fine.
+
+      Let me write everything. First the skeleton files.
+
+      Let me create a todo list first.
+    ── Ran tool 7 todos (1s)
+      {"output":"[\n  {\n    \"content\": \"Step 1: app skeleton (apps, constants, models), settings/urls/pyproject, StaffProfile.short_name, migration, test_models\",\n    \"status\": \"in_progress\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 2: selectors + services + tests\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 3: forms, views, templates, CSS, nav + test_nav update + view tests\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 4: chat.js + test_static\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 5: feed source + registry test + test_feed\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 6: admin + seed + command + test_demo + README\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 7: ruff + section 8 verification + REPORT\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  }\n]","metadata":{"todos":[{"content":"Step 1: app skeleton (apps, constants, models), settings/urls/pyproject, StaffProfile.short_name, migration, test_models","status":"in_progress","priority":"high"},{"content":"Step 2: selectors + services + tests","status":"pending","priority":"high"},{"content":"Step 3: forms, views, templates, CSS, nav + test_nav update + view tests","status":"pending","priority":"high"},{"content":"Step 4: chat.js + test_static","status":"pending","priority":"high"},{"content":"Step 5: feed source + registry test + test_feed","status":"pending","priority":"high"},{"content":"Step 6: admin + seed + command + test_demo + README","status":"pending","priority":"high"},{"content":"Step 7: ruff + section 8 verification + REPORT","status":"pending","priority":"high"}],"truncated":false}}
+    ── Created chat/__init__.py
+    ── Created chat/apps.py
+    ── Created chat/constants.py
+    ── Created chat/models.py
+    ── Thought for 6s
+      Wait, I need to check how `core.clock` is imported elsewhere. In notifications/models.py it's `from core.clock import now` and `default=now`. The spec says `default=core.clock.now`. Let me check the spec exactly:
+
+      `created_at` → `DateTimeField("создан", default=core.clock.now, editable=False)`.
+
+      So the spec uses `core.clock.now` (module attribute). I used `import core.clock` and `default=core.clock.now`. That works. But actually, will ruff complain about `import core.clock`? It's a valid import. Let me verify: `import core.clock` imports the module `core.clock` and binds name `core`. Then `core.clock.now` works. Actually wait — `import core.clock` binds the top-level name `core`, so `core.clock.now` is accessible. Yes, that works.
+
+      Actually, to match the spec more literally and be safe, let me use `from core import clock` and `default=clock.now`. Hmm, but the spec literally says `core.clock.now`. Let me check what's cleaner. `import core.clock` then `core.clock.now` is exactly what the spec writes. I'll keep it.
+
+      Actually, wait - there might be an issue with `import core.clock` being flagged by ruff isort or F401? No, it's used. But there's a subtlety: ruff rule I001 (isort) might want it grouped. `import core.clock` is fine.
+
+      Actually, let me reconsider. Django migrations serialize `default=core.clock.now`? For migrations, default callables that aren't simple lambdas get serialized via their `__module__` and `__qualname__`. `core.clock.now` → module "core.clock", name "now". The migration will reference `core.clock.now`. This is fine as long as `core.clock.now` is importable. It is.
+
+      But wait, `import core.clock` in models.py — during migration serialization, Django uses `deconstruct` and the default is referenced by module path string, so it works.
+
+      Actually there's a subtle issue: the migration file will contain `default=core.clock.now` if the import in the migration is `import core.clock`. When Django generates the migration, it will try to import `core.clock` in the migration. Let me not worry — Django handles this automatically. Let me just verify by running makemigrations later.
+
+      Now let me write the selectors and services.
+
+      Actually, wait — let me reconsider the models import. The existing notifications/models.py uses `from core.clock import now` and `default=now`. But the spec for chat explicitly writes `default=core.clock.now`. Let me follow the spec exactly but think about whether `import core.clock` triggers any lint issue.
+
+      Actually `import core.clock` is unusual. A cleaner equivalent matching spec intent: `from core import clock` then `default=clock.now`. But the spec literally writes `core.clock.now`. Hmm.
+
+      Actually, I already wrote `import core.clock` which gives `core.clock.now`. This is fine and matches. Let me leave it and verify with ruff later.
+
+      Now selectors.py.
+    ── Created chat/selectors.py
+    ── Thought for 9s
+      Now services.py. Let me carefully follow the spec §5.2.
+
+      ```python
+      normalize_text(text: str) -> str — text.replace("\r\n", "\n").replace("\r", "\n").strip()
+      text_errors(text: str) -> list[str] — empty → «Сообщение пустое.»; len > MESSAGE_MAX_LENGTH → f«Сообщение длиннее {MESSAGE_MAX_LENGTH} символов.»
+      send_student_message(student, text, client_token)
+      send_staff_message(dialog, actor, text, client_token)
+      mark_read(dialog_id, side, up_to_id)
+      load_history(dialog) -> tuple[list, bool]
+      messages_after(dialog, after_id) -> list
+      ```
+
+      Let me write services.py.
+
+      For `send_student_message`:
+      1. text = normalize_text(text); errors → ValidationError(errors)
+      2. with transaction.atomic(): dialog, _ = Dialog.objects.get_or_create(student=student); dialog = Dialog.objects.select_for_update().get(pk=dialog.pk)
+      3. client_token and dialog.messages.filter(client_token=client_token).first() exists → return it
+      4. now = clock.now(); recent = Message.objects.filter(author_id=student.user_id, author_role=STUDENT, created_at__gt=now - timedelta(minutes=RATE_LIMIT_MINUTES)).count(); recent >= RATE_LIMIT_MESSAGES → ValidationError(...)
+      5. message = Message(dialog=..., ...); message.full_clean(); message.save()
+      6. Dialog.objects.filter(pk=dialog.pk).update(last_message_at=now, last_message_id=message.pk). Return message.
+
+      For `send_staff_message`:
+      1. get_profile_for_role(actor, User.Role.STAFF); normalize_text, text_errors
+      2. with transaction.atomic(): locked = dialogs_visible_to(actor).select_for_update(of=("self",)).filter(pk=dialog.pk).first(); None → PermissionDenied
+      3. Idempotency. No rate limit.
+      4. now = clock.now(); create with author_role=STAFF, full_clean, save; update last_message_at, last_message_id. Return.
+
+      Wait, the spec says "3. Idempotency as step 3 above." — this means check `dialog.messages.filter(client_token=client_token).first()` on the locked dialog. But we have `locked` (the dialog). Actually step 3 of student references `dialog` (the locked one). For staff, `locked` is the dialog. So check `locked.messages.filter(client_token=client_token).first()`.
+
+      For `mark_read(dialog_id, side, up_to_id)`:
+      field = {"student": "student_read_id", "staff": "staff_read_id"}[side]; up_to_id <= 0 → return; Dialog.objects.filter(pk=dialog_id, **{f"{field}__lt": up_to_id}).update(**{field: up_to_id})
+
+      For `load_history(dialog)`:
+      rows = list(dialog.messages.select_related("author__staff_profile").order_by("-id")[:HISTORY_LIMIT + 1]); truncated = len(rows) > HISTORY_LIMIT; return (list(reversed(rows[:HISTORY_LIMIT])), truncated)
+
+      For `messages_after(dialog, after_id)`:
+      list(dialog.messages.filter(id__gt=after_id).select_related("author__staff_profile").order_by("id")[:FRAGMENT_LIMIT])
+
+      Let me write services.py.
+
+      For imports:
+      - from datetime import timedelta
+      - from uuid import UUID
+      - from django.core.exceptions import PermissionDenied, ValidationError
+      - from django.db import transaction
+      - from accounts.access import get_profile_for_role
+      - from accounts.models import StudentProfile, User
+      - import core.clock (or from core.clock import now)
+      - from .constants import MESSAGE_MAX_LENGTH, RATE_LIMIT_MESSAGES, RATE_LIMIT_MINUTES, HISTORY_LIMIT, FRAGMENT_LIMIT
+      - from .models import AuthorRole, Dialog, Message
+      - from .selectors import dialogs_visible_to
+
+      Wait, `core.clock.now` — the spec uses `now = clock.now()`. Let me use `from core import clock` and `clock.now()`. Actually to match the existing pattern in notifications/models.py which uses `from core.clock import now`, but the spec for chat explicitly writes `clock.now()`. Let me check spec text again:
+
+      "**`send_student_message(student: StudentProfile, text: str, client_token: UUID | None) -> Message`** ... 4. `now = clock.now()`"
+
+      So `clock.now()`. I'll use `import core.clock` and `core.clock.now()`? Or `from core import clock` and `clock.now()`. The spec writes `clock.now()`, so `from core import clock` gives `clock.now()`. Let me use that.
+
+      Actually, in models.py I used `import core.clock` and `core.clock.now`. Inconsistent. Let me standardize. For models.py, the spec writes `default=core.clock.now`. For services, `clock.now()`. 
+
+      To be safe and consistent, let me just use `from core import clock` everywhere and `clock.now` in models (default=clock.now) and `clock.now()` in services. But the spec literally says `core.clock.now` for models default. Does it matter? The migration will store the deconstructed path `core.clock.now` regardless (since `now.__module__ == "core.clock"` and `__qualname__ == "now"`). So `default=clock.now` and `default=core.clock.now` produce identical migrations. I'll use `from core import clock` / `default=clock.now` for cleanliness. But wait — I already wrote models.py with `import core.clock`. Let me change it to `from core import clock` for consistency.
+
+      Actually, it doesn't matter functionally. Let me just keep models as-is (`import core.clock`) — it works. But for consistency and to avoid ruff reordering issues, let me actually reconsider.
+
+      Hmm, `import core.clock` — ruff isort might complain? No. Let me leave it, but actually for cleanliness I'll switch both to `from core import clock`.
+
+      Let me update models.py to use `from core import clock` and `default=clock.now`.
+
+      Actually, let me not over-engineer. Both work. But consistency matters for readability. Let me change models.py to `from core import clock`.
+
+      Let me do that edit.
+    ── Edited chat/models.py +1 -1
+      --- a~/hackatonproject/chat/models.py
+      +++ b~/hackatonproject/chat/models.py
+      -import core.clock
+      +from core import clock
+    ── Searched for core.clock in chat/models.py
+    ── Ran cd ~/hackatonproject && sed -i '' 's/default=core\.clock\.now/default=clock.now/g' chat/models.py && grep -n "clock.now" chat/models.py
+      $ cd ~/hackatonproject && sed -i '' 's/default=core\.clock\.now/default=clock.now/g' chat/models.py && grep -n "clock.now" chat/models.py
+      24:    created_at = models.DateTimeField("создан", default=clock.now, editable=False)
+      56:    created_at = models.DateTimeField("отправлено", default=clock.now, editable=False)
+    ── Created chat/services.py
+    ── Thought for 2s
+      Now let me add `StaffProfile.short_name` to accounts/models.py, and update settings.py, urls.py, pyproject.toml. Then generate the migration and write test_models.py.
+
+      For short_name, I need `from university.models import NBSP` — but wait, that would be a circular import? accounts/models.py already imports from django. `university` imports `from university.building import ...` and `from university.models import ...`? Let me check if university imports accounts. The spec says "no import cycle: university does not import accounts." So `from university.models import NBSP` at top of accounts/models.py is fine.
+
+      But wait — is there already an import of university in accounts/models.py? No, accounts/models.py doesn't import university currently. Adding `from university.models import NBSP` at top.
+
+      Let me add the short_name property to StaffProfile after full_name.
+    ── Edited accounts/models.py +2
+      --- a~/hackatonproject/accounts/models.py
+      +++ b~/hackatonproject/accounts/models.py
+      +
+      +from university.models import NBSP
+    ── Edited accounts/models.py +5
+      --- a~/hackatonproject/accounts/models.py
+      +++ b~/hackatonproject/accounts/models.py
+      +    @property
+      +    def short_name(self) -> str:
+      +        middle = f"{NBSP}{self.middle_name[0]}." if self.middle_name else ""
+      +        return f"{self.last_name}{NBSP}{self.first_name[0]}.{middle}"
+      +
+    ── Edited config/settings.py +1
+      --- a~/hackatonproject/config/settings.py
+      +++ b~/hackatonproject/config/settings.py
+      +    "chat",
+    ── Edited config/urls.py +1
+      --- a~/hackatonproject/config/urls.py
+      +++ b~/hackatonproject/config/urls.py
+      +    path("", include("chat.urls")),
+    ── Edited pyproject.toml +1 -1
+      --- a~/hackatonproject/pyproject.toml
+      +++ b~/hackatonproject/pyproject.toml
+      -known-first-party = ["config", "core", "accounts", "university", "schedule", "academics", "petitions", "notifications", "campusmap"]
+      +known-first-party = ["config", "core", "accounts", "university", "schedule", "academics", "petitions", "notifications", "campusmap", "chat"]
+    ── Thought for 20s
+      Now I need to create the chat/urls.py, forms.py, views.py, admin.py, demo.py, templatetags, templates, static/js/chat.js before I can run makemigrations (migration only needs models). Actually I can generate the migration now with just models. But the migration needs the app to be importable — the urls.py references views which don't exist yet, but makemigrations only imports models. However, `config/urls.py` imports `chat.urls` which imports `chat.views` which doesn't exist. But makemigrations doesn't load urls. Actually, `manage.py makemigrations` does load settings and run system checks, but it doesn't resolve URLs. Actually, Django's `makemigrations` does run `django.setup()` and might check URL conf? No, it doesn't check URLs. But `check` command does check URLs.
+
+      To be safe, let me write all the remaining files (urls, forms, views, admin, demo, templatetags, templates, static) BEFORE generating the migration. Actually, I can generate the migration now since it only needs models. But `chat/urls.py` is referenced in config/urls.py, which is referenced by ROOT_URLCONF. If I run `makemigrations`, Django loads the app registry and models, but does it import urls? No.
+
+      Actually, let me just write everything in order. Let me proceed to write forms.py, views.py, urls.py, admin.py now, then templates, then generate migration and write tests.
+
+      Actually, the implementation order in the spec is:
+      1. App skeleton, settings, URLs include, pyproject, models + short_name, migration, test_models.
+      2. Selectors and services + tests.
+      3. Forms, views, templates, CSS, nav + tests.
+      4. JS + test_static.
+      5. Feed + tests.
+      6. Admin + seed + command + test_demo + README.
+      7. ruff + verification + REPORT.
+
+      Let me follow roughly this but be efficient. I'll write files in dependency order. Let me generate the migration now (models + short_name are done, selectors/services done).
+
+      Actually, wait — I need chat/urls.py to exist for config/urls.py include, but I haven't written it yet. Let me write urls.py and forms.py and views.py now, then templates, then generate migration.
+
+      Let me write forms.py first.
+
+      forms.py:
+      ```python
+      import uuid
+      from django import forms
+      from .constants import MESSAGE_MAX_LENGTH
+      from .services import normalize_text, text_errors
+
+
+      class MessageForm(forms.Form):
+          text = forms.CharField(label="Сообщение", strip=False, widget=forms.Textarea(attrs={"rows": 3, "maxlength": MESSAGE_MAX_LENGTH}))
+          client_token = forms.UUIDField(required=False, widget=forms.HiddenInput)
+
+          def clean_text(self):
+              text = normalize_text(self.cleaned_data["text"])
+              errors = text_errors(text)
+              if errors:
+                  raise forms.ValidationError(errors)
+              return text
+      ```
+
+      Wait — the spec says `MessageForm(forms.Form)`: `text = forms.CharField(label="Сообщение", strip=False, widget=forms.Textarea(attrs={"rows": 3, "maxlength": MESSAGE_MAX_LENGTH}))` (no `max_length` validator); `client_token = forms.UUIDField(required=False, widget=forms.HiddenInput)`. `clean_text`: `normalize_text`; `text_errors` → `forms.ValidationError`.
+
+      Note: the form label is "Сообщение" but the student template uses label «Сообщение» and staff uses «Ответ». The template `_form.html` renders `{{ form_label }}` separately, not `{{ form.text.label }}`. So the form's label "Сообщение" is essentially unused in rendering (the template uses `form_label` context var). That's fine.
+
+      Actually wait, looking at `_form.html`:
+      ```django
+      <p><label for="id_text">{{ form_label }}</label>{{ form.text.errors }}{{ form.text }}</p>
+      ```
+
+      So `form_label` is a separate context variable. The form's own label "Сообщение" isn't rendered. But the spec says `text = forms.CharField(label="Сообщение", ...)`. I'll keep it.
+
+      Now `client_token` field — the hidden input. In `_form.html`, it renders `name="client_token" value="{{ form.client_token.value|default:client_token }}"`. So the form has a `client_token` field (UUIDField) but the template manually renders the hidden input using `form.client_token.value` (the bound value) or `client_token` context var (the initial). Hmm, this is a bit odd. Actually the spec has a helper that puts `client_token = uuid.uuid4()` in the context. And the form has a `client_token` field.
+
+      Actually wait, if the form is unbound (GET), `form.client_token.value` is None, so `default:client_token` uses the context `client_token` (a fresh uuid). If bound (POST re-render after error), `form.client_token.value` has the posted value, so it's preserved.
+
+      But there's a subtlety: the form field `client_token` is `required=False` and `widget=HiddenInput`. When the form is rendered with `{{ form }}`... but the template doesn't render `{{ form }}`, it renders fields manually. So `form.client_token` field's widget isn't auto-rendered; instead the template manually writes `<input type="hidden" name="client_token" ...>`.
+
+      OK. Also note `{{ form.text }}` renders the textarea including its label? No, `{{ form.text }}` renders just the widget (no label). The label is manually written as `<label for="id_text">{{ form_label }}</label>`.
+
+      OK, this is all per spec. Let me write forms.py.
+
+      Now views.py. Let me carefully follow §5.4.
+
+      Shared helper `_history_context(dialog, viewer_is_student, poll_url, refresh_url) -> dict`:
+      returns messages, truncated, poll_ms = POLL_INTERVAL_SECONDS * 1000, poll_max_errors, history_limit, student_name, client_token = uuid.uuid4().
+
+      Wait, `student_name` — for student view it's the student's name? Actually for the `_message.html` template, context needs `viewer_is_student` and `student_name`. For student view, `viewer_is_student=True`, and `student_name` is... not used (since `viewer_is_student` True → shows "Вы"). For staff view, `viewer_is_student=False`, `student_name = dialog.student.full_name`.
+
+      But `_history_context` takes `viewer_is_student` param but where does `student_name` come from? The spec says:
+
+      "Shared helper `_history_context(dialog, viewer_is_student, poll_url, refresh_url) -> dict` (messages, truncated, `poll_ms = POLL_INTERVAL_SECONDS * 1000`, `poll_max_errors`, `history_limit`, `student_name`, `client_token = uuid.uuid4()`)."
+
+      So `_history_context` computes `student_name` from `dialog.student.full_name`. Let me write it to compute `student_name = dialog.student.full_name`. But for the student view, `dialog.student` is the student themselves; `student_name` would be their full name, but it's unused because viewer_is_student=True.
+
+      Actually, let me just compute `student_name = dialog.student.full_name` inside the helper (dialog.student is select_related? need `dialog.student` accessible). In the student view, dialog is fetched via `Dialog.objects.filter(student=self.profile).first()`. To get `dialog.student.full_name`, I'd need student's last_name etc. loaded. `dialog.student` accesses the StudentProfile, which triggers a query unless select_related. Hmm.
+
+      But for query counts (AC12), the student page must be ≤ 14 queries. Let me think about what select_related is needed.
+
+      Actually, let me look more carefully. The helper `_history_context` computes `student_name`. For the student view, `viewer_is_student=True`, so `student_name` isn't rendered. But the helper still computes it. To avoid an extra query, I should select_related `student` (StudentProfile has last_name/first_name/middle_name on itself, no FK needed for full_name).
+
+      `StudentProfile.full_name` accesses `self.last_name, self.first_name, self.middle_name` — all local fields. So no extra query if `dialog.student` is fetched (which needs `dialog.student` — that's a FK lookup, one query unless select_related).
+
+      For the student page, `dialog = Dialog.objects.filter(student=self.profile).first()`. Then `dialog.student` triggers a query for StudentProfile. But we already have `self.profile`. Hmm.
+
+      Actually, for query counting, let me be careful. The student page GET flow:
+      1. `dialog = Dialog.objects.filter(student=self.profile).first()` — 1 query (Dialog)
+      2. `load_history(dialog)` → `dialog.messages.select_related("author__staff_profile")...` — 1 query (messages + author + staff_profile)
+      3. `_history_context` computes `student_name = dialog.student.full_name` → if not select_related, 1 query for StudentProfile.
+      4. `faculty_name = self.profile.group.program.faculty.name` → `self.profile.group` (FK), `group.program` (FK), `program.faculty` (FK) → potentially 3 queries if not select_related!
+
+      Wait, `self.profile` is set by `get_profile_for_role` via `getattr(user, "student_profile")`. Does that select_related? No — it's just `getattr(user, "student_profile")` which does a reverse OneToOne lookup, 1 query for StudentProfile. Then `self.profile.group` is a FK → 1 query, `.program` → 1 query, `.faculty` → 1 query.
+
+      So `faculty_name = self.profile.group.program.faculty.name` needs select_related. Hmm. Let me look at how other views handle this. Actually, let me check the query count budget: AC12 says student page ≤ 14 queries. With select_related properly, we can keep it low.
+
+      Actually, the spec §5.4 for StudentChatView GET says:
+      "`dialog = Dialog.objects.filter(student=self.profile).first()`; history if dialog else empty; after building the context: if the last shown message id > 0 → `mark_read(dialog.pk, "student", last_id)`. Context also `form = MessageForm()`, `faculty_name = self.profile.group.program.faculty.name`, `form_action = reverse("chat:student")`, `poll_url = reverse("chat:student_updates")`, `refresh_url = reverse("chat:student")`."
+
+      So `faculty_name = self.profile.group.program.faculty.name`. `self.profile` comes from the mixin. To keep query count low, I might want to select_related on the profile. But the mixin's `get_profile_for_role` does `getattr(user, attr)` without select_related.
+
+      Let me check the query count test budget: `test_student_page_constant` (2 vs 30 messages; ≤ 14). Let me count the queries for the student page with a dialog and 2 messages:
+
+      1. Session/auth middleware queries (session, user) — these are typically 2-3 queries but Django test client... actually `assertNumQueries` around the response counts all queries including session.
+
+      Hmm, this is getting complicated. Let me look at how existing query count tests are written (e.g., in petitions or notifications) to understand what's counted.
+
+      Actually, let me look at the QueryCountTests expectation. The test uses `assertNumQueries` around `self.client.get(...)`. This counts ALL queries during the request including middleware. Let me check existing tests for query counts to see the pattern.
+
+      Let me search for existing query count tests.
+    ── Searched for assertNumQueries
+    ── Read file read
+      self.item = make_item(self.w.gx1, self.disc, self.term)
+              self.rtype = make_type("Справка")
+              self._n = 0
+
+          def _add_feed_batch(self):
+              """Add one row of every one of the 6 feed sources for student ax."""
+              self._n += 1
+              n = self._n
+              make_announcement(self.w.sx, audience=Audience.UNIVERSITY, title=f"Новость {n}")
+              petition = make_petition(self.w.ax_profile, self.rtype)
+              change_status(petition, self.w.sx, "submitted", "in_progress")
+              PetitionComment.objects.create(
+                  petition=petition, author=self.w.sx, text="Комментарий", created_at=timezone.now()
+              )
+              room = make_room(f"room-{100 + n}")
+              lesson = make_lesson([self.w.gx1], weekday=2, slot=n, room=room, discipline=self.disc)
+              save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=lesson, original_date=D, kind=ChangeKind.CANCELLED, reason="Причина"
+                  )
+              )
+              make_mark(self.w.ax_profile, self.item, 5, D - timedelta(days=n), "Семинар")
+              disc = make_discipline(f"Результат {n}")
+              item = make_item(self.w.gx1, disc, self.term)
+              make_result(self.w.ax_profile, item, "5", date=D)
+
+          def test_badge_exactly_three_queries(self):
+              user = User.objects.get(pk=self.w.ax.pk)
+              with self.assertNumQueries(3):
+                  badge_for_user(user)
+
+          def test_feed_queries_constant(self):
+              self.client.force_login(self.w.ax)
+              self._add_feed_batch()
+              set_seen(self.w.ax, moscow(NOW) - timedelta(days=1))
+              count_one = _query_count(lambda: self.client.get(reverse("notifications:feed")))
+              for _ in range(4):
+                  self._add_feed_batch()
+              set_seen(self.w.ax, moscow(NOW) - timedelta(days=1))
+              count_many = _query_count(lambda: self.client.get(reverse("notifications:feed")))
+              self.assertEqual(count_one, count_many)
+              self.assertLessEqual(count_one, 20)
+
+          def test_profile_page_counter_constant(self):
+              self.client.force_login(self.w.ax)
+              zero = _query_count(lambda: self.client.get(reverse("accounts:profile")))
+              for _ in range(10):
+                  make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+              ten = _query_count(lambda: self.client.get(reverse("accounts:profile")))
+              self.assertEqual(zero, ten)
+
+          def test_staff_list_queries_constant(self):
+              make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+              self.client.force_login(self.w.sx)
+              one = _query_count(lambda: self.client.get(reverse("notifications:staff_announcements")))
+              for i in range(3):
+                  make_announcement(
+                      self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx, title=f"Факультет {i}"
+                  )
+              make_announcement(self.w.sx, audience=Audience.GROUP, group=self.w.gx1, title="Группа GX1")
+              make_announcement(self.w.sx, audience=Audience.GROUP, group=self.w.gx2, title="Группа GX2")
+              six = _query_count(lambda: self.client.get(reverse("notifications:staff_announcements")))
+              self.assertEqual(one, six)
+              self.assertLessEqual(one, 10)
+
+          def test_home_queries_constant(self):
+              make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+              self.client.force_login(self.w.ax)
+              one = _query_count(lambda: self.client.get(reverse("core:home")))
+              for i in range(4):
+                  make_announcement(self.w.sx, audience=Audience.UNIVERSITY, title=f"Новость {i}")
+              five = _query_count(lambda: self.client.get(reverse("core:home")))
+              self.assertEqual(one, five)
+
+          def test_home_queries_same_with_deadlines(self):
+              make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+              self.client.force_login(self.w.ax)
+              count_a = _query_count(lambda: self.client.get(reverse("core:home")))
+              for i in range(4):
+                  make_announcement(
+    ── Thought for 291ms
+      Let me find `_query_count` definition.
+    ── Searched for _query_count in notifications/tests/test_views.py
+    ── Read file read
+      from datetime import date, timedelta
+      from unittest import mock
+
+      from django.db import connection
+      from django.test import Client, TestCase
+      from django.test.utils import CaptureQueriesContext
+      from django.urls import reverse
+      from django.utils import timezone
+
+      from academics.tests.helpers import make_item, make_mark, make_result, make_term
+      from accounts.models import User
+      from core.testing import FrozenClockMixin, moscow
+      from notifications.feed import badge_for_user
+      from notifications.forms import AnnouncementForm
+      from notifications.models import Announcement, Audience, NotificationState
+      from petitions.models import PetitionComment
+      from petitions.services import change_status
+      from petitions.tests.helpers import make_petition, make_type
+      from schedule.models import ChangeKind, LessonChange
+      from schedule.mutations import save_lesson_change
+      from schedule.tests.helpers import make_discipline, make_lesson, make_room
+
+      from .helpers import make_announcement, make_world, set_seen
+
+      NOW = "2026-11-11 12:00"
+      D = date(2026, 11, 11)
+
+
+      def _query_count(fn) -> int:
+          with CaptureQueriesContext(connection) as ctx:
+              fn()
+          return len(ctx.captured_queries)
+
+
+      class AnnouncementFormTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+
+          def test_choices_only_own_faculty_groups(self):
+              form = AnnouncementForm(
+                  None,
+                  groups=[self.w.gx1, self.w.gx2],
+    ── Thought for 44s
+      Good. Now I understand the query count test pattern. The `_query_count` counts all queries in the request (including middleware). The test asserts constant between small/large data and an upper bound.
+
+      I need to be careful about select_related for the student page to stay ≤ 14 queries. Let me think about what the student page needs:
+
+      1. Middleware: session + auth user. In test with `force_login`, the session/user is cached. Let me not over-think; the important thing is the view's own queries are constant regardless of message count.
+
+      The `faculty_name = self.profile.group.program.faculty.name` requires:
+      - self.profile (StudentProfile) - from mixin
+      - self.profile.group - FK
+      - group.program - FK
+      - program.faculty - FK
+
+      That's potentially 3 queries (group, program, faculty) if not select_related. But these are constant (not dependent on message count), so the "constant" property holds. The upper bound ≤ 14 must hold.
+
+      Let me estimate total queries for student page GET with a dialog:
+      - Session middleware: session (1), user (1) — with force_login, the user is cached after login? Actually force_login sets `_cached_user`? No. Let me not overthink; other tests pass with similar views.
+
+      Actually, let me look at how the existing student-facing views handle faculty_name or similar to understand query counts. The profile view, for instance.
+
+      Actually, let me just write the code following the spec exactly, then write the query count tests, run them, and adjust select_related if needed to meet the ≤ 14 bound.
+
+      Let me think about the profile for the mixin. `StudentRequiredMixin.dispatch` sets `self.profile = get_profile_for_role(request.user, "student")` which does `getattr(user, "student_profile")` → 1 query (StudentProfile). Then `self.profile.group` → 1 query (StudyGroup), `.program` → 1 query (Program), `.faculty` → 1 query (Faculty). So 4 queries for the profile chain + faculty_name.
+
+      To reduce, I could select_related the profile. But the mixin doesn't. I could, in the view, re-fetch or select_related. But the spec says `faculty_name = self.profile.group.program.faculty.name`. Hmm.
+
+      Actually, wait — is `self.profile` already having group cached? No. Let me just follow spec and measure. The bound is 14, which is generous.
+
+      Let me estimate the full student page query count:
+      1. session (SessionMiddleware) - 1
+      2. auth user (AuthenticationMiddleware) - 1 (cached via force_login? force_login sets request.user = user, but AuthenticationMiddleware still runs `get_user` which... actually force_login stores in session and sets `self._login(user)` which sets `request.user = user` and also the middleware uses `user_cached`? Let me not overthink.)
+
+      Actually, the key insight from the notifications test: `test_badge_exactly_three_queries` calls `badge_for_user(user)` directly with assertNumQueries(3). And `test_header_student_four_queries` in our spec asserts `assertNumQueries(4)` around rendering both tags directly (not a full request): `badge_for_user(user)` (3 queries) + `student_unread_count(user)` (1 query) = 4.
+
+      So for the header test, they call the tag functions directly. Good.
+
+      For the page query count tests, they use `_query_count(lambda: self.client.get(...))` which counts everything.
+
+      Let me just write it and measure. The bound is ≤ 14 for student page, ≤ 6 for staff list, ≤ 10 for staff dialog, ≤ 8 for fragment.
+
+      Let me be efficient and write everything, then run tests and fix query counts.
+
+      Let me now write the remaining files. First forms.py, views.py, urls.py.
+
+      For views.py, let me carefully write it.
+
+      ```python
+      import uuid
+
+      from django.core.exceptions import PermissionDenied, ValidationError
+      from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
+      from django.shortcuts import get_object_or_404, redirect
+      from django.urls import reverse
+      from django.utils.decorators import method_decorator
+      from django.views.decorators.cache import never_cache
+      from django.views.generic import TemplateView, View
+
+      from accounts.access import StaffRequiredMixin, StudentRequiredMixin
+
+      from .constants import FRAGMENT_LIMIT, HISTORY_LIMIT, POLL_INTERVAL_SECONDS, POLL_MAX_ERRORS
+      from .forms import MessageForm
+      from .models import Dialog
+      from .selectors import dialogs_visible_to, staff_dialog_list
+      from .services import load_history, mark_read, messages_after, send_staff_message, send_student_message
+      ```
+
+      Wait, I need `render` for the fragment view. The fragment view renders `chat/_messages.html` with a context. Let me use `render(request, "chat/_messages.html", context)`.
+
+      Let me define `_history_context`:
+
+      ```python
+      def _history_context(dialog, viewer_is_student, poll_url, refresh_url):
+          messages, truncated = load_history(dialog)
+          return {
+              "messages": messages,
+              "truncated": truncated,
+              "poll_url": poll_url,
+              "poll_ms": POLL_INTERVAL_SECONDS * 1000,
+              "poll_max_errors": POLL_MAX_ERRORS,
+              "history_limit": HISTORY_LIMIT,
+              "student_name": dialog.student.full_name,
+              "viewer_is_student": viewer_is_student,
+              "client_token": uuid.uuid4(),
+          }
+      ```
+
+      Wait, but the `_history.html` template references `poll_url`, `poll_ms`, `poll_max_errors`, `history_limit`, `empty_text`, `messages`, `truncated`. And `_message.html` references `viewer_is_student`, `student_name`. So the context dict needs `viewer_is_student` too (for the included `_message.html`).
+
+      Actually, looking at `_history.html`, it includes `_message.html` for each message. The `_message.html` uses `viewer_is_student` and `student_name`. So `_history_context` must provide those. The spec says the helper returns "messages, truncated, poll_ms, poll_max_errors, history_limit, student_name, client_token". It doesn't explicitly list `viewer_is_student`, but `_message.html` needs it. Hmm.
+
+      Wait, let me re-read. The spec for `_history_context`:
+      "Shared helper `_history_context(dialog, viewer_is_student, poll_url, refresh_url) -> dict` (messages, truncated, `poll_ms = POLL_INTERVAL_SECONDS * 1000`, `poll_max_errors`, `history_limit`, `student_name`, `client_token = uuid.uuid4()`)."
+
+      It takes `viewer_is_student` as a param, so it must be included in the returned dict (otherwise why pass it). The list in parens is probably non-exhaustive of the important computed values. I'll include `viewer_is_student` in the dict.
+
+      Also `empty_text` is a template context var but it's passed separately per-view (student view passes empty text, staff view passes "" or unused). Actually `_history.html` uses `{{ empty_text }}`. So the view context must include `empty_text`. Let me check: the student template includes `_history.html` with empty text «Сообщений пока нет...», staff dialog includes with empty text unused.
+
+      Actually, looking more carefully: the spec templates:
+      - `chat/_history.html` references `empty_text`.
+      - `chat/student.html` includes `_history.html` with "empty text: «Сообщений пока нет...»".
+      - `chat/staff_dialog.html` includes `_history.html` (empty text unused).
+
+      So `empty_text` must be in context. But `_history_context` doesn't list it. Hmm. Maybe `empty_text` is passed via the view's `get_context_data` and merged. Actually, `_history.html` is included with `{% include %}` which by default inherits the parent context (all context vars available). So `empty_text` needs to be in the parent context.
+
+      Let me structure the views to add `empty_text` in get_context_data (or as part of the merged context).
+
+      Actually, let me reconsider. The `_history.html` template is a partial included from student.html and staff_dialog.html. It references `empty_text`. So the view's context must contain `empty_text`, `poll_url`, `poll_ms`, `poll_max_errors`, `history_limit`, `messages`, `truncated`, `viewer_is_student`, `student_name`.
+
+      The helper `_history_context` returns most of these. I'll add `empty_text` in the view's `get_context_data`.
+
+      Let me structure:
+
+      ```python
+      class StudentChatView(StudentRequiredMixin, TemplateView):
+          template_name = "chat/student.html"
+          http_method_names = ["get", "post"]
+
+          def get_context_data(self, **kwargs):
+              context = super().get_context_data(**kwargs)
+              dialog = Dialog.objects.filter(student=self.profile).first()
+              if dialog is not None:
+                  context.update(
+                      _history_context(
+                          dialog,
+                          viewer_is_student=True,
+                          poll_url=reverse("chat:student_updates"),
+                          refresh_url=reverse("chat:student"),
+                      )
+                  )
+                  last_id = context["messages"][-1].pk if context["messages"] else 0
+                  if last_id > 0:
+                      mark_read(dialog.pk, "student", last_id)
+              else:
+                  context.update(
+                      {
+                          "messages": [],
+                          "truncated": False,
+                          "poll_ms": POLL_INTERVAL_SECONDS * 1000,
+                          "poll_max_errors": POLL_MAX_ERRORS,
+                          "history_limit": HISTORY_LIMIT,
+                          "viewer_is_student": True,
+                          "student_name": self.profile.full_name,
+                          "client_token": uuid.uuid4(),
+                          "poll_url": reverse("chat:student_updates"),
+                          "refresh_url": reverse("chat:student"),
+                      }
+                  )
+              context["empty_text"] = "Сообщений пока нет. Напишите вопрос — ответит сотрудник деканата вашего факультета."
+              context["form"] = MessageForm()
+              context["faculty_name"] = self.profile.group.program.faculty.name
+              context["form_action"] = reverse("chat:student")
+              context["form_label"] = "Сообщение"
+              return context
+      ```
+
+      Hmm wait, but the spec for StudentChatView GET says the flow is:
+      "GET: dialog = Dialog.objects.filter(student=self.profile).first(); history if dialog else empty; after building the context: if the last shown message id > 0 → mark_read(dialog.pk, "student", last_id)."
+
+      So the empty-state handling: when no dialog, messages empty. The `_history.html` shows empty text. But `_history.html` also references `poll_url`, `poll_ms`, etc. So even with no dialog, those must be present (the JS polls even with no dialog? Actually with no dialog, `data-chat-poll-url` is still set, and polling returns 204. So yes, the student page always has the poll URL).
+
+      Actually, wait — with no dialog, the student fragment view returns 204. The page still renders `_history.html` with the poll URL and empty message list + empty text. So the context must have all the same keys.
+
+      This is getting verbose. Let me simplify by always calling a helper that builds the full context. But the spec structure is specific. Let me write it carefully but cleanly.
+
+      Actually, let me reconsider — maybe `_history_context` should handle the empty case too. But the spec says `_history_context(dialog, ...)` takes a dialog. For the no-dialog case, I'll build the context manually.
+
+      Let me write a cleaner approach. I'll write the full context building inline but factor the common "poll/refresh/form" pieces.
+
+      Actually, let me just follow the spec literally and write it out. It's fine to be a bit verbose.
+
+      For the POST handler:
+      ```python
+      def post(self, request, *args, **kwargs):
+          form = MessageForm(request.POST)
+          if form.is_valid():
+              try:
+                  send_student_message(self.profile, form.cleaned_data["text"], form.cleaned_data["client_token"])
+              except ValidationError as exc:
+                  form.add_error(None, ValidationError(exc.messages))
+              else:
+                  return redirect(reverse("chat:student") + "#chat-form")
+          # re-render with bound form and history (no read marking)
+          context = self.get_context_data()
+          context["form"] = form
+          return self.render_to_response(context)
+      ```
+
+      Wait, but on POST invalid, we need to re-render 200 with the history and bound form, and "no read marking on POST". So I need a way to get context without marking read. Let me factor the GET context building into a method that optionally marks read.
+
+      Let me restructure:
+
+      ```python
+      def _build_context(self, mark=True):
+          context = super().get_context_data()  # actually can't call super in a plain method easily
+          ...
+      ```
+
+      Hmm. Let me use a helper method `_get_context(self)` that builds everything including form, and a separate mark_read step in `get()`.
+
+      Actually, the cleanest: 
+
+      ```python
+      class StudentChatView(StudentRequiredMixin, TemplateView):
+          template_name = "chat/student.html"
+          http_method_names = ["get", "post"]
+
+          def get(self, request, *args, **kwargs):
+              context = self.get_context_data()
+              dialog = context.get("dialog")
+              last_id = context.get("last_id", 0)
+              if dialog is not None and last_id > 0:
+                  mark_read(dialog.pk, "student", last_id)
+              return self.render_to_response(context)
+
+          def post(self, request, *args, **kwargs):
+              form = MessageForm(request.POST)
+              if form.is_valid():
+                  try:
+                      send_student_message(
+                          self.profile, form.cleaned_data["text"], form.cleaned_data["client_token"]
+                      )
+                  except ValidationError as exc:
+                      form.add_error(None, ValidationError(exc.messages))
+                  else:
+                      return redirect(reverse("chat:student") + "#chat-form")
+              context = self.get_context_data()
+              context["form"] = form
+              return self.render_to_response(context)
+
+          def get_context_data(self, **kwargs):
+              context = super().get_context_data(**kwargs)
+              dialog = Dialog.objects.filter(student=self.profile).first()
+              history = {}
+              if dialog is not None:
+                  history = _history_context(dialog, True, reverse("chat:student_updates"), reverse("chat:student"))
+                  last_id = history["messages"][-1].pk if history["messages"] else 0
+              else:
+                  last_id = 0
+                  history = _empty_history(...)
+              context.update(history)
+              context["dialog"] = dialog
+              context["last_id"] = last_id
+              context["form"] = context.get("form") or MessageForm()  # hmm
+              ...
+      ```
+
+      This is getting messy with the form. Let me use a simpler approach: `get_context_data` builds everything except the form (or includes `form=MessageForm()`), and `post` overrides form.
+
+      Actually, the cleanest matching spec: 
+
+      ```python
+      def get_context_data(self, **kwargs):
+          context = super().get_context_data(**kwargs)
+          dialog = Dialog.objects.filter(student=self.profile).first()
+          if dialog is not None:
+              context.update(_history_context(dialog, True, poll_url, refresh_url))
+              self._last_id = context["messages"][-1].pk if context["messages"] else 0
+              self._dialog = dialog
+          else:
+              context.update(_empty_history_context(...))
+              self._last_id = 0
+              self._dialog = None
+          context["form"] = MessageForm()
+          context["faculty_name"] = ...
+          context["form_action"] = ...
+          context["form_label"] = "Сообщение"
+          context["empty_text"] = ...
+          return context
+      ```
+
+      Then `get()` calls `get_context_data()` and then marks read using `self._dialog`/`self._last_id`. But storing on self across requests is a bit hacky but works within a single request. Actually TemplateView.get calls get_context_data. If I override get() to also do mark_read after get_context_data, I need the dialog+last_id. Storing on self is fine.
+
+      Actually, simpler: override `get()` fully and do the marking inline.
+
+      Let me write it cleanly with a helper `_student_context(self)` that returns (context, dialog, last_id) or just builds context and I compute last_id from it.
+
+      I think the cleanest is:
+
+      ```python
+      def get_context_data(self, **kwargs):
+          context = super().get_context_data(**kwargs)
+          dialog = Dialog.objects.filter(student=self.profile).first()
+          if dialog is not None:
+              context.update(
+                  _history_context(
+                      dialog,
+                      viewer_is_student=True,
+                      poll_url=reverse("chat:student_updates"),
+                      refresh_url=reverse("chat:student"),
+                  )
+              )
+          else:
+              context.update(_empty_history(viewer_is_student=True, poll_url=..., refresh_url=...))
+          context["dialog"] = dialog
+          context["form"] = MessageForm()
+          context["faculty_name"] = self.profile.group.program.faculty.name
+          context["form_action"] = reverse("chat:student")
+          context["form_label"] = "Сообщение"
+          context["empty_text"] = EMPTY_TEXT
+          return context
+
+      def get(self, request, *args, **kwargs):
+          context = self.get_context_data(**kwargs)
+          dialog = context["dialog"]
+          if dialog is not None and context["messages"]:
+              mark_read(dialog.pk, "student", context["messages"][-1].pk)
+          return self.render_to_response(context)
+      ```
+
+      This is clean. `mark_read` on the last message id.
+
+      For the staff dialog view similarly.
+
+      Now let me write `_empty_history` helper or inline. Actually, let me make `_history_context` handle the empty case by allowing dialog=None? No, spec says `_history_context(dialog, ...)`. But I can make a small inline dict for empty.
+
+      Let me define a module-level helper for the "no dialog" empty history:
+
+      ```python
+      def _empty_history(viewer_is_student, poll_url, refresh_url, student_name=""):
+          return {
+              "messages": [],
+              "truncated": False,
+              "poll_ms": POLL_INTERVAL_SECONDS * 1000,
+              "poll_max_errors": POLL_MAX_ERRORS,
+              "history_limit": HISTORY_LIMIT,
+              "viewer_is_student": viewer_is_student,
+              "student_name": student_name,
+              "client_token": uuid.uuid4(),
+              "poll_url": poll_url,
+              "refresh_url": refresh_url,
+          }
+      ```
+
+      OK. Now let me write the views. For the fragment views:
+
+      StudentChatUpdatesView:
+      ```python
+      class StudentChatUpdatesView(StudentRequiredMixin, View):
+          http_method_names = ["get"]
+
+          def get(self, request, *args, **kwargs):
+              after = request.GET.get("after", "")
+              if not re.fullmatch(r"\d{1,18}", after):
+                  return HttpResponseBadRequest()
+              dialog = Dialog.objects.filter(student=self.profile).first()
+              if dialog is None:
+                  return HttpResponse(status=204)
+              rows = messages_after(dialog, int(after))
+              if not rows:
+                  return HttpResponse(status=204)
+              mark_read(dialog.pk, "student", rows[-1].pk)
+              response = render(request, "chat/_messages.html", {"messages": rows, "viewer_is_student": True})
+              response["X-Chat-Fragment"] = "1"
+              response["Content-Type"] = "text/html; charset=utf-8"
+              return response
+      ```
+
+      Wait, `render` already sets Content-Type to text/html; charset=utf-8. But setting it explicitly is fine. Actually `render` returns HttpResponse with content_type "text/html". Let me check — `django.shortcuts.render` uses `HttpResponse` with content_type from `content_type` param (default None → text/html). Actually the default for HttpResponse content_type is "text/html". And charset utf-8 is added by Django's DEFAULT_CHARSET. So `render` already produces "text/html; charset=utf-8". But the spec explicitly says set it. I'll set it explicitly to be safe/clear.
+
+      Actually, setting `response["Content-Type"] = "text/html; charset=utf-8"` might double-set charset. It's harmless. But `render` sets content_type="text/html" (mimetype). The header will be "text/html; charset=utf-8" already. Setting it again to the same is fine.
+
+      Hmm, actually, the `_messages.html` template just renders `<li>` elements. `render()` wraps in HttpResponse. Good.
+
+      For the fragment, `never_cache` is applied via `@method_decorator(never_cache, name="dispatch")` on the class. But `View` class — does it have `dispatch`? Yes, `django.views.generic.View` has `dispatch`. So `@method_decorator(never_cache, name="dispatch")` works on View subclasses too.
+
+      Wait, but the spec says "All views decorated `@method_decorator(never_cache, name="dispatch")`." So all 5 views.
+
+      StaffDialogUpdatesView:
+      ```python
+      class StaffDialogUpdatesView(StaffRequiredMixin, View):
+          http_method_names = ["get"]
+
+          def get(self, request, *args, **kwargs):
+              after = request.GET.get("after", "")
+              if not re.fullmatch(r"\d{1,18}", after):
+                  return HttpResponseBadRequest()
+              dialog = get_object_or_404(dialogs_visible_to(request.user), public_id=kwargs["public_id"])
+              rows = messages_after(dialog, int(after))
+              if not rows:
+                  return HttpResponse(status=204)
+              mark_read(dialog.pk, "staff", rows[-1].pk)
+              response = render(request, "chat/_messages.html", {"messages": rows, "viewer_is_student": False, "student_name": dialog.student.full_name})
+              response["X-Chat-Fragment"] = "1"
+              response["Content-Type"] = "text/html; charset=utf-8"
+              return response
+      ```
+
+      Wait, the staff fragment needs `student_name` and `viewer_is_student=False` for `_message.html`. Also `_message.html` for staff messages accesses `m.author.staff_profile.short_name`. So `messages_after` uses `select_related("author__staff_profile")`. Good.
+
+      For the student fragment, `viewer_is_student=True`, so `_message.html` renders "Вы" for student messages, and "Деканат · {{ m.author.staff_profile.short_name }}" for staff messages. So `m.author.staff_profile` needs to be loaded — `messages_after` already select_related author__staff_profile. Good.
+
+      Now `StaffDialogView` GET:
+      ```python
+      class StaffDialogView(StaffRequiredMixin, TemplateView):
+          template_name = "chat/staff_dialog.html"
+          http_method_names = ["get", "post"]
+
+          def get_object(self):
+              return get_object_or_404(
+                  dialogs_visible_to(self.request.user).select_related("student__group__program__faculty"),
+                  public_id=self.kwargs["public_id"],
+              )
+
+          def get_context_data(self, **kwargs):
+              context = super().get_context_data(**kwargs)
+              dialog = self.get_object()
+              context["dialog"] = dialog
+              context.update(
+                  _history_context(
+                      dialog,
+                      viewer_is_student=False,
+                      poll_url=reverse("chat:staff_updates", args=[dialog.public_id]),
+                      refresh_url=reverse("chat:staff_dialog", args=[dialog.public_id]),
+                  )
+              )
+              context["form"] = MessageForm()
+              context["form_action"] = reverse("chat:staff_dialog", args=[dialog.public_id])
+              context["form_label"] = "Ответ"
+              context["empty_text"] = ""
+              return context
+
+          def get(self, request, *args, **kwargs):
+              context = self.get_context_data(**kwargs)
+              if context["messages"]:
+                  mark_read(context["dialog"].pk, "staff", context["messages"][-1].pk)
+              return self.render_to_response(context)
+
+          def post(self, request, *args, **kwargs):
+              dialog = self.get_object()
+              form = MessageForm(request.POST)
+              if form.is_valid():
+                  try:
+                      send_staff_message(dialog, request.user, form.cleaned_data["text"], form.cleaned_data["client_token"])
+                  except (ValidationError, PermissionDenied) as exc:
+                      form.add_error(None, ValidationError(exc.messages if isinstance(exc, ValidationError) else ["Доступ запрещён."]))
+                  else:
+                      return redirect(reverse("chat:staff_dialog", args=[dialog.public_id]) + "#chat-form")
+              context = self.get_context_data(**kwargs)
+              context["form"] = form
+              return self.render_to_response(context)
+      ```
+
+      Hmm, `send_staff_message` raises PermissionDenied if the dialog is not visible. But we already got the dialog via `get_object` which 404s if not visible. So PermissionDenied shouldn't happen in practice (unless a race). The spec says `send_staff_message` "re-check of scope inside the lock". So PermissionDenied is a safety net. In the view, I'll catch ValidationError for the form errors; PermissionDenied would propagate as 403, which is acceptable. Actually, let me handle both. The spec for POST says:
+
+      "POST → `send_staff_message(dialog, request.user, …)` → `redirect(...)`."
+
+      It doesn't explicitly mention error handling for staff. Let me mirror the student POST handling (catch ValidationError → form.add_error, re-render). PermissionDenied can just propagate (it's a 403). Actually, if send_staff_message raises PermissionDenied, that's a bug/race; letting it propagate to 403 is fine and safer than swallowing.
+
+      Let me simplify: catch ValidationError only.
+
+      Now the `_message.html` uses `m.author.staff_profile.short_name`. For staff messages, `m.author` is a staff User, and `m.author.staff_profile` is the StaffProfile. `short_name` is now a property. Good.
+
+      For `student_name` in staff view — `_history_context` computes `student_name = dialog.student.full_name`. `dialog` was fetched with `select_related("student__group__program__faculty")`, so `dialog.student` is loaded (StudentProfile has full_name from local fields). Good, no extra query.
+
+      Now `StaffChatListView`:
+      ```python
+      class StaffChatListView(StaffRequiredMixin, TemplateView):
+          template_name = "chat/staff_list.html"
+          http_method_names = ["get"]
+
+          def get_context_data(self, **kwargs):
+              context = super().get_context_data(**kwargs)
+              context["dialogs"] = staff_dialog_list(self.request.user)
+              return context
+      ```
+
+      The staff_list.html uses `d.student.full_name`, `d.student.group.name`, `d.last_message_at`, `d.unread`. `staff_dialog_list` uses `select_related("student__group")`. So `d.student.full_name` (local fields) and `d.student.group.name` (loaded via select_related) work. `d.unread` from annotate. Good.
+
+      Now the staff_list template iterates `{% for d in dialogs %}`. Since `staff_dialog_list` returns a QuerySet (sliced), `{% for %}` works.
+
+      Now let me also handle `_history.html` `empty_text` for staff_list — no, staff_list doesn't use `_history.html`, it's a plain list.
+
+      Now let me write the urls.py:
+
+      ```python
+      from django.urls import path
+      from . import views
+
+      app_name = "chat"
+      urlpatterns = [
+          path("chat/", views.StudentChatView.as_view(), name="student"),
+          path("chat/updates/", views.StudentChatUpdatesView.as_view(), name="student_updates"),
+          path("staff/chats/", views.StaffChatListView.as_view(), name="staff_list"),
+          path("staff/chats/<uuid:public_id>/", views.StaffDialogView.as_view(), name="staff_dialog"),
+          path("staff/chats/<uuid:public_id>/updates/", views.StaffDialogUpdatesView.as_view(), name="staff_updates"),
+      ]
+      ```
+
+      Now let me write all these files. Let me also write the templatetags.
+
+      chat/templatetags/chat_tags.py:
+      ```python
+      from django import template
+      from chat.constants import CHAT_BADGE_CAP
+      from chat.selectors import student_unread_count
+
+      register = template.Library()
+
+
+      @register.simple_tag(takes_context=True)
+      def chat_unread_badge(context) -> str:
+          request = context.get("request")
+          if request is None:
+              return ""
+          count = student_unread_count(request.user)
+          if count == 0:
+              return ""
+          if count > CHAT_BADGE_CAP:
+              return f"{CHAT_BADGE_CAP}+"
+          return str(count)
+      ```
+
+      And chat/templatetags/__init__.py (empty).
+
+      Now let me write forms.py, views.py, urls.py, admin.py, and templatetags. Then templates and static.
+
+      Let me write them now.
+
+      Actually, let me also double check: `MessageForm.client_token` field is `forms.UUIDField(required=False, widget=forms.HiddenInput)`. But `clean_text` returns the normalized text. And `form.cleaned_data["client_token"]` will be a UUID or None.
+
+      But wait, there's a subtlety: `forms.UUIDField` with empty input returns None (since required=False). Good.
+
+      Now, for the form's `text` field, `strip=False` means the raw text is not stripped by the field. Then `clean_text` normalizes. Good.
+
+      Let me write everything now.
+    ── Created chat/forms.py
+    ── Created chat/urls.py
+    ── Created chat/templatetags/chat_tags.py
+    ── Created chat/templatetags/__init__.py
+    ── Created chat/views.py
+    ── Thought for 494ms
+      Now the admin.py and demo.py. Then templates and static/js/chat.js.
+
+      admin.py per §4.5.
+
+      demo.py per §5.6.
+
+      Let me write admin.py first.
+    ── Created chat/admin.py
+    ── Thought for 11s
+      Now the demo.py. Let me follow §5.6 carefully.
+
+      ```python
+      @dataclass(frozen=True) class ChatSeedSummary: dialogs: int; messages: int (created in this run).
+      CHAT_SEEDS: list of tuples (student, key, author, hours_ago, text).
+
+      The table:
+      | student | key | author | hours_ago | text |
+      | student1 | c-1-1 | student | 30 | ... |
+      | student1 | c-1-2 | staff1 | 28 | ... |
+      | student1 | c-1-3 | student | 27 | ... |
+      | student1 | c-1-4 | staff1 | 3 | ... |
+      | student3 | c-3-1 | student | 6 | ... |
+      | student2 | c-2-1 | student | 50 | ... |
+      | student2 | c-2-2 | staff2 | 48 | ... |
+      | student2 | c-2-3 | student | 2 | ... |
+
+      Read markers for dialogs created in this run:
+      - student1: student_read_id = id(c-1-3) (c-1-4 unread for student), staff_read_id = id(c-1-3)
+      - student3: both 0 (c-3-1 unread for FDD staff)
+      - student2: student_read_id = id(c-2-2), staff_read_id = id(c-2-2) (c-2-3 unread for FAE staff)
+      ```
+
+      Wait, student2: c-2-2 is a staff message (staff2), c-2-3 is student message. student_read_id = id(c-2-2) means the student has read up to c-2-2 (the staff message). c-2-3 is the student's own message, so it's not "unread for student" (student unread = staff messages after student_read_id). staff_read_id = id(c-2-2) means staff has read up to c-2-2, so c-2-3 (student message) is unread for staff. So student2's dialog has an unread student message for FAE staff. ✓.
+
+      student3: c-3-1 is student message, both markers 0, so c-3-1 is unread for FDD staff (student message with id > staff_read_id=0). ✓.
+
+      student1: c-1-4 is staff message (staff1), student_read_id = id(c-1-3), so c-1-4 unread for student. ✓ (student1 has unread reply). staff_read_id = id(c-1-3), so c-1-3 (student message) is... id(c-1-3) > staff_read_id? No, staff_read_id = id(c-1-3), so c-1-3 is NOT > staff_read_id. So no unread student message for staff in student1's dialog. That matches "each faculty (FDD, FAE) has a dialog with an unread student message" — FDD has student3 (c-3-1), FAE has student2 (c-2-3). ✓.
+
+      So the markers:
+      - student1: student_read_id = id(c-1-3), staff_read_id = id(c-1-3)
+      - student3: student_read_id = 0, staff_read_id = 0
+      - student2: student_read_id = id(c-2-2), staff_read_id = id(c-2-2)
+
+      `seed_chat_demo(today: date)`:
+      ```python
+      def seed_chat_demo(today):
+          with transaction.atomic():
+              students = {s.user.username: s for s in StudentProfile.objects.filter(user__username__in=("student1", "student2", "student3"))}
+              staff = {s.user.username: s.user for s in StaffProfile.objects.filter(user__username__in=("staff1", "staff2"))}
+              base = timezone.now()
+              dialogs = 0
+              messages = 0
+              for student_username in ("student1", "student3", "student2"):
+                  seeds = [s for s in CHAT_SEEDS if s.student == student_username]
+                  first_key = seeds[0].key
+                  if Message.objects.filter(seed_key=first_key).exists():
+                      continue
+                  student = students[student_username]
+                  dialog, _ = Dialog.objects.get_or_create(student=student)
+                  ids = {}
+                  for seed in seeds:
+                      author = student.user if seed.author == "student" else staff[seed.author]
+                      role = AuthorRole.STUDENT if seed.author == "student" else AuthorRole.STAFF
+                      message = Message(
+                          dialog=dialog,
+                          author=author,
+                          author_role=role,
+                          text=seed.text,
+                          created_at=base - timedelta(hours=seed.hours_ago),
+                          seed_key=seed.key,
+                      )
+                      message.full_clean()
+                      message.save()
+                      ids[seed.key] = message.pk
+                      messages += 1
+                  # set last_message_* and read markers
+                  markers = {...}
+                  ...
+                  dialogs += 1
+          return ChatSeedSummary(dialogs=dialogs, messages=messages)
+      ```
+
+      For the markers per student:
+      - student1: student_read_id = ids["c-1-3"], staff_read_id = ids["c-1-3"]
+      - student3: student_read_id = 0, staff_read_id = 0
+      - student2: student_read_id = ids["c-2-2"], staff_read_id = ids["c-2-2"]
+
+      last_message_id = ids[last seed key], last_message_at = created_at of last message.
+
+      Let me define the CHAT_SEEDS as a dataclass or tuple. The spec shows a table with columns: student, key, author, hours_ago, text. I'll use a dataclass `ChatSeed` or just tuples. Let me use a frozen dataclass for clarity, or tuples. The spec §5.6 says "CHAT_SEEDS (fictional; ...)". Let me use tuples for simplicity, or a dataclass. I'll use a simple list of tuples/dataclass.
+
+      Actually, let me use a frozen dataclass `ChatSeed` with fields student, key, author, hours_ago, text. Or just a list of tuples. The spec doesn't mandate a dataclass for CHAT_SEEDS. I'll use tuples to keep it simple, but a dataclass is cleaner. Let me use a plain structure.
+
+      Let me define the read markers per student in a dict:
+      ```python
+      MARKERS = {
+          "student1": ("c-1-3", "c-1-3"),
+          "student3": (None, None),
+          "student2": ("c-2-2", "c-2-2"),
+      }
+      ```
+      where None means 0.
+
+      Let me write demo.py.
+
+      Also need to define the text exactly per spec.
+
+      Texts:
+      - c-1-1: "Здравствуйте! Когда можно забрать справку об обучении?"
+      - c-1-2: "Добрый день! Справка будет готова в пятницу, кабинет деканата на 2 этаже."
+      - c-1-3: "Спасибо! А можно получить её в электронном виде?"
+      - c-1-4: "Да, можно. Подайте заявку «Справка об обучении» и укажите это в комментарии."
+      - c-3-1: "Добрый день! Подскажите, где посмотреть график пересдач?"
+      - c-2-1: "Здравствуйте! Нужна ли справка для социальной стипендии?"
+      - c-2-2: "Да, нужна справка о составе семьи. Принесите её в деканат."
+      - c-2-3: "Спасибо! Можно принести копию?"
+
+      hours_ago and authors as in the table.
+
+      Let me write demo.py.
+    ── Created chat/demo.py
+    ── Thought for 22s
+      Now let me generate the migration. But first I need to write the templates, static/js, and update base.html, site_nav_items.html, notifications/sources.py, seed_demo command, README, CSS. Let me do the templates and static and nav now, then generate the migration, then write all tests.
+
+      Let me write the templates first.
+
+      Templates:
+      1. chat/_message.html
+      2. chat/_messages.html
+      3. chat/_history.html
+      4. chat/_form.html
+      5. chat/student.html
+      6. chat/staff_list.html
+      7. chat/staff_dialog.html
+
+      Let me write them per spec exactly.
+
+      _message.html (context: m, viewer_is_student, student_name):
+      ```django
+      <li class="chat-message chat-message--{{ m.author_role }}" id="m-{{ m.pk }}" data-message-id="{{ m.pk }}">
+        <p class="chat-meta"><strong>{% if m.author_role == "staff" %}Деканат · {{ m.author.staff_profile.short_name }}{% elif viewer_is_student %}Вы{% else %}{{ student_name }}{% endif %}</strong> · <time datetime="{{ m.created_at|date:'c' }}">{{ m.created_at|date:"d.m.Y H:i" }}</time></p>
+        <p class="chat-text">{{ m.text|linebreaksbr }}</p>
+      </li>
+      ```
+
+      _messages.html:
+      ```django
+      {% for m in messages %}{% include "chat/_message.html" %}{% endfor %}
+      ```
+
+      _history.html (context: messages, truncated, poll_url, refresh_url, constants):
+      ```django
+      <section class="chat" data-chat-poll-url="{{ poll_url }}" data-chat-poll-ms="{{ poll_ms }}" data-chat-max-errors="{{ poll_max_errors }}">
+        {% if truncated %}<p class="chat-note">Показаны последние {{ history_limit }} сообщений.</p>{% endif %}
+        <ol class="chat-messages" id="chat-messages">
+          {% for m in messages %}{% include "chat/_message.html" %}{% endfor %}
+        </ol>
+        {% if not messages %}<p class="chat-empty" id="chat-empty">{{ empty_text }}</p>{% endif %}
+        <p class="chat-status" data-chat-status role="status" aria-live="polite"></p>
+        <p class="page-actions"><a href="{{ refresh_url }}">Обновить</a></p>
+      </section>
+      ```
+
+      _form.html:
+      ```django
+      <form method="post" class="form chat-form" id="chat-form" action="{{ form_action }}">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <input type="hidden" name="client_token" value="{{ form.client_token.value|default:client_token }}">
+        <p><label for="id_text">{{ form_label }}</label>{{ form.text.errors }}{{ form.text }}</p>
+        <button type="submit">Отправить</button>
+      </form>
+      ```
+
+      student.html:
+      ```django
+      {% extends "base.html" %}
+      {% load static %}
+      {% block title %}Чат с деканатом{% endblock %}
+      {% block extra_head %}<script src="{% static 'js/chat.js' %}" defer></script>{% endblock %}
+      {% block content %}
+      <h1>Чат с деканатом</h1>
+      <p>{{ faculty_name }}</p>
+      {% include "chat/_history.html" %}
+      {% include "chat/_form.html" %}
+      {% endblock %}
+      ```
+
+      staff_list.html:
+      ```django
+      {% extends "base.html" %}
+      {% block title %}Чаты{% endblock %}
+      {% block content %}
+      <h1>Чаты</h1>
+      {% if dialogs %}
+      <ul class="chat-dialogs">
+        {% for d in dialogs %}
+        <li><a href="{% url 'chat:staff_dialog' d.public_id %}">{{ d.student.full_name }}</a> · {{ d.student.group.name }} · {{ d.last_message_at|date:"d.m.Y H:i" }}{% if d.unread %} · <strong>новых: {{ d.unread }}</strong>{% endif %}</li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p>Сообщений от студентов пока нет.</p>
+      {% endif %}
+      {% endblock %}
+      ```
+
+      staff_dialog.html:
+      ```django
+      {% extends "base.html" %}
+      {% load static %}
+      {% block title %}Чат: {{ dialog.student.full_name }}{% endblock %}
+      {% block extra_head %}<script src="{% static 'js/chat.js' %}" defer></script>{% endblock %}
+      {% block content %}
+      <h1>Чат со студентом</h1>
+      <p><a href="{% url 'accounts:staff_student_detail' dialog.student.pk %}">{{ dialog.student.full_name }}</a> · {{ dialog.student.group.name }}</p>
+      <p class="page-actions"><a href="{% url 'chat:staff_list' %}">Все чаты</a></p>
+      {% include "chat/_history.html" %}
+      {% include "chat/_form.html" %}
+      {% endblock %}
+      ```
+
+      Wait, the spec says staff_dialog title is «Чат: <name>». Let me use `{% block title %}Чат: {{ dialog.student.full_name }}{% endblock %}`.
+
+      Now, there's a subtlety in `_history.html` include: it references `empty_text`, `poll_url`, `poll_ms`, `poll_max_errors`, `history_limit`, `messages`, `truncated`, `refresh_url`. And `_message.html` (included within `_history.html`'s loop) references `viewer_is_student`, `student_name`. Since includes inherit context, `viewer_is_student` and `student_name` must be in the parent context (which they are, from `_history_context`/`_empty_history`).
+
+      Note: `_history.html` is included with `{% include "chat/_history.html" %}` (no `with`), so it uses the full parent context. Good.
+
+      Now let me write these templates.
+
+      For static/js/chat.js, per §4.8. Let me write it carefully as a vanilla IIFE.
+
+      Let me write the JS:
+      ```js
+      (function () {
+        "use strict";
+
+        var root = document.querySelector("[data-chat-poll-url]");
+        if (!root) {
+          return;
+        }
+        var list = document.getElementById("chat-messages");
+        var status = root.querySelector("[data-chat-status]");
+        var url = root.dataset.chatPollUrl;
+        var interval = Number(root.dataset.chatPollMs) || 5000;
+        var maxErrors = Number(root.dataset.chatMaxErrors) || 5;
+        var errors = 0;
+        var timer = null;
+        var stopped = false;
+
+        function lastId() {
+          var items = list.querySelectorAll("li[data-message-id]");
+          if (items.length === 0) {
+            return "0";
+          }
+          return items[items.length - 1].getAttribute("data-message-id");
+        }
+
+        function schedule() {
+          if (!stopped && !document.hidden) {
+            timer = setTimeout(poll, interval);
+          }
+        }
+
+        function poll() {
+          timer = null;
+          fetch(url + "?after=" + encodeURIComponent(lastId()), {
+            credentials: "same-origin",
+            cache: "no-store",
+            headers: { "X-Requested-With": "XMLHttpRequest" },
+          })
+            .then(function (response) {
+              if (response.redirected || (response.ok && !response.headers.get("X-Chat-Fragment"))) {
+                throw new Error("redirected");
+              }
+              if (response.status === 204) {
+                errors = 0;
+                return;
+              }
+              if (response.ok) {
+                return response.text().then(function (text) {
+                  var doc = new DOMParser().parseFromString(text, "text/html");
+                  var nodes = doc.body.querySelectorAll("li[data-message-id]");
+                  var added = false;
+                  for (var i = 0; i < nodes.length; i++) {
+                    var node = nodes[i];
+                    if (document.getElementById(node.id)) {
+                      continue;
+                    }
+                    list.appendChild(document.importNode(node, true));
+                    added = true;
+                  }
+                  if (added) {
+                    var empty = document.getElementById("chat-empty");
+                    if (empty) {
+                      empty.parentNode.removeChild(empty);
+                    }
+                    if (list.lastElementChild) {
+                      list.lastElementChild.scrollIntoView({ block: "nearest" });
+                    }
+                  }
+                  errors = 0;
+                });
+              }
+              throw new Error("status " + response.status);
+            })
+            .catch(function () {
+              errors += 1;
+              if (errors >= maxErrors) {
+                stopped = true;
+                status.textContent = "Автообновление остановлено. Нажмите «Обновить».";
+              }
+            })
+            .then(function () {
+              schedule();
+            });
+        }
+
+        document.addEventListener("visibilitychange", function () {
+          if (document.hidden) {
+            clearTimeout(timer);
+            timer = null;
+          } else if (!stopped && timer === null) {
+            poll();
+          }
+        });
+
+        schedule();
+      })();
+      ```
+
+      Wait, there's an issue with the promise chain. Let me reconsider the algorithm per spec:
+
+      4. `poll()`: `timer = null`; fetch(...):
+         - `response.redirected` or header `X-Chat-Fragment` missing on a 200 → treat as error
+         - `204` → `errors = 0`
+         - `200` → response.text() → parse → append
+         - other status or network error → `errors += 1`; if `errors >= maxErrors` → stopped, status.textContent = ...
+         - finally `schedule()`
+
+      The chain with `.catch` handles both network errors AND the "thrown" errors from redirect/status. But there's a subtlety: for the 204 case, I return early (errors=0), then the `.then(schedule)` runs. For the 200 case, I return a promise (response.text().then(...)). For redirect/bad status, I throw.
+
+      The `.catch` catches thrown errors and the fetch rejection. Then `.then(schedule)` runs in the `finally`-ish position.
+
+      But there's a bug: the 204 case `errors = 0; return;` returns undefined, then `.then(schedule)` runs — good. But wait, when `response.status === 204`, I return early WITHOUT throwing, so `.catch` won't run, and the final `.then(schedule)` runs. Good.
+
+      Actually, my structure is: `.then(handler).catch(handler).then(schedule)`. Let me trace:
+
+      - fetch resolves with response.
+      - `.then(handler)`: handler checks response. If 204, sets errors=0, returns undefined (resolved). If 200 valid, returns response.text().then(...) which resolves after processing. If error condition, throws → rejected.
+      - `.catch(handler)`: catches rejected (from throw or from response.text() rejection or fetch network error). increments errors, maybe stops.
+      - `.then(schedule)`: runs after catch (always, since catch returns resolved unless it throws).
+
+      This works. But one concern: the test `test_no_forbidden_apis` checks for absence of `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `eval(`, `new Function`, `setInterval`. My code uses none of these. Good. Note: `document.importNode` is fine. `DOMParser` fine. `fetch` fine.
+
+      Also `test_uses_required_apis` checks for `DOMParser`, `visibilitychange`, `X-Chat-Fragment`, `importNode`, `data-chat-poll-url` / `chatPollUrl`, `textContent`. My code has all: `DOMParser`, `visibilitychange`, `"X-Chat-Fragment"`, `document.importNode`, `[data-chat-poll-url]` and `root.dataset.chatPollUrl`, `status.textContent`. Good.
+
+      `test_strict_iife`: starts with `(function () {` and contains `"use strict"`. My code starts with `(function () {` and has `"use strict";`. Good.
+
+      Note: the spec §4.8 step 5 uses `clearTimeout(timer)`, `timer = null` on hidden, and on visible `poll()` immediately. My code does that.
+
+      One thing: the spec says "visible and not stopped and no pending timer → poll() immediately". My code: `else if (!stopped && timer === null) { poll(); }`. Good.
+
+      Now, `node --check` will validate the syntax. Let me make sure no ES2017+ features beyond what's allowed. Actually the spec says "plain ES2017". `fetch`, `DOMParser`, arrow functions? I used `function()` not arrow. `const`/`let` vs `var`. I used `var`. ES2017 supports `let`/`const` but the spec doesn't forbid them. However, to be safe and match "plain ES2017", `var` is fine. Actually `node --check` just checks syntax, not style.
+
+      Wait, one concern: the `.then().catch().then()` promise chain. If `fetch` itself isn't available (very old browser), it'd throw synchronously. But that's fine for the spec.
+
+      Actually, let me reconsider the `poll` function's error handling for the redirect case. The spec says: "`response.redirected` or header `X-Chat-Fragment` missing on a 200 → treat as error (session expired: the login page must never be appended)". My check: `if (response.redirected || (response.ok && !response.headers.get("X-Chat-Fragment")))`. `response.ok` is true for 200-299. But a 200 response without X-Chat-Fragment header is the login page (redirected would be true anyway if it followed a redirect). Actually `response.redirected` is true when the fetch followed a redirect. For a session-expired case, the server returns 302 → browser follows → 200 login page with `redirected=true`. So `response.redirected` catches it. The `!response.headers.get("X-Chat-Fragment")` on a 200 catches a case where a 200 is returned directly without the header (shouldn't happen normally, but defensive).
+
+      But wait — there's a subtlety: a 400 response (bad after) is `!response.ok`. My code: for 400, `response.ok` is false, `response.redirected` false, so it falls through to `throw new Error("status 400")` → caught → errors++. That's fine (400 shouldn't normally happen from polling since lastId is always valid).
+
+      Hmm wait, actually let me re-examine: for 204, `response.ok` is true (204 is 2xx). So my check `if (response.redirected || (response.ok && !response.headers.get("X-Chat-Fragment")))` would be TRUE for a 204 response (since ok=true and no X-Chat-Fragment header)! That's a bug — 204 responses don't have the X-Chat-Fragment header, so my check would treat 204 as an error.
+
+      I need to check 204 BEFORE the redirected/header check. Let me reorder:
+
+      ```js
+      if (response.status === 204) {
+        errors = 0;
+        return;
+      }
+      if (response.redirected || (response.ok && !response.headers.get("X-Chat-Fragment"))) {
+        throw new Error("redirected");
+      }
+      if (response.ok) {
+        return response.text()...
+      }
+      throw new Error("status " + response.status);
+      ```
+
+      That's the correct order. Let me fix the JS.
+
+      Also, the 204 returns before the header check. Good.
+
+      Let me rewrite the poll function with correct ordering.
+
+      Now let me write all templates and the JS.
+
+      Let me also double check: the fragment `_messages.html` renders `<li>` elements with `data-message-id`. The JS appends `li[data-message-id]` nodes. The `list` is `<ol id="chat-messages">`. Good.
+
+      Let me write all files now.
+    ── Created chat/templates/chat/_message.html
+    ── Created chat/templates/chat/_messages.html
+    ── Created chat/templates/chat/_history.html
+    ── Created chat/templates/chat/_form.html
+    ── Created chat/templates/chat/student.html
+    ── Created chat/templates/chat/staff_list.html
+    ── Created chat/templates/chat/staff_dialog.html
+    ── Created static/js/chat.js
+    ── Thought for 893ms
+      Now update base.html and site_nav_items.html, notifications/sources.py, seed_demo command, CSS, README, core/tests/test_nav.py, notifications/tests/test_feed.py.
+
+      Let me update base.html: 
+      1. line 1 `{% load static notifications_tags chat_tags %}`.
+      2. replace badge line with `{% if user.is_student %}{% notifications_badge as badge %}{% chat_unread_badge as chat_badge %}{% endif %}`.
+
+      The current line 16: `{% if user.is_student %}{% notifications_badge as badge %}{% endif %}`.
+
+      Let me edit.
+    ── Edited templates/base.html +1 -1
+      --- a~/hackatonproject/templates/base.html
+      +++ b~/hackatonproject/templates/base.html
+      -{% load static notifications_tags %}<!doctype html>
+      +{% load static notifications_tags chat_tags %}<!doctype html>
+    ── Edited templates/base.html +1 -1
+      --- a~/hackatonproject/templates/base.html
+      +++ b~/hackatonproject/templates/base.html
+      -    {% if user.is_student %}{% notifications_badge as badge %}{% endif %}
+      +    {% if user.is_student %}{% notifications_badge as badge %}{% chat_unread_badge as chat_badge %}{% endif %}
+    ── Edited templates/includes/site_nav_items.html +1
+      --- a~/hackatonproject/templates/includes/site_nav_items.html
+      +++ b~/hackatonproject/templates/includes/site_nav_items.html
+      +  {% url 'chat:student' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Чат{% if chat_badge %} ({{ chat_badge }}){% endif %}</a></li>
+    ── Edited templates/includes/site_nav_items.html +1
+      --- a~/hackatonproject/templates/includes/site_nav_items.html
+      +++ b~/hackatonproject/templates/includes/site_nav_items.html
+      +  {% url 'chat:staff_list' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Чаты</a></li>
+    ── Thought for 2s
+      Now update notifications/sources.py: add ChatReplySource and append to FEED_SOURCES, add imports.
+
+      Add imports:
+      - `from chat.constants import FEED_PREVIEW_CHARS`
+      - `from chat.models import AuthorRole, Message`
+      - `from django.db.models import F` (already has Q, QuerySet; need F)
+      - `from django.utils.text import Truncator`
+
+      Current imports:
+      ```python
+      from django.db.models import Q, QuerySet
+      from django.urls import reverse
+      ```
+      Change to add F.
+
+      Let me add the imports and the ChatReplySource class, and append to FEED_SOURCES.
+
+      Note: `AuthorRole` from chat.models, but notifications/sources.py already imports `from accounts.models import StudentProfile`. And `Message` from chat.models. There's a potential naming conflict? `Message` — is there a `Message` already? No. OK.
+
+      Also, `AuthorRole.STUDENT` and `AuthorRole.STAFF`. The ChatReplySource filters `author_role=AuthorRole.STAFF`.
+
+      Let me write the ChatReplySource class after FinalResultSource and before FEED_SOURCES.
+
+      Let me edit sources.py.
+    ── Edited notifications/sources.py +4 -1
+      --- a~/hackatonproject/notifications/sources.py
+      +++ b~/hackatonproject/notifications/sources.py
+      -from django.db.models import Q, QuerySet
+      +from django.db.models import F, Q, QuerySet
+      +from django.utils.text import Truncator
+      +from chat.constants import FEED_PREVIEW_CHARS
+      +from chat.models import AuthorRole, Message
+    ── Edited notifications/sources.py +26
+      --- a~/hackatonproject/notifications/sources.py
+      +++ b~/hackatonproject/notifications/sources.py
+      +class ChatReplySource(FeedSource):
+      +    kind = "chat_reply"
+      +    tag = "Чат"
+      +    event_field = "created_at"
+      +    related = ()
+      +
+      +    def base_queryset(self, ctx: FeedContext) -> QuerySet:
+      +        return Message.objects.filter(
+      +            dialog__student_id=ctx.student.pk,
+      +            author_role=AuthorRole.STAFF,
+      +            id__gt=F("dialog__student_read_id"),
+      +        )
+      +
+      +    def to_item(self, obj: Message, ctx: FeedContext) -> FeedItem:
+      +        return FeedItem(
+      +            key=f"chat-{obj.pk}",
+      +            kind=self.kind,
+      +            tag=self.tag,
+      +            timestamp=obj.created_at,
+      +            title="Новое сообщение от деканата",
+      +            body=Truncator(obj.text).chars(FEED_PREVIEW_CHARS),
+      +            url=reverse("chat:student"),
+      +        )
+      +
+      +
+      +    ChatReplySource(),
+    ── Thought for 1s
+      Now update the seed_demo command to call seed_chat_demo and print the summary.
+
+      Current command:
+      ```python
+      from academics.demo import seed_academics_demo
+      from accounts.demo import DemoSeedError, seed_demo_data
+      from notifications.demo import seed_notifications_demo
+      from petitions.demo import seed_petitions_demo
+      from schedule.demo import seed_schedule_demo
+      ```
+
+      Add `from chat.demo import seed_chat_demo`.
+
+      In handle(), after notifications:
+      ```python
+      n = seed_notifications_demo(today)
+      c = seed_chat_demo(today)
+      ```
+
+      And print:
+      ```python
+      self.stdout.write(self.style.SUCCESS(f"Chat ready: {c.dialogs} dialogs, {c.messages} messages."))
+      ```
+
+      The spec says "Command: after notifications, `c = seed_chat_demo(today)`; print `self.style.SUCCESS(f"Chat ready: {c.dialogs} dialogs, {c.messages} messages.")`."
+
+      Let me edit.
+    ── Edited accounts/management/commands/seed_demo.py +1
+      --- a~/hackatonproject/accounts/management/commands/seed_demo.py
+      +++ b~/hackatonproject/accounts/management/commands/seed_demo.py
+      +from chat.demo import seed_chat_demo
+    ── Edited accounts/management/commands/seed_demo.py +1
+      --- a~/hackatonproject/accounts/management/commands/seed_demo.py
+      +++ b~/hackatonproject/accounts/management/commands/seed_demo.py
+      +                c = seed_chat_demo(today)
+    ── Edited accounts/management/commands/seed_demo.py +3
+      --- a~/hackatonproject/accounts/management/commands/seed_demo.py
+      +++ b~/hackatonproject/accounts/management/commands/seed_demo.py
+      +        self.stdout.write(
+      +            self.style.SUCCESS(f"Chat ready: {c.dialogs} dialogs, {c.messages} messages.")
+      +        )
+    ── Thought for 594ms
+      Now update the CSS (append chat rules), core/tests/test_nav.py expected lists, notifications/tests/test_feed.py registry test rename.
+
+      CSS append to base.css. Let me read the end of base.css to append properly.
+    ── Read static/css/base.css
+    ── Read file read
+      gap: 0;
+      }
+
+      .site-menu .site-nav-list a,
+      .site-menu .site-nav-list button {
+        display: block;
+        min-height: 2.75rem;
+        line-height: 2.75rem;
+      }
+
+      @media (min-width: 48rem) {
+        .site-nav--wide {
+          display: block;
+        }
+
+        .site-nav-compact {
+          display: none;
+        }
+      }
+    ── Ran cd ~/hackatonproject && cat >> static/css/base.css <<'EOF' .chat-messages, .chat-dialogs {   list-style: none;   margin: 0;   padding: 0; } .chat-message {   margin-bottom: var(--space-3);   padding: var(--space-2);   border: 1px solid var(--color-border);   overflow-wrap: anywhere; } .chat-message--staff {   margin-right: var(--space-4); } .chat-message--student {   margin-left: var(--space-4); } .chat-meta, .chat-text {   margin: 0; } .chat-form textarea {   display: block;   width: 100%;   min-height: 6rem; } .chat-dialogs li {   margin-bottom: var(--space-3);   overflow-wrap: anywhere; } EOF echo "done" && tail -5 static/css/base.css (1s)
+      $ cd ~/hackatonproject && cat >> static/css/base.css <<'EOF'
+
+    .chat-messages,
+    .chat-dialogs {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .chat-message {
+      margin-bottom: var(--space-3);
+      padding: var(--space-2);
+      border: 1px solid var(--color-border);
+      overflow-wrap: anywhere;
+    }
+
+    .chat-message--staff {
+      margin-right: var(--space-4);
+    }
+
+    .chat-message--student {
+      margin-left: var(--space-4);
+    }
+
+    .chat-meta,
+    .chat-text {
+      margin: 0;
+    }
+
+    .chat-form textarea {
+      display: block;
+      width: 100%;
+      min-height: 6rem;
+    }
+
+    .chat-dialogs li {
+      margin-bottom: var(--space-3);
+      overflow-wrap: anywhere;
+    }
+    EOF
+    echo "done" && tail -5 static/css/base.css
+      done
+
+      .chat-dialogs li {
+        margin-bottom: var(--space-3);
+        overflow-wrap: anywhere;
+      }
+    ── Thought for 940ms
+      Now update core/tests/test_nav.py expected lists and notifications/tests/test_feed.py registry test.
+
+      For core/tests/test_nav.py:
+      - student list: `["/profile/", "/schedule/", "/map/", "/grades/", "/requests/", "/chat/", "/notifications/"]`
+      - staff list: `["/profile/", "/staff/schedule/", "/map/", "/staff/requests/", "/staff/chats/", "/staff/announcements/", "/staff/students/"]`
+
+      Let me update both.
+    ── Edited core/tests/test_nav.py +9 -1
+      --- a~/hackatonproject/core/tests/test_nav.py
+      +++ b~/hackatonproject/core/tests/test_nav.py
+      -            ["/profile/", "/schedule/", "/map/", "/grades/", "/requests/", "/notifications/"],
+      +            [
+      +                "/profile/",
+      +                "/schedule/",
+      +                "/map/",
+      +                "/grades/",
+      +                "/requests/",
+      +                "/chat/",
+      +                "/notifications/",
+      +            ],
+    ── Edited core/tests/test_nav.py +1
+      --- a~/hackatonproject/core/tests/test_nav.py
+      +++ b~/hackatonproject/core/tests/test_nav.py
+      +                "/staff/chats/",
+    ── Edited notifications/tests/test_feed.py +2 -2
+      --- a~/hackatonproject/notifications/tests/test_feed.py
+      +++ b~/hackatonproject/notifications/tests/test_feed.py
+      -    def test_default_registry_has_six_sources(self):
+      -        self.assertEqual(len(get_feed_sources()), 6)
+      +    def test_default_registry_has_seven_sources(self):
+      +        self.assertEqual(len(get_feed_sources()), 7)
+    ── Thought for 430ms
+      Now let me generate the migration and verify models load correctly.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py makemigrations chat 2>&1 | tail -20
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py makemigrations chat 2>&1 | tail -20
+      Migrations for 'chat':
+        chat/migrations/0001_initial.py
+          + Create model Dialog
+          + Create model Message
+          + Create index chat_dialog_last_msg_idx on field(s) last_message_at of model dialog
+          + Create index chat_msg_dialog_id_idx on field(s) dialog, id of model message
+          + Create index chat_msg_author_time_idx on field(s) author, created_at of model message
+          + Create constraint chat_message_text_not_empty on model message
+          + Create constraint chat_message_author_role_value on model message
+          + Create constraint chat_message_unique_client_token on model message
+          + Create constraint chat_message_unique_seed_key on model message
+    ── Thought for 696ms
+      Migration generated. Now let me verify the whole app loads without errors by running `python manage.py check`.
+
+      But first, let me check the migration for the `clock.now` default serialization. Let me view the migration quickly to ensure it's correct.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py check 2>&1 | tail -5
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py check 2>&1 | tail -5
+      System check identified no issues (0 silenced).
+    ── Read file read
+      # Generated by Django 5.2.19 on 2026-11-15 17:41
+
+      import core.clock
+      import django.db.models.deletion
+      import uuid
+      from django.conf import settings
+      from django.db import migrations, models
+
+
+      class Migration(migrations.Migration):
+
+          initial = True
+
+          dependencies = [
+              ('accounts', '0002_loginthrottle'),
+              migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+          ]
+
+          operations = [
+              migrations.CreateModel(
+                  name='Dialog',
+                  fields=[
+                      ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                      ('public_id', models.UUIDField(default=uuid.uuid4, editable=False, unique=True)),
+                      ('created_at', models.DateTimeField(default=core.clock.now, editable=False, verbose_name='создан')),
+                      ('last_message_at', models.DateTimeField(blank=True, editable=False, null=True, verbose_name='последнее сообщение')),
+                      ('last_message_id', models.PositiveBigIntegerField(default=0, editable=False)),
+                      ('student_read_id', models.PositiveBigIntegerField(default=0, editable=False)),
+                      ('staff_read_id', models.PositiveBigIntegerField(default=0, editable=False)),
+                      ('student', models.OneToOneField(on_delete=django.db.models.deletion.PROTECT, related_name='chat_dialog', to='accounts.studentprofile', verbose_name='студент')),
+                  ],
+                  options={
+                      'verbose_name': 'диалог',
+                      'verbose_name_plural': 'диалоги',
+                      'ordering': ['-last_message_at', '-pk'],
+                  },
+              ),
+              migrations.CreateModel(
+                  name='Message',
+                  fields=[
+                      ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                      ('author_role', models.CharField(choices=[('student', 'Студент'), ('staff', 'Деканат')], max_length=16, verbose_name='роль автора')),
+                      ('text', models.TextField(max_length=2000, verbose_name='текст')),
+                      ('created_at', models.DateTimeField(default=core.clock.now, editable=False, verbose_name='отправлено')),
+                      ('client_token', models.UUIDField(blank=True, editable=False, null=True)),
+                      ('seed_key', models.SlugField(blank=True, default='', editable=False, max_length=40)),
+                      ('author', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='chat_messages', to=settings.AUTH_USER_MODEL, verbose_name='автор')),
+                      ('dialog', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='messages', to='chat.dialog', verbose_name='диалог')),
+                  ],
+                  options={
+                      'verbose_name': 'сообщение',
+                      'verbose_name_plural': 'сообщения',
+                      'ordering': ['id'],
+                  },
+              ),
+              migrations.AddIndex(
+                  model_name='dialog',
+                  index=models.Index(fields=['last_message_at'], name='chat_dialog_last_msg_idx'),
+              ),
+              migrations.AddIndex(
+                  model_name='message',
+                  index=models.Index(fields=['dialog', 'id'], name='chat_msg_dialog_id_idx'),
+              ),
+              migrations.AddIndex(
+                  model_name='message',
+                  index=models.Index(fields=['author', 'created_at'], name='chat_msg_author_time_idx'),
+              ),
+              migrations.AddConstraint(
+                  model_name='message',
+                  constraint=models.CheckConstraint(condition=models.Q(('text', ''), _negated=True), name='chat_message_text_not_empty'),
+              ),
+              migrations.AddConstraint(
+                  model_name='message',
+                  constraint=models.CheckConstraint(condition=models.Q(('author_role__in', ['student', 'staff'])), name='chat_message_author_role_value'),
+              ),
+              migrations.AddConstraint(
+                  model_name='message',
+                  constraint=models.UniqueConstraint(condition=models.Q(('client_token__isnull', False)), fields=('dialog', 'client_token'), name='chat_message_unique_client_token'),
+              ),
+              migrations.AddConstraint(
+                  model_name='message',
+                  constraint=models.UniqueConstraint(condition=models.Q(('seed_key', ''), _negated=True), fields=('seed_key',), name='chat_message_unique_seed_key'),
+              ),
+          ]
+    ── Thought for 7s
+      The migration looks correct. Now let me write the test helpers and test files.
+
+      First, `chat/tests/__init__.py` (empty) and `chat/tests/helpers.py`:
+
+      ```python
+      def make_dialog(student_profile) -> Dialog
+      def add_message(dialog, author, role, text="Текст", created_at=None) -> Message (explicit created_at default timezone.now(), updates last_message_*)
+      ```
+
+      Per §6.0:
+      "`make_dialog(student_profile)`, `add_message(dialog, author, role, text="Текст", created_at=None) -> Message` (explicit `created_at` default `timezone.now()`, updates `last_message_*`)."
+
+      So `add_message` creates a Message and updates the dialog's last_message_at/last_message_id.
+
+      Let me write helpers.py:
+
+      ```python
+      from django.utils import timezone
+
+      from chat.models import AuthorRole, Dialog, Message
+
+
+      def make_dialog(student_profile) -> Dialog:
+          dialog, _ = Dialog.objects.get_or_create(student=student_profile)
+          return dialog
+
+
+      def add_message(dialog, author, role, text="Текст", created_at=None) -> Message:
+          created_at = created_at or timezone.now()
+          message = Message.objects.create(
+              dialog=dialog,
+              author=author,
+              author_role=role,
+              text=text,
+              created_at=created_at,
+          )
+          Dialog.objects.filter(pk=dialog.pk).update(
+              last_message_at=created_at, last_message_id=message.pk
+          )
+          return message
+      ```
+
+      Wait, `role` param: is it a string or AuthorRole? The spec says `add_message(dialog, author, role, ...)`. The `role` should be an AuthorRole value. In tests, they'll pass `AuthorRole.STUDENT` or `AuthorRole.STAFF`. Let me keep it flexible — just pass through to author_role.
+
+      Now let me write all the test files. This is a large amount of test code. Let me be systematic and write them following §6.2, §6.3.
+
+      Let me plan the test files:
+      1. test_models.py — ModelTests
+      2. test_services.py — ServiceTests
+      3. test_selectors.py — SelectorTests
+      4. test_views.py — AccessTests, ViewTests, UpdatesViewTests, AdminTests, NavTests, QueryCountTests, CsrfTests
+      5. test_feed.py — ChatFeedTests
+      6. test_static.py — ChatJsTests
+      7. test_demo.py — ChatSeedTests
+
+      Let me write them one at a time, starting with test_models.py.
+
+      For test_models.py ModelTests (§6.3):
+      - test_one_dialog_per_student (IntegrityError)
+      - test_db_rejects_empty_text
+      - test_db_rejects_bad_role
+      - test_client_token_unique_per_dialog (IntegrityError; same token in another dialog OK; many None OK)
+      - test_ordering_by_id
+      - test_staff_short_name_nbsp (StaffProfile.short_name)
+
+      For these I need to create students/staff/groups/faculties. I'll use `accounts.tests.helpers.make_faculty/make_group/make_student/make_staff`.
+
+      Let me write test_models.py.
+
+      For test_db_rejects_empty_text: create a Message with text="" and expect IntegrityError (from CheckConstraint). But `full_clean` won't catch it since there's no model clean; the DB constraint catches it on save. So `Message.objects.create(... text="")` → IntegrityError.
+
+      For test_db_rejects_bad_role: create Message with author_role="bad" → IntegrityError.
+
+      For test_client_token_unique_per_dialog: create message with client_token=X in dialog1, then another with same token in dialog1 → IntegrityError. Same token in dialog2 → OK. Many None → OK.
+
+      For test_ordering_by_id: create several messages, check `list(Message.objects.all())` ordered by id.
+
+      For test_staff_short_name_nbsp: create a staff profile with middle_name, check short_name == "Фамилия\u00a0И.\u00a0О." and without middle_name == "Фамилия\u00a0И.".
+
+      Let me write these.
+
+      Actually, I need to know how the test uses frozen clock. ModelTests doesn't need frozen clock (no time logic except defaults). But `add_message` uses timezone.now() default. That's fine.
+
+      Let me also think about the `make_student` helper — it creates a User with role STUDENT and a StudentProfile with last_name=f"{username}-last", first_name=f"{username}-first", no middle_name. And `make_staff` similar.
+
+      For test_staff_short_name_nbsp, I need a staff with a middle_name. The make_staff helper doesn't set middle_name. So I'll create a StaffProfile manually or update it.
+
+      Let me write test_models.py.
+
+      Actually, I realize I should be efficient. Let me write all test files carefully but concisely.
+
+      Let me write test_models.py first.
+    ── Created chat/tests/__init__.py
+    ── Created chat/tests/helpers.py
+    ── Created chat/tests/test_models.py
+    ── Thought for 3s
+      Wait, in `test_client_token_unique_per_dialog`, I use `add_message(..., client_token=token)` but my `add_message` helper doesn't accept `client_token`. Let me update the helper to accept `client_token` and `seed_key` as optional kwargs.
+
+      Actually, looking at the spec §6.0: `add_message(dialog, author, role, text="Текст", created_at=None) -> Message`. It doesn't mention client_token. But the test `test_client_token_unique_per_dialog` needs to create messages with a client_token. Let me check — the test uses `add_message(dialog, ..., client_token=token)`? No, I wrote that in my test. But the spec's helper signature doesn't include client_token.
+
+      Hmm. Let me re-read §6.0:
+      "Helpers only (`accounts/tests/helpers.py`, new `chat/tests/helpers.py`: `make_dialog(student_profile)`, `add_message(dialog, author, role, text="Текст", created_at=None) -> Message` (explicit `created_at` default `timezone.now()`, updates `last_message_*`))."
+
+      So the helper signature is exactly `add_message(dialog, author, role, text="Текст", created_at=None)`. No client_token. So in `test_client_token_unique_per_dialog`, I should create messages with client_token directly via `Message.objects.create(...)` rather than `add_message`.
+
+      Let me fix the test to use `Message.objects.create` for client_token tests, or add a separate helper. Actually, the test can create Message directly. Let me rewrite the test to use `Message.objects.create` with client_token, and use `add_message` for the None cases.
+
+      Actually, simpler: keep the helper as-is (no client_token), and in the test, create messages with client_token directly.
+
+      Let me rewrite test_client_token_unique_per_dialog to use Message.objects.create with client_token, and for the None case use add_message.
+
+      Let me also reconsider: `add_message` updates last_message_* but creating Message directly doesn't. That's fine for the uniqueness test (we only care about the constraint).
+
+      Let me rewrite the test.
+    ── Edited chat/tests/test_models.py +23 -5
+      --- a~/hackatonproject/chat/tests/test_models.py
+      +++ b~/hackatonproject/chat/tests/test_models.py
+      -        add_message(dialog, self.student, AuthorRole.STUDENT, client_token=token)
+      +        Message.objects.create(
+      +            dialog=dialog,
+      +            author=self.student,
+      +            author_role=AuthorRole.STUDENT,
+      +            text="x",
+      +            client_token=token,
+      +        )
+      -                add_message(dialog, self.student, AuthorRole.STUDENT, client_token=token)
+      +                Message.objects.create(
+      +                    dialog=dialog,
+      +                    author=self.student,
+      +                    author_role=AuthorRole.STUDENT,
+      +                    text="y",
+      +                    client_token=token,
+      +                )
+      -        add_message(other, self.other_student, AuthorRole.STUDENT, client_token=token)
+      +        Message.objects.create(
+      +            dialog=other,
+      +            author=self.other_student,
+      +            author_role=AuthorRole.STUDENT,
+      +            text="z",
+      +            client_token=token,
+      +        )
+      -        add_message(dialog, self.student, AuthorRole.STUDENT, client_token=None)
+      -        add_message(dialog, self.student, AuthorRole.STUDENT, client_token=None)
+      +        add_message(dialog, self.student, AuthorRole.STUDENT)
+      +        add_message(dialog, self.student, AuthorRole.STUDENT)
+    ── Thought for 34s
+      Now let me write test_services.py. This is the big one with many tests. Let me carefully follow §6.3 ServiceTests.
+
+      Tests:
+      - test_first_message_creates_dialog
+      - test_second_message_same_dialog
+      - test_text_normalised_and_limited
+      - test_empty_rejected
+      - test_rate_limit (20 OK, 21st → ValidationError, still 20 rows)
+      - test_rate_limit_window_moves (20 messages at T−11 min → OK now)
+      - test_staff_no_rate_limit (25 staff replies OK)
+      - test_same_client_token_returns_existing (same object, 1 row; does not count towards limit)
+      - test_two_staff_replies_both_kept_in_id_order
+      - test_send_locks_dialog (mock select_for_update spy, call_count == 2)
+      - test_staff_cannot_write_other_faculty (PermissionDenied, no row)
+      - test_student_cannot_use_staff_send (PermissionDenied)
+      - test_created_at_is_frozen_clock
+      - test_mark_read_monotonic (5 then 3 → stays 5; 0 ignored)
+      - test_history_limit (105 messages → 100 newest, oldest first, truncated True)
+      - test_messages_after (after id, limit 50, ascending)
+
+      This requires FrozenClockMixin with frozen_now = "2026-11-11 12:00".
+
+      Let me think about the world setup. I need two faculties FX, FY, students in FX, staff in FX and FY. Use `notifications.tests.helpers.make_world()` which gives me fx, fy, gx1, gx2, gy1, ax, bx, cx, ay, sx, sy, root, and profiles.
+
+      Actually make_world gives `ax` (student in FX gx1), `bx` (FX gx1), `cx` (FX gx2), `ay` (FY gy1), `sx` (staff FX), `sy` (staff FY), root.
+
+      For services tests:
+      - test_first_message_creates_dialog: send_student_message(ax_profile, "Привет", None) → creates Dialog, returns Message, dialog exists.
+      - test_second_message_same_dialog: send twice → same dialog, 2 messages.
+      - test_text_normalised_and_limited: normalize_text("a\r\nb  ") == "a\nb". 2000 chars OK, 2001 error, 2000 with \r\n counted after normalizing. Use `send_student_message` or `normalize_text`/`text_errors` directly.
+
+      Let me use `normalize_text` and `text_errors` directly for the normalization test, and `send_student_message` for the limit test (with rate limit consideration — but 2000 chars messages count toward rate limit; for limit test I just check ValidationError for 2001).
+
+      Actually, `text_errors` is the cleaner unit. Let me test `text_errors` directly for the length limit, and `normalize_text` for the normalization.
+
+      But the spec test name is `test_text_normalised_and_limited`. I can test both in one method:
+      ```python
+      def test_text_normalised_and_limited(self):
+          self.assertEqual(normalize_text("a\r\nb  "), "a\nb")
+          self.assertEqual(text_errors("a" * 2000), [])
+          self.assertEqual(len(text_errors("a" * 2001)), 1)
+          # 2000 chars with \r\n counted after normalising
+          raw = "a" * 1998 + "\r\n"
+          self.assertEqual(normalize_text(raw), "a" * 1999)  # \r\n -> \n, strip -> no trailing
+          self.assertEqual(text_errors(normalize_text(raw)), [])
+      ```
+
+      Wait, "2000 chars with \r\n counted after normalising": a string with 1998 chars + "\r\n" = 2000 raw chars, but after normalize, "\r\n" → "\n" (1 char) + strip removes trailing "\n" → 1998 chars. Hmm, that's not quite the intent. Let me re-read:
+
+      "`test_text_normalised_and_limited` (`"a\r\nb  "` → `"a\nb"`; 2000 chars OK; 2001 → error; 2000 chars with `\r\n` counted after normalising)"
+
+      The last clause: "2000 chars with \r\n counted after normalising" — means a text that is 2000 chars AFTER normalising is OK, even if raw > 2000 due to \r\n. E.g., "a\r\n" → "a" (1 char). So a message with \r\n line breaks can have raw length > 2000 but normalized ≤ 2000 and be OK.
+
+      Actually the point is: the check is `len(text) > MESSAGE_MAX_LENGTH` on the NORMALIZED text. So `text_errors` is called on the normalized text. Let me test: raw = "a" * 2000 + "\r" (2001 raw chars), normalized = "a"*2000 (2000 chars), so `text_errors(normalize_text(raw)) == []`. And raw = "a"*2001 → normalized 2001 → error.
+
+      Let me write:
+      ```python
+      def test_text_normalised_and_limited(self):
+          self.assertEqual(normalize_text("a\r\nb  "), "a\nb")
+          self.assertEqual(text_errors("a" * 2000), [])
+          self.assertNotEqual(text_errors("a" * 2001), [])
+          self.assertEqual(text_errors(normalize_text("a" * 2000 + "\r\n")), [])
+      ```
+
+      `normalize_text("a"*2000 + "\r\n")` → "a"*2000 + "\n" then strip → "a"*2000. text_errors([]) → []. Good.
+
+      - test_empty_rejected: text_errors("") and text_errors("  \n ") both return errors. Also send_student_message with empty → ValidationError.
+
+      Actually the spec says `test_empty_rejected` (`""`, `"  \n "`). Let me test send_student_message raises ValidationError for both. But send_student_message creates a dialog first (get_or_create), then... wait, no. Let me check the order: send_student_message does `text = normalize_text(text); errors = text_errors(text); if errors: raise ValidationError`. So empty raises before creating dialog. Good.
+
+      But actually, I could just test `text_errors` directly for empty. But the spec AC3 mentions empty rejected at service level. Let me test via `send_student_message` raising ValidationError (and no dialog created).
+
+      - test_rate_limit: 20 OK, 21st raises, still 20 rows. Using send_student_message 20 times, then 21st raises ValidationError. But wait, each send_student_message with rate limit: after 20 messages, the 21st should fail. All with frozen clock (same time). Let me send 20 messages (each with distinct client_token or None — actually client_token None means no idempotency; that's fine). Then 21st raises.
+
+      Actually, `send_student_message(student, "msg", None)` with None client_token — idempotency check skipped. Rate limit counts messages in last 10 min.
+
+      - test_rate_limit_window_moves: 20 messages at T−11 min (created_at = now - 11 min) → then a new message at now is OK. So create 20 messages with created_at in the past (via add_message with explicit created_at, or via send with clock manipulation). Hmm, this is tricky with frozen clock. 
+
+      The frozen clock sets timezone.now() to a fixed value. To test "20 messages at T−11 min", I need messages with created_at = frozen_now - 11 min. I can create them directly via `add_message` (which takes created_at) with created_at = frozen_now - 11 min, then call send_student_message which uses clock.now() = frozen_now, and the rate limit checks `created_at__gt=now - 10min`. Messages at now-11min are NOT in the window, so the send succeeds.
+
+      Let me write:
+      ```python
+      def test_rate_limit_window_moves(self):
+          dialog = make_dialog(self.ax_profile)
+          old = moscow(NOW) - timedelta(minutes=11)
+          for _ in range(20):
+              add_message(dialog, self.ax, AuthorRole.STUDENT, created_at=old)
+          # A new message now is allowed (the old 20 are outside the window).
+          message = send_student_message(self.ax_profile, "новая", None)
+          self.assertEqual(message.dialog, dialog)
+      ```
+
+      But wait — the rate limit query is `Message.objects.filter(author_id=student.user_id, author_role=STUDENT, created_at__gt=now - 10min)`. The 20 old messages have created_at = now - 11min, which is NOT > now - 10min. So recent = 0. Send succeeds. Good.
+
+      - test_staff_no_rate_limit: 25 staff replies OK. Use send_staff_message 25 times on the same dialog.
+
+      - test_same_client_token_returns_existing: send with token, then send again with same token → same object, 1 row, does not count towards limit. 
+
+      ```python
+      def test_same_client_token_returns_existing(self):
+          token = uuid.uuid4()
+          first = send_student_message(self.ax_profile, "Привет", token)
+          second = send_student_message(self.ax_profile, "Привет", token)
+          self.assertEqual(first.pk, second.pk)
+          self.assertEqual(Message.objects.count(), 1)
+      ```
+
+      "does not count towards the limit": send 20 messages with distinct tokens, then re-send one of the tokens 20 more times → still works (idempotent returns existing, no rate limit hit). Actually the spec says "does not count towards the limit" as part of this test. Let me add: after 20 messages (at limit), re-sending an existing token returns the existing message without rate-limit error.
+
+      Actually, let me keep it simpler: the idempotency check happens BEFORE the rate limit check in the service. So even at the limit, a repeated token returns existing. Let me test:
+      ```python
+      def test_same_client_token_returns_existing(self):
+          token = uuid.uuid4()
+          first = send_student_message(self.ax_profile, "Привет", token)
+          # fill up to the rate limit with distinct tokens
+          for _ in range(RATE_LIMIT_MESSAGES - 1):
+              send_student_message(self.ax_profile, "заполнение", uuid.uuid4())
+          # at the limit, a repeated token still returns the existing message
+          again = send_student_message(self.ax_profile, "Привет", token)
+          self.assertEqual(again.pk, first.pk)
+          self.assertEqual(Message.objects.filter(client_token=token).count(), 1)
+      ```
+
+      Hmm, but this mixes concerns. Let me follow spec more literally: "test_same_client_token_returns_existing (same object, 1 row; does not count towards the limit)". I'll do:
+      ```python
+      def test_same_client_token_returns_existing(self):
+          token = uuid.uuid4()
+          first = send_student_message(self.ax_profile, "Привет", token)
+          second = send_student_message(self.ax_profile, "Привет", token)
+          self.assertEqual(first.pk, second.pk)
+          self.assertEqual(Message.objects.filter(dialog=first.dialog).count(), 1)
+          # The idempotent hit does not count towards the rate limit:
+          for _ in range(RATE_LIMIT_MESSAGES - 1):
+              send_student_message(self.ax_profile, "заполнение", uuid.uuid4())
+          self.assertEqual(send_student_message(self.ax_profile, "Привет", token).pk, first.pk)
+      ```
+
+      - test_two_staff_replies_both_kept_in_id_order: two staff users of FX reply; both rows; ids increasing; last_message_id = second. Need two staff users in FX. make_world has sx (FX) and sy (FY). I need a second FX staff. Let me create one via make_staff.
+
+      Actually, `students_visible_to` for a staff returns students of their faculty. For two staff in FX replying to the same dialog, both must be FX staff. Let me create `sx2 = make_staff("sx2", fx)`.
+
+      ```python
+      def test_two_staff_replies_both_kept_in_id_order(self):
+          sx2 = make_staff("sx2", self.fx)
+          dialog = make_dialog(self.ax_profile)
+          first = send_staff_message(dialog, self.sx, "первый", None)
+          second = send_staff_message(dialog, sx2, "второй", None)
+          self.assertLess(first.pk, second.pk)
+          self.assertEqual(Message.objects.filter(dialog=dialog).count(), 2)
+          dialog.refresh_from_db()
+          self.assertEqual(dialog.last_message_id, second.pk)
+      ```
+
+      - test_send_locks_dialog: mock select_for_update spy.
+      ```python
+      def test_send_locks_dialog(self):
+          orig = QuerySet.select_for_update
+          with mock.patch.object(QuerySet, "select_for_update", autospec=True, side_effect=orig) as spy:
+              send_student_message(self.ax_profile, "student", None)
+              dialog = Dialog.objects.get(student=self.ax_profile)
+              send_staff_message(dialog, self.sx, "staff", None)
+          self.assertEqual(spy.call_count, 2)
+      ```
+
+      - test_staff_cannot_write_other_faculty: sy (FY staff) tries to write ax's dialog (FX student) → PermissionDenied, no row.
+      ```python
+      def test_staff_cannot_write_other_faculty(self):
+          dialog = make_dialog(self.ax_profile)
+          with self.assertRaises(PermissionDenied):
+              send_staff_message(dialog, self.sy, "чужая", None)
+          self.assertEqual(Message.objects.filter(dialog=dialog).count(), 0)
+      ```
+
+      - test_student_cannot_use_staff_send: send_staff_message with a student actor → get_profile_for_role raises PermissionDenied.
+      ```python
+      def test_student_cannot_use_staff_send(self):
+          dialog = make_dialog(self.ax_profile)
+          with self.assertRaises(PermissionDenied):
+              send_staff_message(dialog, self.ax, "нельзя", None)
+      ```
+
+      - test_created_at_is_frozen_clock: message.created_at == moscow(NOW).
+      ```python
+      def test_created_at_is_frozen_clock(self):
+          message = send_student_message(self.ax_profile, "Привет", None)
+          self.assertEqual(message.created_at, moscow(NOW))
+      ```
+
+      - test_mark_read_monotonic: 
+      ```python
+      def test_mark_read_monotonic(self):
+          dialog = make_dialog(self.ax_profile)
+          mark_read(dialog.pk, "student", 5)
+          dialog.refresh_from_db()
+          self.assertEqual(dialog.student_read_id, 5)
+          mark_read(dialog.pk, "student", 3)
+          dialog.refresh_from_db()
+          self.assertEqual(dialog.student_read_id, 5)
+          mark_read(dialog.pk, "student", 0)
+          dialog.refresh_from_db()
+          self.assertEqual(dialog.student_read_id, 5)
+      ```
+
+      - test_history_limit: 105 messages → 100 newest, oldest first, truncated True.
+      ```python
+      def test_history_limit(self):
+          dialog = make_dialog(self.ax_profile)
+          for _ in range(105):
+              add_message(dialog, self.ax, AuthorRole.STUDENT)
+          messages, truncated = load_history(dialog)
+          self.assertTrue(truncated)
+          self.assertEqual(len(messages), HISTORY_LIMIT)
+          ids = [m.pk for m in messages]
+          self.assertEqual(ids, sorted(ids))  # oldest first
+          all_ids = list(Message.objects.values_list("id", flat=True).order_by("-id")[:HISTORY_LIMIT])
+          self.assertEqual(ids, sorted(all_ids))
+      ```
+
+      Actually simpler: 105 messages, newest 100 are ids 6..105 (if ids start at 1). `load_history` returns reversed(rows[:100]) where rows are the 101 newest (ids 5..105), rows[:100] = ids 6..105, reversed = ids 6,7,...,105. So oldest first = [6,7,...,105], ascending. truncated=True. Let me assert:
+      ```python
+      ids = [m.pk for m in messages]
+      self.assertEqual(len(ids), 100)
+      self.assertEqual(ids, sorted(ids))
+      self.assertEqual(ids[0], all_ids[-100])  # the 100th newest
+      ```
+      Hmm, let me just assert length 100, sorted ascending, truncated True, and that the oldest of the returned is id 6 (not id 1). Actually I'll compute expected: all message ids ascending = 1..105. Newest 100 = 6..105. reversed = 6..105 ascending. So `ids == list(range(6, 106))`. But ids depend on global pk (other tests in same class create messages). Since each test method runs in isolation (TestCase resets DB per test), the pks start fresh. Actually setUpTestData creates the world but no messages. So in test_history_limit, message pks are 1..105 (if no other message created in this test). But other tests don't affect this (each test is isolated). So ids = 1..105, newest 100 = 6..105, result = [6..105].
+
+      But wait — I use `add_message` which doesn't create messages in setUpTestData. And the test creates 105 messages. So pks 1..105. load_history returns newest 100 = 6..105, reversed → [6,7,...,105]. So `messages[0].pk == 6`, `messages[-1].pk == 105`. Let me assert `ids[0] == 6` isn't robust. Let me just assert:
+      ```python
+      self.assertEqual(len(messages), HISTORY_LIMIT)
+      self.assertEqual(ids, sorted(ids))
+      self.assertLess(ids[0], ids[-1])
+      self.assertNotIn(1, ids)  # oldest dropped
+      ```
+      Actually simpler and robust: check that it's the 100 newest. `all_ids_desc = list(Message.objects.order_by("-id").values_list("id", flat=True)[:HISTORY_LIMIT])`; `expected = sorted(all_ids_desc)`. assertEqual(ids, expected).
+
+      - test_messages_after: after id, limit 50, ascending.
+      ```python
+      def test_messages_after(self):
+          dialog = make_dialog(self.ax_profile)
+          messages = [add_message(dialog, self.ax, AuthorRole.STUDENT) for _ in range(60)]
+          after = messages[4].pk
+          result = messages_after(dialog, after)
+          self.assertEqual(len(result), FRAGMENT_LIMIT)  # 50
+          self.assertEqual([m.pk for m in result], [m.pk for m in messages[5:55]])
+          self.assertEqual([m.pk for m in result], sorted(m.pk for m in result))
+      ```
+
+      Wait, messages[5:55] is 50 messages (ids 6..55). messages_after(dialog, messages[4].pk) returns messages with id > messages[4].pk, i.e., messages[5], messages[6], ..., up to 50 items = messages[5..54] (50 items). So result = messages[5:55]. Good.
+
+      Now I need imports for test_services.py:
+      - from datetime import timedelta
+      - from unittest import mock
+      - import uuid
+      - from django.core.exceptions import PermissionDenied, ValidationError
+      - from django.db.models import QuerySet
+      - from django.test import TestCase
+      - from core.testing import FrozenClockMixin, moscow
+      - from accounts.tests.helpers import make_staff
+      - from chat.constants import RATE_LIMIT_MESSAGES, FRAGMENT_LIMIT, HISTORY_LIMIT, MESSAGE_MAX_LENGTH
+      - from chat.models import AuthorRole, Dialog, Message
+      - from chat.services import (load_history, mark_read, messages_after, normalize_text, send_staff_message, send_student_message, text_errors)
+      - from chat.tests.helpers import add_message, make_dialog
+      - from notifications.tests.helpers import make_world
+
+      Let me use make_world for the setup. make_world returns SimpleNamespace with fx, fy, gx1, gx2, gy1, ax, bx, cx, ay, sx, sy, root, ax_profile, bx_profile, cx_profile, ay_profile, sx_profile, sy_profile.
+
+      Now write test_services.py.
+
+      For test_rate_limit, I need to be careful. send_student_message 20 times with distinct text (or same text is fine). Each creates a message. 21st raises ValidationError. Count = 20.
+
+      ```python
+      def test_rate_limit(self):
+          for _ in range(RATE_LIMIT_MESSAGES):
+              send_student_message(self.ax_profile, "сообщение", uuid.uuid4())
+          with self.assertRaises(ValidationError):
+              send_student_message(self.ax_profile, "лишнее", uuid.uuid4())
+          self.assertEqual(Message.objects.count(), RATE_LIMIT_MESSAGES)
+      ```
+
+      Good.
+
+      For test_staff_no_rate_limit: 25 staff replies on ax's dialog.
+      ```python
+      def test_staff_no_rate_limit(self):
+          dialog = make_dialog(self.ax_profile)
+          for _ in range(25):
+              send_staff_message(dialog, self.sx, "ответ", uuid.uuid4())
+          self.assertEqual(Message.objects.filter(dialog=dialog).count(), 25)
+      ```
+
+      Now let me write the full test_services.py.
+
+      Note: `send_staff_message` calls `get_profile_for_role(actor, User.Role.STAFF)`. For `self.sx` (a staff User), this returns sx.staff_profile. Good.
+
+      Let me write it.
+
+      Also for `test_first_message_creates_dialog` and `test_second_message_same_dialog`:
+      ```python
+      def test_first_message_creates_dialog(self):
+          self.assertFalse(Dialog.objects.filter(student=self.ax_profile).exists())
+          message = send_student_message(self.ax_profile, "Привет", None)
+          self.assertTrue(Dialog.objects.filter(student=self.ax_profile).exists())
+          self.assertEqual(message.dialog.student, self.ax_profile)
+
+      def test_second_message_same_dialog(self):
+          first = send_student_message(self.ax_profile, "Привет", None)
+          second = send_student_message(self.ax_profile, "Ещё", None)
+          self.assertEqual(first.dialog.pk, second.dialog.pk)
+          self.assertEqual(Dialog.objects.filter(student=self.ax_profile).count(), 1)
+      ```
+
+      Now write it all.
+
+      Let me also think: `moscow(NOW)` where NOW = "2026-11-11 12:00".
+
+      Let me write test_services.py now.
+    ── Created chat/tests/test_services.py
+    ── Thought for 7s
+      Now test_selectors.py. Per §5.1:
+      - test_staff_sees_own_faculty_only
+      - test_student_sees_own_only
+      - test_superuser_and_anonymous_none
+      - test_inactive_student_dialog_hidden_from_staff
+      - test_unread_first_then_newest
+      - test_unread_counts
+      - test_one_query (staff_dialog_list)
+      - test_counts_only_staff_after_marker
+      - test_zero_without_dialog
+      - test_staff_and_anonymous_no_query
+
+      Let me write test_selectors.py.
+
+      For test_staff_sees_own_faculty_only: create dialogs for ax (FX), ay (FY). sx (FX) sees ax's dialog only. sy sees ay's only.
+
+      For test_student_sees_own_only: ax sees ax's dialog, not bx's.
+
+      For test_superuser_and_anonymous_none: root → none, anonymous → none.
+
+      For test_inactive_student_dialog_hidden_from_staff: deactivate bx (is_active=False), then sx should not see bx's dialog. Actually students_visible_to filters user__is_active=True for staff. So if a student is inactive, their dialog is hidden from staff. Test: create dialog for ax (active) and bx (inactive). sx sees only ax's.
+
+      For test_unread_first_then_newest: staff_dialog_list ordering. Create dialogs with different last_message_at and unread counts. The unread dialog comes first.
+
+      For test_unread_counts: dialog with 2 unread student messages → unread == 2.
+
+      For test_one_query: staff_dialog_list does one query.
+
+      For student_unread_count tests.
+
+      Let me write these. I need to understand the ordering of `staff_dialog_list`:
+      - annotate unread = count of student messages with id > staff_read_id
+      - has_unread = 0 if unread > 0 else 1
+      - order by has_unread (0 first = unread first), then last_message_at desc (nulls last), then -pk
+
+      For test_unread_first_then_newest:
+      - dialog A: has unread, last_message_at older
+      - dialog B: no unread, last_message_at newer
+      → A first (unread), then B.
+
+      Let me write.
+
+      For `student_unread_count`:
+      - test_counts_only_staff_after_marker: dialog with student_read_id set, staff messages before and after marker → count only after.
+      - test_zero_without_dialog: no dialog → 0.
+      - test_staff_and_anonymous_no_query: assertNumQueries(0) around student_unread_count(staff) and (anonymous).
+
+      Let me write test_selectors.py.
+
+      I need imports:
+      - from django.test import TestCase
+      - from django.contrib.auth.models import AnonymousUser
+      - from accounts.tests.helpers import make_faculty, make_group, make_staff, make_student
+      - from chat.models import AuthorRole
+      - from chat.selectors import dialogs_visible_to, staff_dialog_list, student_unread_count
+      - from chat.tests.helpers import add_message, make_dialog
+      - from core.testing import FrozenClockMixin, moscow
+      - from django.utils import timezone
+      - from notifications.tests.helpers import make_world
+
+      Let me write it.
+
+      For the `test_one_query` and `test_staff_and_anonymous_no_query`, use `assertNumQueries`.
+
+      Let me think about `staff_dialog_list` one query. The selector uses select_related + annotate + annotate + order_by + slice. This should be 1 query. `assertNumQueries(1)` around `list(staff_dialog_list(user))`.
+
+      Actually, `staff_dialog_list` returns a sliced QuerySet; calling `list()` executes it. `assertNumQueries(1)`.
+
+      But wait — `dialogs_visible_to` calls `students_visible_to(user)` which is a subquery (not executed). So the final queryset is one query. Good.
+
+      For student_unread_count(staff) → returns 0 with no query (since not student). `assertNumQueries(0)`.
+
+      For anonymous: `AnonymousUser()` → student_unread_count returns 0, no query.
+
+      Let me write it.
+
+      Actually, `student_unread_count` checks `not user.is_authenticated or not user.is_active or user.role != STUDENT`. For AnonymousUser, `is_authenticated` is False → returns 0 immediately, no query. For staff, role != STUDENT → returns 0, no query. Good.
+
+      Let me write test_selectors.py.
+    ── Created chat/tests/test_selectors.py
+    ── Thought for 1s
+      Now let me run the tests I've written so far to catch issues early before writing the big test_views.py.
+
+      Actually, let me first verify the app runs and run the model/services/selectors tests.
+
+      But wait, I need to make sure `make_world` in notifications/tests/helpers.py is importable and works with my chat app. It creates students ax, bx, cx (FX), ay (FY), staff sx (FX), sy (FY), root. And profiles ax_profile etc.
+
+      Let me run the tests now.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test chat.tests.test_models chat.tests.test_services chat.tests.test_selectors 2>&1 | tail -40 (3s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test chat.tests.test_models chat.tests.test_services chat.tests.test_selectors 2>&1 | tail -40
+      ======================================================================
+      ERROR: test_unread_counts (chat.tests.test_selectors.SelectorTests.test_unread_counts)
+      ----------------------------------------------------------------------
+      Traceback (most recent call last):
+        File "~/hackatonproject/chat/tests/test_selectors.py", line 56, in test_unread_counts
+          [dialog] = staff_dialog_list(self.w.sx)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "~/hackatonproject/chat/selectors.py", line 43, in staff_dialog_list
+          When(unread__gt=0, then=Value(0)), default=Value(1), output_field=IntegerField()
+          ^^^^
+      NameError: name 'When' is not defined
+
+      ======================================================================
+      ERROR: test_unread_first_then_newest (chat.tests.test_selectors.SelectorTests.test_unread_first_then_newest)
+      ----------------------------------------------------------------------
+      Traceback (most recent call last):
+        File "~/hackatonproject/chat/tests/test_selectors.py", line 48, in test_unread_first_then_newest
+          listed = list(staff_dialog_list(self.w.sx))
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "~/hackatonproject/chat/selectors.py", line 43, in staff_dialog_list
+          When(unread__gt=0, then=Value(0)), default=Value(1), output_field=IntegerField()
+          ^^^^
+      NameError: name 'When' is not defined
+
+      ======================================================================
+      FAIL: test_client_token_unique_per_dialog (chat.tests.test_models.ModelTests.test_client_token_unique_per_dialog)
+      ----------------------------------------------------------------------
+      Traceback (most recent call last):
+        File "~/hackatonproject/chat/tests/test_models.py", line 82, in test_client_token_unique_per_dialog
+          self.assertEqual(Message.objects.filter(dialog=dialog).count(), 4)
+      AssertionError: 3 != 4
+
+      ----------------------------------------------------------------------
+      Ran 32 tests in 1.237s
+
+      FAILED (failures=1, errors=3)
+      Destroying test database for alias 'default'...
+      Found 32 test(s).
+      System check identified no issues (0 silenced).
+    ── Thought for 3s
+      Two issues:
+
+      1. `When` not imported in selectors.py. I imported `Case, Count, F, IntegerField, Q, QuerySet, Value` but not `When`. Add `When`.
+
+      2. test_client_token_unique_per_dialog: count is 3, expected 4. Let me think: I create:
+         - Message 1 (dialog, token=X, text="x") — 1 row
+         - duplicate in same dialog → IntegrityError (rolled back, no row)
+         - Message in `other` dialog (token=X) — 1 row in `other`, not in `dialog`
+         - add_message(dialog, ...) — 1 row in dialog
+         - add_message(dialog, ...) — 1 row in dialog
+         So dialog has: message1, add_message × 2 = 3 rows. Plus `other` has 1. So `Message.objects.filter(dialog=dialog).count()` == 3, not 4.
+
+      My assertion is wrong. The `other` dialog's message is not in `dialog`. So count should be 3.
+
+      Let me fix the assertion to 3. Actually, let me reconsider the test intent: "many None OK" — I added 2 messages with None token to `dialog`. So dialog has: token message (1) + 2 None messages = 3. The other dialog has 1 (token reused). So `Message.objects.filter(dialog=dialog).count() == 3`.
+
+      Let me fix to 3.
+
+      Actually, let me reconsider the whole test. The intent: 
+      - same token in same dialog → IntegrityError
+      - same token in another dialog → OK
+      - many None → OK
+
+      So: dialog has 1 token message + 2 None messages = 3. other has 1 token message. Total 4 messages across both dialogs.
+
+      Let me assert `Message.objects.filter(dialog=dialog).count() == 3` and also maybe assert total. I'll just fix to 3.
+
+      Let me fix both issues.
+    ── Edited chat/selectors.py +1 -1
+      --- a~/hackatonproject/chat/selectors.py
+      +++ b~/hackatonproject/chat/selectors.py
+      -from django.db.models import Case, Count, F, IntegerField, Q, QuerySet, Value
+      +from django.db.models import Case, Count, F, IntegerField, Q, QuerySet, Value, When
+    ── Edited chat/tests/test_models.py +1 -1
+      --- a~/hackatonproject/chat/tests/test_models.py
+      +++ b~/hackatonproject/chat/tests/test_models.py
+      -        self.assertEqual(Message.objects.filter(dialog=dialog).count(), 4)
+      +        self.assertEqual(Message.objects.filter(dialog=dialog).count(), 3)
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test chat.tests.test_models chat.tests.test_services chat.tests.test_selectors 2>&1 | tail -25 (2s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test chat.tests.test_models chat.tests.test_services chat.tests.test_selectors 2>&1 | tail -25
+      Creating test database for alias 'default'...
+      .............................E..
+      ======================================================================
+      ERROR: test_unread_counts (chat.tests.test_selectors.SelectorTests.test_unread_counts)
+      ----------------------------------------------------------------------
+      Traceback (most recent call last):
+        File "~/hackatonproject/chat/tests/test_selectors.py", line 56, in test_unread_counts
+          [dialog] = staff_dialog_list(self.w.sx)
+          ^^^^^^^^
+      ValueError: too many values to unpack (expected 1)
+
+      ----------------------------------------------------------------------
+      Ran 32 tests in 0.821s
+
+      FAILED (errors=1)
+      Destroying test database for alias 'default'...
+      Found 32 test(s).
+      System check identified no issues (0 silenced).
+    ── Thought for 7s
+      In test_unread_counts, `staff_dialog_list(self.w.sx)` returns 2 dialogs (ax_dialog and bx_dialog), because both are in FX. The `[dialog] = ...` unpacking fails because there are 2 dialogs.
+
+      Wait, in setUpTestData, I created `ax_dialog` and `bx_dialog` both for FX students (ax and bx are both in gx1 which is FX). And `ay_dialog` for FY.
+
+      So `staff_dialog_list(self.w.sx)` returns ax_dialog and bx_dialog (2 dialogs). My test `test_unread_counts` assumes 1 dialog. That's wrong.
+
+      Let me fix the test to filter for ax_dialog specifically:
+      ```python
+      def test_unread_counts(self):
+          add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+          add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+          add_message(self.ax_dialog, self.w.sx, AuthorRole.STAFF)
+          dialogs = {d.pk: d for d in staff_dialog_list(self.w.sx)}
+          self.assertEqual(dialogs[self.ax_dialog.pk].unread, 2)
+          self.assertEqual(dialogs[self.bx_dialog.pk].unread, 0)
+      ```
+
+      Actually, let me simplify: ax_dialog has 2 unread student messages (no staff_read_id moved). bx_dialog has 0. So:
+      ```python
+      def test_unread_counts(self):
+          add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+          add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+          add_message(self.ax_dialog, self.w.sx, AuthorRole.STAFF)
+          by_pk = {d.pk: d for d in staff_dialog_list(self.w.sx)}
+          self.assertEqual(by_pk[self.ax_dialog.pk].unread, 2)
+          self.assertEqual(by_pk[self.bx_dialog.pk].unread, 0)
+      ```
+
+      Note: the staff reply (AuthorRole.STAFF) doesn't count as unread for staff (unread = student messages after staff_read_id). So ax_dialog unread = 2 student messages. Good.
+
+      Similarly, test_unread_first_then_newest: I add a student message to ax_dialog (unread) and a staff message to ay_dialog. But ay_dialog is FY, not visible to sx. So `staff_dialog_list(self.w.sx)` returns ax_dialog (unread) and bx_dialog (no messages). ax_dialog should be first. My assertion `listed[0].pk == ax_dialog.pk` — but wait, ax_dialog has 1 unread student message → unread=1, has_unread=0. bx_dialog has no messages → unread=0, has_unread=1. So ax_dialog (has_unread=0) comes first. listed[0] == ax_dialog. Good, that test should pass.
+
+      Actually wait, let me check test_unread_first_then_newest more carefully. It adds:
+      - add_message(ax_dialog, ax, STUDENT) → ax_dialog unread=1
+      - add_message(ay_dialog, sy, STAFF) → ay_dialog has 1 staff message, unread=0 (staff message doesn't count)
+
+      Then `staff_dialog_list(self.w.sx)` → only FX dialogs: ax_dialog (unread=1, has_unread=0), bx_dialog (unread=0, has_unread=1). Order: ax_dialog first. `listed[0].pk == ax_dialog.pk`. ✓.
+
+      But the ay_dialog message addition is pointless (ay is FY). Let me leave it; it's harmless. Actually, it's a bit confusing. Let me simplify to make the test meaningful: add unread to ax_dialog and a newer staff message to bx_dialog (so bx is "newer" but no unread). Then verify ax (unread) comes first despite bx being newer.
+
+      Let me rewrite test_unread_first_then_newest:
+      ```python
+      def test_unread_first_then_newest(self):
+          add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)  # unread, older
+          add_message(self.bx_dialog, self.w.sx, AuthorRole.STAFF)    # no unread, newer (same clock though)
+          listed = list(staff_dialog_list(self.w.sx))
+          self.assertEqual(listed[0].pk, self.ax_dialog.pk)
+      ```
+
+      But with frozen clock, both messages have the same created_at. So "newest" ordering by last_message_at is a tie, broken by -pk. ax_dialog has last_message_id = its message pk, bx_dialog has its own. The unread flag dominates (has_unread=0 for ax). So ax first. Good.
+
+      Actually, the test is really just verifying unread comes first. Let me keep it simple and correct. Let me rewrite both tests.
+
+      Let me fix test_unread_counts and test_unread_first_then_newest.
+    ── Edited chat/tests/test_selectors.py +6 -5
+      --- a~/hackatonproject/chat/tests/test_selectors.py
+      +++ b~/hackatonproject/chat/tests/test_selectors.py
+      -        # ax_dialog has an unread student message (older); ay_dialog has none (newer).
+      +        # ax_dialog has an unread student message; bx_dialog has a staff message (no unread).
+      -        add_message(self.ay_dialog, self.w.sy, AuthorRole.STAFF)
+      +        add_message(self.bx_dialog, self.w.sx, AuthorRole.STAFF)
+      -        # Only FX dialogs are visible to sx; the unread one comes first.
+      +        self.assertEqual(listed[1].pk, self.bx_dialog.pk)
+      -        [dialog] = staff_dialog_list(self.w.sx)
+      -        self.assertEqual(dialog.unread, 2)
+      +        by_pk = {d.pk: d for d in staff_dialog_list(self.w.sx)}
+      +        self.assertEqual(by_pk[self.ax_dialog.pk].unread, 2)
+      +        self.assertEqual(by_pk[self.bx_dialog.pk].unread, 0)
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test chat.tests.test_models chat.tests.test_services chat.tests.test_selectors 2>&1 | tail -12 (2s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test chat.tests.test_models chat.tests.test_services chat.tests.test_selectors 2>&1 | tail -12
+      Creating test database for alias 'default'...
+      ................................
+      ----------------------------------------------------------------------
+      Ran 32 tests in 0.825s
+
+      OK
+      Destroying test database for alias 'default'...
+      Found 32 test(s).
+      System check identified no issues (0 silenced).
+    ── Thought for 1m 9s
+      32 tests pass. Now let me write the big test_views.py. This is the largest file with AccessTests, ViewTests, UpdatesViewTests, AdminTests, NavTests, QueryCountTests, CsrfTests.
+
+      Let me carefully plan it following §6.2 and §6.3.
+
+      First, let me understand the URL names and views:
+      - `/chat/` → chat:student → StudentChatView
+      - `/chat/updates/?after=0` → chat:student_updates
+      - `/staff/chats/` → chat:staff_list
+      - `/staff/chats/<uuid>/` → chat:staff_dialog
+      - `/staff/chats/<uuid>/updates/?after=0` → chat:staff_updates
+
+      Now, the access matrix (§6.2). World: faculties FX, FY; students ax (FX), bx (FX), ay (FY), each with a dialog; staff sx (FX), sy (FY); superuser root; student np without profile.
+
+      Note: ax and bx both in FX (same faculty as sx). ay in FY (same faculty as sy).
+
+      The matrix uses `ax`'s dialog uuid for staff dialog tests.
+
+      For the access tests, I need to create dialogs for ax, bx, ay. Each has messages? The matrix says "each with a dialog". For GET /chat/, "200 (own messages only)" and "n/a (no id; bx's texts absent for ax)". So ax's dialog has ax's messages, bx's dialog has bx's messages.
+
+      Let me set up a comprehensive world in a base test class. I'll use `make_world()` from notifications/tests/helpers which gives ax (FX gx1), bx (FX gx1), cx (FX gx2), ay (FY gy1), sx (FX), sy (FY), root. But the access matrix only mentions ax, bx, ay (not cx). make_world gives cx too (in gx2, FX). cx would be visible to sx as well. Hmm, but the matrix says "students ax (FX), bx (FX), ay (FY)". So maybe I should NOT use make_world's cx, or I should be careful.
+
+      Actually, make_world creates cx in gx2 (FX). For staff sx (FX), students_visible_to returns ax, bx, cx (all FX). So staff_dialog_list(sx) would include cx's dialog if cx has one. In the access matrix, cx isn't mentioned, so I'll just not create a dialog for cx, or I need to account for it.
+
+      Let me use make_world but be aware cx exists (FX, no dialog). For staff sx, `dialogs_visible_to(sx)` returns dialogs of ax, bx (and cx if it has a dialog — but cx has no dialog, so no dialogs). Actually `dialogs_visible_to` filters `student__in=students_visible_to(user)`, which for sx is all active FX students. If cx has no Dialog, then no cx dialog. So sx sees ax's and bx's dialogs.
+
+      For the staff list test "200, FX dialogs only", sx should see ax and bx dialogs (2), not ay's.
+
+      OK, let me design the test setup:
+
+      ```python
+      class AccessTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+              cls.ax_dialog = make_dialog(cls.w.ax_profile)
+              cls.bx_dialog = make_dialog(cls.w.bx_profile)
+              cls.ay_dialog = make_dialog(cls.w.ay_profile)
+              # A message in each dialog so pages show something.
+              add_message(cls.ax_dialog, cls.w.ax, AuthorRole.STUDENT, text="ax text")
+              add_message(cls.bx_dialog, cls.w.bx, AuthorRole.STUDENT, text="bx text")
+              add_message(cls.ay_dialog, cls.w.ay, AuthorRole.STUDENT, text="ay text")
+              cls.ax_uuid = cls.ax_dialog.public_id
+              cls.ay_uuid = cls.ay_dialog.public_id
+      ```
+
+      Wait, but `add_message` uses timezone.now() for created_at, which is frozen. Good.
+
+      Now the access matrix tests (one method per cell):
+
+      | URL | anonymous | student own | student other | staff own | staff other | superuser |
+      - GET /chat/ → 302 login, 200 own, n/a (no id), 403, 403, 403
+      - GET /chat/updates/?after=0 → 302, 200 own, n/a, 403, 403, 403
+      - POST /chat/ → 302 no message, 302 message in own, n/a, 403 no message, 403, 403
+      - GET /staff/chats/ → 302, 403, 403, 200 FX only, (FY absent), 403
+      - GET /staff/chats/<ax uuid>/ → 302, 403, 403, 200, 404 (sy), 403
+      - GET /staff/chats/<ax uuid>/updates/?after=0 → 302, 403, 403, 200, 404, 403
+      - POST /staff/chats/<ax uuid>/ → 302 no message, 403 no message, 403, 302 staff message, 404 no message, 403
+      - GET unknown uuid (staff) → 404 (sy or sx)
+      - np (student without profile) → 403 on /chat/
+      - HEAD and POST on /chat/updates/ → 405
+      - CSRF tests.
+
+      This is a LOT of test methods. Let me enumerate them carefully with test names following `test_<url-short>_<actor>`.
+
+      Let me define test methods:
+
+      1. test_student_page_anonymous → GET /chat/ → 302 (login)
+      2. test_student_page_student → GET /chat/ as ax → 200, own messages only (assert ax text present, bx text absent)
+      3. test_student_page_staff → GET /chat/ as sx → 403
+      4. test_student_page_other_staff → GET /chat/ as sy → 403
+      5. test_student_page_superuser → GET /chat/ as root → 403
+      6. test_student_updates_anonymous → GET /chat/updates/?after=0 → 302
+      7. test_student_updates_student → 200 own only
+      8. test_student_updates_staff → 403
+      9. test_student_updates_superuser → 403
+      10. test_student_post_anonymous → POST /chat/ → 302, no message
+      11. test_student_post_student → POST /chat/ → 302, message in own dialog
+      12. test_student_post_staff → 403, no message
+      13. test_student_post_superuser → 403
+      14. test_staff_list_anonymous → 302
+      15. test_staff_list_student → 403
+      16. test_staff_list_staff → 200, FX dialogs only (ax, bx present; ay absent)
+      17. test_staff_list_other_staff → 200, FY dialogs only (ay present; ax absent) — this is "staff other faculty" cell which the matrix says "(FY dialogs absent)" for the "staff own faculty" column... wait.
+
+      Let me re-read the matrix:
+      | GET /staff/chats/ | 302 | 403 | 403 | 200, FX dialogs only | (FY dialogs absent) | 403 |
+
+      Columns: anonymous | student own | student other's dialog | staff own faculty | staff other faculty | superuser
+
+      So "staff other faculty" = sy (FY) accessing /staff/chats/. The cell says "(FY dialogs absent)". Wait, that's odd. It says for sy (FY staff), FY dialogs should be present, but the cell says "(FY dialogs absent)". 
+
+      Hmm, let me re-read. Actually the cell "(FY dialogs absent)" is in the "staff own faculty" column for the "GET /staff/chats/" row. Wait no.
+
+      Let me carefully map columns to the header row:
+      | URL | anonymous | student own | student other's dialog | staff own faculty | staff other faculty | superuser |
+
+      For GET /staff/chats/ row: | 302 | 403 | 403 | 200, FX dialogs only | (FY dialogs absent) | 403 |
+
+      Wait, that doesn't parse well. "200, FX dialogs only" is in "staff own faculty" (sx). "(FY dialogs absent)" is in "staff other faculty" (sy). So for sy (FY staff), the FY dialogs... should be present, but the cell says "(FY dialogs absent)"?
+
+      Hmm, this is confusing. Let me re-read the actual matrix table more carefully from the spec:
+
+      ```
+      | GET `/staff/chats/` | 302 | 403 | 403 | 200, FX dialogs only | (FY dialogs absent) | 403 |
+      ```
+
+      Wait, actually I think there might be a typo or I'm misreading. Let me think about what makes sense:
+      - sx (FX staff) → 200, sees FX dialogs (ax, bx), NOT ay.
+      - sy (FY staff) → 200, sees FY dialogs (ay), NOT ax/bx.
+
+      So the "staff other faculty" column for sy accessing /staff/chats/ would be "200, FY dialogs only". But the cell says "(FY dialogs absent)". 
+
+      Hmm wait, maybe I'm misreading the columns. Let me re-read the header and think about "staff own faculty" vs "staff other faculty" from the perspective of the resource.
+
+      Actually, looking at the matrix header: the columns are about WHO is accessing. "staff own faculty" = a staff member of the same faculty as the resource (ax is in FX, so sx). "staff other faculty" = a staff member of a different faculty (sy).
+
+      For /staff/chats/ (the list, not tied to a specific dialog), "staff own faculty" (sx) sees FX dialogs. "staff other faculty" — there's no single "other faculty" for a list; it's sy who sees FY dialogs. The cell "(FY dialogs absent)" is strange.
+
+      Actually wait — I bet the cell means: for the LIST, when checked by "staff own faculty" (sx), the assertion is "200, FX dialogs only" AND the sub-assertion "(FY dialogs absent)". I.e., the "(FY dialogs absent)" is a parenthetical clarification of "FX dialogs only", not a separate column.
+
+      Let me re-read the whole row: `| GET `/staff/chats/` | 302 | 403 | 403 | 200, FX dialogs only | (FY dialogs absent) | 403 |`
+
+      There are 6 columns after the URL column. So:
+      - anonymous: 302
+      - student own: 403
+      - student other's dialog: 403
+      - staff own faculty: "200, FX dialogs only"
+      - staff other faculty: "(FY dialogs absent)"
+      - superuser: 403
+
+      Hmm, but "staff other faculty" for the list URL... For the list, there's no specific dialog. So "staff other faculty" (sy) would see FY dialogs. "(FY dialogs absent)" doesn't make sense as a 200-with-FY-dialogs.
+
+      Wait, maybe I'm misreading and the columns got shifted. Let me look at the exact text again from the spec I read:
+
+      ```
+      | URL | anonymous | student own | student other's dialog | staff own faculty | staff other faculty | superuser |
+      | GET `/chat/` | 302 login | 200 (own messages only) | n/a (no id; `bx`'s texts absent for `ax`) | 403 | 403 | 403 |
+      | GET `/chat/updates/?after=0` | 302 | 200 own only | n/a (no id; only own) | 403 | 403 | 403 |
+      | POST `/chat/` | 302, no message | 302, message in own dialog | n/a | 403, no message | 403 | 403 |
+      | GET `/staff/chats/` | 302 | 403 | 403 | 200, FX dialogs only | (FY dialogs absent) | 403 |
+      | GET `/staff/chats/<ax uuid>/` | 302 | 403 | 403 | 200 | 404 (`sy`) | 403 |
+      | GET `/staff/chats/<ax uuid>/updates/?after=0` | 302 | 403 | 403 | 200 | 404 | 403 |
+      | POST `/staff/chats/<ax uuid>/` | 302, no message | 403, no message | 403 | 302, staff message | 404, no message | 403 |
+      | GET unknown uuid (staff) | — | — | — | 404 | 404 | — |
+      ```
+
+      OK so for "GET /staff/chats/", the "staff other faculty" column (sy) says "(FY dialogs absent)". This is confusing. I think this is a documentation quirk: for the LIST, both "staff own faculty" (sx) and "staff other faculty" (sy) get 200, but each sees only their own faculty's dialogs. The cell "200, FX dialogs only" is for sx, and "(FY dialogs absent)" is... 
+
+      Actually, I think I'm overcomplicating. Let me interpret:
+      - sx (own faculty, FX) → 200, sees FX dialogs only (ax, bx), ay absent.
+      - sy (other faculty, FY) → 200, sees FY dialogs only (ay), ax/bx absent.
+
+      The "(FY dialogs absent)" is a note that when sx views the list, FY dialogs (ay) are absent. It's a parenthetical, not a separate column value.
+
+      Wait, but the table has exactly 6 columns + URL. Let me count the pipes. Each row should have 7 cells (URL + 6 actors).
+
+      `| GET `/staff/chats/` | 302 | 403 | 403 | 200, FX dialogs only | (FY dialogs absent) | 403 |`
+
+      That's URL + 6 = 7 cells. So:
+      1. anonymous: 302
+      2. student own: 403
+      3. student other's dialog: 403
+      4. staff own faculty: "200, FX dialogs only"
+      5. staff other faculty: "(FY dialogs absent)"
+      6. superuser: 403
+
+      Hmm. So "staff other faculty" (sy) accessing /staff/chats/ → "(FY dialogs absent)". This is weird but... actually maybe it means: for the "staff other faculty" actor (sy), when they access the list, the FX dialogs are absent (they see FY dialogs). But "(FY dialogs absent)" literally says FY dialogs absent, which contradicts.
+
+      Actually, wait — maybe I have the actor mapping wrong. Let me reconsider. The matrix says "staff own faculty" means staff of ax's faculty (FX = sx), and "staff other faculty" means staff of a different faculty (FY = sy).
+
+      For the list /staff/chats/, sx sees FX dialogs (ax, bx). sy sees FY dialogs (ay).
+
+      The cell for "staff other faculty" (sy) says "(FY dialogs absent)". That's contradictory unless it's a typo. 
+
+      I think the intended meaning is: when sy (FY staff) accesses the list, the FX dialogs are absent (sy sees only FY dialogs). The parenthetical "(FY dialogs absent)" might actually be a typo for "(FX dialogs absent)".
+
+      Honestly, for the test, I'll write:
+      - test_staff_list_staff (sx): 200, contains ax & bx dialogs, NOT ay.
+      - test_staff_list_other_staff (sy): 200, contains ay dialog, NOT ax/bx.
+
+      This covers the intent. I'll write a test for sy's list too, asserting it sees ay and not ax/bx.
+
+      Actually, to be safe and match the spec's access matrix literally, let me also verify the "staff other faculty" for the list. The spec's matrix is a bit ambiguous, but the core requirement (AC11) is: "staff only dialogs of students visible to them (students_visible_to), 404 otherwise". So for the list, sy sees ay only.
+
+      I'll write both sx and sy list tests.
+
+      OK this is a huge amount of test code. Let me be systematic and write it all. Given the volume, let me write test_views.py in one go, being careful.
+
+      Let me also think about the query count tests and other specific tests.
+
+      Actually, given the size, let me write test_views.py carefully. I'll structure:
+
+      1. Module constants and helpers.
+      2. AccessTests (access matrix).
+      3. CsrfTests.
+      4. ViewTests (behaviour).
+      5. UpdatesViewTests.
+      6. AdminTests.
+      7. NavTests.
+      8. QueryCountTests.
+
+      Let me define a base world setup reused across classes. Actually, each TestCase class sets up its own data (setUpTestData). I'll use make_world() in each.
+
+      Let me think about what `make_world` provides and whether I need additional stuff:
+      - np (student without profile) — make_world doesn't create np. I need to create a user with role=student but no StudentProfile. Let me create it in the test setup: `User.objects.create_user(username="np", role=User.Role.STUDENT)` (no profile).
+
+      Let me write the access tests.
+
+      For the CSRF tests, I need `Client(enforce_csrf_checks=True)`.
+
+      Let me write everything now. This is going to be a big file.
+
+      Let me carefully write the key assertions:
+
+      For `test_student_page_student` (GET /chat/ as ax):
+      - 200
+      - own messages only: assert "ax text" in content, "bx text" not in content.
+
+      For `test_student_post_student` (POST /chat/ as ax):
+      - 302, message in own dialog. POST with text and client_token. Then check Message count increased and redirect Location ends with /chat/#chat-form.
+
+      For staff dialog access tests, use ax_uuid.
+
+      Let me write it.
+
+      For `test_staff_dialog_other_faculty_404`: sy accessing ax's dialog → 404 (get_object_or_404 on dialogs_visible_to(sy) which excludes ax).
+
+      For `test_staff_dialog_updates_other_faculty_404`: sy accessing ax's updates → 404.
+
+      For POST staff dialog:
+      - anonymous → 302 (login redirect, no message)
+      - student ax → 403, no message
+      - staff sx → 302, staff message created
+      - staff sy → 404, no message
+      - superuser → 403
+
+      For unknown uuid (staff): sx accessing random uuid → 404.
+
+      For np (student without profile) → GET /chat/ → 403 (StudentRequiredMixin get_profile_for_role raises PermissionDenied because user.student_profile doesn't exist).
+
+      For HEAD and POST on /chat/updates/ → 405 (http_method_names=["get"]).
+
+      Let me write all these.
+
+      Now, about the POST with client_token: the form requires `client_token` (UUID, optional) and `text`. When posting via test client, I need to include `text` and `client_token` (and csrf if enforce_csrf_checks). For non-CSRF tests, the default Client doesn't enforce CSRF, so I can post without csrf token.
+
+      But wait — for `test_student_post_student`, the service's `send_student_message` with client_token=None → no idempotency. That's fine. But the form's `client_token` field is optional. If I POST only `text`, client_token is None.
+
+      Let me write POST data: `{"text": "Привет"}` (no client_token). Or include a client_token for the double-post test.
+
+      For `test_post_redirects_to_form_anchor`: POST text, assert 302, Location ends with "/chat/#chat-form".
+
+      For `test_double_post_one_message`: POST twice with same client_token → both 302, 1 message.
+
+      For `test_post_invalid_shows_error`: POST empty text → 200, form error, no row.
+
+      For `test_post_rate_limited_shows_error`: 20 messages then 21st → 200 with error. But this overlaps with service tests. It's a view-level test.
+
+      Let me write the view tests carefully.
+
+      Given the massive size, let me write test_views.py now in full.
+
+      Actually, let me also double-check: the `StudentChatView.get` marks read. For `test_open_marks_student_read`, I need a staff message that's unread. Then GET /chat/ → student_read_id = last id, staff marker unchanged.
+
+      Let me write test_open_marks_student_read:
+      ```python
+      def test_open_marks_student_read(self):
+          dialog = make_dialog(self.w.ax_profile)
+          add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+          reply = add_message(dialog, self.w.sx, AuthorRole.STAFF)
+          self.assertEqual(dialog.student_read_id, 0)
+          self.client.force_login(self.w.ax)
+          self.client.get("/chat/")
+          dialog.refresh_from_db()
+          self.assertEqual(dialog.student_read_id, reply.pk)
+          self.assertEqual(dialog.staff_read_id, 0)
+      ```
+
+      For `test_staff_open_marks_read_for_all_staff`:
+      ```python
+      def test_staff_open_marks_read_for_all_staff(self):
+          dialog = make_dialog(self.w.ax_profile)
+          add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+          self.client.force_login(self.w.sx)
+          self.client.get(f"/staff/chats/{dialog.public_id}/")
+          dialog.refresh_from_db()
+          self.assertEqual(dialog.staff_read_id, <message pk>)
+      ```
+
+      Let me write it all now. I'll be thorough.
+
+      For QueryCountTests, I need:
+      - test_student_page_constant (2 vs 30 messages; ≤ 14)
+      - test_staff_list_constant (1 vs 6 dialogs; ≤ 6)
+      - test_staff_dialog_constant (2 vs 30; ≤ 10)
+      - test_fragment_constant (1 vs 10 new messages; ≤ 8)
+      - test_header_student_four_queries (assertNumQueries(4) around badge_for_user + student_unread_count)
+      - test_header_staff_no_chat_query (assertNumQueries(0))
+
+      For test_header_student_four_queries:
+      ```python
+      def test_header_student_four_queries(self):
+          user = User.objects.get(pk=self.w.ax.pk)
+          with self.assertNumQueries(4):
+              badge_for_user(user)
+              student_unread_count(user)
+      ```
+
+      For test_header_staff_no_chat_query:
+      ```python
+      def test_header_staff_no_chat_query(self):
+          user = User.objects.get(pk=self.w.sx.pk)
+          with self.assertNumQueries(0):
+              student_unread_count(user)
+      ```
+
+      Wait, but the spec says "test_header_student_four_queries (assertNumQueries(4) around rendering both tags: badge_for_user(user) + student_unread_count(user) → 3 + 1)". So 4 queries total. And "test_header_staff_no_chat_query (student_unread_count(staff) → assertNumQueries(0))".
+
+      OK.
+
+      For the query count tests using `_query_count`, I'll define the same `_query_count` helper.
+
+      Let me write test_views.py now. It's long. Let me go.
+
+      I'll need imports:
+      ```python
+      import uuid
+      from datetime import timedelta
+
+      from django.contrib.auth.models import AnonymousUser
+      from django.db import connection
+      from django.test import Client, TestCase
+      from django.test.utils import CaptureQueriesContext
+      from django.urls import reverse
+      from django.utils import timezone
+
+      from accounts.models import User
+      from chat.constants import RATE_LIMIT_MESSAGES
+      from chat.models import AuthorRole, Dialog, Message
+      from chat.selectors import student_unread_count
+      from chat.tests.helpers import add_message, make_dialog
+      from core.testing import FrozenClockMixin, moscow
+      from notifications.feed import badge_for_user
+      from notifications.tests.helpers import make_world
+      ```
+
+      Now let me write.
+
+      For the fragment view tests, the fragment response content is `<li>` elements. Test `test_student_returns_only_newer_fragment`: after=<id> → only `<li ... data-message-id="...">` with larger ids; no `<html`, no `<nav`; header X-Chat-Fragment: 1.
+
+      For `test_bad_after_400`: `""`, `"abc"`, `"-1"`, `"1e3"`, 19 digits → 400.
+
+      Wait, `""` — the regex `^\d{1,18}$` doesn't match empty string. So `after=""` → 400. But the default `request.GET.get("after", "")` returns "" when missing. So GET /chat/updates/ without after → 400. That's the test. Good.
+
+      For 19 digits: "1234567890123456789" (19 digits) → doesn't match `\d{1,18}` → 400.
+
+      For `test_fragment_limit_50`: 60 messages, after=first, expect 50 in fragment.
+
+      For `test_fragment_marks_read_up_to_last_returned`: create messages, GET fragment after some id → student_read_id = last returned id.
+
+      Let me write all these.
+
+      For `test_staff_fragment_scope`: other-faculty uuid → 404; own → 200.
+
+      For `test_fragment_escapes_text`: message with `<b>` → escaped.
+
+      For `test_no_store_on_all_chat_views`: check `no-store` in Cache-Control for 5 views.
+
+      For AdminTests:
+      - test_admin_list_and_change_view_ok: superuser can access admin list and change view (200).
+      - test_admin_is_read_only: `admin:chat_dialog_add` → 403 (has_add_permission False); change POST → 403; no delete.
+
+      Wait, `admin:chat_dialog_add` — the URL name. The admin URL for adding a Dialog is `admin:chat_dialog_add`. Since `has_add_permission` returns False, accessing the add page → 403.
+
+      For change POST → 403 (has_change_permission False).
+
+      Let me write AdminTests:
+      ```python
+      class AdminTests(TestCase):
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+              cls.dialog = make_dialog(cls.w.ax_profile)
+
+          def test_admin_list_and_change_view_ok(self):
+              self.client.force_login(self.w.root)
+              self.assertEqual(self.client.get(reverse("admin:chat_dialog_changelist")).status_code, 200)
+              self.assertEqual(self.client.get(reverse("admin:chat_dialog_change", args=[self.dialog.pk])).status_code, 200)
+
+          def test_admin_is_read_only(self):
+              self.client.force_login(self.w.root)
+              self.assertEqual(self.client.get(reverse("admin:chat_dialog_add")).status_code, 403)
+              # change POST is forbidden
+              self.assertEqual(self.client.post(reverse("admin:chat_dialog_change", args=[self.dialog.pk]), {}).status_code, 403)
+      ```
+
+      Wait, `admin:chat_dialog_add` requires superuser login (force_login(root) which is superuser). `has_add_permission` returns False → the add view returns 403. Good.
+
+      Actually, for admin URLs, the names are `admin:chat_dialog_changelist`, `admin:chat_dialog_change`, `admin:chat_dialog_add`. These are auto-generated. Let me verify: Django admin URL names are `{app_label}_{model_name}_changelist`, `_{add}`, `_{change}`, `_{delete}`, `_{history}`. So `chat_dialog_changelist`, `chat_dialog_add`, `chat_dialog_change`, `chat_dialog_delete`.
+
+      But the app_label — the app is `chat` (name = "chat"). So app_label = "chat". Model = "dialog". So `admin:chat_dialog_changelist`.
+
+      Let me write these.
+
+      For NavTests (§6.3):
+      - test_student_chat_count: «Чат (1)» in both header lists. Need 1 unread chat message.
+      - test_student_chat_without_count: `>Чат</a>`.
+      - test_staff_nav_has_chats: staff nav has /staff/chats/.
+      - test_badge_includes_chat_reply: one unread staff message, no other items → «Уведомления (1)» outside the menu.
+
+      For test_student_chat_count: create a staff message in ax's dialog (unread). Then GET /profile/ as ax → content has «Чат (1)» in wide and menu lists.
+
+      Actually "in both header lists" — the wide nav and the compact menu both render the nav item with count. So assert `_wide(content)` contains "Чат (1)" and `_menu(content)` contains "Чат (1)".
+
+      But wait — I need the `_wide` and `_menu` helpers. They're in core/tests/test_nav.py. I can import them or redefine. Let me import from core.tests.test_nav: `from core.tests.test_nav import _menu, _wide`.
+
+      Actually, importing private helpers from another test module is a bit ugly but works. Let me just redefine them locally or import. The spec §4.7 mentions updating core/tests/test_nav.py lists. The NavTests for chat are in chat/tests/test_views.py per §6.3. Let me import the helpers.
+
+      Actually, simpler to just assert on full content for "Чат (1)". But "in both header lists" means it appears twice (wide + menu). I can assert `content.count("Чат (1)") == 2`. Let me use that.
+
+      Actually, the wide nav and menu both render. So "Чат (1)" appears twice (once in wide, once in menu). Plus the badge? No, the chat count is only in the nav item, not a separate badge. So `content.count(">Чат (1)</a>") == 2`.
+
+      Hmm wait, but the nav item text is `Чат{% if chat_badge %} ({{ chat_badge }}){% endif %}` → "Чат (1)". Rendered as `<a href="/chat/">Чат (1)</a>`. So `content.count('>Чат (1)</a>') == 2` (wide + menu).
+
+      Let me write NavTests:
+      ```python
+      class NavTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+
+          def test_student_chat_count(self):
+              dialog = make_dialog(self.w.ax_profile)
+              add_message(dialog, self.w.sx, AuthorRole.STAFF)
+              self.client.force_login(self.w.ax)
+              content = self.client.get("/profile/").content.decode()
+              self.assertEqual(content.count('>Чат (1)</a>'), 2)
+
+          def test_student_chat_without_count(self):
+              self.client.force_login(self.w.ax)
+              content = self.client.get("/profile/").content.decode()
+              self.assertEqual(content.count('>Чат</a>'), 2)
+
+          def test_staff_nav_has_chats(self):
+              self.client.force_login(self.w.sx)
+              content = self.client.get("/profile/").content.decode()
+              self.assertIn('href="/staff/chats/"', content)
+
+          def test_badge_includes_chat_reply(self):
+              dialog = make_dialog(self.w.ax_profile)
+              add_message(dialog, self.w.sx, AuthorRole.STAFF)
+              self.client.force_login(self.w.ax)
+              content = self.client.get("/profile/").content.decode()
+              self.assertIn('<a class="site-menu-badge" href="/notifications/">Уведомления (1)</a>', content)
+      ```
+
+      Wait, `test_badge_includes_chat_reply`: "one unread staff message, no other items → «Уведомления (1)» outside the menu". The badge shows "1" because the chat reply contributes to the notifications unread count. The badge link is `<a class="site-menu-badge" href="/notifications/">Уведомления (1)</a>`. Good.
+
+      But wait — there's a subtlety: the chat reply contributes to the notification badge AND the chat nav count. So content would have "Чат (1)" too. But the badge test just checks the notifications badge shows "1". Good.
+
+      Actually, let me double-check: `badge_for_user` uses `unread_count` which unions all feed sources including ChatReplySource. So 1 unread staff message → unread_count = 1 → badge "1". Good.
+
+      Now let me also verify `test_student_chat_without_count`: with no messages, `chat_badge` is "" (student_unread_count = 0). So nav item is "Чат" (no count). `content.count('>Чат</a>') == 2`. Good.
+
+      Now, the QueryCountTests. Let me write:
+      ```python
+      def _query_count(fn):
+          with CaptureQueriesContext(connection) as ctx:
+              fn()
+          return len(ctx.captured_queries)
+
+      class QueryCountTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+              cls.dialog = make_dialog(cls.w.ax_profile)
+
+          def test_student_page_constant(self):
+              self.client.force_login(self.w.ax)
+              add_message(self.dialog, self.w.ax, AuthorRole.STUDENT)
+              add_message(self.dialog, self.w.sx, AuthorRole.STAFF)
+              small = _query_count(lambda: self.client.get("/chat/"))
+              for _ in range(28):
+                  add_message(self.dialog, self.w.ax, AuthorRole.STUDENT)
+              large = _query_count(lambda: self.client.get("/chat/"))
+              self.assertEqual(small, large)
+              self.assertLessEqual(small, 14)
+          ...
+      ```
+
+      Wait, but `make_world` creates 4 students (ax, bx, cx, ay) and cx in gx2. The header badge queries: for ax, `badge_for_user` (3 queries) + `student_unread_count` (1 query) = 4, plus page queries.
+
+      Let me estimate the student page queries. The header (base.html) renders notifications_badge (3 queries) + chat_unread_badge (1 query) = 4 queries. Then the view:
+      - Dialog.objects.filter(student=self.profile).first() — 1 query
+      - load_history → 1 query (messages + select_related)
+      - faculty_name = self.profile.group.program.faculty.name — self.profile (1 query via mixin), group (1), program (1), faculty (1) = 4 queries
+      - mark_read → 1 query (UPDATE)
+
+      Plus middleware: session (1), auth user (1). With force_login, the session is written? Actually force_login logs the user in, creating a session. Then the GET request does session load (1 query) + auth user load (1 query). Actually AuthenticationMiddleware caches via `request.user`; after force_login, the session has `_auth_user_id`, so get_user does 1 query to fetch the user. Session load is 1 query.
+
+      Hmm, this is getting complicated. The exact count will be measured by the test. The important assertions are:
+      1. constant between small and large data (equal counts).
+      2. upper bound ≤ 14.
+
+      Let me just write the tests and run them; if the count exceeds the bound, I'll optimize (e.g., select_related the profile).
+
+      Actually, `self.profile.group.program.faculty.name` — I should optimize this to avoid 4 queries. Let me check: `self.profile` is set in dispatch via `get_profile_for_role` = `getattr(user, "student_profile")`. This is 1 query (reverse OneToOne). Then `.group` (FK, 1 query), `.program` (FK, 1 query), `.faculty` (FK, 1 query).
+
+      To reduce, in the view I could re-fetch the profile with select_related. But the spec says `faculty_name = self.profile.group.program.faculty.name`. Hmm.
+
+      Actually, wait — let me reconsider. `get_profile_for_role` does `getattr(user, attr)` where attr = "student_profile". This triggers a query. But is `user` already loaded with its profile? No.
+
+      Actually, I could make the view fetch faculty_name more efficiently. But let me first measure. The bound is ≤ 14. Let me count:
+
+      1. session load (SessionMiddleware) - 1
+      2. user load (AuthenticationMiddleware get_user) - 1
+      3. profile (mixin get_profile_for_role) - 1
+      4. Dialog.objects.filter(student=self.profile).first() - 1
+      5. load_history (messages + select_related author__staff_profile) - 1
+      6. self.profile.group - 1
+      7. group.program - 1
+      8. program.faculty - 1
+      9. badge_for_user: student_context (1 for StudentProfile + 1 for NotificationState) + unread_count (1 union) = 3
+      10. student_unread_count - 1
+      11. mark_read - 1 (UPDATE)
+
+      Total: 2 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 3 + 1 + 1 = 14.
+
+      Hmm, that's exactly 14. Tight. Let me recount:
+      - session: 1
+      - user: 1
+      - profile (mixin): 1
+      - Dialog filter: 1
+      - load_history: 1
+      - group: 1
+      - program: 1
+      - faculty: 1
+      - notifications_badge (badge_for_user): student_context = 2 queries (StudentProfile select_related group__program + NotificationState), then unread_count = 1 (union). Actually let me check: `student_context` does `StudentProfile.objects.select_related("group__program").filter(user_id=user.pk).first()` (1 query) + `NotificationState.objects.filter(user_id=user.pk).values_list("seen_until").first()` (1 query). Then `badge_label(unread_count(ctx))` → `unread_count` does the union of 7 sources' unread_values. Each `unread_values` returns a values_list queryset; `.union(...).count()` = 1 query. So badge_for_user = 2 + 1 = 3 queries. ✓ (matches existing test test_badge_exactly_three_queries).
+      - chat_unread_badge (student_unread_count): 1 query.
+
+      So total = 1+1+1+1+1+1+1+1+3+1+1 = 14. Exactly 14.
+
+      But wait, is there also a query for the messages feed on the home page? No, this is /chat/ not home.
+
+      Also, does `load_history` select_related author__staff_profile, but the messages are student messages (author=student), so author__staff_profile is a reverse lookup that returns None (student has no staff_profile). Does select_related on a reverse OneToOne do anything? `select_related("author__staff_profile")` — author is User, staff_profile is reverse OneToOne on User. select_related supports reverse OneToOne. For student authors (no staff_profile), it does a LEFT JOIN, still 1 query. Good.
+
+      Also, mark_read: 1 UPDATE query. But actually, mark_read uses `.update()` which is 1 query. And it only runs if there's a message. For the "small" case (2 messages), mark_read runs (last message id > 0). For "large" (30 messages), also runs. So constant.
+
+      So 14 queries. The bound ≤ 14. It's exactly 14. Risky if I miscounted. Let me aim to reduce by optimizing faculty_name.
+
+      Actually, I can optimize: instead of `self.profile.group.program.faculty.name` (4 queries via mixin profile), I could select_related. But the mixin sets self.profile without select_related.
+
+      Alternatively, I could fetch the faculty name with a single query: `self.profile.group` already loaded? No.
+
+      Let me optimize the view to fetch faculty_name efficiently. Actually, I can do it in one query:
+      ```python
+      faculty_name = (
+          Dialog.objects  # no
+      )
+      ```
+
+      Hmm. Actually, a cleaner approach: in `get_context_data`, do `self.profile = get_profile_for_role(...)` already gives profile. Then to ge
+      …[2,622 more characters truncated]
+    ── Created chat/tests/test_views.py
+    ── Thought for 14s
+      I made an error in `test_student_page_layout` — the assertions are contradictory. Let me fix that test. The intent: messages oldest first (a before b), and the form appears AFTER the list (newest at bottom, form below). Let me rewrite:
+
+      ```python
+      def test_student_page_layout(self):
+          dialog = self.ax_dialog
+          a = add_message(dialog, self.w.ax, AuthorRole.STUDENT, text="первое")
+          b = add_message(dialog, self.w.sx, AuthorRole.STAFF, text="второе")
+          self.client.force_login(self.w.ax)
+          content = self.client.get("/chat/").content.decode()
+          # oldest first: a before b
+          self.assertLess(
+              content.index(f'data-message-id="{a.pk}"'),
+              content.index(f'data-message-id="{b.pk}"'),
+          )
+          # form after the last message
+          self.assertGreater(
+              content.index('id="chat-form"'),
+              content.index(f'data-message-id="{b.pk}"'),
+          )
+          self.assertIn(">Вы</strong>", content)
+          self.assertIn("Деканат ·", content)
+      ```
+
+      Let me fix that.
+
+      Also, there's an issue with `test_student_page_layout`: the `ax_dialog` in setUpTestData already has one message ("ax text"). Adding `a` and `b` gives 3 messages. The `data-message-id` order: ax_dialog messages ordered by id: "ax text" (id 1), a (id 2), b (id 3). So a.pk < b.pk, a before b. The form is after b. The `>Вы</strong>` appears for a (student message, viewer_is_student=True). "Деканат ·" appears for b (staff message). Good.
+
+      But wait, "ax text" is also a student message, so ">Вы</strong>" appears twice. That's fine, assertIn just checks presence.
+
+      Also, `content.index(f'data-message-id="{b.pk}"')` — b.pk. But wait, the fragment/`_message.html` renders `data-message-id="{{ m.pk }}"`. So `data-message-id="3"` etc. Good.
+
+      Let me also reconsider `test_staff_list_constant`. I add 5 more dialogs for cx (the same student cx). But `make_dialog(self.w.cx_profile)` creates ONE dialog for cx. Creating it 5 times just returns the same dialog (get_or_create). So it doesn't add 5 dialogs! That's a bug in my test.
+
+      Wait, make_world has only ONE cx (in gx2). To add 6 dialogs, I need 6 different students. But make_world only has ax, bx, cx, ay (4 students). I need more.
+
+      Let me reconsider. The staff list test needs "1 vs 6 dialogs". I need 6 students in FX (sx's faculty) each with a dialog.
+
+      make_world has ax, bx, cx in FX (gx1, gx1, gx2). Only 3 FX students. I need 6.
+
+      Let me create additional students. I can use `make_student` from accounts.tests.helpers to create more students in FX groups.
+
+      Actually, let me create 6 FX students explicitly for this test, or add more students.
+
+      Let me rewrite test_staff_list_constant to create 6 distinct FX students with dialogs.
+
+      Actually, simpler: create additional students using make_student in setUpTestData or in the test. Let me add a helper to create N extra students.
+
+      Let me rewrite:
+      ```python
+      def test_staff_list_constant(self):
+          self.client.force_login(self.w.sx)
+          add_message(self.dialog, self.w.ax, AuthorRole.STUDENT)
+          one = _query_count(lambda: self.client.get("/staff/chats/"))
+          for i in range(5):
+              student = make_student(f"extra{i}", self.w.gx1, f"REC-X-{i}")
+              d = make_dialog(student.student_profile)
+              add_message(d, student, AuthorRole.STUDENT)
+          six = _query_count(lambda: self.client.get("/staff/chats/"))
+          self.assertEqual(one, six)
+          self.assertLessEqual(one, 6)
+      ```
+
+      I need to import `make_student` from accounts.tests.helpers.
+
+      Wait, but make_world's `w.gx1` is available. And make_student(username, group, record_number). record_number must be unique. "REC-X-0".."REC-X-4". Good.
+
+      Let me fix both tests and add the import.
+
+      Also, `test_student_page_without_dialog` uses `self.w.cx_profile`. Does make_world provide `cx_profile`? Yes: `cx_profile=cx.student_profile`. Good.
+
+      Also I need to double check: `make_world` creates `cx` in gx2 (FX). So cx is in FX (same faculty as sx). For `test_student_page_without_dialog`, cx has no dialog (I only created dialogs for ax, bx, ay in _ChatWorld.setUpTestData). So GET /chat/ as cx → empty state. Good.
+
+      But wait, in _ChatWorld.setUpTestData, I create ax_dialog, bx_dialog, ay_dialog. cx has no dialog. Good.
+
+      Now, there's a concern about `test_staff_list_constant` in QueryCountTests — it uses a different setUpTestData (only ax_dialog, no bx/ay dialogs). So sx sees only ax's dialog (and cx has no dialog). "one" count with 1 dialog. Then add 5 more. Good.
+
+      Let me also reconsider the `test_fragment_constant` bound ≤ 8. The fragment request:
+      - session (1), user (1), profile (1) [mixin], Dialog filter (1), messages_after (1), mark_read (1). Plus header? No — the fragment view returns `render(request, "chat/_messages.html", ...)` which does NOT extend base.html, so no header badges. So ~6 queries. ≤ 8. Good.
+
+      Actually wait, does the fragment response render base.html? No, `_messages.html` is a bare partial (just `<li>` elements), rendered directly via `render(request, "chat/_messages.html", ...)`. It doesn't extend base.html. So no header. Good.
+
+      But wait — the fragment view is `StudentChatUpdatesView(StudentRequiredMixin, View)`. The mixin sets self.profile (1 query). Then Dialog filter (1), messages_after (1), mark_read (1). Plus middleware session (1) + user (1). Total ~6. ≤ 8. Good.
+
+      Let me also reconsider `test_staff_dialog_constant` bound ≤ 10. Staff dialog page:
+      - session (1), user (1), profile (1)
+      - get_object (dialogs_visible_to select_related) (1)
+      - load_history (1)
+      - _history_context: student_name = dialog.student.full_name (loaded via select_related, no extra query)
+      - mark_read (1)
+      - header: staff → no badge, no chat query (staff nav has no count). So 0 header queries.
+      - form rendering (0)
+
+      Total ~6. ≤ 10. Good.
+
+      And `test_student_page_constant` bound ≤ 14. As analyzed, ~14. Let me measure.
+
+      Let me fix the tests and run.
+
+      Actually, let me also reconsider: in `_ChatWorld.setUpTestData`, I create 3 messages (one per dialog). Then in individual tests (like ViewTests.test_open_marks_student_read), the ax_dialog already has "ax text" message (id 1). Then add_message adds id 2 (student) and reply id 3 (staff). student_read_id after GET = reply.pk = 3. My test asserts `dialog.student_read_id == reply.pk`. Good.
+
+      But `test_open_marks_student_read` asserts `dialog.student_read_id == 0` before GET. The setUpTestData created "ax text" (student message), but student_read_id is still 0 (add_message doesn't touch read markers). Good.
+
+      Now let me fix the layout test and staff_list_constant test, and add make_student import.
+
+      Let me also double check `test_staff_post_staff` uses `.latest("id")` — Message has ordering ["id"], so `.latest("id")` works (or `.order_by("-id").first()`). Actually `latest("id")` uses `get_latest_by` or the ordering. Django's `.latest("id")` requires the field to be a valid field and uses `order_by("-id").first()`. It works. But `latest()` without args uses Meta.get_latest_by. I passed "id" explicitly, so fine.
+
+      Actually, `Message.objects.filter(...).latest("id")` — the `.latest()` method is available on QuerySet and Manager. It works.
+
+      Let me fix the issues now.
+    ── Edited chat/tests/test_views.py +1
+      --- a~/hackatonproject/chat/tests/test_views.py
+      +++ b~/hackatonproject/chat/tests/test_views.py
+      +from accounts.tests.helpers import make_student
+    ── Edited chat/tests/test_views.py +9 -4
+      --- a~/hackatonproject/chat/tests/test_views.py
+      +++ b~/hackatonproject/chat/tests/test_views.py
+      -        self.assertLess(content.index(f'data-message-id="{a.pk}"'), content.index(f'data-message-id="{b.pk}"'))
+      -        self.assertLess(content.index('id="chat-form"'), content.index('data-message-id="'))
+      -        # Wait: form is AFTER the list.
+      -        self.assertGreater(content.index('id="chat-form"'), content.index(f'data-message-id="{b.pk}"'))
+      +        # Oldest first: a before b.
+      +        self.assertLess(
+      +            content.index(f'data-message-id="{a.pk}"'),
+      +            content.index(f'data-message-id="{b.pk}"'),
+      +        )
+      +        # The form is after the last message.
+      +        self.assertGreater(
+      +            content.index('id="chat-form"'), content.index(f'data-message-id="{b.pk}"')
+      +        )
+    ── Edited chat/tests/test_views.py +3 -2
+      --- a~/hackatonproject/chat/tests/test_views.py
+      +++ b~/hackatonproject/chat/tests/test_views.py
+      -            make_dialog(self.w.cx_profile)
+      -            add_message(self.w.cx_profile.chat_dialog, self.w.cx, AuthorRole.STUDENT)
+      +            student = make_student(f"extra{i}", self.w.gx1, f"REC-X-{i}")
+      +            d = make_dialog(student.student_profile)
+      +            add_message(d, student, AuthorRole.STUDENT)
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test chat.tests.test_views 2>&1 | tail -50 (4s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test chat.tests.test_views 2>&1 | tail -50
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/contrib/admin/options.py", line 1988, in change_view
+          return self.changeform_view(request, object_id, form_url, extra_context)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/utils/decorators.py", line 48, in _wrapper
+          return bound_method(*args, **kwargs)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/utils/decorators.py", line 192, in _view_wrapper
+          result = _process_exception(request, e)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/utils/decorators.py", line 190, in _view_wrapper
+          response = view_func(request, *args, **kwargs)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/contrib/admin/options.py", line 1844, in changeform_view
+          return self._changeform_view(request, object_id, form_url, extra_context)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/contrib/admin/options.py", line 1868, in _changeform_view
+          raise PermissionDenied
+      django.core.exceptions.PermissionDenied
+      ..2026-11-15 20:47:48,669 WARNING django.security.csrf Forbidden (CSRF cookie not set.): /staff/chats/2711ce24-0b61-4976-bfc3-43516a2939ef/
+      .2026-11-15 20:47:48,674 WARNING django.security.csrf Forbidden (CSRF cookie not set.): /chat/
+      .....F.....2026-11-15 20:47:49,425 WARNING django.request Bad Request: /chat/updates/
+      2026-11-15 20:47:49,427 WARNING django.request Bad Request: /chat/updates/
+      2026-11-15 20:47:49,428 WARNING django.request Bad Request: /chat/updates/
+      2026-11-15 20:47:49,429 WARNING django.request Bad Request: /chat/updates/
+      2026-11-15 20:47:49,430 WARNING django.request Bad Request: /chat/updates/
+      ....2026-11-15 20:47:49,480 WARNING django.request Not Found: /staff/chats/73042996-e284-455f-b1e5-85f0940e779b/updates/
+      .............F....
+      ======================================================================
+      FAIL: test_fragment_constant (chat.tests.test_views.QueryCountTests.test_fragment_constant)
+      ----------------------------------------------------------------------
+      Traceback (most recent call last):
+        File "~/hackatonproject/chat/tests/test_views.py", line 597, in test_fragment_constant
+          self.assertEqual(one, ten)
+      AssertionError: 5 != 6
+
+      ======================================================================
+      FAIL: test_staff_list_items (chat.tests.test_views.ViewTests.test_staff_list_items)
+      ----------------------------------------------------------------------
+      Traceback (most recent call last):
+        File "~/hackatonproject/chat/tests/test_views.py", line 395, in test_staff_list_items
+          self.assertIn("<strong>новых: 2</strong>", content)
+      AssertionError: '<strong>новых: 2</strong>' not found in '<!doctype html>\n<html lang="ru">\n<head>\n  <meta charset="utf-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1">\n  <title>Чаты</title>\n  <link rel="stylesheet" href="/static/css/tokens.css">\n  <link rel="stylesheet" href="/static/css/base.css">\n  <link rel="stylesheet" href="/static/css/theme.css">\n  \n</head>\n<body>\n  <a class="skip-link" href="#main">Перейти к содержимому</a>\n  <header class="site-header">\n    <a class="site-title" href="/">Цифровой деканат будущего</a>\n    \n    <nav class="site-nav site-nav--wide" aria-label="Основная навигация">\n      <ul class="site-nav-list">\n  <li><a href="/profile/">Профиль</a></li>\n  \n  <li><a href="/staff/schedule/">Расписание</a></li>\n  <li><a href="/map/">Карта</a></li>\n  <li><a href="/staff/requests/">Заявки</a></li>\n  <li><a href="/staff/chats/" aria-current="page">Чаты</a></li>\n  <li><a href="/staff/announcements/">Объявления</a></li>\n  \n  \n  <li><a href="/staff/students/">Студенты</a></li>\n  \n  <li>\n    <form class="site-nav-logout" method="post" action="/logout/">\n      <input type="hidden" name="csrfmiddlewaretoken" value="B7doSevdWgL2M87Mz2fc6wrioLFG76c7nUlBeYCS9REfnIOkTdYBk6wNzCCjph8b">\n      <button type="submit">Выйти</button>\n    </form>\n  </li>\n</ul>\n\n    </nav>\n    \n    <div class="site-nav-compact">\n      <details class="site-menu">\n        <summary class="site-menu-toggle">Меню</summary>\n        <nav class="site-nav" aria-label="Основная навигация">\n          <ul class="site-nav-list">\n  <li><a href="/profile/">Профиль</a></li>\n  \n  <li><a href="/staff/schedule/">Расписание</a></li>\n  <li><a href="/map/">Карта</a></li>\n  <li><a href="/staff/requests/">Заявки</a></li>\n  <li><a href="/staff/chats/" aria-current="page">Чаты</a></li>\n  <li><a href="/staff/announcements/">Объявления</a></li>\n  \n  \n  <li><a href="/staff/students/">Студенты</a></li>\n  \n  <li>\n    <form class="site-nav-logout" method="post" action="/logout/">\n      <input type="hidden" name="csrfmiddlewaretoken" value="B7doSevdWgL2M87Mz2fc6wrioLFG76c7nUlBeYCS9REfnIOkTdYBk6wNzCCjph8b">\n      <button type="submit">Выйти</button>\n    </form>\n  </li>\n</ul>\n\n        </nav>\n      </details>\n      \n    </div>\n    \n  </header>\n  <main id="main" class="site-main">\n    \n    \n<h1>Чаты</h1>\n\n<ul class="chat-dialogs">\n  \n  <li><a href="/staff/chats/eff1fc30-d723-4309-b242-632e5ed99b9a/">bx-last bx-first</a> · GX1 · 11.11.2026 12:00 · <strong>новых: 1</strong></li>\n  \n  <li><a href="/staff/chats/f99adb96-912e-4328-82fa-356b74047f0d/">ax-last ax-first</a> · GX1 · 11.11.2026 12:00 · <strong>новых: 3</strong></li>\n  \n</ul>\n\n\n  </main>\n  <footer class="site-footer">\n    <p class="site-disclaimer">Концепт для конкурса MGIMO AI Challenge. Не является официальным сервисом вуза. Все данные вымышлены.</p>\n  </footer>\n</body>\n</html>\n'
+
+      ----------------------------------------------------------------------
+      Ran 72 tests in 2.268s
+
+      FAILED (failures=2)
+      Destroying test database for alias 'default'...
+      Found 72 test(s).
+      System check identified no issues (0 silenced).
+    ── Thought for 12s
+      Two failures:
+
+      1. `test_fragment_constant`: `one != ten` (5 vs 6). The fragment query count is not constant. Why? Let me think.
+
+      The fragment request: `/chat/updates/?after={first}`. For "one" case: 1 new message after `first`. For "ten" case: 10 new messages.
+
+      Wait, the issue is the `mark_read` behavior. In the "one" case, there's 1 message after `first` (which is `first` = the first message's id). Wait let me trace:
+
+      `test_fragment_constant`:
+      ```python
+      add_message(self.dialog, self.w.ax, AuthorRole.STUDENT)  # id 1 (in this test's DB, dialog has no prior messages since setUpTestData only creates dialog, not messages)
+      first = self.dialog.messages.order_by("id").first().pk  # first = 1
+      one = _query_count(lambda: self.client.get(f"/chat/updates/?after={first}"))  # after=1, no new messages → 204!
+      ```
+
+      Wait, `first` is the FIRST message's pk = 1. So `after=1` → messages_after(dialog, 1) returns messages with id > 1 = none → 204. So the "one" case returns 204 (no mark_read, no render). That's a different code path (204 vs 200 with fragment).
+
+      Then "ten" case: add 9 more messages (ids 2..10). after=1 → messages with id > 1 = ids 2..10 (9 messages) → 200 with fragment + mark_read. So "ten" = 200 path with more queries.
+
+      So "one" (204) and "ten" (200) have different query counts. That's the bug in my test setup.
+
+      I need both cases to hit the 200 path with different message counts. Let me set up:
+      - Add a base message (id 1) and a staff reply (id 2). `after` = id 1. Then "one" case: 1 new message (id 2) → 200.
+      - Add 9 more staff replies (ids 3..11). "ten" case: 10 new messages → 200.
+
+      Actually, the spec says `test_fragment_constant (1 vs 10 new messages; ≤ 8)`. So:
+      - Case 1: 1 new message after `after`.
+      - Case 10: 10 new messages after `after`.
+
+      Let me set up so that `after` is a fixed id and there are 1 vs 10 messages after it.
+
+      ```python
+      def test_fragment_constant(self):
+          self.client.force_login(self.w.ax)
+          base = add_message(self.dialog, self.w.ax, AuthorRole.STUDENT)  # id 1
+          add_message(self.dialog, self.w.sx, AuthorRole.STAFF)  # id 2, unread reply
+          after = base.pk  # after = 1
+          one = _query_count(lambda: self.client.get(f"/chat/updates/?after={after}"))  # 1 new message (id 2)
+          for _ in range(9):
+              add_message(self.dialog, self.w.sx, AuthorRole.STAFF)  # ids 3..11
+          ten = _query_count(lambda: self.client.get(f"/chat/updates/?after={after}"))  # 10 new messages
+          self.assertEqual(one, ten)
+          self.assertLessEqual(one, 8)
+      ```
+
+      Now "one" → 1 new message (200), "ten" → 10 new messages (200). Both hit the 200 path. The difference is just the number of rows returned (which doesn't add queries). So equal.
+
+      But wait — `mark_read` updates `student_read_id` to the last returned id. In "one", last returned = id 2. In "ten", last returned = id 11. The mark_read is 1 UPDATE query in both cases. So constant.
+
+      Actually, wait — there might be a subtlety. In "one" case, after the first `get`, the student_read_id is set to 2. Then in "ten" case, after the second `get`, it's set to 11. But the `_query_count` counts queries during the request, and the number of queries is the same regardless of data volume. So constant.
+
+      Let me fix this test.
+
+      2. `test_staff_list_items`: the content shows "новых: 1" for bx and "новых: 3" for ax, but my assertion expects "новых: 2".
+
+      Why? Because `_ChatWorld.setUpTestData` already added "ax text" (1 student message) and "bx text" (1 student message) and "ay text". So ax_dialog has "ax text" (1 student message) + in test_staff_list_items I add 2 more student messages = 3 unread student messages for ax. And bx_dialog has "bx text" (1 unread). So the list shows "новых: 3" for ax and "новых: 1" for bx.
+
+      My assertion `assertIn("<strong>новых: 2</strong>")` fails because ax has 3 unread, not 2.
+
+      I need to fix this test. The intent (spec §6.3): "test_staff_list_items (name, group, «новых: 2»)". So I should create a dialog with exactly 2 unread student messages, OR reset the read markers.
+
+      The issue is the setUpTestData already seeded messages. Let me reconsider: the `_ChatWorld` base class creates 3 messages (ax text, bx text, ay text). These are student messages with staff_read_id=0, so they're unread for staff.
+
+      For test_staff_list_items, I want a dialog with exactly 2 unread. I can set `staff_read_id` to account for the existing "ax text" message, then add 2 more.
+
+      Alternatively, I can just use a fresh dialog (not ax_dialog) in this test. Let me create a fresh student + dialog.
+
+      Actually, simpler: reset ax_dialog's staff_read_id to cover the existing message, then add 2 unread messages.
+
+      Let me rewrite:
+      ```python
+      def test_staff_list_items(self):
+          dialog = self.ax_dialog
+          # Mark the existing "ax text" as read for staff.
+          existing = dialog.messages.order_by("id").first()
+          dialog.staff_read_id = existing.pk
+          dialog.save(update_fields=["staff_read_id"])
+          add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+          add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+          self.client.force_login(self.w.sx)
+          content = self.client.get("/staff/chats/").content.decode()
+          self.assertIn(self.w.ax_profile.full_name, content)
+          self.assertIn(self.w.ax_profile.group.name, content)
+          self.assertIn("<strong>новых: 2</strong>", content)
+      ```
+
+      This makes ax_dialog have exactly 2 unread. But bx_dialog still has 1 unread ("bx text"), and ay is FY (not shown). So the list has bx ("новых: 1") and ax ("новых: 2"). The assertion "новых: 2" is present. Good.
+
+      Let me fix both tests.
+
+      Also, I noticed in the output: the admin change POST raised PermissionDenied (expected, that's the 403). And the CSRF warnings are expected (the CsrfTests enforce CSRF). Those are fine.
+
+      Let me also note: the output shows "Ran 72 tests ... FAILED (failures=2)". So only 2 failures. Good, the rest pass.
+
+      Let me fix the two tests.
+    ── Edited chat/tests/test_views.py +3
+      --- a~/hackatonproject/chat/tests/test_views.py
+      +++ b~/hackatonproject/chat/tests/test_views.py
+      +        existing = dialog.messages.order_by("id").first()
+      +        dialog.staff_read_id = existing.pk
+      +        dialog.save(update_fields=["staff_read_id"])
+    ── Edited chat/tests/test_views.py +6 -5
+      --- a~/hackatonproject/chat/tests/test_views.py
+      +++ b~/hackatonproject/chat/tests/test_views.py
+      -        add_message(self.dialog, self.w.ax, AuthorRole.STUDENT)
+      -        first = self.dialog.messages.order_by("id").first().pk
+      -        one = _query_count(lambda: self.client.get(f"/chat/updates/?after={first}"))
+      +        base = add_message(self.dialog, self.w.ax, AuthorRole.STUDENT)
+      +        add_message(self.dialog, self.w.sx, AuthorRole.STAFF)
+      +        after = base.pk
+      +        one = _query_count(lambda: self.client.get(f"/chat/updates/?after={after}"))
+      -            add_message(self.dialog, self.w.ax, AuthorRole.STUDENT)
+      -        ten = _query_count(lambda: self.client.get(f"/chat/updates/?after={first}"))
+      +            add_message(self.dialog, self.w.sx, AuthorRole.STAFF)
+      +        ten = _query_count(lambda: self.client.get(f"/chat/updates/?after={after}"))
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test chat.tests.test_views 2>&1 | tail -20 (4s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test chat.tests.test_views 2>&1 | tail -20
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/contrib/admin/options.py", line 1868, in _changeform_view
+          raise PermissionDenied
+      django.core.exceptions.PermissionDenied
+      ..2026-11-15 20:48:15,039 WARNING django.security.csrf Forbidden (CSRF cookie not set.): /staff/chats/1d801714-a868-4e92-8f60-e51a4c47d2c2/
+      .2026-11-15 20:48:15,044 WARNING django.security.csrf Forbidden (CSRF cookie not set.): /chat/
+      ...........2026-11-15 20:48:15,796 WARNING django.request Bad Request: /chat/updates/
+      2026-11-15 20:48:15,797 WARNING django.request Bad Request: /chat/updates/
+      2026-11-15 20:48:15,798 WARNING django.request Bad Request: /chat/updates/
+      2026-11-15 20:48:15,800 WARNING django.request Bad Request: /chat/updates/
+      2026-11-15 20:48:15,801 WARNING django.request Bad Request: /chat/updates/
+      ....2026-11-15 20:48:15,851 WARNING django.request Not Found: /staff/chats/681070dd-9d78-47fa-a8ab-e56680b2c805/updates/
+      ..................
+      ----------------------------------------------------------------------
+      Ran 72 tests in 2.258s
+
+      OK
+      Destroying test database for alias 'default'...
+      Found 72 test(s).
+      System check identified no issues (0 silenced).
+    ── Thought for 9s
+      72 tests pass. Now let me write the remaining test files: test_feed.py, test_static.py, test_demo.py.
+
+      Let me write test_feed.py (ChatFeedTests per §6.3):
+      - test_unread_staff_reply_in_feed (title, body preview ≤ 200 chars + «…», url /chat/)
+      - test_own_student_messages_not_in_feed
+      - test_read_reply_leaves_feed (after mark_read)
+      - test_reply_counts_in_badge_once (unread_count +1; after visiting «Уведомления» counted 0 by notifications marker while chat count stays 1)
+      - test_other_student_reply_not_in_feed
+      - test_badge_still_three_queries (existing badge_for_user 3 queries with chat rows present)
+
+      I need to import from notifications.feed: build_feed, unread_count, student_context, badge_for_user. And from chat.services: mark_read. And chat models.
+
+      Let me look at how existing test_feed.py uses _ctx, _keys helpers. From the top:
+      ```python
+      def _ctx(user, now=None):
+          return student_context(user, now)
+
+      def _keys(user, now=None):
+          return [i.key for i in build_feed(_ctx(user, now))]
+      ```
+
+      And make_world, FrozenClockMixin.
+
+      For ChatFeedTests (frozen clock NOW):
+      - test_unread_staff_reply_in_feed: create dialog for ax, add staff message. Then `_keys(ax)` contains "chat-<pk>". Check title, body, url.
+
+      Actually, to check the FeedItem details (title/body/url), I need to inspect `build_feed(_ctx(ax))` items. Let me write:
+      ```python
+      def test_unread_staff_reply_in_feed(self):
+          dialog = make_dialog(self.w.ax_profile)
+          reply = add_message(dialog, self.w.sx, AuthorRole.STAFF, text="сообщение от деканата")
+          items = build_feed(_ctx(self.w.ax))
+          chat = next(i for i in items if i.kind == "chat_reply")
+          self.assertEqual(chat.title, "Новое сообщение от деканата")
+          self.assertEqual(chat.body, "сообщение от деканата")
+          self.assertEqual(chat.url, "/chat/")
+          self.assertEqual(chat.key, f"chat-{reply.pk}")
+      ```
+
+      But wait, `_ctx` is defined in notifications/tests/test_feed.py, not in chat/tests. Let me define my own `_ctx` helper or import. Actually, I'll write the chat feed tests in `chat/tests/test_feed.py` and define local helpers.
+
+      For body preview ≤ 200 chars + «…»: Truncator.chars(200) truncates. For a short message (< 200), body = full text (no ellipsis). For a long message, body = first 200 chars + "…". Let me test with a long text.
+
+      Actually, `Truncator(text).chars(200)` — for text longer than 200, returns truncated with "…". For text ≤ 200, returns as-is. Let me test:
+      ```python
+      long_text = "a" * 300
+      reply = add_message(dialog, self.w.sx, AuthorRole.STAFF, text=long_text)
+      item = ...
+      self.assertLessEqual(len(item.body), 200)  # includes "…"
+      self.assertTrue(item.body.endswith("…"))
+      ```
+
+      Actually `Truncator.chars(200)` truncates to 200 chars total INCLUDING the ellipsis. So body length ≤ 200. Let me assert `len(item.body) <= 200` and `item.body.endswith("…")`.
+
+      For test_own_student_messages_not_in_feed: student's own messages don't appear (only staff messages). Add student message → no chat_reply item.
+
+      For test_read_reply_leaves_feed: after mark_read (student_read_id = reply id), the chat_reply item leaves the feed.
+
+      For test_reply_counts_in_badge_once: unread_count +1; after visiting notifications (mark_seen), the notifications badge counts 0 while chat count stays 1.
+
+      Hmm, this is more involved. Let me think:
+      - Create a staff reply (unread). unread_count(_ctx(ax)) includes 1 chat reply.
+      - `student_unread_count(ax)` == 1.
+      - After "visiting notifications" (which calls mark_seen to set NotificationState.seen_until), the notifications badge (unread_count) counts 0 for the chat reply (because seen_until > reply.created_at), but the chat count (student_unread_count) stays 1 (chat read marker is separate).
+
+      Actually, `mark_seen` sets NotificationState.seen_until = now. Then `unread_count` uses `unread_values` which filters `created_at > seen_until`. So the chat reply (created_at < now) would be filtered out → unread_count 0. But `student_unread_count` still counts it (id > student_read_id, which is 0). So chat count = 1, notifications count = 0.
+
+      Let me write:
+      ```python
+      def test_reply_counts_in_badge_once(self):
+          dialog = make_dialog(self.w.ax_profile)
+          add_message(dialog, self.w.sx, AuthorRole.STAFF)
+          self.assertEqual(unread_count(_ctx(self.w.ax)), 1)
+          self.assertEqual(student_unread_count(self.w.ax), 1)
+          # Visiting the notifications feed marks the notifications seen,
+          # but the chat read marker is unchanged.
+          mark_seen(self.w.ax.pk, moscow(NOW))
+          self.assertEqual(unread_count(_ctx(self.w.ax)), 0)
+          self.assertEqual(student_unread_count(self.w.ax), 1)
+      ```
+
+      I need `mark_seen` from notifications.services. Let me check its signature. From notifications/views.py: `mark_seen(ctx.user_id, ctx.now)`. Let me check notifications/services.py.
+
+      Actually, `mark_seen(user_id, now)` — let me check.
+    ── Searched for def mark_seen in notifications/services.py
+    ── Thought for 10s
+      Good. `mark_seen(user_id, now)`. 
+
+      Now let me write test_feed.py for chat. Let me write it.
+
+      For `test_other_student_reply_not_in_feed`: ax's feed should not contain replies to bx. Create a staff reply in bx's dialog → ax's feed doesn't include it.
+
+      For `test_badge_still_three_queries`: with chat rows present, `badge_for_user(user)` still 3 queries.
+      ```python
+      def test_badge_still_three_queries(self):
+          dialog = make_dialog(self.w.ax_profile)
+          add_message(dialog, self.w.sx, AuthorRole.STAFF)
+          user = User.objects.get(pk=self.w.ax.pk)
+          with self.assertNumQueries(3):
+              badge_for_user(user)
+      ```
+
+      Let me write the chat test_feed.py.
+
+      Imports:
+      ```python
+      from django.test import TestCase
+      from accounts.models import User
+      from chat.models import AuthorRole
+      from chat.selectors import student_unread_count
+      from chat.services import mark_read
+      from chat.tests.helpers import add_message, make_dialog
+      from core.testing import FrozenClockMixin, moscow
+      from notifications.feed import badge_for_user, build_feed, student_context, unread_count
+      from notifications.services import mark_seen
+      from notifications.tests.helpers import make_world
+      ```
+
+      Let me write the file.
+
+      For the body preview test with long text:
+      ```python
+      def test_unread_staff_reply_in_feed(self):
+          dialog = make_dialog(self.w.ax_profile)
+          reply = add_message(dialog, self.w.sx, AuthorRole.STAFF, text="сообщение")
+          items = build_feed(_ctx(self.w.ax))
+          chat = next(i for i in items if i.kind == "chat_reply")
+          self.assertEqual(chat.title, "Новое сообщение от деканата")
+          self.assertEqual(chat.body, "сообщение")
+          self.assertEqual(chat.url, "/chat/")
+          self.assertEqual(chat.key, f"chat-{reply.pk}")
+
+      def test_body_preview_truncated(self):
+          dialog = make_dialog(self.w.ax_profile)
+          add_message(dialog, self.w.sx, AuthorRole.STAFF, text="a" * 300)
+          chat = next(i for i in build_feed(_ctx(self.w.ax)) if i.kind == "chat_reply")
+          self.assertLessEqual(len(chat.body), 200)
+          self.assertTrue(chat.body.endswith("…"))
+      ```
+
+      Wait, the spec test list for test_feed.py::ChatFeedTests:
+      - test_unread_staff_reply_in_feed (title, body preview ≤ 200 chars + «…», url /chat/)
+      - test_own_student_messages_not_in_feed
+      - test_read_reply_leaves_feed
+      - test_reply_counts_in_badge_once
+      - test_other_student_reply_not_in_feed
+      - test_badge_still_three_queries
+
+      So the body preview check is part of test_unread_staff_reply_in_feed. Let me combine: use a long message and assert body ≤ 200 + «…». But then also need title/url. Let me do two assertions in one test: use a short message for title/url/key, and separately check truncation. Actually, let me just include the truncation check with a long message and still check title/url/key.
+
+      Let me write test_unread_staff_reply_in_feed with a long message:
+      ```python
+      def test_unread_staff_reply_in_feed(self):
+          dialog = make_dialog(self.w.ax_profile)
+          reply = add_message(dialog, self.w.sx, AuthorRole.STAFF, text="a" * 300)
+          chat = next(i for i in build_feed(_ctx(self.w.ax)) if i.kind == "chat_reply")
+          self.assertEqual(chat.title, "Новое сообщение от деканата")
+          self.assertLessEqual(len(chat.body), 200)
+          self.assertTrue(chat.body.endswith("…"))
+          self.assertEqual(chat.url, "/chat/")
+          self.assertEqual(chat.key, f"chat-{reply.pk}")
+      ```
+
+      Good.
+
+      Now let me write the full test_feed.py.
+
+      I need a `_ctx` helper. Let me define it locally.
+
+      Let me write all three remaining test files now.
+
+      For test_static.py (ChatJsTests):
+      ```python
+      from pathlib import Path
+      from django.conf import settings
+      from django.test import SimpleTestCase
+
+
+      class ChatJsTests(SimpleTestCase):
+          @classmethod
+          def setUpClass(cls):
+              super().setUpClass()
+              cls.js = (Path(settings.BASE_DIR) / "static/js/chat.js").read_text()
+
+          def test_no_forbidden_apis(self):
+              for forbidden in ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "new Function", "setInterval"):
+                  self.assertNotIn(forbidden, self.js)
+
+          def test_uses_required_apis(self):
+              for required in ("DOMParser", "visibilitychange", "X-Chat-Fragment", "importNode", "data-chat-poll-url", "chatPollUrl", "textContent"):
+                  self.assertIn(required, self.js)
+
+          def test_strict_iife(self):
+              self.assertTrue(self.js.startswith("(function () {"))
+              self.assertIn('"use strict"', self.js)
+      ```
+
+      Wait, `settings.BASE_DIR` — is that available? In config/settings.py, `BASE_DIR = Path(__file__).resolve().parent.parent`. And it's a module-level variable, so `settings.BASE_DIR` works. The core/tests/test_css.py uses `settings.BASE_DIR`. Good.
+
+      But there's a subtlety: `data-chat-poll-url` — my JS uses `[data-chat-poll-url]` in querySelector and `root.dataset.chatPollUrl`. So "data-chat-poll-url" and "chatPollUrl" both present. Good.
+
+      Also "importNode" — my JS uses `document.importNode`. Good. "DOMParser" — yes. "visibilitychange" — yes. "X-Chat-Fragment" — yes. "textContent" — yes.
+
+      For test_no_forbidden_apis, "eval(" — my JS doesn't have "eval(". But wait, does "eval(" appear in any word? No. "innerHTML" — no. Good.
+
+      Now test_demo.py (ChatSeedTests):
+      - frozen_now = "2026-11-22 12:00"
+      - call_command("seed_demo") with patched DEMO_PASSWORD.
+      - test_dialogs_and_messages (3 dialogs, 8 messages, both roles in student1/student2 dialogs)
+      - test_idempotent (second run: same counts; output «Chat ready: 0 dialogs, 0 messages.»)
+      - test_student1_has_unread_reply (student_unread_count(student1) == 1; feed has chat_reply item)
+      - test_each_faculty_has_unread_student_message (staff_dialog_list(staff1) and (staff2) each have dialog with unread >= 1)
+      - test_messages_in_past_and_ordered (created_at <= now; id order = time order per dialog)
+
+      This requires the full seed_demo which seeds accounts, schedule, academics, petitions, notifications, chat. That's a big seed. Let me look at how existing test_demo.py tests work (e.g., schedule/tests/test_demo.py or notifications/tests/test_demo.py).
+
+      Let me check the existing test_demo tests to understand the pattern (how they patch DEMO_PASSWORD and call_command).
+    ── Listed files in .
+    ── Thought for 8s
+      I now understand the test_demo pattern. Let me write chat/tests/test_demo.py following the same pattern.
+
+      ChatSeedTests (frozen_now = "2026-11-22 12:00"):
+      - test_dialogs_and_messages: 3 dialogs, 8 messages, both roles in student1/student2 dialogs.
+      - test_idempotent: second run same counts; output "Chat ready: 0 dialogs, 0 messages."
+      - test_student1_has_unread_reply: student_unread_count(student1) == 1; feed has chat_reply item.
+      - test_each_faculty_has_unread_student_message: staff_dialog_list(staff1) and (staff2) each have dialog with unread >= 1.
+      - test_messages_in_past_and_ordered: created_at <= now; id order = time order per dialog.
+
+      Let me write it.
+
+      For test_dialogs_and_messages:
+      ```python
+      def test_dialogs_and_messages(self):
+          self._seed()
+          self.assertEqual(Dialog.objects.count(), 3)
+          self.assertEqual(Message.objects.count(), 8)
+          # Both roles present in student1 and student2 dialogs.
+          for username in ("student1", "student2"):
+              student = User.objects.get(username=username)
+              roles = set(Message.objects.filter(dialog__student__user=student).values_list("author_role", flat=True))
+              self.assertEqual(roles, {AuthorRole.STUDENT, AuthorRole.STAFF})
+      ```
+
+      For test_student1_has_unread_reply:
+      ```python
+      def test_student1_has_unread_reply(self):
+          self._seed()
+          student1 = User.objects.get(username="student1")
+          self.assertEqual(student_unread_count(student1), 1)
+          items = build_feed(student_context(student1))
+          self.assertTrue(any(i.kind == "chat_reply" for i in items))
+      ```
+
+      For test_each_faculty_has_unread_student_message:
+      ```python
+      def test_each_faculty_has_unread_student_message(self):
+          self._seed()
+          staff1 = User.objects.get(username="staff1")
+          staff2 = User.objects.get(username="staff2")
+          for staff in (staff1, staff2):
+              self.assertTrue(any(d.unread >= 1 for d in staff_dialog_list(staff)))
+      ```
+
+      For test_messages_in_past_and_ordered:
+      ```python
+      def test_messages_in_past_and_ordered(self):
+          self._seed()
+          now = timezone.now()
+          for dialog in Dialog.objects.all():
+              msgs = list(dialog.messages.order_by("id"))
+              for m in msgs:
+                  self.assertLessEqual(m.created_at, now)
+              times = [m.created_at for m in msgs]
+              self.assertEqual(times, sorted(times))
+      ```
+
+      For test_idempotent:
+      ```python
+      def test_idempotent(self):
+          self._seed()
+          output = self._seed()
+          self.assertEqual(Dialog.objects.count(), 3)
+          self.assertEqual(Message.objects.count(), 8)
+          self.assertIn("Chat ready: 0 dialogs, 0 messages.", output)
+      ```
+
+      Now, one concern: the seed_demo command calls `seed_chat_demo` which uses `StudentProfile.objects.filter(user__username__in=...)`. But `seed_chat_demo` is called AFTER `seed_notifications_demo` in the command. Does the full seed create student1/student2/student3 and staff1/staff2? Yes (accounts demo). 
+
+      But wait — is `seed_chat_demo` actually idempotent with respect to the "Chat ready: 0 dialogs, 0 messages" output? On second run, `Message.objects.filter(seed_key="c-1-1").exists()` is True → skip student1. Similarly for student3 (c-3-1) and student2 (c-2-1). So dialogs=0, messages=0. Output "Chat ready: 0 dialogs, 0 messages." ✓.
+
+      Now, the `hours_ago` uses `timezone.now()` in seed_chat_demo, but the FrozenClockMixin patches `django.utils.timezone.now`. But `seed_chat_demo` uses `timezone.now()` (via `from django.utils import timezone`). So it's frozen to 2026-11-22 12:00. Good.
+
+      Wait, actually the FrozenClockMixin patches `django.utils.timezone.now`. And `seed_chat_demo` uses `timezone.now()`. But `seed_demo` command uses `timezone.localdate()` for `today`. And `seed_chat_demo(today)` receives `today` but doesn't actually use it (I don't use `today` in seed_chat_demo). Let me check — my `seed_chat_demo(today: date)` signature takes `today` but I don't use it. That's fine (unused param), but ruff might flag unused? No, it's a function parameter, not flagged. Actually, the spec says `seed_chat_demo(today: date)`. I'll keep the param even if unused. Actually, ruff doesn't flag unused function parameters by default (ARG rules not selected). Good.
+
+      Now let me write all three test files.
+
+      Actually, wait — there's a subtle issue with the seed using `timezone.now()` inside `seed_chat_demo` while the command wraps everything in `transaction.atomic()`. And FrozenClockMixin patches timezone.now. So all created_at = frozen time - hours_ago. Good.
+
+      Let me write the three files.
+
+      For test_feed.py, I also need to double check `build_feed` and `student_context` imports. And `_ctx`.
+
+      Let me write test_feed.py.
+    ── Created chat/tests/test_feed.py
+    ── Created chat/tests/test_static.py
+    ── Created chat/tests/test_demo.py
+    ── Thought for 543ms
+      Now let me write the README section and then run all chat tests + the full suite.
+
+      First, let me check the README structure to add the `## Chat` section and Known limitations bullets.
+    ── Searched for ^## \|^###  in README.md
+    ── Read file read
+      ## Map
+
+      Students and staff: `/map/` (lowest floor with rooms), `/map/floor/<n>/`
+      (a specific floor, 404 when no room is on it) and `/map/room/<code>/` (a room's
+      floor with that room highlighted). The map is one fictional building drawn as an
+      inline SVG: two rows of five cells along a central corridor — top row `N1…N5`,
+      bottom row `S1…S5`. Landmarks are defined in code (`university/building.py`):
+      «Лестница» on `N1` of every floor, «Вход» (`S3`) and «Столовая» (`S4`+`S5`) on
+      floor 1, «Деканат» (`S1`+`S2`) on floor 2, «Библиотека» (`S4`+`S5`) on floor 3.
+
+      A room's position is the `Room.map_cell` field, editable in Django admin as
+      «Место на схеме» (blank = not on the map). One room per cell per floor; cells
+      taken by a landmark are rejected. A room number is exactly three digits (`NNN`)
+      and its first digit must equal the floor (1–9). The highlighted room uses the
+      single CSS class `map-current` (colour token `--color-map-highlight`).
+
+      ## Login protection
+
+      Failed login attempts are throttled per (username, client IP) and stored in
+      the database (`LOGIN_FAILURE_LIMIT` failures → lockout for
+      `LOGIN_LOCKOUT_SECONDS` seconds). Behind a reverse proxy, set
+      `CLIENT_IP_HEADER=X-Real-IP` **only** if nginx overwrites the header, e.g.:
+
+      ```nginx
+      proxy_set_header X-Real-IP $remote_addr;
+      ```
+
+      ## Deployment notes
+
+      - Run `python manage.py seed_demo` once on the server on 2026-11-22 (submission
+        day), after `migrate`. It needs `DEMO_PASSWORD` in the environment.
+      - Back up `PRIVATE_MEDIA_ROOT` together with the database: attachments are
+        referenced by database rows, so restoring one without the other breaks
+        downloads.
+      - nginx must not serve `PRIVATE_MEDIA_ROOT`; set `client_max_body_size 20m;`
+        (see the «Requests» section).
+
+      ## Known limitations
+
+      - After a student moves to another group, attendance for the former group's
+        lessons is not shown (group transfers are out of scope for the prototype).
+      - `seed_demo` never updates existing academic rows, so data edited in the admin
+        is never overwritten. Re-running it only adds missing rows (new past
+        occurrences). On the server it is run once, on 2026-11-22 (submission day);
+        there is no scheduled re-run.
+      - The unread counter is per account: after one person opens «Уведомления» as
+        `student1`, others logged in as `student1` see no new items.
+      - Grades and lesson changes appear in the feed by the time they were recorded;
+        a grade entered later for an old date still shows as new.
+      - The map has one building and a fixed grid of 9 room places per floor;
+        landmarks are defined in code (`university/building.py`).
+
+      ## Environment variables
+
+      | Name | Default | Purpose |
+      |---|---|---|
+      | `DEBUG` | `false` | Enable debug mode in development. |
+      | `SECRET_KEY` | (dev key in debug) | Django secret key; required when `DEBUG=false`. |
+      | `ALLOWED_HOSTS` | `localhost,127.0.0.1` (debug) | Comma-separated allowed hostnames. |
+      | `CSRF_TRUSTED_ORIGINS` | (empty) | Comma-separated trusted origins. |
+      | `DATABASE_URL` | `sqlite:///db.sqlite3` | Database URL (SQLite or PostgreSQL). |
+      | `ADMIN_URL` | `admin/` (debug) | Admin path prefix; required when `DEBUG=false`. |
+      | `SECURE_SSL_REDIRECT` | `true` | Redirect HTTP to HTTPS (production only). |
+      | `SECURE_HSTS_SECONDS` | `3600` | HSTS max-age (production only). |
+      | `SECURE_HSTS_INCLUDE_SUBDOMAINS` | `true` | Apply HSTS to subdomains (production only). |
+      | `SECURE_HSTS_PRELOAD` | `false` | Opt in to HSTS preload (production only). |
+      | `LOG_LEVEL` | `INFO` | Logging level. |
+      | `DEMO_PASSWORD` | (none) | Password for demo accounts; required by `seed_demo`. |
+      | `LOGIN_FAILURE_LIMIT` | `5` | Failures per (username, IP) before login lockout. |
+      | `LOGIN_LOCKOUT_SECONDS` | `900` | Login lockout duration in seconds. |
+      | `CLIENT_IP_HEADER` | (empty) | Proxy header for the client IP (`X-Real-IP` or `X-Forwarded-For`). |
+      | `PRIVATE_MEDIA_ROOT` | `<repo>/private_media` | Private uploads (request attachments); never served by nginx. |
+    ── Failed to edit README.md (error)
+      Could not find oldString in the file. It must match exactly, including whitespace, indentation, and line endings.
+    ── Edited README.md +16
+      --- a~/hackatonproject/README.md
+      +++ b~/hackatonproject/README.md
+      +## Chat
+      +
+      +Students write to the dean's office of their faculty in one dialog (`/chat/`),
+      +created on their first message. Any staff member of that faculty reads and
+      +answers from «Чаты» (`/staff/chats/`). Messages are append-only plain text
+      +(autoescaped, `linebreaksbr`), ordered by message id. Without JavaScript the
+      +pages work with a plain POST form and an «Обновить» link; with JavaScript
+      +(`static/js/chat.js`, deferred, no inline script) the page polls the fragment
+      +view every 5 seconds and appends server-rendered new messages, pausing while the
+      +tab is hidden. Sending is a normal POST (PRG, no `fetch`). Student rate limit:
+      +`RATE_LIMIT_MESSAGES` (20) per `RATE_LIMIT_MINUTES` (10). A hidden `client_token`
+      +guards against double submit. New staff replies appear in «Уведомления»
+      +(source `chat_reply`) and in the badge; the nav item shows «Чат (N)». Read
+      +markers are message ids on the dialog (student marker, shared staff marker);
+      +both only move forward.
+      +
+    ── Edited README.md +3
+      --- a~/hackatonproject/README.md
+      +++ b~/hackatonproject/README.md
+      +- Chat uses polling (5-second requests, paused on a hidden tab), not WebSockets,
+      +  so delivery is not instantaneous; the last five consecutive poll errors stop
+      +  auto-refresh with a text notice.
+    ── Thought for 428ms
+      Now let me run all chat tests, and also run the node --check for the JS.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && node --check static/js/chat.js && echo "js syntax ok" && python manage.py test chat 2>&1 | tail -20 (17s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && node --check static/js/chat.js && echo "js syntax ok" && python manage.py test chat 2>&1 | tail -20
+      js syntax ok
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/contrib/admin/options.py", line 1868, in _changeform_view
+          raise PermissionDenied
+      django.core.exceptions.PermissionDenied
+      ..2026-11-15 20:50:14,553 WARNING django.security.csrf Forbidden (CSRF cookie not set.): /staff/chats/f3a166a8-3e2e-4480-a5c8-9881ee011971/
+      .2026-11-15 20:50:14,557 WARNING django.security.csrf Forbidden (CSRF cookie not set.): /chat/
+      ...........2026-11-15 20:50:15,336 WARNING django.request Bad Request: /chat/updates/
+      2026-11-15 20:50:15,337 WARNING django.request Bad Request: /chat/updates/
+      2026-11-15 20:50:15,338 WARNING django.request Bad Request: /chat/updates/
+      2026-11-15 20:50:15,339 WARNING django.request Bad Request: /chat/updates/
+      2026-11-15 20:50:15,341 WARNING django.request Bad Request: /chat/updates/
+      ....2026-11-15 20:50:15,391 WARNING django.request Not Found: /staff/chats/f8016f2e-c00c-4538-92b6-2dd54c3914b5/updates/
+      .....................
+      ----------------------------------------------------------------------
+      Ran 118 tests in 15.027s
+
+      OK
+      Destroying test database for alias 'default'...
+      Found 118 test(s).
+      System check identified no issues (0 silenced).
+    ── Thought for 1s
+      118 chat tests pass (includes the seed tests which run the full seed_demo, hence 15s).
+
+      Now let me run the FULL test suite to make sure nothing is broken (especially the nav test updates, feed registry test, and seed_demo command change).
+
+      Let me also check: the notifications seed test and other existing tests should still pass. The seed_demo command now also seeds chat (3 dialogs, 8 messages), which adds a "Chat ready" line but shouldn't break existing tests.
+
+      Let me run the full suite.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t009.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -20 (2m 24s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t009.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -20
+      Ran 951 tests in 141.667s
+      OK
+    ── Thought for 3s
+      951 tests OK (was 833, +118 new chat tests). 
+
+      Now let me run ruff format on the changed/new Python files, then ruff check.
+
+      Changed/new Python files for this task:
+      - chat/__init__.py, chat/apps.py, chat/constants.py, chat/models.py, chat/selectors.py, chat/services.py, chat/forms.py, chat/views.py, chat/urls.py, chat/admin.py, chat/demo.py, chat/templatetags/__init__.py, chat/templatetags/chat_tags.py
+      - chat/tests/__init__.py, chat/tests/helpers.py, chat/tests/test_models.py, chat/tests/test_services.py, chat/tests/test_selectors.py, chat/tests/test_views.py, chat/tests/test_feed.py, chat/tests/test_static.py, chat/tests/test_demo.py
+      - chat/migrations/0001_initial.py (excluded from ruff by extend-exclude)
+      - accounts/models.py (short_name)
+      - config/settings.py, config/urls.py
+      - pyproject.toml (not Python)
+      - notifications/sources.py
+      - accounts/management/commands/seed_demo.py
+      - core/tests/test_nav.py
+      - notifications/tests/test_feed.py
+
+      Let me run ruff format on all the Python files (not migrations, which are excluded). Then ruff check.
+
+      Let me list the Python files to format. Actually, I'll run ruff format on the chat app files + the changed files. But ruff format on `chat/` would format all .py in chat (including migrations which are excluded by extend-exclude). Let me be explicit.
+
+      Actually, the instruction says "run `ruff check` / `ruff format` ONLY on the files of this task". Let me list them explicitly.
+
+      Let me run ruff format and check on the specific files.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff format chat/__init__.py chat/apps.py chat/constants.py chat/models.py chat/selectors.py chat/services.py chat/forms.py chat/views.py chat/urls.py chat/admin.py chat/demo.py chat/templatetags/__init__.py chat/templatetags/chat_tags.py chat/tests/__init__.py chat/tests/helpers.py chat/tests/test_models.py chat/tests/test_services.py chat/tests/test_selectors.py chat/tests/test_views.py chat/tests/test_feed.py chat/tests/test_static.py chat/tests/test_demo.py accounts/models.py config/settings.py config/urls.py notifications/sources.py accounts/management/commands/seed_demo.py core/tests/test_nav.py notifications/tests/test_feed.py 2>&1 | tail -5 (1s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff format chat/__init__.py chat/apps.py chat/constants.py chat/models.py chat/selectors.py chat/services.py chat/forms.py chat/views.py chat/urls.py chat/admin.py chat/demo.py chat/templatetags/__init__.py chat/templatetags/chat_tags.py chat/tests/__init__.py chat/tests/helpers.py chat/tests/test_models.py chat/tests/test_services.py chat/tests/test_selectors.py chat/tests/test_views.py chat/tests/test_feed.py chat/tests/test_static.py chat/tests/test_demo.py accounts/models.py config/settings.py config/urls.py notifications/sources.py accounts/management/commands/seed_demo.py core/tests/test_nav.py notifications/tests/test_feed.py 2>&1 | tail -5
+      6 files reformatted, 23 files left unchanged
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff check chat/__init__.py chat/apps.py chat/constants.py chat/models.py chat/selectors.py chat/services.py chat/forms.py chat/views.py chat/urls.py chat/admin.py chat/demo.py chat/templatetags/__init__.py chat/templatetags/chat_tags.py chat/tests/__init__.py chat/tests/helpers.py chat/tests/test_models.py chat/tests/test_services.py chat/tests/test_selectors.py chat/tests/test_views.py chat/tests/test_feed.py chat/tests/test_static.py chat/tests/test_demo.py accounts/models.py config/settings.py config/urls.py notifications/sources.py accounts/management/commands/seed_demo.py core/tests/test_nav.py notifications/tests/test_feed.py 2>&1 | tail -20
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff check chat/__init__.py chat/apps.py chat/constants.py chat/models.py chat/selectors.py chat/services.py chat/forms.py chat/views.py chat/urls.py chat/admin.py chat/demo.py chat/templatetags/__init__.py chat/templatetags/chat_tags.py chat/tests/__init__.py chat/tests/helpers.py chat/tests/test_models.py chat/tests/test_services.py chat/tests/test_selectors.py chat/tests/test_views.py chat/tests/test_feed.py chat/tests/test_static.py chat/tests/test_demo.py accounts/models.py config/settings.py config/urls.py notifications/sources.py accounts/management/commands/seed_demo.py core/tests/test_nav.py notifications/tests/test_feed.py 2>&1 | tail -20
+      F401 [*] `django.http.HttpRequest` imported but unused
+       --> chat/views.py:7:25
+        |
+      6 | from django.core.exceptions import PermissionDenied, ValidationError
+      7 | from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
+        |                         ^^^^^^^^^^^
+      8 | from django.shortcuts import get_object_or_404, redirect, render
+      9 | from django.urls import reverse
+        |
+      help: Remove unused import: `django.http.HttpRequest`
+        |
+      6 | from django.core.exceptions import PermissionDenied, ValidationError
+        - from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
+      7 + from django.http import HttpResponse, HttpResponseBadRequest
+      8 | from django.shortcuts import get_object_or_404, redirect, render
+        |
+
+      Found 7 errors.
+      [*] 7 fixable with `--fix`.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff check chat/__init__.py chat/apps.py chat/constants.py chat/models.py chat/selectors.py chat/services.py chat/forms.py chat/views.py chat/urls.py chat/admin.py chat/demo.py chat/templatetags/__init__.py chat/templatetags/chat_tags.py chat/tests/__init__.py chat/tests/helpers.py chat/tests/test_models.py chat/tests/test_services.py chat/tests/test_selectors.py chat/tests/test_views.py chat/tests/test_feed.py chat/tests/test_static.py chat/tests/test_demo.py accounts/models.py config/settings.py config/urls.py notifications/sources.py accounts/management/commands/seed_demo.py core/tests/test_nav.py notifications/tests/test_feed.py 2>&1 | grep -E "^[A-Z][0-9]+|-->" | head -40 (1s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff check chat/__init__.py chat/apps.py chat/constants.py chat/models.py chat/selectors.py chat/services.py chat/forms.py chat/views.py chat/urls.py chat/admin.py chat/demo.py chat/templatetags/__init__.py chat/templatetags/chat_tags.py chat/tests/__init__.py chat/tests/helpers.py chat/tests/test_models.py chat/tests/test_services.py chat/tests/test_selectors.py chat/tests/test_views.py chat/tests/test_feed.py chat/tests/test_static.py chat/tests/test_demo.py accounts/models.py config/settings.py config/urls.py notifications/sources.py accounts/management/commands/seed_demo.py core/tests/test_nav.py notifications/tests/test_feed.py 2>&1 | grep -E "^[A-Z][0-9]+|-->" | head -40
+      F401 [*] `uuid` imported but unused
+       --> chat/forms.py:1:8
+      F401 [*] `chat.models.Dialog` imported but unused
+       --> chat/tests/test_selectors.py:6:37
+      F401 [*] `core.testing.moscow` imported but unused
+        --> chat/tests/test_selectors.py:9:44
+      F401 [*] `datetime.timedelta` imported but unused
+       --> chat/tests/test_views.py:4:22
+      F401 [*] `django.contrib.auth.models.AnonymousUser` imported but unused
+       --> chat/tests/test_views.py:6:40
+      F401 [*] `core.testing.moscow` imported but unused
+        --> chat/tests/test_views.py:18:44
+      F401 [*] `django.http.HttpRequest` imported but unused
+       --> chat/views.py:7:25
+    ── Thought for 2s
+      7 unused imports. Let me fix them:
+      1. chat/forms.py: `uuid` unused. I imported `import uuid` but the form doesn't use it. Remove it.
+      2. chat/tests/test_selectors.py: `Dialog` unused (I use dialogs_visible_to etc., but not Dialog directly). Remove.
+      3. chat/tests/test_selectors.py: `moscow` unused. Remove (I import `from core.testing import FrozenClockMixin, moscow` but only use FrozenClockMixin).
+      4. chat/tests/test_views.py: `timedelta` unused. Remove.
+      5. chat/tests/test_views.py: `AnonymousUser` unused. Remove.
+      6. chat/tests/test_views.py: `moscow` unused. Remove.
+      7. chat/views.py: `HttpRequest` unused. Remove.
+
+      Let me fix these. Some of these files were reformatted by ruff format, so let me re-read the relevant import lines to edit precisely. Actually, let me just use ruff's --fix for the safe ones, but the instructions say don't run formatters on whole project, but ruff check --fix on specific files is fine. Actually, let me just manually edit to be safe and precise.
+
+      Let me fix each import.
+    ── Edited chat/forms.py -2
+      --- a~/hackatonproject/chat/forms.py
+      +++ b~/hackatonproject/chat/forms.py
+      -import uuid
+      -
+    ── Edited chat/views.py +1 -1
+      --- a~/hackatonproject/chat/views.py
+      +++ b~/hackatonproject/chat/views.py
+      -from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
+      +from django.http import HttpResponse, HttpResponseBadRequest
+    ── Read file read
+      """Selector tests for the chat app."""
+
+      from django.contrib.auth.models import AnonymousUser
+      from django.test import TestCase
+
+      from chat.models import AuthorRole, Dialog
+      from chat.selectors import dialogs_visible_to, staff_dialog_list, student_unread_count
+      from chat.tests.helpers import add_message, make_dialog
+      from core.testing import FrozenClockMixin, moscow
+      from notifications.tests.helpers import make_world
+
+      NOW = "2026-11-11 12:00"
+    ── Read file read
+      """View tests for the chat app."""
+
+      import uuid
+      from datetime import timedelta
+
+      from django.contrib.auth.models import AnonymousUser
+      from django.db import connection
+      from django.test import Client, TestCase
+      from django.test.utils import CaptureQueriesContext
+      from django.urls import reverse
+
+      from accounts.models import User
+      from accounts.tests.helpers import make_student
+      from chat.constants import RATE_LIMIT_MESSAGES
+      from chat.models import AuthorRole, Dialog, Message
+      from chat.selectors import student_unread_count
+      from chat.tests.helpers import add_message, make_dialog
+      from core.testing import FrozenClockMixin, moscow
+      from notifications.feed import badge_for_user
+      from notifications.tests.helpers import make_world
+    ── Edited chat/tests/test_selectors.py +2 -2
+      --- a~/hackatonproject/chat/tests/test_selectors.py
+      +++ b~/hackatonproject/chat/tests/test_selectors.py
+      -from chat.models import AuthorRole, Dialog
+      +from chat.models import AuthorRole
+      -from core.testing import FrozenClockMixin, moscow
+      +from core.testing import FrozenClockMixin
+    ── Edited chat/tests/test_views.py +1 -3
+      --- a~/hackatonproject/chat/tests/test_views.py
+      +++ b~/hackatonproject/chat/tests/test_views.py
+      -from datetime import timedelta
+      -from django.contrib.auth.models import AnonymousUser
+      -from core.testing import FrozenClockMixin, moscow
+      +from core.testing import FrozenClockMixin
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff check chat/__init__.py chat/apps.py chat/constants.py chat/models.py chat/selectors.py chat/services.py chat/forms.py chat/views.py chat/urls.py chat/admin.py chat/demo.py chat/templatetags/__init__.py chat/templatetags/chat_tags.py chat/tests/__init__.py chat/tests/helpers.py chat/tests/test_models.py chat/tests/test_services.py chat/tests/test_selectors.py chat/tests/test_views.py chat/tests/test_feed.py chat/tests/test_static.py chat/tests/test_demo.py accounts/models.py config/settings.py config/urls.py notifications/sources.py accounts/management/commands/seed_demo.py core/tests/test_nav.py notifications/tests/test_feed.py 2>&1 | tail -10 (1s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff check chat/__init__.py chat/apps.py chat/constants.py chat/models.py chat/selectors.py chat/services.py chat/forms.py chat/views.py chat/urls.py chat/admin.py chat/demo.py chat/templatetags/__init__.py chat/templatetags/chat_tags.py chat/tests/__init__.py chat/tests/helpers.py chat/tests/test_models.py chat/tests/test_services.py chat/tests/test_selectors.py chat/tests/test_views.py chat/tests/test_feed.py chat/tests/test_static.py chat/tests/test_demo.py accounts/models.py config/settings.py config/urls.py notifications/sources.py accounts/management/commands/seed_demo.py core/tests/test_nav.py notifications/tests/test_feed.py 2>&1 | tail -10
+      All checks passed!
+    ── Thought for 314ms
+      ruff check passes. Now let me re-run ruff format on the files I edited (to make sure they're still formatted) and verify format is clean.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff format chat/forms.py chat/views.py chat/tests/test_selectors.py chat/tests/test_views.py 2>&1 | tail -3 && ruff format --check chat accounts/models.py config/settings.py config/urls.py notifications/sources.py accounts/management/commands/seed_demo.py core/tests/test_nav.py notifications/tests/test_feed.py 2>&1 | tail -3
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff format chat/forms.py chat/views.py chat/tests/test_selectors.py chat/tests/test_views.py 2>&1 | tail -3 && ruff format --check chat accounts/models.py config/settings.py config/urls.py notifications/sources.py accounts/management/commands/seed_demo.py core/tests/test_nav.py notifications/tests/test_feed.py 2>&1 | tail -3
+      4 files left unchanged
+      29 files already formatted
+    ── Thought for 870ms
+      Now let me run the full test suite again to confirm nothing broke after the import fixes (should still be 951 OK). Actually, the import fixes don't change behavior. But let me run the chat tests quickly, then do the full §8 verification.
+
+      Actually, let me run the full suite once more and then the §8 verification steps.
+
+      Let me also verify `git status` to compare against the spec file list.
+
+      Let me run the full suite + verification.
+
+      First, let me check git status to see what's changed/created.
+    ── Ran cd ~/hackatonproject && git status --short
+      $ cd ~/hackatonproject && git status --short
+      M README.md
+       M accounts/management/commands/seed_demo.py
+       M accounts/models.py
+       M config/settings.py
+       M config/urls.py
+       M core/tests/test_nav.py
+       M notifications/sources.py
+       M notifications/tests/test_feed.py
+       M plan.md
+       M pyproject.toml
+       M static/css/base.css
+       M templates/base.html
+       M templates/includes/site_nav_items.html
+      ?? chat/
+      ?? docs/tasks/TASK-009.md
+      ?? static/js/
+    ── Thought for 2s
+      The git status matches the spec's file list:
+      - Changed: README.md, accounts/management/commands/seed_demo.py, accounts/models.py, config/settings.py, config/urls.py, core/tests/test_nav.py, notifications/sources.py, notifications/tests/test_feed.py, pyproject.toml, static/css/base.css, templates/base.html, templates/includes/site_nav_items.html
+      - New: chat/ (whole app), static/js/ (chat.js)
+      - Not mine: plan.md (pre-existing M), docs/tasks/TASK-009.md (spec)
+
+      All matches §4.1. Good.
+
+      Now let me run the full §8 verification. The baseline was 833, now 951 (+118).
+
+      Let me run:
+      1. check
+      2. makemigrations --check --dry-run
+      3. test (full, tee log)
+      4. run_tests_at 2359, 0000
+      5. check --deploy
+      6. ruff check . + ruff format --check .
+      7. node --check
+      8. yaml check
+      9. seed twice on temp DB
+      10. git status
+
+      Let me run these. First check + makemigrations + full test.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -5 (2m 24s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -5
+      System check identified no issues (0 silenced).
+      No changes detected
+      Ran 951 tests in 141.608s
+      OK
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python -u scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-at-2359.log" | grep -E "Ran |OK|FAILED|ERROR" | tail -3 && python -u scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-at-0000.log" | grep -E "Ran |OK|FAILED|ERROR" | tail -3 (4m 46s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python -u scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-at-2359.log" | grep -E "Ran |OK|FAILED|ERROR" | tail -3 && python -u scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-at-0000.log" | grep -E "Ran |OK|FAILED|ERROR" | tail -3
+      Ran 951 tests in 140.505s
+      OK
+      Ran 951 tests in 141.789s
+      OK
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1 && ruff check . 2>&1 | tail -1 && ruff format --check . 2>&1 | tail -1 && node --check static/js/chat.js && echo "js syntax ok" && python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')" (1s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1 && ruff check . 2>&1 | tail -1 && ruff format --check . 2>&1 | tail -1 && node --check static/js/chat.js && echo "js syntax ok" && python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"
+      System check identified no issues (1 silenced).
+      All checks passed!
+      183 files already formatted
+      js syntax ok
+      yaml ok
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/task009.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task009-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && rm -f "$TMPDIR/task009.sqlite3" && python manage.py migrate 2>&1 | tail -1 && echo "=== seed 1 ===" && python manage.py seed_demo 2>&1 | tail -6 && echo "=== seed 2 ===" && python manage.py seed_demo 2>&1 | tail -6 && rm -f "$TMPDIR/task009.sqlite3" && rm -rf "$TMPDIR/task009-private" (6s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/task009.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task009-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && rm -f "$TMPDIR/task009.sqlite3" && python manage.py migrate 2>&1 | tail -1 && echo "=== seed 1 ===" && python manage.py seed_demo 2>&1 | tail -6 && echo "=== seed 2 ===" && python manage.py seed_demo 2>&1 | tail -6 && rm -f "$TMPDIR/task009.sqlite3" && rm -rf "$TMPDIR/task009-private"
+      Applying university.0003_room_number_format_and_map_cell... OK
+      === seed 1 ===
+      Demo data ready: 2 faculties, 2 programs, 2 groups, 3 students, 2 staff.
+      Schedule ready: 7 rooms, 6 teachers, 6 disciplines, 18 weekly lessons, 8 changes.
+      Academics ready: 2 terms, 17 curriculum items, 13 final results, 70 marks, 249 attendance records.
+      Requests ready: 4 types, 7 requests, 3 attachments.
+      Notifications ready: 9 announcements.
+      Chat ready: 3 dialogs, 8 messages.
+      === seed 2 ===
+      Demo data ready: 2 faculties, 2 programs, 2 groups, 3 students, 2 staff.
+      Schedule ready: 7 rooms, 6 teachers, 6 disciplines, 18 weekly lessons, 8 changes.
+      Academics ready: 2 terms, 17 curriculum items, 13 final results, 70 marks, 249 attendance records.
+      Requests ready: 4 types, 0 requests, 0 attachments.
+      Notifications ready: 0 announcements.
+      Chat ready: 0 dialogs, 0 messages.
+    ── Thought for 532ms
+      All verification steps pass. The seed is idempotent (second run: "Chat ready: 0 dialogs, 0 messages.").
+
+      Now let me do a final `git status` check and update my todo list, then send the REPORT.
+
+      Let me get the log file names.
+    ── Listed files in $TMPDIR/test-*.log
+    ── Ran tool 0 todos (1s)
+      {"output":"[\n  {\n    \"content\": \"Step 1: app skeleton (apps, constants, models), settings/urls/pyproject, StaffProfile.short_name, migration, test_models\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 2: selectors + services + tests\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 3: forms, views, templates, CSS, nav + test_nav update + view tests\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 4: chat.js + test_static\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 5: feed source + registry test + test_feed\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 6: admin + seed + command + test_demo + README\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 7: ruff + section 8 verification + REPORT\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  }\n]","metadata":{"todos":[{"content":"Step 1: app skeleton (apps, constants, models), settings/urls/pyproject, StaffProfile.short_name, migration, test_models","status":"completed","priority":"high"},{"content":"Step 2: selectors + services + tests","status":"completed","priority":"high"},{"content":"Step 3: forms, views, templates, CSS, nav + test_nav update + view tests","status":"completed","priority":"high"},{"content":"Step 4: chat.js + test_static","status":"completed","priority":"high"},{"content":"Step 5: feed source + registry test + test_feed","status":"completed","priority":"high"},{"content":"Step 6: admin + seed + command + test_demo + README","status":"completed","priority":"high"},{"content":"Step 7: ruff + section 8 verification + REPORT","status":"completed","priority":"high"}],"truncated":false}}
+    ── Ran cd ~/hackatonproject && bb thread tell thr_cpuae9aqw3 --message-file - <<'EOF' [TASK-009] Coder -> Reviewer: REPORT Spec: docs/tasks/TASK-009.md (base b3dcb37). New app `chat` (chat with the dean's office, polling + server-rendered fragments). Not committed. ## What was done - App `chat` (INSTALLED_APPS after campusmap; urls include after campusmap; `chat` in known-first-party). - `chat/constants.py` (all 10 constants), `chat/models.py` (`AuthorRole`, `Dialog` OneToOne student + UUID public_id + read markers, append-only `Message` with `client_token`/`seed_key` + all 4 constraints + 3 indexes), migration `chat/0001_initial.py`. - `StaffProfile.short_name` property (NBSP, same format as Teacher). - `chat/selectors.py`: `dialogs_visible_to`, `staff_dialog_list` (unread-first/`has_unread`/nulls_last, one query), `student_unread_count` (1 query / 0 for staff). - `chat/services.py`: `normalize_text`, `text_errors`, `send_student_message` (get_or_create + `select_for_update`, idempotent `client_token`, rate limit 20/10min), `send_staff_message` (scope re-check inside lock), `mark_read` (monotonic conditional update), `load_history` (newest 100 + truncated), `messages_after` (limit 50). - `chat/forms.py` `MessageForm`, `chat/views.py` 5 views (all `never_cache`): student page (POST PRG → `#chat-form`), student/staff fragment views (GET only, 204 empty, 400 bad `after`, `X-Chat-Fragment: 1`, mark read up to last returned), staff list + dialog. - Templates: `student.html`, `staff_list.html`, `staff_dialog.html`, `_history.html`, `_message.html`, `_messages.html`, `_form.html`. - `static/js/chat.js` (vanilla IIFE, 5s `setTimeout` poll, `DOMParser`+`importNode`, dedupe by id, pause on hidden, stop after 5 errors, no fetch-send). - `ChatReplySource` appended to `FEED_SOURCES` (6→7); nav «Чат (N)» / «Чаты»; `chat_unread_badge` tag; `templates/base.html` + `site_nav_items.html`; CSS layout rules. - Read-only admin (`DialogAdmin` + `MessageInline`). - Seed `chat/demo.py` (3 dialogs / 8 messages, markers per §5.6) + `seed_demo` command summary line; README `## Chat` + Known limitations bullet. ## Tests **951 tests OK** (baseline 833 → +118 new chat tests). No failures/stalls. New test files: `test_models` (6), `test_services` (17), `test_selectors` (10), `test_views` (AccessTests 32 + CsrfTests 2 + ViewTests 16 + UpdatesViewTests 8 + AdminTests 2 + NavTests 4 + QueryCountTests 6 = 70), `test_feed` (6), `test_static` (3), `test_demo` (5). Updated existing tests (as required): `notifications/tests/test_feed.py::test_default_registry_has_six_sources` → `test_default_registry_has_seven_sources` (7); `core/tests/test_nav.py` student list now `[…, "/chat/", "/notifications/"]` and staff list `[…, "/staff/chats/", "/staff/announcements/", …]`. Query counts verified: student page ≤ 14 (constant), staff list ≤ 6, staff dialog ≤ 10, fragment ≤ 8, header student exactly 4 (badge 3 + chat 1), header staff 0. Mutation not required for this task (per spec). ## Verification (§8) — all green - `check` → no issues; `makemigrations --check --dry-run` → No changes. - `test` → `Ran 951 … OK`; `run_tests_at.py` 2026-11-17T23:59:59 and 2026-11-18T00:00:00 → 951 OK each (no stalls). - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` clean; `ruff format --check .` → 183 files formatted; `node --check static/js/chat.js` → js syntax ok; yaml ok. - Seed twice on temp DB+media → first «Chat ready: 3 dialogs, 8 messages.», second «Chat ready: 0 dialogs, 0 messages.» (idempotent); other sections idempotent too. Logs: `$TMPDIR/test-20261115-205507.log`, `-205740-at-2359.log`, `-205740-at-0000.log`, `-205027-t009.log`. ## git status ```  M README.md  M accounts/management/commands/seed_demo.py  M accounts/models.py  M config/settings.py  M config/urls.py  M core/tests/test_nav.py  M notifications/sources.py  M notifications/tests/test_feed.py  M plan.md  M pyproject.toml  M static/css/base.css  M templates/base.html  M templates/includes/site_nav_items.html ?? chat/ ?? docs/tasks/TASK-009.md ?? static/js/ ``` All changes/creations match §4.1. Not mine: `plan.md` (pre-existing `M`) and `docs/tasks/TASK-009.md` (the spec). No `db.sqlite3`/`private_media/` changes. EOF (9s)
+      $ cd ~/hackatonproject && bb thread tell thr_cpuae9aqw3 --message-file - <<'EOF'
+    [TASK-009] Coder -> Reviewer: REPORT
+
+    Spec: docs/tasks/TASK-009.md (base b3dcb37). New app `chat` (chat with the dean's office, polling + server-rendered fragments). Not committed.
+
+    ## What was done
+    - App `chat` (INSTALLED_APPS after campusmap; urls include after campusmap; `chat` in known-first-party).
+    - `chat/constants.py` (all 10 constants), `chat/models.py` (`AuthorRole`, `Dialog` OneToOne student + UUID public_id + read markers, append-only `Message` with `client_token`/`seed_key` + all 4 constraints + 3 indexes), migration `chat/0001_initial.py`.
+    - `StaffProfile.short_name` property (NBSP, same format as Teacher).
+    - `chat/selectors.py`: `dialogs_visible_to`, `staff_dialog_list` (unread-first/`has_unread`/nulls_last, one query), `student_unread_count` (1 query / 0 for staff).
+    - `chat/services.py`: `normalize_text`, `text_errors`, `send_student_message` (get_or_create + `select_for_update`, idempotent `client_token`, rate limit 20/10min), `send_staff_message` (scope re-check inside lock), `mark_read` (monotonic conditional update), `load_history` (newest 100 + truncated), `messages_after` (limit 50).
+    - `chat/forms.py` `MessageForm`, `chat/views.py` 5 views (all `never_cache`): student page (POST PRG → `#chat-form`), student/staff fragment views (GET only, 204 empty, 400 bad `after`, `X-Chat-Fragment: 1`, mark read up to last returned), staff list + dialog.
+    - Templates: `student.html`, `staff_list.html`, `staff_dialog.html`, `_history.html`, `_message.html`, `_messages.html`, `_form.html`.
+    - `static/js/chat.js` (vanilla IIFE, 5s `setTimeout` poll, `DOMParser`+`importNode`, dedupe by id, pause on hidden, stop after 5 errors, no fetch-send).
+    - `ChatReplySource` appended to `FEED_SOURCES` (6→7); nav «Чат (N)» / «Чаты»; `chat_unread_badge` tag; `templates/base.html` + `site_nav_items.html`; CSS layout rules.
+    - Read-only admin (`DialogAdmin` + `MessageInline`).
+    - Seed `chat/demo.py` (3 dialogs / 8 messages, markers per §5.6) + `seed_demo` command summary line; README `## Chat` + Known limitations bullet.
+
+    ## Tests
+    **951 tests OK** (baseline 833 → +118 new chat tests). No failures/stalls. New test files: `test_models` (6), `test_services` (17), `test_selectors` (10), `test_views` (AccessTests 32 + CsrfTests 2 + ViewTests 16 + UpdatesViewTests 8 + AdminTests 2 + NavTests 4 + QueryCountTests 6 = 70), `test_feed` (6), `test_static` (3), `test_demo` (5).
+    Updated existing tests (as required): `notifications/tests/test_feed.py::test_default_registry_has_six_sources` → `test_default_registry_has_seven_sources` (7); `core/tests/test_nav.py` student list now `[…, "/chat/", "/notifications/"]` and staff list `[…, "/staff/chats/", "/staff/announcements/", …]`.
+    Query counts verified: student page ≤ 14 (constant), staff list ≤ 6, staff dialog ≤ 10, fragment ≤ 8, header student exactly 4 (badge 3 + chat 1), header staff 0. Mutation not required for this task (per spec).
+
+    ## Verification (§8) — all green
+    - `check` → no issues; `makemigrations --check --dry-run` → No changes.
+    - `test` → `Ran 951 … OK`; `run_tests_at.py` 2026-11-17T23:59:59 and 2026-11-18T00:00:00 → 951 OK each (no stalls).
+    - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` clean; `ruff format --check .` → 183 files formatted; `node --check static/js/chat.js` → js syntax ok; yaml ok.
+    - Seed twice on temp DB+media → first «Chat ready: 3 dialogs, 8 messages.», second «Chat ready: 0 dialogs, 0 messages.» (idempotent); other sections idempotent too.
+
+    Logs: `$TMPDIR/test-20261115-205507.log`, `-205740-at-2359.log`, `-205740-at-0000.log`, `-205027-t009.log`.
+
+    ## git status
+    ```
+     M README.md
+     M accounts/management/commands/seed_demo.py
+     M accounts/models.py
+     M config/settings.py
+     M config/urls.py
+     M core/tests/test_nav.py
+     M notifications/sources.py
+     M notifications/tests/test_feed.py
+     M plan.md
+     M pyproject.toml
+     M static/css/base.css
+     M templates/base.html
+     M templates/includes/site_nav_items.html
+    ?? chat/
+    ?? docs/tasks/TASK-009.md
+    ?? static/js/
+    ```
+    All changes/creations match §4.1. Not mine: `plan.md` (pre-existing `M`) and `docs/tasks/TASK-009.md` (the spec). No `db.sqlite3`/`private_media/` changes.
+    EOF
+      Thread thr_cpuae9aqw3 steered
+
+── Assistant ───────────────────────────────────────────────
+TASK-009 реализована полностью и отправлена на проверку Reviewer (thr_cpuae9aqw3).
+
+## Итог
+
+Создано новое приложение `chat` — чат с деканатом (поллинг + серверные фрагменты):
+
+- **Модели** `Dialog` (OneToOne студент, UUID-адрес, read-маркеры) и append-only `Message` (роль автора, `client_token` для защиты от двойной отправки, 4 constraint + 3 индекса) + миграция.
+- **Сервисы** с блокировкой строки диалога (`select_for_update`) перед вставкой (порядок по id, D3), rate-limit студента 20/10 мин, идемпотентность по `client_token`.
+- **Views**: `/chat/` + `/chat/updates/` (студент), `/staff/chats/` + `/staff/chats/<uuid>/` + `updates/` (сотрудник). Фрагменты GET-only, `never_cache`, 204 при пустоте, 400 при плохом `after`, заголовок `X-Chat-Fragment: 1`, сдвиг read-маркера.
+- **`static/js/chat.js`** — vanilla IIFE, опрос каждые 5 с, `DOMParser`+`importNode`, пауза на скрытой вкладке, стоп после 5 ошибок.
+- **`ChatReplySource`** в `FEED_SOURCES` (6→7), навигация «Чат (N)»/«Чаты», `StaffProfile.short_name`, read-only админка, сид (3 диалога/8 сообщений), README.
+
+## Результаты
+- **951 тест OK** (было 833 → +118), без падений и зависаний.
+- Вся верификация §8 зелёная: `check`, `makemigrations --check`, полный прогон + 2 midnight-прогона (`951 OK`), `check --deploy`, `ruff check`/`format --check` (183 файла), `node --check`, yaml, сид дважды идемпотентно.
+- Обновлены существующие тесты по §4.1: registry-тест переименован на `_seven_sources`, списки навигации в `core/tests/test_nav.py`.
+- `git status` сверен по §4.1; `plan.md` и `docs/tasks/TASK-009.md` — не мои.
+
+Жду вердикт Reviewer.

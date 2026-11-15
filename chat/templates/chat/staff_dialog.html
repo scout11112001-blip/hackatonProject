@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Чат: {{ dialog.student.full_name }}{% endblock %}
+{% block extra_head %}<script src="{% static 'js/chat.js' %}" defer></script>{% endblock %}
+{% block content %}
+<h1>Чат со студентом</h1>
+<p><a href="{% url 'accounts:staff_student_detail' dialog.student.pk %}">{{ dialog.student.full_name }}</a> · {{ dialog.student.group.name }}</p>
+<p class="page-actions"><a href="{% url 'chat:staff_list' %}">Все чаты</a></p>
+{% include "chat/_history.html" %}
+{% include "chat/_form.html" %}
+{% endblock %}

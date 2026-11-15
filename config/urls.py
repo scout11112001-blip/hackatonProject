@@ -12,5 +12,6 @@ urlpatterns = [
     path("", include("petitions.urls")),
     path("", include("notifications.urls")),
     path("", include("campusmap.urls")),
+    path("", include("chat.urls")),
     path("", include("core.urls")),
 ]

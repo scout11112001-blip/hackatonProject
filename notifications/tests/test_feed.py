@@ -643,8 +643,8 @@ class SourceRegistryTests(FrozenClockMixin, TestCase):
     def setUpTestData(cls):
         cls.w = make_world()
 
-    def test_default_registry_has_six_sources(self):
-        self.assertEqual(len(get_feed_sources()), 6)
+    def test_default_registry_has_seven_sources(self):
+        self.assertEqual(len(get_feed_sources()), 7)
 
     def test_feed_and_counter_use_registry(self):
         make_announcement(self.w.sx, audience=Audience.UNIVERSITY)

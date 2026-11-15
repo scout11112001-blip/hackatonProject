@@ -1,0 +1,4 @@
+<li class="chat-message chat-message--{{ m.author_role }}" id="m-{{ m.pk }}" data-message-id="{{ m.pk }}">
+  <p class="chat-meta"><strong>{% if m.author_role == "staff" %}Деканат · {{ m.author.staff_profile.short_name }}{% elif viewer_is_student %}Вы{% else %}{{ student_name }}{% endif %}</strong> · <time datetime="{{ m.created_at|date:'c' }}">{{ m.created_at|date:"d.m.Y H:i" }}</time></p>
+  <p class="chat-text">{{ m.text|linebreaksbr }}</p>
+</li>

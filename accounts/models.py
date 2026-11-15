@@ -3,6 +3,8 @@ from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from university.models import NBSP
+
 
 class User(AbstractUser):
     class Role(models.TextChoices):
@@ -150,6 +152,11 @@ class StaffProfile(models.Model):
         return " ".join(
             part for part in (self.last_name, self.first_name, self.middle_name) if part
         )
+
+    @property
+    def short_name(self) -> str:
+        middle = f"{NBSP}{self.middle_name[0]}." if self.middle_name else ""
+        return f"{self.last_name}{NBSP}{self.first_name[0]}.{middle}"
 
     def clean(self):
         super().clean()

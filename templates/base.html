@@ -1,4 +1,4 @@
-{% load static notifications_tags %}<!doctype html>
+{% load static notifications_tags chat_tags %}<!doctype html>
 <html lang="ru">
 <head>
   <meta charset="utf-8">
@@ -13,7 +13,7 @@
   <a class="skip-link" href="#main">Перейти к содержимому</a>
   <header class="site-header">
     <a class="site-title" href="{% url 'core:home' %}">Цифровой деканат будущего</a>
-    {% if user.is_student %}{% notifications_badge as badge %}{% endif %}
+    {% if user.is_student %}{% notifications_badge as badge %}{% chat_unread_badge as chat_badge %}{% endif %}
     <nav class="site-nav site-nav--wide" aria-label="Основная навигация">
       {% block nav %}{% if user.is_authenticated %}{% include "includes/site_nav_items.html" %}{% endif %}{% endblock %}
     </nav>

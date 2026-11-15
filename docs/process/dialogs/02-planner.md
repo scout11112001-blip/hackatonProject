@@ -12433,3 +12433,831 @@ All existing verification commands pass (check, deploy check, makemigrations --c
 **Проверка на текущем коде:** все 817 тестов прошли в каждом прогоне: обычном, с записью проверок, в 23:59:59 и в 00:00 по Москве. Сбоев и зависаний не было. `check --deploy`, ruff, YAML и двойной запуск `seed_demo` прошли чисто.
 
 **Что не проверено.** Браузера у меня здесь нет, поэтому меню и сжатую подпись я не видел. Их нужно посмотреть на экране 360 px и на широком экране.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-009] Team lead -> Planner: TASK
+Approved by the user. Write the spec `docs/tasks/TASK-009.md` and hand it to the Coder.
+
+## Context
+Done: TASK-001..008 and their FIX tasks (users and roles, schedule, grades, requests with staff comments, notifications feed with an extensible `FeedSource` list in `notifications/sources.py`, room map, compact header menu). Reuse the access helpers (`students_visible_to`, role mixins), the validation pattern (model/service level, admin form errors never 500), `core/clock.py`, FrozenClockMixin, `scripts/run_tests_at.py`, the CSS layers (layout only; the pixel-art theme comes later). Read `plan.md`, `README.md` "Known limitations" and the previous specs. Apply your "Feasibility check" and "Test plan" sections.
+
+This is our own extra feature, planned from day one (`plan.md` section 2): "chat with the dean's office; the page itself requests new messages every N seconds (an HTML fragment from Django, no JSON API)". The jury will check it on a phone: log in as a student -> write to the dean's office; log in as staff -> see the dialog, reply; the student sees the reply without reloading the page.
+
+## Goal
+A student writes to the dean's office of their faculty and gets answers in one simple dialog. Staff of the faculty answer from their own page.
+
+## Requirements
+1. New app (e.g. `chat`) - justify the name.
+2. Dialogs (user decisions):
+   - One dialog per student, with the dean's office of the student's faculty as a whole (not with a named staff member). Any staff member of that faculty can read and answer, as with requests. The dialog is created on the first student message (or lazily on first open - choose, justify).
+   - Messages: author, time (`core.clock.now`), plain text only (autoescaped, line breaks kept, no HTML/Markdown, no links rendering beyond plain text), length limit as a named constant. No attachments. No editing, no deletion (append-only). Staff messages show the staff member's short name and the label "Деканат".
+   - Concurrent replies by two staff members are both kept (append-only); no lost messages. Explain the ordering rule (time + id).
+3. Abuse limits (named constants, service level): a student may send at most N messages per M minutes (e.g. 20 per 10 minutes); empty or whitespace-only messages are rejected; double submit of the same form (browser re-POST) must not create duplicates (Post/Redirect/Get, and a simple guard - justify).
+4. Live updates (user decision: polling, N = 5 seconds, named constant):
+   - The page works fully WITHOUT JavaScript: messages are server-rendered, sending is a normal POST form with CSRF and redirect, and there is a visible "Обновить" link.
+   - A small vanilla JavaScript file in `static/` (the first JS in the project; no libraries, no inline scripts, no `eval`, no `innerHTML` with unescaped user data) polls a Django view every 5 seconds for new messages after the last shown message id and appends the returned server-rendered HTML fragment. Polling pauses while the tab is hidden (`visibilitychange`) and stops after repeated errors (named constants). The fragment view is GET-only, login-protected, applies the same access rules, sets `Cache-Control: no-store`, and returns an empty 204 when there is nothing new.
+   - Optional (choose, justify): sending via `fetch` without a reload. If you do it, the no-JS POST path must stay the reference behaviour and both paths must be tested.
+5. Unread state and notifications (user decision):
+   - Student: replies from the dean's office that the student has not seen appear in the "Уведомления" feed as a new source ("Новое сообщение от деканата", link to the chat) and count in the existing badge, which stays visible when the header menu is collapsed. Opening the chat marks the dialog as read for the student. Also show the count on the "Чат" nav item.
+   - Staff: the staff chat list shows dialogs of their faculty, unread first, then by the last message time; each with the student's name, group and the unread count. A dialog is read for staff when any staff member of the faculty opens it (shared dean's-office inbox - justify).
+6. Pages (server-rendered, Russian UI, mobile-first, existing CSS layers, no visual theme; 360 px without horizontal scroll; the message input stays usable on a phone):
+   - Student "Чат с деканатом": history (oldest first, scrolled to the newest, or newest at the bottom), empty state with a short hint, the send form.
+   - Staff "Чаты": the list (5) and a dialog page with the same history, the student's profile summary (name, group, link to the staff student page) and the reply form.
+   - Navigation: "Чат" for students, "Чаты" for staff (inside the compact menu from TASK-008-FIX).
+7. Access: a student sees only their own dialog; staff only dialogs of students of their own faculty (404 otherwise); a student cannot open staff pages; the fragment view leaks nothing across students or faculties; no access via guessed IDs (use non-sequential public ids in URLs if a dialog id appears in a URL). Superuser: admin only (read-only dialog admin is enough).
+8. Queries: the chat list and the dialog page run a small fixed number of queries; the fragment view too; the nav/feed badge cost stays small and fixed; query-count tests.
+9. Demo data: extend `seed_demo` (idempotent): a dialog for each demo student with a few messages from both sides (fictional content), at least one unread reply for a student and at least one unread student message for each staff faculty.
+
+## Out of scope
+WebSockets, Server-Sent Events, Django Channels, push or e-mail, attachments, editing/deleting messages, typing indicators, "read by" per message, chat between students, chat for staff-to-staff, a JSON API, the visual theme.
+
+## Verification
+All existing verification commands pass (check, deploy check, makemigrations --check, test with the output saved to a file, `scripts/run_tests_at.py` at a Moscow midnight boundary, ruff only on the task files, CI YAML), `seed_demo` twice on a temporary database and temporary PRIVATE_MEDIA_ROOT. The JavaScript is checked manually by the Team lead in a real browser at 360 px (two sessions: student and staff; a reply appears within about 5 seconds without reload; no errors in the browser console).
+
+── Claude Code API retry 1/10 after 598ms: unknown ─────────
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Thought for 16ms
+    This is a big task, so I'll start by checking the current state: git status, the notification sources, the nav include in base.html, the badge logic in feed.py, the accounts selectors, the staff student detail URL, the seed command, the CSS, and the static and storage settings for JS, plus the deploy check and security headers.
+  ── Ran git status --short && git log --oneline -4 && cat templates/base.html | sed -n 12,45p && cat templates/includes/site_nav_items.html && ls static static/* && sed -n 1,60p notifications/sources.py
+    $ git status --short && git log --oneline -4 && cat templates/base.html | sed -n 12,45p && cat templates/includes/site_nav_items.html && ls static static/* && sed -n 1,60p notifications/sources.py
+    M plan.md
+    b3dcb37 TASK-008-FIX: stable scope tests, landmark label fit, compact header menu
+    caf7601 TASK-008: room map with floors, landmarks and schedule links
+    f5fce7f Coder: enable OpenCode pruning of old tool outputs
+    bf09738 TASK-007-FIX: home news without shown deadlines, audience labels, no-break initials, project clock for petitions
+    <body>
+      <a class="skip-link" href="#main">Перейти к содержимому</a>
+      <header class="site-header">
+        <a class="site-title" href="{% url 'core:home' %}">Цифровой деканат будущего</a>
+        {% if user.is_student %}{% notifications_badge as badge %}{% endif %}
+        <nav class="site-nav site-nav--wide" aria-label="Основная навигация">
+          {% block nav %}{% if user.is_authenticated %}{% include "includes/site_nav_items.html" %}{% endif %}{% endblock %}
+        </nav>
+        {% if user.is_authenticated %}
+        <div class="site-nav-compact">
+          <details class="site-menu">
+            <summary class="site-menu-toggle">Меню</summary>
+            <nav class="site-nav" aria-label="Основная навигация">
+              {% include "includes/site_nav_items.html" %}
+            </nav>
+          </details>
+          {% if badge %}<a class="site-menu-badge" href="{% url 'notifications:feed' %}">Уведомления ({{ badge }})</a>{% endif %}
+        </div>
+        {% endif %}
+      </header>
+      <main id="main" class="site-main">
+        {% if messages %}
+        <ul class="messages">
+          {% for message in messages %}
+          <li class="message message--{{ message.tags }}">{{ message }}</li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+        {% block content %}{% endblock %}
+      </main>
+      <footer class="site-footer">
+        <p class="site-disclaimer">Концепт для конкурса MGIMO AI Challenge. Не является официальным сервисом вуза. Все данные вымышлены.</p>
+      </footer>
+    </body>
+    <ul class="site-nav-list">
+      {% url 'accounts:profile' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Профиль</a></li>
+      {% if user.is_student %}
+      {% url 'schedule:today' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Расписание</a></li>
+      {% url 'campusmap:map' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Карта</a></li>
+      {% url 'academics:my_grades' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Успеваемость</a></li>
+      {% url 'petitions:my_list' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Заявки</a></li>
+      {% url 'notifications:feed' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Уведомления{% if badge %} ({{ badge }}){% endif %}</a></li>
+      {% elif user.is_deanery_staff %}
+      {% url 'schedule:staff_groups' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Расписание</a></li>
+      {% url 'campusmap:map' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Карта</a></li>
+      {% url 'petitions:staff_queue' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Заявки</a></li>
+      {% url 'notifications:staff_announcements' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Объявления</a></li>
+      {% endif %}
+      {% if user.is_deanery_staff %}
+      {% url 'accounts:staff_student_list' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Студенты</a></li>
+      {% endif %}
+      <li>
+        <form class="site-nav-logout" method="post" action="{% url 'accounts:logout' %}">
+          {% csrf_token %}
+          <button type="submit">Выйти</button>
+        </form>
+      </li>
+    </ul>
+    static:
+    css
+
+    static/css:
+    base.css
+    theme.css
+    tokens.css
+    """Feed sources registry.
+
+    Each ``FeedSource`` computes the personal feed items of one event kind from the
+    rows that already exist (no stored notification rows). To add a new kind (e.g.
+    chat in TASK-009), subclass ``FeedSource`` and append it to ``FEED_SOURCES``;
+    nothing else changes.
+    """
+
+    from dataclasses import dataclass, replace
+    from datetime import date, datetime, timedelta
+    from typing import Any, ClassVar
+
+    from django.db.models import Q, QuerySet
+    from django.urls import reverse
+
+    from academics.models import CurrentMark, FinalResult
+    from accounts.models import StudentProfile
+    from petitions.models import PetitionComment, PetitionStatusChange
+    from schedule.models import LessonChange
+
+    from .constants import LESSON_CHANGE_HORIZON_DAYS
+    from .dates import relative_day_label
+    from .models import Announcement
+    from .selectors import announcements_for_student
+
+    STATUS_TITLES = {
+        "in_progress": "Заявка «{name}» взята в работу",
+        "ready": "Заявка «{name}» готова — заберите документ в деканате",
+        "issued": "Заявка «{name}» выдана",
+        "rejected": "Заявка «{name}» отклонена",
+    }
+
+
+    @dataclass(frozen=True)
+    class FeedContext:
+        user_id: int
+        student: StudentProfile
+        group_id: int
+        faculty_id: int
+        now: datetime
+        today: date
+        window_start: datetime
+        seen_until: datetime | None
+
+        def is_new(self, ts: datetime) -> bool:
+            return self.seen_until is None or ts > self.seen_until
+
+        @property
+        def horizon_end(self) -> date:
+            return self.today + timedelta(days=LESSON_CHANGE_HORIZON_DAYS)
+
+
+    @dataclass(frozen=True)
+    class FeedItem:
+        key: str
+        kind: str
+        tag: str
+        timestamp: datetime
+        title: str
+        body: str = ""
+
+── Explored 1 file ─────────────────────────────────────────
+  ── Read notifications/sources.py
+  ── Thought for 2m
+    I'm working out how the chat should plug into the notifications feed, mainly how unread status should behave. The feed counts an item as unread when its event time is later than the last-seen marker, and opening the page clears everything. The requirement is that dean's-office replies the student hasn't seen should show up in the feed as their own source and count toward the existing badge, with opening the chat marking that dialog as read.
+
+    I'm weighing whether the chat's own read marker should limit what the feed shows. If the feed only includes replies the student hasn't opened in the chat, they drop out once the dialog is read, which fits the requirement. The badge would also respect the notifications page visit timestamp, so an item counts only when it is both unseen in the chat and newer than that visit.
+
+    I'm settling on per-message feed items, each showing a truncated preview of the staff reply. The chat's own read marker decides what appears in the feed, so once the student opens the dialog those replies drop out, while the badge still respects the notifications visit timestamp.
+
+    I'm weighing whether to use message ids or timestamps as the read marker, since PostgreSQL assigns ids at insert time and commit order can differ. That could make a poller skip a reply that commits late, so I'm checking whether concurrent staff replies could be lost from the screen.
+
+    I'm settling on locking the dialog row with select_for_update before inserting each message, so the id is assigned inside the lock and commit order matches id order per dialog. That way a poller asking for ids after the last one shown can't skip a reply that commits late.
+
+    I'm settling the ordering rule: I'll take created_at inside the same lock as the insert, so time and id agree, and sort the page and the polling cursor by id since that's what `after` uses.
+
+    I'm deciding that opening the polling fragment should also mark the student's replies as read, since otherwise the nav badge would keep showing a reply the student already sees on screen. That would make the fragment a GET with a side effect, the same trade-off I already accepted for the notifications page.
+
+    I'm settling the read markers as message ids, stored as plain integers on each side of the dialog and only ever moved forward. Dialogs get created lazily on the first student message, so the staff list doesn't fill up with empty entries, and a student with no dialog yet just sees the empty state and the form, with polling returning nothing.
+
+    I'm settling the URL layout now: staff dialogs live at a uuid-keyed path, the student gets a single `/chat/` page, and each has its own `updates` fragment endpoint that takes an `after` id cursor. Sending goes to the same paths via POST, and on the staff side I'll scope dialogs to students in the staff member's faculty.
+
+    Still writing model definitions...
+
+    Still writing model fields...
+
+    Still writing model fields...
+
+    Still writing model fields...
+
+    I'm going with no fetch-based sending, so the form posts normally and the page reloads to show the new message, which keeps it to one path. To land the user at the newest message on a phone, I'll redirect to an anchor placed after the last message, so the browser scrolls there without any extra JavaScript.
+
+    I'm working out which link should reload the student chat page, since a plain `/chat/#chat-latest` link from the same URL would only scroll and not refresh the messages. I'm leaning toward a link with no fragment, so clicking it does a real navigation and picks up new replies.
+
+    I'm settling the "Обновить" link so it navigates to the plain chat URL without a fragment, which forces a real reload and picks up new replies, while the redirect after sending lands on the form anchor right below the newest message.
+
+    I'm settling the "Обновить" link to point at the plain chat URL with no fragment, since a same-page fragment link would only scroll. I'm also capping the history at the last 100 messages, ordered newest first and then reversed for display. Last, I'm checking a rate limit of 20 student messages per 10 minutes, counted per dialog.
+
+    I'm settling the rate limit at 20 student messages per 10 minutes, counted per dialog inside the same locked transaction, and leaving staff unlimited. For text, I'll strip whitespace and reject empty input, normalize line endings before checking length against the 2000-character cap, and keep the textarea's maxlength attribute as the only browser-side limit.
+
+    Still writing the polling script...
+
+    Still writing the polling script...
+
+    I'm writing the polling script with DOMParser so the server-rendered fragment is inserted as inert markup, and I'm adding a check that skips any message whose id is already on the page.
+
+    I'm adding a guard so the poller doesn't append the login page if the session has expired, checking the response for a redirect and stopping if it's there. The fragment will also carry a marker header, and the script will only insert content when that header is present. I'm also handling pauses when the tab is hidden, clearing the timer and polling right away when it becomes visible again, and stopping after a set number of consecutive errors.
+
+    I'm now specifying the polling script's behavior: it reads the poll URL and interval from data attributes, uses a chained timeout instead of an interval, and stops after a set number of consecutive errors. Inline scripts are out, so the file gets loaded with a deferred script tag in the chat templates' head block. The fragment view will take an integer `after` cursor and return only newer messages, so I still need to decide how to handle invalid values.
+
+    I'm settling the fragment endpoints next: the student fragment uses their own dialog and returns nothing if there's none yet, while the staff fragment looks up the dialog by its public id within the staff member's faculty and returns a 404 otherwise. I'm also checking how the unread count for the student's "Чат (N)" nav item would work, since it adds one more query to every student page.
+
+    I'm checking the nav cost for students: the chat badge needs one more query on every student page, and I'm weighing whether a single annotated lookup could cover both the badge and the chat count.
+
+    Writing the feed source class...
+
+    I'm checking the notifications wiring: the chat source gets appended to FEED_SOURCES, and since notifications already depends on other apps, that's fine. I also need to update the registry test to expect seven sources, while the query-count tests should still hold since the feed adds only one query and the badge stays at one.
+
+    I'm laying out the staff side now: a chat list sorted with unread dialogs first and capped at a fixed number of rows, then a dialog page that shows the last 100 messages, the student's name, group and a link to their record, and a reply form. Opening that page marks the staff side as read up to the newest message, and a separate staff updates endpoint will feed new messages in.
+
+    I'm settling how staff messages get labeled: the student view shows "Вы" for the student's own messages and "Деканат · <short name>" for staff replies, while the staff view shows the student's name and the same staff label. Staff short names don't exist yet, so I'm adding a property on the staff profile in the same format as the teacher one, which needs no migration.
+
+    Still writing the message markup...
+
+    I'm checking how the template handles a missing staff profile, and since Django silences that lookup error, the label just renders empty. Next I'm wiring the chat container's data attributes so the polling script knows the last message id and the poll URL.
+
+    Still working out the message validation in the chat service, with the text normalization and length limit check.
+
+    I'm writing the student message send function in the chat service: it normalizes the text, locks the dialog row, and returns an existing message if the client token was already used. Then it counts the student's recent messages in the rate window to check the limit.
+
+    I'm settling the send path: after the rate check, the new message gets created with the student as author, and the dialog's last-message fields update to point at it. I'm deciding not to touch the student's read marker in this step, since the page reload after sending already marks everything as read.
+
+    I'm specifying the send and mark-read service functions: student messages don't touch the student's read marker, since only staff messages count toward unread, and staff sends get a faculty check and no rate limit. Next is the `mark_read` helper, which only moves the read pointer forward for one side of the dialog.
+
+    I'm laying out the student chat views next, plus the selectors for listing dialogs visible to a user and for counting unread items in the student nav.
+
+    I'm laying out the staff dialog view now: it looks up the dialog by its public id among the dialogs the staff member can see, returning a 404 otherwise, and handles both GET for the page and POST for replies.
+
+    I'm laying out the staff dialog endpoints: the `after` parameter must be digits only, otherwise it gets a 400. On the GET page I'll mark the dialog read up to the last message actually rendered, and for the staff list's unread count I'm counting student messages newer than the staff read pointer.
+
+    I'm working out the demo seed data now: each demo student gets a dialog with messages created in chronological order at past timestamps, deduplicated by a seed key on the messages. For the read state, the first student's dialog has a staff reply they haven't seen yet, so their read marker sits just before that reply.
+
+    I'm checking the demo seed for unread state: the first student's dialog ends with a staff reply they haven't seen, and the third student's last message is still unread by staff. I'm also making sure the second student's dialog ends on their own message, so the staff side shows it as unread.
+
+    I'm deciding where the chat entry goes in the student nav: the "Чат (N)" item reads its count from a context processor tag in base.html, next to the notifications badge. Staff get a plain "Чаты" item. I'm also leaning toward a read-only admin for dialogs, matching how petitions are handled.
+
+    I'm setting the nav order for students and staff, which means updating the exact-list assertions in the nav test. I'm also capping the chat badge at 99 and showing "99+" past that, and planning the query counts for the student chat page.
+
+    I'm working through the access checks for the student chat page: anonymous visitors get redirected, students see their own page, and staff or superusers get a 403.
+
+    I'm mapping out the access matrix for the staff side and the student side: anonymous visitors get redirected, students get a 403 on staff pages, and staff only see dialogs from their own faculty, with other faculty getting a 404. I'm also noting that POST requests need the same checks, and that CSRF enforcement should be tested. One edge case to keep in mind is that a student from another faculty shouldn't see the staff dialog, and deactivated students drop out of staff visibility.
+
+    I'm working out the JS checks for the chat page: static tests should confirm the script file is served, avoid risky DOM APIs like innerHTML or eval, and ensure every script tag has a src. I'll parse the fragment with DOMParser, since the server already escapes it, and I'm skipping any test for setInterval.
+
+    I'm checking whether node is available for an optional syntax check of the chat script, and I'm planning tests for rate limiting with a frozen clock: twenty messages in the window, the twenty-first rejected, and allowed again once the window passes. I also want a double-submit test that posts the same client token twice and expects one message with both responses as redirects.
+
+    I'm checking the details the next step depends on: the staff profile fields, the `students_visible_to` signature, the mixin order on the student views, and the staff student detail URL. I'm also checking whether `static/js/` exists yet, whether node is available, and which expected lists in `core/tests/test_nav.py` need updating.
+
+── Ran 4 commands ──────────────────────────────────────────
+  ── Ran which node; grep -n "def test_default_registry\|len(FEED_SOURCES)\|len(get_feed_sources" -A4 notifications/tests/test_feed.py | head; grep -n '\["/profile/"' core/tests/test_nav.py; grep -n "short_name\|NBSP" accounts/models.py university/models.py | head; grep -n "ls\b" /dev/null; ls templates/includes; grep -n "seed_notifications_demo\|Notifications ready" accounts/management/commands/seed_demo.py; grep -rn "chat" --include=*.py config core accounts | head -3; ls -d chat static/js 2>&1 (error)
+    $ which node; grep -n "def test_default_registry\|len(FEED_SOURCES)\|len(get_feed_sources" -A4 notifications/tests/test_feed.py | head; grep -n '\["/profile/"' core/tests/test_nav.py; grep -n "short_name\|NBSP" accounts/models.py university/models.py | head; grep -n "ls\b" /dev/null; ls templates/includes; grep -n "seed_notifications_demo\|Notifications ready" accounts/management/commands/seed_demo.py; grep -rn "chat" --include=*.py config core accounts | head -3; ls -d chat static/js 2>&1
+    Exit code 1
+    /opt/homebrew/bin/node
+    646:    def test_default_registry_has_six_sources(self):
+    647:        self.assertEqual(len(get_feed_sources()), 6)
+    648-
+    649-    def test_feed_and_counter_use_registry(self):
+    650-        make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+    651-        rtype = make_type("Справка")
+    45:            ["/profile/", "/schedule/", "/map/", "/grades/", "/requests/", "/notifications/"],
+    68:        self.assertEqual(_hrefs(_wide(content)), ["/profile/"])
+    university/models.py:8:NBSP = "\u00a0"
+    university/models.py:184:    def short_name(self) -> str:
+    university/models.py:185:        middle = f"{NBSP}{self.middle_name[0]}." if self.middle_name else ""
+    university/models.py:186:        return f"{self.last_name}{NBSP}{self.first_name[0]}.{middle}"
+    university/models.py:191:    short_name = models.CharField("краткое название", max_length=50)
+    site_nav_items.html
+    10:from notifications.demo import seed_notifications_demo
+    31:                n = seed_notifications_demo(today)
+    64:            self.style.SUCCESS(f"Notifications ready: {n.announcements} announcements.")
+    (eval):1: no matches found: --include=*.py
+    ls: chat: No such file or directory
+    ls: static/js: No such file or directory
+    exit 1
+  ── Ran node --version; sed -n 50,62p core/tests/test_nav.py; grep -rn "chat\b\|Chat" config core accounts notifications --include="*.py" 2>/dev/null | grep -v tests | head -3; sed -n 20,40p accounts/management/commands/seed_demo.py; grep -n "staff_student_detail" accounts/urls.py
+    $ node --version; sed -n 50,62p core/tests/test_nav.py; grep -rn "chat\b\|Chat" config core accounts notifications --include="*.py" 2>/dev/null | grep -v tests | head -3; sed -n 20,40p accounts/management/commands/seed_demo.py; grep -n "staff_student_detail" accounts/urls.py
+    v26.13.0
+            content = self.client.get("/profile/").content.decode()
+            self.assertEqual(_hrefs(_wide(content)), _hrefs(_menu(content)))
+            self.assertEqual(
+                _hrefs(_wide(content)),
+                [
+                    "/profile/",
+                    "/staff/schedule/",
+                    "/map/",
+                    "/staff/requests/",
+                    "/staff/announcements/",
+                    "/staff/students/",
+                ],
+            )
+    notifications/sources.py:5:chat in TASK-009), subclass ``FeedSource`` and append it to ``FEED_SOURCES``;
+            if not password:
+                raise CommandError(
+                    "DEMO_PASSWORD environment variable is required. Set it in .env or the environment."
+                )
+            try:
+                with transaction.atomic():
+                    today = timezone.localdate()
+                    summary = seed_demo_data(password)
+                    s = seed_schedule_demo(today)
+                    a = seed_academics_demo(today)
+                    p = seed_petitions_demo(today)
+                    n = seed_notifications_demo(today)
+            except DemoSeedError as exc:
+                raise CommandError(str(exc)) from None
+            except ValidationError as exc:
+                raise CommandError(
+                    "Demo data conflicts with existing data: " + " ".join(exc.messages)
+                ) from None
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Demo data ready: {summary.faculties} faculties, {summary.programs} programs, "
+    15:        name="staff_student_detail",
+  ── Thought for 5s
+    I'm going to add a `node --check` syntax pass on the chat JavaScript to the verification steps, since Node is available. A fake-DOM test feels like too much work for this, so I'll leave that to manual checking by the lead. Next I want to verify the riskier Django behaviour, namely an `annotate(Count)` with a filter on `F("staff_read_id")` across a relation, and an `F` filter across a FK join in the union feed, by prototyping in a temp copy against existing models.
+
+    I'm planning a quick check on the riskier Django queries: an annotated Count with an F-based filter on a related model, and an F filter across a FK join inside the union feed. My plan is to test them against existing models like Petition and PetitionStatusChange, since those carry the same kind of relation.
+  ── Ran source .venv/bin/activate && DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t008/fixseed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t008/fixseed-priv" python manage.py shell -c " from django.db import connection from django.db.models import Count, Q, F, Case, When, Value, IntegerField from django.test.utils import CaptureQueriesContext from petitions.models import Petition, PetitionStatusChange, PetitionComment a = PetitionStatusChange.objects.filter(id__gt=F('petition__student_id')).order_by().values_list('created_at') b = PetitionComment.objects.filter(petition__student_id=1).order_by().values_list('created_at') with CaptureQueriesContext(connection) as c:     print('union count', a.union(b, all=True).count(), len(c.captured_queries)) qs = Petition.objects.annotate(unread=Count('history', filter=Q(history__actor__role='staff', history__id__gt=F('student_id')))).annotate(has_unread=Case(When(unread__gt=0, then=Value(0)), default=Value(1), output_field=IntegerField())).order_by('has_unread', F('status_changed_at').desc(nulls_last=True)) with CaptureQueriesContext(connection) as c:     print([(p.pk, p.unread, p.has_unread) for p in qs.select_related('student__group')][:4], len(c.captured_queries)) " 2>&1 | tail -3 (2s)
+    $ source .venv/bin/activate && DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t008/fixseed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t008/fixseed-priv" python manage.py shell -c "
+  from django.db import connection
+  from django.db.models import Count, Q, F, Case, When, Value, IntegerField
+  from django.test.utils import CaptureQueriesContext
+  from petitions.models import Petition, PetitionStatusChange, PetitionComment
+  a = PetitionStatusChange.objects.filter(id__gt=F('petition__student_id')).order_by().values_list('created_at')
+  b = PetitionComment.objects.filter(petition__student_id=1).order_by().values_list('created_at')
+  with CaptureQueriesContext(connection) as c:
+      print('union count', a.union(b, all=True).count(), len(c.captured_queries))
+  qs = Petition.objects.annotate(unread=Count('history', filter=Q(history__actor__role='staff', history__id__gt=F('student_id')))).annotate(has_unread=Case(When(unread__gt=0, then=Value(0)), default=Value(1), output_field=IntegerField())).order_by('has_unread', F('status_changed_at').desc(nulls_last=True))
+  with CaptureQueriesContext(connection) as c:
+      print([(p.pk, p.unread, p.has_unread) for p in qs.select_related('student__group')][:4], len(c.captured_queries))
+  " 2>&1 | tail -3
+    union count 15 1
+    [(2, 1, 0), (7, 1, 0), (3, 2, 0), (4, 1, 0)] 1
+  ── Thought for 1s
+    I'm kicking off the baseline run in the background first, then I'll draft the spec while it goes.
+  ── Thought for 8ms
+    Нужные запросы Django работают на текущей версии, и оба выполняются одним запросом. Сейчас запускаю базовые проверки и пишу спецификацию чата.
+  ── Ran source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t009-feas.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t009-feas-at-2359.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t009-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t009seed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t009seed-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t009seed.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; echo DONE
+    $ source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t009-feas.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t009-feas-at-2359.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t009-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t009seed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t009seed-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t009seed.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; echo DONE
+    Command running in background with ID: ba9yvifs6. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/ba9yvifs6.output. You will be notified when it completes. To check interim output, use Read on that file path.
+
+── Explored 1 file ─────────────────────────────────────────
+  ── Read accounts/models.py
+  ── Thought for 3ms
+    I'm adding a `short_name` property to StaffProfile in accounts/models.py, pulling the NBSP from university.models, since that import won't create a cycle. It will follow the same format. Next I'll write up the spec, keeping it thorough without padding.
+
+── Created 1 file ──────────────────────────────────────────
+  ── Created docs/tasks/TASK-009.md +521
+    --- /dev/null
+    +++ b~/hackatonproject/docs/tasks/TASK-009.md
+    +# TASK-009: chat with the dean's office (polling, server-rendered fragments)
+    +
+    +Author: Planner. Status: ready for implementation.
+    +Base commit: `b3dcb37`. Related specs: `TASK-007.md` (feed sources, badge, D3 GET read marker, D5 clock), `TASK-008-FIX.md` (compact header, page-assertion rule), `TASK-006.md` (staff scoping, admin read-only pattern).
+    +
+    +A student writes to the dean's office of their faculty in one dialog. Any staff member of that faculty reads and answers from «Чаты». Without JavaScript everything works with normal pages, POST forms and an «Обновить» link. With JavaScript the page asks the server every 5 seconds for new messages and appends the server-rendered HTML.
+    +
+    +---
+    +
+    +## 1. Acceptance criteria
+    +| ID | Criterion |
+    +|---|---|
+    +| AC1 | New app `chat` with models `Dialog` and `Message`, migrations, read-only admin for the superuser. |
+    +| AC2 | One dialog per student (DB unique), with the dean's office of the student's faculty; created on the student's first message. Staff of the student's faculty read and answer; staff cannot start dialogs. |
+    +| AC3 | Messages are append-only plain text (autoescaped, `linebreaksbr`), `MESSAGE_MAX_LENGTH` = 2000 after normalising line breaks; empty/whitespace-only rejected; author, role and time (`core.clock.now`) stored. No edit/delete anywhere (admin read-only). |
+    +| AC4 | Order = message `id` ascending. Inserts into one dialog are serialised by a row lock on the dialog, so id order = creation order = commit order (D3). Two concurrent staff replies are both kept. |
+    +| AC5 | Student rate limit: at most `RATE_LIMIT_MESSAGES` = 20 messages per `RATE_LIMIT_MINUTES` = 10 minutes (service level). Double submit of one form (same `client_token`) creates one message (DB unique + idempotent service). All sends end with a redirect (PRG). |
+    +| AC6 | Polling: `static/js/chat.js` (vanilla, deferred, no inline script, no `innerHTML`/`insertAdjacentHTML`/`outerHTML`/`document.write`/`eval`) requests the fragment view every `POLL_INTERVAL_SECONDS` = 5 s with `after=<last shown id>`, appends new messages (no duplicates), pauses while the tab is hidden, stops after `POLL_MAX_ERRORS` = 5 consecutive errors and shows a text notice. Fragment view: GET only, login + role + scope checks, `Cache-Control: no-store`, `204` when nothing is new, `400` for a bad `after`. |
+    +| AC7 | Sending is a normal POST form (no `fetch` send, D6). The page works fully without JavaScript and shows an «Обновить» link. |
+    +| AC8 | Student unread = staff messages after the student's read marker. They appear in «Уведомления» as source `chat_reply` («Новое сообщение от деканата», link to the chat) and in the existing badge; the nav item shows «Чат (N)». Opening the chat (page or a fragment with new messages) moves the student's read marker. |
+    +| AC9 | Staff «Чаты»: dialogs of their faculty, unread first, then newest last message first; each with student name, group, unread count. A dialog is read for all staff of the faculty when any of them opens it (shared marker, D4). |
+    +| AC10 | Pages: student «Чат с деканатом» (history oldest → newest, newest at the bottom right above the form, empty-state hint, form); staff list and dialog page (history, student summary with link to the staff student page, reply form). Nav: «Чат» (student), «Чаты» (staff) in both header lists. 360 px without horizontal scroll. |
+    +| AC11 | Access: student only own dialog; staff only dialogs of students visible to them (`students_visible_to`), 404 otherwise; students → 403 on staff pages; staff/superuser → 403 on student pages; dialog URLs use a UUID. |
+    +| AC12 | Fixed query counts for the student page, the staff list, the staff dialog page and both fragment views; the header costs exactly 4 queries for a student (feed badge 3 + chat badge 1) and 0 for staff. |
+    +| AC13 | `seed_demo` (idempotent): a dialog for each demo student with messages from both sides; student1 has an unread reply; each faculty (FDD, FAE) has a dialog with an unread student message. |
+    +
+    +## 2. Out of scope
+    +WebSockets, SSE, Channels, push/e-mail, attachments, edit/delete, typing indicators, per-message read receipts, student↔student or staff↔staff chat, staff-initiated dialogs, a JSON API, sending via `fetch`, an unread count on the staff nav item, the visual theme.
+    +
+    +## 3. Design decisions
+    +**D1. App name `chat`.** Short, matches the nav item and `plan.md` («Чат с деканатом»); no clash with installed packages or URL names.
+    +
+    +**D2. Dialog created on the first student message.** Lazily creating it on page open would fill the staff list with empty dialogs (no last message to sort by). The student page renders the empty state when there is no dialog; the student fragment view returns 204.
+    +
+    +**D3. Ordering and concurrency.** `send_*` functions lock the dialog row (`select_for_update`) BEFORE inserting the message and take `created_at = clock.now()` inside the lock. Therefore, within a dialog, ids are assigned and committed in the same order, and `created_at` is non-decreasing along ids. All lists and the polling cursor use `id` (time is display only, so a server clock correction cannot reorder messages or make polling skip one). Without the lock, on PostgreSQL message 10 could commit after message 11 and a poller already at `after=11` would never show 10. SQLite serialises writes anyway.
+    +
+    +**D4. Read markers are message ids on the dialog.** `student_read_id` (last message id the student has seen) and `staff_read_id` (shared by all staff of the faculty: it is one dean's-office inbox, as with requests; any staff member who opens the dialog has handled it). Unread for the student = staff messages with `id > student_read_id`; for staff = student messages with `id > staff_read_id`. Markers only move forward (conditional `UPDATE … WHERE field < new`). Opening the page marks up to the last shown id; a fragment response marks up to the last returned id. GET with this side effect follows TASK-007 D3 (own marker only, idempotent, monotonic, `SameSite=Lax`, `no-store`, HEAD/POST not allowed on fragment views).
+    +
+    +**D5. Double-submit guard.** The form carries a hidden `client_token` (UUID generated when the form is rendered). `Message` has `UniqueConstraint(dialog, client_token)`; the service returns the existing message for a repeated token instead of creating one, so a double click or a browser re-POST cannot duplicate a message. PRG avoids re-POST on reload.
+    +
+    +**D6. No `fetch` send.** One reference path (POST + redirect) is simpler to test and secure; after the redirect the page reloads at `#chat-form` (right below the newest message). Polling covers the live part (replies from the other side).
+    +
+    +**D7. Feed integration.** `ChatReplySource` lists unread staff messages (per message) in «Уведомления» and therefore in the existing badge (which stays visible outside the collapsed menu). After the student opens the chat they leave the feed (they are read). The «Чат (N)» nav count is a separate 1-query tag.
+    +
+    +---
+    +
+    +## 4. Architecture
+    +
+    +### 4.1 Files
+    +Create:
+    +| File | Content |
+    +|---|---|
+    +| `chat/__init__.py`, `chat/apps.py` | `ChatConfig` (`name = "chat"`, `verbose_name = "Чат"`, `default_auto_field = "django.db.models.BigAutoField"`) |
+    +| `chat/constants.py` | 4.2 |
+    +| `chat/models.py` | `AuthorRole`, `Dialog`, `Message` |
+    +| `chat/migrations/__init__.py`, `chat/migrations/0001_initial.py` | generated |
+    +| `chat/selectors.py`, `chat/services.py`, `chat/forms.py`, `chat/views.py`, `chat/urls.py`, `chat/admin.py`, `chat/demo.py` | 5.x |
+    +| `chat/templatetags/__init__.py`, `chat/templatetags/chat_tags.py` | `chat_unread_badge` |
+    +| `chat/templates/chat/student.html`, `staff_list.html`, `staff_dialog.html`, `_history.html`, `_message.html`, `_messages.html`, `_form.html` | templates |
+    +| `static/js/chat.js` | polling (4.8) |
+    +| `chat/tests/__init__.py`, `helpers.py`, `test_models.py`, `test_services.py`, `test_selectors.py`, `test_views.py`, `test_feed.py`, `test_static.py`, `test_demo.py` | tests |
+    +
+    +Change:
+    +| File | Change |
+    +|---|---|
+    +| `config/settings.py` | `"chat"` in `INSTALLED_APPS` after `"campusmap"` |
+    +| `config/urls.py` | `path("", include("chat.urls")),` after the campusmap include |
+    +| `pyproject.toml` | `"chat"` in `known-first-party` |
+    +| `accounts/models.py` | `StaffProfile.short_name` property (same format as `Teacher.short_name`, `NBSP` imported from `university.models`) |
+    +| `notifications/sources.py` | `ChatReplySource`, appended to `FEED_SOURCES` |
+    +| `notifications/tests/test_feed.py` | registry test: 6 → 7 sources (rename to `test_default_registry_has_seven_sources`) |
+    +| `templates/base.html` | `{% load … chat_tags %}`; `{% chat_unread_badge as chat_badge %}` for students |
+    +| `templates/includes/site_nav_items.html` | «Чат (N)» / «Чаты» items |
+    +| `core/tests/test_nav.py` | expected nav lists (4.7) |
+    +| `accounts/management/commands/seed_demo.py` | `seed_chat_demo`, summary line |
+    +| `static/css/base.css` | chat layout rules (4.9) |
+    +| `README.md` | `## Chat` section; Known limitations bullets |
+    +
+    +No new dependencies, no env variables.
+    +
+    +### 4.2 `chat/constants.py`
+    +```python
+    +MESSAGE_MAX_LENGTH = 2000
+    +RATE_LIMIT_MESSAGES = 20
+    +RATE_LIMIT_MINUTES = 10
+    +POLL_INTERVAL_SECONDS = 5
+    +POLL_MAX_ERRORS = 5
+    +HISTORY_LIMIT = 100          # messages shown on a page (newest 100)
+    +FRAGMENT_LIMIT = 50          # messages per fragment response
+    +STAFF_LIST_LIMIT = 200       # dialogs on the staff list
+    +FEED_PREVIEW_CHARS = 200     # message preview in «Уведомления»
+    +CHAT_BADGE_CAP = 99          # nav shows "99+" above it
+    +```
+    +
+    +### 4.3 Models — `chat/models.py`
+    +```python
+    +class AuthorRole(models.TextChoices):
+    +    STUDENT = "student", "Студент"
+    +    STAFF = "staff", "Деканат"
+    +```
+    +`Dialog`:
+    +| Field | Definition |
+    +|---|---|
+    +| `public_id` | `UUIDField(default=uuid.uuid4, unique=True, editable=False)` |
+    +| `student` | `OneToOneField("accounts.StudentProfile", on_delete=PROTECT, related_name="chat_dialog", verbose_name="студент")` |
+    +| `created_at` | `DateTimeField("создан", default=core.clock.now, editable=False)` |
+    +| `last_message_at` | `DateTimeField("последнее сообщение", null=True, blank=True, editable=False)` |
+    +| `last_message_id` | `PositiveBigIntegerField(default=0, editable=False)` |
+    +| `student_read_id` | `PositiveBigIntegerField(default=0, editable=False)` |
+    +| `staff_read_id` | `PositiveBigIntegerField(default=0, editable=False)` |
+    +
+    +`Meta`: `ordering = ["-last_message_at", "-pk"]`, `indexes = [Index(fields=["last_message_at"], name="chat_dialog_last_msg_idx")]`, `verbose_name = "диалог"`, `verbose_name_plural = "диалоги"`. `__str__` → `f"Чат: {self.student}"` (admin only; callers `select_related("student")`).
+    +
+    +`Message`:
+    +| Field | Definition |
+    +|---|---|
+    +| `dialog` | `ForeignKey(Dialog, on_delete=PROTECT, related_name="messages", verbose_name="диалог")` |
+    +| `author` | `ForeignKey(settings.AUTH_USER_MODEL, on_delete=PROTECT, related_name="chat_messages", verbose_name="автор")` |
+    +| `author_role` | `CharField("роль автора", max_length=16, choices=AuthorRole.choices)` (stored: stays correct if the user's role changes later) |
+    +| `text` | `TextField("текст", max_length=MESSAGE_MAX_LENGTH)` |
+    +| `created_at` | `DateTimeField("отправлено", default=core.clock.now, editable=False)` |
+    +| `client_token` | `UUIDField(null=True, blank=True, editable=False)` |
+    +| `seed_key` | `SlugField(max_length=40, blank=True, default="", editable=False)` |
+    +
+    +`Meta`: `ordering = ["id"]`; `indexes = [Index(fields=["dialog", "id"], name="chat_msg_dialog_id_idx"), Index(fields=["author", "created_at"], name="chat_msg_author_time_idx")]`; constraints:
+    +- `CheckConstraint(condition=~Q(text=""), name="chat_message_text_not_empty")`
+    +- `CheckConstraint(condition=Q(author_role__in=["student", "staff"]), name="chat_message_author_role_value")`
+    +- `UniqueConstraint(fields=["dialog", "client_token"], condition=Q(client_token__isnull=False), name="chat_message_unique_client_token")`
+    +- `UniqueConstraint(fields=["seed_key"], condition=~Q(seed_key=""), name="chat_message_unique_seed_key")`
+    +`verbose_name = "сообщение"`, `verbose_name_plural = "сообщения"`. `__str__` → `f"{self.get_author_role_display()}: {self.text[:40]}"`.
+    +
+    +`accounts/models.py`, `StaffProfile`: add after `full_name`:
+    +```python
+    +@property
+    +def short_name(self) -> str:
+    +    middle = f"{NBSP}{self.middle_name[0]}." if self.middle_name else ""
+    +    return f"{self.last_name}{NBSP}{self.first_name[0]}.{middle}"
+    +```
+    +with `from university.models import NBSP` (no import cycle: `university` does not import `accounts`).
+    +
+    +### 4.4 URLs — `chat/urls.py`
+    +```python
+    +app_name = "chat"
+    +urlpatterns = [
+    +    path("chat/", views.StudentChatView.as_view(), name="student"),
+    +    path("chat/updates/", views.StudentChatUpdatesView.as_view(), name="student_updates"),
+    +    path("staff/chats/", views.StaffChatListView.as_view(), name="staff_list"),
+    +    path("staff/chats/<uuid:public_id>/", views.StaffDialogView.as_view(), name="staff_dialog"),
+    +    path("staff/chats/<uuid:public_id>/updates/", views.StaffDialogUpdatesView.as_view(), name="staff_updates"),
+    +]
+    +```
+    +
+    +### 4.5 Admin — `chat/admin.py`
+    +`MessageInline(admin.TabularInline)`: `model = Message`, `extra = 0`, `can_delete = False`, `fields = readonly_fields = ("created_at", "author_role", "author", "text")`, `has_add_permission → False`.
+    +`DialogAdmin`: `list_display = ("student", "last_message_at", "student_read_id", "staff_read_id")`, `list_select_related = ("student",)`, `inlines = [MessageInline]`, `has_add_permission`, `has_change_permission`, `has_delete_permission` → `False` (view-only; the change page opens read-only because `has_view_permission` stays true for the superuser).
+    +
+    +### 4.6 Templates
+    +- `chat/_message.html` (one message; context: `m`, `viewer_is_student`, `student_name`):
+    +```django
+    +<li class="chat-message chat-message--{{ m.author_role }}" id="m-{{ m.pk }}" data-message-id="{{ m.pk }}">
+    +  <p class="chat-meta"><strong>{% if m.author_role == "staff" %}Деканат · {{ m.author.staff_profile.short_name }}{% elif viewer_is_student %}Вы{% else %}{{ student_name }}{% endif %}</strong> · <time datetime="{{ m.created_at|date:'c' }}">{{ m.created_at|date:"d.m.Y H:i" }}</time></p>
+    +  <p class="chat-text">{{ m.text|linebreaksbr }}</p>
+    +</li>
+    +```
+    +- `chat/_messages.html`: `{% for m in messages %}{% include "chat/_message.html" %}{% endfor %}` — the fragment response body (only `<li>` elements).
+    +- `chat/_history.html` (context: `messages`, `truncated`, `poll_url`, `refresh_url`, constants):
+    +```django
+    +<section class="chat" data-chat-poll-url="{{ poll_url }}" data-chat-poll-ms="{{ poll_ms }}" data-chat-max-errors="{{ poll_max_errors }}">
+    +  {% if truncated %}<p class="chat-note">Показаны последние {{ history_limit }} сообщений.</p>{% endif %}
+    +  <ol class="chat-messages" id="chat-messages">
+    +    {% for m in messages %}{% include "chat/_message.html" %}{% endfor %}
+    +  </ol>
+    +  {% if not messages %}<p class="chat-empty" id="chat-empty">{{ empty_text }}</p>{% endif %}
+    +  <p class="chat-status" data-chat-status role="status" aria-live="polite"></p>
+    +  <p class="page-actions"><a href="{{ refresh_url }}">Обновить</a></p>
+    +</section>
+    +```
+    +- `chat/_form.html`:
+    +```django
+    +<form method="post" class="form chat-form" id="chat-form" action="{{ form_action }}">
+    +  {% csrf_token %}
+    +  {{ form.non_field_errors }}
+    +  <input type="hidden" name="client_token" value="{{ form.client_token.value|default:client_token }}">
+    +  <p><label for="id_text">{{ form_label }}</label>{{ form.text.errors }}{{ form.text }}</p>
+    +  <button type="submit">Отправить</button>
+    +</form>
+    +```
+    +- `chat/student.html` (extends `base.html`, title «Чат с деканатом»; `{% block extra_head %}<script src="{% static 'js/chat.js' %}" defer></script>{% endblock %}`): `<h1>Чат с деканатом</h1>`, `<p>{{ faculty_name }}</p>`, `_history.html` (empty text: «Сообщений пока нет. Напишите вопрос — ответит сотрудник деканата вашего факультета.»), `_form.html` (label «Сообщение»).
+    +- `chat/staff_list.html` (title «Чаты»): `<h1>Чаты</h1>`; `<ul class="chat-dialogs">`, one `<li>` per dialog: `<a href="{% url 'chat:staff_dialog' d.public_id %}">{{ d.student.full_name }}</a> · {{ d.student.group.name }} · {{ d.last_message_at|date:"d.m.Y H:i" }}{% if d.unread %} · <strong>новых: {{ d.unread }}</strong>{% endif %}`; empty state «Сообщений от студентов пока нет.».
+    +- `chat/staff_dialog.html` (title «Чат: <name>»; same script tag): `<h1>Чат со студентом</h1>`, summary `<p><a href="{% url 'accounts:staff_student_detail' dialog.student.pk %}">{{ dialog.student.full_name }}</a> · {{ dialog.student.group.name }}</p>`, `<p class="page-actions"><a href="{% url 'chat:staff_list' %}">Все чаты</a></p>`, `_history.html` (empty text unused: a dialog always has messages), `_form.html` (label «Ответ»).
+    +
+    +### 4.7 Navigation
+    +`templates/base.html`: line 1 `{% load static notifications_tags chat_tags %}`; replace the badge line with `{% if user.is_student %}{% notifications_badge as badge %}{% chat_unread_badge as chat_badge %}{% endif %}`.
+    +`templates/includes/site_nav_items.html`: student branch, after «Заявки»: `{% url 'chat:student' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Чат{% if chat_badge %} ({{ chat_badge }}){% endif %}</a></li>`; staff branch, after «Заявки»: the same pattern with `chat:staff_list` and text «Чаты».
+    +New expected lists in `core/tests/test_nav.py`: student `["/profile/", "/schedule/", "/map/", "/grades/", "/requests/", "/chat/", "/notifications/"]`; staff `["/profile/", "/staff/schedule/", "/map/", "/staff/requests/", "/staff/chats/", "/staff/announcements/", "/staff/students/"]`.
+    +
+    +`chat/templatetags/chat_tags.py`: `@register.simple_tag(takes_context=True) def chat_unread_badge(context) -> str`: request missing → `""`; `count = student_unread_count(request.user)`; `0` → `""`; `> CHAT_BADGE_CAP` → `f"{CHAT_BADGE_CAP}+"`; else `str(count)`.
+    +
+    +### 4.8 `static/js/chat.js`
+    +Rules: plain ES2017 in an IIFE with `"use strict"`; no libraries, no inline scripts, no `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `eval`, `new Function`, `setInterval`. Algorithm:
+    +1. `root = document.querySelector("[data-chat-poll-url]")`; none → return. `list = document.getElementById("chat-messages")`; `status = root.querySelector("[data-chat-status]")`; `url = root.dataset.chatPollUrl`; `interval = Number(root.dataset.chatPollMs) || 5000`; `maxErrors = Number(root.dataset.chatMaxErrors) || 5`; `errors = 0`; `timer = null`; `stopped = false`.
+    +2. `lastId()`: the `data-message-id` of the last `li[data-message-id]` in `list`, else `"0"`.
+    +3. `schedule()`: if `!stopped && !document.hidden` → `timer = setTimeout(poll, interval)`.
+    +4. `poll()`: `timer = null`; `fetch(url + "?after=" + encodeURIComponent(lastId()), {credentials: "same-origin", cache: "no-store", headers: {"X-Requested-With": "XMLHttpRequest"}})`:
+    +   - `response.redirected` or header `X-Chat-Fragment` missing on a 200 → treat as error (session expired: the login page must never be appended);
+    +   - `204` → `errors = 0`;
+    +   - `200` → `response.text()` → `doc = new DOMParser().parseFromString(text, "text/html")`; for each `li[data-message-id]` in `doc.body`: skip if `document.getElementById(li.id)` exists; else `list.appendChild(document.importNode(li, true))`; if anything was added: remove `#chat-empty` if present and `list.lastElementChild.scrollIntoView({block: "nearest"})`; `errors = 0`;
+    +   - other status or network error → `errors += 1`; if `errors >= maxErrors` → `stopped = true`, `status.textContent = "Автообновление остановлено. Нажмите «Обновить»."`.
+    +   - finally `schedule()`.
+    +5. `document.addEventListener("visibilitychange", …)`: hidden → `clearTimeout(timer)`, `timer = null`; visible and not stopped and no pending timer → `poll()` immediately.
+    +6. Start: `schedule()`.
+    +The fragment is server-rendered with autoescaping, and `DOMParser` documents are inert (scripts do not run); nodes are imported, never assigned as HTML strings.
+    +
+    +### 4.9 CSS — append to `static/css/base.css` (layout only)
+    +```css
+    +.chat-messages,
+    +.chat-dialogs {
+    +  list-style: none;
+    +  margin: 0;
+    +  padding: 0;
+    +}
+    +
+    +.chat-message {
+    +  margin-bottom: var(--space-3);
+    +  padding: var(--space-2);
+    +  border: 1px solid var(--color-border);
+    +  overflow-wrap: anywhere;
+    +}
+    +
+    +.chat-message--staff {
+    +  margin-right: var(--space-4);
+    +}
+    +
+    +.chat-message--student {
+    +  margin-left: var(--space-4);
+    +}
+    +
+    +.chat-meta,
+    +.chat-text {
+    +  margin: 0;
+    +}
+    +
+    +.chat-form textarea {
+    +  display: block;
+    +  width: 100%;
+    +  min-height: 6rem;
+    +}
+    +
+    +.chat-dialogs li {
+    +  margin-bottom: var(--space-3);
+    +  overflow-wrap: anywhere;
+    +}
+    +```
+    +
+    +---
+    +
+    +## 5. Functions
+    +
+    +### 5.1 `chat/selectors.py`
+    +**`dialogs_visible_to(user) -> QuerySet[Dialog]`** — not authenticated/active → `none()`; staff → `Dialog.objects.filter(student__in=students_visible_to(user))`; student → `Dialog.objects.filter(student__user_id=user.pk)`; else `none()`. Tests `SelectorTests`: `test_staff_sees_own_faculty_only`, `test_student_sees_own_only`, `test_superuser_and_anonymous_none`, `test_inactive_student_dialog_hidden_from_staff` (follows `students_visible_to`).
+    +
+    +**`staff_dialog_list(user) -> QuerySet[Dialog]`** — `dialogs_visible_to(user).select_related("student__group").annotate(unread=Count("messages", filter=Q(messages__author_role=AuthorRole.STUDENT, messages__id__gt=F("staff_read_id")))).annotate(has_unread=Case(When(unread__gt=0, then=Value(0)), default=Value(1), output_field=IntegerField())).order_by("has_unread", F("last_message_at").desc(nulls_last=True), "-pk")[:STAFF_LIST_LIMIT]`. One query (verified, 9.6). Tests: `test_unread_first_then_newest`, `test_unread_counts`, `test_one_query`.
+    +
+    +**`student_unread_count(user) -> int`** — not a student → `0` with no query; else `Message.objects.filter(dialog__student__user_id=user.pk, author_role=AuthorRole.STAFF, id__gt=F("dialog__student_read_id")).count()` (1 query). Tests: `test_counts_only_staff_after_marker`, `test_zero_without_dialog`, `test_staff_and_anonymous_no_query` (`assertNumQueries(0)`).
+    +
+    +### 5.2 `chat/services.py`
+    +**`normalize_text(text: str) -> str`** — `text.replace("\r\n", "\n").replace("\r", "\n").strip()`.
+    +**`text_errors(text: str) -> list[str]`** — empty → «Сообщение пустое.»; `len > MESSAGE_MAX_LENGTH` → f«Сообщение длиннее {MESSAGE_MAX_LENGTH} символов.».
+    +**`send_student_message(student: StudentProfile, text: str, client_token: UUID | None) -> Message`**
+    +1. `text = normalize_text(text)`; errors → `ValidationError(errors)`.
+    +2. `with transaction.atomic():` `dialog, _ = Dialog.objects.get_or_create(student=student)`; `dialog = Dialog.objects.select_for_update().get(pk=dialog.pk)`.
+    +3. `client_token` and `dialog.messages.filter(client_token=client_token).first()` exists → return it (no new row, no rate count).
+    +4. `now = clock.now()`; `recent = Message.objects.filter(author_id=student.user_id, author_role=AuthorRole.STUDENT, created_at__gt=now - timedelta(minutes=RATE_LIMIT_MINUTES)).count()`; `recent >= RATE_LIMIT_MESSAGES` → `ValidationError(f"Можно отправить не больше {RATE_LIMIT_MESSAGES} сообщений за {RATE_LIMIT_MINUTES} минут. Подождите немного.")`.
+    +5. `message = Message(dialog=dialog, author=student.user, author_role=AuthorRole.STUDENT, text=text, created_at=now, client_token=client_token)`; `message.full_clean()`; `message.save()`.
+    +6. `Dialog.objects.filter(pk=dialog.pk).update(last_message_at=now, last_message_id=message.pk)`. Return `message`.
+    +Caller: `StudentChatView.post` with `request.profile` of the logged-in student only.
+    +**`send_staff_message(dialog: Dialog, actor: User, text: str, client_token: UUID | None) -> Message`**
+    +1. `get_profile_for_role(actor, User.Role.STAFF)`; `normalize_text`, `text_errors` as above.
+    +2. `with transaction.atomic():` `locked = dialogs_visible_to(actor).select_for_update(of=("self",)).filter(pk=dialog.pk).first()`; `None` → `raise PermissionDenied` (re-check of scope inside the lock).
+    +3. Idempotency as step 3 above. No rate limit for staff.
+    +4. `now = clock.now()`; create with `author_role=AuthorRole.STAFF`, `full_clean`, `save`; update `last_message_at`, `last_message_id`. Return.
+    +**`mark_read(dialog_id: int, side: str, up_to_id: int) -> None`** — `field = {"student": "student_read_id", "staff": "staff_read_id"}[side]`; `up_to_id <= 0` → return; `Dialog.objects.filter(pk=dialog_id, **{f"{field}__lt": up_to_id}).update(**{field: up_to_id})`.
+    +**`load_history(dialog: Dialog) -> tuple[list[Message], bool]`** — `rows = list(dialog.messages.select_related("author__staff_profile").order_by("-id")[:HISTORY_LIMIT + 1])`; `truncated = len(rows) > HISTORY_LIMIT`; return `(list(reversed(rows[:HISTORY_LIMIT])), truncated)`.
+    +**`messages_after(dialog: Dialog, after_id: int) -> list[Message]`** — `list(dialog.messages.filter(id__gt=after_id).select_related("author__staff_profile").order_by("id")[:FRAGMENT_LIMIT])`.
+    +Tests `ServiceTests` (5.x names in 6.3).
+    +
+    +### 5.3 `chat/forms.py`
+    +`MessageForm(forms.Form)`: `text = forms.CharField(label="Сообщение", strip=False, widget=forms.Textarea(attrs={"rows": 3, "maxlength": MESSAGE_MAX_LENGTH}))` (no `max_length` validator: the service checks the normalised length); `client_token = forms.UUIDField(required=False, widget=forms.HiddenInput)`. `clean_text`: `normalize_text`; `text_errors` → `forms.ValidationError`. Views add service `ValidationError`s with `form.add_error(None, ValidationError(exc.messages))`.
+    +
+    +### 5.4 Views — `chat/views.py`
+    +All views decorated `@method_decorator(never_cache, name="dispatch")`. Shared helper `_history_context(dialog, viewer_is_student, poll_url, refresh_url) -> dict` (messages, truncated, `poll_ms = POLL_INTERVAL_SECONDS * 1000`, `poll_max_errors`, `history_limit`, `student_name`, `client_token = uuid.uuid4()`).
+    +
+    +**`StudentChatView(StudentRequiredMixin, TemplateView)`**, `http_method_names = ["get", "post"]`, template `chat/student.html`:
+    +- GET: `dialog = Dialog.objects.filter(student=self.profile).first()`; history if dialog else empty; after building the context: if the last shown message id > 0 → `mark_read(dialog.pk, "student", last_id)`. Context also `form = MessageForm()`, `faculty_name = self.profile.group.program.faculty.name`, `form_action = reverse("chat:student")`, `poll_url = reverse("chat:student_updates")`, `refresh_url = reverse("chat:student")`.
+    +- POST: `form = MessageForm(request.POST)`; valid → `send_student_message(self.profile, form.cleaned_data["text"], form.cleaned_data["client_token"])`; success → `redirect(reverse("chat:student") + "#chat-form")`; `ValidationError` → error; invalid → re-render 200 with the history and the bound form (no read marking on POST).
+    +**`StudentChatUpdatesView(StudentRequiredMixin, View)`**, `http_method_names = ["get"]`:
+    +1. `after = request.GET.get("after", "")`; not matching `^\d{1,18}$` → `HttpResponseBadRequest()`.
+    +2. `dialog = Dialog.objects.filter(student=self.profile).first()`; `None` → `HttpResponse(status=204)`.
+    +3. `rows = messages_after(dialog, int(after))`; empty → 204.
+    +4. `mark_read(dialog.pk, "student", rows[-1].pk)`; render `chat/_messages.html` with `viewer_is_student=True`; response header `X-Chat-Fragment: 1`; `Content-Type: text/html; charset=utf-8`.
+    +**`StaffChatListView(StaffRequiredMixin, TemplateView)`** — `dialogs = staff_dialog_list(self.request.user)`.
+    +**`StaffDialogView(StaffRequiredMixin, TemplateView)`**, `http_method_names = ["get", "post"]`: `dialog = get_object_or_404(dialogs_visible_to(request.user).select_related("student__group__program__faculty"), public_id=kwargs["public_id"])` (role check first via the mixin → students get 403 before any lookup); GET as the student view with side `"staff"`, `viewer_is_student=False`, `student_name = dialog.student.full_name`; POST → `send_staff_message(dialog, request.user, …)` → `redirect(reverse("chat:staff_dialog", args=[dialog.public_id]) + "#chat-form")`.
+    +**`StaffDialogUpdatesView(StaffRequiredMixin, View)`** — as the student updates view, dialog via `get_object_or_404(dialogs_visible_to(request.user), public_id=…)`, side `"staff"`.
+    +
+    +### 5.5 Feed — `notifications/sources.py`
+    +```python
+    +class ChatReplySource(FeedSource):
+    +    kind = "chat_reply"
+    +    tag = "Чат"
+    +    event_field = "created_at"
+    +    related = ()
+    +
+    +    def base_queryset(self, ctx):
+    +        return Message.objects.filter(
+    +            dialog__student_id=ctx.student.pk,
+    +            author_role=AuthorRole.STAFF,
+    +            id__gt=F("dialog__student_read_id"),
+    +        )
+    +
+    +    def to_item(self, obj, ctx):
+    +        return FeedItem(
+    +            key=f"chat-{obj.pk}", kind=self.kind, tag=self.tag, timestamp=obj.created_at,
+    +            title="Новое сообщение от деканата",
+    +            body=Truncator(obj.text).chars(FEED_PREVIEW_CHARS),
+    +            url=reverse("chat:student"),
+    +        )
+    +```
+    +Append `ChatReplySource()` at the end of `FEED_SOURCES`. Imports: `from chat.constants import FEED_PREVIEW_CHARS`, `from chat.models import AuthorRole, Message`, `from django.db.models import F`, `from django.utils.text import Truncator`. The union count stays one query (verified with an `F()` across a join, 9.6).
+    +
+    +### 5.6 Seed — `chat/demo.py`
+    +`@dataclass(frozen=True) class ChatSeedSummary: dialogs: int; messages: int` (created in this run).
+    +`CHAT_SEEDS` (fictional; `hours_ago` from `timezone.now()`; listed in chronological order per student; author `"student"` = the student, otherwise the staff username):
+    +| student | key | author | hours_ago | text |
+    +|---|---|---|---|---|
+    +| student1 | c-1-1 | student | 30 | Здравствуйте! Когда можно забрать справку об обучении? |
+    +| student1 | c-1-2 | staff1 | 28 | Добрый день! Справка будет готова в пятницу, кабинет деканата на 2 этаже. |
+    +| student1 | c-1-3 | student | 27 | Спасибо! А можно получить её в электронном виде? |
+    +| student1 | c-1-4 | staff1 | 3 | Да, можно. Подайте заявку «Справка об обучении» и укажите это в комментарии. |
+    +| student3 | c-3-1 | student | 6 | Добрый день! Подскажите, где посмотреть график пересдач? |
+    +| student2 | c-2-1 | student | 50 | Здравствуйте! Нужна ли справка для социальной стипендии? |
+    +| student2 | c-2-2 | staff2 | 48 | Да, нужна справка о составе семьи. Принесите её в деканат. |
+    +| student2 | c-2-3 | student | 2 | Спасибо! Можно принести копию? |
+    +Read markers for dialogs created in this run: student1 `student_read_id = id(c-1-3)` (c-1-4 unread for the student), `staff_read_id = id(c-1-3)`; student3 both 0 (c-3-1 unread for FDD staff); student2 `student_read_id = id(c-2-2)`, `staff_read_id = id(c-2-2)` (c-2-3 unread for FAE staff).
+    +**`seed_chat_demo(today: date) -> ChatSeedSummary`**: in `transaction.atomic()`; for each student (`student1`, `student3`, `student2`): if a `Message` with the student's first seed key exists → skip the student (create-only, never update); else `dialog = Dialog.objects.get_or_create(student=…)`; create each message with explicit `created_at = base - timedelta(hours=hours_ago)`, `author_role`, `seed_key`, `full_clean()`, `save()` (direct creation, no rate limit); then set `last_message_at`, `last_message_id` and the read markers with one `update()`. Command: after notifications, `c = seed_chat_demo(today)`; print `self.style.SUCCESS(f"Chat ready: {c.dialogs} dialogs, {c.messages} messages.")`.
+    +
+    +---
+    +
+    +## 6. Test plan
+    +
+    +### 6.0 Rules
+    +- Helpers only (`accounts/tests/helpers.py`, new `chat/tests/helpers.py`: `make_dialog(student_profile)`, `add_message(dialog, author, role, text="Текст", created_at=None) -> Message` (explicit `created_at` default `timezone.now()`, updates `last_message_*`)).
+    +- Classes with time logic use `FrozenClockMixin` with `frozen_now = "2026-11-11 12:00"` (before the real date, TASK-007 rule).
+    +- Page assertions follow the TASK-008-FIX rule: exact markup (`data-message-id="12"`, `href="/staff/chats/<uuid>/"`) or `response.context`; never short alphanumeric needl
+    …[14,947 more characters truncated]
+  ── Thought for 3s
+    I'm weighing whether to patch the manager's `select_for_update` method directly, or patch `QuerySet.select_for_update` instead. The open question is whether using the original function as `side_effect` with `autospec=True` would recurse back into the mock.
+
+    I'm going with a captured original as the `side_effect` under `autospec=True`, so the spy calls through without recursing. I'll also drop the confusing PostgreSQL remark, since CaptureQueriesContext on SQLite doesn't show FOR UPDATE anyway. The `_form.html` token should stay the same on a re-render after an error and only be regenerated otherwise. The test count gets filled in once I have the baseline.
+
+── Ran python3 - <<'EOF' p="docs/tasks/TASK-009.md"; s=open(p,encoding="utf-8").read() a="- `test_send_locks_dialog` (`CaptureQueriesContext` on PostgreSQL is not available; assert with `mock.patch.object(QuerySet, \"select_for_update\", autospec=True, side_effect=…wraps…)` that `select_for_update` is called once per send)" b="- `test_send_locks_dialog` (SQLite drops `FOR UPDATE` from the SQL, so assert the call instead: `orig = QuerySet.select_for_update`; `with mock.patch.object(QuerySet, \"select_for_update\", autospec=True, side_effect=orig) as spy:` send one student and one staff message → `spy.call_count == 2`)" assert s.count(a)==1; s=s.replace(a,b); open(p,"w",encoding="utf-8").write(s) EOF F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/ba9yvifs6.output; until grep -q "^DONE" "$F"; do sleep 15; done; grep -v " ready:" "$F"; grep "Notifications ready" "$F" (1m 32s)
+  $ python3 - <<'EOF'
+p="docs/tasks/TASK-009.md"; s=open(p,encoding="utf-8").read()
+a="- `test_send_locks_dialog` (`CaptureQueriesContext` on PostgreSQL is not available; assert with `mock.patch.object(QuerySet, \"select_for_update\", autospec=True, side_effect=…wraps…)` that `select_for_update` is called once per send)"
+b="- `test_send_locks_dialog` (SQLite drops `FOR UPDATE` from the SQL, so assert the call instead: `orig = QuerySet.select_for_update`; `with mock.patch.object(QuerySet, \"select_for_update\", autospec=True, side_effect=orig) as spy:` send one student and one staff message → `spy.call_count == 2`)"
+assert s.count(a)==1; s=s.replace(a,b); open(p,"w",encoding="utf-8").write(s)
+EOF
+F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/ba9yvifs6.output; until grep -q "^DONE" "$F"; do sleep 15; done; grep -v " ready:" "$F"; grep "Notifications ready" "$F"
+  MSK 20261115-202032
+  System check identified no issues (0 silenced).
+  No changes detected
+  Ran 833 tests in 123.938s
+  OK
+  Ran 833 tests in 123.636s
+  OK
+  Ran 833 tests in 124.729s
+  OK
+  System check identified no issues (1 silenced).
+  All checks passed!
+  161 files already formatted
+  yaml ok
+  DONE
+
+  [exited with code 0]
+  Notifications ready: 9 announcements.
+  Notifications ready: 0 announcements.
+
+── Claude Code API retry 3/10 after 2445ms: unknown ────────
+
+── Ran python3 - <<'EOF' p="docs/tasks/TASK-009.md"; s=open(p,encoding="utf-8").read() s=s.replace("test count (was 853 — see 9a)","test count (was 833)") s=s.replace("## 9. Feasibility check (2026-11-15 on `b3dcb37`)","## 9. Feasibility check (2026-11-15 20:20 MSK on `b3dcb37`)") a="### 9a. Verification results on the current tree\n(filled after the runs)\n" b="""### 9a. Verification results on the current tree Logs `$TMPDIR/test-20261115-202032-t009-feas*.log`. - `check` → no issues; `makemigrations --check --dry-run` → «No changes detected». - `test` → `Ran 833 tests … OK`; `run_tests_at.py 2026-11-17T23:59:59` → 833 OK; `run_tests_at.py 2026-11-18T00:00:00` → 833 OK. No failed or stalled runs. - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` → all passed; `ruff format --check .` → 161 files already formatted; CI YAML ok. - `seed_demo` twice on a temporary DB and PRIVATE_MEDIA_ROOT → OK (second run «Notifications ready: 0 announcements.»). """ assert s.count(a)==1; s=s.replace(a,b); open(p,"w",encoding="utf-8").write(s) EOF grep -n "was 833\|20:20 MSK" docs/tasks/TASK-009.md && bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF' [TASK-009] Planner -> Coder: TASK Spec: docs/tasks/TASK-009.md (base b3dcb37). Chat with the dean's office: new app `chat`. - Models `Dialog` (one per student, UUID in URLs, read markers `student_read_id`/`staff_read_id` as message ids) and append-only `Message` (author_role, text ≤ 2000, `client_token` unique per dialog for double-submit). Services lock the dialog row before inserting (ordering = id, D3); student rate limit 20/10 min; PRG redirect to `#chat-form`. - Views: `/chat/` (+ `/chat/updates/?after=<id>` fragment), `/staff/chats/`, `/staff/chats/<uuid>/` (+ `updates/`); fragments: GET only, never_cache, 204 when empty, 400 bad `after`, header `X-Chat-Fragment: 1`, mark read up to the last returned id. - `static/js/chat.js`: vanilla IIFE, setTimeout polling 5 s, DOMParser + importNode (no innerHTML etc.), pause on hidden tab, stop after 5 errors. No fetch-send. - `ChatReplySource` appended to FEED_SOURCES (registry test 6 → 7); nav «Чат (N)» / «Чаты» (update `core/tests/test_nav.py` lists); `StaffProfile.short_name`; seed 3 dialogs / 8 messages; read-only admin. - Tests: section 6 (access matrix 6.2, one method per cell; query counts). Verification section 8 incl. `node --check static/js/chat.js`, logs with tee (baseline 833). Do not commit. EOF (2s)
+  $ python3 - <<'EOF'
+p="docs/tasks/TASK-009.md"; s=open(p,encoding="utf-8").read()
+s=s.replace("test count (was 853 — see 9a)","test count (was 833)")
+s=s.replace("## 9. Feasibility check (2026-11-15 on `b3dcb37`)","## 9. Feasibility check (2026-11-15 20:20 MSK on `b3dcb37`)")
+a="### 9a. Verification results on the current tree\n(filled after the runs)\n"
+b="""### 9a. Verification results on the current tree
+Logs `$TMPDIR/test-20261115-202032-t009-feas*.log`.
+- `check` → no issues; `makemigrations --check --dry-run` → «No changes detected».
+- `test` → `Ran 833 tests … OK`; `run_tests_at.py 2026-11-17T23:59:59` → 833 OK; `run_tests_at.py 2026-11-18T00:00:00` → 833 OK. No failed or stalled runs.
+- `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` → all passed; `ruff format --check .` → 161 files already formatted; CI YAML ok.
+- `seed_demo` twice on a temporary DB and PRIVATE_MEDIA_ROOT → OK (second run «Notifications ready: 0 announcements.»).
+"""
+assert s.count(a)==1; s=s.replace(a,b); open(p,"w",encoding="utf-8").write(s)
+EOF
+grep -n "was 833\|20:20 MSK" docs/tasks/TASK-009.md && bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF'
+[TASK-009] Planner -> Coder: TASK
+Spec: docs/tasks/TASK-009.md (base b3dcb37). Chat with the dean's office: new app `chat`.
+- Models `Dialog` (one per student, UUID in URLs, read markers `student_read_id`/`staff_read_id` as message ids) and append-only `Message` (author_role, text ≤ 2000, `client_token` unique per dialog for double-submit). Services lock the dialog row before inserting (ordering = id, D3); student rate limit 20/10 min; PRG redirect to `#chat-form`.
+- Views: `/chat/` (+ `/chat/updates/?after=<id>` fragment), `/staff/chats/`, `/staff/chats/<uuid>/` (+ `updates/`); fragments: GET only, never_cache, 204 when empty, 400 bad `after`, header `X-Chat-Fragment: 1`, mark read up to the last returned id.
+- `static/js/chat.js`: vanilla IIFE, setTimeout polling 5 s, DOMParser + importNode (no innerHTML etc.), pause on hidden tab, stop after 5 errors. No fetch-send.
+- `ChatReplySource` appended to FEED_SOURCES (registry test 6 → 7); nav «Чат (N)» / «Чаты» (update `core/tests/test_nav.py` lists); `StaffProfile.short_name`; seed 3 dialogs / 8 messages; read-only admin.
+- Tests: section 6 (access matrix 6.2, one method per cell; query counts). Verification section 8 incl. `node --check static/js/chat.js`, logs with tee (baseline 833). Do not commit.
+EOF
+  498:`REPORT`: output tails, test count (was 833), log file names, any failed or stalled run by test name and Moscow time, `git status`.
+  500:## 9. Feasibility check (2026-11-15 20:20 MSK on `b3dcb37`)
+  Thread thr_ng6cbgatm6 steered
+  [This command modified 1 file you've previously read: docs/tasks/TASK-009.md. Call Read before editing.]
+
+── Assistant ───────────────────────────────────────────────
+Спецификация TASK-009 (чат с деканатом) готова и передана Кодеру: [docs/tasks/TASK-009.md](docs/tasks/TASK-009.md).
+
+**Как устроен чат:**
+- **Приложение `chat`.** У каждого студента один диалог с деканатом своего факультета. Диалог создаётся при первом сообщении студента. Так в списке сотрудника не появляются пустые диалоги. Начать диалог сотрудник не может.
+- **Сообщения.** Только простой текст до 2000 символов. Изменить или удалить сообщение нельзя. Время берётся из `core.clock.now`.
+- **Порядок сообщений** определяется их номером (id). Перед записью сообщения сервис блокирует строку диалога. Поэтому номера идут строго в порядке отправки, и два одновременных ответа разных сотрудников сохраняются оба. Без блокировки на PostgreSQL одно сообщение могло бы не появиться на экране при опросе.
+- **Защита от злоупотреблений:**
+  - студент может отправить не больше 20 сообщений за 10 минут;
+  - пустые сообщения не принимаются;
+  - в форме есть скрытый одноразовый ключ, поэтому двойное нажатие не создаёт дубль;
+  - после отправки страница перезагружается и открывается у формы.
+- **Обновление без перезагрузки.** Это первый JavaScript в проекте: файл `static/js/chat.js`.
+  - Каждые 5 секунд он спрашивает сервер о новых сообщениях и добавляет готовый HTML, который отрисовал Django.
+  - `innerHTML` и `eval` не используются.
+  - Пока вкладка скрыта, опрос стоит на паузе. После 5 ошибок подряд он останавливается и показывает надпись.
+  - Без JavaScript всё работает через обычную форму и ссылку «Обновить».
+  - Отправку через `fetch` я не добавлял, чтобы остался один проверенный способ.
+- **Прочитано или нет.** В диалоге хранятся две отметки: что видел студент и что видел деканат. Отметка деканата общая для всех сотрудников факультета.
+  - Новые ответы деканата попадают в «Уведомления» как новый тип записи и в общий счётчик.
+  - В меню у студента будет «Чат (N)».
+  - Когда студент открывает чат, ответы считаются прочитанными.
+- **Страница сотрудника «Чаты».** Сначала диалоги с непрочитанными сообщениями, потом по времени последнего сообщения. У каждого диалога видны ФИО, группа и число новых сообщений.
+- **Демо-данные:** 3 диалога и 8 сообщений. У `student1` будет непрочитанный ответ. На каждом факультете будет непрочитанное сообщение студента.
+
+**Проверка на текущем коде:**
+- Все 833 теста прошли в трёх прогонах: обычном, в 23:59:59 и в 00:00 по Москве. Сбоев и зависаний не было.
+- `check --deploy`, ruff, YAML и двойной запуск `seed_demo` прошли без ошибок.
+- Два сложных запроса я заранее проверил на временной базе: счётчик уведомлений с новым типом записи и список чатов с сортировкой. Каждый выполняется одним запросом к базе.
+
+**Что проверить вручную.** Браузера у меня здесь нет. Синтаксис JavaScript проверит `node --check`, но работу опроса нужно посмотреть в двух сессиях, студента и сотрудника, на экране 360 px.

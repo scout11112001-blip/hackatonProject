@@ -1,0 +1,7 @@
+<form method="post" class="form chat-form" id="chat-form" action="{{ form_action }}">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  <input type="hidden" name="client_token" value="{{ form.client_token.value|default:client_token }}">
+  <p><label for="id_text">{{ form_label }}</label>{{ form.text.errors }}{{ form.text }}</p>
+  <button type="submit">Отправить</button>
+</form>

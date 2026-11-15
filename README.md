@@ -157,6 +157,22 @@ taken by a landmark are rejected. A room number is exactly three digits (`NNN`)
 and its first digit must equal the floor (1–9). The highlighted room uses the
 single CSS class `map-current` (colour token `--color-map-highlight`).
 
+## Chat
+
+Students write to the dean's office of their faculty in one dialog (`/chat/`),
+created on their first message. Any staff member of that faculty reads and
+answers from «Чаты» (`/staff/chats/`). Messages are append-only plain text
+(autoescaped, `linebreaksbr`), ordered by message id. Without JavaScript the
+pages work with a plain POST form and an «Обновить» link; with JavaScript
+(`static/js/chat.js`, deferred, no inline script) the page polls the fragment
+view every 5 seconds and appends server-rendered new messages, pausing while the
+tab is hidden. Sending is a normal POST (PRG, no `fetch`). Student rate limit:
+`RATE_LIMIT_MESSAGES` (20) per `RATE_LIMIT_MINUTES` (10). A hidden `client_token`
+guards against double submit. New staff replies appear in «Уведомления»
+(source `chat_reply`) and in the badge; the nav item shows «Чат (N)». Read
+markers are message ids on the dialog (student marker, shared staff marker);
+both only move forward.
+
 ## Login protection
 
 Failed login attempts are throttled per (username, client IP) and stored in
@@ -192,6 +208,9 @@ proxy_set_header X-Real-IP $remote_addr;
   a grade entered later for an old date still shows as new.
 - The map has one building and a fixed grid of 9 room places per floor;
   landmarks are defined in code (`university/building.py`).
+- Chat uses polling (5-second requests, paused on a hidden tab), not WebSockets,
+  so delivery is not instantaneous; the last five consecutive poll errors stop
+  auto-refresh with a text notice.
 
 ## Environment variables
 

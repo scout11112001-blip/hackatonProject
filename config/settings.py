@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "petitions",
     "notifications",
     "campusmap",
+    "chat",
     "core",
 ]
 

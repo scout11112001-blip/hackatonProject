@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Чаты{% endblock %}
+{% block content %}
+<h1>Чаты</h1>
+{% if dialogs %}
+<ul class="chat-dialogs">
+  {% for d in dialogs %}
+  <li><a href="{% url 'chat:staff_dialog' d.public_id %}">{{ d.student.full_name }}</a> · {{ d.student.group.name }} · {{ d.last_message_at|date:"d.m.Y H:i" }}{% if d.unread %} · <strong>новых: {{ d.unread }}</strong>{% endif %}</li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>Сообщений от студентов пока нет.</p>
+{% endif %}
+{% endblock %}

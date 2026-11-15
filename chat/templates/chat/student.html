@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Чат с деканатом{% endblock %}
+{% block extra_head %}<script src="{% static 'js/chat.js' %}" defer></script>{% endblock %}
+{% block content %}
+<h1>Чат с деканатом</h1>
+<p>{{ faculty_name }}</p>
+{% include "chat/_history.html" %}
+{% include "chat/_form.html" %}
+{% endblock %}

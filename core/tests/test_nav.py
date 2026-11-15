@@ -42,7 +42,15 @@ class NavMarkupTests(TestCase):
         self.assertEqual(_hrefs(_wide(content)), _hrefs(_menu(content)))
         self.assertEqual(
             _hrefs(_wide(content)),
-            ["/profile/", "/schedule/", "/map/", "/grades/", "/requests/", "/notifications/"],
+            [
+                "/profile/",
+                "/schedule/",
+                "/map/",
+                "/grades/",
+                "/requests/",
+                "/chat/",
+                "/notifications/",
+            ],
         )
 
     def test_staff_menu(self):
@@ -56,6 +64,7 @@ class NavMarkupTests(TestCase):
                 "/staff/schedule/",
                 "/map/",
                 "/staff/requests/",
+                "/staff/chats/",
                 "/staff/announcements/",
                 "/staff/students/",
             ],

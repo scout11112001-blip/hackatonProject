@@ -10,11 +10,14 @@ from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta
 from typing import Any, ClassVar
 
-from django.db.models import Q, QuerySet
+from django.db.models import F, Q, QuerySet
 from django.urls import reverse
+from django.utils.text import Truncator
 
 from academics.models import CurrentMark, FinalResult
 from accounts.models import StudentProfile
+from chat.constants import FEED_PREVIEW_CHARS
+from chat.models import AuthorRole, Message
 from petitions.models import PetitionComment, PetitionStatusChange
 from schedule.models import LessonChange
 
@@ -264,6 +267,31 @@ class FinalResultSource(FeedSource):
         )
 
 
+class ChatReplySource(FeedSource):
+    kind = "chat_reply"
+    tag = "Чат"
+    event_field = "created_at"
+    related = ()
+
+    def base_queryset(self, ctx: FeedContext) -> QuerySet:
+        return Message.objects.filter(
+            dialog__student_id=ctx.student.pk,
+            author_role=AuthorRole.STAFF,
+            id__gt=F("dialog__student_read_id"),
+        )
+
+    def to_item(self, obj: Message, ctx: FeedContext) -> FeedItem:
+        return FeedItem(
+            key=f"chat-{obj.pk}",
+            kind=self.kind,
+            tag=self.tag,
+            timestamp=obj.created_at,
+            title="Новое сообщение от деканата",
+            body=Truncator(obj.text).chars(FEED_PREVIEW_CHARS),
+            url=reverse("chat:student"),
+        )
+
+
 FEED_SOURCES = (
     NewsSource(),
     PetitionStatusSource(),
@@ -271,6 +299,7 @@ FEED_SOURCES = (
     LessonChangeSource(),
     CurrentMarkSource(),
     FinalResultSource(),
+    ChatReplySource(),
 )
 
 
