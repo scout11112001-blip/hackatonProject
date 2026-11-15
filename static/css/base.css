@@ -239,3 +239,79 @@ button {
   margin: 0;
   font-size: 0.875rem;
 }
+
+.map-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: var(--space-2) 0;
+}
+
+.map-outline,
+.map-room rect,
+.map-landmark rect,
+.map-corridor {
+  fill: none;
+  stroke: var(--color-text);
+  stroke-width: 2;
+}
+
+.map-corridor {
+  stroke: var(--color-border);
+}
+
+.map-landmark rect {
+  stroke: var(--color-muted);
+  stroke-dasharray: 6 4;
+}
+
+.map-room-label {
+  font-size: 20px;
+  fill: var(--color-text);
+}
+
+.map-landmark-label {
+  font-size: 15px;
+  fill: var(--color-muted);
+}
+
+/* Highlighted room: one class, restyle in the UI stage. */
+.map-current .map-room-label {
+  fill: var(--color-map-highlight);
+}
+
+a.map-current {
+  color: var(--color-map-highlight);
+}
+
+.floor-switcher ul,
+.map-legend,
+.map-room-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.floor-switcher ul {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.floor-switcher a {
+  display: inline-block;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  line-height: 2.75rem;
+  text-align: center;
+}
+
+.floor-current {
+  font-weight: bold;
+}
+
+.map-legend-swatch {
+  width: 1.5rem;
+  height: 1rem;
+  vertical-align: middle;
+}

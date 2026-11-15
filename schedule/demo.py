@@ -29,6 +29,7 @@ class RoomSeed:
     code: str
     floor: int
     number: str
+    map_cell: str
 
 
 @dataclass(frozen=True)
@@ -71,13 +72,13 @@ class ChangeSeed:
 
 
 ROOM_SEEDS = [
-    RoomSeed(code="room-101", floor=1, number="101"),
-    RoomSeed(code="room-114", floor=1, number="114"),
-    RoomSeed(code="room-205", floor=2, number="205"),
-    RoomSeed(code="room-212", floor=2, number="212"),
-    RoomSeed(code="room-308", floor=3, number="308"),
-    RoomSeed(code="room-315", floor=3, number="315"),
-    RoomSeed(code="room-402", floor=4, number="402"),
+    RoomSeed(code="room-101", floor=1, number="101", map_cell="N2"),
+    RoomSeed(code="room-114", floor=1, number="114", map_cell="N4"),
+    RoomSeed(code="room-205", floor=2, number="205", map_cell="N3"),
+    RoomSeed(code="room-212", floor=2, number="212", map_cell="S4"),
+    RoomSeed(code="room-308", floor=3, number="308", map_cell="N2"),
+    RoomSeed(code="room-315", floor=3, number="315", map_cell="N5"),
+    RoomSeed(code="room-402", floor=4, number="402", map_cell="N3"),
 ]
 
 TEACHER_SEEDS = [
@@ -250,9 +251,10 @@ def seed_schedule_demo(today: date) -> ScheduleSeedSummary:
     with transaction.atomic():
         rooms = {}
         for seed in ROOM_SEEDS:
-            room, _ = Room.objects.update_or_create(
-                code=seed.code, defaults={"floor": seed.floor, "number": seed.number}
-            )
+            room = Room.objects.filter(code=seed.code).first() or Room(code=seed.code)
+            room.floor, room.number, room.map_cell = seed.floor, seed.number, seed.map_cell
+            room.full_clean()
+            room.save()
             rooms[seed.code] = room
 
         teachers = {}

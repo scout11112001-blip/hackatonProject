@@ -18,8 +18,10 @@ def _next_counter() -> int:
     return _counter
 
 
-def make_room(code: str, floor: int = 1) -> Room:
+def make_room(code: str, floor: int | None = None) -> Room:
     number = code.removeprefix("room-")
+    if floor is None:
+        floor = int(number[0])
     return Room.objects.create(code=code, floor=floor, number=number)
 
 

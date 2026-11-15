@@ -25,7 +25,7 @@ class StudyGroupAdmin(admin.ModelAdmin):
 
 @admin.register(Room)
 class RoomAdmin(admin.ModelAdmin):
-    list_display = ("number", "floor", "code")
+    list_display = ("number", "floor", "code", "map_cell")
     list_filter = ("floor",)
     search_fields = ("number", "code")
 

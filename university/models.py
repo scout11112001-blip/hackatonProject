@@ -1,7 +1,14 @@
+from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models
+from django.db.models.functions import Cast
+
+from university.building import MapCell, blocked_cells
 
 NBSP = "\u00a0"
+
+ROOM_NUMBER_RE = r"^[1-9][0-9]{2}$"
+MAX_FLOOR = 9
 
 
 class Faculty(models.Model):
@@ -79,23 +86,72 @@ class Room(models.Model):
         ],
     )
     floor = models.PositiveSmallIntegerField(
-        "этаж", validators=[MinValueValidator(1), MaxValueValidator(20)]
+        "этаж", validators=[MinValueValidator(1), MaxValueValidator(MAX_FLOOR)]
     )
-    number = models.CharField("номер", max_length=10, unique=True)
+    number = models.CharField(
+        "номер",
+        max_length=10,
+        unique=True,
+        validators=[
+            RegexValidator(
+                ROOM_NUMBER_RE, "Номер аудитории: ровно три цифры, первая цифра — этаж (1–9)."
+            )
+        ],
+        help_text="Три цифры, первая — этаж: 205 — аудитория на 2 этаже.",
+    )
+    map_cell = models.CharField(
+        "место на схеме",
+        max_length=2,
+        blank=True,
+        default="",
+        choices=MapCell.choices,
+        help_text="Пусто — аудитории нет на схеме.",
+    )
 
     class Meta:
         ordering = ["floor", "number"]
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(floor__gte=1) & models.Q(floor__lte=20),
-                name="university_room_floor_1_20",
-            )
+                condition=models.Q(floor__gte=1) & models.Q(floor__lte=MAX_FLOOR),
+                name="university_room_floor_1_9",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(number__regex=ROOM_NUMBER_RE),
+                name="university_room_number_nnn",
+                violation_error_message=(
+                    "Номер аудитории: ровно три цифры, первая цифра — этаж (1–9)."
+                ),
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    number__startswith=Cast("floor", output_field=models.CharField())
+                ),
+                name="university_room_floor_matches_number",
+                violation_error_message="Этаж должен совпадать с первой цифрой номера аудитории.",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(map_cell__in=["", *MapCell.values]),
+                name="university_room_map_cell_value",
+            ),
+            models.UniqueConstraint(
+                fields=["floor", "map_cell"],
+                condition=~models.Q(map_cell=""),
+                name="university_room_unique_map_cell",
+                violation_error_message="Это место на схеме этажа уже занято другой аудиторией.",
+            ),
         ]
         verbose_name = "аудитория"
         verbose_name_plural = "аудитории"
 
     def __str__(self) -> str:
         return f"ауд. {self.number}"
+
+    def clean(self):
+        super().clean()
+        if self.map_cell and isinstance(self.floor, int) and 1 <= self.floor <= MAX_FLOOR:
+            landmark = blocked_cells(self.floor).get(self.map_cell)
+            if landmark is not None:
+                raise ValidationError(f"Это место на {self.floor} этаже занято: {landmark.label}.")
 
 
 class Teacher(models.Model):

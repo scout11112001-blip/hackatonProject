@@ -10101,3 +10101,1356 @@ Waiting for the background verification to finish.
 - `seed_demo` дважды отработал без ошибок.
 
 Вопросов к тебе нет.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-008] Team lead -> Planner: TASK
+Approved by the user. Write the spec `docs/tasks/TASK-008.md` and hand it to the Coder.
+
+## Context
+Done: TASK-001..007 and their FIX tasks. The schedule shows "Аудитория: <number>, <floor> этаж" in `schedule/templates/schedule/includes/lesson_item.html`; `university.Room` has `code`, `number`, `floor` (1-20). Demo rooms (`schedule/demo.py`): 101, 114 (floor 1), 205, 212 (floor 2), 308, 315 (floor 3), 402 (floor 4). The fictional university has ONE building (user decision, `plan.md`). Reuse the role mixins, the validation pattern (admin form errors never 500) and the CSS layers (layout only; the pixel-art theme comes later). Read `plan.md`, `README.md` "Known limitations" and the previous specs. Apply your "Feasibility check" and "Test plan" sections.
+
+This is our own extra feature, planned from day one: "a click on a lesson in the schedule opens the map and highlights the room". The jury will check it on a phone: open the schedule -> tap the room of a lesson -> the map opens on the right floor with the room highlighted.
+
+## Goal
+Students and staff find any room of the building on a simple schematic map, directly from the schedule.
+
+## Requirements
+1. App: a new app for the map (e.g. `campusmap`) or an extension of `university` - choose and justify.
+2. Map: a schematic plan of the fictional building, one floor at a time, as inline SVG rendered by Django templates (no image files, no external libraries, no client-side framework; the page works without JavaScript).
+   - Floors (user decision): every floor that has at least one room, with a floor switcher "1 2 3 4" (links; the current floor is marked; for the demo data floors 1-4).
+   - Room numbers (user decision): every room number has the format NNN (exactly 3 digits), and the first digit is the floor (e.g. 205 is on floor 2). Enforce it for every room: model validation (admin form error, never 500) AND a database constraint, plus consistency between the number and `floor` (choose: validate both fields or derive the floor from the number - justify; consider that `floor` currently allows 1-20, and NNN limits floors to 1-9). Check that all existing and demo rooms comply and that the migration does not fail on them.
+   - Every room is drawn as a shape labelled with its number NNN. Choose and justify how a room gets its position: coordinates stored in the database and editable in the admin (e.g. a placement model or fields on `Room`), or a fixed layout in code keyed by room code. A room without a position must not break the page: it appears in the room list with the note "нет на схеме", and its floor still opens.
+   - Landmarks (user decision), drawn as map elements, not as `Room` rows and not linked to the schedule: entrance (floor 1), stairs on every floor, the dean's office ("Деканат"), the library ("Библиотека"), the canteen ("Столовая"). Fictional layout; place them so each floor looks plausible. A small legend explains the shapes.
+3. Highlight:
+   - A URL that opens the map with one room highlighted, e.g. `/map/?room=<code>` or `/map/room/<code>/` - choose and justify. It opens the room's floor automatically.
+   - Highlight (user decision): the number of the highlighted room is shown in red. Nothing else: no extra outline, no caption above the map. This is a temporary style; the final look is decided in the UI stage after the deploy, so keep it as one CSS class that is easy to restyle. The highlighted room still has an accessible name (e.g. `aria-current` or a `<title>` in the SVG).
+   - An unknown room code -> 404. An invalid or empty floor value -> the first floor with rooms (or 404 - choose, justify, test). Nothing from the query string is rendered unescaped.
+4. Links from the schedule (user decision):
+   - In every schedule page that shows a lesson (student today/week, staff group schedule), the room becomes a link to the map with that room highlighted.
+   - If a lesson change moved the lesson to another room, the link points to the NEW room; a cancelled lesson keeps plain text or a link - choose and justify.
+5. Navigation (user decision): a "Карта" item for students and staff. The map page lists all rooms grouped by floor below the map; each item links to the highlighted view.
+6. Access (user decision): any logged-in user (student, staff, superuser). Anonymous users are redirected to login as everywhere else. The map shows no personal data.
+7. Mobile: at 360 px the SVG scales to the screen width (viewBox, no fixed pixel width), no horizontal scroll, room numbers stay readable (choose a minimum label size and justify).
+8. Queries: the map page runs a small fixed number of queries regardless of the number of rooms; adding the links must not add per-lesson queries to the schedule pages; query-count tests.
+9. Demo data: extend `seed_demo` (idempotent) so all 7 demo rooms have positions (if positions live in the database) and the landmarks are on the map.
+
+## Out of scope
+Route finding between rooms, several buildings, room occupancy or a timetable per room, a search box (the room list replaces it), zoom/pan, JavaScript, the visual pixel-art theme, chat (TASK-009).
+
+## Verification
+All existing verification commands pass (check, deploy check, makemigrations --check, test with the output saved to a file, `scripts/run_tests_at.py` at a Moscow midnight boundary, ruff only on the task files, CI YAML), `seed_demo` twice on a temporary database and temporary PRIVATE_MEDIA_ROOT. The Team lead checks the map (every floor, a highlighted room number on floors 1 and 4) and the schedule links at 360 px.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Thought for 14ms
+    I'm checking the current repo state and reading through the Room model, the schedule services that handle lesson room assignments, the lesson item template, the demo data, and the Room admin. The key worry is the test helper that derives room numbers from codes like "room-a", since a non-numeric number would break the new constraint, so I need to find every place tests create rooms.
+  ── Ran git status --short && git log --oneline -4 && cat schedule/templates/schedule/includes/lesson_item.html && grep -n "RoomSeed\|ROOM_SEEDS" -A12 schedule/demo.py | head -40 && cat university/admin.py && ls university/migrations university/tests
+    $ git status --short && git log --oneline -4 && cat schedule/templates/schedule/includes/lesson_item.html && grep -n "RoomSeed\|ROOM_SEEDS" -A12 schedule/demo.py | head -40 && cat university/admin.py && ls university/migrations university/tests
+    M plan.md
+    bf09738 TASK-007-FIX: home news without shown deadlines, audience labels, no-break initials, project clock for petitions
+    4608e59 TASK-007: notifications feed, deadlines and staff announcements
+    8f7bc4f Team protocol: save full test output and report every failure by name
+    fb25c57 TASK-006-FIX: request list action, form controls width, single hint, missing-file 404
+    <li class="lesson lesson--{{ item.kind }}{% if row.is_in_progress %} lesson--now{% endif %}{% if row.is_next %} lesson--next{% endif %}">
+      <p class="lesson-time">
+        {% if row.is_in_progress %}<strong class="lesson-badge">Сейчас</strong>{% endif %}
+        {% if row.is_next %}<strong class="lesson-badge">Следующая</strong>{% endif %}
+        <time>{{ item.slot.start|time:"H:i" }}</time>–<time>{{ item.slot.end|time:"H:i" }}</time> · {{ item.slot.number }} пара
+      </p>
+      <p class="lesson-title">{{ item.lesson.discipline.name }} <span class="lesson-type">{{ item.lesson.get_lesson_type_display }}</span></p>
+      <p class="lesson-teacher">Преподаватель:
+        {% if item.original_teacher %}<del>{{ item.original_teacher.short_name }}</del> <ins>{{ item.teacher.short_name }}</ins>{% else %}{{ item.teacher.short_name }}{% endif %}
+      </p>
+      <p class="lesson-room">Аудитория:
+        {% if item.original_room %}<del class="room" data-room-code="{{ item.original_room.code }}">{{ item.original_room.number }}, {{ item.original_room.floor }} этаж</del>
+        <ins class="room" data-room-code="{{ item.room.code }}">{{ item.room.number }}, {{ item.room.floor }} этаж</ins>
+        {% else %}<span class="room" data-room-code="{{ item.room.code }}">{{ item.room.number }}, {{ item.room.floor }} этаж</span>{% endif %}
+      </p>
+      {% if item.lesson.groups.all|length > 1 %}<p class="lesson-groups">Группы: {% for g in item.lesson.groups.all %}{{ g.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+      {% if item.is_changed %}
+      <p class="lesson-change">{% if item.kind == "cancelled" %}Отменено{% elif item.kind == "moved-out" %}Перенесено на {{ item.moved_to_date|date:"j E" }}, {{ item.moved_to_slot.number }} пара ({{ item.moved_to_slot.start|time:"H:i" }}){% elif item.kind == "moved-in" %}Перенесено с {{ item.moved_from_date|date:"j E" }}, {{ item.moved_from_slot.number }} пара{% elif item.kind == "room-changed" %}Замена аудитории{% elif item.kind == "teacher-replaced" %}Замена преподавателя{% endif %}. Причина: {{ item.change.reason }}</p>
+      {% endif %}
+    </li>
+    28:class RoomSeed:
+    29-    code: str
+    30-    floor: int
+    31-    number: str
+    32-
+    33-
+    34-@dataclass(frozen=True)
+    35-class TeacherSeed:
+    36-    last_name: str
+    37-    first_name: str
+    38-    middle_name: str
+    39-    title: str
+    40-
+    --
+    73:ROOM_SEEDS = [
+    74:    RoomSeed(code="room-101", floor=1, number="101"),
+    75:    RoomSeed(code="room-114", floor=1, number="114"),
+    76:    RoomSeed(code="room-205", floor=2, number="205"),
+    77:    RoomSeed(code="room-212", floor=2, number="212"),
+    78:    RoomSeed(code="room-308", floor=3, number="308"),
+    79:    RoomSeed(code="room-315", floor=3, number="315"),
+    80:    RoomSeed(code="room-402", floor=4, number="402"),
+    81-]
+    82-
+    83-TEACHER_SEEDS = [
+    84-    TeacherSeed(
+    85-        last_name="Лебедев", first_name="Аркадий", middle_name="Семёнович", title="профессор"
+    86-    ),
+    87-    TeacherSeed(last_name="Воронцова", first_name="Ирина", middle_name="Олеговна", title="доцент"),
+    88-    TeacherSeed(
+    89-        last_name="Глебов",
+    90-        first_name="Тимур",
+    91-        middle_name="Русланович",
+    92-        title="старший преподаватель",
+    --
+    252:        for seed in ROOM_SEEDS:
+    253-            room, _ = Room.objects.update_or_create(
+    254-                code=seed.code, defaults={"floor": seed.floor, "number": seed.number}
+    255-            )
+    256-            rooms[seed.code] = room
+    from django.contrib import admin
+
+    from .models import Discipline, Faculty, Program, Room, StudyGroup, Teacher
+
+
+    @admin.register(Faculty)
+    class FacultyAdmin(admin.ModelAdmin):
+        list_display = ("code", "name")
+        search_fields = ("code", "name")
+
+
+    @admin.register(Program)
+    class ProgramAdmin(admin.ModelAdmin):
+        list_display = ("code", "name", "faculty")
+        list_filter = ("faculty",)
+        search_fields = ("code", "name")
+
+
+    @admin.register(StudyGroup)
+    class StudyGroupAdmin(admin.ModelAdmin):
+        list_display = ("name", "program", "course")
+        list_filter = ("course", "program__faculty")
+        search_fields = ("name",)
+
+
+    @admin.register(Room)
+    class RoomAdmin(admin.ModelAdmin):
+        list_display = ("number", "floor", "code")
+        list_filter = ("floor",)
+        search_fields = ("number", "code")
+
+
+    @admin.register(Teacher)
+    class TeacherAdmin(admin.ModelAdmin):
+        list_display = ("full_name", "title")
+        search_fields = ("last_name", "first_name")
+
+
+    @admin.register(Discipline)
+    class DisciplineAdmin(admin.ModelAdmin):
+        list_display = ("name", "short_name")
+        search_fields = ("name", "short_name")
+    university/migrations:
+    0001_initial.py
+    0002_discipline_room_teacher.py
+    __init__.py
+    __pycache__
+
+    university/tests:
+    __init__.py
+    __pycache__
+    test_models.py
+  ── Thought for 8ms
+    I'm looking through the tests for every place a Room gets created, both through the make_room helper, which takes the number from the code by stripping the "room-" prefix, and through direct Room.objects.create calls. I want to note which room numbers and floors the tests use.
+
+── Explored 2 searches, 1 file ─────────────────────────────
+  ── Searched for make_room\([^)]*\) in .
+  ── Thought for 2m 29s
+    I'm checking which test rooms break the floor rule: room-700, room-303, and room-202 all seem to default to floor 1, and room-999 on floor 9 is fine. I still need to confirm how the `room-{100+n}` pattern behaves for larger n, and look at the university test cases for 999, 998, and "000" with their expected floors.
+
+    I'm weighing whether to derive the floor from the room number, either by keeping the `floor` field and adding a database constraint that the number matches a three-digit pattern and its first digit equals the floor. A regex-based CheckConstraint would work on PostgreSQL and through Django's SQLite connections, but external SQLite tools would choke on it, so I'm looking for a way to check the digits without regex.
+
+    I'm checking whether a database-level CheckConstraint with a regex works across PostgreSQL and SQLite, since Django registers REGEXP on SQLite connections. Then I'm considering whether the floor can be tied to the first digit of the room number, either as a check or as a generated column.
+
+    I'm settling on keeping the `floor` field and validating it alongside the room number, rather than deriving it, since deriving would mean changing every place a Room is created. I plan to tighten the floor range to 1–9 in both the validators and the database constraint, which means replacing the current 1–20 constraint.
+
+    I'm going to make the floor field validators and the database constraint both cap at 9, replacing the old 1–20 constraint. For the admin, I'm leaning toward keeping both fields and showing a clear error when the floor doesn't match the first digit of the number, rather than silently overwriting floor in clean().
+
+    I'm going to check two constraints: one that the number is three digits starting with 1–9, and one that floor matches that first digit. I want to confirm both work on SQLite in Django 5.2, since `full_clean` runs check constraints through a query and I need to see how the regex one behaves there.
+
+    I'm checking whether a CHECK constraint with a Cast on Substr behaves safely on both SQLite and PostgreSQL when the number is non-numeric. On SQLite a bad cast quietly yields 0 and adds a second floor-mismatch message, but on PostgreSQL the same cast could raise a DataError during validation and turn into a 500.
+
+    I'm worried that on PostgreSQL a failed cast inside the check could abort the surrounding transaction, even though Django's `Q.check` swallows the DatabaseError and treats the constraint as passing.
+
+    I'm checking whether casting the floor to text and matching it against the start of the room number avoids the integer cast, since a failed integer cast on PostgreSQL could abort the transaction during admin validation.
+
+    I'm checking whether a startswith lookup against the floor cast to text can tie the floor to the first digit of the number without casting the user's string. Since the floor is already limited to 1–9, that should be safe, and I want to confirm the generated LIKE clause works on both SQLite and PostgreSQL.
+
+    I'm keeping the regex-based number check as a database constraint and leaning on it alone, since running the same checks in clean() would duplicate the messages for bad input.
+
+    I'm checking whether Django's full_clean skips the database constraint when a field already failed validation, since that would avoid a duplicate message for a bad number.
+
+    I'm realizing that if the number field fails its own regex or floor validators, Django skips the constraint check entirely, so the consistency message only appears when both fields are individually valid, and I can drop the Cast on user input.
+
+    I'm going to check the local database for existing rooms that might not match the new number format, and I'll verify the three new constraints against SQLite in a temporary copy before touching the real migration.
+
+    I'm checking which existing test rooms would violate the new floor rule, and whether the local database holds any rooms that the new constraints would reject. Next I'm sketching the map design: a separate `campusmap` app for the building layout, keeping the Room model in `university`, with room positions stored either in the database or in code.
+
+    I'm weighing whether to store each room's position in the database as its own placement record, which lets admins add rooms that show up on the map, or to keep a fixed layout in code. The database option is more flexible but needs a model, an admin, and checks for overlap and bounds, while the code option is simpler and needs no migrations, though new rooms would require a code change.
+
+    I'm weighing a middle option: predefined slots on each floor, so positions come from a fixed set rather than free coordinates, which would sidestep most of the overlap and bounds checks.
+
+    I'm settling on a fixed slot per room, a nullable map_slot unique per floor, so the admin picks a position from a dropdown rather than drawing coordinates. The floor plan itself would be a corridor with rooms north and south of it, and landmarks would sit in areas that no slot uses.
+
+    I'm sizing the map canvas so the labels stay readable on a phone, checking how much horizontal padding the page leaves around the SVG, and then laying out the outer wall and floor plan.
+
+    Still laying out the floor plan coordinates...
+
+    I'm sketching the floor plan with a fixed set of numbered slots per floor, where each slot is a cell in a grid, and deciding how to mark the entrance, stairs, and landmarks so they don't take up any slot.
+
+    I'm laying out the floor grid as two rows of five cells, with the stairs fixed in the north-west corner on every floor. The entrance and canteen take cells on floor 1, the deanery on floor 2, and the library on floor 3, so the remaining cells on each floor are the ones open for room slots.
+
+    I'm weighing whether to put the room's map cell on the Room model itself, which would make university depend on campusmap for the landmark cells, or to keep the placement in a separate model.
+
+    I'm weighing whether a database placement model for each room's map cell would be cleaner, but it would need a floor check that spans two models. Storing the cell directly in a code-level layout keyed by room code avoids that, at the cost of admin-created rooms showing as off the map until someone adds them.
+
+    I'm weighing a separate RoomPlacement model in campusmap that stores the floor alongside the cell, so a unique constraint on (floor, cell) can enforce one room per spot at the database level. The open question is whether denormalizing the floor onto the placement is worth it, given that it duplicates data already on Room.
+
+    I'm settling on storing each room's map cell as a field on Room itself, with a unique constraint per floor so two rooms can't take the same spot. The landmark cells that each floor reserves would be defined in a small building module inside the university app, keeping the layout data next to the model that depends on it.
+
+    I'm weighing whether to drop the separate placement model and simply keep a code-level layout keyed by room code, since that would skip the migrations and admin work. The trade-off is that rooms created in the admin would show as off the map until someone adds them, though the deadline pushes toward simplicity.
+
+    I'm settling on a `map_cell` field directly on Room, with choices and a unique constraint per floor, and seed data will set it through `update_or_create` defaults. Next I'm assigning the seeded demo rooms to specific grid cells across floors 1 through 4.
+
+    I'm settling the landmark cells: the entrance takes S2 on floor 1 with the canteen spanning S3 and S4, the deanery takes S0 and S1 on floor 2, and the library takes S3 and S4 on floor 3. Floors 4 through 9 keep only the stairs, so every room cell N1 to N4 and S0 to S4 is open there.
+
+    I'm settling the map cell labels and switching to 1-based column numbering, so the stairs sit at N1 and the open room cells run from N2 to N5 and S1 to S5. Then I'm marking the landmark cells for each floor: the entrance and canteen on floor 1, the deanery on floor 2, and the library on floor 3.
+
+    Still working out the viewBox and the grid coordinates for the map, so the cells line up with the outer wall and the corridor.
+
+    Now I'm sizing the map labels: at a 360px phone width the room numbers should stay readable at roughly 16px, so the landmark text can drop to a smaller size and still fit its cells.
+
+    I'm sizing the map labels against a 360px phone viewport, aiming for room numbers around 16px and landmark text around 12px, and checking that words like "Лестница" still fit inside a single cell.
+
+    I'm checking the scrollable padding around the map so the labels still read well on a 360px phone, and I'm settling the accessibility details: the SVG gets a title, each room is a labelled group, and the current room gets a single CSS class so its highlight is easy to restyle.
+
+    I'm checking whether the highlight color belongs in the theme layer, but the highlight is functional, so I'm putting a highlight token in tokens.css and a rule for the current room in base.css, the same way the existing color tokens are already used there.
+
+    I'm going to style the map with CSS classes rather than inline attributes: walls and corridors as plain outlines, room cells as solid outlines, and landmark cells with dashed outlines so they read differently. I'm also adding a small legend that shows each of those three shapes next to its meaning.
+
+    I'm writing the SVG markup now: a viewBox of 0 0 400 240 with a role and label for accessibility, sized to fill its container up to a max width. I'm also working out the URL routes for the map, covering the overview, a per-floor page, and a page that highlights a single room.
+
+    I'm settling how URLs handle a missing or invalid floor: an empty floor falls back to `/map/` and the first floor, while a floor number with no rooms returns a 404 rather than redirecting, since the floor switcher only links to existing floors.
+
+    I'm deciding how the highlight URL handles the room code: a `<slug:code>` path segment rejects malformed values at the router, so I don't need to parse the query string. If the code doesn't match a room, the view returns a 404. A room that has no map cell still opens its floor without a highlight, and its entry in the room list gets marked as current with a note that it isn't on the map.
+
+    I'm settling the highlight for the room list too: the current room's link gets `aria-current="location"` and the same `map-current` class used on the map, so one class controls both. A room without a map cell still opens its floor with no highlight, and nothing else is added, no outline or caption above the map.
+
+    I'm checking the map query count: listing all rooms in one query keeps it constant, with any highlight lookup reusing that list instead of a separate fetch. I still need to confirm whether the schedule services load `item.room` with `select_related`, since the lesson links depend on it to avoid extra queries.
+
+    I'm reviewing the schedule links: the room code is already rendered on each lesson, so building the URL adds no queries, and I'll add a test that the query count stays flat as lessons are added. I'm also deciding that cancelled lessons and moved-out items stay as plain text, since their room isn't actually in use and a link there would mislead.
+
+    I'm checking whether `is_happening` is the right gate for the room link, so cancelled and moved-out lessons stay as plain text. For room-changed lessons, the original room stays plain and the new room gets the link.
+
+    I'm now checking the access rules: any logged-in user can open the map, with no role-specific mixin, and a student without a profile still gets in since the map holds no personal data. Then I'm planning the Room model changes: validators on the number and floor fields, a map cell field, and a clean step that will reject a map cell that isn't a landmark on its floor.
+
+    I'm defining a `MapCell` choices class for the building grid and a `STAIRS_CELL` constant, and I'm checking that the Room model's validation covers the map cell: a clean step that rejects a cell which isn't a landmark on that floor, plus a per-floor uniqueness constraint with a readable error message.
+
+    Writing the building module now: a dataclass for each landmark with its cells, and a `landmarks_on` helper to filter them by floor.
+
+    I'm writing the geometry module next: a helper that turns each grid cell into a rectangle, a helper that merges several cells into one rectangle for a landmark, and the fixed viewBox and label size constants. Then a `build_floor_plan` function will hand the template every shape with its position and label point already computed, so the template only has to print them. I'm also wondering whether the corridor should be drawn as a plain rectangle with no label.
+
+    Now I'm writing the map view in campusmap/views.py: it loads every room once, then works out the floor and any highlighted room from that list.
+
+    I'm writing the map template now, with a floor switcher at the top that links to each floor. The URL handling for the floor and highlight routes is settled, so the remaining work is the markup that prints the floor plan.
+
+    Now I'm writing the map template's floor switcher and the SVG markup, and I'm still deciding whether the floor needs a caption above the map; I'll leave that out and put the floor name in the SVG's title instead.
+
+    Writing the map template's room list and the room-shape markup next, with a highlight class and aria-current on the current room. I'm leaving out making room shapes clickable, since it isn't required.
+
+    Still writing the map styles...
+
+    Still writing map styles...
+
+    Still writing map styles...
+
+    I'm working out the demo seed data: each room gets a map cell, with 101 on N2, 114 on N4, and the other rooms placed on their floors. The landmarks are defined in code, so they always appear on the map. I'm also checking that re-running the seed is safe, since the cell assignments get overwritten on each run.
+
+    I'm validating the seed data by loading each demo room with a full model check before saving, so a conflicting map cell produces a readable error message rather than a raw database traceback.
+
+    I need to look at the tests that build non-compliant rooms, since the new number-to-floor check could break them. The university test cases at lines 40 to 49 are the main risk: the room numbered 998 on floor 1 would now fail `full_clean()`, so I'll change it to 198. Making a helper next.
+
+    I'm changing the test helper so the floor defaults to the first digit of the room number, which keeps room-700, room-303, and room-202 consistent with the new rule. Then I'll check whether any of those tests actually depend on floor 1.
+  ── Searched for make_room("room-700")\|make_room("room-303")\|make_room("room-202")\|room-{100 + n}\|room-999 in .
+  ── Read schedule/services.py
+  ── Thought for 4s
+    I'm checking the room numbering: the rooms would be 101 through 105 on floor 1, which looks fine. I also want to see whether the helper should derive the floor from the room number when none is given, since the explicit floor values for 205 and 999 already match that. The change to room-202 might matter for the academics test near line 321, so I need to see whether it depends on that floor.
+
+    I'm checking the floor values for room-303 and room-700, and they look fine since none of the tests seem to assert on floors except the demo one. Next I'm checking the site padding: the header, main, and footer each have 16px, so at a 360px viewport the content is 328px wide, a scale of about 0.82. I'm also verifying the SQLite constraints by changing models.py in a temp copy of HEAD, then running migrations and testing invalid inserts.
+  ── Thought for 4ms
+    Проверяю ограничения номеров аудиторий на временной копии проекта, включая регулярное выражение и проверку «этаж = первая цифра» в SQLite, и заодно смотрю миграцию.
+
+── Ran 3 commands ──────────────────────────────────────────
+  ── Ran source .venv/bin/activate && rm -rf "$TMPDIR/t008" && mkdir -p "$TMPDIR/t008" && git archive HEAD | tar -x -C "$TMPDIR/t008" && cd "$TMPDIR/t008" && python - <<'EOF' p="university/models.py"; s=open(p).read() old_c='''            models.CheckConstraint(                 condition=models.Q(floor__gte=1) & models.Q(floor__lte=20),                 name="university_room_floor_1_20",             )         ]''' new_c='''            models.CheckConstraint(                 condition=models.Q(floor__gte=1) & models.Q(floor__lte=9),                 name="university_room_floor_1_9",             ),             models.CheckConstraint(                 condition=models.Q(number__regex=r"^[1-9][0-9]{2}$"),                 name="university_room_number_nnn",                 violation_error_message="Номер аудитории: ровно три цифры, первая — этаж (1–9).",             ),             models.CheckConstraint(                 condition=models.Q(number__startswith=Cast("floor", output_field=models.CharField())),                 name="university_room_floor_matches_number",                 violation_error_message="Этаж должен совпадать с первой цифрой номера аудитории.",             ),             models.UniqueConstraint(                 fields=["floor", "map_cell"],                 condition=~models.Q(map_cell=""),                 name="university_room_unique_map_cell",                 violation_error_message="Это место на схеме этажа уже занято.",             ),         ]''' assert s.count(old_c)==1; s=s.replace(old_c,new_c) s=s.replace('    number = models.CharField("номер", max_length=10, unique=True)\n','    number = models.CharField("номер", max_length=10, unique=True)\n    map_cell = models.CharField("место на схеме", max_length=2, blank=True, default="")\n',1) s="from django.db.models.functions import Cast\n"+s open(p,"w").write(s) EOF export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t008/a.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t008/p" DEMO_PASSWORD='Local-Demo-Pass-2026!' python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py makemigrations university 2>&1 | tail -6 && python manage.py migrate university -v1 2>&1 | tail -2 && python manage.py sqlmigrate university 0003 | grep -i "check\|unique" | head -5; python manage.py shell -c " from django.db import IntegrityError, transaction from django.core.exceptions import ValidationError from university.models import Room for kw in [dict(code='room-x1',floor=1,number='2a5'), dict(code='room-x2',floor=3,number='205'), dict(code='room-x3',floor=1,number='15'), dict(code='room-x4',floor=2,number='299')]:     try:         with transaction.atomic(): Room.objects.create(**kw); print('OK', kw)     except IntegrityError as e: print('IntegrityError', kw['number'], kw['floor'], str(e)[:60]) for kw in [dict(code='room-y1',floor=3,number='298'), dict(code='room-y2',floor=1,number='abc'), dict(code='room-y3',floor=2,number='297', map_cell='N3'), dict(code='room-y4',floor=2,number='296', map_cell='N3')]:     r=Room(**kw)     try: r.full_clean(); r.save(); print('valid', kw['number'])     except ValidationError as e: print('VE', kw['number'], e.message_dict) print(sorted(Room.objects.values_list('number','floor'))) " (5s)
+    $ source .venv/bin/activate && rm -rf "$TMPDIR/t008" && mkdir -p "$TMPDIR/t008" && git archive HEAD | tar -x -C "$TMPDIR/t008" && cd "$TMPDIR/t008" && python - <<'EOF'
+  p="university/models.py"; s=open(p).read()
+  old_c='''            models.CheckConstraint(
+                  condition=models.Q(floor__gte=1) & models.Q(floor__lte=20),
+                  name="university_room_floor_1_20",
+              )
+          ]'''
+  new_c='''            models.CheckConstraint(
+                  condition=models.Q(floor__gte=1) & models.Q(floor__lte=9),
+                  name="university_room_floor_1_9",
+              ),
+              models.CheckConstraint(
+                  condition=models.Q(number__regex=r"^[1-9][0-9]{2}$"),
+                  name="university_room_number_nnn",
+                  violation_error_message="Номер аудитории: ровно три цифры, первая — этаж (1–9).",
+              ),
+              models.CheckConstraint(
+                  condition=models.Q(number__startswith=Cast("floor", output_field=models.CharField())),
+                  name="university_room_floor_matches_number",
+                  violation_error_message="Этаж должен совпадать с первой цифрой номера аудитории.",
+              ),
+              models.UniqueConstraint(
+                  fields=["floor", "map_cell"],
+                  condition=~models.Q(map_cell=""),
+                  name="university_room_unique_map_cell",
+                  violation_error_message="Это место на схеме этажа уже занято.",
+              ),
+          ]'''
+  assert s.count(old_c)==1; s=s.replace(old_c,new_c)
+  s=s.replace('    number = models.CharField("номер", max_length=10, unique=True)\n','    number = models.CharField("номер", max_length=10, unique=True)\n    map_cell = models.CharField("место на схеме", max_length=2, blank=True, default="")\n',1)
+  s="from django.db.models.functions import Cast\n"+s
+  open(p,"w").write(s)
+  EOF
+  export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t008/a.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t008/p" DEMO_PASSWORD='Local-Demo-Pass-2026!'
+  python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py makemigrations university 2>&1 | tail -6 && python manage.py migrate university -v1 2>&1 | tail -2 && python manage.py sqlmigrate university 0003 | grep -i "check\|unique" | head -5; python manage.py shell -c "
+  from django.db import IntegrityError, transaction
+  from django.core.exceptions import ValidationError
+  from university.models import Room
+  for kw in [dict(code='room-x1',floor=1,number='2a5'), dict(code='room-x2',floor=3,number='205'), dict(code='room-x3',floor=1,number='15'), dict(code='room-x4',floor=2,number='299')]:
+      try:
+          with transaction.atomic(): Room.objects.create(**kw); print('OK', kw)
+      except IntegrityError as e: print('IntegrityError', kw['number'], kw['floor'], str(e)[:60])
+  for kw in [dict(code='room-y1',floor=3,number='298'), dict(code='room-y2',floor=1,number='abc'), dict(code='room-y3',floor=2,number='297', map_cell='N3'), dict(code='room-y4',floor=2,number='296', map_cell='N3')]:
+      r=Room(**kw)
+      try: r.full_clean(); r.save(); print('valid', kw['number'])
+      except ValidationError as e: print('VE', kw['number'], e.message_dict)
+  print(sorted(Room.objects.values_list('number','floor')))
+  "
+    Traceback (most recent call last):
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 105, in _execute
+        return self.cursor.execute(sql, params)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/db/backends/sqlite3/base.py", line 360, in execute
+        return super().execute(query, params)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    sqlite3.OperationalError: no such column: university_room.map_cell
+
+    The above exception was the direct cause of the following exception:
+
+    Traceback (most recent call last):
+      File "/private/tmp/claude-501/t008/manage.py", line 23, in <module>
+        main()
+      File "/private/tmp/claude-501/t008/manage.py", line 19, in main
+        execute_from_command_line(sys.argv)
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/management/__init__.py", line 442, in execute_from_command_line
+        utility.execute()
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/management/__init__.py", line 436, in execute
+        self.fetch_command(subcommand).run_from_argv(self.argv)
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/management/base.py", line 420, in run_from_argv
+        self.execute(*args, **cmd_options)
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/management/base.py", line 464, in execute
+        output = self.handle(*args, **options)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/private/tmp/claude-501/t008/accounts/management/commands/seed_demo.py", line 28, in handle
+        s = seed_schedule_demo(today)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/private/tmp/claude-501/t008/schedule/demo.py", line 253, in seed_schedule_demo
+        room, _ = Room.objects.update_or_create(
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/db/models/manager.py", line 87, in manager_method
+        return getattr(self.get_queryset(), name)(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/db/models/query.py", line 990, in update_or_create
+        obj, created = self.select_for_update().get_or_create(
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/db/models/query.py", line 948, in get_or_create
+        return self.get(**kwargs), False
+               ^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/db/models/query.py", line 631, in get
+        num = len(clone)
+              ^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/db/models/query.py", line 368, in __len__
+        self._fetch_all()
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/db/models/query.py", line 1954, in _fetch_all
+        self._result_cache = list(self._iterable_class(self))
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/db/models/query.py", line 93, in __iter__
+        results = compiler.execute_sql(
+                  ^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/db/models/sql/compiler.py", line 1623, in execute_sql
+        cursor.execute(sql, params)
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 122, in execute
+        return super().execute(sql, params)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 79, in execute
+        return self._execute_with_wrappers(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 92, in _execute_with_wrappers
+        return executor(sql, params, many, context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 100, in _execute
+        with self.db.wrap_database_errors:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/db/utils.py", line 91, in __exit__
+        raise dj_exc_value.with_traceback(traceback) from exc_value
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/db/backends/utils.py", line 105, in _execute
+        return self.cursor.execute(sql, params)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/db/backends/sqlite3/base.py", line 360, in execute
+        return super().execute(query, params)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    django.db.utils.OperationalError: no such column: university_room.map_cell
+        - Remove constraint university_room_floor_1_20 from model room
+        + Add field map_cell to room
+        + Create constraint university_room_floor_1_9 on model room
+        + Create constraint university_room_number_nnn on model room
+        + Create constraint university_room_floor_matches_number on model room
+        + Create constraint university_room_unique_map_cell on model room
+    Running migrations:
+      Applying university.0003_remove_room_university_room_floor_1_20_room_map_cell_and_more... OK
+    CREATE TABLE "new__university_room" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "code" varchar(32) NOT NULL UNIQUE, "floor" smallint unsigned NOT NULL CHECK ("floor" >= 0), "number" varchar(10) NOT NULL UNIQUE);
+    CREATE TABLE "new__university_room" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "code" varchar(32) NOT NULL UNIQUE, "floor" smallint unsigned NOT NULL CHECK ("floor" >= 0), "number" varchar(10) NOT NULL UNIQUE, "map_cell" varchar(2) NOT NULL);
+    CREATE TABLE "new__university_room" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "code" varchar(32) NOT NULL UNIQUE, "floor" smallint unsigned NOT NULL CHECK ("floor" >= 0), "number" varchar(10) NOT NULL UNIQUE, "map_cell" varchar(2) NOT NULL, CONSTRAINT "university_room_floor_1_9" CHECK (("floor" >= 1 AND "floor" <= 9)));
+    CREATE TABLE "new__university_room" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "code" varchar(32) NOT NULL UNIQUE, "floor" smallint unsigned NOT NULL CHECK ("floor" >= 0), "number" varchar(10) NOT NULL UNIQUE, "map_cell" varchar(2) NOT NULL, CONSTRAINT "university_room_floor_1_9" CHECK (("floor" >= 1 AND "floor" <= 9)), CONSTRAINT "university_room_number_nnn" CHECK ("number" REGEXP '^[1-9][0-9]{2}$'));
+    CREATE TABLE "new__university_room" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "code" varchar(32) NOT NULL UNIQUE, "floor" smallint unsigned NOT NULL CHECK ("floor" >= 0), "number" varchar(10) NOT NULL UNIQUE, "map_cell" varchar(2) NOT NULL, CONSTRAINT "university_room_floor_1_9" CHECK (("floor" >= 1 AND "floor" <= 9)), CONSTRAINT "university_room_number_nnn" CHECK ("number" REGEXP '^[1-9][0-9]{2}$'), CONSTRAINT "university_room_floor_matches_number" CHECK ("number" LIKE REPLACE(REPLACE(REPLACE((CAST("floor" AS text)), '\', '\\'), '%', '\%'), '_', '\_') || '%' ESCAPE '\'));
+    29 objects imported automatically (use -v 2 for details).
+
+    IntegrityError 2a5 1 CHECK constraint failed: university_room_number_nnn
+    IntegrityError 205 3 CHECK constraint failed: university_room_floor_matches_numbe
+    IntegrityError 15 1 CHECK constraint failed: university_room_number_nnn
+    OK {'code': 'room-x4', 'floor': 2, 'number': '299'}
+    VE 298 {'__all__': ['Этаж должен совпадать с первой цифрой номера аудитории.']}
+    VE abc {'__all__': ['Номер аудитории: ровно три цифры, первая — этаж (1–9).', 'Этаж должен совпадать с первой цифрой номера аудитории.']}
+    valid 297
+    VE 296 {'__all__': ['Это место на схеме этажа уже занято.']}
+    [('297', 2), ('299', 2)]
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 2s
+    The seed failed because I ran migrations in the wrong order, so the final rooms list only has 297 and 299 and none of the demo rooms. That doesn't matter much now, but I still need to test the migration against data seeded with the old code. My plan is to use the HEAD version of the repo to migrate and seed a temporary database.
+
+    I'll run the migration on that database seeded with the old code, then check the validator behavior. With a RegexValidator on the number field, the field error drops the number from constraint checks, which is why "abc" now gives only one message. SQLite's LIKE is case-insensitive, though that doesn't matter for digits. The unsigned CHECK floor at zero comes from PositiveSmallIntegerField.
+  ── Ran source .venv/bin/activate && export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t008/b.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t008/p2" DEMO_PASSWORD='Local-Demo-Pass-2026!' && rm -f "$TMPDIR/t008/b.sqlite3" && python manage.py migrate -v0 && python manage.py seed_demo | head -2 | tail -1 && cd "$TMPDIR/t008" && python manage.py migrate university 2>&1 | tail -1 && python manage.py shell -c "from university.models import Room; print(sorted(Room.objects.values_list('number','floor','map_cell')))" 2>&1 | tail -1; cd ~/hackatonproject && DATABASE_URL="sqlite:///$PWD/db.sqlite3" python manage.py shell -c "from university.models import Room; print('local:', sorted(Room.objects.values_list('number','floor')))" 2>&1 | tail -1 (5s)
+    $ source .venv/bin/activate && export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t008/b.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t008/p2" DEMO_PASSWORD='Local-Demo-Pass-2026!' && rm -f "$TMPDIR/t008/b.sqlite3" && python manage.py migrate -v0 && python manage.py seed_demo | head -2 | tail -1 && cd "$TMPDIR/t008" && python manage.py migrate university 2>&1 | tail -1 && python manage.py shell -c "from university.models import Room; print(sorted(Room.objects.values_list('number','floor','map_cell')))" 2>&1 | tail -1; cd ~/hackatonproject && DATABASE_URL="sqlite:///$PWD/db.sqlite3" python manage.py shell -c "from university.models import Room; print('local:', sorted(Room.objects.values_list('number','floor')))" 2>&1 | tail -1
+    Schedule ready: 7 rooms, 6 teachers, 6 disciplines, 18 weekly lessons, 8 changes.
+      Applying university.0003_remove_room_university_room_floor_1_20_room_map_cell_and_more... OK
+    [('101', 1, ''), ('114', 1, ''), ('205', 2, ''), ('212', 2, ''), ('308', 3, ''), ('315', 3, ''), ('402', 4, '')]
+    local: [('101', 1), ('114', 1), ('205', 2), ('212', 2), ('308', 3), ('315', 3), ('402', 4)]
+  ── Thought for 542ms
+    I've confirmed the migration works on seeded data and that local DB rooms comply. On PostgreSQL, Django translates the regex lookup to `~`, so that check is fine, and the `startswith` with the Cast in validate_constraints is safe because the floor value has already been validated as an int. Now I'm starting a baseline verification on the current tree.
+
+    I'm kicking off a baseline run on the current commit in the background, and while it runs I'll write up the spec and note the test count.
+  ── Thought for 4ms
+    Ограничения работают: миграция прошла на демо-базе, и все 7 демо-аудиторий соответствуют локальной. Дальше запускаю базовые проверки в фоне и пишу спецификацию.
+  ── Ran source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t008-feas.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t008-feas-at-2359.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t008-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t008/seed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t008/seed-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t008/seed.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; echo DONE
+    $ source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t008-feas.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t008-feas-at-2359.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t008-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t008/seed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t008/seed-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t008/seed.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; echo DONE
+    Command running in background with ID: b2lu337b9. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/b2lu337b9.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Thought for 2ms
+    I'm checking whether the schedule query-count tests around lines 205 and 237 will be affected, since adding links shouldn't change the query count. I'll also search the schedule view tests for assertions on room markup like `data-room-code` or the room span class.
+
+── Explored 2 searches, 2 files ────────────────────────────
+  ── Searched for data-room-code\|class="room"\|этаж in */tests
+  ── Read templates/base.html
+  ── Thought for 2ms
+    I need to check whether both today.html and week.html pull in lesson_item.html, so I'll grep the templates for "lesson_item". The room link should keep the existing room class and data-room-code attribute, since a current test relies on them. After that I'll write the spec.
+  ── Searched for lesson_item in schedule/templates
+  ── Thought for 1m 2s
+    I'm drafting the spec now: the new `campusmap` app gets the name "Карта" and exists to present the building plan, while Room stays in `university` with its validation and cell field. I'm also weighing whether MapCell and the landmarks belong in `university/building.py`, since `Room.clean` needs the blocked cells, and leaning toward yes with `campusmap/layout.py` importing them for geometry. Next I'm adding a validator to `Room.number` built on a RegexValidator.
+
+    I'm laying out the Room field changes now: a three-digit number regex, floor limited to 1–9, and a new map_cell field with its choices and help text. I'm also updating the constraints to match, and adding a clean check that rejects a cell already blocked by a landmark on that floor.
+
+    I'm settling the error precedence: a bad number or floor gets a field error, and if both are valid but disagree, the constraint reports it as a non-field error, so the admin never hits a 500. For the migration, I'll have the coder name it `room_number_format_and_map_cell` rather than take the long auto-generated name, and include the AlterField changes for the number and floor validators.
+
+    Next I'm sketching the `MapCell` choices in `building.py`: the two rows of seats with their labels, and the stairs cell fixed as `N1`. Then I'm starting on a frozen dataclass for the landmarks.
+
+    Still writing the landmark definitions...
+
+    I'm checking the room assignments against the landmarks, confirming 315 sits on N5 and 212 on S4 so neither collides with the library or deanery cells. Next I'm deciding how the entrance should look on the plan, leaning toward a dashed landmark rectangle at S3 with a thick door line on the bottom wall. Then I'll set up the layout geometry in `campusmap/layout.py`.
+
+    Still writing the layout constants...
+
+    Still writing the geometry helpers for the floor plan...
+
+    Still writing the floor-plan shape list...
+
+    I'm working out the view layer now: a `MapView` with GET only, and URLs for the full map, a single floor, and a single room. I'm also noting that the floor converter will accept 0 and large numbers, so those will have to return 404 when they aren't real floors.
+
+    I'm writing the campusmap view layer now: a GET-only map view, plus a helper that groups rooms by floor and marks which ones can appear on the plan.
+
+    Still writing the map template...
+
+    Still writing the map template markup...
+
+    Still writing the map template markup...
+
+    Still writing the map template markup...
+
+    I'm working out the schedule template now, adding a room line to the lesson item markup.
+
+    Still writing the schedule template markup...
+
+    I'm wiring the schedule template's room line: when the lesson is happening, the room number becomes a link to its map page, and otherwise it stays plain text. Cancelled and moved-out items keep the plain form, since a link there would send a student to a room where nothing is going on.
+
+    I'm planning the nav links next: a "Карта" entry after Расписание for students and for staff, while superusers get no item. I'm also checking that the week query count stays the same, and that the link shows for regular lessons but not cancelled ones. Last, I'm updating the demo seed to save rooms with full_clean and adding a README map section that notes landmarks are fixed in code.
+
+    I'm writing the test plan for the Room model: valid numbers, format errors that show up on the number field, floor range limits, mismatch checks, and the database-level rejections. I'm also adding cases for map cells, including rejecting a cell that a landmark already occupies.
+
+    I'm writing the test cases for the Room model's number and floor rules, plus the map cell checks for landmarks and duplicate cells. Then I'm adding the building tests for the landmarks, blocked cells and stairs choices, and admin view cases for the mismatch and landmark errors.
+
+    I'm writing out the test plan for the new map: layout tests to check that cells stay inside the viewBox and don't overlap, that labels fit, that coordinates are integers, and that rooms on blocked cells or without a cell are handled. Then I'm adding access tests for the map views covering anonymous, student, staff, superuser, and profile-less users.
+
+    I'm writing the map view tests now: the default floor, which floors appear in the switcher, the current floor marking, and 404s for empty or invalid floors. Next I'm covering the highlighted room, its accessible name, and unknown rooms.
+
+    I'm writing the campusmap view tests now, starting with a check that the room list's links point at the right floor. Next I'm adding tests for the landmarks drawn on each floor, the legend, and the empty state for a floor with no rooms. The last case covers a query string with a script tag, to confirm the map doesn't reflect it back.
+
+    I'm writing the view tests now: anonymous access, student and staff access, and a check that the map's query count stays flat as the room count grows. Next I'm adding a nav test that the map link shows for students and staff but not for superusers.
+
+    I'm writing the schedule test cases now: links to the map for regular lessons, plain text for cancelled or moved-out ones, and a check that the week query count stays the same. Next I'm adding a demo test that every seeded room gets a valid map cell.
+
+    I'm adding a CSS test that checks the map highlight rule exists in the stylesheet and that its color token is defined, and I'm updating the room helper so the floor is taken from the room number when it isn't given. I'm also settling the floor-parameter question: an invalid floor will return a 404, and I'm noting the reasoning for that.
+
+    I'm settling the floor parameter: a floor with no rooms, or one that isn't a real floor, returns a 404, while bare `/map/` falls back to the lowest floor. I'm writing the plan out now, then I'll fill in the feasibility check once the background run finishes.
+  ── Read /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/b2lu337b9.output
+
+── Created 1 file ──────────────────────────────────────────
+  ── Created docs/tasks/TASK-008.md +617
+    --- /dev/null
+    +++ b~/hackatonproject/docs/tasks/TASK-008.md
+    +# TASK-008: room map — schematic building plan, highlight from the schedule
+    +
+    +Author: Planner. Status: ready for implementation.
+    +Base commit: `bf09738`. Related specs: `TASK-003.md` (schedule, `Room`), `TASK-007.md` (nav, query-count patterns).
+    +
+    +Students and staff open «Карта», switch floors, and see every room of the single fictional building as a labelled shape on an inline SVG plan. A tap on a room in the schedule opens the map on that room's floor with the room number in red.
+    +
+    +---
+    +
+    +## 1. Goal and acceptance criteria
+    +
+    +| ID | Criterion |
+    +|---|---|
+    +| AC1 | New app `campusmap` (no models). Room data and room placement stay in `university`. |
+    +| AC2 | Every room number is `NNN` (exactly 3 digits, first digit 1–9) and the first digit equals `floor`. Enforced by field validators + model constraints (admin shows form errors, never 500) AND by DB check constraints. `floor` is limited to 1–9. All existing and demo rooms comply; the migration applies on seeded data. |
+    +| AC3 | A room's position is a cell of a fixed per-floor grid, stored in `Room.map_cell` (editable in the admin, blank = not on the map). One room per cell per floor (DB unique constraint). A cell taken by a landmark on that floor is rejected (model validation). |
+    +| AC4 | `/map/` shows the lowest floor that has rooms; `/map/floor/<n>/` shows floor `n` (404 if no room is on that floor); floor switcher lists every floor with at least one room, current floor marked. |
+    +| AC5 | Landmarks (not `Room` rows, not linked to the schedule) are drawn from code: «Лестница» on every floor, «Вход» and «Столовая» on floor 1, «Деканат» on floor 2, «Библиотека» on floor 3. A legend explains the shapes. |
+    +| AC6 | `/map/room/<code>/` opens the room's floor with the room's number in red via ONE CSS class `map-current`; the room shape has `aria-current="location"` and an SVG `<title>`. Unknown code → 404. Nothing from the query string is rendered. |
+    +| AC7 | A room without a position is listed with «— нет на схеме»; its highlight URL opens its floor (no SVG highlight, list item marked). |
+    +| AC8 | Schedule pages (student today/week, staff group week): the room of every happening lesson is a link to its highlight URL; the NEW room after a room change/move; cancelled and moved-out lessons keep plain text. No extra queries. |
+    +| AC9 | Nav item «Карта» for students and staff. Any logged-in user may open the map; anonymous → login redirect. No personal data on the map. |
+    +| AC10 | At 360 px the SVG scales to the content width (`viewBox`, no fixed width), no horizontal scroll; room labels ≥ 16 px, landmark labels ≥ 12 px on screen. |
+    +| AC11 | Map page: a fixed number of queries regardless of the number of rooms (one query for rooms); query-count tests for the map and the schedule links. |
+    +| AC12 | `seed_demo` (idempotent) gives all 7 demo rooms a cell. |
+    +
+    +## 2. Out of scope
+    +Route finding, several buildings, room occupancy/timetables, search, zoom/pan, JavaScript, clickable rooms inside the SVG, the pixel-art theme, chat (TASK-009), a «Карта» nav item for the superuser (the superuser can open `/map/` directly).
+    +
+    +## 3. Design decisions
+    +
+    +**D1. App.** New app `campusmap` for the map pages (views, layout geometry, templates). `university` keeps the `Room` data, its validation and the building grid (`university/building.py`), because `Room` validation must know which cells are taken by landmarks and `university` must not import a presentation app. Dependency direction: `campusmap` → `university`; `schedule` templates → `campusmap` URLs only.
+    +
+    +**D2. Floor vs number: validate both fields.** `floor` stays a real column (used by ordering, `list_filter`, templates, tests, seeds). Deriving it from the number (a generated column or removing the field) would change every `Room` creation in code and tests and needs a table rebuild with data conversion. Validation:
+    +- field level: `number` RegexValidator `^[1-9][0-9]{2}$`; `floor` 1–9 → field errors in the admin;
+    +- model level: check constraint "number starts with floor" → non-field error. Django skips constraint validation for fields that already failed field validation, so the user sees one message per problem (verified, 9.6).
+    +- DB level: three check constraints (format, floor 1–9, match).
+    +The "match" constraint compares strings (`number LIKE CAST(floor AS text) || '%'`); it never casts user text to an integer, so constraint validation cannot raise a database error on PostgreSQL.
+    +
+    +**D3. Positions: a cell of a fixed grid, stored on `Room` (`map_cell`).** Free coordinates would need bounds and overlap checks against rooms and landmarks; a fixed layout keyed by room code would make rooms created in the admin invisible until a code change. A grid cell is editable in the admin as a dropdown, needs one unique constraint (`floor`, `map_cell`) and one landmark check, and keeps all geometry in code, where the UI stage can restyle it.
+    +
+    +Grid: two rows of 5 cells along a central corridor. Columns 1–5; top row `N1…N5`, bottom row `S1…S5`. `N1` is the stairs on every floor, so rooms use `N2…N5`, `S1…S5`.
+    +```
+    + ┌──────┬──────┬──────┬──────┬──────┐
+    + │ N1   │ N2   │ N3   │ N4   │ N5   │   top row
+    + ├──────┴──────┴──────┴──────┴──────┤
+    + │            corridor              │
+    + ├──────┬──────┬──────┬──────┬──────┤
+    + │ S1   │ S2   │ S3   │ S4   │ S5   │   bottom row
+    + └──────┴──────┴──────┴──────┴──────┘
+    +```
+    +Landmarks: `N1` «Лестница» (every floor); floor 1: `S3` «Вход», `S4+S5` «Столовая»; floor 2: `S1+S2` «Деканат»; floor 3: `S4+S5` «Библиотека».
+    +
+    +**D4. URLs: path segments, not query strings.** `/map/`, `/map/floor/<int:floor>/`, `/map/room/<slug:code>/`. The URL resolver rejects malformed values (404) before the view runs, nothing is parsed from the query string, and links stay short. A floor that has no rooms (or 0, or 10+) → 404: such a URL is broken (the switcher never produces it); silently showing another floor would hide the error. No floor segment → the lowest floor with rooms.
+    +
+    +**D5. Cancelled / moved-out lessons keep plain room text.** The lesson does not take place in that room at that time; a link would send the student to a room where nothing happens. Happening lessons (regular, moved-in, room-changed, teacher-replaced) link to the room where they happen (`item.room`, already the new room).
+    +
+    +**D6. Label size.** `viewBox` width 400 user units. Content width at a 360 px screen is 328 px (`.site-main` padding `--space-3` = 16 px each side), scale 0.82. Room labels 20 units → 16.4 px; landmark labels 15 units → 12.3 px (12 px is the smallest size we accept as readable on a phone). All label widths fit their cells (test with 0.6 em per character).
+    +
+    +**D7. Highlight colour.** One class `map-current`; colour token `--color-map-highlight: #c00000` (contrast on white ≈ 6.6:1). Two selectors use the class: the SVG label and the room-list link. Easy to restyle in the UI stage.
+    +
+    +---
+    +
+    +## 4. Architecture
+    +
+    +### 4.1 Files
+    +Create:
+    +| File | Content |
+    +|---|---|
+    +| `university/building.py` | `MapCell`, `STAIRS_CELL`, `Landmark`, `LANDMARKS`, `landmarks_on`, `blocked_cells` |
+    +| `university/migrations/0003_room_number_format_and_map_cell.py` | generated: `makemigrations university --name room_number_format_and_map_cell` |
+    +| `university/tests/test_building.py`, `university/tests/test_admin.py` | tests |
+    +| `campusmap/__init__.py`, `campusmap/apps.py` (`CampusmapConfig`, `name = "campusmap"`, `verbose_name = "Карта"`, `default_auto_field = "django.db.models.BigAutoField"`) | app |
+    +| `campusmap/layout.py` | geometry: `Rect`, `MapShape`, `FloorPlan`, `cell_rect`, `span_rect`, `floor_plan` |
+    +| `campusmap/views.py`, `campusmap/urls.py` | `MapView`, 3 routes |
+    +| `campusmap/templates/campusmap/map.html` | page |
+    +| `campusmap/tests/__init__.py`, `campusmap/tests/test_layout.py`, `campusmap/tests/test_views.py` | tests |
+    +
+    +Change:
+    +| File | Change |
+    +|---|---|
+    +| `university/models.py` | `Room`: validators, `map_cell`, constraints, `clean()` |
+    +| `university/admin.py` | `RoomAdmin.list_display` += `"map_cell"` |
+    +| `university/tests/test_models.py` | room tests (5.1) |
+    +| `schedule/tests/helpers.py` | `make_room` derives `floor` from the number |
+    +| `schedule/demo.py` | `RoomSeed.map_cell`; rooms saved with `full_clean()` |
+    +| `schedule/templates/schedule/includes/lesson_item.html` | room links |
+    +| `schedule/tests/test_views.py`, `schedule/tests/test_demo.py` | tests |
+    +| `templates/base.html` | nav «Карта» |
+    +| `config/settings.py` | `"campusmap"` in `INSTALLED_APPS` after `"notifications"` |
+    +| `config/urls.py` | `path("", include("campusmap.urls")),` after the notifications include |
+    +| `pyproject.toml` | `"campusmap"` in `known-first-party` |
+    +| `static/css/tokens.css` | `--color-map-highlight: #c00000;` |
+    +| `static/css/base.css` | map rules (4.8) |
+    +| `core/tests/test_css.py` | highlight rule test |
+    +| `README.md` | `## Map` section; Known limitations bullet |
+    +
+    +No new dependencies, no env variables, no JavaScript, no image files.
+    +
+    +### 4.2 `university/building.py`
+    +```python
+    +"""The fictional building: a fixed grid of map cells and landmarks (one building)."""
+    +
+    +from dataclasses import dataclass
+    +
+    +from django.db import models
+    +
+    +STAIRS_CELL = "N1"
+    +
+    +
+    +class MapCell(models.TextChoices):
+    +    N2 = "N2", "Верхний ряд, место 2"
+    +    N3 = "N3", "Верхний ряд, место 3"
+    +    N4 = "N4", "Верхний ряд, место 4"
+    +    N5 = "N5", "Верхний ряд, место 5"
+    +    S1 = "S1", "Нижний ряд, место 1"
+    +    S2 = "S2", "Нижний ряд, место 2"
+    +    S3 = "S3", "Нижний ряд, место 3"
+    +    S4 = "S4", "Нижний ряд, место 4"
+    +    S5 = "S5", "Нижний ряд, место 5"
+    +
+    +
+    +@dataclass(frozen=True)
+    +class Landmark:
+    +    key: str
+    +    label: str
+    +    cells: tuple[str, ...]   # adjacent cells of one row
+    +    floor: int | None        # None = every floor
+    +
+    +
+    +LANDMARKS: tuple[Landmark, ...] = (
+    +    Landmark("stairs", "Лестница", (STAIRS_CELL,), None),
+    +    Landmark("entrance", "Вход", ("S3",), 1),
+    +    Landmark("canteen", "Столовая", ("S4", "S5"), 1),
+    +    Landmark("deanery", "Деканат", ("S1", "S2"), 2),
+    +    Landmark("library", "Библиотека", ("S4", "S5"), 3),
+    +)
+    +
+    +
+    +def landmarks_on(floor: int) -> list[Landmark]:
+    +    return [lm for lm in LANDMARKS if lm.floor is None or lm.floor == floor]
+    +
+    +
+    +def blocked_cells(floor: int) -> dict[str, Landmark]:
+    +    return {cell: lm for lm in landmarks_on(floor) for cell in lm.cells}
+    +```
+    +
+    +### 4.3 `university/models.py` — `Room`
+    +- `from university.building import MapCell, blocked_cells` (absolute import, module has no Django model imports → no cycle) and `from django.db.models.functions import Cast`.
+    +- Constants: `ROOM_NUMBER_RE = r"^[1-9][0-9]{2}$"`, `MAX_FLOOR = 9`.
+    +- `floor`: validators `MinValueValidator(1), MaxValueValidator(MAX_FLOOR)` (was 20).
+    +- `number`: keep `max_length=10, unique=True`; add `validators=[RegexValidator(ROOM_NUMBER_RE, "Номер аудитории: ровно три цифры, первая цифра — этаж (1–9).")]`, `help_text="Три цифры, первая — этаж: 205 — аудитория на 2 этаже."`.
+    +- New field after `number`: `map_cell = models.CharField("место на схеме", max_length=2, blank=True, default="", choices=MapCell.choices, help_text="Пусто — аудитории нет на схеме.")`.
+    +- `Meta.constraints` (replace `university_room_floor_1_20`; keep everything else):
+    +```python
+    +models.CheckConstraint(
+    +    condition=models.Q(floor__gte=1) & models.Q(floor__lte=MAX_FLOOR),
+    +    name="university_room_floor_1_9",
+    +),
+    +models.CheckConstraint(
+    +    condition=models.Q(number__regex=ROOM_NUMBER_RE),
+    +    name="university_room_number_nnn",
+    +    violation_error_message="Номер аудитории: ровно три цифры, первая цифра — этаж (1–9).",
+    +),
+    +models.CheckConstraint(
+    +    condition=models.Q(number__startswith=Cast("floor", output_field=models.CharField())),
+    +    name="university_room_floor_matches_number",
+    +    violation_error_message="Этаж должен совпадать с первой цифрой номера аудитории.",
+    +),
+    +models.CheckConstraint(
+    +    condition=models.Q(map_cell__in=["", *MapCell.values]),
+    +    name="university_room_map_cell_value",
+    +),
+    +models.UniqueConstraint(
+    +    fields=["floor", "map_cell"],
+    +    condition=~models.Q(map_cell=""),
+    +    name="university_room_unique_map_cell",
+    +    violation_error_message="Это место на схеме этажа уже занято другой аудиторией.",
+    +),
+    +```
+    +- `clean(self)` (new; after `__str__`):
+    +  1. `super().clean()`.
+    +  2. If `self.map_cell` and `isinstance(self.floor, int)` and `1 <= self.floor <= MAX_FLOOR`: `landmark = blocked_cells(self.floor).get(self.map_cell)`; if found → `raise ValidationError(f"Это место на {self.floor} этаже занято: {landmark.label}.")` (non-field).
+    +
+    +### 4.4 Migration
+    +`python manage.py makemigrations university --name room_number_format_and_map_cell` → `university/migrations/0003_room_number_format_and_map_cell.py` with: `AlterField` `floor` and `number` (validators), `AddField` `map_cell`, `RemoveConstraint university_room_floor_1_20`, five `AddConstraint`. Do not edit it by hand. It must apply on a database seeded with the current code (checked, 9.4).
+    +
+    +### 4.5 `campusmap/layout.py`
+    +All values are `int` (Django localizes floats with a comma under `ru`, which breaks SVG attributes). Use `//` for halves.
+    +```python
+    +VIEWBOX_WIDTH = 400
+    +VIEWBOX_HEIGHT = 240
+    +ROOM_LABEL_SIZE = 20       # user units, see D6
+    +LANDMARK_LABEL_SIZE = 15
+    +CELL_WIDTH = 72
+    +CELL_HEIGHT = 80
+    +COLUMN_X = {1: 12, 2: 88, 3: 164, 4: 240, 5: 316}
+    +ROW_Y = {"N": 12, "S": 148}
+    +OUTLINE = Rect(4, 4, 392, 232)
+    +CORRIDOR = Rect(12, 96, 376, 48)
+    +
+    +
+    +@dataclass(frozen=True)
+    +class Rect:
+    +    x: int
+    +    y: int
+    +    width: int
+    +    height: int
+    +
+    +    @property
+    +    def cx(self) -> int: return self.x + self.width // 2
+    +    @property
+    +    def cy(self) -> int: return self.y + self.height // 2
+    +
+    +
+    +@dataclass(frozen=True)
+    +class MapShape:
+    +    kind: str            # "room" | "landmark"
+    +    label: str           # room number or landmark label
+    +    rect: Rect
+    +    is_current: bool = False
+    +
+    +
+    +@dataclass(frozen=True)
+    +class FloorPlan:
+    +    floor: int
+    +    width: int
+    +    height: int
+    +    outline: Rect
+    +    corridor: Rect
+    +    shapes: list[MapShape]
+    +```
+    +(Define `Rect` before the constants that use it.)
+    +
+    +**`cell_rect(cell: str) -> Rect`** — `row, col = cell[0], int(cell[1:])`; `Rect(COLUMN_X[col], ROW_Y[row], CELL_WIDTH, CELL_HEIGHT)`. `KeyError`/`ValueError` for an unknown cell (callers pass only `STAIRS_CELL` and `MapCell` values).
+    +
+    +**`span_rect(cells: Sequence[str]) -> Rect`** — union of `cell_rect` of adjacent cells in one row: `x = min(x)`, `y` of the row, `width = max(x + width) - min(x)`, `height = CELL_HEIGHT`.
+    +
+    +**`floor_plan(floor: int, rooms: Sequence[Room], current: Room | None) -> FloorPlan`**
+    +1. `blocked = blocked_cells(floor)`.
+    +2. Landmark shapes: `[MapShape("landmark", lm.label, span_rect(lm.cells)) for lm in landmarks_on(floor)]`.
+    +3. Room shapes: for each `room` in `rooms` with `room.floor == floor`, `room.map_cell` non-empty and `room.map_cell not in blocked`: `MapShape("room", room.number, cell_rect(room.map_cell), is_current=current is not None and room.pk == current.pk)`. Keep the input order.
+    +4. Return `FloorPlan(floor, VIEWBOX_WIDTH, VIEWBOX_HEIGHT, OUTLINE, CORRIDOR, landmark_shapes + room_shapes)`.
+    +No queries (works on the given list).
+    +
+    +### 4.6 Views and URLs
+    +`campusmap/urls.py`:
+    +```python
+    +app_name = "campusmap"
+    +urlpatterns = [
+    +    path("map/", views.MapView.as_view(), name="map"),
+    +    path("map/floor/<int:floor>/", views.MapView.as_view(), name="floor"),
+    +    path("map/room/<slug:code>/", views.MapView.as_view(), name="room"),
+    +]
+    +```
+    +`campusmap/views.py` — `MapView(TemplateView)`, `template_name = "campusmap/map.html"`, `http_method_names = ["get"]`. No role mixin (any logged-in user; `LoginRequiredMiddleware` handles anonymous).
+    +
+    +Dataclasses in `views.py`:
+    +```python
+    +@dataclass(frozen=True)
+    +class RoomEntry:
+    +    number: str
+    +    url: str
+    +    on_map: bool
+    +    is_current: bool
+    +
+    +@dataclass(frozen=True)
+    +class FloorEntry:
+    +    number: int
+    +    url: str
+    +    is_current: bool
+    +    rooms: list[RoomEntry]
+    +```
+    +`get_context_data(**kwargs)`:
+    +1. `rooms = list(Room.objects.order_by("floor", "number"))` — the only query of the view.
+    +2. `floors = sorted({r.floor for r in rooms})`.
+    +3. `code = self.kwargs.get("code")`; `floor = self.kwargs.get("floor")`; `current = None`.
+    +   - If `code is not None`: `current = next((r for r in rooms if r.code == code), None)`; `None` → `raise Http404`; `floor = current.floor`.
+    +   - Elif `floor is not None`: `floor not in floors` → `raise Http404`.
+    +   - Else: `floor = floors[0] if floors else None`.
+    +4. `plan = floor_plan(floor, rooms, current) if floor is not None else None`.
+    +5. Room list: for each floor `f` in `floors`: `FloorEntry(f, reverse("campusmap:floor", args=[f]), f == floor, [RoomEntry(r.number, reverse("campusmap:room", args=[r.code]), bool(r.map_cell) and r.map_cell not in blocked_cells(f), current is not None and r.pk == current.pk) for r in rooms if r.floor == f])`.
+    +6. Context: `plan`, `floors` (the `FloorEntry` list), `current`.
+    +
+    +### 4.7 Templates
+    +`campusmap/map.html` (extends `base.html`, title «Карта»):
+    +```django
+    +<h1>Карта</h1>
+    +{% if not floors %}
+    +  <p>Аудиторий пока нет.</p>
+    +{% else %}
+    +  <nav class="floor-switcher" aria-label="Этажи">
+    +    <span>Этаж:</span>
+    +    <ul>
+    +      {% for f in floors %}
+    +      <li><a href="{{ f.url }}"{% if f.is_current %} class="floor-current" aria-current="page"{% endif %}>{{ f.number }}</a></li>
+    +      {% endfor %}
+    +    </ul>
+    +  </nav>
+    +  <svg class="map-svg" viewBox="0 0 {{ plan.width }} {{ plan.height }}" role="img" aria-labelledby="map-title">
+    +    <title id="map-title">Схема, {{ plan.floor }} этаж</title>
+    +    <rect class="map-outline" x="{{ plan.outline.x }}" y="{{ plan.outline.y }}" width="{{ plan.outline.width }}" height="{{ plan.outline.height }}"/>
+    +    <rect class="map-corridor" x="{{ plan.corridor.x }}" y="{{ plan.corridor.y }}" width="{{ plan.corridor.width }}" height="{{ plan.corridor.height }}"/>
+    +    {% for s in plan.shapes %}
+    +    <g class="map-{{ s.kind }}{% if s.is_current %} map-current{% endif %}"{% if s.is_current %} aria-current="location"{% endif %}>
+    +      <title>{% if s.kind == "room" %}Аудитория {{ s.label }}{% else %}{{ s.label }}{% endif %}</title>
+    +      <rect x="{{ s.rect.x }}" y="{{ s.rect.y }}" width="{{ s.rect.width }}" height="{{ s.rect.height }}"/>
+    +      <text class="map-{{ s.kind }}-label" x="{{ s.rect.cx }}" y="{{ s.rect.cy }}" text-anchor="middle" dominant-baseline="central">{{ s.label }}</text>
+    +    </g>
+    +    {% endfor %}
+    +  </svg>
+    +  <ul class="map-legend">
+    +    <li><svg class="map-legend-swatch" viewBox="0 0 24 16" aria-hidden="true"><g class="map-room"><rect x="1" y="1" width="22" height="14"/></g></svg> Аудитория</li>
+    +    <li><svg class="map-legend-swatch" viewBox="0 0 24 16" aria-hidden="true"><g class="map-landmark"><rect x="1" y="1" width="22" height="14"/></g></svg> Вход, лестница, деканат, библиотека, столовая</li>
+    +  </ul>
+    +  <h2>Все аудитории</h2>
+    +  {% for f in floors %}
+    +  <h3>{{ f.number }} этаж</h3>
+    +  <ul class="map-room-list">
+    +    {% for r in f.rooms %}
+    +    <li><a href="{{ r.url }}"{% if r.is_current %} class="map-current" aria-current="location"{% endif %}>{{ r.number }}</a>{% if not r.on_map %} — нет на схеме{% endif %}</li>
+    +    {% endfor %}
+    +  </ul>
+    +  {% endfor %}
+    +{% endif %}
+    +```
+    +No `width`/`height` attributes on `.map-svg`. Nothing above the map mentions the highlighted room.
+    +
+    +`schedule/templates/schedule/includes/lesson_item.html`, the `lesson-room` paragraph becomes:
+    +```django
+    +<p class="lesson-room">Аудитория:
+    +  {% if item.original_room %}<del class="room" data-room-code="{{ item.original_room.code }}">{{ item.original_room.number }}, {{ item.original_room.floor }} этаж</del>
+    +  <ins>{% if item.is_happening %}<a class="room" data-room-code="{{ item.room.code }}" href="{% url 'campusmap:room' item.room.code %}">{{ item.room.number }}, {{ item.room.floor }} этаж</a>{% else %}<span class="room" data-room-code="{{ item.room.code }}">{{ item.room.number }}, {{ item.room.floor }} этаж</span>{% endif %}</ins>
+    +  {% elif item.is_happening %}<a class="room" data-room-code="{{ item.room.code }}" href="{% url 'campusmap:room' item.room.code %}">{{ item.room.number }}, {{ item.room.floor }} этаж</a>
+    +  {% else %}<span class="room" data-room-code="{{ item.room.code }}">{{ item.room.number }}, {{ item.room.floor }} этаж</span>{% endif %}
+    +</p>
+    +```
+    +`item.room` is already loaded by `schedule/services.py` (the template already renders `item.room.code`), so the links add no queries. The deleted original room is never a link.
+    +
+    +`templates/base.html`: student branch, after «Расписание»: `<li><a href="{% url 'campusmap:map' %}">Карта</a></li>`; staff branch, after «Расписание»: the same item.
+    +
+    +### 4.8 CSS
+    +`static/css/tokens.css`: add `--color-map-highlight: #c00000;` to the existing `:root` block.
+    +`static/css/base.css` append:
+    +```css
+    +.map-svg {
+    +  display: block;
+    +  width: 100%;
+    +  height: auto;
+    +  margin: var(--space-2) 0;
+    +}
+    +
+    +.map-outline,
+    +.map-room rect,
+    +.map-landmark rect,
+    +.map-corridor {
+    +  fill: none;
+    +  stroke: var(--color-text);
+    +  stroke-width: 2;
+    +}
+    +
+    +.map-corridor {
+    +  stroke: var(--color-border);
+    +}
+    +
+    +.map-landmark rect {
+    +  stroke: var(--color-muted);
+    +  stroke-dasharray: 6 4;
+    +}
+    +
+    +.map-room-label {
+    +  font-size: 20px;
+    +  fill: var(--color-text);
+    +}
+    +
+    +.map-landmark-label {
+    +  font-size: 15px;
+    +  fill: var(--color-muted);
+    +}
+    +
+    +/* Highlighted room: one class, restyle in the UI stage. */
+    +.map-current .map-room-label {
+    +  fill: var(--color-map-highlight);
+    +}
+    +
+    +a.map-current {
+    +  color: var(--color-map-highlight);
+    +}
+    +
+    +.floor-switcher ul,
+    +.map-legend,
+    +.map-room-list {
+    +  list-style: none;
+    +  margin: 0;
+    +  padding: 0;
+    +}
+    +
+    +.floor-switcher ul {
+    +  display: inline-flex;
+    +  flex-wrap: wrap;
+    +  gap: var(--space-2);
+    +}
+    +
+    +.floor-switcher a {
+    +  display: inline-block;
+    +  min-width: 2.75rem;
+    +  min-height: 2.75rem;
+    +  line-height: 2.75rem;
+    +  text-align: center;
+    +}
+    +
+    +.floor-current {
+    +  font-weight: bold;
+    +}
+    +
+    +.map-legend-swatch {
+    +  width: 1.5rem;
+    +  height: 1rem;
+    +  vertical-align: middle;
+    +}
+    +```
+    +(SVG `font-size` in px inside a `viewBox` is in user units and scales with the drawing.)
+    +
+    +### 4.9 Seed — `schedule/demo.py`
+    +- `RoomSeed` gets `map_cell: str`. Values: `room-101` N2, `room-114` N4, `room-205` N3, `room-212` S4, `room-308` N2, `room-315` N5, `room-402` N3 (none on a landmark cell; checked against D3).
+    +- Replace the `update_or_create` loop:
+    +```python
+    +room = Room.objects.filter(code=seed.code).first() or Room(code=seed.code)
+    +room.floor, room.number, room.map_cell = seed.floor, seed.number, seed.map_cell
+    +room.full_clean()
+    +room.save()
+    +rooms[seed.code] = room
+    +```
+    +A conflict with an admin-made room (same number or cell) raises `ValidationError`, which `seed_demo` already turns into «Demo data conflicts with existing data: …» (no traceback). Summary line unchanged.
+    +
+    +### 4.10 Test helper — `schedule/tests/helpers.py`
+    +`make_room(code: str, floor: int | None = None) -> Room`: `number = code.removeprefix("room-")`; `if floor is None: floor = int(number[0])`. This makes the existing calls `make_room("room-202")`, `make_room("room-303")`, `make_room("room-700")` valid (they used floor 1 by default). Calls with an explicit consistent floor (`room-205`, 2; `room-999`, 9) are unchanged.
+    +
+    +### 4.11 README
+    +- `## Map` (after `## Notifications`): URLs, grid and landmarks (D3), how to place a room in the admin («Место на схеме»), room-number rule (NNN, first digit = floor), highlight class `map-current`.
+    +- Known limitations: «The map has one building and a fixed grid of 9 room places per floor; landmarks are defined in code (`university/building.py`).»
+    +
+    +---
+    +
+    +## 5. Functions and their tests (summary)
+    +| Function | Tests |
+    +|---|---|
+    +| `building.landmarks_on`, `blocked_cells` | `university/tests/test_building.py::BuildingTests` |
+    +| `Room` validators, constraints, `clean` | `university/tests/test_models.py::RoomNumberTests`, `RoomMapCellTests`; `university/tests/test_admin.py::RoomAdminTests` |
+    +| `layout.cell_rect`, `span_rect`, `floor_plan` | `campusmap/tests/test_layout.py::LayoutTests` |
+    +| `MapView` | `campusmap/tests/test_views.py::*` |
+    +| `lesson_item.html` links | `schedule/tests/test_views.py::RoomLinkTests` |
+    +| seed rooms | `schedule/tests/test_demo.py` (new methods) |
+    +
+    +---
+    +
+    +## 6. Test plan
+    +
+    +### 6.0 Rules
+    +- Test data via helpers (`schedule/tests/helpers.py`, `accounts/tests/helpers.py`); rooms via `make_room` or `Room(...)` + `full_clean()`; never seed data except in `test_demo.py`.
+    +- View tests that touch the schedule use `FrozenClockMixin` (default `frozen_now` is fine; the lesson dates must match it). Map tests are clock-independent (no `FrozenClockMixin` needed).
+    +- Save full test output to files; report every failed run by test name, Moscow time and traceback excerpt.
+    +
+    +### 6.1 Traceability
+    +| AC | Tests |
+    +|---|---|
+    +| AC1 | `campusmap/tests/test_views.py::MapViewTests::*`; `makemigrations --check` |
+    +| AC2 | `university/tests/test_models.py::RoomNumberTests::*`, `university/tests/test_admin.py::RoomAdminTests::test_mismatch_shows_error`, `test_bad_number_shows_field_error`; `schedule/tests/test_demo.py::…::test_demo_rooms_valid_and_placed` |
+    +| AC3 | `RoomMapCellTests::*`, `RoomAdminTests::test_landmark_cell_shows_error`, `test_valid_room_saved` |
+    +| AC4 | `MapViewTests::test_default_floor_is_lowest`, `test_switcher_lists_only_floors_with_rooms`, `test_current_floor_marked`, `test_floor_without_rooms_404`, `test_non_numeric_floor_404` |
+    +| AC5 | `BuildingTests::*`, `MapViewTests::test_landmarks_per_floor`, `test_legend_present` |
+    +| AC6 | `MapViewTests::test_room_opens_its_floor_and_is_highlighted`, `test_highlight_has_accessible_name`, `test_unknown_room_404`, `test_query_string_not_rendered`, `core/tests/test_css.py::…::test_map_highlight_rule` |
+    +| AC7 | `MapViewTests::test_room_without_cell_listed_and_floor_opens` |
+    +| AC8 | `schedule/tests/test_views.py::RoomLinkTests::*` |
+    +| AC9 | `MapAccessTests::*`, `MapNavTests::*`, `MapViewTests::test_no_personal_data` |
+    +| AC10 | `MapViewTests::test_svg_scales`, `LayoutTests::test_labels_fit`, `test_label_sizes` |
+    +| AC11 | `MapQueryTests::*`, `RoomLinkTests::test_week_query_count_unchanged_by_links` |
+    +| AC12 | `schedule/tests/test_demo.py::…::test_demo_rooms_valid_and_placed`, `test_seed_twice_keeps_cells` |
+    +
+    +### 6.2 Access matrix (`campusmap/tests/test_views.py::MapAccessTests`)
+    +The map has no owner and no personal data, so "own / another student's data" and "own / other faculty" do not apply; every logged-in role gets the same page.
+    +| Actor | `/map/` | `/map/floor/2/` | `/map/room/room-205/` | Test |
+    +|---|---|---|---|---|
+    +| anonymous | 302 `/login/?next=…` | 302 | 302 | `test_anonymous_redirected` (all three URLs) |
+    +| student | 200 | 200 | 200 | `test_student_ok` |
+    +| student without profile | 200 | 200 | 200 | `test_student_without_profile_ok` |
+    +| staff | 200 | 200 | 200 | `test_staff_ok` |
+    +| superuser | 200 | 200 | 200 | `test_superuser_ok` |
+    +| student POST `/map/` | 405 | | | `test_post_not_allowed` |
+    +
+    +### 6.3 Behaviour and edge cases
+    +`university/tests/test_models.py`:
+    +- `RoomNumberTests`:
+    +  - `test_valid_numbers` («101» floor 1, «999» floor 9 pass `full_clean`)
+    +  - `test_bad_number_is_field_error` (for «15», «1015», «a05», «012», «2a5», «20 5»: `"number" in message_dict`; the mismatch message is NOT in `message_dict.get("__all__", [])`)
+    +  - `test_floor_out_of_range_is_field_error` (0 and 10 → `"floor"` error)
+    +  - `test_floor_must_match_first_digit` («205» floor 3 → `__all__` == ["Этаж должен совпадать с первой цифрой номера аудитории."])
+    +  - `test_db_rejects_bad_number`, `test_db_rejects_mismatch`, `test_db_rejects_floor_10` (`objects.create` inside `transaction.atomic()` → `IntegrityError`)
+    +- `RoomMapCellTests`:
+    +  - `test_landmark_cell_rejected` (floor 1, `S3` → `__all__` message contains «Вход»; floor 2, `S1` → «Деканат»; floor 3, `S5` → «Библиотека»)
+    +  - `test_same_landmark_cell_free_on_other_floor` (floor 4, `S3` passes)
+    +  - `test_same_cell_same_floor_rejected` (`full_clean` message «Это место на схеме этажа уже занято…»; DB `IntegrityError`)
+    +  - `test_same_cell_other_floor_ok`, `test_many_rooms_without_cell_ok`
+    +  - `test_db_rejects_unknown_cell` (`map_cell="N1"` via `objects.create` → `IntegrityError`; `N1` is not a choice)
+    +- Existing `test_room_code_validator`: change numbers to «199»/«198» with floor 1 (the test checks the code validator only). Existing `test_room_floor_out_of_range_rejected` keeps passing (floor 0, «000»).
+    +
+    +`university/tests/test_building.py::BuildingTests`: `test_stairs_on_every_floor` (1–9), `test_floor_landmarks` (exact keys per floor 1, 2, 3, 4), `test_blocked_cells` (floor 1 → {N1, S3, S4, S5}), `test_choices_exclude_stairs`, `test_landmark_cells_adjacent_same_row`.
+    +
+    +`university/tests/test_admin.py::RoomAdminTests` (superuser client, `admin:university_room_add`): `test_valid_room_saved` (302), `test_bad_number_shows_field_error` (200, message), `test_mismatch_shows_error` (200, mismatch message), `test_landmark_cell_shows_error` (200, «занято: Вход»), `test_duplicate_cell_shows_error` (200).
+    +
+    +`campusmap/tests/test_layout.py::LayoutTests`:
+    +- `test_cells_inside_viewbox_and_disjoint` (all `MapCell` values + `STAIRS_CELL` and every landmark `span_rect`: inside `OUTLINE`; room cells pairwise disjoint; none overlaps `CORRIDOR`)
+    +- `test_coordinates_are_integers` (every `Rect` field and `cx`/`cy` is `int`)
+    +- `test_labels_fit` (`3 * 0.6 * ROOM_LABEL_SIZE <= CELL_WIDTH`; for every landmark `len(label) * 0.6 * LANDMARK_LABEL_SIZE <= span width`)
+    +- `test_label_sizes` (`ROOM_LABEL_SIZE * 328 / VIEWBOX_WIDTH >= 16`, `LANDMARK_LABEL_SIZE * 328 / VIEWBOX_WIDTH >= 12`)
+    +- `test_floor_plan_marks_current` (exactly one shape `is_current`)
+    +- `test_room_without_cell_not_drawn`, `test_room_on_blocked_cell_not_drawn` (built with `Room(...)` objects in memory, no save), `test_other_floor_rooms_not_drawn`
+    +
+    +`campusmap/tests/test_views.py` (rooms: `101` N2, `114` none, `205` N3, `402` N3 unless stated):
+    +- `MapViewTests`:
+    +  - `test_default_floor_is_lowest` (`/map/` → `<title id="map-title">Схема, 1 этаж</title>`)
+    +  - `test_switcher_lists_only_floors_with_rooms` (floors 1, 2, 4 linked; no `/map/floor/3/` link)
+    +  - `test_current_floor_marked` (`aria-current="page"` exactly once, on floor 2 for `/map/floor/2/`)
+    +  - `test_floor_without_rooms_404` (`/map/floor/3/`, `/map/floor/0/`, `/map/floor/10/`)
+    +  - `test_non_numeric_floor_404` (`/map/floor/abc/`, `/map/floor/-1/`)
+    +  - `test_room_opens_its_floor_and_is_highlighted` (`/map/room/room-402/` → floor 4 title; exactly one `map-current` inside the `<svg class="map-svg"` … `</svg>` part; the list link of 402 has `class="map-current"`; no other room has it)
+    +  - `test_highlight_has_accessible_name` (`aria-current="location"` on the group and `<title>Аудитория 402</title>`)
+    +  - `test_unknown_room_404` (`/map/room/room-404/`, `/map/room/ROOM-101/`)
+    +  - `test_room_without_cell_listed_and_floor_opens` («114</a> — нет на схеме» in the list; `/map/room/room-114/` → 200, floor 1, no `map-current` inside the SVG, list link marked)
+    +  - `test_landmarks_per_floor` (floor 1: «Вход», «Столовая», «Лестница»; floor 2: «Деканат»; floor 4: «Лестница» only of the landmark labels)
+    +  - `test_legend_present`, `test_room_list_grouped_by_floor` (h3 «1 этаж», «2 этаж», «4 этаж»; each room links to `/map/room/<code>/`)
+    +  - `test_no_rooms_empty_state` («Аудиторий пока нет.»)
+    +  - `test_query_string_not_rendered` (`/map/?floor=<script>x</script>&room=room-205` → 200, floor 1 shown, `<script>x` and `room-205` highlight absent)
+    +  - `test_svg_scales` (`viewBox="0 0 400 240"`; the `<svg class="map-svg" …>` start tag has no ` width=` / ` height=`)
+    +  - `test_no_personal_data` (create a student; his last name and username do not appear on `/map/`)
+    +- `MapQueryTests`: `test_quer
+    …[8,403 more characters truncated]
+  ── Thought for 604ms
+    I'm treating the 762 test count as a guess rather than a fact, so I need the real number from the baseline run. I'll wait for the background job to finish before relying on it.
+  ── Thought
+    Спецификация TASK-008 готова; дальше запишу результаты базового прогона тестов и передам задачу Кодеру.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/b2lu337b9.output; until grep -q "^DONE" "$F"; do sleep 10; done; grep -v " ready:" "$F"; grep "Notifications ready" "$F" (23m 9s)
+    $ F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/b2lu337b9.output; until grep -q "^DONE" "$F"; do sleep 10; done; grep -v " ready:" "$F"; grep "Notifications ready" "$F"
+    Command did not complete within its 600s timeout and was moved to the background (ID: bdzimmg1r). Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bdzimmg1r.output. You will be notified when it completes. If it is still running after 30m in the background, it will be stopped and you will be notified. It is running now: do not start a second copy while it runs. If it is no longer needed, stop it with TaskStop. No output had been read from it when it was moved. A program that buffers its output, or a pipe into one such as tail, can keep the output file empty until the command finishes. To check interim output, use Read on that file path.
+  ── Thought for 5ms
+    The baseline background job hit its 20-minute timeout and was killed. I need to see how much of it actually finished before deciding what to do next.
+
+── Explored 1 search ───────────────────────────────────────
+  ── Searched for  ready: in /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/b2lu337b9.output
+  ── Thought for 4ms
+    I think the run_tests_at test at 23:59:59 hung rather than failed: the log stopped at 16:36:40 and the process was killed around 16:52. I need to work out which test was stuck under the frozen clock. I also need to check whether the bdzimmg1r waiter is still running, since it loops forever when DONE never appears, so I should stop it with TaskStop.
+
+    I still need to load the TaskStop tool, since it's deferred, before I can stop that waiter.
+
+── Ran 1 tool ──────────────────────────────────────────────
+  ── Stopped task
+    {"message":"Successfully stopped task: bdzimmg1r (F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/b2lu337b9.output; until grep -q \"^DONE\" \"$F\"; do sleep 10; done; grep -v \" ready:\" \"$F\"; grep \"Notifications ready\" \"$F\")","task_id":"bdzimmg1r","task_type":"local_bash","command":"F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/b2lu337b9.output; until grep -q \"^DONE\" \"$F\"; do sleep 10; done; grep -v \" ready:\" \"$F\"; grep \"Notifications ready\" \"$F\""}
+  ── Thought for 5s
+    I'm checking whether the run at bf09738 actually hung or was just cut off by the 20-minute background timeout. The last log line is at 16:36:40 and the kill happened around 16:52, so I'm lining up the timeline against the earlier passing baseline.
+
+    I'm suspecting a hang rather than a timeout, since the log stopped growing about two minutes into the run and stayed silent for the next sixteen. Some test may be looping on the frozen clock, so I'm going to rerun with verbosity 2 under a faulthandler watchdog to catch the stack where it stalls.
+  ── Thought for 8ms
+    Базовый прогон `run_tests_at.py` на текущем коде завис, и лог перестал расти примерно через 2 минуты, так что процесс остановлен через 20 минут. Теперь ищу тест, на котором он застрял.
+
+── Ran 3 commands ──────────────────────────────────────────
+  ── Ran mkdir -p "$TMPDIR/hang" && cat > "$TMPDIR/hang/run_at_dump.py" <<'EOF' """Like scripts/run_tests_at.py, but verbosity 2 and a traceback dump on hang.""" import faulthandler, os, sys from datetime import datetime from unittest import mock from zoneinfo import ZoneInfo sys.path.insert(0, os.getcwd()) os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings") when = datetime.fromisoformat(sys.argv[1]).replace(tzinfo=ZoneInfo("Europe/Moscow")) mock.patch("django.utils.timezone.now", return_value=when).start() faulthandler.dump_traceback_later(int(sys.argv[2]), exit=True) import django from django.conf import settings from django.test.utils import get_runner django.setup() sys.exit(1 if get_runner(settings)(verbosity=2).run_tests(sys.argv[3:]) else 0) EOF echo ok
+    $ mkdir -p "$TMPDIR/hang" && cat > "$TMPDIR/hang/run_at_dump.py" <<'EOF'
+  """Like scripts/run_tests_at.py, but verbosity 2 and a traceback dump on hang."""
+  import faulthandler, os, sys
+  from datetime import datetime
+  from unittest import mock
+  from zoneinfo import ZoneInfo
+  sys.path.insert(0, os.getcwd())
+  os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
+  when = datetime.fromisoformat(sys.argv[1]).replace(tzinfo=ZoneInfo("Europe/Moscow"))
+  mock.patch("django.utils.timezone.now", return_value=when).start()
+  faulthandler.dump_traceback_later(int(sys.argv[2]), exit=True)
+  import django
+  from django.conf import settings
+  from django.test.utils import get_runner
+  django.setup()
+  sys.exit(1 if get_runner(settings)(verbosity=2).run_tests(sys.argv[3:]) else 0)
+  EOF
+  echo ok
+    ok
+  ── Ran source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "MSK $TS" && python "$TMPDIR/hang/run_at_dump.py" 2026-11-17T23:59:59 420 > "$TMPDIR/test-$TS-t008-hang-diag.log" 2>&1; echo "exit $?"; grep -E "^Ran|^OK|^FAILED" "$TMPDIR/test-$TS-t008-hang-diag.log"; grep -n "Timeout\|Thread\|File \"~/hackatonproject" "$TMPDIR/test-$TS-t008-hang-diag.log" | grep -v ".venv" | head -30; grep -E " \.\.\. $| \.\.\.$" "$TMPDIR/test-$TS-t008-hang-diag.log" | tail -3 (5m 57s)
+    $ source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "MSK $TS" && python "$TMPDIR/hang/run_at_dump.py" 2026-11-17T23:59:59 420 > "$TMPDIR/test-$TS-t008-hang-diag.log" 2>&1; echo "exit $?"; grep -E "^Ran|^OK|^FAILED" "$TMPDIR/test-$TS-t008-hang-diag.log"; grep -n "Timeout\|Thread\|File \"~/hackatonproject" "$TMPDIR/test-$TS-t008-hang-diag.log" | grep -v ".venv" | head -30; grep -E " \.\.\. $| \.\.\.$" "$TMPDIR/test-$TS-t008-hang-diag.log" | tail -3
+    MSK 20261115-170000
+    exit 0
+    Ran 748 tests in 120.042s
+    OK
+    162:  File "~/hackatonproject/accounts/access.py", line 40, in dispatch
+    165:  File "~/hackatonproject/accounts/access.py", line 28, in get_profile_for_role
+    179:  File "~/hackatonproject/accounts/access.py", line 40, in dispatch
+    182:  File "~/hackatonproject/accounts/access.py", line 28, in get_profile_for_role
+    197:  File "~/hackatonproject/accounts/access.py", line 40, in dispatch
+    200:  File "~/hackatonproject/accounts/access.py", line 28, in get_profile_for_role
+    223:  File "~/hackatonproject/accounts/access.py", line 40, in dispatch
+    226:  File "~/hackatonproject/accounts/access.py", line 28, in get_profile_for_role
+    242:  File "~/hackatonproject/accounts/access.py", line 40, in dispatch
+    245:  File "~/hackatonproject/accounts/access.py", line 28, in get_profile_for_role
+    260:  File "~/hackatonproject/accounts/access.py", line 40, in dispatch
+    263:  File "~/hackatonproject/accounts/access.py", line 28, in get_profile_for_role
+    281:  File "~/hackatonproject/accounts/access.py", line 40, in dispatch
+    284:  File "~/hackatonproject/accounts/access.py", line 28, in get_profile_for_role
+    299:  File "~/hackatonproject/accounts/access.py", line 40, in dispatch
+    302:  File "~/hackatonproject/accounts/access.py", line 28, in get_profile_for_role
+    317:  File "~/hackatonproject/accounts/access.py", line 40, in dispatch
+    320:  File "~/hackatonproject/accounts/access.py", line 28, in get_profile_for_role
+    335:  File "~/hackatonproject/accounts/access.py", line 40, in dispatch
+    338:  File "~/hackatonproject/accounts/access.py", line 28, in get_profile_for_role
+    455:  File "~/hackatonproject/accounts/access.py", line 40, in dispatch
+    458:  File "~/hackatonproject/accounts/access.py", line 28, in get_profile_for_role
+    472:  File "~/hackatonproject/accounts/access.py", line 40, in dispatch
+    475:  File "~/hackatonproject/accounts/access.py", line 28, in get_profile_for_role
+    489:  File "~/hackatonproject/accounts/access.py", line 40, in dispatch
+    492:  File "~/hackatonproject/accounts/access.py", line 28, in get_profile_for_role
+    508:  File "~/hackatonproject/accounts/access.py", line 40, in dispatch
+    511:  File "~/hackatonproject/accounts/access.py", line 28, in get_profile_for_role
+    657:  File "~/hackatonproject/accounts/access.py", line 40, in dispatch
+    660:  File "~/hackatonproject/accounts/access.py", line 28, in get_profile_for_role
+  ── Thought for 4s
+    This time the test passed in 120 seconds, and the tracebacks are just normal logged 403s, so the hang seems intermittent. I'm wondering whether the earlier run was a real hang or something like sandbox or system sleep. The last log line was at 16:36:40 followed by dots, and the output stopped at "........" without a "Ran" line, so I'm checking whether the run was nearly finished or whether output buffering through tee is hiding the real state.
+
+    I'm figuring out where the stall happened: the output cut off mid-run with no summary line, and the log timestamps look like they're in a different timezone. A hang counts as a failure under the protocol, so I need to report it, and since verbosity was 1 I can't name the test directly. Instead I'll count the progress characters in the hung log and map that position onto the verbose run's test order.
+  ── Ran cd "$TMPDIR" && H=test-20261115-163235-t008-feas-at-2359.log; V=test-20261115-170000-t008-hang-diag.log; python3 - "$H" "$V" <<'EOF' import re, sys h = open(sys.argv[1], encoding="utf-8", errors="replace").read() # progress chars: lines/segments made of . s E F x u, ignore log lines prog = "".join(re.findall(r"(?m)^([.sEFxu]+)", h)) + "".join(re.findall(r"\n?([.sEFxu]+)(?=\d{4}-\d{2}-\d{2} )", h)) # simpler: strip all lines that start with a timestamp or are tracebacks, count status chars at line starts chars = 0 for line in h.splitlines():     m = re.match(r"^([.sEFxu]+)", line)     if m: chars += len(m.group(1)) print("progress chars in hung log:", chars, "E/F present:", "E" in "".join(re.findall(r"(?m)^([.sEFxu]+)", h)) ) v = open(sys.argv[2], encoding="utf-8", errors="replace").read() tests = re.findall(r"(?m)^(test_\w+) \(([\w.]+)\)", v) print("verbose tests:", len(tests)) for i in range(max(0, chars-3), min(len(tests), chars+3)):     print(i, tests[i][1], tests[i][0]) EOF
+    $ cd "$TMPDIR" && H=test-20261115-163235-t008-feas-at-2359.log; V=test-20261115-170000-t008-hang-diag.log; python3 - "$H" "$V" <<'EOF'
+  import re, sys
+  h = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+  # progress chars: lines/segments made of . s E F x u, ignore log lines
+  prog = "".join(re.findall(r"(?m)^([.sEFxu]+)", h)) + "".join(re.findall(r"\n?([.sEFxu]+)(?=\d{4}-\d{2}-\d{2} )", h))
+  # simpler: strip all lines that start with a timestamp or are tracebacks, count status chars at line starts
+  chars = 0
+  for line in h.splitlines():
+      m = re.match(r"^([.sEFxu]+)", line)
+      if m: chars += len(m.group(1))
+  print("progress chars in hung log:", chars, "E/F present:", "E" in "".join(re.findall(r"(?m)^([.sEFxu]+)", h)) )
+  v = open(sys.argv[2], encoding="utf-8", errors="replace").read()
+  tests = re.findall(r"(?m)^(test_\w+) \(([\w.]+)\)", v)
+  print("verbose tests:", len(tests))
+  for i in range(max(0, chars-3), min(len(tests), chars+3)):
+      print(i, tests[i][1], tests[i][0])
+  EOF
+    progress chars in hung log: 557 E/F present: False
+    verbose tests: 747
+    554 schedule.tests.test_demo.ScheduleDemoTests.test_rerun_later_refreshes_changes test_rerun_later_refreshes_changes
+    555 schedule.tests.test_demo.ScheduleDemoTests.test_rerun_months_later_refreshes_changes test_rerun_months_later_refreshes_changes
+    556 schedule.tests.test_demo.ScheduleDemoTests.test_seeded_schedule_has_no_conflicts test_seeded_schedule_has_no_conflicts
+    557 schedule.tests.test_demo_marker.DemoMarkerTests.test_admin_change_survives_reseed test_admin_change_survives_reseed
+    558 schedule.tests.test_demo_marker.DemoMarkerTests.test_admin_lesson_with_same_old_key_survives_reseed test_admin_lesson_with_same_old_key_survives_reseed
+    559 schedule.tests.test_demo_marker.DemoMarkerTests.test_data_migration_marks_legacy_rows test_data_migration_marks_legacy_rows
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 3s
+    I'm checking the counting method: dots that open a log line are counted by my regex, but dots after a message on the same line could still be split across lines. The verbose list also came out at 747 instead of 748, which points to one missed match. Next I need to work out the order of the verbosity 1 and 2 runs.
+
+    So the stall is probably around test 557 or 558, which would be `test_admin_change_survives_reseed` or one of its neighbors, though the count could be off by a couple. `test_demo_marker` includes a migration-based test, but SQLite's lock timeout is only about 5 seconds, so a 16-minute hang doesn't fit that explanation. I want to see how `DemoMarkerTests` is set up, in particular whether it uses a `TransactionTestCase` that calls migrate.
+
+── Explored 1 search ───────────────────────────────────────
+  ── Searched for class \|def test_\|Transaction\|call_command\|Executor\|migrate in schedule/tests/test_demo_marker.py
+  ── Thought for 1s
+    I'm thinking about the order Django's runner uses, with TestCase classes coming before TransactionTestCase ones, though I can't pin down the exact position. To narrow down which tests produced the stalled log, I'm checking the warning lines just before the hang, like the "Not Found" and CSRF "Forbidden" messages, and guessing they come from the petitions tests.
+
+    I'm working out how far the petitions tests got before the stall: the CSRF test is alphabetically before the schedule tests, so at 16:36:40 petitions was still running, followed by about 73 more dots. Next I want the index of that CSRF test in the verbose log, then a count of the progress characters after the last log line.
+
+── Ran 5 commands ──────────────────────────────────────────
+  ── Ran cd "$TMPDIR" && H=test-20261115-163235-t008-feas-at-2359.log; V=test-20261115-170000-t008-hang-diag.log; tail -c 200 $H | cat -A | tail -3; echo; grep -n "CSRF cookie not set.): /requests/new/1/" $V | head; grep -n "submitted/$" $V | tail -2
+    $ cd "$TMPDIR" && H=test-20261115-163235-t008-feas-at-2359.log; V=test-20261115-170000-t008-hang-diag.log; tail -c 200 $H | cat -A | tail -3; echo; grep -n "CSRF cookie not set.): /requests/new/1/" $V | head; grep -n "submitted/$" $V | tail -2
+    cat: illegal option -- A
+    usage: cat [-belnstuv] [file ...]
+
+    1073:test_csrf_enforced (petitions.tests.test_views.FormTests.test_csrf_enforced) ... 2026-11-15 17:01:29,802 WARNING django.security.csrf Forbidden (CSRF cookie not set.): /requests/new/1/
+    1071:test_submitted_page_other_student_404 (petitions.tests.test_views.AccessMatrixTests.test_submitted_page_other_student_404) ... 2026-11-15 17:01:29,794 WARNING django.request Not Found: /requests/89bae68d-749f-4678-a92c-de68fc61aaf2/submitted/
+    Shell cwd was reset to ~/hackatonproject
+  ── Ran cd "$TMPDIR" && H=test-20261115-163235-t008-feas-at-2359.log; V=test-20261115-170000-t008-hang-diag.log; python3 - "$H" "$V" <<'EOF' import re, sys h = open(sys.argv[1], encoding="utf-8", errors="replace").read() anchor = h.rfind("Forbidden (CSRF cookie not set.): /requests/new/1/") after = h[anchor:].split("\n", 1)[1] n_after = len(re.findall(r"[.sEFxu]", after.strip())) print("progress chars after csrf anchor:", n_after, repr(after[-80:])) v = open(sys.argv[2], encoding="utf-8", errors="replace").read().splitlines() idx = [i for i, l in enumerate(v) if re.match(r"^test_\w+ \(", l)] pos = next(k for k, i in enumerate(idx) if "test_csrf_enforced (petitions.tests.test_views.FormTests" in v[i]) for k in range(pos + n_after - 1, pos + n_after + 3):     print(k - pos, v[idx[k]][:140]) EOF
+    $ cd "$TMPDIR" && H=test-20261115-163235-t008-feas-at-2359.log; V=test-20261115-170000-t008-hang-diag.log; python3 - "$H" "$V" <<'EOF'
+  import re, sys
+  h = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+  anchor = h.rfind("Forbidden (CSRF cookie not set.): /requests/new/1/")
+  after = h[anchor:].split("\n", 1)[1]
+  n_after = len(re.findall(r"[.sEFxu]", after.strip()))
+  print("progress chars after csrf anchor:", n_after, repr(after[-80:]))
+  v = open(sys.argv[2], encoding="utf-8", errors="replace").read().splitlines()
+  idx = [i for i, l in enumerate(v) if re.match(r"^test_\w+ \(", l)]
+  pos = next(k for k, i in enumerate(idx) if "test_csrf_enforced (petitions.tests.test_views.FormTests" in v[i])
+  for k in range(pos + n_after - 1, pos + n_after + 3):
+      print(k - pos, v[idx[k]][:140])
+  EOF
+    progress chars after csrf anchor: 73 '.........................................................................'
+    72 test_rerun_months_later_refreshes_changes (schedule.tests.test_demo.ScheduleDemoTests.test_rerun_months_later_refreshes_changes) ... ok
+    73 test_seeded_schedule_has_no_conflicts (schedule.tests.test_demo.ScheduleDemoTests.test_seeded_schedule_has_no_conflicts) ... ok
+    74 test_admin_change_survives_reseed (schedule.tests.test_demo_marker.DemoMarkerTests.test_admin_change_survives_reseed) ... ok
+    75 test_admin_lesson_with_same_old_key_survives_reseed (schedule.tests.test_demo_marker.DemoMarkerTests.test_admin_lesson_with_same_old_key_sur
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 6s
+    I'm counting the dots after the anchor line: 73 of them, and the csrf test's own dot is part of that count. So the tests finished through k=72, and the run stalled on the next one, `schedule.tests.test_demo.ScheduleDemoTests.test_seeded_schedule_has_no_conflicts`.
+
+    I'm weighing whether this was a real hang or the laptop sleeping during the 16-minute gap, since the outer timer may still have counted wall-clock time. The rerun of the diagnosis passed in 120 seconds, so I'm planning to loop the suspect test class a few times at that clock time to see if I can reproduce it.
+  ── Thought for 4ms
+    Один прогон завис, а повторный прошёл за 120 с; в логе зависание указывает на `test_seeded_schedule_has_no_conflicts`, поэтому сейчас гоняю этот модуль несколько раз, чтобы воспроизвести.
+  ── Ran source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && for i in 1 2 3 4 5 6; do s=$(date +%s); python "$TMPDIR/hang/run_at_dump.py" 2026-11-17T23:59:59 120 schedule.tests.test_demo schedule.tests.test_demo_marker > "$TMPDIR/test-$TS-t008-repro-$i.log" 2>&1; echo "run $i exit $? $(( $(date +%s) - s ))s $(grep -E '^Ran' $TMPDIR/test-$TS-t008-repro-$i.log)"; done; grep -l "Timeout" $TMPDIR/test-$TS-t008-repro-*.log (3m 56s)
+    $ source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && for i in 1 2 3 4 5 6; do s=$(date +%s); python "$TMPDIR/hang/run_at_dump.py" 2026-11-17T23:59:59 120 schedule.tests.test_demo schedule.tests.test_demo_marker > "$TMPDIR/test-$TS-t008-repro-$i.log" 2>&1; echo "run $i exit $? $(( $(date +%s) - s ))s $(grep -E '^Ran' $TMPDIR/test-$TS-t008-repro-$i.log)"; done; grep -l "Timeout" $TMPDIR/test-$TS-t008-repro-*.log
+    run 1 exit 0 28s Ran 13 tests in 26.778s
+    run 2 exit 0 27s Ran 13 tests in 26.737s
+    run 3 exit 0 96s Ran 13 tests in 27.574s
+    run 4 exit 0 29s Ran 13 tests in 27.601s
+    run 5 exit 0 28s Ran 13 tests in 26.838s
+    run 6 exit 0 28s Ran 13 tests in 26.910s
+  ── Thought for 3s
+    Run 3 took 96 seconds, but the tests themselves only accounted for 27.5 seconds, leaving about 68 seconds unexplained, possibly startup or teardown, or the process being paused. That points toward an environment-level stall rather than anything in the test code, though I can't confirm it. I'll report the facts to the lead: the hang at that point, my estimate of which test it was, and that the rerun passed.
+
+    I'm checking that the six repeats all passed, with one showing a 68-second pause outside test execution, and I'll note that in the spec under 9a. Since the rerun passed, this doesn't block the hand-off, though the verification still needs to run on the current tree. I'll send the lead a short REPORT message, then run the remaining baseline steps: the 00:00 run, the deploy check, ruff, yaml, and seeding twice.
+  ── Ran source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "MSK $TS" && python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t008-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t008-feas-at-2359-rerun.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t008/seed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t008/seed-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t008/seed.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1 (4m 5s)
+    $ source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "MSK $TS" && python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t008-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t008-feas-at-2359-rerun.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t008/seed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t008/seed-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t008/seed.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1
+    MSK 20261115-171049
+    Ran 748 tests in 118.687s
+    OK
+    Ran 748 tests in 118.276s
+    OK
+    System check identified no issues (1 silenced).
+    All checks passed!
+    149 files already formatted
+    yaml ok
+    Notifications ready: 9 announcements.
+    Notifications ready: 0 announcements.
+  ── Thought for 6ms
+    I'm filling in section 9a of the spec and correcting the test count to 748. I'll also add a note about the stalled run, then send the REPORT to the lead and the TASK to the coder.
+  ── Ran python3 - <<'EOF' p="docs/tasks/TASK-008.md"; s=open(p,encoding="utf-8").read() a="### 9a. Verification results on the current tree\n(filled in below after the runs)\n" b="""### 9a. Verification results on the current tree - `check` → no issues; `makemigrations --check --dry-run` → «No changes detected». - `test` → `Ran 748 tests … OK` (`$TMPDIR/test-20261115-163235-t008-feas.log`). - **Failed run (stall):** `run_tests_at.py 2026-11-17T23:59:59` started 2026-11-15 16:34 MSK stopped printing at 16:36:40 MSK and was killed by the 20-minute limit at about 16:52 MSK (`$TMPDIR/test-20261115-163235-t008-feas-at-2359.log`, no traceback, no `E`/`F`). By the progress count after the last log line, the test running at the stall was `schedule.tests.test_demo.ScheduleDemoTests.test_seeded_schedule_has_no_conflicts` (±1 test: the previous one is `test_rerun_months_later_refreshes_changes`). Re-runs: the full suite at 23:59:59 with a traceback-dump watchdog (17:00 MSK) → 748 OK in 120 s; `schedule.tests.test_demo` + `test_demo_marker` six times → 13 OK each in about 27 s (one run took 96 s wall time with 27.6 s inside tests, so the extra time was outside the test code); full suite at 23:59:59 again (17:13 MSK) → 748 OK. Not reproduced; reported to the Team lead. - `run_tests_at.py 2026-11-18T00:00:00` → 748 OK (`$TMPDIR/test-20261115-171049-t008-feas-at-0000.log`). - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` → all passed; `ruff format --check .` → 149 files already formatted; CI YAML ok. - `seed_demo` twice on a temporary DB and PRIVATE_MEDIA_ROOT → OK (second run «Notifications ready: 0 announcements.»). """ assert s.count(a)==1; s=s.replace(a,b) s=s.replace("test count (was 762)","test count (was 748)") s=s.replace("8. Verification runnable — current tree, logs `$TMPDIR/test-20261115-163235-t008-feas*.log`: see 9a.","8. Verification runnable — current tree: all commands pass (9a); one stalled run, not reproduced (9a).") open(p,"w",encoding="utf-8").write(s) EOF grep -n "was 748\|one stalled" docs/tasks/TASK-008.md (1s)
+    $ python3 - <<'EOF'
+  p="docs/tasks/TASK-008.md"; s=open(p,encoding="utf-8").read()
+  a="### 9a. Verification results on the current tree\n(filled in below after the runs)\n"
+  b="""### 9a. Verification results on the current tree
+  - `check` → no issues; `makemigrations --check --dry-run` → «No changes detected».
+  - `test` → `Ran 748 tests … OK` (`$TMPDIR/test-20261115-163235-t008-feas.log`).
+  - **Failed run (stall):** `run_tests_at.py 2026-11-17T23:59:59` started 2026-11-15 16:34 MSK stopped printing at 16:36:40 MSK and was killed by the 20-minute limit at about 16:52 MSK (`$TMPDIR/test-20261115-163235-t008-feas-at-2359.log`, no traceback, no `E`/`F`). By the progress count after the last log line, the test running at the stall was `schedule.tests.test_demo.ScheduleDemoTests.test_seeded_schedule_has_no_conflicts` (±1 test: the previous one is `test_rerun_months_later_refreshes_changes`). Re-runs: the full suite at 23:59:59 with a traceback-dump watchdog (17:00 MSK) → 748 OK in 120 s; `schedule.tests.test_demo` + `test_demo_marker` six times → 13 OK each in about 27 s (one run took 96 s wall time with 27.6 s inside tests, so the extra time was outside the test code); full suite at 23:59:59 again (17:13 MSK) → 748 OK. Not reproduced; reported to the Team lead.
+  - `run_tests_at.py 2026-11-18T00:00:00` → 748 OK (`$TMPDIR/test-20261115-171049-t008-feas-at-0000.log`).
+  - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` → all passed; `ruff format --check .` → 149 files already formatted; CI YAML ok.
+  - `seed_demo` twice on a temporary DB and PRIVATE_MEDIA_ROOT → OK (second run «Notifications ready: 0 announcements.»).
+  """
+  assert s.count(a)==1; s=s.replace(a,b)
+  s=s.replace("test count (was 762)","test count (was 748)")
+  s=s.replace("8. Verification runnable — current tree, logs `$TMPDIR/test-20261115-163235-t008-feas*.log`: see 9a.","8. Verification runnable — current tree: all commands pass (9a); one stalled run, not reproduced (9a).")
+  open(p,"w",encoding="utf-8").write(s)
+  EOF
+  grep -n "was 748\|one stalled" docs/tasks/TASK-008.md
+    595:`REPORT`: output tails, test count (was 748), log file names, any failed run by test name and Moscow time, `git status`.
+    605:8. Verification runnable — current tree: all commands pass (9a); one stalled run, not reproduced (9a).
+    [This command modified 1 file you've previously read: docs/tasks/TASK-008.md. Call Read before editing.]
+  ── Thought for 6ms
+    I'm going to tell the Coder during verification to run test suites in the foreground with a generous timeout, and to report back if a run hangs. The current approach otherwise looks fine. Next I'm sending a REPORT to the lead about the stall, since the planner's protocol is to escalate failures to the lead, and then I'll hand the TASK to the coder.
+
+── Ran bb thread tell thr_4izdzwetb4 --message-file - <<'EOF' [TASK-008] Planner -> Team lead: REPORT Feasibility run on bf09738: one stalled test run (protocol "Test runs"). - Command: `python scripts/run_tests_at.py 2026-11-17T23:59:59`, started 2026-11-15 ~16:34 MSK. Output stopped at 16:36:40 MSK, process killed by the 20-min limit ~16:52 MSK. No traceback, no E/F. Log: $TMPDIR/test-20261115-163235-t008-feas-at-2359.log - Test running at the stall (progress count after the last log line): `schedule.tests.test_demo.ScheduleDemoTests.test_seeded_schedule_has_no_conflicts` (±1; previous: `test_rerun_months_later_refreshes_changes`). - Not reproduced: full suite at 23:59:59 with a traceback-dump watchdog (17:00 MSK) 748 OK in 120 s; `schedule.tests.test_demo` + `test_demo_marker` 6x → OK (one run 96 s wall vs 27.6 s inside tests: pause outside the test code); full suite at 23:59:59 again (17:13) 748 OK; 00:00:00 748 OK. - No code change proposed. Details in docs/tasks/TASK-008.md section 9a. Spec handed to the Coder. EOF bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF' [TASK-008] Planner -> Coder: TASK Spec: docs/tasks/TASK-008.md (base bf09738). Room map: new app `campusmap` (no models) + room rules in `university`. - `Room`: number NNN (field RegexValidator + DB check), floor 1-9, DB check "number starts with floor" (non-field message), new `map_cell` (grid cell N2..N5/S1..S5, unique per floor, landmark cells rejected in `clean()`); grid and landmarks in new `university/building.py`; migration `university/0003_room_number_format_and_map_cell` (generated). `make_room` helper derives the floor from the number. - Map: `/map/`, `/map/floor/<int>/`, `/map/room/<slug>/` (one view, one rooms query), inline SVG from `campusmap/layout.py` (integer geometry only), highlight = class `map-current` (red number) + `aria-current`, room list with «нет на схеме». - Schedule: room of happening lessons links to `/map/room/<code>/` (new room after changes; cancelled/moved-out plain text). Nav «Карта» for students and staff. Seed: `map_cell` for 7 demo rooms via `full_clean()`. - Tests: section 6 (access matrix 6.2, query counts). Verification: section 8 with `tee` logs (baseline 748). If a test run stalls or fails even once, report the test name and Moscow time. Do not commit. EOF (1s)
+  $ bb thread tell thr_4izdzwetb4 --message-file - <<'EOF'
+[TASK-008] Planner -> Team lead: REPORT
+Feasibility run on bf09738: one stalled test run (protocol "Test runs").
+- Command: `python scripts/run_tests_at.py 2026-11-17T23:59:59`, started 2026-11-15 ~16:34 MSK. Output stopped at 16:36:40 MSK, process killed by the 20-min limit ~16:52 MSK. No traceback, no E/F. Log: $TMPDIR/test-20261115-163235-t008-feas-at-2359.log
+- Test running at the stall (progress count after the last log line): `schedule.tests.test_demo.ScheduleDemoTests.test_seeded_schedule_has_no_conflicts` (±1; previous: `test_rerun_months_later_refreshes_changes`).
+- Not reproduced: full suite at 23:59:59 with a traceback-dump watchdog (17:00 MSK) 748 OK in 120 s; `schedule.tests.test_demo` + `test_demo_marker` 6x → OK (one run 96 s wall vs 27.6 s inside tests: pause outside the test code); full suite at 23:59:59 again (17:13) 748 OK; 00:00:00 748 OK.
+- No code change proposed. Details in docs/tasks/TASK-008.md section 9a. Spec handed to the Coder.
+EOF
+bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF'
+[TASK-008] Planner -> Coder: TASK
+Spec: docs/tasks/TASK-008.md (base bf09738). Room map: new app `campusmap` (no models) + room rules in `university`.
+- `Room`: number NNN (field RegexValidator + DB check), floor 1-9, DB check "number starts with floor" (non-field message), new `map_cell` (grid cell N2..N5/S1..S5, unique per floor, landmark cells rejected in `clean()`); grid and landmarks in new `university/building.py`; migration `university/0003_room_number_format_and_map_cell` (generated). `make_room` helper derives the floor from the number.
+- Map: `/map/`, `/map/floor/<int>/`, `/map/room/<slug>/` (one view, one rooms query), inline SVG from `campusmap/layout.py` (integer geometry only), highlight = class `map-current` (red number) + `aria-current`, room list with «нет на схеме».
+- Schedule: room of happening lessons links to `/map/room/<code>/` (new room after changes; cancelled/moved-out plain text). Nav «Карта» for students and staff. Seed: `map_cell` for 7 demo rooms via `full_clean()`.
+- Tests: section 6 (access matrix 6.2, query counts). Verification: section 8 with `tee` logs (baseline 748). If a test run stalls or fails even once, report the test name and Moscow time. Do not commit.
+EOF
+  Thread thr_4izdzwetb4 steered
+  Thread thr_ng6cbgatm6 steered
+
+── Assistant ───────────────────────────────────────────────
+Спецификация TASK-008 готова и передана Кодеру: [docs/tasks/TASK-008.md](docs/tasks/TASK-008.md).
+
+**Главные решения:**
+- **Приложение.** Новое приложение `campusmap` отвечает только за страницу карты, своих моделей у него нет. Данные аудиторий, их проверки и сетка здания остаются в `university`.
+- **Номер аудитории.** Номер всегда из трёх цифр, первая цифра совпадает с этажом. Поле `floor` остаётся, но этаж теперь только от 1 до 9. Ошибки в админке показываются как ошибки формы, без 500. В базе стоят три ограничения.
+- **Место на карте.** У аудитории новое поле «Место на схеме» (`map_cell`). Это ячейка фиксированной сетки: 2 ряда по 5 ячеек вдоль коридора. В одной ячейке этажа может быть только одна аудитория. Ячейку, где стоит ориентир, занять нельзя. Аудитории без места показаны в списке с пометкой «нет на схеме».
+- **Ориентиры:** лестница на каждом этаже, вход и столовая на 1-м, деканат на 2-м, библиотека на 3-м.
+- **Адреса:** `/map/`, `/map/floor/N/`, `/map/room/<код>/`. Строку запроса страница не читает. Несуществующий этаж или код дают 404.
+- **Подсветка.** Номер нужной аудитории красный, за это отвечает один CSS-класс `map-current`. На телефоне шириной 360 px номера получаются примерно 16 px, подписи ориентиров примерно 12 px.
+- **Ссылки из расписания.** Аудитория стала ссылкой на карту с подсветкой. После замены аудитории ссылка ведёт на новую. У отменённых и перенесённых с этого времени занятий аудитория остаётся простым текстом.
+
+**Что проверил заранее.** На копии проекта собрал новые ограничения и применил миграцию к базе с демо-данными. Все 7 демо-аудиторий проходят проверку. Аудитории в локальной базе тоже проходят, базу я только читал.
+
+**Сбой при прогоне тестов.** Один прогон `run_tests_at.py 2026-11-17T23:59:59` завис около 16:36 по Москве. Через 20 минут его остановил лимит времени. Ошибок в логе нет. Судя по счёту тестов в логе, завис `schedule.tests.test_demo.ScheduleDemoTests.test_seeded_schedule_has_no_conflicts` (возможно, соседний тест).
+
+Повторить не удалось:
+- полный прогон с тем же временем дважды прошёл (748 OK, около 2 минут);
+- подозрительные тесты я прогнал 6 раз подряд, все прошли;
+- в одном из этих 6 прогонов была пауза около минуты вне кода тестов.
+
+Отчёт об этом я отправил тимлиду. Остальные проверки прошли: прогон с полночью 00:00, `check --deploy`, ruff, YAML и двойной `seed_demo`.
+
+── User ────────────────────────────────────────────────────
+А какие тесты ты проводишь при проверке?
+
+── Thought for 2s ──────────────────────────────────────────
+  I'm figuring out which checks to name: the project's existing checks on the current code, plus a few targeted runs around the midnight boundary, all explained in simple Russian.
+
+  I'm also running the production-settings deploy check, ruff lint and format checks, a parse of the CI YAML, and seeding the demo data twice on a temporary database, all with temporary media paths. On top of that I'm doing a few experiments on a temp copy, like checking constraints and migrations on seeded data. I won't write new tests; the Coder handles those. The goal is to confirm everything is green before any changes, so later failures point to the change itself, and I'm saving the logs to files.
+
+── Assistant ───────────────────────────────────────────────
+Перед тем как отдать задачу Кодеру, я запускаю проверки проекта на текущем коде. Если они проходят до изменений, то любая ошибка после изменений появилась из-за кода Кодера.
+
+**Обычный набор:**
+1. `python manage.py check` — Django ищет ошибки в настройках и моделях.
+2. `python manage.py makemigrations --check --dry-run` — нет ли изменений моделей без миграций.
+3. `python manage.py test` — все тесты проекта, сейчас их 748.
+4. `scripts/run_tests_at.py 2026-11-17T23:59:59` и `2026-11-18T00:00:00` — те же тесты, но время в тестах заморожено за секунду до полуночи по Москве и ровно в полночь. Так ловятся ошибки с датами на границе суток.
+5. `check --deploy` с боевыми настройками (`DEBUG=false`) — проверка безопасности для сервера.
+6. `ruff check` и `ruff format --check` — ошибки и оформление кода.
+7. Проверка, что файл CI (`ci.yml`) читается без ошибок.
+8. `seed_demo` два раза подряд на временной базе — демо-данные создаются без ошибок, а второй запуск ничего не дублирует.
+
+Полный вывод каждого прогона тестов я сохраняю в файл. Если прогон упал или завис хотя бы раз, я сообщаю тимлиду имя теста и время.
+
+**Проверки под конкретную задачу.** Иногда я проверяю отдельную идею на временной копии проекта, а не в рабочей папке. Для TASK-008 так проверил новые ограничения номера аудитории в базе и прогнал миграцию на базе с демо-данными. Код в рабочей папке я при этом не меняю.
+
+**Чего я не делаю.** Новые тесты я не пишу. В спецификации я описываю план тестов: какие тесты нужны, где они лежат и что проверяют. Пишет их Кодер, а Ревьюер сверяет с планом.

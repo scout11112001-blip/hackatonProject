@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "academics",
     "petitions",
     "notifications",
+    "campusmap",
     "core",
 ]
 

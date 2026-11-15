@@ -456,3 +456,168 @@ class TeacherShortNameRenderTests(FrozenClockMixin, TestCase):
         ).content.decode()
         self.assertIn("Шестакова\u00a0Л.\u00a0П.", content)
         self.assertNotIn("Шестакова Л.", content)
+
+
+class RoomLinkTests(FrozenClockMixin, TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.faculty = make_faculty("FX")
+        cls.group = make_group(cls.faculty, "GX")
+        cls.student = make_student("stu", cls.group, "REC-1")
+        cls.staff = make_staff("stf", cls.faculty)
+        cls.teacher = make_teacher("Лебедев")
+
+        cls.room = make_room("room-101")
+        cls.room_cancel = make_room("room-202")
+        cls.room_move = make_room("room-303")
+        cls.room_changed_old = make_room("room-404")
+        cls.room_changed_new = make_room("room-205", floor=2)
+        cls.room_move_in_old = make_room("room-505")
+        cls.room_move_in_new = make_room("room-206", floor=2)
+
+        cls.lesson_regular = make_lesson(
+            [cls.group],
+            0,
+            1,
+            cls.room,
+            discipline=make_discipline("Регулярная"),
+            teacher=cls.teacher,
+        )
+        cls.lesson_cancel = make_lesson(
+            [cls.group],
+            1,
+            1,
+            cls.room_cancel,
+            discipline=make_discipline("Отменённая"),
+            teacher=cls.teacher,
+        )
+        cls.lesson_move = make_lesson(
+            [cls.group],
+            2,
+            1,
+            cls.room_move,
+            discipline=make_discipline("Перенесённая"),
+            teacher=cls.teacher,
+        )
+        cls.lesson_changed = make_lesson(
+            [cls.group],
+            3,
+            1,
+            cls.room_changed_old,
+            discipline=make_discipline("С заменой"),
+            teacher=cls.teacher,
+        )
+        cls.lesson_move_in = make_lesson(
+            [cls.group],
+            0,
+            2,
+            cls.room_move_in_old,
+            discipline=make_discipline("Въехавшая"),
+            teacher=cls.teacher,
+        )
+        cls.lesson_today = make_lesson(
+            [cls.group],
+            2,
+            2,
+            cls.room,
+            discipline=make_discipline("Сегодняшняя"),
+            teacher=cls.teacher,
+        )
+
+        save_lesson_change(
+            LessonChange(
+                weekly_lesson=cls.lesson_cancel,
+                original_date=date(2026, 11, 17),
+                kind=ChangeKind.CANCELLED,
+                reason="Отмена",
+            )
+        )
+        save_lesson_change(
+            LessonChange(
+                weekly_lesson=cls.lesson_move,
+                original_date=date(2026, 11, 18),
+                kind=ChangeKind.MOVED,
+                new_date=date(2026, 11, 28),
+                new_slot=5,
+                reason="Перенос",
+            )
+        )
+        save_lesson_change(
+            LessonChange(
+                weekly_lesson=cls.lesson_changed,
+                original_date=date(2026, 11, 19),
+                kind=ChangeKind.ROOM_CHANGED,
+                new_room=cls.room_changed_new,
+                reason="Ремонт",
+            )
+        )
+        save_lesson_change(
+            LessonChange(
+                weekly_lesson=cls.lesson_move_in,
+                original_date=date(2026, 11, 16),
+                kind=ChangeKind.MOVED,
+                new_date=date(2026, 11, 20),
+                new_slot=5,
+                new_room=cls.room_move_in_new,
+                reason="Перенос",
+            )
+        )
+
+    def _week(self):
+        self.client.force_login(self.student)
+        return self.client.get("/schedule/week/2026-11-16/").content.decode()
+
+    def test_regular_lesson_room_links_to_map(self):
+        content = self._week()
+        self.assertIn('href="/map/room/room-101/"', content)
+        self.assertIn('data-room-code="room-101"', content)
+
+    def test_cancelled_lesson_room_not_linked(self):
+        content = self._week()
+        self.assertIn('<span class="room" data-room-code="room-202">202, 2 этаж</span>', content)
+        self.assertNotIn('href="/map/room/room-202/"', content)
+
+    def test_moved_out_lesson_room_not_linked(self):
+        content = self._week()
+        self.assertIn('<span class="room" data-room-code="room-303">303, 3 этаж</span>', content)
+        self.assertNotIn('href="/map/room/room-303/"', content)
+
+    def test_room_changed_links_new_room_only(self):
+        content = self._week()
+        self.assertIn('href="/map/room/room-205/"', content)
+        self.assertIn('<del class="room" data-room-code="room-404">404, 4 этаж</del>', content)
+        self.assertNotIn('href="/map/room/room-404/"', content)
+
+    def test_moved_in_with_new_room_links_new_room(self):
+        content = self._week()
+        self.assertIn('href="/map/room/room-206/"', content)
+        self.assertNotIn('href="/map/room/room-505/"', content)
+
+    def test_today_page_has_links(self):
+        self.client.force_login(self.student)
+        content = self.client.get("/schedule/").content.decode()
+        self.assertIn('href="/map/room/room-101/"', content)
+
+    def test_staff_group_week_has_links(self):
+        self.client.force_login(self.staff)
+        content = self.client.get(f"/staff/schedule/{self.group.pk}/2026-11-16/").content.decode()
+        self.assertIn('href="/map/room/room-101/"', content)
+
+    def test_week_query_count_unchanged_by_links(self):
+        self.client.force_login(self.student)
+        with CaptureQueriesContext(connection) as ctx:
+            self.client.get("/schedule/week/2026-11-16/")
+        count1 = len(ctx.captured_queries)
+        for n in range(5):
+            make_lesson(
+                [self.group],
+                weekday=6,
+                slot=n + 2,
+                room=self.room,
+                discipline=make_discipline(f"Доп {n}"),
+                teacher=self.teacher,
+            )
+        with CaptureQueriesContext(connection) as ctx2:
+            self.client.get("/schedule/week/2026-11-16/")
+        count2 = len(ctx2.captured_queries)
+        self.assertEqual(count2, count1)

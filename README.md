@@ -137,6 +137,22 @@ only in the Django admin.
 Demo data: `seed_demo` creates 9 announcements (2 university-wide, 5 faculty, 2
 group; 2 unpublished); published deadlines fall on run day +1…+5.
 
+## Map
+
+Students and staff: `/map/` (lowest floor with rooms), `/map/floor/<n>/`
+(a specific floor, 404 when no room is on it) and `/map/room/<code>/` (a room's
+floor with that room highlighted). The map is one fictional building drawn as an
+inline SVG: two rows of five cells along a central corridor — top row `N1…N5`,
+bottom row `S1…S5`. Landmarks are defined in code (`university/building.py`):
+«Лестница» on `N1` of every floor, «Вход» (`S3`) and «Столовая» (`S4`+`S5`) on
+floor 1, «Деканат» (`S1`+`S2`) on floor 2, «Библиотека» (`S4`+`S5`) on floor 3.
+
+A room's position is the `Room.map_cell` field, editable in Django admin as
+«Место на схеме» (blank = not on the map). One room per cell per floor; cells
+taken by a landmark are rejected. A room number is exactly three digits (`NNN`)
+and its first digit must equal the floor (1–9). The highlighted room uses the
+single CSS class `map-current` (colour token `--color-map-highlight`).
+
 ## Login protection
 
 Failed login attempts are throttled per (username, client IP) and stored in
@@ -170,6 +186,8 @@ proxy_set_header X-Real-IP $remote_addr;
   `student1`, others logged in as `student1` see no new items.
 - Grades and lesson changes appear in the feed by the time they were recorded;
   a grade entered later for an old date still shows as new.
+- The map has one building and a fixed grid of 9 room places per floor;
+  landmarks are defined in code (`university/building.py`).
 
 ## Environment variables
 

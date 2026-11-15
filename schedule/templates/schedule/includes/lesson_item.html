@@ -10,7 +10,8 @@
   </p>
   <p class="lesson-room">Аудитория:
     {% if item.original_room %}<del class="room" data-room-code="{{ item.original_room.code }}">{{ item.original_room.number }}, {{ item.original_room.floor }} этаж</del>
-    <ins class="room" data-room-code="{{ item.room.code }}">{{ item.room.number }}, {{ item.room.floor }} этаж</ins>
+    <ins>{% if item.is_happening %}<a class="room" data-room-code="{{ item.room.code }}" href="{% url 'campusmap:room' item.room.code %}">{{ item.room.number }}, {{ item.room.floor }} этаж</a>{% else %}<span class="room" data-room-code="{{ item.room.code }}">{{ item.room.number }}, {{ item.room.floor }} этаж</span>{% endif %}</ins>
+    {% elif item.is_happening %}<a class="room" data-room-code="{{ item.room.code }}" href="{% url 'campusmap:room' item.room.code %}">{{ item.room.number }}, {{ item.room.floor }} этаж</a>
     {% else %}<span class="room" data-room-code="{{ item.room.code }}">{{ item.room.number }}, {{ item.room.floor }} этаж</span>{% endif %}
   </p>
   {% if item.lesson.groups.all|length > 1 %}<p class="lesson-groups">Группы: {% for g in item.lesson.groups.all %}{{ g.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}

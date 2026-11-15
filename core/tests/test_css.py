@@ -15,3 +15,10 @@ class BaseCssTests(SimpleTestCase):
         theme = (Path(settings.BASE_DIR) / "static/css/theme.css").read_text()
         self.assertNotIn("max-width: 100%", tokens)
         self.assertNotIn("max-width: 100%", theme)
+
+    def test_map_highlight_rule(self):
+        base_css = (Path(settings.BASE_DIR) / "static/css/base.css").read_text()
+        tokens = (Path(settings.BASE_DIR) / "static/css/tokens.css").read_text()
+        self.assertIn(".map-current .map-room-label", base_css)
+        self.assertIn("var(--color-map-highlight)", base_css)
+        self.assertIn("--color-map-highlight", tokens)

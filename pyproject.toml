@@ -12,7 +12,7 @@ ignore = []
 "config/env_utils.py" = ["S105"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["config", "core", "accounts", "university", "schedule", "academics", "petitions", "notifications"]
+known-first-party = ["config", "core", "accounts", "university", "schedule", "academics", "petitions", "notifications", "campusmap"]
 
 [tool.ruff.format]
 quote-style = "double"

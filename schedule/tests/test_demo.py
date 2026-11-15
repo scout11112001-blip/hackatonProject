@@ -12,6 +12,7 @@ from schedule.demo import seed_schedule_demo
 from schedule.models import ChangeKind, LessonChange, WeeklyLesson
 from schedule.services import week_schedule
 from schedule.validation import validate_weekly_lesson
+from university.building import blocked_cells
 from university.models import Discipline, Room, StudyGroup, Teacher
 
 from .helpers import aware
@@ -96,6 +97,22 @@ class ScheduleDemoTests(FrozenClockMixin, TestCase):
                 exclude_pk=lesson.pk,
             )
             self.assertEqual(errors, [], f"conflicts for lesson {lesson}")
+
+    def test_demo_rooms_valid_and_placed(self):
+        self._seed(date(2026, 11, 18))
+        rooms = list(Room.objects.all())
+        self.assertEqual(len(rooms), 7)
+        for room in rooms:
+            room.full_clean()
+            self.assertTrue(room.map_cell)
+            self.assertNotIn(room.map_cell, blocked_cells(room.floor))
+
+    def test_seed_twice_keeps_cells(self):
+        self._seed(date(2026, 11, 18))
+        cells1 = {r.code: r.map_cell for r in Room.objects.all()}
+        self._seed(date(2026, 11, 18))
+        cells2 = {r.code: r.map_cell for r in Room.objects.all()}
+        self.assertEqual(cells1, cells2)
 
     def test_command_output_and_idempotency(self):
         with (

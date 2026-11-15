@@ -56724,3 +56724,6248 @@ TASK-007-FIX реализован полностью и отправлен на 
 - `git status` сверен: все изменённые/созданные файлы по списку спеки (§3); `plan.md` и `docs/tasks/TASK-007-FIX.md` — не мои.
 
 Жду вердикт Reviewer.
+
+── User ────────────────────────────────────────────────────
+/compact
+
+── Worked for (55s) ────────────────────────────────────────
+  ── Context compacted
+
+  ── Thought for 12s
+    The user wants me to produce a structured summary combining the prior summary and the current conversation. The conversation covers TASK-006-FIX completion and then TASK-007 full implementation, TASK-007 round 1 fixes, and TASK-007-FIX regression tests being written (current active state). Let me synthesize carefully.
+
+    Key state from the conversation:
+    - TASK-006-FIX was completed and reported.
+    - TASK-007 was fully implemented, reported, then CHANGES REQUESTED round 1, fixed and reported.
+    - TASK-007-FIX is now in progress: spec read, todos set, regression tests being written.
+    - The current active work is TASK-007-FIX: tests written (not yet run to confirm fails before fix - actually the last tool call ran the tests and showed failures). The conversation ends with the test run output showing failures before fix.
+
+    Let me carry forward all important details:
+    - Protocol: tee logs, report failed test runs, ruff only on task files, never ruff format ., don't touch docs/, .bb/, use temp DB/media, no commit, git status compare.
+    - Frozen clock references: NOW = "2026-11-11 12:00" for TASK-007-FIX tests, baseline 735 tests.
+    - The add_staff_comment discrepancy note from TASK-007 round 1 (spec claim vs code), resolved by reviewer: keep as is.
+    - The `related = ()` mutation probe flaw (Django select_related no-arg follows all non-null FKs) - noted in report.
+
+    TASK-007-FIX details:
+    Spec: docs/tasks/TASK-007-FIX.md, base 4608e59. Six small fixes, regression tests first.
+    - AC1 home news heading «Новости»; news exclude only shown deadlines (home_summary, fetch HOME_ITEMS + len(shown), filter news-<uuid>).
+    - AC2 form label «Весь факультет» (drop faculty kwarg from AnnouncementForm, view call, 7 test calls); audience_label faculty branch → faculty name only.
+    - AC3 audience label faculty branch → name only.
+    - AC4 Teacher.short_name with U+00A0 (NBSP constant), update test_teacher_short_name.
+    - AC5 Petitions: defaults → core.clock.now, services use clock.now() explicitly (incl add_staff_comment); generate petitions/0002.
+    - AC6 Move relative_day_label import in notifications/feed.py to module level.
+    - Baseline 735 tests.
+
+    Tests written for TASK-007-FIX (in progress):
+    - notifications/tests/test_views.py: test_faculty_option_label (added), test_news_exclude_shown_deadlines, test_news_without_deadlines_unchanged, test_news_heading, test_home_queries_same_with_deadlines, AudienceLabelRenderTests (2 tests).
+    - notifications/tests/test_models.py: test_str_and_audience_label expected changed.
+    - university/tests/test_models.py: test_teacher_short_name updated to NBSP.
+    - schedule/tests/test_views.py: TeacherShortNameRenderTests class added.
+    - petitions/tests/test_services.py: ServiceClockTests class added (5 tests).
+    - Ran tests before fix; failures seen: test_faculty_option_label, AudienceLabelRenderTests (2), test_news_exclude_shown_deadlines, test_news_heading, test_str_and_audience_label, test_teacher_short_name, TeacherShortNameRenderTests, test_attachment_gets_frozen_time, test_model_defaults_are_clock_now (5 subtests), test_staff_comment_gets_frozen_time. Many failures as expected.
+
+    The test run output was truncated but shows the failures. The next step is to apply the fixes.
+
+    Now let me structure the summary. The objective should reflect current task TASK-007-FIX.
+
+    Important details to carry:
+    - Protocol rules (tee logs, Moscow time, traceback excerpts for failures, ruff only on task files, no ruff format ., no commit, temp DB/media for seed checks, git status comparison, no touching docs/.bb).
+    - Reference frozen clock for TASK-007-FIX: "2026-11-11 12:00".
+    - Baseline 735 tests.
+    - TASK-007 completed and reported (735 tests OK). Round 1 fixes done and reported. add_staff_comment discrepancy resolved (keep as is). `related = ()` mutation probe flaw noted.
+    - TASK-007-FIX regression evidence: the marked tests fail before fix (confirmed by run).
+    - Current TASK-007-FIX files to modify.
+
+    Let me write the summary now.
+
+    Relevant files for TASK-007-FIX:
+    - notifications/feed.py: AC1 home_summary exclusion + module-level relative_day_label import (AC6)
+    - notifications/templates/feed? Actually home template is core/templates/core/home.html heading «Новости». Wait the spec says home heading «Новости». The home template is core/templates/core/home.html (heading "Новости деканата" → "Новости").
+    - notifications/forms.py: drop faculty kwarg, label «Весь факультет»
+    - notifications/views.py: remove faculty= from AnnouncementForm call
+    - notifications/models.py: audience_label faculty branch → faculty.name only
+    - university/models.py: Teacher.short_name NBSP
+    - petitions/models.py: defaults → core.clock.now
+    - petitions/services.py: clock.now() explicitly in submit_petition, change_status, add_staff_comment
+    - petitions/migrations/0002: generate
+    - Test files: notifications/tests/test_views.py, test_models.py, university/tests/test_models.py, schedule/tests/test_views.py, petitions/tests/test_services.py
+
+    Also the TASK-007-FIX spec mentions `NBSP` constant - I need to define it (probably in university/models.py, or a constants location; spec says "`Teacher.short_name` uses U+00A0 (`NBSP` constant)". So define `NBSP = "\u00a0"` somewhere. Likely in university/models.py.
+
+    The summary should capture the current state: tests written, run before fix shows expected failures, next step apply fixes.
+
+    Let me write the objective as: implement TASK-007-FIX per spec, regression tests first, verify section 8 (baseline 735 tests), send REPORT to Reviewer.
+
+    Now finalize.
+
+── Assistant ───────────────────────────────────────────────
+## Objective
+- Implement `docs/tasks/TASK-007-FIX.md` (base 4608e59): six small fixes with regression tests written first; verify section 8 with `tee` logs (baseline 735 tests) and send a REPORT to Reviewer (`thr_cpuae9aqw3`). Do not commit.
+
+## Important Details
+- Protocol: save every test run to a file (`... 2>&1 | tee "$TMPDIR/test-<timestamp>.log"`); report Moscow time + failing test name + traceback excerpt for any failed run; ruff only on task files (never `ruff format .`); never touch `docs/`, `.bb/`, etc.; use temp `DATABASE_URL`/`PRIVATE_MEDIA_ROOT` for seed checks; compare `git status` with spec file list before REPORT; no commit.
+- Reference frozen clock for TASK-007-FIX tests: `"2026-11-11 12:00"` (Wednesday).
+- TASK-007-FIX baseline: `735 tests`.
+- TASK-007 (and its round-1 test changes) are complete and already reported; both `test_feed_queries_constant` and `test_staff_list_queries_constant` were tightened to create N rows of all 6 feed sources / mixed group+faculty announcements, and verified to catch N+1 mutations (`17 != 21`, `6 != 8`).
+- Reviewer accepted keeping `add_staff_comment` behavior as-is (do not change `petitions/services.py` beyond the TASK-007-FIX clock requirement).
+- `related = ()` mutation probe does not cause N+1 because Django's `select_related(*())` == no-arg `select_related()` follows all non-null FKs recursively (already reported).
+- TASK-007-FIX fixes:
+  - AC1: home heading «Новости»; news block excludes only the announcements shown in the home deadlines block (`home_summary`, fetch `HOME_ITEMS + len(shown)`, filter by `news-<uuid>`).
+  - AC2: form faculty option label «Весь факультет»; drop unused `faculty` kwarg from `AnnouncementForm`, its view call, and 7 existing test calls.
+  - AC3: `Announcement.audience_label` faculty branch → faculty name only (no «Факультет: » prefix).
+  - AC4: `Teacher.short_name` uses `NBSP` (U+00A0) between surname and initial(s); update `test_teacher_short_name`.
+  - AC5: petition model defaults → `core.clock.now`; `submit_petition`, `change_status`, `add_staff_comment` use `clock.now()` explicitly; generate `petitions/0002_alter_petition_created_at_and_more.py`.
+  - AC6: move `relative_day_label` import in `notifications/feed.py` to module level.
+
+## Work State
+### Completed
+- TASK-006-FIX: implemented, verified, reported; `567 tests OK`.
+- TASK-007: full implementation, verified, reported; `735 tests OK`.
+- TASK-007 round 1: fixed only `notifications/tests/test_views.py` query-count tests; verified and reported; `735 tests OK` x4.
+- TASK-007-FIX regression tests written (not yet fixed):
+  - `notifications/tests/test_views.py`:
+    - `AnnouncementFormTests::test_faculty_option_label`
+    - `HomeSummaryTests::test_news_exclude_shown_deadlines`
+    - `HomeSummaryTests::test_news_without_deadlines_unchanged`
+    - `HomeSummaryTests::test_news_heading`
+    - `QueryCountTests::test_home_queries_same_with_deadlines`
+    - new `AudienceLabelRenderTests` (feed + staff list faculty name only)
+  - `notifications/tests/test_models.py`: updated `test_str_and_audience_label` expected faculty label to «Факультет FX».
+  - `university/tests/test_models.py`: updated `test_teacher_short_name` expected NBSP forms (`Лебедев\u00a0А.\u00a0С.`, `Фомин\u00a0П.`).
+  - `schedule/tests/test_views.py`: added `TeacherShortNameRenderTests::test_week_page_has_no_break_spaces` (+ `from university.models import Teacher`).
+  - `petitions/tests/test_services.py`: added `ServiceClockTests` (5 tests: submit, attachment, status change, staff comment, model defaults) (+ `from core import clock`, `moscow`, `PetitionComment`, `PetitionStatusChange` imports).
+- Ran regression tests before fix; confirmed expected failures:
+  - `test_faculty_option_label`
+  - `AudienceLabelRenderTests::test_feed_shows_faculty_name_only`
+  - `AudienceLabelRenderTests::test_staff_list_shows_faculty_name_only`
+  - `HomeSummaryTests::test_news_exclude_shown_deadlines`
+  - `HomeSummaryTests::test_news_heading`
+  - `AnnouncementModelTests::test_str_and_audience_label`
+  - `UniversityModelTests::test_teacher_short_name`
+  - `TeacherShortNameRenderTests::test_week_page_has_no_break_spaces`
+  - `ServiceClockTests::test_attachment_gets_frozen_time`
+  - `ServiceClockTests::test_model_defaults_are_clock_now` (5 subtests)
+  - `ServiceClockTests::test_staff_comment_gets_frozen_time`
+- (Guards `test_news_without_deadlines_unchanged`, `test_home_queries_same_with_deadlines`, `test_submit_gets_frozen_time`, `test_status_change_gets_frozen_time` expected to pass before fix.)
+
+### Active
+- TASK-007-FIX: regression tests written and confirmed failing before fix; code fixes not yet applied.
+
+### Blocked
+- (none)
+
+## Next Move
+1. Apply TASK-007-FIX code fixes 4.1–4.6:
+   - `core/templates/core/home.html`: heading `Новости` + news link (`#news-<uuid>` not `#{{ item.key }}` if needed).
+   - `notifications/feed.py`: `home_summary` exclusion logic; move `relative_day_label` import to module level.
+   - `notifications/forms.py`: remove `faculty` kwarg, faculty option label `Весь факультет`.
+   - `notifications/views.py`: remove `faculty=self.profile.faculty` from `AnnouncementForm(...)` call.
+   - `notifications/models.py`: `audience_label` faculty branch returns `self.faculty.name`.
+   - `university/models.py`: add `NBSP = "\u00a0"`, rewrite `short_name`.
+   - `petitions/models.py`: 5 timestamp defaults → `core.clock.now`.
+   - `petitions/services.py`: `clock.now()` explicitly in `submit_petition`, `change_status`, `add_staff_comment`; `add_working_days(timezone.localdate(now), ...)`.
+   - Generate `petitions/0002_alter_petition_created_at_and_more.py`.
+2. Remove `faculty=self.w.fx` from all 8 `AnnouncementForm` test calls (7 existing + `test_faculty_option_label`).
+3. Run targeted tests → should pass; ruff format on changed files; full suite + `run_tests_at.py` x3 + `check`/`makemigrations --check`/deploy/ruff/yaml/seed checks with tee logs.
+4. Compare `git status` to spec file list; send TASK-007-FIX REPORT to Reviewer.
+
+## Relevant Files
+- `notifications/feed.py`: AC1 `home_summary` exclusion; AC6 module-level import.
+- `notifications/forms.py`: AC2 drop `faculty` kwarg, label `Весь факультет`.
+- `notifications/views.py`: AC2 remove `faculty=` in form construction.
+- `notifications/models.py`: AC3 faculty `audience_label` → name only.
+- `university/models.py`: AC4 `NBSP` + `short_name`.
+- `petitions/models.py`: AC5 defaults → `core.clock.now`.
+- `petitions/services.py`: AC5 `clock.now()` explicit in `submit_petition`/`change_status`/`add_staff_comment`.
+- `petitions/migrations/0002_*`: generated migration (pending).
+- `core/templates/core/home.html`: AC1 heading «Новости» / news links.
+- Tests: `notifications/tests/test_views.py`, `notifications/tests/test_models.py`, `university/tests/test_models.py`, `schedule/tests/test_views.py`, `petitions/tests/test_services.py`.
+- `docs/tasks/TASK-007-FIX.md`: current spec (Planner's file, untracked).
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_2imsg4kck2]
+
+[TASK-008] Planner -> Coder: TASK
+Spec: docs/tasks/TASK-008.md (base bf09738). Room map: new app `campusmap` (no models) + room rules in `university`.
+- `Room`: number NNN (field RegexValidator + DB check), floor 1-9, DB check "number starts with floor" (non-field message), new `map_cell` (grid cell N2..N5/S1..S5, unique per floor, landmark cells rejected in `clean()`); grid and landmarks in new `university/building.py`; migration `university/0003_room_number_format_and_map_cell` (generated). `make_room` helper derives the floor from the number.
+- Map: `/map/`, `/map/floor/<int>/`, `/map/room/<slug>/` (one view, one rooms query), inline SVG from `campusmap/layout.py` (integer geometry only), highlight = class `map-current` (red number) + `aria-current`, room list with «нет на схеме».
+- Schedule: room of happening lessons links to `/map/room/<code>/` (new room after changes; cancelled/moved-out plain text). Nav «Карта» for students and staff. Seed: `map_cell` for 7 demo rooms via `full_clean()`.
+- Tests: section 6 (access matrix 6.2, query counts). Verification: section 8 with `tee` logs (baseline 748). If a test run stalls or fails even once, report the test name and Moscow time. Do not commit.
+
+── Worked for (19m 28s) ────────────────────────────────────
+  ── Ran 31 tools, edited 29 files, ran 24 commands, explored 1 search, 2 lists
+    ── Thought for 336ms
+      A new task TASK-008 has been assigned. Let me read the spec carefully first.
+    ── Read file read
+      # TASK-008: room map — schematic building plan, highlight from the schedule
+
+      Author: Planner. Status: ready for implementation.
+      Base commit: `bf09738`. Related specs: `TASK-003.md` (schedule, `Room`), `TASK-007.md` (nav, query-count patterns).
+
+      Students and staff open «Карта», switch floors, and see every room of the single fictional building as a labelled shape on an inline SVG plan. A tap on a room in the schedule opens the map on that room's floor with the room number in red.
+
+      ---
+
+      ## 1. Goal and acceptance criteria
+
+      | ID | Criterion |
+      |---|---|
+      | AC1 | New app `campusmap` (no models). Room data and room placement stay in `university`. |
+      | AC2 | Every room number is `NNN` (exactly 3 digits, first digit 1–9) and the first digit equals `floor`. Enforced by field validators + model constraints (admin shows form errors, never 500) AND by DB check constraints. `floor` is limited to 1–9. All existing and demo rooms comply; the migration applies on seeded data. |
+      | AC3 | A room's position is a cell of a fixed per-floor grid, stored in `Room.map_cell` (editable in the admin, blank = not on the map). One room per cell per floor (DB unique constraint). A cell taken by a landmark on that floor is rejected (model validation). |
+      | AC4 | `/map/` shows the lowest floor that has rooms; `/map/floor/<n>/` shows floor `n` (404 if no room is on that floor); floor switcher lists every floor with at least one room, current floor marked. |
+      | AC5 | Landmarks (not `Room` rows, not linked to the schedule) are drawn from code: «Лестница» on every floor, «Вход» and «Столовая» on floor 1, «Деканат» on floor 2, «Библиотека» on floor 3. A legend explains the shapes. |
+      | AC6 | `/map/room/<code>/` opens the room's floor with the room's number in red via ONE CSS class `map-current`; the room shape has `aria-current="location"` and an SVG `<title>`. Unknown code → 404. Nothing from the query string is rendered. |
+      | AC7 | A room without a position is listed with «— нет на схеме»; its highlight URL opens its floor (no SVG highlight, list item mar
+
+      [... output truncated by retention policy; showing beginning and end ...]
+
+      ped printing at 16:36:40 MSK and was killed by the 20-minute limit at about 16:52 MSK (`$TMPDIR/test-20261115-163235-t008-feas-at-2359.log`, no traceback, no `E`/`F`). By the progress count after the last log line, the test running at the stall was `schedule.tests.test_demo.ScheduleDemoTests.test_seeded_schedule_has_no_conflicts` (±1 test: the previous one is `test_rerun_months_later_refreshes_changes`). Re-runs: the full suite at 23:59:59 with a traceback-dump watchdog (17:00 MSK) → 748 OK in 120 s; `schedule.tests.test_demo` + `test_demo_marker` six times → 13 OK each in about 27 s (one run took 96 s wall time with 27.6 s inside tests, so the extra time was outside the test code); full suite at 23:59:59 again (17:13 MSK) → 748 OK. Not reproduced; reported to the Team lead.
+      - `run_tests_at.py 2026-11-18T00:00:00` → 748 OK (`$TMPDIR/test-20261115-171049-t008-feas-at-0000.log`).
+      - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` → all passed; `ruff format --check .` → 149 files already formatted; CI YAML ok.
+      - `seed_demo` twice on a temporary DB and PRIVATE_MEDIA_ROOT → OK (second run «Notifications ready: 0 announcements.»).
+
+      ## 10. Risks
+      - **Migration on real data**: a non-compliant room would make 0003 fail with `IntegrityError`; the server DB is fresh, local data checked. Fix such rows in the admin before migrating.
+      - **PostgreSQL**: the regex constraint uses `~` there; the match constraint uses `LIKE` on a cast integer → text, never text → integer, so validation cannot raise a DB error.
+      - **SQLite REGEXP**: the constraint calls the `REGEXP` function that Django registers on each connection; inserting rows with the plain `sqlite3` CLI fails. Use Django only.
+      - **Schedule regressions**: links change markup inside `lesson-room`; existing tests on `data-room-code` and query counts guard it.
+      - **Admin placement races**: two admins choosing the same cell at the same time → the unique constraint rejects the second save (IntegrityError → 500 in the rare race; accepted for the prototype).
+    ── Thought for 2s
+      This is a large, detailed spec. Let me set up a todo list and work through the implementation order (§7). Let me first examine the existing relevant files to understand the current state.
+
+      Let me read the key files:
+      1. `university/models.py` (Room)
+      2. `university/admin.py`
+      3. `schedule/tests/helpers.py`
+      4. `schedule/demo.py`
+      5. `schedule/templates/schedule/includes/lesson_item.html`
+      6. `schedule/services.py` (to understand item.room, original_room, is_happening)
+      7. `templates/base.html`
+      8. `config/settings.py` (INSTALLED_APPS)
+      9. `config/urls.py`
+      10. `pyproject.toml`
+      11. `static/css/tokens.css`, `static/css/base.css`
+      12. `core/tests/test_css.py`
+      13. Existing tests: `university/tests/test_models.py`, `schedule/tests/test_views.py`, `schedule/tests/test_demo.py`, `notifications/tests/test_views.py` (room creation), `academics/tests/test_views.py`, `schedule/tests/test_locking.py`
+
+      Let me start reading these in parallel.
+    ── Ran tool 6 todos (1s)
+      {"output":"[\n  {\n    \"content\": \"Step 1: building.py + Room changes + migration 0003 + make_room helper + university tests\",\n    \"status\": \"in_progress\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 2: campusmap app skeleton + settings/urls/pyproject + layout.py + test_layout.py\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 3: view, template, CSS, nav + test_views.py + CSS test\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 4: schedule template links + RoomLinkTests\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 5: seed + seed tests + admin list_display + README\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 6: ruff format + section 8 verification + REPORT\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  }\n]","metadata":{"todos":[{"content":"Step 1: building.py + Room changes + migration 0003 + make_room helper + university tests","status":"in_progress","priority":"high"},{"content":"Step 2: campusmap app skeleton + settings/urls/pyproject + layout.py + test_layout.py","status":"pending","priority":"high"},{"content":"Step 3: view, template, CSS, nav + test_views.py + CSS test","status":"pending","priority":"high"},{"content":"Step 4: schedule template links + RoomLinkTests","status":"pending","priority":"high"},{"content":"Step 5: seed + seed tests + admin list_display + README","status":"pending","priority":"high"},{"content":"Step 6: ruff format + section 8 verification + REPORT","status":"pending","priority":"high"}],"truncated":false}}
+    ── Read file read
+      from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
+      from django.db import models
+
+      NBSP = "\u00a0"
+
+
+      class Faculty(models.Model):
+          code = models.CharField("код", max_length=20, unique=True)
+          name = models.CharField("название", max_length=200, unique=True)
+
+          class Meta:
+              ordering = ["name"]
+              verbose_name = "факультет"
+              verbose_name_plural = "факультеты"
+
+          def __str__(self) -> str:
+              return self.name
+
+
+      class Program(models.Model):
+          faculty = models.ForeignKey(
+              Faculty, on_delete=models.PROTECT, related_name="programs", verbose_name="факультет"
+          )
+          code = models.CharField("код", max_length=20)
+          name = models.CharField("название", max_length=200)
+
+          class Meta:
+              ordering = ["faculty__name", "name"]
+              constraints = [
+                  models.UniqueConstraint(
+                      fields=["faculty", "code"], name="university_program_unique_faculty_code"
+                  )
+              ]
+              verbose_name = "направление подготовки"
+              verbose_name_plural = "направления подготовки"
+
+          def __str__(self) -> str:
+              return f"{self.code} {self.name}"
+
+
+      class StudyGroup(models.Model):
+          program = models.ForeignKey(
+              Program, on_delete=models.PROTECT, related_name="groups", verbose_name="направление"
+          )
+          name = models.CharField("название", max_length=20, unique=True)
+          course = models.PositiveSmallIntegerField(
+              "курс", validators=[MinValueValidator(1), MaxValueValidator(6)]
+          )
+
+          class Meta:
+              ordering = ["name"]
+              constraints = [
+                  models.CheckConstraint(
+                      condition=models.Q(course__gte=1) & models.Q(course__lte=6),
+                      name="university_studygroup_course_1_6",
+                  )
+              ]
+              verbose_name = "учебная группа"
+              verbose_name_plural = "учебные группы"
+
+          def __str__(self) -> str:
+              return self.name
+
+          @property
+          def faculty(self) -> Faculty:
+              return self.program.faculty
+
+
+      class Room(models.Model):
+          code = models.CharField(
+              "код",
+              max_length=32,
+              unique=True,
+              validators=[
+                  RegexValidator(
+                      r"^[a-z][a-z0-9-]*$",
+                      "Код: латинские строчные буквы, цифры и дефис; начинается с буквы.",
+                  )
+              ],
+          )
+          floor = models.PositiveSmallIntegerField(
+              "этаж", validators=[MinValueValidator(1), MaxValueValidator(20)]
+          )
+          number = models.CharField("номер", max_length=10, unique=True)
+
+          class Meta:
+              ordering = ["floor", "number"]
+              constraints = [
+                  models.CheckConstraint(
+                      condition=models.Q(floor__gte=1) & models.Q(floor__lte=20),
+                      name="university_room_floor_1_20",
+                  )
+              ]
+              verbose_name = "аудитория"
+              verbose_name_plural = "аудитории"
+
+          def __str__(self) -> str:
+              return f"ауд. {self.number}"
+
+
+      class Teacher(models.Model):
+          last_name = models.CharField("фамилия", max_length=100)
+          first_name = models.CharField("имя", max_length=100)
+          middle_name = models.CharField("отчество", max_length=100, blank=True, default="")
+          title = models.CharField("учёная степень, звание", max_length=100, blank=True, default="")
+
+          class Meta:
+              ordering = ["last_name", "first_name"]
+              constraints = [
+                  models.UniqueConstraint(
+                      fields=["last_name", "first_name", "middle_name"],
+                      name="university_teacher_unique_name",
+                  )
+              ]
+              verbose_name = "преподаватель"
+              verbose_name_plural = "преподаватели"
+
+          def __str__(self) -> str:
+              return self.full_name
+
+          @property
+          def full_name(self) -> str:
+              return " ".join(
+                  part for part in (self.last_name, self.first_name, self.middle_name) if part
+              )
+
+          @property
+          def short_name(self) -> str:
+              middle = f"{NBSP}{self.middle_name[0]}." if self.middle_name else ""
+              return f"{self.last_name}{NBSP}{self.first_name[0]}.{middle}"
+
+
+      class Discipline(models.Model):
+          name = models.CharField("название", max_length=200, unique=True)
+          short_name = models.CharField("краткое название", max_length=50)
+
+          class Meta:
+              ordering = ["name"]
+              verbose_name = "дисциплина"
+              verbose_name_plural = "дисциплины"
+
+          def __str__(self) -> str:
+              return self.name
+    ── Read file read
+      from django.contrib import admin
+
+      from .models import Discipline, Faculty, Program, Room, StudyGroup, Teacher
+
+
+      @admin.register(Faculty)
+      class FacultyAdmin(admin.ModelAdmin):
+          list_display = ("code", "name")
+          search_fields = ("code", "name")
+
+
+      @admin.register(Program)
+      class ProgramAdmin(admin.ModelAdmin):
+          list_display = ("code", "name", "faculty")
+          list_filter = ("faculty",)
+          search_fields = ("code", "name")
+
+
+      @admin.register(StudyGroup)
+      class StudyGroupAdmin(admin.ModelAdmin):
+          list_display = ("name", "program", "course")
+          list_filter = ("course", "program__faculty")
+          search_fields = ("name",)
+
+
+      @admin.register(Room)
+      class RoomAdmin(admin.ModelAdmin):
+          list_display = ("number", "floor", "code")
+          list_filter = ("floor",)
+          search_fields = ("number", "code")
+
+
+      @admin.register(Teacher)
+      class TeacherAdmin(admin.ModelAdmin):
+          list_display = ("full_name", "title")
+          search_fields = ("last_name", "first_name")
+
+
+      @admin.register(Discipline)
+      class DisciplineAdmin(admin.ModelAdmin):
+          list_display = ("name", "short_name")
+          search_fields = ("name", "short_name")
+    ── Read file read
+      """Plain helper functions for schedule tests (no extra dependencies)."""
+
+      from datetime import date, datetime
+      from zoneinfo import ZoneInfo
+
+      from schedule.models import WeeklyLesson
+      from schedule.mutations import save_weekly_lesson
+      from university.models import Discipline, Room, Teacher
+
+      MOSCOW = ZoneInfo("Europe/Moscow")
+
+      _counter = 0
+
+
+      def _next_counter() -> int:
+          global _counter
+          _counter += 1
+          return _counter
+
+
+      def make_room(code: str, floor: int = 1) -> Room:
+          number = code.removeprefix("room-")
+          return Room.objects.create(code=code, floor=floor, number=number)
+
+
+      def make_teacher(last_name: str) -> Teacher:
+          return Teacher.objects.create(last_name=last_name, first_name="Иван")
+
+
+      def make_discipline(name: str) -> Discipline:
+          return Discipline.objects.create(name=name, short_name=name[:10])
+
+
+      def make_lesson(
+          groups,
+          weekday: int,
+          slot: int,
+          room: Room,
+          *,
+          discipline: Discipline | None = None,
+          teacher: Teacher | None = None,
+          lesson_type: str = "lecture",
+          valid_from: date = date(2026, 9, 1),
+          valid_until: date = date(2026, 12, 31),
+      ) -> WeeklyLesson:
+          if discipline is None:
+              discipline = make_discipline(f"Дисциплина {_next_counter()}")
+          if teacher is None:
+              teacher = make_teacher(f"Преподаватель {_next_counter()}")
+          lesson = WeeklyLesson(
+              weekday=weekday,
+              slot=slot,
+              discipline=discipline,
+              lesson_type=lesson_type,
+              teacher=teacher,
+              room=room,
+              valid_from=valid_from,
+              valid_until=valid_until,
+          )
+          return save_weekly_lesson(lesson, list(groups))
+
+
+      def aware(dt_str: str) -> datetime:
+          return datetime.fromisoformat(dt_str).replace(tzinfo=MOSCOW)
+    ── Read file read
+      """Fictional schedule demo data.
+
+      Re-running replaces the demo changes (of the 18 demo lessons) with fresh ones
+      for the current and next week relative to the run date.
+      """
+
+      from dataclasses import dataclass
+      from datetime import date, timedelta
+
+      from django.db import transaction
+
+      from schedule.models import LessonChange, WeeklyLesson
+      from schedule.mutations import save_lesson_change, save_weekly_lesson
+      from schedule.services import week_start
+      from university.models import Discipline, Room, StudyGroup, Teacher
+
+
+      @dataclass(frozen=True)
+      class ScheduleSeedSummary:
+          rooms: int
+          teachers: int
+          disciplines: int
+          weekly_lessons: int
+          changes: int
+
+
+      @dataclass(frozen=True)
+      class RoomSeed:
+          code: str
+          floor: int
+          number: str
+
+
+      @dataclass(frozen=True)
+      class TeacherSeed:
+          last_name: str
+          first_name: str
+          middle_name: str
+          title: str
+
+
+      @dataclass(frozen=True)
+      class DisciplineSeed:
+          name: str
+          short_name: str
+
+
+      @dataclass(frozen=True)
+      class LessonSeed:
+          key: str
+          weekday: int
+          slot: int
+          discipline: str
+          lesson_type: str
+          teacher: str
+          room: str
+          groups: tuple[str, ...]
+
+
+      @dataclass(frozen=True)
+      class ChangeSeed:
+          key: str
+          lesson_index: int
+          week: int
+          kind: str
+          new_date_offset: int | None = None
+          new_slot: int | None = None
+          new_room: str | None = None
+          new_teacher: str | None = None
+          reason: str = ""
+
+
+      ROOM_SEEDS = [
+          RoomSeed(code="room-101", floor=1, number="101"),
+          RoomSeed(code="room-114", floor=1, number="114"),
+          RoomSeed(code="room-205", floor=2, number="205"),
+          RoomSeed(code="room-212", floor=2, number="212"),
+          RoomSeed(code="room-308", floor=3, number="308"),
+          RoomSeed(code="room-315", floor=3, number="315"),
+          RoomSeed(code="room-402", floor=4, number="402"),
+      ]
+
+      TEACHER_SEEDS = [
+          TeacherSeed(
+              last_name="Лебедев", first_name="Аркадий", middle_name="Семёнович", title="профессор"
+          ),
+          TeacherSeed(last_name="Воронцова", first_name="Ирина", middle_name="Олеговна", title="доцент"),
+          TeacherSeed(
+              last_name="Глебов",
+              first_name="Тимур",
+              middle_name="Русланович",
+              title="старший преподаватель",
+          ),
+          TeacherSeed(last_name="Назарова", first_name="Вера", middle_name="Ильинична", title="доцент"),
+          TeacherSeed(last_name="Фомин", first_name="Павел", middle_name="Андреевич", title=""),
+          TeacherSeed(
+              last_name="Шестакова", first_name="Лидия", middle_name="Петровна", title="ассистент"
+          ),
+      ]
+
+      DISCIPLINE_SEEDS = [
+          DisciplineSeed(name="Введение в цифровую дипломатию", short_name="Цифр. дипломатия"),
+          DisciplineSeed(name="Английский язык", short_name="Англ. яз."),
+          DisciplineSeed(name="Теория международных отношений", short_name="ТМО"),
+          DisciplineSeed(name="Анализ данных на Python", short_name="Анализ данных"),
+          DisciplineSeed(name="Микроэкономика", short_name="Микроэк."),
+          DisciplineSeed(name="Философия", short_name="Философия"),
+      ]
+
+      LESSON_SEEDS = [
+          LessonSeed(
+              "lesson-01",
+              0,
+              1,
+              "Введение в цифровую дипломатию",
+              "lecture",
+              "Лебедев",
+              "room-101",
+              ("ЦД-101",),
+          ),
+          LessonSeed(
+              "lesson-02", 0, 2, "Английский язык", "seminar", "Назарова", "room-308", ("ЦД-101",)
+          ),
+          LessonSeed(
+              "lesson-03", 0, 2, "Микроэкономика", "lecture", "Воронцова", "room-114", ("ЭД-201",)
+          ),
+          LessonSeed(
+              "lesson-04", 0, 3, "Анализ данных на Python", "lab", "Глебов", "room-205", ("ЭД-201",)
+          ),
+          LessonSeed(
+              "lesson-05", 1, 1, "Английский язык", "seminar", "Назарова", "room-315", ("ЭД-201",)
+          ),
+          LessonSeed(
+              "lesson-06",
+              1,
+              2,
+              "Теория международных отношений",
+              "lecture",
+              "Лебедев",
+              "room-101",
+              ("ЦД-101",),
+          ),
+          LessonSeed(
+              "lesson-07", 1, 2, "Микроэкономика", "seminar", "Воронцова", "room-402", ("ЭД-201",)
+          ),
+          LessonSeed(
+              "lesson-08", 1, 3, "Анализ данных на Python", "lab", "Глебов", "room-205", ("ЦД-101",)
+          ),
+          LessonSeed(
+              "lesson-09", 2, 1, "Философия", "lecture", "Фомин", "room-101", ("ЦД-101", "ЭД-201")
+          ),
+          LessonSeed(
+              "lesson-10",
+              2,
+              2,
+              "Введение в цифровую дипломатию",
+              "seminar",
+              "Лебедев",
+              "room-212",
+              ("ЦД-101",),
+          ),
+          LessonSeed(
+              "lesson-11", 2, 3, "Микроэкономика", "seminar", "Воронцова", "room-402", ("ЭД-201",)
+          ),
+          LessonSeed(
+              "lesson-12", 3, 2, "Анализ данных на Python", "lab", "Глебов", "room-205", ("ЭД-201",)
+          ),
+          LessonSeed(
+              "lesson-13", 3, 3, "Английский язык", "seminar", "Назарова", "room-308", ("ЦД-101",)
+          ),
+          LessonSeed(
+              "lesson-14",
+              3,
+              4,
+              "Теория международных отношений",
+              "seminar",
+              "Лебедев",
+              "room-212",
+              ("ЦД-101",),
+          ),
+          LessonSeed(
+              "lesson-15", 3, 4, "Английский язык", "seminar", "Назарова", "room-315", ("ЭД-201",)
+          ),
+          LessonSeed(
+              "lesson-16", 4, 1, "Микроэкономика", "lecture", "Воронцова", "room-114", ("ЭД-201",)
+          ),
+          LessonSeed(
+              "lesson-17", 4, 2, "Анализ данных на Python", "lab", "Глебов", "room-205", ("ЦД-101",)
+          ),
+          LessonSeed("lesson-18", 4, 3, "Философия", "seminar", "Фомин", "room-212", ("ЭД-201",)),
+      ]
+
+      CHANGE_SEEDS = [
+          ChangeSeed("change-1", 0, 0, "cancelled", reason="Преподаватель на конференции"),
+          ChangeSeed("change-2", 15, 1, "cancelled", reason="Мероприятие факультета"),
+          ChangeSeed(
+              "change-3",
+              7,
+              0,
+              "moved",
+              new_date_offset=3,
+              new_slot=5,
+              reason="Перенос по просьбе преподавателя",
+          ),
+          ChangeSeed(
+              "change-4",
+              17,
+              0,
+              "moved",
+              new_date_offset=7,
+              new_slot=4,
+              reason="Перенос из-за олимпиады",
+          ),
+          ChangeSeed(
+              "change-5",
+              12,
+              0,
+              "room_changed",
+              new_room="room-402",
+              reason="Ремонт в аудитории 308",
+          ),
+          ChangeSeed(
+              "change-6",
+              6,
+              1,
+              "room_changed",
+              new_room="room-114",
+              reason="Аудитория занята мероприятием",
+          ),
+          ChangeSeed(
+              "change-7",
+              9,
+              0,
+              "teacher_replaced",
+              new_teacher="Шестакова",
+              reason="Болезнь преподавателя",
+          ),
+          ChangeSeed(
+              "change-8",
+              11,
+              1,
+              "teacher_replaced",
+              new_teacher="Шестакова",
+              reason="Командировка преподавателя",
+          ),
+      ]
+
+
+      def seed_schedule_demo(today: date) -> ScheduleSeedSummary:
+          with transaction.atomic():
+              rooms = {}
+              for seed in ROOM_SEEDS:
+                  room, _ = Room.objects.update_or_create(
+                      code=seed.code, defaults={"floor": seed.floor, "number": seed.number}
+                  )
+                  rooms[seed.code] = room
+
+              teachers = {}
+              for seed in TEACHER_SEEDS:
+                  teacher, _ = Teacher.objects.update_or_create(
+                      last_name=seed.last_name,
+                      first_name=seed.first_name,
+                      middle_name=seed.middle_name,
+                      defaults={"title": seed.title},
+                  )
+                  teachers[seed.last_name] = teacher
+
+              disciplines = {}
+              for seed in DISCIPLINE_SEEDS:
+                  discipline, _ = Discipline.objects.update_or_create(
+                      name=seed.name, defaults={"short_name": seed.short_name}
+                  )
+                  disciplines[seed.name] = discipline
+
+              groups = {name: StudyGroup.objects.get(name=name) for name in ("ЦД-101", "ЭД-201")}
+
+              monday = week_start(today)
+              valid_from = monday - timedelta(weeks=8)
+              valid_until = monday + timedelta(weeks=12) - timedelta(days=1)
+
+              lessons: list[WeeklyLesson] = []
+              for seed in LESSON_SEEDS:
+                  discipline = disciplines[seed.discipline]
+                  lesson = WeeklyLesson.objects.filter(seed_key=seed.key).first()
+                  if lesson is None:
+                      lesson = WeeklyLesson(
+                          seed_key=seed.key,
+                          weekday=seed.weekday,
+                          slot=seed.slot,
+                          discipline=discipline,
+                          lesson_type=seed.lesson_type,
+                      )
+                  lesson.teacher = teachers[seed.teacher]
+                  lesson.room = rooms[seed.room]
+                  lesson.valid_from = valid_from
+                  lesson.valid_until = valid_until
+                  lessons.append(lesson)
+
+              # Refresh demo changes (spec 6.9 step 6) BEFORE saving lessons (step 7), so that
+              # save_weekly_lesson -> validate_weekly_lesson(exclude_pk) does not see stale changes.
+              LessonChange.objects.exclude(seed_key="").delete()
+
+              for seed, lesson in zip(LESSON_SEEDS, lessons, strict=True):
+                  save_weekly_lesson(lesson, [groups[name] for name in seed.groups])
+
+              for seed in CHANGE_SEEDS:
+                  lesson = lessons[seed.lesson_index]
+                  original_date = monday + timedelta(days=7 * seed.week + lesson.weekday)
+                  kwargs = {
+                      "weekly_lesson": lesson,
+                      "original_date": original_date,
+                      "kind": seed.kind,
+                      "reason": seed.reason,
+                      "seed_key": seed.key,
+                  }
+                  if seed.new_date_offset is not None:
+                      kwargs["new_date"] = monday + timedelta(days=seed.new_date_offset)
+                  if seed.new_slot is not None:
+                      kwargs["new_slot"] = seed.new_slot
+                  if seed.new_room is not None:
+                      kwargs["new_room"] = rooms[seed.new_room]
+                  if seed.new_teacher is not None:
+                      kwargs["new_teacher"] = teachers[seed.new_teacher]
+                  save_lesson_change(LessonChange(**kwargs))
+
+          return ScheduleSeedSummary(
+              rooms=len(ROOM_SEEDS),
+              teachers=len(TEACHER_SEEDS),
+              disciplines=len(DISCIPLINE_SEEDS),
+              weekly_lessons=len(LESSON_SEEDS),
+              changes=len(CHANGE_SEEDS),
+          )
+    ── Thought for 581ms
+      Now let me read more files: lesson_item.html, services.py, base.html, settings.py, urls.py, pyproject.toml, tokens.css, base.css, test_css.py, and existing test files.
+    ── Read file read
+      <li class="lesson lesson--{{ item.kind }}{% if row.is_in_progress %} lesson--now{% endif %}{% if row.is_next %} lesson--next{% endif %}">
+        <p class="lesson-time">
+          {% if row.is_in_progress %}<strong class="lesson-badge">Сейчас</strong>{% endif %}
+          {% if row.is_next %}<strong class="lesson-badge">Следующая</strong>{% endif %}
+          <time>{{ item.slot.start|time:"H:i" }}</time>–<time>{{ item.slot.end|time:"H:i" }}</time> · {{ item.slot.number }} пара
+        </p>
+        <p class="lesson-title">{{ item.lesson.discipline.name }} <span class="lesson-type">{{ item.lesson.get_lesson_type_display }}</span></p>
+        <p class="lesson-teacher">Преподаватель:
+          {% if item.original_teacher %}<del>{{ item.original_teacher.short_name }}</del> <ins>{{ item.teacher.short_name }}</ins>{% else %}{{ item.teacher.short_name }}{% endif %}
+        </p>
+        <p class="lesson-room">Аудитория:
+          {% if item.original_room %}<del class="room" data-room-code="{{ item.original_room.code }}">{{ item.original_room.number }}, {{ item.original_room.floor }} этаж</del>
+          <ins class="room" data-room-code="{{ item.room.code }}">{{ item.room.number }}, {{ item.room.floor }} этаж</ins>
+          {% else %}<span class="room" data-room-code="{{ item.room.code }}">{{ item.room.number }}, {{ item.room.floor }} этаж</span>{% endif %}
+        </p>
+        {% if item.lesson.groups.all|length > 1 %}<p class="lesson-groups">Группы: {% for g in item.lesson.groups.all %}{{ g.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+        {% if item.is_changed %}
+        <p class="lesson-change">{% if item.kind == "cancelled" %}Отменено{% elif item.kind == "moved-out" %}Перенесено на {{ item.moved_to_date|date:"j E" }}, {{ item.moved_to_slot.number }} пара ({{ item.moved_to_slot.start|time:"H:i" }}){% elif item.kind == "moved-in" %}Перенесено с {{ item.moved_from_date|date:"j E" }}, {{ item.moved_from_slot.number }} пара{% elif item.kind == "room-changed" %}Замена аудитории{% elif item.kind == "teacher-replaced" %}Замена преподавателя{% endif %}. Причина: {{ item.change.reason }}</p>
+        {% endif %}
+      </li>
+    ── Read file read
+      """Read side of the schedule: occurrence computation and view helpers."""
+
+      from collections.abc import Collection
+      from dataclasses import dataclass
+      from datetime import date, time, timedelta
+      from enum import StrEnum
+
+      from django.db.models import Q, QuerySet
+
+      from university.models import Room, Teacher
+
+      from .models import ChangeKind, LessonChange, WeeklyLesson
+      from .timeslots import TimeSlot, get_slot
+
+
+      class ItemKind(StrEnum):
+          REGULAR = "regular"
+          CANCELLED = "cancelled"
+          MOVED_OUT = "moved-out"
+          MOVED_IN = "moved-in"
+          ROOM_CHANGED = "room-changed"
+          TEACHER_REPLACED = "teacher-replaced"
+
+
+      @dataclass(frozen=True, eq=False)
+      class ScheduleItem:
+          kind: ItemKind
+          date: date
+          slot: TimeSlot
+          lesson: WeeklyLesson
+          original_date: date
+          room: Room
+          teacher: Teacher
+          original_room: Room | None = None
+          original_teacher: Teacher | None = None
+          change: LessonChange | None = None
+          moved_to_date: date | None = None
+          moved_to_slot: TimeSlot | None = None
+          moved_from_date: date | None = None
+          moved_from_slot: TimeSlot | None = None
+
+          @property
+          def is_happening(self) -> bool:
+              return self.kind not in (ItemKind.CANCELLED, ItemKind.MOVED_OUT)
+
+          @property
+          def is_changed(self) -> bool:
+              return self.kind != ItemKind.REGULAR
+
+
+      @dataclass(frozen=True)
+      class DaySchedule:
+          date: date
+          items: list[ScheduleItem]
+          is_today: bool
+
+
+      @dataclass(frozen=True)
+      class WeekSchedule:
+          start: date
+          end: date
+          days: list[DaySchedule]
+
+
+      @dataclass(frozen=True)
+      class TodayRow:
+          item: ScheduleItem
+          is_in_progress: bool
+          is_next: bool
+
+
+      @dataclass(frozen=True)
+      class TodayAnnotation:
+          rows: list[TodayRow]
+          in_progress: ScheduleItem | None
+          next_item: ScheduleItem | None
+          day_finished: bool
+
+
+      def week_start(day: date) -> date:
+          return day - timedelta(days=day.weekday())
+
+
+      def changes_for_groups_between(
+          group_ids: Collection[int] | None, start: date, end: date
+      ) -> QuerySet[LessonChange]:
+          qs = LessonChange.objects.filter(
+              Q(original_date__range=(start, end))
+              | Q(kind=ChangeKind.MOVED, new_date__range=(start, end))
+          )
+          if group_ids is not None:
+              qs = qs.filter(weekly_lesson__groups__in=group_ids).distinct()
+          return qs.select_related(
+              "weekly_lesson__discipline",
+              "weekly_lesson__teacher",
+              "weekly_lesson__room",
+              "new_room",
+              "new_teacher",
+          ).prefetch_related("weekly_lesson__groups")
+
+
+      def occurrences_between(
+          start: date, end: date, group_ids: Collection[int] | None
+      ) -> list[ScheduleItem]:
+          if start > end:
+              raise ValueError("start must not be after end")
+          if group_ids is not None and not group_ids:
+              return []
+
+          lessons_qs = WeeklyLesson.objects.filter(valid_from__lte=end, valid_until__gte=start)
+          if group_ids is not None:
+              lessons_qs = lessons_qs.filter(groups__in=group_ids).distinct()
+          lessons = list(
+              lessons_qs.select_related("discipline", "teacher", "room").prefetch_related("groups")
+          )
+
+          changes = list(changes_for_groups_between(group_ids, start, end))
+          by_key = {(c.weekly_lesson_id, c.original_date): c for c in changes}
+
+          items: list[ScheduleItem] = []
+          day = start
+          while day <= end:
+              for lesson in lessons:
+                  if lesson.weekday != day.weekday():
+                      continue
+                  if not lesson.valid_from <= day <= lesson.valid_until:
+                      continue
+                  change = by_key.get((lesson.id, day))
+                  if change is None:
+                      items.append(
+                          ScheduleItem(
+                              kind=ItemKind.REGULAR,
+                              date=day,
+                              slot=lesson.time_slot,
+                              lesson=lesson,
+                              original_date=day,
+                              room=lesson.room,
+                              teacher=lesson.teacher,
+                          )
+                      )
+                  elif change.kind == ChangeKind.CANCELLED:
+                      items.append(
+                          ScheduleItem(
+                              kind=ItemKind.CANCELLED,
+                              date=day,
+                              slot=lesson.time_slot,
+                              lesson=lesson,
+                              original_date=day,
+                              room=lesson.room,
+                              teacher=lesson.teacher,
+                              change=change,
+                          )
+                      )
+                  elif change.kind == ChangeKind.MOVED:
+                      items.append(
+                          ScheduleItem(
+                              kind=ItemKind.MOVED_OUT,
+                              date=day,
+                              slot=lesson.time_slot,
+                              lesson=lesson,
+                              original_date=day,
+                              room=lesson.room,
+                              teacher=lesson.teacher,
+                              change=change,
+                              moved_to_date=change.new_date,
+                              moved_to_slot=get_slot(change.new_slot),
+                          )
+                      )
+                  elif change.kind == ChangeKind.ROOM_CHANGED:
+                      items.append(
+                          ScheduleItem(
+                              kind=ItemKind.ROOM_CHANGED,
+                              date=day,
+                              slot=lesson.time_slot,
+                              lesson=lesson,
+                              original_date=day,
+                              room=change.new_room,
+                              teacher=lesson.teacher,
+                              original_room=lesson.room,
+                              change=change,
+                          )
+                      )
+                  elif change.kind == ChangeKind.TEACHER_REPLACED:
+                      items.append(
+                          ScheduleItem(
+                              kind=ItemKind.TEACHER_REPLACED,
+                              date=day,
+                              slot=lesson.time_slot,
+                              lesson=lesson,
+                              original_date=day,
+                              room=lesson.room,
+                              teacher=change.new_teacher,
+                              original_teacher=lesson.teacher,
+                              change=change,
+                          )
+                      )
+              day += timedelta(days=1)
+
+          for change in changes:
+              if change.kind != ChangeKind.MOVED:
+                  continue
+              if not start <= change.new_date <= end:
+                  continue
+              lesson = change.weekly_lesson
+              has_new_room = change.new_room_id is not None and change.new_room_id != lesson.room_id
+              items.append(
+                  ScheduleItem(
+                      kind=ItemKind.MOVED_IN,
+                      date=change.new_date,
+                      slot=get_slot(change.new_slot),
+                      lesson=lesson,
+                      original_date=change.original_date,
+                      room=change.new_room or lesson.room,
+                      teacher=lesson.teacher,
+                      original_room=lesson.room if has_new_room else None,
+                      change=change,
+                      moved_from_date=change.original_date,
+                      moved_from_slot=lesson.time_slot,
+                  )
+              )
+
+          items.sort(
+              key=lambda i: (
+                  i.date,
+                  i.slot.number,
+                  i.is_happening is False,
+                  i.lesson.discipline.name,
+              )
+          )
+          return items
+
+
+      def day_schedule(day: date, group_ids: Collection[int], today: date) -> DaySchedule:
+          items = occurrences_between(day, day, group_ids)
+          return DaySchedule(date=day, items=items, is_today=(day == today))
+
+
+      def week_schedule(any_day: date, group_ids: Collection[int], today: date) -> WeekSchedule:
+          start = week_start(any_day)
+          end = start + timedelta(days=6)
+          items = occurrences_between(start, end, group_ids)
+          by_date: dict[date, list[ScheduleItem]] = {}
+          for item in items:
+              by_date.setdefault(item.date, []).append(item)
+          days = []
+          day = start
+          for _ in range(7):
+              days.append(DaySchedule(date=day, items=by_date.get(day, []), is_today=(day == today)))
+              day += timedelta(days=1)
+          return WeekSchedule(start=start, end=end, days=days)
+
+
+      def annotate_today(items: list[ScheduleItem], now: time) -> TodayAnnotation:
+          happening = [i for i in items if i.is_happening]
+          in_progress = next((i for i in happening if i.slot.start <= now < i.slot.end), None)
+          next_item = next((i for i in happening if i.slot.start > now), None)
+          day_finished = bool(happening) and all(i.slot.end <= now for i in happening)
+          rows = [
+              TodayRow(item=i, is_in_progress=(i is in_progress), is_next=(i is next_item)) for i in items
+          ]
+          return TodayAnnotation(
+              rows=rows,
+              in_progress=in_progress,
+              next_item=next_item,
+              day_finished=day_finished,
+          )
+    ── Read file read
+      {% load static notifications_tags %}<!doctype html>
+      <html lang="ru">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>{% block title %}Цифровой деканат будущего{% endblock %}</title>
+        <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+        <link rel="stylesheet" href="{% static 'css/base.css' %}">
+        <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+        {% block extra_head %}{% endblock %}
+      </head>
+      <body>
+        <a class="skip-link" href="#main">Перейти к содержимому</a>
+        <header class="site-header">
+          <a class="site-title" href="{% url 'core:home' %}">Цифровой деканат будущего</a>
+          <nav class="site-nav" aria-label="Основная навигация">
+            {% block nav %}
+            {% if user.is_authenticated %}
+            <ul class="site-nav-list">
+              <li><a href="{% url 'accounts:profile' %}">Профиль</a></li>
+              {% if user.is_student %}
+              <li><a href="{% url 'schedule:today' %}">Расписание</a></li>
+              <li><a href="{% url 'academics:my_grades' %}">Успеваемость</a></li>
+              <li><a href="{% url 'petitions:my_list' %}">Заявки</a></li>
+              {% notifications_badge as badge %}
+              <li><a href="{% url 'notifications:feed' %}">Уведомления{% if badge %} ({{ badge }}){% endif %}</a></li>
+              {% elif user.is_deanery_staff %}
+              <li><a href="{% url 'schedule:staff_groups' %}">Расписание</a></li>
+              <li><a href="{% url 'petitions:staff_queue' %}">Заявки</a></li>
+              <li><a href="{% url 'notifications:staff_announcements' %}">Объявления</a></li>
+              {% endif %}
+              {% if user.is_deanery_staff %}
+              <li><a href="{% url 'accounts:staff_student_list' %}">Студенты</a></li>
+              {% endif %}
+              <li>
+                <form class="site-nav-logout" method="post" action="{% url 'accounts:logout' %}">
+                  {% csrf_token %}
+                  <button type="submit">Выйти</button>
+                </form>
+              </li>
+            </ul>
+            {% endif %}
+            {% endblock %}
+          </nav>
+        </header>
+        <main id="main" class="site-main">
+          {% if messages %}
+          <ul class="messages">
+            {% for message in messages %}
+            <li class="message message--{{ message.tags }}">{{ message }}</li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+          {% block content %}{% endblock %}
+        </main>
+        <footer class="site-footer">
+          <p class="site-disclaimer">Концепт для конкурса MGIMO AI Challenge. Не является официальным сервисом вуза. Все данные вымышлены.</p>
+        </footer>
+      </body>
+      </html>
+    ── Read file read
+      """Django settings for the Digital Dean's Office of the Future prototype."""
+
+      from pathlib import Path
+
+      import environ
+      from django.core.exceptions import ImproperlyConfigured
+
+      from config.env_utils import resolve_admin_url, resolve_client_ip_header, resolve_secret_key
+
+      BASE_DIR = Path(__file__).resolve().parent.parent
+      env = environ.Env()
+      _env_file = BASE_DIR / ".env"
+      if _env_file.is_file():
+          environ.Env.read_env(_env_file)
+
+      # Core flags
+      DEBUG = env.bool("DEBUG", default=False)
+      SECRET_KEY = resolve_secret_key(env.str("SECRET_KEY", default=""), DEBUG)
+      ALLOWED_HOSTS = env.list(
+          "ALLOWED_HOSTS",
+          default=["localhost", "127.0.0.1", "[::1]"] if DEBUG else [],
+      )
+      CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+      ADMIN_URL = resolve_admin_url(env.str("ADMIN_URL", default=""), DEBUG)
+
+      LOGIN_FAILURE_LIMIT = env.int("LOGIN_FAILURE_LIMIT", default=5)
+      LOGIN_LOCKOUT_SECONDS = env.int("LOGIN_LOCKOUT_SECONDS", default=900)
+      if LOGIN_FAILURE_LIMIT < 1 or LOGIN_LOCKOUT_SECONDS < 1:
+          raise ImproperlyConfigured("LOGIN_FAILURE_LIMIT and LOGIN_LOCKOUT_SECONDS must be positive.")
+      CLIENT_IP_HEADER = resolve_client_ip_header(env.str("CLIENT_IP_HEADER", default=""))
+
+      INSTALLED_APPS = [
+          "django.contrib.admin",
+          "django.contrib.auth",
+          "django.contrib.contenttypes",
+          "django.contrib.sessions",
+          "django.contrib.messages",
+          "whitenoise.runserver_nostatic",
+          "django.contrib.staticfiles",
+          "university",
+          "accounts",
+          "schedule",
+          "academics",
+          "petitions",
+          "notifications",
+          "core",
+      ]
+
+      AUTH_USER_MODEL = "accounts.User"
+
+      MIDDLEWARE = [
+          "django.middleware.security.SecurityMiddleware",
+          "whitenoise.middleware.WhiteNoiseMiddleware",
+          "django.contrib.sessions.middleware.SessionMiddleware",
+          "django.middleware.common.CommonMiddleware",
+          "django.middleware.csrf.CsrfViewMiddleware",
+          "django.contrib.auth.middleware.AuthenticationMiddleware",
+          "django.contrib.auth.middleware.LoginRequiredMiddleware",
+          "django.contrib.messages.middleware.MessageMiddleware",
+          "django.middleware.clickjacking.XFrameOptionsMiddleware",
+      ]
+
+      LOGIN_URL = "accounts:login"
+      LOGIN_REDIRECT_URL = "accounts:profile"
+      LOGOUT_REDIRECT_URL = "accounts:login"
+
+      ROOT_URLCONF = "config.urls"
+      WSGI_APPLICATION = "config.wsgi.application"
+      ASGI_APPLICATION = "config.asgi.application"
+
+      TEMPLATES = [
+          {
+              "BACKEND": "django.template.backends.django.DjangoTemplates",
+              "DIRS": [BASE_DIR / "templates"],
+              "APP_DIRS": True,
+              "OPTIONS": {
+                  "context_processors": [
+                      "django.template.context_processors.debug",
+                      "django.template.context_processors.request",
+                      "django.contrib.auth.context_processors.auth",
+                      "django.contrib.messages.context_processors.messages",
+                  ],
+              },
+          },
+      ]
+
+      DATABASES = {"default": env.db("DATABASE_URL", default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}")}
+      DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+      AUTH_PASSWORD_VALIDATORS = [
+          {
+              "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+          },
+          {
+              "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+          },
+          {
+              "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
+          },
+          {
+              "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+          },
+      ]
+
+      LANGUAGE_CODE = "ru"
+      TIME_ZONE = "Europe/Moscow"
+      USE_I18N = True
+      USE_TZ = True
+
+      STATIC_URL = "static/"
+      STATICFILES_DIRS = [BASE_DIR / "static"]
+      STATIC_ROOT = BASE_DIR / "staticfiles"
+      STORAGES = {
+          "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+          "staticfiles": {
+              "BACKEND": (
+                  "django.contrib.staticfiles.storage.StaticFilesStorage"
+                  if DEBUG
+                  else "whitenoise.storage.CompressedManifestStaticFilesStorage"
+              )
+          },
+      }
+
+      PRIVATE_MEDIA_ROOT = Path(
+          env.str("PRIVATE_MEDIA_ROOT", default="") or str(BASE_DIR / "private_media")
+      )
+      FILE_UPLOAD_PERMISSIONS = 0o640
+      FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o750
+
+      TEST_RUNNER = "core.test_runner.ProjectTestRunner"
+
+      # Security
+      X_FRAME_OPTIONS = "DENY"
+      SECURE_CONTENT_TYPE_NOSNIFF = True
+      SECURE_REFERRER_POLICY = "same-origin"
+      SESSION_COOKIE_HTTPONLY = True
+
+      if not DEBUG:
+          SESSION_COOKIE_SECURE = True
+          CSRF_COOKIE_SECURE = True
+          SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+          SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
+          SECURE_REDIRECT_EXEMPT = [r"^health/$"]
+          SECURE_HSTS_SECONDS = env.int("SECURE_HSTS_SECONDS", default=3600)
+          SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True)
+          SECURE_HSTS_PRELOAD = env.bool("SECURE_HSTS_PRELOAD", default=False)
+
+      # security.W021: HSTS preload is an irreversible browser-list commitment.
+      # A contest prototype must not opt in. Enable via SECURE_HSTS_PRELOAD only deliberately.
+      SILENCED_SYSTEM_CHECKS = ["security.W021"]
+
+      LOG_LEVEL = env.str("LOG_LEVEL", default="INFO").upper()
+      LOGGING = {
+          "version": 1,
+          "disable_existing_loggers": False,
+          "formatters": {"simple": {"format": "{asctime} {levelname} {name} {message}", "style": "{"}},
+          "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "simple"}},
+          "root": {"handlers": ["console"], "level": LOG_LEVEL},
+          "loggers": {"django": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False}},
+      }
+    ── Thought for 543ms
+      Let me read the remaining files: config/urls.py, pyproject.toml, static/css/tokens.css, static/css/base.css, core/tests/test_css.py, and the existing test files I need to understand.
+    ── Read file read
+      """URL configuration for the deanery project."""
+
+      from django.conf import settings
+      from django.contrib import admin
+      from django.urls import include, path
+
+      urlpatterns = [
+          path(settings.ADMIN_URL, admin.site.urls),
+          path("", include("accounts.urls")),
+          path("", include("schedule.urls")),
+          path("", include("academics.urls")),
+          path("", include("petitions.urls")),
+          path("", include("notifications.urls")),
+          path("", include("core.urls")),
+      ]
+    ── Read file read
+      [tool.ruff]
+      target-version = "py312"
+      line-length = 100
+      extend-exclude = ["*/migrations/*", ".venv", "staticfiles", "docs"]
+
+      [tool.ruff.lint]
+      select = ["E", "F", "W", "I", "B", "UP", "DJ", "S"]
+      ignore = []
+
+      [tool.ruff.lint.per-file-ignores]
+      "*/tests/*" = ["S101", "S105", "S106"]
+      "config/env_utils.py" = ["S105"]
+
+      [tool.ruff.lint.isort]
+      known-first-party = ["config", "core", "accounts", "university", "schedule", "academics", "petitions", "notifications"]
+
+      [tool.ruff.format]
+      quote-style = "double"
+    ── Read file read
+      :root {
+        --color-bg: #ffffff;
+        --color-text: #1a1a1a;
+        --color-muted: #6b6b6b;
+        --color-accent: #0055aa;
+        --color-border: #d0d0d0;
+        --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        --font-heading: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        --font-size-base: 1rem;
+        --line-height-base: 1.5;
+        --space-1: 0.25rem;
+        --space-2: 0.5rem;
+        --space-3: 1rem;
+        --space-4: 1.5rem;
+        --space-5: 2rem;
+        --content-max-width: 60rem;
+        --radius: 0;
+        --color-changed: #a35200;
+        --color-now-bg: #eaf2ff;
+      }
+    ── Read file read
+      """Tests for the layout (base) stylesheet."""
+
+      from pathlib import Path
+
+      from django.conf import settings
+      from django.test import SimpleTestCase
+
+
+      class BaseCssTests(SimpleTestCase):
+          def test_form_controls_capped(self):
+              base_css = (Path(settings.BASE_DIR) / "static/css/base.css").read_text()
+              pattern = r"input,\s*select,\s*textarea,\s*button\s*\{[^}]*max-width:\s*100%"
+              self.assertRegex(base_css, pattern)
+              tokens = (Path(settings.BASE_DIR) / "static/css/tokens.css").read_text()
+              theme = (Path(settings.BASE_DIR) / "static/css/theme.css").read_text()
+              self.assertNotIn("max-width: 100%", tokens)
+              self.assertNotIn("max-width: 100%", theme)
+    ── Thought for 1s
+      Now let me read the existing test files I need to modify: university/tests/test_models.py, schedule/tests/test_demo.py, schedule/tests/test_views.py (relevant parts), and check how existing apps are structured (an existing app like notifications for apps.py, urls.py, views.py patterns).
+
+      Let me read these.
+    ── Read file read
+      from django.core.exceptions import ValidationError
+      from django.db import IntegrityError, transaction
+      from django.test import TestCase
+
+      from university.models import Faculty, Program, Room, StudyGroup, Teacher
+
+
+      class UniversityModelTests(TestCase):
+          @classmethod
+          def setUpTestData(cls):
+              cls.faculty = Faculty.objects.create(code="FX", name="Факультет X")
+              cls.program = Program.objects.create(faculty=cls.faculty, code="41.03.05", name="Программа")
+
+          def test_course_out_of_range_rejected(self):
+              for course in (0, 7):
+                  with self.subTest(course=course):
+                      with self.assertRaises(IntegrityError):
+                          with transaction.atomic():
+                              StudyGroup.objects.create(
+                                  program=self.program, name=f"G{course}", course=course
+                              )
+              group = StudyGroup(program=self.program, name="GX", course=7)
+              with self.assertRaises(ValidationError):
+                  group.full_clean()
+
+          def test_program_unique_per_faculty(self):
+              with self.assertRaises(IntegrityError):
+                  with transaction.atomic():
+                      Program.objects.create(faculty=self.faculty, code="41.03.05", name="Дубль")
+              other = Faculty.objects.create(code="FY", name="Факультет Y")
+              Program.objects.create(faculty=other, code="41.03.05", name="Тот же код")
+
+          def test_group_faculty_property(self):
+              group = StudyGroup.objects.create(program=self.program, name="ЦД-101", course=1)
+              self.assertEqual(group.faculty, self.faculty)
+
+          def test_room_code_validator(self):
+              for bad in ("Room-1", "1room"):
+                  with self.subTest(code=bad):
+                      room = Room(code=bad, floor=1, number="999")
+                      with self.assertRaises(ValidationError):
+                          room.full_clean()
+              good = Room(code="room-1", floor=1, number="998")
+              good.full_clean()
+
+          def test_room_floor_out_of_range_rejected(self):
+              with self.assertRaises(IntegrityError):
+                  with transaction.atomic():
+                      Room.objects.create(code="room-0", floor=0, number="000")
+
+          def test_teacher_short_name(self):
+              with_middle = Teacher(last_name="Лебедев", first_name="Аркадий", middle_name="Семёнович")
+              self.assertEqual(with_middle.short_name, "Лебедев\u00a0А.\u00a0С.")
+              without_middle = Teacher(last_name="Фомин", first_name="Павел")
+              self.assertEqual(without_middle.short_name, "Фомин\u00a0П.")
+
+          def test_duplicate_teacher_name_rejected(self):
+              Teacher.objects.create(last_name="Иванов", first_name="Иван", middle_name="Иванович")
+              with self.assertRaises(IntegrityError):
+                  with transaction.atomic():
+                      Teacher.objects.create(
+                          last_name="Иванов", first_name="Иван", middle_name="Иванович"
+                      )
+    ── Read file read
+      import os
+      from datetime import date
+      from io import StringIO
+      from unittest import mock
+
+      from django.core.management import call_command
+      from django.test import TestCase
+
+      from accounts.demo import seed_demo_data
+      from core.testing import FrozenClockMixin
+      from schedule.demo import seed_schedule_demo
+      from schedule.models import ChangeKind, LessonChange, WeeklyLesson
+      from schedule.services import week_schedule
+      from schedule.validation import validate_weekly_lesson
+      from university.models import Discipline, Room, StudyGroup, Teacher
+
+      from .helpers import aware
+
+
+      class ScheduleDemoTests(FrozenClockMixin, TestCase):
+          def _seed(self, today: date):
+              seed_demo_data("Demo-Pass-2026-test!")
+              return seed_schedule_demo(today)
+
+          def test_counts(self):
+              summary = self._seed(date(2026, 11, 18))
+              self.assertEqual(summary.rooms, 7)
+              self.assertEqual(summary.teachers, 6)
+              self.assertEqual(summary.disciplines, 6)
+              self.assertEqual(summary.weekly_lessons, 18)
+              self.assertEqual(summary.changes, 8)
+              self.assertEqual(Room.objects.count(), 7)
+              self.assertEqual(Teacher.objects.count(), 6)
+              self.assertEqual(Discipline.objects.count(), 6)
+              self.assertEqual(WeeklyLesson.objects.count(), 18)
+              self.assertEqual(LessonChange.objects.count(), 8)
+              for kind in (
+                  ChangeKind.CANCELLED,
+                  ChangeKind.MOVED,
+                  ChangeKind.ROOM_CHANGED,
+                  ChangeKind.TEACHER_REPLACED,
+              ):
+                  self.assertEqual(LessonChange.objects.filter(kind=kind).count(), 2)
+              self.assertGreaterEqual(Room.objects.values_list("floor", flat=True).distinct().count(), 3)
+
+          def test_change_dates_in_current_and_next_week(self):
+              self._seed(date(2026, 11, 18))
+              for change in LessonChange.objects.all():
+                  self.assertGreaterEqual(change.original_date, date(2026, 11, 16))
+                  self.assertLessEqual(change.original_date, date(2026, 11, 29))
+
+          def test_idempotent(self):
+              self._seed(date(2026, 11, 18))
+              self._seed(date(2026, 11, 18))
+              self.assertEqual(WeeklyLesson.objects.count(), 18)
+              self.assertEqual(LessonChange.objects.count(), 8)
+              self.assertEqual(Room.objects.count(), 7)
+
+          def test_rerun_later_refreshes_changes(self):
+              self._seed(date(2026, 11, 18))
+              self._seed(date(2026, 12, 2))
+              self.assertEqual(WeeklyLesson.objects.count(), 18)
+              self.assertEqual(LessonChange.objects.count(), 8)
+              for change in LessonChange.objects.all():
+                  self.assertGreaterEqual(change.original_date, date(2026, 11, 30))
+                  self.assertLessEqual(change.original_date, date(2026, 12, 13))
+
+          def test_rerun_months_later_refreshes_changes(self):
+              self._seed(date(2026, 11, 18))
+              self._seed(date(2027, 3, 1))
+              self.assertEqual(WeeklyLesson.objects.count(), 18)
+              self.assertEqual(LessonChange.objects.count(), 8)
+              for change in LessonChange.objects.all():
+                  self.assertGreaterEqual(change.original_date, date(2027, 3, 1))
+                  self.assertLessEqual(change.original_date, date(2027, 3, 14))
+
+          def test_far_date_renders_without_reseed(self):
+              self._seed(date(2026, 11, 18))
+              group = StudyGroup.objects.get(name="ЦД-101")
+              week = week_schedule(date(2026, 12, 2), [group.pk], today=date(2026, 12, 2))
+              for day in week.days[:5]:  # Monday..Friday
+                  self.assertTrue(day.items, f"no items on {day.date}")
+              week2 = week_schedule(date(2026, 11, 28), [group.pk], today=date(2026, 11, 28))
+              self.assertEqual(len(week2.days), 7)
+
+          def test_seeded_schedule_has_no_conflicts(self):
+              self._seed(date(2026, 11, 18))
+              for lesson in WeeklyLesson.objects.all():
+                  errors = validate_weekly_lesson(
+                      weekday=lesson.weekday,
+                      slot=lesson.slot,
+                      valid_from=lesson.valid_from,
+                      valid_until=lesson.valid_until,
+                      room_id=lesson.room_id,
+                      group_ids=list(lesson.groups.values_list("id", flat=True)),
+                      exclude_pk=lesson.pk,
+                  )
+                  self.assertEqual(errors, [], f"conflicts for lesson {lesson}")
+
+          def test_command_output_and_idempotency(self):
+              with (
+                  mock.patch.dict(os.environ, {"DEMO_PASSWORD": "Demo-Pass-2026-test!"}),
+                  mock.patch("django.utils.timezone.now", return_value=aware("2026-11-18 10:00")),
+              ):
+                  out = StringIO()
+                  call_command("seed_demo", stdout=out)
+                  self.assertIn("Schedule ready", out.getvalue())
+                  lessons = WeeklyLesson.objects.count()
+                  changes = LessonChange.objects.count()
+                  out2 = StringIO()
+                  call_command("seed_demo", stdout=out2)
+                  self.assertIn("Schedule ready", out2.getvalue())
+                  self.assertEqual(WeeklyLesson.objects.count(), lessons)
+                  self.assertEqual(LessonChange.objects.count(), changes)
+    ── Read file read
+      {"output":"<path>~/hackatonproject/university/tests/__init__.py</path>\n<type>file</type>\n<content>\n\n\n(End of file - total 0 lines)\n</content>","metadata":{"preview":"","truncated":false,"loaded":[],"display":{"type":"file","path":"~/hackatonproject/university/tests/__init__.py","text":"","lineStart":1,"lineEnd":0,"totalLines":0,"truncated":false}}}
+    ── Thought for 1s
+      Now let me look at an existing app's structure to mirror (notifications app), especially apps.py, urls.py, and how tests are structured for view tests (access matrix patterns). Let me also look at schedule/tests/test_views.py relevant sections (ChangeRenderingTests, test_room_code_attribute, test_week_view_query_count_constant), and accounts/tests/helpers.py.
+
+      Let me read these files.
+    ── Read file read
+      from django.apps import AppConfig
+
+
+      class NotificationsConfig(AppConfig):
+          name = "notifications"
+          verbose_name = "Уведомления"
+          default_auto_field = "django.db.models.BigAutoField"
+    ── Read file read
+      from django.urls import path
+
+      from . import views
+
+      app_name = "notifications"
+      urlpatterns = [
+          path("notifications/", views.NotificationsView.as_view(), name="feed"),
+          path(
+              "staff/announcements/", views.StaffAnnouncementsView.as_view(), name="staff_announcements"
+          ),
+          path(
+              "staff/announcements/<uuid:public_id>/unpublish/",
+              views.StaffUnpublishView.as_view(),
+              name="staff_unpublish",
+          ),
+      ]
+    ── Read file read
+      """Plain helper functions for account tests (no extra dependencies)."""
+
+      from accounts.models import StaffProfile, StudentProfile, User
+      from university.models import Faculty, Program, StudyGroup
+
+
+      def make_faculty(code: str) -> Faculty:
+          return Faculty.objects.create(code=code, name=f"Факультет {code}")
+
+
+      def make_group(faculty: Faculty, name: str, course: int = 1) -> StudyGroup:
+          program = Program.objects.create(faculty=faculty, code=f"PR-{name}", name=f"Программа {name}")
+          return StudyGroup.objects.create(program=program, name=name, course=course)
+
+
+      def make_student(username: str, group: StudyGroup, record_number: str) -> User:
+          user = User.objects.create_user(username=username, role=User.Role.STUDENT)
+          StudentProfile.objects.create(
+              user=user,
+              last_name=f"{username}-last",
+              first_name=f"{username}-first",
+              group=group,
+              record_number=record_number,
+          )
+          return user
+
+
+      def make_staff(username: str, faculty: Faculty) -> User:
+          user = User.objects.create_user(username=username, role=User.Role.STAFF)
+          StaffProfile.objects.create(
+              user=user,
+              last_name=f"{username}-last",
+              first_name=f"{username}-first",
+              position="Специалист деканата",
+              faculty=faculty,
+          )
+          return user
+    ── Read file read
+      """Test clock helpers.
+
+      A plain module (not a test module). It freezes ``django.utils.timezone.now`` for a
+      whole test class so tests do not depend on the real current date.
+      """
+
+      from datetime import datetime
+      from typing import ClassVar
+      from unittest import mock
+      from zoneinfo import ZoneInfo
+
+      MOSCOW = ZoneInfo("Europe/Moscow")
+
+
+      def moscow(dt_str: str) -> datetime:
+          """Parse an ISO string as a Moscow-aware datetime, e.g. "2026-11-18 12:00"."""
+          return datetime.fromisoformat(dt_str).replace(tzinfo=MOSCOW)
+
+
+      class FrozenClockMixin:
+          frozen_now: ClassVar[str] = "2026-11-18 12:00"
+
+          @classmethod
+          def setUpClass(cls) -> None:
+              cls._clock_patcher = mock.patch(
+                  "django.utils.timezone.now", return_value=moscow(cls.frozen_now)
+              )
+              cls._clock_patcher.start()
+              try:
+                  super().setUpClass()
+              except Exception:
+                  cls._clock_patcher.stop()
+                  raise
+
+          @classmethod
+          def tearDownClass(cls) -> None:
+              try:
+                  super().tearDownClass()
+              finally:
+                  cls._clock_patcher.stop()
+    ── Thought for 1s
+      Now let me look at the schedule/tests/test_views.py to understand the patterns used for view tests (ChangeRenderingTests, test_room_code_attribute, test_week_view_query_count_constant), and the FrozenClockMixin usage, and access matrix patterns in other tests. Let me also look at how `is_student` and `is_deanery_staff` work (User model).
+
+      Let me read schedule/tests/test_views.py fully (or relevant parts).
+    ── Read file read
+      from datetime import date
+      from unittest import mock
+
+      from django.db import connection
+      from django.test import SimpleTestCase, TestCase
+      from django.test.utils import CaptureQueriesContext
+      from django.urls import reverse
+
+      from accounts.tests.helpers import make_faculty, make_group, make_staff, make_student
+      from core.testing import FrozenClockMixin
+      from schedule.converters import IsoDateConverter
+      from schedule.models import ChangeKind, LessonChange
+      from schedule.mutations import save_lesson_change
+      from university.models import Teacher
+
+      from .helpers import aware, make_discipline, make_lesson, make_room, make_teacher
+
+
+      class IsoDateConverterTests(SimpleTestCase):
+          def test_to_python(self):
+              conv = IsoDateConverter()
+              self.assertEqual(conv.to_python("2026-11-16"), date(2026, 11, 16))
+
+          def test_to_python_invalid(self):
+              conv = IsoDateConverter()
+              for value in ("2026-02-30", "1999-12-31"):
+                  with self.subTest(value=value):
+                      with self.assertRaises(ValueError):
+                          conv.to_python(value)
+
+          def test_to_url(self):
+              conv = IsoDateConverter()
+              self.assertEqual(conv.to_url(date(2026, 11, 16)), "2026-11-16")
+
+
+      class ScheduleViewsTests(FrozenClockMixin, TestCase):
+          @classmethod
+          def setUpTestData(cls):
+              cls.faculty_x = make_faculty("FX")
+              cls.faculty_y = make_faculty("FY")
+              cls.group_x1 = make_group(cls.faculty_x, "GX1")
+              cls.group_x2 = make_group(cls.faculty_x, "GX2")
+              cls.group_y = make_group(cls.faculty_y, "GY")
+              cls.student_a = make_student("a", cls.group_x1, "REC-A")
+              cls.student_b = make_student("b", cls.group_y, "REC-B")
+              cls.staff_x = make_staff("sx", cls.faculty_x)
+              cls.staff_y = make_staff("sy", cls.faculty_y)
+              cls.room = make_room("room-101")
+              cls.teacher = make_teacher("Лебедев")
+              cls.d1 = make_discipline("GX1-дисциплина-1")
+              cls.d2 = make_discipline("GX1-дисциплина-2")
+              cls.d3 = make_discipline("GX1-дисциплина-3")
+              cls.d_gy = make_discipline("GY-дисциплина")
+              cls.d_shared = make_discipline("Общая дисциплина")
+              make_lesson([cls.group_x1], 0, 1, cls.room, discipline=cls.d1, teacher=cls.teacher)
+              make_lesson([cls.group_x1], 0, 2, cls.room, discipline=cls.d2, teacher=cls.teacher)
+              make_lesson([cls.group_x1], 0, 3, cls.room, discipline=cls.d3, teacher=cls.teacher)
+              make_lesson([cls.group_y], 0, 4, cls.room, discipline=cls.d_gy, teacher=cls.teacher)
+              make_lesson(
+                  [cls.group_x1, cls.group_y],
+                  1,
+                  1,
+                  cls.room,
+                  discipline=cls.d_shared,
+                  teacher=cls.teacher,
+              )
+              # A base change so both query-count measurements have a non-empty change list.
+              wed_lesson = make_lesson(
+                  [cls.group_x1],
+                  2,
+                  1,
+                  cls.room,
+                  discipline=make_discipline("Средовая дисциплина"),
+                  teacher=cls.teacher,
+              )
+              save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=wed_lesson,
+                      original_date=date(2026, 11, 18),
+                      kind=ChangeKind.CANCELLED,
+                      reason="Отмена",
+                  )
+              )
+
+          def test_anonymous_redirected(self):
+              urls = [
+                  "/schedule/",
+                  "/schedule/week/",
+                  "/schedule/week/2026-11-16/",
+                  "/staff/schedule/",
+                  f"/staff/schedule/{self.group_x1.pk}/",
+                  f"/staff/schedule/{self.group_x1.pk}/2026-11-16/",
+              ]
+              for url in urls:
+                  with self.subTest(url=url):
+                      response = self.client.get(url)
+                      self.assertEqual(response.status_code, 302)
+                      self.assertTrue(response["Location"].startswith("/login/?next="))
+
+          def test_student_urls_have_no_ids(self):
+              self.assertEqual(reverse("schedule:today"), "/schedule/")
+              self.assertEqual(reverse("schedule:week"), "/schedule/week/")
+
+          def test_today_in_progress_and_next(self):
+              self.client.force_login(self.student_a)
+              with mock.patch("django.utils.timezone.now", return_value=aware("2026-11-16 10:50")):
+                  response = self.client.get("/schedule/")
+              annotation = response.context["annotation"]
+              self.assertEqual(annotation.in_progress.slot.number, 2)
+              self.assertEqual(annotation.next_item.slot.number, 3)
+              content = response.content.decode()
+              self.assertIn("Сейчас", content)
+              self.assertIn("Следующая", content)
+
+          def test_today_empty_day(self):
+              self.client.force_login(self.student_a)
+              with mock.patch("django.utils.timezone.now", return_value=aware("2026-11-22 12:00")):
+                  response = self.client.get("/schedule/")
+              self.assertIn("Сегодня занятий нет.", response.content.decode())
+
+          def test_today_day_finished(self):
+              self.client.force_login(self.student_a)
+              with mock.patch("django.utils.timezone.now", return_value=aware("2026-11-16 22:00")):
+                  response = self.client.get("/schedule/")
+              self.assertIn("Занятия на сегодня закончились.", response.content.decode())
+
+          def test_week_shows_only_own_group(self):
+              self.client.force_login(self.student_a)
+              content = self.client.get("/schedule/week/").content.decode()
+              self.assertIn(self.d1.name, content)
+              self.assertIn(self.d2.name, content)
+              self.assertIn(self.d3.name, content)
+              self.assertIn(self.d_shared.name, content)
+              self.assertNotIn(self.d_gy.name, content)
+
+          def test_week_navigation(self):
+              self.client.force_login(self.student_a)
+              response = self.client.get("/schedule/week/2026-11-18/")
+              self.assertEqual(response.context["week"].start, date(2026, 11, 16))
+              content = response.content.decode()
+              self.assertIn("/schedule/week/2026-11-09/", content)
+              self.assertIn("/schedule/week/2026-11-23/", content)
+
+          def test_week_boundaries(self):
+              sunday_disc = make_discipline("Воскресная дисциплина")
+              make_lesson([self.group_x1], 6, 1, self.room, discipline=sunday_disc, teacher=self.teacher)
+              self.client.force_login(self.student_a)
+              response = self.client.get("/schedule/week/2026-11-16/")
+              week = response.context["week"]
+              self.assertEqual(week.start, date(2026, 11, 16))
+              self.assertEqual(week.end, date(2026, 11, 22))
+              self.assertEqual(week.days[-1].date, date(2026, 11, 22))
+              self.assertTrue(
+                  any(i.lesson.discipline.name == "Воскресная дисциплина" for i in week.days[6].items)
+              )
+
+          def test_invalid_date_404(self):
+              self.client.force_login(self.student_a)
+              self.assertEqual(self.client.get("/schedule/week/2026-02-30/").status_code, 404)
+              self.assertEqual(self.client.get("/schedule/week/1999-12-31/").status_code, 404)
+
+          def test_room_code_attribute(self):
+              self.client.force_login(self.student_a)
+              content = self.client.get("/schedule/week/2026-11-16/").content.decode()
+              self.assertIn('data-room-code="room-101"', content)
+
+          def test_student_forbidden_on_staff_pages(self):
+              self.client.force_login(self.student_a)
+              for url in [
+                  "/staff/schedule/",
+                  f"/staff/schedule/{self.group_x1.pk}/",
+                  f"/staff/schedule/{self.group_x1.pk}/2026-11-16/",
+              ]:
+                  with self.subTest(url=url):
+                      self.assertEqual(self.client.get(url).status_code, 403)
+
+          def test_staff_group_list_scoped(self):
+              self.client.force_login(self.staff_x)
+              content = self.client.get("/staff/schedule/").content.decode()
+              self.assertIn("GX1", content)
+              self.assertIn("GX2", content)
+              self.assertNotIn("GY", content)
+
+          def test_staff_group_week_own_faculty(self):
+              self.client.force_login(self.staff_x)
+              response = self.client.get(f"/staff/schedule/{self.group_x1.pk}/2026-11-16/")
+              self.assertEqual(response.status_code, 200)
+              self.assertIn(self.d1.name, response.content.decode())
+
+          def test_staff_other_faculty_group_404(self):
+              self.client.force_login(self.staff_x)
+              self.assertEqual(self.client.get(f"/staff/schedule/{self.group_y.pk}/").status_code, 404)
+              self.assertEqual(self.client.get("/staff/schedule/999999/").status_code, 404)
+
+          def test_nav_schedule_link(self):
+              self.client.force_login(self.student_a)
+              content_a = self.client.get("/profile/").content.decode()
+              self.assertIn("/schedule/", content_a)
+              self.client.force_login(self.staff_x)
+              content_x = self.client.get("/profile/").content.decode()
+              self.assertIn("/staff/schedule/", content_x)
+
+          def test_week_view_query_count_constant(self):
+              self.client.force_login(self.student_a)
+              self.client.get("/schedule/week/2026-11-16/")
+              with CaptureQueriesContext(connection) as ctx:
+                  self.client.get("/schedule/week/2026-11-16/")
+              count1 = len(ctx.captured_queries)
+
+              room2 = make_room("room-999", floor=9)
+              lessons = []
+              for n in range(10):
+                  lessons.append(
+                      make_lesson(
+                          [self.group_x1],
+                          weekday=n % 5,
+                          slot=5 + (n % 3),
+                          room=room2,
+                          discipline=make_discipline(f"Дополнительная {n}"),
+                          teacher=self.teacher,
+                      )
+                  )
+              for n in range(5):
+                  lesson = lessons[n]
+                  original = date(2026, 11, 16) if lesson.weekday == 0 else None
+                  for d in (16, 17, 18, 19, 20, 21, 22):
+                      if date(2026, 11, d).weekday() == lesson.weekday:
+                          original = date(2026, 11, d)
+                          break
+                  save_lesson_change(
+                      LessonChange(
+                          weekly_lesson=lesson,
+                          original_date=original,
+                          kind=ChangeKind.CANCELLED,
+                          reason="Отмена",
+                      )
+                  )
+              with CaptureQueriesContext(connection) as ctx2:
+                  self.client.get("/schedule/week/2026-11-16/")
+              count2 = len(ctx2.captured_queries)
+              self.assertEqual(count2, count1)
+
+
+      class ChangeRenderingTests(FrozenClockMixin, TestCase):
+          @classmethod
+          def setUpTestData(cls):
+              cls.faculty = make_faculty("FX")
+              cls.group = make_group(cls.faculty, "GX")
+              cls.student = make_student("a", cls.group, "REC-A")
+              cls.room = make_room("room-101")
+              cls.room2 = make_room("room-205", floor=2)
+              cls.teacher = make_teacher("Лебедев")
+              cls.teacher2 = make_teacher("Воронцова")
+              cls.disc = make_discipline("Математика")
+
+              cls.lesson_cancel = make_lesson(
+                  [cls.group],
+                  0,
+                  1,
+                  cls.room,
+                  discipline=make_discipline("Отменённая"),
+                  teacher=cls.teacher,
+              )
+              cls.lesson_move = make_lesson(
+                  [cls.group],
+                  1,
+                  1,
+                  cls.room,
+                  discipline=make_discipline("Перенесённая"),
+                  teacher=cls.teacher,
+              )
+              cls.lesson_room = make_lesson(
+                  [cls.group],
+                  2,
+                  1,
+                  cls.room,
+                  discipline=make_discipline("С заменой аудитории"),
+                  teacher=cls.teacher,
+              )
+              cls.lesson_teacher = make_lesson(
+                  [cls.group],
+                  3,
+                  1,
+                  cls.room,
+                  discipline=make_discipline("С заменой преподавателя"),
+                  teacher=cls.teacher,
+              )
+
+              save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=cls.lesson_cancel,
+                      original_date=date(2026, 11, 16),
+                      kind=ChangeKind.CANCELLED,
+                      reason="Преподаватель на конференции",
+                  )
+              )
+              save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=cls.lesson_move,
+                      original_date=date(2026, 11, 17),
+                      kind=ChangeKind.MOVED,
+                      new_date=date(2026, 11, 19),
+                      new_slot=5,
+                      reason="Перенос по просьбе",
+                  )
+              )
+              save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=cls.lesson_room,
+                      original_date=date(2026, 11, 18),
+                      kind=ChangeKind.ROOM_CHANGED,
+                      new_room=cls.room2,
+                      reason="Ремонт в аудитории",
+                  )
+              )
+              save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=cls.lesson_teacher,
+                      original_date=date(2026, 11, 19),
+                      kind=ChangeKind.TEACHER_REPLACED,
+                      new_teacher=cls.teacher2,
+                      reason="Болезнь преподавателя",
+                  )
+              )
+
+          def test_change_rendering(self):
+              self.client.force_login(self.student)
+              content = self.client.get("/schedule/week/2026-11-16/").content.decode()
+              self.assertIn("Отменено", content)
+              self.assertIn("Перенесено на", content)
+              self.assertIn("Перенесено с", content)
+              self.assertIn("Замена аудитории", content)
+              self.assertIn("Замена преподавателя", content)
+              for reason in (
+                  "Преподаватель на конференции",
+                  "Перенос по просьбе",
+                  "Ремонт в аудитории",
+                  "Болезнь преподавателя",
+              ):
+                  self.assertIn(reason, content)
+              self.assertIn("<del", content)
+              self.assertIn("<ins", content)
+              self.assertIn("205", content)  # new room number
+              self.assertIn("101", content)  # old room number
+              self.assertIn("Лебедев", content)
+              self.assertIn("Воронцова", content)
+
+
+      class ScheduleUiFixTests(FrozenClockMixin, TestCase):
+          @classmethod
+          def setUpTestData(cls):
+              cls.faculty = make_faculty("FU")
+              cls.group = make_group(cls.faculty, "GU")
+              cls.student = make_student("su", cls.group, "REC-U")
+              cls.room = make_room("room-101")
+              cls.room2 = make_room("room-205", floor=2)
+              cls.teacher = make_teacher("Лебедев")
+              cls.teacher2 = make_teacher("Воронцова")
+              cls.lesson_cancel = make_lesson(
+                  [cls.group], 0, 1, cls.room, discipline=make_discipline("Отмен"), teacher=cls.teacher
+              )
+              cls.lesson_move = make_lesson(
+                  [cls.group], 1, 1, cls.room, discipline=make_discipline("Перенос"), teacher=cls.teacher
+              )
+              cls.lesson_room = make_lesson(
+                  [cls.group], 2, 1, cls.room, discipline=make_discipline("Ауд"), teacher=cls.teacher
+              )
+              cls.lesson_teacher = make_lesson(
+                  [cls.group], 3, 1, cls.room, discipline=make_discipline("Преп"), teacher=cls.teacher
+              )
+              save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=cls.lesson_cancel,
+                      original_date=date(2026, 11, 16),
+                      kind=ChangeKind.CANCELLED,
+                      reason="Отмена",
+                  )
+              )
+              save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=cls.lesson_move,
+                      original_date=date(2026, 11, 17),
+                      kind=ChangeKind.MOVED,
+                      new_date=date(2026, 11, 19),
+                      new_slot=5,
+                      reason="Перенос",
+                  )
+              )
+              save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=cls.lesson_room,
+                      original_date=date(2026, 11, 18),
+                      kind=ChangeKind.ROOM_CHANGED,
+                      new_room=cls.room2,
+                      reason="Ремонт",
+                  )
+              )
+              save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=cls.lesson_teacher,
+                      original_date=date(2026, 11, 19),
+                      kind=ChangeKind.TEACHER_REPLACED,
+                      new_teacher=cls.teacher2,
+                      reason="Болезнь",
+                  )
+              )
+
+          def test_student_week_has_no_back_link(self):
+              self.client.force_login(self.student)
+              content = self.client.get("/schedule/week/2026-11-16/").content.decode()
+              self.assertNotIn("К списку групп", content)
+
+          def test_staff_week_back_link_url(self):
+              staff = make_staff("sfu", self.faculty)
+              self.client.force_login(staff)
+              content = self.client.get(f"/staff/schedule/{self.group.pk}/2026-11-16/").content.decode()
+              self.assertIn('href="/staff/schedule/"', content)
+              self.assertIn("К списку групп", content)
+
+          def test_change_label_no_space_before_period(self):
+              self.client.force_login(self.student)
+              content = self.client.get("/schedule/week/2026-11-16/").content.decode()
+              self.assertIn("Отменено. Причина:", content)
+              self.assertIn("Замена аудитории. Причина:", content)
+              self.assertIn("Замена преподавателя. Причина:", content)
+              self.assertIn("). Причина:", content)  # moved-out
+              self.assertIn("пара. Причина:", content)  # moved-in
+              self.assertNotIn(" . Причина", content)
+
+
+      class TeacherShortNameRenderTests(FrozenClockMixin, TestCase):
+          frozen_now = "2026-11-11 12:00"
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.faculty = make_faculty("FX")
+              cls.group = make_group(cls.faculty, "GX1")
+              cls.student = make_student("a", cls.group, "REC-A")
+              cls.room = make_room("room-101")
+              cls.teacher = Teacher.objects.create(
+                  last_name="Шестакова", first_name="Людмила", middle_name="Петровна"
+              )
+              make_lesson(
+                  [cls.group],
+                  2,
+                  1,
+                  cls.room,
+                  discipline=make_discipline("Дисциплина"),
+                  teacher=cls.teacher,
+              )
+
+          def test_week_page_has_no_break_spaces(self):
+              self.client.force_login(self.student)
+              content = self.client.get(
+                  reverse("schedule:week_of", kwargs={"day": date(2026, 11, 11)})
+              ).content.decode()
+              self.assertIn("Шестакова\u00a0Л.\u00a0П.", content)
+              self.assertNotIn("Шестакова Л.", content)
+    ── Thought for 1s
+      I now have a comprehensive understanding. Let me look at a few more things:
+      1. The User model to understand `is_student`, `is_deanery_staff`, `Role` enum.
+      2. The notifications/tests/test_views.py to understand the access matrix and query count patterns (for MapQueryTests and MapAccessTests).
+      3. base.css to understand where to append map rules.
+
+      Let me read the User model and notifications/tests/test_views.py.
+    ── Read file read
+      from django.conf import settings
+      from django.contrib.auth.models import AbstractUser
+      from django.core.exceptions import ValidationError
+      from django.db import models
+
+
+      class User(AbstractUser):
+          class Role(models.TextChoices):
+              STUDENT = "student", "Студент"
+              STAFF = "staff", "Сотрудник деканата"
+
+          role = models.CharField("роль", max_length=16, choices=Role.choices, blank=True, default="")
+
+          class Meta:
+              verbose_name = "пользователь"
+              verbose_name_plural = "пользователи"
+              constraints = [
+                  models.CheckConstraint(
+                      condition=(models.Q(is_superuser=False) & models.Q(role__in=["student", "staff"]))
+                      | (models.Q(is_superuser=True) & models.Q(role="")),
+                      name="accounts_user_role_matches_superuser",
+                      violation_error_message=(
+                          "Обычный пользователь должен иметь роль; у суперпользователя роли нет."
+                      ),
+                  ),
+                  models.CheckConstraint(
+                      condition=models.Q(is_staff=False) | models.Q(is_superuser=True),
+                      name="accounts_user_admin_access_superuser_only",
+                      violation_error_message="Доступ к админке есть только у суперпользователя.",
+                  ),
+              ]
+
+          @property
+          def is_student(self) -> bool:
+              return self.role == self.Role.STUDENT
+
+          @property
+          def is_deanery_staff(self) -> bool:
+              return self.role == self.Role.STAFF
+
+          def __str__(self) -> str:
+              return self.username
+
+          def clean(self):
+              super().clean()
+              if self.pk is None:
+                  return
+              errors = []
+              if (
+                  self.role != self.Role.STUDENT
+                  and StudentProfile.objects.filter(user_id=self.pk).exists()
+              ):
+                  errors.append(
+                      "У пользователя есть профиль студента. Удалите профиль, затем меняйте роль."
+                  )
+              if self.role != self.Role.STAFF and StaffProfile.objects.filter(user_id=self.pk).exists():
+                  errors.append(
+                      "У пользователя есть профиль сотрудника. Удалите профиль, затем меняйте роль."
+                  )
+              if errors:
+                  raise ValidationError(errors)
+
+
+      class StudentProfile(models.Model):
+          user = models.OneToOneField(
+              settings.AUTH_USER_MODEL,
+              on_delete=models.CASCADE,
+              related_name="student_profile",
+              limit_choices_to={"role": "student"},
+              verbose_name="пользователь",
+          )
+          last_name = models.CharField("фамилия", max_length=100)
+          first_name = models.CharField("имя", max_length=100)
+          middle_name = models.CharField("отчество", max_length=100, blank=True, default="")
+          group = models.ForeignKey(
+              "university.StudyGroup",
+              on_delete=models.PROTECT,
+              related_name="students",
+              verbose_name="группа",
+          )
+          record_number = models.CharField("номер зачётной книжки", max_length=20, unique=True)
+
+          class Meta:
+              ordering = ["last_name", "first_name"]
+              verbose_name = "профиль студента"
+              verbose_name_plural = "профили студентов"
+
+          def __str__(self) -> str:
+              return self.full_name
+
+          @property
+          def full_name(self) -> str:
+              return " ".join(
+                  part for part in (self.last_name, self.first_name, self.middle_name) if part
+              )
+
+          @property
+          def program(self):
+              return self.group.program
+
+          @property
+          def faculty(self):
+              return self.group.program.faculty
+
+          @property
+          def course(self) -> int:
+              return self.group.course
+
+          def clean(self):
+              super().clean()
+              if self.user_id is None:
+                  return
+              if self.user.role != User.Role.STUDENT:
+                  raise ValidationError(
+                      "Профиль студента можно привязать только к пользователю с ролью «Студент»."
+                  )
+              if StaffProfile.objects.filter(user_id=self.user_id).exists():
+                  raise ValidationError("У пользователя уже есть профиль сотрудника.")
+    ── Read file read
+      from datetime import date, timedelta
+      from unittest import mock
+
+      from django.db import connection
+      from django.test import Client, TestCase
+      from django.test.utils import CaptureQueriesContext
+      from django.urls import reverse
+      from django.utils import timezone
+
+      from academics.tests.helpers import make_item, make_mark, make_result, make_term
+      from accounts.models import User
+      from core.testing import FrozenClockMixin, moscow
+      from notifications.feed import badge_for_user
+      from notifications.forms import AnnouncementForm
+      from notifications.models import Announcement, Audience, NotificationState
+      from petitions.models import PetitionComment
+      from petitions.services import change_status
+      from petitions.tests.helpers import make_petition, make_type
+      from schedule.models import ChangeKind, LessonChange
+      from schedule.mutations import save_lesson_change
+      from schedule.tests.helpers import make_discipline, make_lesson, make_room
+
+      from .helpers import make_announcement, make_world, set_seen
+
+      NOW = "2026-11-11 12:00"
+      D = date(2026, 11, 11)
+
+
+      def _query_count(fn) -> int:
+          with CaptureQueriesContext(connection) as ctx:
+              fn()
+          return len(ctx.captured_queries)
+
+
+      class AnnouncementFormTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+
+          def test_choices_only_own_faculty_groups(self):
+              form = AnnouncementForm(
+                  None,
+                  groups=[self.w.gx1, self.w.gx2],
+                  today=D,
+              )
+              choices = dict(form.fields["target"].choices)
+              self.assertIn("faculty", choices)
+              self.assertIn(f"group-{self.w.gx1.pk}", choices)
+              self.assertIn(f"group-{self.w.gx2.pk}", choices)
+              self.assertNotIn(f"group-{self.w.gy1.pk}", choices)
+
+          def test_faculty_option_label(self):
+              form = AnnouncementForm(
+                  None,
+                  groups=[self.w.gx1, self.w.gx2],
+                  today=D,
+              )
+              choices = dict(form.fields["target"].choices)
+              self.assertEqual(choices["faculty"], "Весь факультет")
+              self.assertEqual(choices[f"group-{self.w.gx1.pk}"], "Группа GX1")
+
+          def test_faculty_target(self):
+              form = AnnouncementForm(
+                  {"title": "Заголовок", "body": "Текст", "target": "faculty"},
+                  groups=[self.w.gx1, self.w.gx2],
+                  today=D,
+              )
+              self.assertTrue(form.is_valid())
+              self.assertEqual(form.cleaned_data["audience"], Audience.FACULTY)
+              self.assertIsNone(form.cleaned_data["group"])
+
+          def test_group_target(self):
+              form = AnnouncementForm(
+                  {"title": "Заголовок", "body": "Текст", "target": f"group-{self.w.gx1.pk}"},
+                  groups=[self.w.gx1, self.w.gx2],
+                  today=D,
+              )
+              self.assertTrue(form.is_valid())
+              self.assertEqual(form.cleaned_data["audience"], Audience.GROUP)
+              self.assertEqual(form.cleaned_data["group"], self.w.gx1)
+
+          def test_forged_group_rejected(self):
+              form = AnnouncementForm(
+                  {"title": "Заголовок", "body": "Текст", "target": f"group-{self.w.gy1.pk}"},
+                  groups=[self.w.gx1, self.w.gx2],
+                  today=D,
+              )
+              self.assertFalse(form.is_valid())
+
+          def test_university_value_rejected(self):
+              form = AnnouncementForm(
+                  {"title": "Заголовок", "body": "Текст", "target": "university"},
+                  groups=[self.w.gx1, self.w.gx2],
+                  today=D,
+              )
+              self.assertFalse(form.is_valid())
+
+          def test_iso_date_accepted(self):
+              form = AnnouncementForm(
+                  {"title": "Заголовок", "body": "Текст", "target": "faculty", "deadline": "2026-11-20"},
+                  groups=[self.w.gx1, self.w.gx2],
+                  today=D,
+              )
+              self.assertTrue(form.is_valid())
+
+          def test_past_deadline_field_error(self):
+              form = AnnouncementForm(
+                  {"title": "Заголовок", "body": "Текст", "target": "faculty", "deadline": "2026-11-10"},
+                  groups=[self.w.gx1, self.w.gx2],
+                  today=D,
+              )
+              self.assertFalse(form.is_valid())
+              self.assertIn("deadline", form.errors)
+
+
+      class FeedAccessTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+
+          def test_anonymous_redirects(self):
+              response = self.client.get(reverse("notifications:feed"))
+              self.assertEqual(response.status_code, 302)
+              self.assertEqual(response["Location"], "/login/?next=/notifications/")
+
+          def test_student_ok(self):
+              self.client.force_login(self.w.ax)
+              response = self.client.get(reverse("notifications:feed"))
+              self.assertEqual(response.status_code, 200)
+
+          def test_staff_forbidden(self):
+              self.client.force_login(self.w.sx)
+              self.assertEqual(self.client.get(reverse("notifications:feed")).status_code, 403)
+
+          def test_superuser_forbidden(self):
+              self.client.force_login(self.w.root)
+              self.assertEqual(self.client.get(reverse("notifications:feed")).status_code, 403)
+
+          def test_student_without_profile_forbidden(self):
+              user = User.objects.create_user("noprofile", role=User.Role.STUDENT)
+              self.client.force_login(user)
+              self.assertEqual(self.client.get(reverse("notifications:feed")).status_code, 403)
+
+
+      class StaffAnnouncementsAccessTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+
+          def test_anonymous_get_redirects(self):
+              response = self.client.get(reverse("notifications:staff_announcements"))
+              self.assertEqual(response.status_code, 302)
+
+          def test_anonymous_post_creates_nothing(self):
+              response = self.client.post(
+                  reverse("notifications:staff_announcements"),
+                  {"title": "Заголовок", "body": "Текст", "target": "faculty"},
+              )
+              self.assertEqual(response.status_code, 302)
+              self.assertEqual(Announcement.objects.count(), 0)
+
+          def test_student_get_forbidden(self):
+              self.client.force_login(self.w.ax)
+              self.assertEqual(
+                  self.client.get(reverse("notifications:staff_announcements")).status_code, 403
+              )
+
+          def test_student_post_forbidden(self):
+              self.client.force_login(self.w.ax)
+              response = self.client.post(
+                  reverse("notifications:staff_announcements"),
+                  {"title": "Заголовок", "body": "Текст", "target": "faculty"},
+              )
+              self.assertEqual(response.status_code, 403)
+              self.assertEqual(Announcement.objects.count(), 0)
+
+          def test_staff_sees_own_faculty(self):
+              make_announcement(
+                  self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx, title="FX факультет"
+              )
+              make_announcement(self.w.sx, audience=Audience.GROUP, group=self.w.gx1, title="GX1 группа")
+              make_announcement(self.w.sx, audience=Audience.GROUP, group=self.w.gx2, title="GX2 группа")
+              self.client.force_login(self.w.sx)
+              response = self.client.get(reverse("notifications:staff_announcements"))
+              content = response.content.decode()
+              self.assertIn("FX факультет", content)
+              self.assertIn("GX1 группа", content)
+              self.assertIn("GX2 группа", content)
+
+          def test_staff_does_not_see_other_faculty_or_university(self):
+              make_announcement(
+                  self.w.sy, audience=Audience.FACULTY, faculty=self.w.fy, title="FY факультет"
+              )
+              make_announcement(self.w.sy, audience=Audience.GROUP, group=self.w.gy1, title="GY1 группа")
+              make_announcement(self.w.sx, audience=Audience.UNIVERSITY, title="Университет")
+              self.client.force_login(self.w.sx)
+              response = self.client.get(reverse("notifications:staff_announcements"))
+              content = response.content.decode()
+              self.assertNotIn("FY факультет", content)
+              self.assertNotIn("GY1 группа", content)
+              self.assertNotIn("Университет", content)
+
+          def test_superuser_forbidden(self):
+              self.client.force_login(self.w.root)
+              self.assertEqual(
+                  self.client.get(reverse("notifications:staff_announcements")).status_code, 403
+              )
+
+
+      class StaffUnpublishAccessTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+
+          def _post(self, user, announcement):
+              self.client.force_login(user)
+              return self.client.post(
+                  reverse("notifications:staff_unpublish", args=[announcement.public_id])
+              )
+
+          def test_anonymous(self):
+              announcement = make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+              response = self.client.post(
+                  reverse("notifications:staff_unpublish", args=[announcement.public_id])
+              )
+              self.assertEqual(response.status_code, 302)
+              announcement.refresh_from_db()
+              self.assertTrue(announcement.is_published)
+
+          def test_student_forbidden(self):
+              announcement = make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+              response = self._post(self.w.ax, announcement)
+              self.assertEqual(response.status_code, 403)
+              announcement.refresh_from_db()
+              self.assertTrue(announcement.is_published)
+
+          def test_staff_own_faculty_item(self):
+              announcement = make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+              response = self._post(self.w.sx, announcement)
+              self.assertEqual(response.status_code, 302)
+              announcement.refresh_from_db()
+              self.assertFalse(announcement.is_published)
+
+          def test_staff_own_group_item(self):
+              announcement = make_announcement(self.w.sx, audience=Audience.GROUP, group=self.w.gx1)
+              response = self._post(self.w.sx, announcement)
+              self.assertEqual(response.status_code, 302)
+              announcement.refresh_from_db()
+              self.assertFalse(announcement.is_published)
+
+          def test_staff_other_faculty_404(self):
+              announcement = make_announcement(self.w.sy, audience=Audience.FACULTY, faculty=self.w.fy)
+              response = self._post(self.w.sx, announcement)
+              self.assertEqual(response.status_code, 404)
+              announcement.refresh_from_db()
+              self.assertTrue(announcement.is_published)
+
+          def test_staff_university_404(self):
+              announcement = make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+              response = self._post(self.w.sx, announcement)
+              self.assertEqual(response.status_code, 404)
+
+          def test_unknown_uuid_404(self):
+              self.client.force_login(self.w.sx)
+              response = self.client.post(
+                  reverse("notifications:staff_unpublish", args=["00000000-0000-0000-0000-000000000000"])
+              )
+              self.assertEqual(response.status_code, 404)
+
+          def test_superuser_forbidden(self):
+              announcement = make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+              response = self._post(self.w.root, announcement)
+              self.assertEqual(response.status_code, 403)
+              announcement.refresh_from_db()
+              self.assertTrue(announcement.is_published)
+
+          def test_get_not_allowed(self):
+              announcement = make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+              self.client.force_login(self.w.sx)
+              response = self.client.get(
+                  reverse("notifications:staff_unpublish", args=[announcement.public_id])
+              )
+              self.assertEqual(response.status_code, 405)
+
+
+      class HomeSummaryTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+
+          def test_student_summary(self):
+              make_announcement(
+                  self.w.sx, audience=Audience.UNIVERSITY, deadline=D + timedelta(days=1), title="Дедлайн"
+              )
+              self.client.force_login(self.w.ax)
+              response = self.client.get(reverse("core:home"))
+              content = response.content.decode()
+              self.assertEqual(response.status_code, 200)
+              self.assertIn("Ближайшие дедлайны", content)
+              self.assertIn("Дедлайн", content)
+              self.assertIn("/notifications/#", content)
+
+          def test_limits_to_three(self):
+              for i in range(5):
+                  make_announcement(
+                      self.w.sx,
+                      audience=Audience.UNIVERSITY,
+                      deadline=D + timedelta(days=i + 1),
+                      title=f"Дедлайн {i}",
+                  )
+                  make_announcement(
+                      self.w.sx,
+                      audience=Audience.UNIVERSITY,
+                      published_at=moscow(NOW) - timedelta(hours=i),
+                      title=f"Новость {i}",
+                  )
+              self.client.force_login(self.w.ax)
+              response = self.client.get(reverse("core:home"))
+              content = response.content.decode()
+              self.assertEqual(content.count("#deadline-"), 3)
+              self.assertEqual(content.count("#news-"), 3)
+
+          def test_news_exclude_shown_deadlines(self):
+              d1 = make_announcement(
+                  self.w.sx,
+                  audience=Audience.UNIVERSITY,
+                  deadline=D + timedelta(days=1),
+                  published_at=moscow(NOW) - timedelta(hours=1),
+              )
+              d2 = make_announcement(
+                  self.w.sx,
+                  audience=Audience.UNIVERSITY,
+                  deadline=D + timedelta(days=2),
+                  published_at=moscow(NOW) - timedelta(hours=2),
+              )
+              d3 = make_announcement(
+                  self.w.sx,
+                  audience=Audience.UNIVERSITY,
+                  deadline=D + timedelta(days=3),
+                  published_at=moscow(NOW) - timedelta(hours=3),
+              )
+              d4 = make_announcement(
+                  self.w.sx,
+                  audience=Audience.UNIVERSITY,
+                  deadline=D + timedelta(days=4),
+                  published_at=moscow(NOW) - timedelta(hours=4),
+              )
+              plain = make_announcement(
+                  self.w.sx, audience=Audience.UNIVERSITY, published_at=moscow(NOW) - timedelta(hours=5)
+              )
+              self.client.force_login(self.w.ax)
+              content = self.client.get(reverse("core:home")).content.decode()
+              before, news_part = content.split('id="home-news"', 1)
+              self.assertIn(f"#news-{plain.public_id}", news_part)
+              self.assertIn(f"#news-{d4.public_id}", news_part)
+              for d in (d1, d2, d3):
+                  self.assertNotIn(f"#news-{d.public_id}", news_part)
+                  self.assertIn(f"#deadline-{d.public_id}", before)
+
+          def test_news_without_deadlines_unchanged(self):
+              for i in range(4):
+                  make_announcement(
+                      self.w.sx,
+                      audience=Audience.UNIVERSITY,
+                      published_at=moscow(NOW) - timedelta(hours=i + 1),
+                  )
+              self.client.force_login(self.w.ax)
+              content = self.client.get(reverse("core:home")).content.decode()
+              news_part = content.split('id="home-news"', 1)[1]
+              self.assertEqual(news_part.count("#news-"), 3)
+
+          def test_news_heading(self):
+              self.client.force_login(self.w.ax)
+              content = self.client.get(reverse("core:home")).content.decode()
+              self.assertIn('<h2 id="home-news">Новости</h2>', content)
+              self.assertNotIn("Новости деканата", content)
+
+          def test_student_without_profile(self):
+              user = User.objects.create_user("noprof", role=User.Role.STUDENT)
+              self.client.force_login(user)
+              response = self.client.get(reverse("core:home"))
+              self.assertEqual(response.status_code, 200)
+              self.assertIn("Раздел в разработке", response.content.decode())
+
+          def test_staff_no_summary(self):
+              self.client.force_login(self.w.sx)
+              response = self.client.get(reverse("core:home"))
+              self.assertIn("Раздел в разработке", response.content.decode())
+
+          def test_superuser_no_summary(self):
+              self.client.force_login(self.w.root)
+              response = self.client.get(reverse("core:home"))
+              self.assertIn("Раздел в разработке", response.content.decode())
+
+          def test_home_does_not_mark_read(self):
+              make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+              self.client.force_login(self.w.ax)
+              self.client.get(reverse("core:home"))
+              self.assertFalse(NotificationState.objects.filter(user=self.w.ax).exists())
+
+
+      class CsrfTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+
+          def setUp(self):
+              self.client = Client(enforce_csrf_checks=True)
+              self.client.force_login(self.w.sx)
+
+          def test_create_without_token_403(self):
+              response = self.client.post(
+                  reverse("notifications:staff_announcements"),
+                  {"title": "Заголовок", "body": "Текст", "target": "faculty"},
+              )
+              self.assertEqual(response.status_code, 403)
+              self.assertEqual(Announcement.objects.count(), 0)
+
+          def test_unpublish_without_token_403(self):
+              announcement = make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+              response = self.client.post(
+                  reverse("notifications:staff_unpublish", args=[announcement.public_id])
+              )
+              self.assertEqual(response.status_code, 403)
+              announcement.refresh_from_db()
+              self.assertTrue(announcement.is_published)
+
+
+      class FeedViewTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+
+          def _get(self):
+              self.client.force_login(self.w.ax)
+              return self.client.get(reverse("notifications:feed"))
+
+          def test_sections_order(self):
+              response = self._get()
+              content = response.content.decode()
+              self.assertLess(content.find("Ближайшие дедлайны"), content.find("Лента"))
+
+          def test_empty_state(self):
+              response = self._get()
+              self.assertIn("Уведомлений за последние 30 дней нет.", response.content.decode())
+
+          def test_body_escaped_and_line_breaks_kept(self):
+              make_announcement(
+                  self.w.sx, audience=Audience.UNIVERSITY, body="<b>жирный</b>\nвторая строка"
+              )
+              content = self._get().content.decode()
+              self.assertIn("&lt;b&gt;жирный&lt;/b&gt;", content)
+              self.assertIn("<br>", content)
+              self.assertNotIn("<b>жирный", content)
+
+          def test_new_marker(self):
+              make_announcement(self.w.sx, audience=Audience.UNIVERSITY, title="Свежая")
+              content = self._get().content.decode()
+              self.assertIn("Новое", content)
+
+          def test_get_marks_read(self):
+              make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+              self._get()
+              state = NotificationState.objects.get(user=self.w.ax)
+              self.assertEqual(state.seen_until, timezone.now())
+              content = self._get().content.decode()
+              self.assertNotIn("<strong>Новое</strong>", content)
+
+          def test_head_not_allowed(self):
+              self.client.force_login(self.w.ax)
+              response = self.client.head(reverse("notifications:feed"))
+              self.assertEqual(response.status_code, 405)
+              self.assertFalse(NotificationState.objects.filter(user=self.w.ax).exists())
+
+          def test_post_not_allowed(self):
+              self.client.force_login(self.w.ax)
+              response = self.client.post(reverse("notifications:feed"))
+              self.assertEqual(response.status_code, 405)
+
+          def test_no_store(self):
+              response = self._get()
+              self.assertIn("no-store", response["Cache-Control"])
+
+
+      class StaffAnnouncementsViewTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+
+          def setUp(self):
+              self.client.force_login(self.w.sx)
+
+          def _post(self, data):
+              return self.client.post(reverse("notifications:staff_announcements"), data)
+
+          def test_create_faculty_announcement(self):
+              response = self._post({"title": "Заголовок", "body": "Текст", "target": "faculty"})
+              self.assertEqual(response.status_code, 302)
+              announcement = Announcement.objects.get()
+              self.assertEqual(announcement.author, self.w.sx)
+              self.assertEqual(announcement.faculty, self.w.fx)
+              self.assertEqual(announcement.audience, Audience.FACULTY)
+
+          def test_create_group_announcement(self):
+              response = self._post(
+                  {"title": "Заголовок", "body": "Текст", "target": f"group-{self.w.gx1.pk}"}
+              )
+              self.assertEqual(response.status_code, 302)
+              announcement = Announcement.objects.get()
+              self.assertEqual(announcement.audience, Audience.GROUP)
+              self.assertEqual(announcement.group, self.w.gx1)
+
+          def test_forged_group_form_error(self):
+              response = self._post(
+                  {"title": "Заголовок", "body": "Текст", "target": f"group-{self.w.gy1.pk}"}
+              )
+              self.assertEqual(response.status_code, 200)
+              self.assertEqual(Announcement.objects.count(), 0)
+
+          def test_university_target_form_error(self):
+              response = self._post({"title": "Заголовок", "body": "Текст", "target": "university"})
+              self.assertEqual(response.status_code, 200)
+              self.assertEqual(Announcement.objects.count(), 0)
+
+          def test_past_deadline_form_error(self):
+              response = self._post(
+                  {"title": "Заголовок", "body": "Текст", "target": "faculty", "deadline": "2026-11-10"}
+              )
+              self.assertEqual(response.status_code, 200)
+              self.assertEqual(Announcement.objects.count(), 0)
+
+          def test_service_error_shown_as_form_error(self):
+              with mock.patch(
+                  "notifications.views.create_announcement",
+                  side_effect=__import__(
+                      "django.core.exceptions", fromlist=["ValidationError"]
+                  ).ValidationError("x"),
+              ):
+                  response = self._post({"title": "Заголовок", "body": "Текст", "target": "faculty"})
+              self.assertEqual(response.status_code, 200)
+              self.assertIn("x", response.content.decode())
+
+          def test_unpublished_shown_with_status_and_no_button(self):
+              make_announcement(
+                  self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx, is_published=False
+              )
+              response = self.client.get(reverse("notifications:staff_announcements"))
+              content = response.content.decode()
+              self.assertIn("Снято с публикации", content)
+              self.assertNotIn("Снять с публикации", content)
+
+          def test_body_escaped_on_staff_page(self):
+              make_announcement(
+                  self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx, body="<b>жирный</b>"
+              )
+              response = self.client.get(reverse("notifications:staff_announcements"))
+              content = response.content.decode()
+              self.assertIn("&lt;b&gt;", content)
+              self.assertNotIn("<b>жирный", content)
+
+          def test_student_sees_created_announcement(self):
+              self._post({"title": "Заголовок", "body": "Текст", "target": "faculty"})
+              self.client.force_login(self.w.ax)
+              response = self.client.get(reverse("notifications:feed"))
+              self.assertIn("Заголовок", response.content.decode())
+
+
+      class StaffUnpublishViewTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+
+          def setUp(self):
+              self.client.force_login(self.w.sx)
+
+          def _post(self, announcement):
+              return self.client.post(
+                  reverse("notifications:staff_unpublish", args=[announcement.public_id]), follow=True
+              )
+
+          def test_messages(self):
+              announcement = make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+              first = self._post(announcement)
+              self.assertIn("Объявление снято с публикации.", first.content.decode())
+              second = self._post(announcement)
+              self.assertIn("Объявление уже снято с публикации.", second.content.decode())
+
+          def test_second_post_keeps_unpublished_at(self):
+              announcement = make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+              self._post(announcement)
+              announcement.refresh_from_db()
+              first = announcement.unpublished_at
+              self._post(announcement)
+              announcement.refresh_from_db()
+              self.assertEqual(announcement.unpublished_at, first)
+
+
+      class NavTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+
+          def test_student_nav_with_count(self):
+              make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+              make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+              self.client.force_login(self.w.ax)
+              response = self.client.get(reverse("core:home"))
+              self.assertIn("Уведомления (2)", response.content.decode())
+
+          def test_student_nav_without_count(self):
+              self.client.force_login(self.w.ax)
+              response = self.client.get(reverse("core:home"))
+              content = response.content.decode()
+              self.assertIn("Уведомления", content)
+              self.assertNotIn("Уведомления (", content)
+
+          def test_staff_nav_has_announcements(self):
+              self.client.force_login(self.w.sx)
+              response = self.client.get(reverse("core:home"))
+              self.assertIn("Объявления", response.content.decode())
+
+          def test_superuser_nav_has_neither(self):
+              self.client.force_login(self.w.root)
+              response = self.client.get(reverse("core:home"))
+              content = response.content.decode()
+              self.assertNotIn("Уведомления", content)
+              self.assertNotIn("Объявления", content)
+
+
+      class QueryCountTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+
+          def setUp(self):
+              self.term = make_term(code="t-2026-autumn")
+              self.disc = make_discipline("Дисциплина")
+              self.item = make_item(self.w.gx1, self.disc, self.term)
+              self.rtype = make_type("Справка")
+              self._n = 0
+
+          def _add_feed_batch(self):
+              """Add one row of every one of the 6 feed sources for student ax."""
+              self._n += 1
+              n = self._n
+              make_announcement(self.w.sx, audience=Audience.UNIVERSITY, title=f"Новость {n}")
+              petition = make_petition(self.w.ax_profile, self.rtype)
+              change_status(petition, self.w.sx, "submitted", "in_progress")
+              PetitionComment.objects.create(
+                  petition=petition, author=self.w.sx, text="Комментарий", created_at=timezone.now()
+              )
+              room = make_room(f"room-{100 + n}")
+              lesson = make_lesson([self.w.gx1], weekday=2, slot=n, room=room, discipline=self.disc)
+              save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=lesson, original_date=D, kind=ChangeKind.CANCELLED, reason="Причина"
+                  )
+              )
+              make_mark(self.w.ax_profile, self.item, 5, D - timedelta(days=n), "Семинар")
+              disc = make_discipline(f"Результат {n}")
+              item = make_item(self.w.gx1, disc, self.term)
+              make_result(self.w.ax_profile, item, "5", date=D)
+
+          def test_badge_exactly_three_queries(self):
+              user = User.objects.get(pk=self.w.ax.pk)
+              with self.assertNumQueries(3):
+                  badge_for_user(user)
+
+          def test_feed_queries_constant(self):
+              self.client.force_login(self.w.ax)
+              self._add_feed_batch()
+              set_seen(self.w.ax, moscow(NOW) - timedelta(days=1))
+              count_one = _query_count(lambda: self.client.get(reverse("notifications:feed")))
+              for _ in range(4):
+                  self._add_feed_batch()
+              set_seen(self.w.ax, moscow(NOW) - timedelta(days=1))
+              count_many = _query_count(lambda: self.client.get(reverse("notifications:feed")))
+              self.assertEqual(count_one, count_many)
+              self.assertLessEqual(count_one, 20)
+
+          def test_profile_page_counter_constant(self):
+              self.client.force_login(self.w.ax)
+              zero = _query_count(lambda: self.client.get(reverse("accounts:profile")))
+              for _ in range(10):
+                  make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+              ten = _query_count(lambda: self.client.get(reverse("accounts:profile")))
+              self.assertEqual(zero, ten)
+
+          def test_staff_list_queries_constant(self):
+              make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+              self.client.force_login(self.w.sx)
+              one = _query_count(lambda: self.client.get(reverse("notifications:staff_announcements")))
+              for i in range(3):
+                  make_announcement(
+                      self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx, title=f"Факультет {i}"
+                  )
+              make_announcement(self.w.sx, audience=Audience.GROUP, group=self.w.gx1, title="Группа GX1")
+              make_announcement(self.w.sx, audience=Audience.GROUP, group=self.w.gx2, title="Группа GX2")
+              six = _query_count(lambda: self.client.get(reverse("notifications:staff_announcements")))
+              self.assertEqual(one, six)
+              self.assertLessEqual(one, 10)
+
+          def test_home_queries_constant(self):
+              make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+              self.client.force_login(self.w.ax)
+              one = _query_count(lambda: self.client.get(reverse("core:home")))
+              for i in range(4):
+                  make_announcement(self.w.sx, audience=Audience.UNIVERSITY, title=f"Новость {i}")
+              five = _query_count(lambda: self.client.get(reverse("core:home")))
+              self.assertEqual(one, five)
+
+          def test_home_queries_same_with_deadlines(self):
+              make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+              self.client.force_login(self.w.ax)
+              count_a = _query_count(lambda: self.client.get(reverse("core:home")))
+              for i in range(4):
+                  make_announcement(
+                      self.w.sx, audience=Audience.UNIVERSITY, deadline=D + timedelta(days=i + 1)
+                  )
+              for _ in range(3):
+                  make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+              count_b = _query_count(lambda: self.client.get(reverse("core:home")))
+              self.assertEqual(count_a, count_b)
+
+
+      class AudienceLabelRenderTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+
+          def test_feed_shows_faculty_name_only(self):
+              make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+              self.client.force_login(self.w.ax)
+              content = self.client.get(reverse("notifications:feed")).content.decode()
+              self.assertIn("Факультет FX", content)
+              self.assertNotIn("Факультет: ", content)
+
+          def test_staff_list_shows_faculty_name_only(self):
+              make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+              self.client.force_login(self.w.sx)
+              content = self.client.get(reverse("notifications:staff_announcements")).content.decode()
+              self.assertIn("Факультет FX", content)
+              self.assertNotIn("Факультет: ", content)
+    ── Thought for 2s
+      I now understand the test patterns very well. I have enough context. Note that `make_world` (in notifications/tests/helpers.py) provides `ax` (student), `sx`/`sy` (staff), `root` (superuser), `fx`/`fy` (faculties), `gx1`/`gx2`/`gy1` (groups), `ax_profile` (StudentProfile). Let me check the notifications/tests/helpers.py make_world to understand what's available, since I might want a simpler helper for campusmap tests. Actually, I'll just use `accounts/tests/helpers.py` directly (make_faculty, make_group, make_student, make_staff) plus create a superuser.
+
+      Let me check the notifications/tests/helpers.py for make_world.
+    ── Read file read
+      """Test helpers for the notifications app (reuse accounts helpers)."""
+
+      from types import SimpleNamespace
+
+      from django.utils import timezone
+
+      from accounts.models import User
+      from accounts.tests.helpers import make_faculty, make_group, make_staff, make_student
+      from notifications.models import Announcement, NotificationState
+
+
+      def make_announcement(
+          author,
+          *,
+          audience,
+          faculty=None,
+          group=None,
+          title="Объявление",
+          body="Текст объявления",
+          deadline=None,
+          published_at=None,
+          is_published=True,
+      ) -> Announcement:
+          ts = published_at or timezone.now()
+          kwargs = {
+              "author": author,
+              "audience": audience,
+              "faculty": faculty,
+              "group": group,
+              "title": title,
+              "body": body,
+              "deadline": deadline,
+              "published_at": ts,
+              "is_published": is_published,
+          }
+          if not is_published:
+              kwargs["unpublished_at"] = ts
+              kwargs["unpublished_by"] = author
+          return Announcement.objects.create(**kwargs)
+
+
+      def set_seen(user, when) -> None:
+          NotificationState.objects.update_or_create(user=user, defaults={"seen_until": when})
+
+
+      def make_world() -> SimpleNamespace:
+          fx = make_faculty("FX")
+          fy = make_faculty("FY")
+          gx1 = make_group(fx, "GX1")
+          gx2 = make_group(fx, "GX2")
+          gy1 = make_group(fy, "GY1")
+          ax = make_student("ax", gx1, "ST-AX-1")
+          bx = make_student("bx", gx1, "ST-BX-1")
+          cx = make_student("cx", gx2, "ST-CX-1")
+          ay = make_student("ay", gy1, "ST-AY-1")
+          sx = make_staff("sx", fx)
+          sy = make_staff("sy", fy)
+          root = User.objects.create_superuser("root", password="Super-Pass-2026!")
+          return SimpleNamespace(
+              fx=fx,
+              fy=fy,
+              gx1=gx1,
+              gx2=gx2,
+              gy1=gy1,
+              ax=ax,
+              bx=bx,
+              cx=cx,
+              ay=ay,
+              sx=sx,
+              sy=sy,
+              root=root,
+              ax_profile=ax.student_profile,
+              bx_profile=bx.student_profile,
+              cx_profile=cx.student_profile,
+              ay_profile=ay.student_profile,
+              sx_profile=sx.staff_profile,
+              sy_profile=sy.staff_profile,
+          )
+    ── Read file read
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: var(--font-body);
+        font-size: var(--font-size-base);
+        line-height: var(--line-height-base);
+        background: var(--color-bg);
+        color: var(--color-text);
+        overflow-wrap: anywhere;
+      }
+
+      img,
+      svg {
+        max-width: 100%;
+        height: auto;
+      }
+
+      .site-header,
+      .site-main,
+      .site-footer {
+        padding: var(--space-3);
+      }
+
+      .site-main {
+        max-width: var(--content-max-width);
+        margin-inline: auto;
+      }
+
+      .skip-link {
+        position: absolute;
+        left: -10000px;
+        top: auto;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+      }
+
+      .skip-link:focus {
+        left: var(--space-3);
+        top: var(--space-3);
+        width: auto;
+        height: auto;
+        overflow: visible;
+      }
+
+      @media (min-width: 48rem) {
+        .site-header,
+        .site-main,
+        .site-footer {
+          padding: var(--space-4);
+        }
+      }
+
+      .site-nav-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-3);
+        list-style: none;
+        margin: var(--space-2) 0 0;
+        padding: 0;
+      }
+
+      .site-nav-logout {
+        margin: 0;
+      }
+
+      .form input {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+      }
+
+      .form button {
+        margin-top: var(--space-3);
+      }
+
+      .fields dt {
+        font-weight: bold;
+        margin-top: var(--space-2);
+      }
+
+      .fields dd {
+        margin: 0;
+      }
+
+      .student-list {
+        padding-left: var(--space-4);
+      }
+
+      .lesson-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .lesson {
+        border-top: 1px solid var(--color-border);
+        padding: var(--space-2) 0;
+      }
+
+      .lesson p {
+        margin: 0;
+      }
+
+      .lesson--now {
+        background: var(--color-now-bg);
+      }
+
+      .lesson-badge {
+        margin-right: var(--space-2);
+      }
+
+      .lesson-type,
+      .lesson-groups {
+        color: var(--color-muted);
+      }
+
+      .lesson-change {
+        color: var(--color-changed);
+      }
+
+      .lesson--cancelled .lesson-title,
+      .lesson--moved-out .lesson-title {
+        text-decoration: line-through;
+      }
+
+      .week-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-3);
+      }
+
+      .day {
+        margin-top: var(--space-4);
+      }
+
+      .discipline-list {
+        list-style: none;
+        padding: 0;
+      }
+
+      .discipline {
+        border-top: 1px solid var(--color-border);
+        padding: var(--space-2) 0;
+      }
+
+      .discipline--debt summary,
+      .status--debt {
+        color: var(--color-changed);
+      }
+
+      .term-nav ul {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-3);
+        list-style: none;
+        padding: 0;
+      }
+
+      details summary {
+        cursor: pointer;
+      }
+
+      .messages {
+        list-style: none;
+        margin: 0 0 var(--space-3);
+        padding: 0;
+      }
+
+      .message {
+        padding: var(--space-2);
+        border: 1px solid var(--color-border);
+        margin-bottom: var(--space-2);
+      }
+
+      .message--error {
+        color: var(--color-changed);
+      }
+
+      .status {
+        font-weight: bold;
+      }
+
+      .petition-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .petition {
+        border-top: 1px solid var(--color-border);
+        padding: var(--space-2) 0;
+      }
+
+      .petition p {
+        margin: 0;
+      }
+
+      .action-form {
+        margin: var(--space-3) 0;
+      }
+
+      input,
+      select,
+      textarea,
+      button {
+        max-width: 100%;
+        min-width: 0;
+      }
+
+      .page-actions {
+        margin: var(--space-2) 0 var(--space-3);
+      }
+
+      .feed,
+      .deadline-list {
+        list-style: none;
+        margin: 0 0 var(--space-3);
+        padding: 0;
+      }
+
+      .feed-item,
+      .deadline-list li {
+        margin-bottom: var(--space-3);
+        overflow-wrap: anywhere;
+      }
+
+      .feed-item h3 {
+        margin: var(--space-1) 0;
+        font-size: var(--font-size-base);
+      }
+
+      .feed-meta {
+        margin: 0;
+        font-size: 0.875rem;
+      }
+    ── Thought for 3s
+      I now have all the context I need. Let me start implementing.
+
+      Note about `make_world` - the `make_room(f"room-{100 + n}")` in notifications test line 674 uses floor default 1 with n ≤ 5, so numbers 101-105, all starting with 1 (floor 1). With the new `make_room` deriving floor from number, these stay floor 1. Good.
+
+      Now let me plan the implementation order and start.
+
+      ### Step 1: building.py, Room changes, migration 0003, make_room helper, university tests
+
+      First create `university/building.py`.
+
+      Then modify `university/models.py` Room.
+
+      Then generate migration 0003.
+
+      Then modify `schedule/tests/helpers.py` make_room.
+
+      Then add university tests (test_building.py, test_admin.py, modify test_models.py).
+
+      Let me start writing building.py exactly as the spec says.
+
+      Note the spec's `blocked_cells` docstring says `dict[str, Landmark]`. And `landmarks_on` returns `list[Landmark]`.
+
+      Let me write building.py.
+    ── Created university/building.py
+    ── Thought for 1s
+      Now modify `university/models.py` Room. I need to:
+      1. Add imports: `from university.building import MapCell, blocked_cells` and `from django.db.models.functions import Cast`.
+      2. Add constants `ROOM_NUMBER_RE` and `MAX_FLOOR`.
+      3. Modify `floor` field validators (20 → MAX_FLOOR).
+      4. Modify `number` field (add validators + help_text).
+      5. Add `map_cell` field.
+      6. Replace constraints.
+      7. Add `clean()` method.
+
+      Let me do the edits.
+
+      First the imports at top of file.
+    ── Edited university/models.py +6
+      --- a~/hackatonproject/university/models.py
+      +++ b~/hackatonproject/university/models.py
+      +from django.db.models.functions import Cast
+      +from university.building import MapCell, blocked_cells
+      +
+      +
+      +ROOM_NUMBER_RE = r"^[1-9][0-9]{2}$"
+      +MAX_FLOOR = 9
+    ── Edited university/models.py +54 -5
+      --- a~/hackatonproject/university/models.py
+      +++ b~/hackatonproject/university/models.py
+      -        "этаж", validators=[MinValueValidator(1), MaxValueValidator(20)]
+      +        "этаж", validators=[MinValueValidator(1), MaxValueValidator(MAX_FLOOR)]
+      -    number = models.CharField("номер", max_length=10, unique=True)
+      +    number = models.CharField(
+      +        "номер",
+      +        max_length=10,
+      +        unique=True,
+      +        validators=[
+      +            RegexValidator(
+      +                ROOM_NUMBER_RE, "Номер аудитории: ровно три цифры, первая цифра — этаж (1–9)."
+      +            )
+      +        ],
+      +        help_text="Три цифры, первая — этаж: 205 — аудитория на 2 этаже.",
+      +    )
+      +    map_cell = models.CharField(
+      +        "место на схеме",
+      +        max_length=2,
+      +        blank=True,
+      +        default="",
+      +        choices=MapCell.choices,
+      +        help_text="Пусто — аудитории нет на схеме.",
+      +    )
+      -                condition=models.Q(floor__gte=1) & models.Q(floor__lte=20),
+      -                name="university_room_floor_1_20",
+      -            )
+      +                condition=models.Q(floor__gte=1) & models.Q(floor__lte=MAX_FLOOR),
+      +                name="university_room_floor_1_9",
+      +            ),
+      +            models.CheckConstraint(
+      +                condition=models.Q(number__regex=ROOM_NUMBER_RE),
+      +                name="university_room_number_nnn",
+      +                violation_error_message=(
+      +                    "Номер аудитории: ровно три цифры, первая цифра — этаж (1–9)."
+      +                ),
+      +            ),
+      +            models.CheckConstraint(
+      +                condition=models.Q(number__startswith=Cast("floor", output_field=models.CharField())),
+      +                name="university_room_floor_matches_number",
+      +                violation_error_message="Этаж должен совпадать с первой цифрой номера аудитории.",
+      +            ),
+      +            models.CheckConstraint(
+      +                condition=models.Q(map_cell__in=["", *MapCell.values]),
+      +                name="university_room_map_cell_value",
+      +            ),
+      +            models.UniqueConstraint(
+      +                fields=["floor", "map_cell"],
+      +                condition=~models.Q(map_cell=""),
+      +                name="university_room_unique_map_cell",
+      +                violation_error_message="Это место на схеме этажа уже занято другой аудиторией.",
+      +            ),
+      +
+      +    def clean(self):
+      +        super().clean()
+      +        if self.map_cell and isinstance(self.floor, int) and 1 <= self.floor <= MAX_FLOOR:
+      +            landmark = blocked_cells(self.floor).get(self.map_cell)
+      +            if landmark is not None:
+      +                raise ValidationError(
+      +                    f"Это место на {self.floor} этаже занято: {landmark.label}."
+      +                )
+    ── Thought for 654ms
+      I need to add the `ValidationError` import since I use it in `clean()`. Currently the imports don't include `django.core.exceptions.ValidationError`. Let me check the current top of the file and add the import.
+    ── Edited university/models.py +1
+      --- a~/hackatonproject/university/models.py
+      +++ b~/hackatonproject/university/models.py
+      +from django.core.exceptions import ValidationError
+    ── Thought for 892ms
+      Now generate the migration. But first, I need to make sure `makemigrations` works. Let me run it. But note: the spec says run `python manage.py makemigrations university --name room_number_format_and_map_cell`.
+
+      Let me run it.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py makemigrations university --name room_number_format_and_map_cell 2>&1
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py makemigrations university --name room_number_format_and_map_cell 2>&1
+      Migrations for 'university':
+        university/migrations/0003_room_number_format_and_map_cell.py
+          - Remove constraint university_room_floor_1_20 from model room
+          + Add field map_cell to room
+          ~ Alter field floor on room
+          ~ Alter field number on room
+          + Create constraint university_room_floor_1_9 on model room
+          + Create constraint university_room_number_nnn on model room
+          + Create constraint university_room_floor_matches_number on model room
+          + Create constraint university_room_map_cell_value on model room
+          + Create constraint university_room_unique_map_cell on model room
+    ── Read file read
+      # Generated by Django 5.2.19 on 2026-11-15 14:16
+
+      import django.core.validators
+      import django.db.models.functions.comparison
+      from django.db import migrations, models
+
+
+      class Migration(migrations.Migration):
+
+          dependencies = [
+              ('university', '0002_discipline_room_teacher'),
+          ]
+
+          operations = [
+              migrations.RemoveConstraint(
+                  model_name='room',
+                  name='university_room_floor_1_20',
+              ),
+              migrations.AddField(
+                  model_name='room',
+                  name='map_cell',
+                  field=models.CharField(blank=True, choices=[('N2', 'Верхний ряд, место 2'), ('N3', 'Верхний ряд, место 3'), ('N4', 'Верхний ряд, место 4'), ('N5', 'Верхний ряд, место 5'), ('S1', 'Нижний ряд, место 1'), ('S2', 'Нижний ряд, место 2'), ('S3', 'Нижний ряд, место 3'), ('S4', 'Нижний ряд, место 4'), ('S5', 'Нижний ряд, место 5')], default='', help_text='Пусто — аудитории нет на схеме.', max_length=2, verbose_name='место на схеме'),
+              ),
+              migrations.AlterField(
+                  model_name='room',
+                  name='floor',
+                  field=models.PositiveSmallIntegerField(validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(9)], verbose_name='этаж'),
+              ),
+              migrations.AlterField(
+                  model_name='room',
+                  name='number',
+                  field=models.CharField(help_text='Три цифры, первая — этаж: 205 — аудитория на 2 этаже.', max_length=10, unique=True, validators=[django.core.validators.RegexValidator('^[1-9][0-9]{2}$', 'Номер аудитории: ровно три цифры, первая цифра — этаж (1–9).')], verbose_name='номер'),
+              ),
+              migrations.AddConstraint(
+                  model_name='room',
+                  constraint=models.CheckConstraint(condition=models.Q(('floor__gte', 1), ('floor__lte', 9)), name='university_room_floor_1_9'),
+              ),
+              migrations.AddConstraint(
+                  model_name='room',
+                  constraint=models.CheckConstraint(condition=models.Q(('number__regex', '^[1-9][0-9]{2}$')), name='university_room_number_nnn', violation_error_message='Номер аудитории: ровно три цифры, первая цифра — этаж (1–9).'),
+              ),
+              migrations.AddConstraint(
+                  model_name='room',
+                  constraint=models.CheckConstraint(condition=models.Q(('number__startswith', django.db.models.functions.comparison.Cast('floor', output_field=models.CharField()))), name='university_room_floor_matches_number', violation_error_message='Этаж должен совпадать с первой цифрой номера аудитории.'),
+              ),
+              migrations.AddConstraint(
+                  model_name='room',
+                  constraint=models.CheckConstraint(condition=models.Q(('map_cell__in', ['', 'N2', 'N3', 'N4', 'N5', 'S1', 'S2', 'S3', 'S4', 'S5'])), name='university_room_map_cell_value'),
+              ),
+              migrations.AddConstraint(
+                  model_name='room',
+                  constraint=models.UniqueConstraint(condition=models.Q(('map_cell', ''), _negated=True), fields=('floor', 'map_cell'), name='university_room_unique_map_cell', violation_error_message='Это место на схеме этажа уже занято другой аудиторией.'),
+              ),
+          ]
+    ── Thought for 434ms
+      The migration looks correct. Now let me modify the `make_room` helper.
+    ── Edited schedule/tests/helpers.py +3 -1
+      --- a~/hackatonproject/schedule/tests/helpers.py
+      +++ b~/hackatonproject/schedule/tests/helpers.py
+      -def make_room(code: str, floor: int = 1) -> Room:
+      +def make_room(code: str, floor: int | None = None) -> Room:
+      +    if floor is None:
+      +        floor = int(number[0])
+    ── Thought for 491ms
+      Now update the admin.py list_display.
+    ── Edited university/admin.py +1 -1
+      --- a~/hackatonproject/university/admin.py
+      +++ b~/hackatonproject/university/admin.py
+      -    list_display = ("number", "floor", "code")
+      +    list_display = ("number", "floor", "code", "map_cell")
+    ── Thought for 20s
+      Now let me write the university tests. First update `test_models.py`:
+      - Existing `test_room_code_validator`: change numbers to «199»/«198» with floor 1.
+      - Existing `test_room_floor_out_of_range_rejected` keeps passing (floor 0, «000»).
+
+      Wait, actually let me check: `test_room_floor_out_of_range_rejected` uses `Room.objects.create(code="room-0", floor=0, number="000")`. With the new constraint, floor 0 violates `university_room_floor_1_9` → IntegrityError. Also number "000" violates regex `^[1-9][0-9]{2}$` → IntegrityError. Either way, IntegrityError is raised. Good, still passes.
+
+      But wait — `test_room_code_validator` uses `Room(code="room-1", floor=1, number="998")` for good and `Room(code=bad, floor=1, number="999")` for bad codes. The spec says change numbers to «199»/«198» with floor 1. Actually let me re-read:
+
+      "Existing `test_room_code_validator`: change numbers to «199»/«198» with floor 1 (the test checks the code validator only)."
+
+      So:
+      - bad code test: `Room(code=bad, floor=1, number="999")` → change number to "198"? Wait, "199" and "198" both start with 1, matching floor 1. The current test uses number="999" for the bad codes (which would now be invalid number AND invalid code, causing TWO errors — but the test only checks `assertRaises(ValidationError)` on full_clean, so it still passes). And "998" for good.
+
+      Actually the issue: the current test uses `number="999"` with `floor=1` for bad codes. With the new number validator, "999" is a valid number format (3 digits, first 1-9) but floor 1 doesn't match "999" (first digit 9). So full_clean would raise ValidationError from BOTH the code and the number-floor mismatch. Since the test only asserts `assertRaises(ValidationError)`, it still passes. But the spec explicitly says to change numbers to «199»/«198» to keep the test focused on the code validator.
+
+      Let me follow the spec: change to `number="199"` for bad, `number="198"` for good (floor 1). Actually "198" starts with 1, floor 1, matches. Good.
+
+      Let me update test_room_code_validator:
+      ```python
+      def test_room_code_validator(self):
+          for bad in ("Room-1", "1room"):
+              with self.subTest(code=bad):
+                  room = Room(code=bad, floor=1, number="199")
+                  with self.assertRaises(ValidationError):
+                      room.full_clean()
+          good = Room(code="room-1", floor=1, number="198")
+          good.full_clean()
+      ```
+
+      Now add the new test classes: `RoomNumberTests` and `RoomMapCellTests`.
+
+      Let me write them carefully following section 6.3.
+
+      `RoomNumberTests`:
+      - `test_valid_numbers`: «101» floor 1, «999» floor 9 pass full_clean.
+      - `test_bad_number_is_field_error`: for «15», «1015», «a05», «012», «2a5», «20 5»: `"number" in message_dict`; mismatch message NOT in `message_dict.get("__all__", [])`.
+        - Need to set floor to something valid (e.g. floor=1) so that only the number is invalid. Wait, but the mismatch check: if floor is valid (say floor=1) and number is "012", the number regex fails → field error. The mismatch message should NOT appear in __all__ because Django skips constraint validation for failed fields. So message_dict should have "number" key, and __all__ should not contain the mismatch message. Good.
+        - But careful: for number "15", floor=1 — number field error. Good.
+        - Let me use floor=1 for all.
+      - `test_floor_out_of_range_is_field_error`: 0 and 10 → `"floor"` error. Need number valid and matching... actually for floor 0, number must start with 0, which is invalid. Hmm. Let me think. For floor=10, number should be "10x"? No. Let me construct: floor=0, number="001" (invalid number too). floor=10, number="100" (starts with 1, but floor 10...). 
+
+        Actually the test just checks `"floor" in message_dict`. Let me use:
+        - floor=0, number="101": floor field error (MinValueValidator 1), number "101" valid regex but mismatch (floor 0 vs first digit 1). Since floor fails field validation, the constraint (mismatch) is skipped. So message_dict has "floor" key. Good.
+        - floor=10, number="101": floor field error (MaxValueValidator 9). number valid. mismatch skipped. "floor" key present. Good.
+        
+        Wait but floor is PositiveSmallIntegerField, can it hold 0? Yes, 0 is non-negative. floor=10 fits in small int. So field validators: MinValueValidator(1) and MaxValueValidator(9). floor=0 → min error. floor=10 → max error. Both produce "floor" field error. Good.
+
+      - `test_floor_must_match_first_digit`: «205» floor 3 → `__all__` == ["Этаж должен совпадать с первой цифрой номера аудитории."]. 
+        - number "205" is valid (3 digits), floor 3 valid (1-9), but mismatch. full_clean → __all__ contains that message.
+
+      - `test_db_rejects_bad_number`, `test_db_rejects_mismatch`, `test_db_rejects_floor_10`: `objects.create` inside `transaction.atomic()` → IntegrityError.
+        - bad number: number="15", floor=1 → but wait, objects.create bypasses full_clean but the DB check constraint `university_room_number_nnn` enforces regex. So IntegrityError.
+        - mismatch: number="205", floor=3 → DB check `university_room_floor_matches_number` → IntegrityError.
+        - floor 10: floor=10, number="100"? Wait floor 10 violates `university_room_floor_1_9`. number "100" starts with 1, floor 10 → also mismatch. But the floor 1-9 constraint fires. Use floor=10, number="999"? number "999" valid, floor 10 → floor constraint fires. Actually let me use floor=10, number="999". But "999" first digit 9, floor 10 → mismatch too. Either constraint fires → IntegrityError. The test name is test_db_rejects_floor_10, so focus on floor. Let me use number="101" floor=10. floor 1-9 constraint: floor 10 → fails. Also mismatch (10 vs 1). IntegrityError raised. Fine.
+
+        For the room code, I need unique codes. Let me use distinct codes like "room-db1", etc. But code has regex `^[a-z][a-z0-9-]*$`, so "room-db1" is fine.
+
+      `RoomMapCellTests`:
+      - `test_landmark_cell_rejected`: floor 1, S3 → __all__ contains «Вход»; floor 2, S1 → «Деканат»; floor 3, S5 → «Библиотека».
+      - `test_same_landmark_cell_free_on_other_floor`: floor 4, S3 passes.
+      - `test_same_cell_same_floor_rejected`: full_clean message «Это место на схеме этажа уже занято…»; DB IntegrityError.
+      - `test_same_cell_other_floor_ok`, `test_many_rooms_without_cell_ok`.
+      - `test_db_rejects_unknown_cell`: map_cell="N1" via objects.create → IntegrityError (N1 not a choice).
+
+      Let me write these tests. For RoomMapCellTests, I need to create rooms with full_clean or objects.create. Note that creating a room needs unique number and code.
+
+      Let me carefully construct each test.
+
+      For `test_same_cell_same_floor_rejected`: create two rooms on floor 1 with same map_cell N2. First create one (full_clean + save). Second full_clean → ValidationError. And DB: second objects.create → IntegrityError (unique constraint).
+
+      For the DB integrity error test, I need the first room actually saved. Then objects.create second with same floor+map_cell.
+
+      Let me now write the test file additions. I'll add to `university/tests/test_models.py`.
+
+      Let me also create `university/tests/test_building.py` and `university/tests/test_admin.py`.
+
+      Let me write test_models.py additions first. I'll edit the existing file.
+
+      Actually, let me write the whole new content by editing specific parts. First update test_room_code_validator.
+
+      Let me do it now.
+    ── Edited university/tests/test_models.py +2 -2
+      --- a~/hackatonproject/university/tests/test_models.py
+      +++ b~/hackatonproject/university/tests/test_models.py
+      -                room = Room(code=bad, floor=1, number="999")
+      +                room = Room(code=bad, floor=1, number="199")
+      -        good = Room(code="room-1", floor=1, number="998")
+      +        good = Room(code="room-1", floor=1, number="198")
+    ── Edited university/tests/test_models.py +90
+      --- a~/hackatonproject/university/tests/test_models.py
+      +++ b~/hackatonproject/university/tests/test_models.py
+      +
+      +
+      +class RoomNumberTests(TestCase):
+      +    def test_valid_numbers(self):
+      +        for number, floor in (("101", 1), ("999", 9)):
+      +            with self.subTest(number=number, floor=floor):
+      +                room = Room(code=f"room-{number}", floor=floor, number=number)
+      +                room.full_clean()
+      +
+      +    def test_bad_number_is_field_error(self):
+      +        for number in ("15", "1015", "a05", "012", "2a5", "20 5"):
+      +            with self.subTest(number=number):
+      +                room = Room(code=f"room-{number.replace(' ', '')}", floor=1, number=number)
+      +                with self.assertRaises(ValidationError) as ctx:
+      +                    room.full_clean()
+      +                self.assertIn("number", ctx.exception.message_dict)
+      +                self.assertNotIn(
+      +                    "Этаж должен совпадать с первой цифрой номера аудитории.",
+      +                    ctx.exception.message_dict.get("__all__", []),
+      +                )
+      +
+      +    def test_floor_out_of_range_is_field_error(self):
+      +        for floor in (0, 10):
+      +            with self.subTest(floor=floor):
+      +                room = Room(code=f"room-f{floor}", floor=floor, number="101")
+      +                with self.assertRaises(ValidationError) as ctx:
+      +                    room.full_clean()
+      +                self.assertIn("floor", ctx.exception.message_dict)
+      +
+      +    def test_floor_must_match_first_digit(self):
+      +        room = Room(code="room-205x", floor=3, number="205")
+      +        with self.assertRaises(ValidationError) as ctx:
+      +            room.full_clean()
+      +        self.assertEqual(
+      +            ctx.exception.message_dict["__all__"],
+      +            ["Этаж должен совпадать с первой цифрой номера аудитории."],
+      +        )
+      +
+      +    def test_db_rejects_bad_number(self):
+      +        with self.assertRaises(IntegrityError):
+      +            with transaction.atomic():
+      +                Room.objects.create(code="room-db1", floor=1, number="15")
+      +
+      +    def test_db_rejects_mismatch(self):
+      +        with self.assertRaises(IntegrityError):
+      +            with transaction.atomic():
+      +                Room.objects.create(code="room-db2", floor=3, number="205")
+      +
+      +    def test_db_rejects_floor_10(self):
+      +        with self.assertRaises(IntegrityError):
+      +            with transaction.atomic():
+      +                Room.objects.create(code="room-db3", floor=10, number="101")
+      +
+      +
+      +class RoomMapCellTests(TestCase):
+      +    def test_landmark_cell_rejected(self):
+      +        for floor, cell, label in ((1, "S3", "Вход"), (2, "S1", "Деканат"), (3, "S5", "Библиотека")):
+      +            with self.subTest(floor=floor, cell=cell):
+      +                number = f"{floor}0{5 if cell != 'S1' else 1}"
+      +                room = Room(code=f"room-{number}", floor=floor, number=number, map_cell=cell)
+      +                with self.assertRaises(ValidationError) as ctx:
+      +                    room.full_clean()
+      +                self.assertIn(label, ctx.exception.messages[0])
+      +
+      +    def test_same_landmark_cell_free_on_other_floor(self):
+      +        room = Room(code="room-403", floor=4, number="403", map_cell="S3")
+      +        room.full_clean()
+      +
+      +    def test_same_cell_same_floor_rejected(self):
+      +        Room.objects.create(code="room-102", floor=1, number="102", map_cell="N2")
+      +        room = Room(code="room-103", floor=1, number="103", map_cell="N2")
+      +        with self.assertRaises(ValidationError) as ctx:
+      +            room.full_clean()
+      +        self.assertIn("Это место на схеме этажа уже занято", ctx.exception.messages[0])
+      +        with self.assertRaises(IntegrityError):
+      +            with transaction.atomic():
+      +                Room.objects.create(code="room-104", floor=1, number="104", map_cell="N2")
+      +
+      +    def test_same_cell_other_floor_ok(self):
+      +        Room.objects.create(code="room-202", floor=2, number="202", map_cell="N2")
+      +        Room.objects.create(code="room-302", floor=3, number="302", map_cell="N2")
+      +
+      +    def test_many_rooms_without_cell_ok(self):
+      +        for n in (1, 2, 3):
+      +            Room.objects.create(code=f"room-10{n}", floor=1, number=f"10{n}")
+      +
+      +    def test_db_rejects_unknown_cell(self):
+      +        with self.assertRaises(IntegrityError):
+      +            with transaction.atomic():
+      +                Room.objects.create(code="room-105", floor=1, number="105", map_cell="N1")
+    ── Thought for 22s
+      Wait, I need to double-check my `test_landmark_cell_rejected` number generation. For floor=1, cell=S3, label="Вход": number = f"{1}0{5 if cell != 'S1' else 1}" = "105". But "105" starts with 1 (floor 1), matches floor. Good. For floor=2, cell=S1, label="Деканат": number = "201". Starts with 2, matches floor 2. Good. For floor=3, cell=S5: number = "305". Starts with 3. Good.
+
+      Actually wait, my formula `f"{floor}0{5 if cell != 'S1' else 1}"`:
+      - floor=1, cell="S3" (not S1) → "1" + "0" + "5" = "105". Good.
+      - floor=2, cell="S1" → "2" + "0" + "1" = "201". Good.
+      - floor=3, cell="S5" → "3" + "0" + "5" = "305". Good.
+
+      All valid NNN starting with floor digit. Good.
+
+      But wait, I need to verify the `clean()` raises a non-field error (not a field error). When `clean()` calls `raise ValidationError(f"...")` with a string, it becomes a non-field error, accessible via `message_dict["__all__"]` and `messages` (list). Actually, `ValidationError("message")` creates `error_dict = {NON_FIELD_ERRORS: ["message"]}`. So `ctx.exception.messages` returns a list of all error messages across all fields. So `self.assertIn(label, ctx.exception.messages[0])` works if the first message is the non-field error.
+
+      Actually, `ValidationError.messages` property returns all messages as a list. For a single string ValidationError, messages = ["message"]. So `messages[0]` is the message. Good.
+
+      But wait — there's a subtlety. In `test_landmark_cell_rejected`, when I do `room.full_clean()`, the `clean()` method is called. But before that, field validation runs. The number "105" with floor 1 is valid (matches), map_cell "S3" is a valid choice. So no field errors. Then `clean()` is called, which finds S3 blocked on floor 1 → raises ValidationError "Это место на 1 этаже занято: Вход.". So messages[0] = "Это место на 1 этаже занято: Вход." which contains "Вход". Good.
+
+      Now, `test_same_cell_same_floor_rejected`: creates room-102 with map_cell N2 on floor 1. Then room-103 floor 1 N2 → full_clean. The unique constraint `university_room_unique_map_cell` has violation_error_message "Это место на схеме этажа уже занято другой аудиторией.". Django validates this constraint in full_clean, producing a non-field error (or field error?). UniqueConstraint validation errors are attached to the constraint's fields, but for a conditional unique constraint... Actually, Django's full_clean validates constraints and adds errors. For UniqueConstraint, the error is added to NON_FIELD_ERRORS (since it involves multiple fields) OR to the fields. Let me think.
+
+      Actually, in Django, when validating constraints, `validate_constraints` calls `constraint.validate(...)` which for a BaseConstraint with multiple fields raises a ValidationError with the fields... Let me recall. For a UniqueConstraint, `constraint.validate` does a queryset check and raises `ValidationError(self.get_violation_error_message())` which is a plain string → becomes non-field error.
+
+      Actually, let me verify by checking Django source behavior. `BaseConstraint.validate` returns a list of errors. For UniqueConstraint:
+
+      ```python
+      def validate(self, model, instance, exclude=None, using=DEFAULT_DB_ALIAS):
+          queryset = model._default_manager.using(using)
+          ...
+          if queryset.exists():
+              fields = [field for field in self.fields if instance.__dict__.get(field) is not None]
+              raise ValidationError(self.get_violation_error_message())
+      ```
+
+      Wait, actually the code raises `ValidationError(self.get_violation_error_message())`. Hmm, but it might attach fields. Let me just check: the message "Это место на схеме этажа уже занято" — I check `ctx.exception.messages[0]`. Since `messages` flattens all error messages, it should contain the message regardless of whether it's a field or non-field error. So `assertIn("Это место на схеме этажа уже занято", ctx.exception.messages[0])` should work... but `messages[0]` might be a different message if there are multiple.
+
+      Actually, wait — could there be OTHER errors? The room-103 has number "103", floor 1, map_cell N2. number valid, floor valid, map_cell valid choice, not a landmark cell (N2 is not blocked). So the only error is the unique constraint. So messages = ["Это место на схеме этажа уже занято другой аудиторией."]. messages[0] contains "Это место на схеме этажа уже занято". Good.
+
+      But hold on — is the unique constraint validated by full_clean? Yes, `Model.full_clean()` calls `validate_constraints()` which calls `full_clean(exclude=None, validate_unique=False, validate_constraints=True)` by default? Let me recall. Actually `Model.full_clean()`:
+
+      ```python
+      def full_clean(self, exclude=None, validate_unique=True, validate_constraints=True):
+          errors = {}
+          ...
+          if validate_constraints:
+              try:
+                  self.validate_constraints(exclude=exclude)
+              except ValidationError as e:
+                  errors = e.update_error_dict(errors)
+          ...
+      ```
+
+      And `validate_constraints` calls `constraint.validate(self, self, using=using)` for each constraint. So yes, the unique constraint is validated. Good.
+
+      But there's a subtlety with the unique constraint validation when the value is blank. The condition `~models.Q(map_cell="")` means blank map_cell is excluded. So for room-103 with map_cell="N2" (non-blank), the unique check runs. Good.
+
+      Now, one concern: `test_db_rejects_unknown_cell` uses map_cell="N1" which is NOT in MapCell choices. The `university_room_map_cell_value` check constraint validates `map_cell__in=["", "N2", ..., "S5"]`. "N1" is not in the list, so the constraint fails → IntegrityError on objects.create. Good.
+
+      Now, one more concern about `test_many_rooms_without_cell_ok`: creates room-101, room-102, room-103 with floor 1, no map_cell. But wait, `Room.objects.create` doesn't run full_clean, so it just needs to pass DB constraints. number "101","102","103" all valid, floor 1 matches. map_cell="" (blank). The unique constraint condition `~map_cell=""` is false for blank, so no uniqueness issue. Good.
+
+      But hold on, there might be a collision with other tests? No, each TestCase has isolated DB (transactions). Good.
+
+      Now let me write test_building.py and test_admin.py.
+
+      For test_building.py (BuildingTests):
+      - `test_stairs_on_every_floor`: for floor 1-9, "Лестница" in labels of landmarks_on(floor), and STAIRS_CELL in blocked_cells(floor).
+      - `test_floor_landmarks`: exact keys per floor 1, 2, 3, 4.
+      - `test_blocked_cells`: floor 1 → {N1, S3, S4, S5}.
+      - `test_choices_exclude_stairs`: "N1" not in MapCell.values.
+      - `test_landmark_cells_adjacent_same_row`: for each landmark, all cells same row (first char) and columns adjacent (sorted column numbers differ by 1).
+
+      Let me write these.
+
+      For test_admin.py (RoomAdminTests), superuser client, `admin:university_room_add`:
+      - `test_valid_room_saved` (302): post valid room data.
+      - `test_bad_number_shows_field_error` (200, message).
+      - `test_mismatch_shows_error` (200, mismatch message).
+      - `test_landmark_cell_shows_error` (200, «занято: Вход»).
+      - `test_duplicate_cell_shows_error` (200).
+
+      I need to know the admin URL. `settings.ADMIN_URL` in DEBUG defaults to "admin/"? Let me check env_utils.resolve_admin_url. Actually, the admin URL is `path(settings.ADMIN_URL, admin.site.urls)`. In tests, DEBUG=true, so ADMIN_URL defaults to "admin/". Let me verify by checking resolve_admin_url.
+
+      Actually, let me check what the admin add URL is. The reverse name is `admin:university_room_add`. Let me verify the admin URL prefix. The tests use `self.client` as superuser. Let me check existing admin tests pattern — is there any existing admin test? Let me search.
+
+      Actually, there's no existing admin test in the codebase (the spec says create `university/tests/test_admin.py`). Let me check how other tests reference admin, if any.
+
+      Let me check resolve_admin_url quickly and whether there's a pattern.
+    ── Read file read
+      """Environment helpers for the deanery project settings.
+
+      Pure functions only. This module must not import ``django.conf.settings``,
+      so that it can be unit-tested without a configured Django environment.
+      """
+
+      import re
+
+      from django.core.exceptions import ImproperlyConfigured
+
+      DEV_SECRET_KEY = "django-insecure-dev-only-key-do-not-use-in-production"
+
+
+      def resolve_secret_key(raw: str, debug: bool) -> str:
+          """Return the secret key, failing fast in production when it is missing."""
+          value = raw.strip()
+          if value:
+              return value
+          if debug:
+              return DEV_SECRET_KEY
+          raise ImproperlyConfigured("SECRET_KEY environment variable is required when DEBUG is false.")
+
+
+      def resolve_admin_url(raw: str, debug: bool) -> str:
+          """Return a validated URL prefix for Django admin, e.g. ``"staff-panel/"``."""
+          value = raw.strip().strip("/")
+          if value == "":
+              if debug:
+                  return "admin/"
+              raise ImproperlyConfigured(
+                  "ADMIN_URL environment variable is required when DEBUG is false."
+              )
+          if not re.fullmatch(r"[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*", value):
+              raise ImproperlyConfigured("ADMIN_URL may contain only letters, digits, '-', '_' and '/'.")
+          return value + "/"
+
+
+      def resolve_client_ip_header(raw: str) -> str:
+          """Map the CLIENT_IP_HEADER env value to a request.META key; empty = trust no proxy header."""
+          value = raw.strip().lower()
+          if value == "":
+              return ""
+          if value == "x-real-ip":
+              return "HTTP_X_REAL_IP"
+          if value == "x-forwarded-for":
+              return "HTTP_X_FORWARDED_FOR"
+          raise ImproperlyConfigured("CLIENT_IP_HEADER must be empty, 'X-Real-IP' or 'X-Forwarded-For'.")
+    ── Searched for admin:
+    ── Thought for 636ms
+      Let me look at the accounts/tests/test_admin.py to see the admin test pattern (superuser client, posting to add forms).
+    ── Read file read
+      from django.test import TestCase
+      from django.urls import reverse
+
+      from accounts.models import User
+
+      from .helpers import make_faculty, make_group, make_staff, make_student
+
+
+      class AdminAccessTests(TestCase):
+          @classmethod
+          def setUpTestData(cls):
+              cls.faculty = make_faculty("FA")
+              cls.group = make_group(cls.faculty, "GA")
+              cls.student = make_student("stu", cls.group, "REC-1")
+              cls.staff = make_staff("stf", cls.faculty)
+              cls.superuser = User.objects.create_superuser("root", password="Super-Pass-2026!")
+
+          def test_student_and_staff_cannot_open_admin(self):
+              for user in (self.student, self.staff):
+                  self.client.force_login(user)
+                  response = self.client.get(reverse("admin:index"))
+                  self.assertEqual(response.status_code, 302)
+
+          def test_superuser_can_open_admin(self):
+              self.client.force_login(self.superuser)
+              response = self.client.get(reverse("admin:index"))
+              self.assertEqual(response.status_code, 200)
+
+          def test_admin_user_add_form_has_role(self):
+              self.client.force_login(self.superuser)
+              response = self.client.get(reverse("admin:accounts_user_add"))
+              self.assertEqual(response.status_code, 200)
+              self.assertIn('name="role"', response.content.decode())
+
+          def test_admin_user_add_without_role_shows_error(self):
+              self.client.force_login(self.superuser)
+              response = self.client.post(
+                  reverse("admin:accounts_user_add"),
+                  {"username": "newu", "role": "", "usable_password": "false"},
+              )
+              self.assertEqual(response.status_code, 200)
+              self.assertFalse(User.objects.filter(username="newu").exists())
+    ── Thought for 6s
+      Now I understand the admin test pattern. The `reverse("admin:university_room_add")` gives the add URL. The Room admin form needs fields: code, floor, number, map_cell. Let me write test_admin.py.
+
+      For `test_valid_room_saved` (302): post `{"code": "room-201", "floor": "2", "number": "201", "map_cell": "N3"}` → redirect (302) to changelist. Room saved.
+
+      For `test_bad_number_shows_field_error` (200, message): post `{"code": "room-x", "floor": "1", "number": "15", "map_cell": ""}` → 200, message "Номер аудитории" present.
+
+      For `test_mismatch_shows_error` (200): post `{"code": "room-x", "floor": "3", "number": "205", "map_cell": ""}` → 200, "Этаж должен совпадать".
+
+      For `test_landmark_cell_shows_error` (200): post `{"code": "room-103", "floor": "1", "number": "103", "map_cell": "S3"}` → 200, "занято: Вход".
+
+      For `test_duplicate_cell_shows_error` (200): create a room first, then post another with same cell.
+
+      Note: the Room admin form. Does RoomAdmin have a form that calls full_clean? By default, Django admin ModelForm calls full_clean() which includes clean() and validate_constraints. So posting will validate constraints and show errors. Good.
+
+      Wait, one concern: the admin add form requires the model's required fields. Room has `code`, `floor`, `number`, `map_cell` (blank allowed). So posting with code/floor/number/map_cell should work.
+
+      Let me write the admin test. I need to import Room and User.
+
+      For `test_duplicate_cell_shows_error`, I create room-101 floor 1 map_cell N2 first (via objects.create with full_clean? or objects.create directly). Then post room-102 floor 1 map_cell N2 → 200 with "Это место на схеме этажа уже занято".
+
+      Actually, let me use `Room.objects.create(code="room-101", floor=1, number="101", map_cell="N2")`.
+
+      Now let me write test_admin.py.
+
+      Let me also think about what message strings appear. The admin form errors are rendered in HTML. The messages contain Cyrillic. I'll check `self.assertIn("...", content)`.
+
+      Now write test_building.py and test_admin.py.
+    ── Created university/tests/test_building.py
+    ── Created university/tests/test_admin.py
+    ── Thought for 391ms
+      Now let me run the university tests to check step 1.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test university.tests schedule.tests.test_views.ScheduleViewsTests.test_room_code_attribute schedule.tests.test_views.ChangeRenderingTests schedule.tests.test_locking 2>&1 | tee "$TMPDIR/test-$TS-step1.log" | tail -40 (3s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test university.tests schedule.tests.test_views.ScheduleViewsTests.test_room_code_attribute schedule.tests.test_views.ChangeRenderingTests schedule.tests.test_locking 2>&1 | tee "$TMPDIR/test-$TS-step1.log" | tail -40
+      Creating test database for alias 'default'...
+      ~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py:61: UserWarning: No directory at: ~/hackatonproject/staticfiles/
+        mw_instance = middleware(adapted_handler)
+      .....................................
+      ----------------------------------------------------------------------
+      Ran 37 tests in 0.557s
+
+      OK
+      Destroying test database for alias 'default'...
+      Found 37 test(s).
+      System check identified no issues (0 silenced).
+    ── Thought for 852ms
+      Step 1 tests pass. Now let me run the full suite to check for regressions (especially the `make_room` change affects many tests). Let me run the full test suite now to catch issues early.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-step1-full.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:|Error" | tail -40 (2m 2s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-step1-full.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:|Error" | tail -40
+      Ran 771 tests in 119.389s
+      OK
+    ── Thought for 2s
+      Full suite: 771 tests OK (was 748, +23 new: 7 building + 9 room number/mapcell + 5 admin... wait let me count). New tests: test_building.py has 5 tests, test_admin.py has 5 tests, test_models.py additions: RoomNumberTests (7 tests) + RoomMapCellTests (6 tests) = 13. Total new = 5 + 5 + 13 = 23. 748 + 23 = 771. ✓
+
+      Step 1 complete. Now step 2: campusmap app skeleton + settings/urls/pyproject + layout.py + test_layout.py.
+
+      Let me create the campusmap app files.
+
+      First, the app directory structure:
+      - `campusmap/__init__.py`
+      - `campusmap/apps.py`
+      - `campusmap/layout.py`
+      - `campusmap/views.py`
+      - `campusmap/urls.py`
+      - `campusmap/templates/campusmap/map.html`
+      - `campusmap/tests/__init__.py`
+      - `campusmap/tests/test_layout.py`
+      - `campusmap/tests/test_views.py`
+
+      Let me start with __init__.py (empty), apps.py, and layout.py.
+
+      Let me write apps.py per spec.
+    ── Created campusmap/__init__.py
+    ── Created campusmap/apps.py
+    ── Thought for 8s
+      Now layout.py. Per spec, define `Rect` before the constants that use it (OUTLINE, CORRIDOR). But the spec shows the constants in a specific order. Let me re-read 4.5 carefully.
+
+      The spec says:
+      ```python
+      VIEWBOX_WIDTH = 400
+      VIEWBOX_HEIGHT = 240
+      ROOM_LABEL_SIZE = 20
+      LANDMARK_LABEL_SIZE = 15
+      CELL_WIDTH = 72
+      CELL_HEIGHT = 80
+      COLUMN_X = {1: 12, 2: 88, 3: 164, 4: 240, 5: 316}
+      ROW_Y = {"N": 12, "S": 148}
+      OUTLINE = Rect(4, 4, 392, 232)
+      CORRIDOR = Rect(12, 96, 376, 48)
+      ```
+      Then the dataclasses. But it also says "(Define `Rect` before the constants that use it.)"
+
+      So I need `Rect` defined before `OUTLINE` and `CORRIDOR`. Let me structure:
+
+      ```python
+      VIEWBOX_WIDTH = 400
+      VIEWBOX_HEIGHT = 240
+      ROOM_LABEL_SIZE = 20
+      LANDMARK_LABEL_SIZE = 15
+      CELL_WIDTH = 72
+      CELL_HEIGHT = 80
+      COLUMN_X = {1: 12, 2: 88, 3: 164, 4: 240, 5: 316}
+      ROW_Y = {"N": 12, "S": 148}
+
+
+      @dataclass(frozen=True)
+      class Rect:
+          x: int
+          y: int
+          width: int
+          height: int
+
+          @property
+          def cx(self) -> int:
+              return self.x + self.width // 2
+
+          @property
+          def cy(self) -> int:
+              return self.y + self.height // 2
+
+
+      OUTLINE = Rect(4, 4, 392, 232)
+      CORRIDOR = Rect(12, 96, 376, 48)
+
+
+      @dataclass(frozen=True)
+      class MapShape:
+          kind: str
+          label: str
+          rect: Rect
+          is_current: bool = False
+
+
+      @dataclass(frozen=True)
+      class FloorPlan:
+          floor: int
+          width: int
+          height: int
+          outline: Rect
+          corridor: Rect
+          shapes: list[MapShape]
+      ```
+
+      Then functions cell_rect, span_rect, floor_plan.
+
+      Note: `span_rect` needs `Sequence[str]`. Import from collections.abc.
+
+      `floor_plan` needs `Room` type. Import from university.models. And `blocked_cells`, `landmarks_on`, `MapCell` from university.building.
+
+      Let me write layout.py.
+
+      For `floor_plan`:
+      1. `blocked = blocked_cells(floor)`.
+      2. landmark shapes.
+      3. room shapes.
+      4. return.
+
+      Room shape condition: `room.floor == floor`, `room.map_cell` non-empty, `room.map_cell not in blocked`.
+
+      Note `current is not None and room.pk == current.pk`. But room might not have pk (in-memory Room objects without save in layout tests). The spec's test `test_floor_plan_marks_current` builds Room objects with pk set? Let me think. In the layout test, `Room(...)` in memory without save has pk=None. To test `is_current`, they need pk. Hmm. Let me re-read the test:
+
+      `test_floor_plan_marks_current` (exactly one shape is_current). And `test_room_without_cell_not_drawn`, `test_room_on_blocked_cell_not_drawn` (built with `Room(...)` objects in memory, no save), `test_other_floor_rooms_not_drawn`.
+
+      So for `test_floor_plan_marks_current`, I need to construct Room objects with distinct pks. Since Room is unsaved, pk is None for all, so `room.pk == current.pk` would be True for ALL (None == None). That's a problem. So the test must set pk manually. I can set `room.pk = 1` etc. on in-memory objects (Django allows setting pk attribute manually).
+
+      Actually, I'll write the test to assign `.pk` manually. Let me keep floor_plan as specified (use `room.pk == current.pk`).
+
+      Let me write layout.py now.
+    ── Created campusmap/layout.py
+    ── Thought for 5s
+      Now let me create the views.py, urls.py, and template, and then wire up settings/urls/pyproject.
+
+      views.py per spec 4.6:
+
+      ```python
+      from dataclasses import dataclass
+
+      from django.http import Http404
+      from django.urls import reverse
+      from django.views.generic import TemplateView
+
+      from campusmap.layout import floor_plan
+      from university.building import blocked_cells
+      from university.models import Room
+
+
+      @dataclass(frozen=True)
+      class RoomEntry:
+          number: str
+          url: str
+          on_map: bool
+          is_current: bool
+
+
+      @dataclass(frozen=True)
+      class FloorEntry:
+          number: int
+          url: str
+          is_current: bool
+          rooms: list[RoomEntry]
+
+
+      class MapView(TemplateView):
+          template_name = "campusmap/map.html"
+          http_method_names = ["get"]
+
+          def get_context_data(self, **kwargs):
+              context = super().get_context_data(**kwargs)
+              rooms = list(Room.objects.order_by("floor", "number"))
+              floors = sorted({r.floor for r in rooms})
+              code = self.kwargs.get("code")
+              floor = self.kwargs.get("floor")
+              current = None
+              if code is not None:
+                  current = next((r for r in rooms if r.code == code), None)
+                  if current is None:
+                      raise Http404
+                  floor = current.floor
+              elif floor is not None:
+                  if floor not in floors:
+                      raise Http404
+              else:
+                  floor = floors[0] if floors else None
+              plan = floor_plan(floor, rooms, current) if floor is not None else None
+              floor_entries = [
+                  FloorEntry(
+                      f,
+                      reverse("campusmap:floor", args=[f]),
+                      f == floor,
+                      [
+                          RoomEntry(
+                              r.number,
+                              reverse("campusmap:room", args=[r.code]),
+                              bool(r.map_cell) and r.map_cell not in blocked_cells(f),
+                              current is not None and r.pk == current.pk,
+                          )
+                          for r in rooms
+                          if r.floor == f
+                      ],
+                  )
+                  for f in floors
+              ]
+              context["plan"] = plan
+              context["floors"] = floor_entries
+              context["current"] = current
+              return context
+      ```
+
+      Wait, the spec says "Context: `plan`, `floors` (the `FloorEntry` list), `current`." So `floors` in context is the list of FloorEntry. Good.
+
+      Now, `floor` is an int from kwargs (the `<int:floor>` converter). `code` is a slug string.
+
+      Let me write views.py and urls.py.
+
+      Note: the spec's `get_context_data` step 3: `floor = self.kwargs.get("floor")`. For the `map` URL, kwargs has no "floor" or "code". For `floor` URL, kwargs has "floor". For `room` URL, kwargs has "code". Good.
+
+      Let me write.
+    ── Created campusmap/views.py
+    ── Created campusmap/urls.py
+    ── Created campusmap/templates/campusmap/map.html
+    ── Thought for 432ms
+      Now wire up settings.py, urls.py, pyproject.toml.
+
+      settings.py: add "campusmap" after "notifications".
+    ── Edited config/settings.py +1
+      --- a~/hackatonproject/config/settings.py
+      +++ b~/hackatonproject/config/settings.py
+      +    "campusmap",
+    ── Edited config/urls.py +1
+      --- a~/hackatonproject/config/urls.py
+      +++ b~/hackatonproject/config/urls.py
+      +    path("", include("campusmap.urls")),
+    ── Edited pyproject.toml +1 -1
+      --- a~/hackatonproject/pyproject.toml
+      +++ b~/hackatonproject/pyproject.toml
+      -known-first-party = ["config", "core", "accounts", "university", "schedule", "academics", "petitions", "notifications"]
+      +known-first-party = ["config", "core", "accounts", "university", "schedule", "academics", "petitions", "notifications", "campusmap"]
+    ── Thought for 12s
+      Now write `campusmap/tests/__init__.py` (empty) and `campusmap/tests/test_layout.py`.
+
+      test_layout.py per spec 6.3 LayoutTests:
+      - `test_cells_inside_viewbox_and_disjoint`
+      - `test_coordinates_are_integers`
+      - `test_labels_fit`
+      - `test_label_sizes`
+      - `test_floor_plan_marks_current`
+      - `test_room_without_cell_not_drawn`
+      - `test_room_on_blocked_cell_not_drawn`
+      - `test_other_floor_rooms_not_drawn`
+
+      Let me write these carefully.
+
+      For `test_cells_inside_viewbox_and_disjoint`: all MapCell values + STAIRS_CELL and every landmark span_rect: inside OUTLINE; room cells pairwise disjoint; none overlaps CORRIDOR.
+
+      Need to check rect inside OUTLINE: x >= OUTLINE.x, y >= OUTLINE.y, x+width <= OUTLINE.x+OUTLINE.width, y+height <= OUTLINE.y+OUTLINE.height.
+
+      Pairwise disjoint: for room cells, their cell_rects don't overlap. All room cells are N2-N5 and S1-S5 with COLUMN_X and ROW_Y distinct. So cell_rects are disjoint.
+
+      None overlaps CORRIDOR: CORRIDOR = Rect(12, 96, 376, 48) → spans x 12-388, y 96-144. Room cells N row: y=12, height 80 → y 12-92. S row: y=148, height 80 → y 148-228. So no overlap with corridor y 96-144. Good.
+
+      Landmark span_rects: they span cells in one row, so y is 12 (N) or 148 (S), height 80 → no corridor overlap.
+
+      Let me write helper to check rect inside and overlap.
+
+      For `test_coordinates_are_integers`: every Rect field and cx/cy is int. I'll check all cell_rect values, span_rects, OUTLINE, CORRIDOR.
+
+      For `test_labels_fit`: `3 * 0.6 * ROOM_LABEL_SIZE <= CELL_WIDTH`. 3*0.6*20 = 36 <= 72. ✓. For every landmark `len(label) * 0.6 * LANDMARK_LABEL_SIZE <= span width`. Labels: Лестница (8 chars) → 8*0.6*15=72, span width N1 = 72. ✓. Вход (4) → 36, S3 width 72. Столовая (8) → 72, span S4+S5 = width 144. Деканат (7) → 63, span S1+S2 = 144. Библиотека (9) → 81, span 144. All fine.
+
+      For `test_label_sizes`: `ROOM_LABEL_SIZE * 328 / VIEWBOX_WIDTH >= 16` → 20*328/400 = 16.4 >= 16. ✓. `LANDMARK_LABEL_SIZE * 328 / VIEWBOX_WIDTH >= 12` → 15*0.82 = 12.3 >= 12. ✓.
+
+      For `test_floor_plan_marks_current`: build rooms with pk set, exactly one shape is_current.
+
+      Let me build Room objects in memory with manual pk. Room requires code, floor, number. I'll do:
+      ```python
+      r1 = Room(code="room-101", floor=1, number="101", map_cell="N2")
+      r1.pk = 1
+      r2 = Room(code="room-102", floor=1, number="102", map_cell="N3")
+      r2.pk = 2
+      plan = floor_plan(1, [r1, r2], r2)
+      current_shapes = [s for s in plan.shapes if s.is_current]
+      self.assertEqual(len(current_shapes), 1)
+      self.assertEqual(current_shapes[0].label, "102")
+      ```
+
+      Wait, but setting `r1.pk = 1` on an unsaved model — is that allowed? Django models allow setting `pk` attribute manually. Yes, `r1.pk = 1` works (it just sets the attribute). Actually, does it? The pk is a property that maps to the id field. Setting `obj.pk = 1` sets `obj.id = 1`. This works.
+
+      Actually, there might be a subtlety: `Room` is a Django model. Creating `Room(code=..., floor=..., number=..., map_cell=...)` without save is fine. Setting `.pk = 1` also fine.
+
+      For `test_room_without_cell_not_drawn`: room with map_cell="" → not in shapes.
+      For `test_room_on_blocked_cell_not_drawn`: room with map_cell="N1" (stairs) → not drawn.
+      For `test_other_floor_rooms_not_drawn`: room on floor 2 → not drawn for floor 1 plan.
+
+      Let me write the test file.
+
+      Actually, I should also check the `test_labels_fit` uses `len(label)` where label is Cyrillic (each char is one len unit). "Лестница" = 8 chars. OK.
+
+      Let me write test_layout.py.
+
+      For helper functions, I'll use SimpleTestCase (no DB).
+
+      Let me write the overlap check for disjoint test:
+      ```python
+      def _inside(rect, box):
+          return (
+              rect.x >= box.x
+              and rect.y >= box.y
+              and rect.x + rect.width <= box.x + box.width
+              and rect.y + rect.height <= box.y + box.height
+          )
+
+      def _overlaps(a, b):
+          return not (
+              a.x + a.width <= b.x or b.x + b.width <= a.x
+              or a.y + a.height <= b.y or b.y + b.height <= a.y
+          )
+      ```
+
+      Let me write the full test_layout.py.
+    ── Edited campusmap/tests/__init__.py
+    ── Created campusmap/tests/test_layout.py
+    ── Thought for 513ms
+      Now let me run the layout tests to verify step 2 (before writing test_views.py which is step 3). Actually, let me run the layout tests quickly.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test campusmap.tests.test_layout 2>&1 | tail -15 (1s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test campusmap.tests.test_layout 2>&1 | tail -15
+      ........
+      ----------------------------------------------------------------------
+      Ran 8 tests in 0.001s
+
+      OK
+      Found 8 test(s).
+      System check identified no issues (0 silenced).
+    ── Thought for 1s
+      Step 2 done. Now step 3: view, template (done), CSS, nav + test_views.py + CSS test.
+
+      Actually the template and view are already written. I need:
+      1. CSS (tokens.css + base.css).
+      2. Nav in base.html.
+      3. test_views.py (MapViewTests, MapAccessTests, MapQueryTests, MapNavTests).
+      4. CSS test in core/tests/test_css.py.
+
+      Let me do the CSS and nav first.
+
+      tokens.css: add `--color-map-highlight: #c00000;` to :root block.
+    ── Edited static/css/tokens.css +1
+      --- a~/hackatonproject/static/css/tokens.css
+      +++ b~/hackatonproject/static/css/tokens.css
+      +  --color-map-highlight: #c00000;
+    ── Edited static/css/base.css +76
+      --- a~/hackatonproject/static/css/base.css
+      +++ b~/hackatonproject/static/css/base.css
+      +
+      +.map-svg {
+      +  display: block;
+      +  width: 100%;
+      +  height: auto;
+      +  margin: var(--space-2) 0;
+      +}
+      +
+      +.map-outline,
+      +.map-room rect,
+      +.map-landmark rect,
+      +.map-corridor {
+      +  fill: none;
+      +  stroke: var(--color-text);
+      +  stroke-width: 2;
+      +}
+      +
+      +.map-corridor {
+      +  stroke: var(--color-border);
+      +}
+      +
+      +.map-landmark rect {
+      +  stroke: var(--color-muted);
+      +  stroke-dasharray: 6 4;
+      +}
+      +
+      +.map-room-label {
+      +  font-size: 20px;
+      +  fill: var(--color-text);
+      +}
+      +
+      +.map-landmark-label {
+      +  font-size: 15px;
+      +  fill: var(--color-muted);
+      +}
+      +
+      +/* Highlighted room: one class, restyle in the UI stage. */
+      +.map-current .map-room-label {
+      +  fill: var(--color-map-highlight);
+      +}
+      +
+      +a.map-current {
+      +  color: var(--color-map-highlight);
+      +}
+      +
+      +.floor-switcher ul,
+      +.map-legend,
+      +.map-room-list {
+      +  list-style: none;
+      +  margin: 0;
+      +  padding: 0;
+      +}
+      +
+      +.floor-switcher ul {
+      +  display: inline-flex;
+      +  flex-wrap: wrap;
+      +  gap: var(--space-2);
+      +}
+      +
+      +.floor-switcher a {
+      +  display: inline-block;
+      +  min-width: 2.75rem;
+      +  min-height: 2.75rem;
+      +  line-height: 2.75rem;
+      +  text-align: center;
+      +}
+      +
+      +.floor-current {
+      +  font-weight: bold;
+      +}
+      +
+      +.map-legend-swatch {
+      +  width: 1.5rem;
+      +  height: 1rem;
+      +  vertical-align: middle;
+      +}
+    ── Edited templates/base.html +1
+      --- a~/hackatonproject/templates/base.html
+      +++ b~/hackatonproject/templates/base.html
+      +        <li><a href="{% url 'campusmap:map' %}">Карта</a></li>
+    ── Edited templates/base.html +1
+      --- a~/hackatonproject/templates/base.html
+      +++ b~/hackatonproject/templates/base.html
+      +        <li><a href="{% url 'campusmap:map' %}">Карта</a></li>
+    ── Thought for 1s
+      Now the CSS test in core/tests/test_css.py. Add `test_map_highlight_rule`.
+
+      ```python
+      def test_map_highlight_rule(self):
+          base_css = (Path(settings.BASE_DIR) / "static/css/base.css").read_text()
+          tokens = (Path(settings.BASE_DIR) / "static/css/tokens.css").read_text()
+          self.assertIn(".map-current .map-room-label", base_css)
+          self.assertIn("var(--color-map-highlight)", base_css)
+          self.assertIn("--color-map-highlight", tokens)
+      ```
+
+      Let me add it.
+    ── Edited core/tests/test_css.py +7
+      --- a~/hackatonproject/core/tests/test_css.py
+      +++ b~/hackatonproject/core/tests/test_css.py
+      +
+      +    def test_map_highlight_rule(self):
+      +        base_css = (Path(settings.BASE_DIR) / "static/css/base.css").read_text()
+      +        tokens = (Path(settings.BASE_DIR) / "static/css/tokens.css").read_text()
+      +        self.assertIn(".map-current .map-room-label", base_css)
+      +        self.assertIn("var(--color-map-highlight)", base_css)
+      +        self.assertIn("--color-map-highlight", tokens)
+    ── Thought for 48s
+      Now write `campusmap/tests/test_views.py` with all the test classes: MapAccessTests, MapViewTests, MapQueryTests, MapNavTests.
+
+      Per spec 6.2 and 6.3. Let me set up rooms: `101` N2, `114` none, `205` N3, `402` N3 unless stated. Wait, actually the spec says rooms: `101` N2, `114` none, `205` N3, `402` N3. But `205` and `402` are on different floors, so N3 on floor 2 and floor 4 doesn't conflict. Good.
+
+      Let me plan the setup for test_views.py. I'll use `accounts/tests/helpers.py` make_faculty, make_group, make_student, make_staff, and `accounts.models.User` for superuser and student-without-profile.
+
+      Map tests are clock-independent (no FrozenClockMixin).
+
+      For MapViewTests and MapQueryTests, I need rooms. Let me create them in setUpTestData.
+
+      Rooms:
+      - room-101 (floor 1, number "101", map_cell "N2")
+      - room-114 (floor 1, number "114", map_cell "")  → not on map
+      - room-205 (floor 2, number "205", map_cell "N3")
+      - room-402 (floor 4, number "402", map_cell "N3")
+
+      So floors with rooms: 1, 2, 4.
+
+      Now, let me write the test classes.
+
+      ### MapAccessTests
+
+      ```python
+      class MapAccessTests(TestCase):
+          @classmethod
+          def setUpTestData(cls):
+              cls.faculty = make_faculty("FX")
+              cls.group = make_group(cls.faculty, "GX")
+              cls.student = make_student("stu", cls.group, "REC-1")
+              cls.staff = make_staff("stf", cls.faculty)
+              cls.superuser = User.objects.create_superuser("root", password="Super-Pass-2026!")
+              cls.room = Room.objects.create(code="room-101", floor=1, number="101", map_cell="N2")
+              cls.room205 = Room.objects.create(code="room-205", floor=2, number="205", map_cell="N3")
+
+          def test_anonymous_redirected(self):
+              for url in ("/map/", "/map/floor/2/", "/map/room/room-205/"):
+                  with self.subTest(url=url):
+                      response = self.client.get(url)
+                      self.assertEqual(response.status_code, 302)
+                      self.assertTrue(response["Location"].startswith("/login/?next="))
+
+          def test_student_ok(self):
+              self.client.force_login(self.student)
+              for url in ("/map/", "/map/floor/2/", "/map/room/room-205/"):
+                  self.assertEqual(self.client.get(url).status_code, 200)
+
+          def test_student_without_profile_ok(self):
+              user = User.objects.create_user("noprof", role=User.Role.STUDENT)
+              self.client.force_login(user)
+              for url in ("/map/", "/map/floor/2/", "/map/room/room-205/"):
+                  self.assertEqual(self.client.get(url).status_code, 200)
+
+          def test_staff_ok(self):
+              self.client.force_login(self.staff)
+              for url in ("/map/", "/map/floor/2/", "/map/room/room-205/"):
+                  self.assertEqual(self.client.get(url).status_code, 200)
+
+          def test_superuser_ok(self):
+              self.client.force_login(self.superuser)
+              for url in ("/map/", "/map/floor/2/", "/map/room/room-205/"):
+                  self.assertEqual(self.client.get(url).status_code, 200)
+
+          def test_post_not_allowed(self):
+              self.client.force_login(self.student)
+              self.assertEqual(self.client.post("/map/").status_code, 405)
+      ```
+
+      ### MapViewTests
+
+      Rooms 101 (N2), 114 (none), 205 (N3), 402 (N3).
+
+      Tests:
+      - `test_default_floor_is_lowest`: `/map/` → `<title id="map-title">Схема, 1 этаж</title>`.
+      - `test_switcher_lists_only_floors_with_rooms`: floors 1, 2, 4 linked; no `/map/floor/3/` link.
+      - `test_current_floor_marked`: `aria-current="page"` exactly once, on floor 2 for `/map/floor/2/`.
+      - `test_floor_without_rooms_404`: `/map/floor/3/`, `/map/floor/0/`, `/map/floor/10/`.
+      - `test_non_numeric_floor_404`: `/map/floor/abc/`, `/map/floor/-1/`.
+      - `test_room_opens_its_floor_and_is_highlighted`: `/map/room/room-402/` → floor 4 title; exactly one `map-current` inside SVG; list link 402 has `class="map-current"`; no other room has it.
+      - `test_highlight_has_accessible_name`: `aria-current="location"` on the group and `<title>Аудитория 402</title>`.
+      - `test_unknown_room_404`: `/map/room/room-404/`, `/map/room/ROOM-101/`.
+      - `test_room_without_cell_listed_and_floor_opens`: «114</a> — нет на схеме»; `/map/room/room-114/` → 200, floor 1, no `map-current` inside SVG, list link marked.
+      - `test_landmarks_per_floor`: floor 1: «Вход», «Столовая», «Лестница»; floor 2: «Деканат»; floor 4: «Лестница» only.
+      - `test_legend_present`.
+      - `test_room_list_grouped_by_floor`: h3 «1 этаж», «2 этаж», «4 этаж»; each room links to `/map/room/<code>/`.
+      - `test_no_rooms_empty_state`: «Аудиторий пока нет.» (needs no rooms).
+      - `test_query_string_not_rendered`: `/map/?floor=<script>x</script>&room=room-205` → 200, floor 1 shown, `<script>x` and room-205 highlight absent.
+      - `test_svg_scales`: `viewBox="0 0 400 240"`; the `<svg class="map-svg" ...>` start tag has no ` width=` / ` height=`.
+      - `test_no_personal_data`: create student; last name and username don't appear on `/map/`.
+
+      For `test_query_string_not_rendered`, I need to check that the floor 1 is shown (default lowest) and the query string values are not rendered. The room "room-205" is a real room, but with query string `?room=room-205`, the view ignores query string, so no highlight. I need to assert `<script>x` not in content and no `map-current` for 205 (i.e., the content doesn't contain `class="map-current"` pointing to 205... actually just assert no "map-current" at all since nothing is highlighted). Wait, but floor 1 is shown (default), room 101 is not current. So no map-current anywhere.
+
+      Actually, let me be careful: the query string `?floor=<script>x</script>&room=room-205`. The view ignores query params. Content should show floor 1 (default). Assert `<script>x` not in content. Assert "room-205" — wait, room-205 is a real room, so its number "205" will appear in the room list (all rooms list). But the highlight should be absent. The spec says "room-205 highlight absent". So I assert no `class="map-current"` in content (or at least the SVG has no map-current and 205 is not highlighted).
+
+      Actually, to be safe: assert `<script>x</script>` not in content, and `aria-current="location"` not in content (no room highlighted).
+
+      Let me think about `test_no_personal_data`: the student's last name and username. make_student creates last_name=f"{username}-last", username=username. So assert last name not in content and username not in content.
+
+      ### MapQueryTests
+
+      - `test_queries_constant`: staff; count with 4 rooms == count with 20 rooms (floors 1-9, numbers valid); ≤ 4.
+      - `test_highlight_view_same_queries`: `/map/room/...` count == `/map/` count.
+
+      I'll use CaptureQueriesContext. Need to force_login staff, then measure.
+
+      For "20 rooms floors 1-9 numbers valid", I need to create rooms with valid numbers and unique map_cells per floor. But there are only 8 cells per floor (N2-N5, S1-S5) minus blocked cells. Actually, for query count test, the rooms just need valid number/floor. map_cell can be blank (doesn't affect query count). So I can create 16 more rooms with blank map_cell. Numbers must be valid NNN with first digit = floor.
+
+      Let me create rooms like floor 1-9, numbers 101-9xx. Actually let me just create 20 rooms total with valid numbers. I'll generate rooms with codes and numbers.
+
+      Actually simpler: create a set of rooms programmatically. For floors 1..9, create a couple rooms each. Let me just do:
+
+      ```python
+      def _add_many_rooms(self):
+          for floor in range(1, 10):
+              for n in range(1, 3):
+                  number = f"{floor}0{n}"
+                  Room.objects.create(code=f"room-{number}", floor=floor, number=number)
+      ```
+
+      But numbers must be unique. f"{floor}0{n}" for floor 1-9, n 1-2 → "101","102","201","202",...,"901","902" = 18 rooms. Plus existing 4 rooms = 22 total. That's ≥ 20. Fine. But wait, existing rooms are 101, 114, 205, 402. Adding "101" would collide! So I need to avoid collisions.
+
+      Let me instead use a distinct numbering. Existing: 101, 114, 205, 402. Let me add rooms with numbers like f"{floor}5{n}" to avoid collision, but must be valid and unique. Actually simplest: delete existing rooms? No, the test uses both 4-room and 20-room states.
+
+      Let me think. The test setup already has 4 rooms (101, 114, 205, 402). For the "many" state, I add more rooms. I'll generate numbers that don't collide: for floor in 1..9, use numbers f"{floor}0{n}" but skip existing numbers.
+
+      Simpler: track used numbers, generate unique valid numbers.
+
+      Actually, let me just create 16 additional rooms with a helper that picks unique numbers. I'll write:
+
+      ```python
+      def _make_many(self):
+          used = {r.number for r in Room.objects.all()}
+          for floor in range(1, 10):
+              for n in range(0, 10):
+                  number = f"{floor}0{n}"
+                  if number not in used:
+                      used.add(number)
+                      Room.objects.create(code=f"room-{number}", floor=floor, number=number)
+                      if len(used) >= 20:
+                          return
+      ```
+
+      This creates rooms until 20 total. numbers like "100","101"... wait "100" starts with 1 but floor 1, number "100" — valid regex `^[1-9][0-9]{2}$` → "100" is valid (first digit 1). And floor 1 matches. Good. But "101" already used (existing), skip. Etc.
+
+      Actually the numbers f"{floor}0{n}": for floor=1, "100".."109". "101" used. "100" free. So first new is "100". That's fine.
+
+      Let me make sure the query count test measures ≤ 4 queries. Map view for staff: session + user + rooms = 3 queries. The spec 6.5 says "Map view for staff: session + user + rooms = 3." So ≤ 4 is safe.
+
+      ### MapNavTests
+
+      - `test_student_nav_has_map`: `href="/map/"` on `/profile/` for student.
+      - `test_staff_nav_has_map`: same for staff.
+      - `test_superuser_nav_has_no_map`.
+
+      Let me write the full test_views.py now.
+
+      For imports, I need:
+      - `from django.db import connection`
+      - `from django.test import TestCase`
+      - `from django.test.utils import CaptureQueriesContext`
+      - `from django.urls import reverse`
+      - `from accounts.models import User`
+      - `from accounts.tests.helpers import make_faculty, make_group, make_staff, make_student`
+      - `from university.models import Room`
+
+      Let me write a shared base setup. Actually each test class needs its own setUpTestData. Let me make a helper to create rooms.
+
+      Let me write it all out.
+
+      For `test_current_floor_marked`: `/map/floor/2/` → `aria-current="page"` exactly once (on floor 2 link). Content: the floor switcher has links for floors 1, 2, 4. The floor 2 link has `class="floor-current" aria-current="page"`. Assert `content.count('aria-current="page"') == 1`.
+
+      For `test_room_opens_its_floor_and_is_highlighted`: `/map/room/room-402/`. Title shows "Схема, 4 этаж". Exactly one `map-current` inside the SVG part. The list link 402 has `class="map-current"`. No other room has it.
+
+      To check "exactly one map-current inside SVG", I need to split the SVG content. The SVG starts with `<svg class="map-svg"` and ends with `</svg>`. Let me extract.
+
+      ```python
+      content = self.client.get("/map/room/room-402/").content.decode()
+      title_ok = '<title id="map-title">Схема, 4 этаж</title>' in content
+      svg_start = content.index('<svg class="map-svg"')
+      svg_end = content.index('</svg>', svg_start)
+      svg_part = content[svg_start:svg_end]
+      self.assertEqual(svg_part.count('map-current'), 1)
+      # list link
+      self.assertIn('href="/map/room/room-402/" class="map-current"', content)
+      # no other room has map-current in list
+      ```
+
+      Hmm, but the list link renders `<a href="..." class="map-current" aria-current="location">402</a>`. The order of attributes: in the template, `{% if r.is_current %} class="map-current" aria-current="location"{% endif %}` comes after `href`. So it's `<a href="{{ r.url }}" class="map-current" aria-current="location">`. So `href="/map/room/room-402/" class="map-current"` matches.
+
+      For "no other room has it": count of `class="map-current"` in whole content should be 2 (one in SVG group, one in list link). Let me assert total count == 2.
+
+      Actually the SVG group also has `aria-current="location"` on the `<g>`. And the list link has `aria-current="location"`. So `aria-current="location"` appears twice.
+
+      Let me be careful and write robust assertions.
+
+      For `test_highlight_has_accessible_name`: `aria-current="location"` on the group and `<title>Аудитория 402</title>`. The group renders `<g class="map-room map-current" aria-current="location">`. So assert `aria-current="location"` present and `<title>Аудитория 402</title>` present.
+
+      For `test_room_without_cell_listed_and_floor_opens`: room 114 has no cell. List shows `114</a> — нет на схеме`. And `/map/room/room-114/` → 200, floor 1, no map-current inside SVG (since 114 not drawn), list link marked (`class="map-current"` on 114 list link).
+
+      Wait, but if room 114 has no cell, then `is_current` for it in the list is still True (current is room 114), so list link has class="map-current". And `on_map` is False, so " — нет на схеме" appended. And in the SVG, no shape for 114 (not drawn), so no map-current inside SVG.
+
+      So assertions:
+      ```python
+      content = self.client.get("/map/room/room-114/").content.decode()
+      self.assertIn("114</a> — нет на схеме", content)
+      # title floor 1
+      self.assertIn('<title id="map-title">Схема, 1 этаж</title>', content)
+      # SVG has no map-current
+      svg_part = extract svg
+      self.assertNotIn("map-current", svg_part)
+      # list link marked
+      self.assertIn('href="/map/room/room-114/" class="map-current"', content)
+      ```
+
+      For `test_landmarks_per_floor`: floor 1 shows «Вход», «Столовая», «Лестница» (and NOT «Деканат»/«Библиотека»). floor 2 shows «Деканат» (and stairs, but not entrance/canteen/library). floor 4 shows «Лестница» only.
+
+      The landmark labels appear in the SVG `<title>` and `<text>`. Let me assert presence/absence of labels in the full content.
+
+      Floor 1: assertIn "Вход", "Столовая", "Лестница"; assertNotIn "Деканат", "Библиотека".
+      Floor 2: assertIn "Деканат"; assertNotIn "Вход", "Столовая", "Библиотека". (stairs present too).
+      Floor 4: assertIn "Лестница"; assertNotIn "Вход", "Столовая", "Деканат", "Библиотека".
+
+      Note: "Лестница" appears on every floor.
+
+      For `test_legend_present`: assertIn "Аудитория" and the legend text. The legend has "Вход, лестница, деканат, библиотека, столовая". Let me assertIn "map-legend" and "Аудитория".
+
+      Actually, let me assert the legend list items. `test_legend_present` just needs to confirm legend is present. I'll assert "map-legend" in content and "Аудитория" in content.
+
+      For `test_room_list_grouped_by_floor`: h3 «1 этаж», «2 этаж», «4 этаж»; each room links to `/map/room/<code>/`. Assert `<h3>1 этаж</h3>`, `<h3>2 этаж</h3>`, `<h3>4 этаж</h3>`, and `href="/map/room/room-101/"` etc.
+
+      For `test_no_rooms_empty_state`: needs no rooms. This can't share setUpTestData with rooms. I'll use a separate class or create the scenario in the test by using a separate test class. Actually, MapViewTests has rooms in setUpTestData. For `test_no_rooms_empty_state`, I need a DB with no rooms. Since TestCase wraps in transactions and setUpTestData creates rooms, I can't easily have "no rooms" in the same class.
+
+      Options: put `test_no_rooms_empty_state` in a separate class `EmptyMapTests` with no rooms. The spec lists it under MapViewTests, but functionally it needs no rooms. I'll create a separate test class for it, or use `self.client` with a fresh DB. Actually, simplest: make a separate small class.
+
+      Hmm, but the spec traceability lists it under MapViewTests. However, test organization is my choice as long as tests pass. I'll add a separate class `EmptyMapViewTests` or just include it in MapAccessTests? No. Let me create `EmptyMapTests(TestCase)`.
+
+      Actually, wait — I could also delete rooms in the test method. But setUpTestData rooms would still exist. I can do `Room.objects.all().delete()` in the test. That's fine within a transaction (TestCase). Let me just delete rooms in the test:
+
+      ```python
+      def test_no_rooms_empty_state(self):
+          Room.objects.all().delete()
+          self.client.force_login(self.staff)  # or student
+          content = self.client.get("/map/").content.decode()
+          self.assertIn("Аудиторий пока нет.", content)
+      ```
+
+      But MapViewTests doesn't have a student/staff in setUpTestData (it's focused on rooms). Let me add a student to MapViewTests setup, or use a superuser. Actually, I need some logged-in user for the map. Let me add a student to MapViewTests.setUpTestData.
+
+      Actually, MapAccessTests already has student/staff/superuser. But MapViewTests is separate. Let me give MapViewTests its own minimal setup: create a faculty+group+student, plus the rooms.
+
+      Let me structure MapViewTests with setUpTestData creating:
+      - faculty, group, student (for force_login)
+      - rooms 101 (N2), 114 (""), 205 (N3), 402 (N3)
+
+      Then all view tests force_login student.
+
+      Let me write everything now.
+
+      One more concern: `test_svg_scales` checks `viewBox="0 0 400 240"` and no width/height on svg. The svg start tag: `<svg class="map-svg" viewBox="0 0 400 240" role="img" aria-labelledby="map-title">`. So assert `viewBox="0 0 400 240"` in content, and the svg tag has no `width=` or `height=`. I can extract the svg start tag and assert no " width=" and no " height=".
+
+      Let me write it. I'll extract svg opening tag via regex or index.
+
+      Let me now write the whole test_views.py file.
+
+      For the query count test with staff: staff needs to be logged in. Map view for staff: session + user + rooms = 3 queries. But actually, does the map view do any per-room query? No, it's a single `Room.objects.order_by(...)` query, then `list(...)`. The reverse() calls don't query. So 3 queries: session, auth user, rooms. Plus maybe more (e.g., the nav rendering with notifications badge?). Wait — the nav in base.html uses `{% notifications_badge as badge %}` only in the student branch. For staff, the staff branch doesn't call notifications_badge. Let me check base.html: the student branch has `{% notifications_badge as badge %}`. Staff branch doesn't. So for staff, no badge query.
+
+      But actually, the template `base.html` is rendered for the map page. For staff, nav is staff branch (no badge). So queries: session + user + rooms = 3. Let me verify by running.
+
+      Actually, there might be additional queries from the `{% load notifications_tags %}` but that's just a load, no query. And `{% notifications_badge as badge %}` is only in student branch.
+
+      Let me just measure and assert ≤ 4, and constant between 4 and 20 rooms.
+
+      Let me write the test file now.
+    ── Created campusmap/tests/test_views.py
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test campusmap.tests core.tests.test_css 2>&1 | tee "$TMPDIR/test-$TS-step3.log" | tail -40 (3s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test campusmap.tests core.tests.test_css 2>&1 | tee "$TMPDIR/test-$TS-step3.log" | tail -40
+      Creating test database for alias 'default'...
+      ~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py:61: UserWarning: No directory at: ~/hackatonproject/staticfiles/
+        mw_instance = middleware(adapted_handler)
+      .2026-11-15 17:23:04,301 WARNING django.request Method Not Allowed (POST): /map/
+      ............2026-11-15 17:23:04,620 WARNING django.request Not Found: /map/floor/3/
+      2026-11-15 17:23:04,621 WARNING django.request Not Found: /map/floor/0/
+      2026-11-15 17:23:04,622 WARNING django.request Not Found: /map/floor/10/
+      ..F...2026-11-15 17:23:04,677 WARNING django.request Not Found: /map/floor/abc/
+      2026-11-15 17:23:04,677 WARNING django.request Not Found: /map/floor/-1/
+      .......2026-11-15 17:23:04,733 WARNING django.request Not Found: /map/room/room-404/
+      2026-11-15 17:23:04,734 WARNING django.request Not Found: /map/room/ROOM-101/
+      ...........
+      ======================================================================
+      FAIL: test_landmarks_per_floor (campusmap.tests.test_views.MapViewTests.test_landmarks_per_floor)
+      ----------------------------------------------------------------------
+      Traceback (most recent call last):
+        File "~/hackatonproject/campusmap/tests/test_views.py", line 137, in test_landmarks_per_floor
+          self.assertNotIn(label, f2)
+      AssertionError: 'Вход' unexpectedly found in '<!doctype html>\n<html lang="ru">\n<head>\n  <meta charset="utf-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1">\n  <title>Карта</title>\n  <link rel="stylesheet" href="/static/css/tokens.css">\n  <link rel="stylesheet" href="/static/css/base.css">\n  <link rel="stylesheet" href="/static/css/theme.css">\n  \n</head>\n<body>\n  <a class="skip-link" href="#main">Перейти к содержимому</a>\n  <header class="site-header">\n    <a class="site-title" href="/">Цифровой деканат будущего</a>\n    <nav class="site-nav" aria-label="Основная навигация">\n      \n      \n      <ul class="site-nav-list">\n        <li><a href="/profile/">Профиль</a></li>\n        \n        <li><a href="/schedule/">Расписание</a></li>\n        <li><a href="/map/">Карта</a></li>\n        <li><a href="/grades/">Успеваемость</a></li>\n        <li><a href="/requests/">Заявки</a></li>\n        \n        <li><a href="/notifications/">Уведомления</a></li>\n        \n        \n        <li>\n          <form class="site-nav-logout" method="post" action="/logout/">\n            <input type="hidden" name="csrfmiddlewaretoken" value="rKUQUxuhDWhfgtfyOfi5TJjFvGvactvWgNTVBgpgAIj9UYIxLfnMgktJABz1LFq9">\n            <button type="submit">Выйти</button>\n          </form>\n        </li>\n      </ul>\n      \n      \n    </nav>\n  </header>\n  <main id="main" class="site-main">\n    \n    \n<h1>Карта</h1>\n\n  <nav class="floor-switcher" aria-label="Этажи">\n    <span>Этаж:</span>\n    <ul>\n      \n      <li><a href="/map/floor/1/">1</a></li>\n      \n      <li><a href="/map/floor/2/" class="floor-current" aria-current="page">2</a></li>\n      \n      <li><a href="/map/floor/4/">4</a></li>\n      \n    </ul>\n  </nav>\n  <svg class="map-svg" viewBox="0 0 400 240" role="img" aria-labelledby="map-title">\n    <title id="map-title">Схема, 2 этаж</title>\n    <rect class="map-outline" x="4" y="4" width="392" height="232"/>\n    <rect class="map-corridor" x="12" y="96" width="376" height="48"/>\n    \n    <g class="map-landmark">\n      <title>Лестница</title>\n      <rect x="12" y="12" width="72" height="80"/>\n      <text class="map-landmark-label" x="48" y="52" text-anchor="middle" dominant-baseline="central">Лестница</text>\n    </g>\n    \n    <g class="map-landmark">\n      <title>Деканат</title>\n      <rect x="12" y="148" width="148" height="80"/>\n      <text class="map-landmark-label" x="86" y="188" text-anchor="middle" dominant-baseline="central">Деканат</text>\n    </g>\n    \n    <g class="map-room">\n      <title>Аудитория 205</title>\n      <rect x="164" y="12" width="72" height="80"/>\n      <text class="map-room-label" x="200" y="52" text-anchor="middle" dominant-baseline="central">205</text>\n    </g>\n    \n  </svg>\n  <ul class="map-legend">\n    <li><svg class="map-legend-swatch" viewBox="0 0 24 16" aria-hidden="true"><g class="map-room"><rect x="1" y="1" width="22" height="14"/></g></svg> Аудитория</li>\n    <li><svg class="map-legend-swatch" viewBox="0 0 24 16" aria-hidden="true"><g class="map-landmark"><rect x="1" y="1" width="22" height="14"/></g></svg> Вход, лестница, деканат, библиотека, столовая</li>\n  </ul>\n  <h2>Все аудитории</h2>\n  \n  <h3>1 этаж</h3>\n  <ul class="map-room-list">\n    \n    <li><a href="/map/room/room-101/">101</a></li>\n    \n    <li><a href="/map/room/room-114/">114</a> — нет на схеме</li>\n    \n  </ul>\n  \n  <h3>2 этаж</h3>\n  <ul class="map-room-list">\n    \n    <li><a href="/map/room/room-205/">205</a></li>\n    \n  </ul>\n  \n  <h3>4 этаж</h3>\n  <ul class="map-room-list">\n    \n    <li><a href="/map/room/room-402/">402</a></li>\n    \n  </ul>\n  \n\n\n  </main>\n  <footer class="site-footer">\n    <p class="site-disclaimer">Концепт для конкурса MGIMO AI Challenge. Не является официальным сервисом вуза. Все данные вымышлены.</p>\n  </footer>\n</body>\n</html>\n'
+
+      ----------------------------------------------------------------------
+      Ran 37 tests in 0.653s
+
+      FAILED (failures=1)
+      Destroying test database for alias 'default'...
+      Found 37 test(s).
+      System check identified no issues (0 silenced).
+    ── Thought for 3s
+      The failure is in `test_landmarks_per_floor`: the legend always contains "Вход, лестница, деканат, библиотека, столовая", so the strings "Вход", "Деканат", "Библиотека", "Столовая" always appear in the legend regardless of floor. My test is too naive — it checks the whole content, but the legend includes all landmark names.
+
+      I need to check the landmark labels only in the SVG part (the drawn shapes), not the legend.
+
+      Let me fix the test to check `_svg_part(content)` for landmark labels. The legend contains all names, so I should look only at the SVG shapes.
+
+      Let me rewrite `test_landmarks_per_floor` to check the SVG part only.
+
+      Actually, the landmark shapes are in the SVG `<g class="map-landmark">` with `<title>` and `<text>`. So I should check the SVG part.
+
+      For floor 1: SVG has "Вход", "Столовая", "Лестница" (and rooms). For floor 2: "Лестница", "Деканат". For floor 4: "Лестница" only.
+
+      Let me fix by using `_svg_part`.
+
+      But note: "Лестница" always appears. "Вход" only floor 1. "Столовая" floor 1. "Деканат" floor 2. "Библиотека" floor 3.
+
+      Let me rewrite the assertions to check SVG part only.
+    ── Edited campusmap/tests/test_views.py +3 -3
+      --- a~/hackatonproject/campusmap/tests/test_views.py
+      +++ b~/hackatonproject/campusmap/tests/test_views.py
+      -        f1 = self.client.get("/map/floor/1/").content.decode()
+      +        f1 = _svg_part(self.client.get("/map/floor/1/").content.decode())
+      -        f2 = self.client.get("/map/floor/2/").content.decode()
+      +        f2 = _svg_part(self.client.get("/map/floor/2/").content.decode())
+      -        f4 = self.client.get("/map/floor/4/").content.decode()
+      +        f4 = _svg_part(self.client.get("/map/floor/4/").content.decode())
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test campusmap.tests core.tests.test_css 2>&1 | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -10 (2s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test campusmap.tests core.tests.test_css 2>&1 | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -10
+      Ran 37 tests in 0.651s
+      OK
+    ── Thought for 782ms
+      Step 3 done. Now step 4: schedule template links + RoomLinkTests.
+
+      Modify `schedule/templates/schedule/includes/lesson_item.html` lesson-room paragraph per spec 4.7.
+    ── Edited schedule/templates/schedule/includes/lesson_item.html +2 -1
+      --- a~/hackatonproject/schedule/templates/schedule/includes/lesson_item.html
+      +++ b~/hackatonproject/schedule/templates/schedule/includes/lesson_item.html
+      -    <ins class="room" data-room-code="{{ item.room.code }}">{{ item.room.number }}, {{ item.room.floor }} этаж</ins>
+      +    <ins>{% if item.is_happening %}<a class="room" data-room-code="{{ item.room.code }}" href="{% url 'campusmap:room' item.room.code %}">{{ item.room.number }}, {{ item.room.floor }} этаж</a>{% else %}<span class="room" data-room-code="{{ item.room.code }}">{{ item.room.number }}, {{ item.room.floor }} этаж</span>{% endif %}</ins>
+      +    {% elif item.is_happening %}<a class="room" data-room-code="{{ item.room.code }}" href="{% url 'campusmap:room' item.room.code %}">{{ item.room.number }}, {{ item.room.floor }} этаж</a>
+    ── Thought for 1m 5s
+      Now write RoomLinkTests in schedule/tests/test_views.py. Per spec 6.3:
+
+      `RoomLinkTests(FrozenClockMixin, TestCase)` — lessons in the frozen week; reuse the class setup pattern of `ChangeRenderingTests`.
+
+      Tests:
+      - `test_regular_lesson_room_links_to_map`: `href="/map/room/room-101/"`, `data-room-code="room-101"` kept.
+      - `test_cancelled_lesson_room_not_linked`
+      - `test_moved_out_lesson_room_not_linked`
+      - `test_room_changed_links_new_room_only`: link to new room; old room inside `<del>` without href.
+      - `test_moved_in_with_new_room_links_new_room`
+      - `test_today_page_has_links`
+      - `test_staff_group_week_has_links`
+      - `test_week_query_count_unchanged_by_links`: week with 1 lesson vs 6 lessons → equal counts.
+
+      Let me understand the ChangeRenderingTests setup: it has room (room-101) and room2 (room-205 floor 2), lessons for cancel/move/room/teacher changes. The frozen_now default "2026-11-18 12:00", so the frozen week is 2026-11-16 (Monday) to 2026-11-22.
+
+      The setup creates:
+      - lesson_cancel: weekday 0 (Monday), slot 1, room 101. Change CANCELLED on 2026-11-16.
+      - lesson_move: weekday 1 (Tuesday), slot 1, room 101. Change MOVED to 2026-11-19 (Thursday), slot 5.
+      - lesson_room: weekday 2 (Wednesday), slot 1, room 101. Change ROOM_CHANGED to room2 (205) on 2026-11-18.
+      - lesson_teacher: weekday 3 (Thursday), slot 1, room 101. Change TEACHER_REPLACED.
+
+      For RoomLinkTests, I need to cover:
+      - regular lesson → links to room
+      - cancelled → not linked
+      - moved-out → not linked
+      - room-changed → new room linked, old room del no href
+      - moved-in with new room → new room linked
+
+      Let me design RoomLinkTests with its own setup to cover all these cases cleanly. I'll create:
+
+      - lesson_regular: weekday 0 (Monday), room 101. No change → regular.
+      - lesson_cancel: weekday 1 (Tuesday), room 101. CANCELLED.
+      - lesson_move: weekday 2 (Wednesday), room 101. MOVED to another date (moved-out).
+      - lesson_room_changed: weekday 3 (Thursday), room 101. ROOM_CHANGED to room2 (205).
+      - For moved-in with new room: a moved lesson landing in the week with a new room. Actually, the MOVED change has `new_room`. When a lesson is moved INTO the current week (moved-in), and has a new room, the moved-in item shows new room linked.
+
+      Hmm, let me think about "moved-in with new room". The `occurrences_between` for MOVED changes creates MOVED_OUT items (on original date) AND MOVED_IN items (on new date, if within range). The MOVED_IN item has `room=change.new_room or lesson.room`, and `original_room=lesson.room if has_new_room else None`.
+
+      So for a MOVED change with `new_room`, the moved-in item (appearing on the new date) will have `room=new_room` and `original_room=old room` (because has_new_room=True). So it renders as `<del>old room</del> <ins><a>new room</a></ins>`.
+
+      For the RoomLinkTests `test_moved_in_with_new_room_links_new_room`: create a MOVED change with new_room, where new_date is in the frozen week. Then the moved-in item links to the new room.
+
+      Let me design the setup. I'll reuse the frozen week (2026-11-16 Monday to 2026-11-22).
+
+      Let me create:
+      1. `lesson_regular`: weekday 0 (Mon), slot 1, room 101. (regular → link room-101)
+      2. `lesson_cancel`: weekday 1 (Tue), slot 1, room 101. CANCELLED on 2026-11-17.
+      3. `lesson_move_out`: weekday 2 (Wed), slot 1, room 101. MOVED to 2026-11-28 (next week, outside current week) → moved-out on Wed 2026-11-18.
+      4. `lesson_room_changed`: weekday 3 (Thu), slot 1, room 101. ROOM_CHANGED to room2 (205) on 2026-11-19.
+      5. For moved-in: `lesson_move_in`: weekday 4 (Fri), slot 1, room 101. MOVED from previous week (2026-11-09) to 2026-11-20 (Fri) with new_room=room2. So the moved-in item on Fri 2026-11-20 has room=room2, original_room=101.
+
+      Actually, let me be careful about the moved-in case. A MOVED change is "moved-in" when it appears on its new_date within the range. The original lesson is on some weekday, the change has new_date and new_room. 
+
+      For `test_moved_in_with_new_room_links_new_room`: I want a lesson that's moved INTO the week with a NEW room. So:
+      - lesson on weekday 4 (Fri) slot 1 room 101.
+      - change MOVED, original_date = 2026-11-13 (Friday of previous week), new_date = 2026-11-20 (Friday of current week), new_room = room2 (205), new_slot = 5.
+
+      Then in the week view (2026-11-16..22), the moved-in item appears on Friday 2026-11-20 with room=room2 (205), original_room=101. So it renders `<del>101</del> <ins><a href room-205>205</a></ins>`.
+
+      Wait, but `has_new_room = change.new_room_id is not None and change.new_room_id != lesson.room_id`. new_room=205, lesson.room=101 → different → has_new_room=True. So original_room=101, room=205. Good.
+
+      Let me set up these 5 lessons. Actually, to keep it simpler and match "reuse the class setup pattern of ChangeRenderingTests", let me create a focused setup.
+
+      Let me also add `test_today_page_has_links` and `test_staff_group_week_has_links` and `test_week_query_count_unchanged_by_links`.
+
+      For `test_today_page_has_links`: today page shows happening lessons with room links. The frozen now is 2026-11-18 12:00 (Wednesday). So today = Wednesday 2026-11-18. On Wednesday, what lessons happen? lesson_move_out (Wed, moved out) → not happening. lesson_regular is Monday. Hmm.
+
+      Let me reconsider. The today page (`/schedule/`) shows today's (Wednesday) lessons. I need a happening lesson on Wednesday with a room link.
+
+      Actually, let me simplify: for `test_today_page_has_links`, I'll create a regular lesson on Wednesday (weekday 2) and check `/schedule/` (today = Wednesday) contains the room link.
+
+      Wait, but the frozen now default is "2026-11-18 12:00" which is a Wednesday. Let me verify: 2026-11-16 is Monday (per earlier tests using date(2026,11,16) as Monday). So 2026-11-18 is Wednesday. Good.
+
+      Let me structure RoomLinkTests setup with:
+      - room 101, room2 205 (floor 2).
+      - lesson_regular: Mon (0) slot 1 room 101.
+      - lesson_wed: Wed (2) slot 1 room 101 (regular, for today page test). Actually I can reuse lesson_room_changed? No, room_changed is not "regular". Let me add a separate regular Wednesday lesson for today test.
+
+      Hmm, this is getting complex. Let me carefully list what I need:
+
+      For `test_regular_lesson_room_links_to_map`: a regular lesson. Use lesson_regular (Mon).
+      For `test_cancelled_lesson_room_not_linked`: lesson_cancel (Tue).
+      For `test_moved_out_lesson_room_not_linked`: lesson_move_out (Wed).
+      For `test_room_changed_links_new_room_only`: lesson_room_changed (Thu) → new room 205 linked, old 101 in del without href.
+      For `test_moved_in_with_new_room_links_new_room`: lesson_move_in (Fri, moved in with new room 205).
+      For `test_today_page_has_links`: need happening lesson on Wednesday (today). 
+
+      For today page, the frozen now 2026-11-18 (Wed). On Wed, lesson_move_out is moved out (not happening). I need a happening lesson. Let me add a regular lesson on Wednesday, OR make the room_changed lesson on Wednesday.
+
+      Actually, let me just make `test_today_page_has_links` check that `/schedule/` for the student shows a room link. If Wednesday has no happening lessons, today page might show "Сегодня занятий нет." So I need a Wednesday happening lesson.
+
+      Let me restructure: 
+      - lesson_regular: Monday (0), slot 1, room 101.
+      - lesson_cancel: Tuesday (1), slot 1, room 101 → cancelled.
+      - lesson_move_out: Wednesday (2), slot 1, room 101 → moved out to next week.
+      - lesson_room_changed: Thursday (3), slot 1, room 101 → room changed to 205.
+      - lesson_today_regular: Wednesday (2), slot 2, room 101 → regular (for today page).
+
+      Wait, but Wednesday already has lesson_move_out (slot 1). Adding lesson_today_regular at slot 2 on Wednesday is fine (different slot).
+
+      For `test_today_page_has_links`: student `/schedule/` on Wednesday shows lesson_today_regular with room link href="/map/room/room-101/".
+
+      For `test_staff_group_week_has_links`: staff views group week `/staff/schedule/{group}/2026-11-16/` and sees a room link.
+
+      For `test_week_query_count_unchanged_by_links`: week with 1 lesson vs 6 lessons → equal counts. Similar to existing test_week_view_query_count_constant. I'll do a simpler version: measure query count for the week with just the base lessons, then add more lessons and measure again → equal.
+
+      Actually, this overlaps with the existing `test_week_view_query_count_constant`. But the spec wants a separate `test_week_query_count_unchanged_by_links`. Let me write a focused one: student week view query count is the same whether lessons have room links or not. Since the links are just template logic (no queries), the count is unchanged. But to actually test "unchanged by links", I measure before and after adding lessons.
+
+      Let me write it simply:
+      ```python
+      def test_week_query_count_unchanged_by_links(self):
+          self.client.force_login(self.student)
+          with CaptureQueriesContext(connection) as ctx:
+              self.client.get("/schedule/week/2026-11-16/")
+          count1 = len(ctx.captured_queries)
+          for n in range(5):
+              make_lesson([self.group], weekday=6, slot=n+1, room=self.room, discipline=make_discipline(f"Доп {n}"), teacher=self.teacher)
+          with CaptureQueriesContext(connection) as ctx2:
+              self.client.get("/schedule/week/2026-11-16/")
+          count2 = len(ctx2.captured_queries)
+          self.assertEqual(count2, count1)
+      ```
+
+      Wait, weekday=6 is Sunday. make_lesson with weekday 6. That's fine.
+
+      Actually, let me keep it simpler and consistent with existing patterns. I'll reuse the approach of `test_week_view_query_count_constant` but simpler.
+
+      Now, let me write the RoomLinkTests. I need to check specific markup.
+
+      For `test_regular_lesson_room_links_to_map`: 
+      ```python
+      content = self.client.get("/schedule/week/2026-11-16/").content.decode()
+      self.assertIn('href="/map/room/room-101/"', content)
+      self.assertIn('data-room-code="room-101"', content)
+      ```
+
+      For `test_cancelled_lesson_room_not_linked`: cancelled lesson room 101 → `<span class="room" data-room-code="room-101">101, 1 этаж</span>`. No `<a ... href="/map/room/room-101/">`. But there might be OTHER lessons with room-101 links (regular lesson Mon also room-101). So I can't just assert `assertNotIn('href="/map/room/room-101/"')`.
+
+      This is tricky. All my lessons use room-101 (and room2 205). So the regular lesson links to room-101, meaning 'href="/map/room/room-101/"' appears in the week content.
+
+      To test cancelled/moved-out rooms "not linked", I need to isolate. Options:
+      1. Give each lesson a distinct room. Then check that the cancelled lesson's room is not linked.
+
+      Let me use distinct rooms:
+      - lesson_regular: room 101.
+      - lesson_cancel: room 202 (floor 2, code room-202).
+      - lesson_move_out: room 303 (floor 3).
+      - lesson_room_changed: room 101 → new room 205.
+      - lesson_today_regular: room 404 (floor 4).
+
+      Hmm wait, but rooms need to be created with make_room. make_room("room-202") → floor 2, number 202. Valid. make_room("room-303") → floor 3. make_room("room-404") → floor 4.
+
+      Actually, let me simplify. For each test, I can check specific markup patterns rather than whole-page absence.
+
+      Let me reconsider. The cleanest approach: check the specific `<li>` for each lesson. But that's complex.
+
+      Alternative: check that cancelled lesson's room appears as `<span class="room" ...>` (not `<a`). 
+
+      For cancelled lesson (room 202):
+      ```python
+      self.assertIn('<span class="room" data-room-code="room-202">202, 2 этаж</span>', content)
+      self.assertNotIn('href="/map/room/room-202/"', content)
+      ```
+
+      Since room-202 is ONLY used by the cancelled lesson, `href="/map/room/room-202/"` won't appear elsewhere. So `assertNotIn` is safe.
+
+      Similarly for moved-out (room 303): `assertNotIn('href="/map/room/room-303/"')` and `assertIn('<span class="room" data-room-code="room-303">303, 3 этаж</span>')`.
+
+      For room-changed: old room 101 in `<del>`, new room 205 in `<ins><a>`. Check:
+      ```python
+      self.assertIn('href="/map/room/room-205/"', content)
+      self.assertIn('<del class="room" data-room-code="room-101">101, 1 этаж</del>', content)
+      self.assertNotIn('href="/map/room/room-101/"', content)  # old room never a link
+      ```
+
+      Wait, but room-101 is also used by lesson_regular (Monday) which DOES link to room-101! So `assertNotIn('href="/map/room/room-101/"')` would fail because the regular lesson links to room-101.
+
+      So I need the room_changed lesson's OLD room to be unique too. Let me use distinct rooms for the room_changed lesson: old room = room 101, but then the regular lesson should use a DIFFERENT room.
+
+      Let me assign unique rooms to ALL lessons:
+      - lesson_regular: room-101 (floor 1).
+      - lesson_cancel: room-202 (floor 2).
+      - lesson_move_out: room-303 (floor 3).
+      - lesson_room_changed: old room-404, new room-205.
+      - lesson_move_in: old room-505, new room-206? Hmm, moved-in with new room.
+
+      This is getting complicated. Let me step back and use a cleaner design.
+
+      Actually, let me look at what rooms I have. I'll create distinct rooms and check each lesson in isolation by its unique room.
+
+      Let me define:
+      - r101 = make_room("room-101")  # regular lesson
+      - r202 = make_room("room-202")  # cancelled lesson
+      - r303 = make_room("room-303")  # moved-out lesson
+      - r404 = make_room("room-404")  # room-changed: old room
+      - r205 = make_room("room-205", floor=2)  # room-changed: new room (and moved-in new room)
+
+      For room-changed: old room 404, new room 205. Check old room in del (no href), new room linked.
+
+      For moved-in with new room: old room 505, new room 206. Actually, let me reuse a different new room. Let me use:
+      - r505 = make_room("room-505")  # moved-in: old room
+      - r206 = make_room("room-206", floor=2)  # moved-in: new room
+
+      Hmm wait, but the moved-in item: the lesson is on some weekday, moved to a new date within the week with new room.
+
+      Actually, let me simplify the moved-in test. The moved-in item's `room` = new_room (206), `original_room` = 505. So it renders `<del>505</del> <ins><a>206</a></ins>`. Check `href="/map/room/room-206/"` present and `href="/map/room/room-505/"` absent.
+
+      Let me now define the full setup. Actually, this is a lot of rooms. Let me just be systematic.
+
+      RoomLinkTests setup:
+      ```python
+      @classmethod
+      def setUpTestData(cls):
+          cls.faculty = make_faculty("FX")
+          cls.group = make_group(cls.faculty, "GX")
+          cls.student = make_student("stu", cls.group, "REC-1")
+          cls.teacher = make_teacher("Лебедев")
+          cls.room = make_room("room-101")            # regular
+          cls.room_cancel = make_room("room-202")     # cancelled
+          cls.room_move = make_room("room-303")       # moved-out
+          cls.room_changed_old = make_room("room-404")  # room-changed old
+          cls.room_changed_new = make_room("room-205", floor=2)  # room-changed new
+          cls.room_move_in_old = make_room("room-505")  # moved-in old
+          cls.room_move_in_new = make_room("room-206", floor=2)  # moved-in new
+
+          cls.lesson_regular = make_lesson([cls.group], 0, 1, cls.room, discipline=make_discipline("Регулярная"), teacher=cls.teacher)
+          cls.lesson_cancel = make_lesson([cls.group], 1, 1, cls.room_cancel, discipline=make_discipline("Отменённая"), teacher=cls.teacher)
+          cls.lesson_move = make_lesson([cls.group], 2, 1, cls.room_move, discipline=make_discipline("Перенесённая"), teacher=cls.teacher)
+          cls.lesson_changed = make_lesson([cls.group], 3, 1, cls.room_changed_old, discipline=make_discipline("С заменой"), teacher=cls.teacher)
+          cls.lesson_move_in = make_lesson([cls.group], 4, 1, cls.room_move_in_old, discipline=make_discipline("Въехавшая"), teacher=cls.teacher)
+
+          save_lesson_change(LessonChange(weekly_lesson=cls.lesson_cancel, original_date=date(2026,11,17), kind=ChangeKind.CANCELLED, reason="Отмена"))
+          save_lesson_change(LessonChange(weekly_lesson=cls.lesson_move, original_date=date(2026,11,18), kind=ChangeKind.MOVED, new_date=date(2026,11,28), new_slot=5, reason="Перенос"))
+          save_lesson_change(LessonChange(weekly_lesson=cls.lesson_changed, original_date=date(2026,11,19), kind=ChangeKind.ROOM_CHANGED, new_room=cls.room_changed_new, reason="Ремонт"))
+          save_lesson_change(LessonChange(weekly_lesson=cls.lesson_move_in, original_date=date(2026,11,13), kind=ChangeKind.MOVED, new_date=date(2026,11,20), new_slot=5, new_room=cls.room_move_in_new, reason="Перенос"))
+      ```
+
+      Wait, the moved-out lesson: original date 2026-11-18 (Wed), moved to 2026-11-28 (next-next week Saturday? 2026-11-28 is a Saturday). Actually 2026-11-28: let me not worry about exact weekday; it just needs to be outside the current week (2026-11-16..22). 2026-11-28 is outside. Good. The moved-out item appears on Wed 2026-11-18 (within week).
+
+      The moved-in lesson: original date 2026-11-13 (Friday, previous week), moved to 2026-11-20 (Friday current week), new room 206. So moved-in item appears on Friday 2026-11-20. And the moved-out for this lesson appears on 2026-11-13 (outside current week, so not shown). Good.
+
+      Now the tests:
+
+      `test_regular_lesson_room_links_to_map`:
+      ```python
+      content = self.client.get("/schedule/week/2026-11-16/").content.decode()
+      self.assertIn('href="/map/room/room-101/"', content)
+      self.assertIn('data-room-code="room-101"', content)
+      ```
+
+      `test_cancelled_lesson_room_not_linked`:
+      ```python
+      content = ...
+      self.assertIn('<span class="room" data-room-code="room-202">202, 2 этаж</span>', content)
+      self.assertNotIn('href="/map/room/room-202/"', content)
+      ```
+
+      `test_moved_out_lesson_room_not_linked`:
+      ```python
+      self.assertIn('<span class="room" data-room-code="room-303">303, 3 этаж</span>', content)
+      self.assertNotIn('href="/map/room/room-303/"', content)
+      ```
+
+      `test_room_changed_links_new_room_only`:
+      ```python
+      self.assertIn('href="/map/room/room-205/"', content)
+      self.assertIn('<del class="room" data-room-code="room-404">404, 4 этаж</del>', content)
+      self.assertNotIn('href="/map/room/room-404/"', content)
+      ```
+
+      `test_moved_in_with_new_room_links_new_room`:
+      ```python
+      self.assertIn('href="/map/room/room-206/"', content)
+      self.assertNotIn('href="/map/room/room-505/"', content)
+      ```
+
+      `test_today_page_has_links`: today = Wed 2026-11-18. What's happening on Wednesday? lesson_move (Wed) is moved OUT (not happening). So Wednesday has NO happening lesson. Hmm. The today page would show "Сегодня занятий нет."
+
+      Wait, that breaks `test_today_page_has_links`. I need a happening lesson on Wednesday.
+
+      Let me reconsider. Actually, for the today page test, I could just check that the today page (when there IS a happening lesson) contains links. But the frozen now is Wednesday, and I need a happening Wednesday lesson.
+
+      Let me add a regular Wednesday lesson. Change lesson_move to be on a different day? Or add another lesson.
+
+      Actually, let me make the room-changed lesson happen on Wednesday instead of Thursday. Wait, but I also want the moved-out on Wednesday... 
+
+      Let me reconsider the weekdays:
+      - Mon (0): regular lesson (room 101).
+      - Tue (1): cancelled (room 202).
+      - Wed (2): moved-out (room 303). [not happening]
+      - Thu (3): room-changed (old 404 → new 205). [happening, but it's Thursday]
+      - Fri (4): moved-in (old 505 → new 206).
+
+      For today (Wed), I need a happening lesson. Let me add a regular lesson on Wednesday at slot 2:
+      - lesson_today: weekday 2 (Wed), slot 2, room 101 (or a distinct room). Regular.
+
+      But wait, room 101 is already used by regular Monday lesson. For the today test, I just need SOME happening lesson with a link. Let me add lesson_today at Wed slot 2 with a distinct room, say room-707 (floor 7). Then today page shows it linked.
+
+      Actually, simpler: I can make the today test just check the today page contains a room link. Since today (Wed) will have lesson_today (regular) → link present.
+
+      Let me add:
+      - cls.lesson_today = make_lesson([cls.group], 2, 2, cls.room, discipline=make_discipline("Сегодняшняя"), teacher=cls.teacher)
+
+      Using cls.room (101). Then today page (Wed) shows "Сегодняшняя" with room-101 link.
+
+      But then `test_regular_lesson_room_links_to_map` and today both use room-101, fine.
+
+      Actually wait — for `test_room_changed_links_new_room_only`, I assert `assertNotIn('href="/map/room/room-404/"')`. room-404 is only used by lesson_changed old room. Good. And room-101 is used by regular + today lessons, both link. So `href="/map/room/room-101/"` appears (fine, not asserting its absence).
+
+      OK let me finalize. Also need `test_staff_group_week_has_links`: staff views `/staff/schedule/{group.pk}/2026-11-16/`. The staff needs to be from the same faculty as group. Let me create a staff in setup. Actually, I can use make_staff in the test or setup.
+
+      Let me add `cls.staff = make_staff("stf", cls.faculty)` to setup.
+
+      For staff group week URL: `/staff/schedule/{group.pk}/2026-11-16/`. Let me check the URL name. From earlier tests: `f"/staff/schedule/{self.group_x1.pk}/2026-11-16/"`. So the URL is `/staff/schedule/<group_pk>/<date>/`. Let me use that literal.
+
+      `test_staff_group_week_has_links`:
+      ```python
+      self.client.force_login(self.staff)
+      content = self.client.get(f"/staff/schedule/{self.group.pk}/2026-11-16/").content.decode()
+      self.assertIn('href="/map/room/room-101/"', content)
+      ```
+
+      For `test_today_page_has_links`:
+      ```python
+      self.client.force_login(self.student)
+      content = self.client.get("/schedule/").content.decode()
+      self.assertIn('href="/map/room/room-101/"', content)
+      ```
+
+      But wait, does today page (Wednesday) show lesson_today (regular Wed slot 2)? Yes. And lesson_regular is Monday (not today). So today shows lesson_today with room-101 link. Good.
+
+      For `test_week_query_count_unchanged_by_links`:
+      ```python
+      self.client.force_login(self.student)
+      with CaptureQueriesContext(connection) as ctx:
+          self.client.get("/schedule/week/2026-11-16/")
+      count1 = len(ctx.captured_queries)
+      for n in range(5):
+          make_lesson([self.group], weekday=6, slot=n+2, room=self.room, discipline=make_discipline(f"Доп {n}"), teacher=self.teacher)
+      with CaptureQueriesContext(connection) as ctx2:
+          self.client.get("/schedule/week/2026-11-16/")
+      count2 = len(ctx2.captured_queries)
+      self.assertEqual(count2, count1)
+      ```
+
+      Need to import `connection` and `CaptureQueriesContext` in test_views.py. Currently test_views.py imports `from django.db import connection` and `from django.test.utils import CaptureQueriesContext` already (line 4-6). Yes.
+
+      Now, I also need to verify the existing tests `test_room_code_attribute` and `test_week_view_query_count_constant` still pass. `test_room_code_attribute` checks `data-room-code="room-101"`. With my new template, regular lessons still have `data-room-code="room-101"` on the `<a class="room" ...>`. So it still passes.
+
+      Now let me also make sure `test_change_rendering` (ChangeRenderingTests) still passes. It checks `"<del"`, `"<ins"`, "205", "101", etc. My new template still has `<del class="room"...>` and `<ins>...`. The test checks `self.assertIn("<del", content)` and `self.assertIn("<ins", content)`. My template: `<del class="room"...>` contains "<del". And `<ins>` contains "<ins". Good. Also "205" (new room) and "101" (old room). Good.
+
+      But wait, ChangeRenderingTests has `test_change_rendering` which checks `self.assertIn("205", content)` — the new room 205. In my new template, the room-changed new room renders "205, 2 этаж". So "205" appears. And "101" (old room). Good.
+
+      Also, there might be an issue: the moved-out lesson in ChangeRenderingTests. The `test_change_rendering` checks "Перенесено на" (moved-out). My template doesn't change that (it's in lesson-change paragraph). Good.
+
+      Now let me write RoomLinkTests and append to test_views.py.
+
+      Let me also double check: the `make_room("room-404")` → floor 4, number "404". Valid. `make_room("room-505")` → floor 5. `make_room("room-206", floor=2)` → floor 2, number 206. `make_room("room-303")` → floor 3. `make_room("room-202")` → floor 2.
+
+      All valid numbers matching floor. Good.
+
+      Now write the RoomLinkTests class. I'll append after ChangeRenderingTests or after TeacherShortNameRenderTests. Let me append at the end of the file.
+
+      Actually, I need to check the imports in test_views.py already have everything: `date`, `mock`, `connection`, `SimpleTestCase`, `TestCase`, `CaptureQueriesContext`, `reverse`, helpers, `FrozenClockMixin`, `IsoDateConverter`, `ChangeKind`, `LessonChange`, `save_lesson_change`, `Teacher`, helpers (aware, make_discipline, make_lesson, make_room, make_teacher). Yes all present.
+
+      Let me write the RoomLinkTests and append.
+    ── Edited schedule/tests/test_views.py +135
+      --- a~/hackatonproject/schedule/tests/test_views.py
+      +++ b~/hackatonproject/schedule/tests/test_views.py
+      +
+      +
+      +class RoomLinkTests(FrozenClockMixin, TestCase):
+      +    @classmethod
+      +    def setUpTestData(cls):
+      +        cls.faculty = make_faculty("FX")
+      +        cls.group = make_group(cls.faculty, "GX")
+      +        cls.student = make_student("stu", cls.group, "REC-1")
+      +        cls.staff = make_staff("stf", cls.faculty)
+      +        cls.teacher = make_teacher("Лебедев")
+      +
+      +        cls.room = make_room("room-101")
+      +        cls.room_cancel = make_room("room-202")
+      +        cls.room_move = make_room("room-303")
+      +        cls.room_changed_old = make_room("room-404")
+      +        cls.room_changed_new = make_room("room-205", floor=2)
+      +        cls.room_move_in_old = make_room("room-505")
+      +        cls.room_move_in_new = make_room("room-206", floor=2)
+      +
+      +        cls.lesson_regular = make_lesson(
+      +            [cls.group], 0, 1, cls.room, discipline=make_discipline("Регулярная"), teacher=cls.teacher
+      +        )
+      +        cls.lesson_cancel = make_lesson(
+      +            [cls.group], 1, 1, cls.room_cancel, discipline=make_discipline("Отменённая"), teacher=cls.teacher
+      +        )
+      +        cls.lesson_move = make_lesson(
+      +            [cls.group], 2, 1, cls.room_move, discipline=make_discipline("Перенесённая"), teacher=cls.teacher
+      +        )
+      +        cls.lesson_changed = make_lesson(
+      +            [cls.group], 3, 1, cls.room_changed_old, discipline=make_discipline("С заменой"), teacher=cls.teacher
+      +        )
+      +        cls.lesson_move_in = make_lesson(
+      +            [cls.group], 4, 1, cls.room_move_in_old, discipline=make_discipline("Въехавшая"), teacher=cls.teacher
+      +        )
+      +        cls.lesson_today = make_lesson(
+      +            [cls.group], 2, 2, cls.room, discipline=make_discipline("Сегодняшняя"), teacher=cls.teacher
+      +        )
+      +
+      +        save_lesson_change(
+      +            LessonChange(
+      +                weekly_lesson=cls.lesson_cancel,
+      +                original_date=date(2026, 11, 17),
+      +                kind=ChangeKind.CANCELLED,
+      +                reason="Отмена",
+      +            )
+      +        )
+      +        save_lesson_change(
+      +            LessonChange(
+      +                weekly_lesson=cls.lesson_move,
+      +                original_date=date(2026, 11, 18),
+      +                kind=ChangeKind.MOVED,
+      +                new_date=date(2026, 11, 28),
+      +                new_slot=5,
+      +                reason="Перенос",
+      +            )
+      +        )
+      +        save_lesson_change(
+      +            LessonChange(
+      +                weekly_lesson=cls.lesson_changed,
+      +                original_date=date(2026, 11, 19),
+      +                kind=ChangeKind.ROOM_CHANGED,
+      +                new_room=cls.room_changed_new,
+      +                reason="Ремонт",
+      +            )
+      +        )
+      +        save_lesson_change(
+      +            LessonChange(
+      +                weekly_lesson=cls.lesson_move_in,
+      +                original_date=date(2026, 11, 13),
+      +                kind=ChangeKind.MOVED,
+      +                new_date=date(2026, 11, 20),
+      +                new_slot=5,
+      +                new_room=cls.room_move_in_new,
+      +                reason="Перенос",
+      +            )
+      +        )
+      +
+      +    def _week(self):
+      +        self.client.force_login(self.student)
+      +        return self.client.get("/schedule/week/2026-11-16/").content.decode()
+      +
+      +    def test_regular_lesson_room_links_to_map(self):
+      +        content = self._week()
+      +        self.assertIn('href="/map/room/room-101/"', content)
+      +        self.assertIn('data-room-code="room-101"', content)
+      +
+      +    def test_cancelled_lesson_room_not_linked(self):
+      +        content = self._week()
+      +        self.assertIn('<span class="room" data-room-code="room-202">202, 2 этаж</span>', content)
+      +        self.assertNotIn('href="/map/room/room-202/"', content)
+      +
+      +    def test_moved_out_lesson_room_not_linked(self):
+      +        content = self._week()
+      +        self.assertIn('<span class="room" data-room-code="room-303">303, 3 этаж</span>', content)
+      +        self.assertNotIn('href="/map/room/room-303/"', content)
+      +
+      +    def test_room_changed_links_new_room_only(self):
+      +        content = self._week()
+      +        self.assertIn('href="/map/room/room-205/"', content)
+      +        self.assertIn('<del class="room" data-room-code="room-404">404, 4 этаж</del>', content)
+      +        self.assertNotIn('href="/map/room/room-404/"', content)
+      +
+      +    def test_moved_in_with_new_room_links_new_room(self):
+      +        content = self._week()
+      +        self.assertIn('href="/map/room/room-206/"', content)
+      +        self.assertNotIn('href="/map/room/room-505/"', content)
+      +
+      +    def test_today_page_has_links(self):
+      +        self.client.force_login(self.student)
+      +        content = self.client.get("/schedule/").content.decode()
+      +        self.assertIn('href="/map/room/room-101/"', content)
+      +
+      +    def test_staff_group_week_has_links(self):
+      +        self.client.force_login(self.staff)
+      +        content = self.client.get(f"/staff/schedule/{self.group.pk}/2026-11-16/").content.decode()
+      +        self.assertIn('href="/map/room/room-101/"', content)
+      +
+      +    def test_week_query_count_unchanged_by_links(self):
+      +        self.client.force_login(self.student)
+      +        with CaptureQueriesContext(connection) as ctx:
+      +            self.client.get("/schedule/week/2026-11-16/")
+      +        count1 = len(ctx.captured_queries)
+      +        for n in range(5):
+      +            make_lesson(
+      +                [self.group],
+      +                weekday=6,
+      +                slot=n + 2,
+      +                room=self.room,
+      +                discipline=make_discipline(f"Доп {n}"),
+      +                teacher=self.teacher,
+      +            )
+      +        with CaptureQueriesContext(connection) as ctx2:
+      +            self.client.get("/schedule/week/2026-11-16/")
+      +        count2 = len(ctx2.captured_queries)
+      +        self.assertEqual(count2, count1)
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test schedule.tests.test_views 2>&1 | tee "$TMPDIR/test-$TS-step4.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:|Error" | tail -30 (3s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test schedule.tests.test_views 2>&1 | tee "$TMPDIR/test-$TS-step4.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:|Error" | tail -30
+      FAIL: test_moved_in_with_new_room_links_new_room (schedule.tests.test_views.RoomLinkTests.test_moved_in_with_new_room_links_new_room)
+      AssertionError: 'href="/map/room/room-505/"' unexpectedly found in '<!doctype html>\n<html lang="ru">\n<head>\n  <meta charset="utf-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1">\n  <title>Цифровой деканат будущего</title>\n  <link rel="stylesheet" href="/static/css/tokens.css">\n  <link rel="stylesheet" href="/static/css/base.css">\n  <link rel="stylesheet" href="/static/css/theme.css">\n  \n</head>\n<body>\n  <a class="skip-link" href="#main">Перейти к содержимому</a>\n  <header class="site-header">\n    <a class="site-title" href="/">Цифровой деканат будущего</a>\n    <nav class="site-nav" aria-label="Основная навигация">\n      \n      \n      <ul class="site-nav-list">\n        <li><a href="/profile/">Профиль</a></li>\n        \n        <li><a href="/schedule/">Расписание</a></li>\n        <li><a href="/map/">Карта</a></li>\n        <li><a href="/grades/">Успеваемость</a></li>\n        <li><a href="/requests/">Заявки</a></li>\n        \n        <li><a href="/notifications/">Уведомления (3)</a></li>\n        \n        \n        <li>\n          <form class="site-nav-logout" method="post" action="/logout/">\n            <input type="hidden" name="csrfmiddlewaretoken" value="ziIoX2XaMDmfv17Dv2J8U9vAQxdWihdqRs48ijIQ1o0DpQyuu6Upiwn62qsHX4nJ">\n            <button type="submit">Выйти</button>\n          </form>\n        </li>\n      </ul>\n      \n      \n    </nav>\n  </header>\n  <main id="main" class="site-main">\n    \n    \n  <h1>Моё расписание</h1>\n  \n    <p>PR-GX Программа GX, 1 курс</p>\n    \n  \n  <nav class="week-nav" aria-label="Недели">\n  <a href="/schedule/week/2026-11-09/">← Предыдущая</a>\n  \n  <a href="/schedule/week/2026-11-23/">Следующая →</a>\n  <p>16 ноября — 22 ноября 2026</p>\n</nav>\n\n  \n<section class="day">\n  <h2>Понедельник, 16 ноября</h2>\n  \n  <ol class="lesson-list">\n    \n      <li class="lesson lesson--regular">\n  <p class="lesson-time">\n    \n    \n    <time>09:00</time>–<time>10:30</time> · 1 пара\n  </p>\n  <p class="lesson-title">Регулярная <span class="lesson-type">Лекция</span></p>\n  <p class="lesson-teacher">Преподаватель:\n    Лебедев\xa0И.\n  </p>\n  <p class="lesson-room">Аудитория:\n    <a class="room" data-room-code="room-101" href="/map/room/room-101/">101, 1 этаж</a>\n    \n  </p>\n  \n  \n</li>\n\n    \n  </ol>\n  \n</section>\n\n<section class="day">\n  <h2>Вторник, 17 ноября</h2>\n  \n  <ol class="lesson-list">\n    \n      <li class="lesson lesson--cancelled">\n  <p class="lesson-time">\n    \n    \n    <time>09:00</time>–<time>10:30</time> · 1 пара\n  </p>\n  <p class="lesson-title">Отменённая <span class="lesson-type">Лекция</span></p>\n  <p class="lesson-teacher">Преподаватель:\n    Лебедев\xa0И.\n  </p>\n  <p class="lesson-room">Аудитория:\n    <span class="room" data-room-code="room-202">202, 2 этаж</span>\n  </p>\n  \n  \n  <p class="lesson-change">Отменено. Причина: Отмена</p>\n  \n</li>\n\n    \n  </ol>\n  \n</section>\n\n<section class="day day--today">\n  <h2>Среда, 18 ноября (сегодня)</h2>\n  \n  <ol class="lesson-list">\n    \n      <li class="lesson lesson--moved-out">\n  <p class="lesson-time">\n    \n    \n    <time>09:00</time>–<time>10:30</time> · 1 пара\n  </p>\n  <p class="lesson-title">Перенесённая <span class="lesson-type">Лекция</span></p>\n  <p class="lesson-teacher">Преподаватель:\n    Лебедев\xa0И.\n  </p>\n  <p class="lesson-room">Аудитория:\n    <span class="room" data-room-code="room-303">303, 3 этаж</span>\n  </p>\n  \n  \n  <p class="lesson-change">Перенесено на 28 ноября, 5 пара (16:15). Причина: Перенос</p>\n  \n</li>\n\n    \n      <li class="lesson lesson--regular">\n  <p class="lesson-time">\n    \n    \n    <time>10:40</time>–<time>12:10</time> · 2 пара\n  </p>\n  <p class="lesson-title">Сегодняшняя <span class="lesson-type">Лекция</span></p>\n  <p class="lesson-teacher">Преподаватель:\n    Лебедев\xa0И.\n  </p>\n  <p class="lesson-room">Аудитория:\n    <a class="room" data-room-code="room-101" href="/map/room/room-101/">101, 1 этаж</a>\n    \n  </p>\n  \n  \n</li>\n\n    \n  </ol>\n  \n</section>\n\n<section class="day">\n  <h2>Четверг, 19 ноября</h2>\n  \n  <ol class="lesson-list">\n    \n      <li class="lesson lesson--room-changed">\n  <p class="lesson-time">\n    \n    \n    <time>09:00</time>–<time>10:30</time> · 1 пара\n  </p>\n  <p class="lesson-title">С заменой <span class="lesson-type">Лекция</span></p>\n  <p class="lesson-teacher">Преподаватель:\n    Лебедев\xa0И.\n  </p>\n  <p class="lesson-room">Аудитория:\n    <del class="room" data-room-code="room-404">404, 4 этаж</del>\n    <ins><a class="room" data-room-code="room-205" href="/map/room/room-205/">205, 2 этаж</a></ins>\n    \n  </p>\n  \n  \n  <p class="lesson-change">Замена аудитории. Причина: Ремонт</p>\n  \n</li>\n\n    \n  </ol>\n  \n</section>\n\n<section class="day">\n  <h2>Пятница, 20 ноября</h2>\n  \n  <ol class="lesson-list">\n    \n      <li class="lesson lesson--regular">\n  <p class="lesson-time">\n    \n    \n    <time>09:00</time>–<time>10:30</time> · 1 пара\n  </p>\n  <p class="lesson-title">Въехавшая <span class="lesson-type">Лекция</span></p>\n  <p class="lesson-teacher">Преподаватель:\n    Лебедев\xa0И.\n  </p>\n  <p class="lesson-room">Аудитория:\n    <a class="room" data-room-code="room-505" href="/map/room/room-505/">505, 5 этаж</a>\n    \n  </p>\n  \n  \n</li>\n\n    \n      <li class="lesson lesson--moved-in">\n  <p class="lesson-time">\n    \n    \n    <time>16:15</time>–<time>17:45</time> · 5 пара\n  </p>\n  <p class="lesson-title">Въехавшая <span class="lesson-type">Лекция</span></p>\n  <p class="lesson-teacher">Преподаватель:\n    Лебедев\xa0И.\n  </p>\n  <p class="lesson-room">Аудитория:\n    <del class="room" data-room-code="room-505">505, 5 этаж</del>\n    <ins><a class="room" data-room-code="room-206" href="/map/room/room-206/">206, 2 этаж</a></ins>\n    \n  </p>\n  \n  \n  <p class="lesson-change">Перенесено с 13 ноября, 1 пара. Причина: Перенос</p>\n  \n</li>\n\n    \n  </ol>\n  \n</section>\n\n<section class="day">\n  <h2>Суббота, 21 ноября</h2>\n  \n  <p>Занятий нет.</p>\n  \n</section>\n\n<section class="day">\n  <h2>Воскресенье, 22 ноября</h2>\n  \n  <p>Занятий нет.</p>\n  \n</section>\n\n\n\n  </main>\n  <footer class="site-footer">\n    <p class="site-disclaimer">Концепт для конкурса MGIMO AI Challenge. Не является официальным сервисом вуза. Все данные вымышлены.</p>\n  </footer>\n</body>\n</html>\n'
+      Ran 32 tests in 0.853s
+      FAILED (failures=1)
+    ── Thought for 27s
+      The failure: my `lesson_move_in` is a regular weekly lesson on Friday (weekday 4) at slot 1 with room 505. But it ALSO appears as a REGULAR lesson on Friday (since the weekly lesson itself is on Friday, and there's no change on Friday's original date 2026-11-20 that cancels/moves it). 
+
+      Wait, let me look at the output. The "Въехавшая" lesson appears TWICE on Friday:
+      1. As `lesson--regular` at 09:00 (slot 1) with room-505 linked.
+      2. As `lesson--moved-in` at 16:15 (slot 5) with room-206 linked (new room).
+
+      The problem: my `lesson_move_in` has weekday 4 (Friday). The weekly lesson itself is on Friday. The MOVED change moves it FROM 2026-11-13 (previous Friday) TO 2026-11-20 (this Friday). But the weekly lesson still has weekday=4 (Friday), so it ALSO generates a REGULAR occurrence on Friday 2026-11-20 (because the lesson's own weekday matches, and there's no change keyed on (lesson, 2026-11-20)).
+
+      Wait, actually let me think. `occurrences_between` iterates days and lessons. For the weekly lesson with weekday 4, on Friday 2026-11-20, it checks `by_key.get((lesson.id, 2026-11-20))`. The change has `original_date=2026-11-13`, not 2026-11-20. So no change matches → generates a REGULAR item on Friday with room=lesson.room (505).
+
+      Then separately, the moved-in loop creates the MOVED_IN item on new_date 2026-11-20 with room=new_room (206).
+
+      So "Въехавшая" appears twice on Friday: once regular (room 505), once moved-in (room 206). That's why `href="/map/room/room-505/"` appears (from the regular item).
+
+      This is a test design issue. The lesson should NOT have weekday=Friday if it's meant to be "moved in" from a previous week. Instead, the lesson's original weekday should be on a day that's NOT in the current week, OR the original date should correspond to the lesson's weekday.
+
+      Actually, let me reconsider. For a MOVED change, the original lesson is on some weekday. The original_date should be a date matching the lesson's weekday (in some week). The `save_lesson_change` and `save_weekly_lesson` might validate this.
+
+      Looking at ChangeRenderingTests: `lesson_move` has weekday 1 (Tuesday), original_date 2026-11-17 (Tuesday), moved to 2026-11-19 (Thursday). So the lesson's weekday matches the original date's weekday.
+
+      For my moved-in lesson, I set weekday=4 (Friday), original_date=2026-11-13 (which is Friday, correct), new_date=2026-11-20 (Friday, correct). But the lesson is STILL a Friday lesson, so it generates a regular Friday occurrence too.
+
+      Wait, but in ChangeRenderingTests, the moved lesson (Tuesday) has original_date Tuesday 2026-11-17, so on Tuesday it generates MOVED_OUT (because change matches (lesson, 2026-11-17)). It does NOT generate a regular Tuesday item because the change key matches.
+
+      For my moved-in lesson: the change original_date is 2026-11-13 (previous Friday). The lesson's weekday is Friday. On Friday 2026-11-20 (current week), `by_key.get((lesson.id, 2026-11-20))` is None (change original_date is 2026-11-13). So a regular item is generated on Friday 2026-11-20.
+
+      To avoid this, the lesson's weekday should be a day NOT in the current week that matches the original date. Since original_date 2026-11-13 is Friday, and the current week (2026-11-16..22) also has a Friday (2026-11-20), the lesson's weekday=Friday means it recurs EVERY Friday, including 2026-11-20.
+
+      The issue is that a weekly lesson recurs every week on its weekday. So a lesson on Friday with a MOVED change from 11-13 to 11-20 will: 
+      - On 11-13 (outside range): nothing (not in range).
+      - On 11-20: regular item (no change on that date), PLUS moved-in item (new_date 11-20).
+
+      So the "moved in" scenario with the SAME weekday within the week is inherently double.
+
+      Actually, let me look at how the demo handles moves. In demo, change-3 is lesson-07 (index 7 = lesson-08 "room-205" on weekday 1 Tuesday) moved with new_date_offset=3. Hmm.
+
+      Let me reconsider. The real-world scenario: a lesson is MOVED from Tuesday of week 1 to Thursday of week 1 (same week), OR from Tuesday to a different day.
+
+      Actually, for a clean "moved-in with new room" test, I should make the lesson's weekday such that it does NOT occur in the current week. E.g., the original lesson is on a weekday, moved to a DIFFERENT weekday in the current week.
+
+      Wait, but a weekly lesson has a fixed weekday. A "moved" change can change the date to any date (even a different weekday), because `new_date` can be any date.
+
+      So the clean scenario: lesson has weekday=0 (Monday). Original date = Monday 2026-11-16 (in current week). MOVED to new_date = Friday 2026-11-20 with new_room.
+
+      Then:
+      - On Monday 2026-11-16: change matches (lesson, 2026-11-16) → MOVED_OUT.
+      - On Friday 2026-11-20: no regular item (lesson weekday is Monday, not Friday). MOVED_IN item appears (new_date 11-20) with new_room.
+
+      So the moved-in item has room=new_room, original_room=old room. And the moved-out on Monday shows old room plain text.
+
+      But wait — for `test_moved_out_lesson_room_not_linked`, I already have a separate `lesson_move` for the moved-out test. So I don't need the moved-in lesson's moved-out to be tested.
+
+      Let me restructure `lesson_move_in`:
+      - weekday=0 (Monday), room=505.
+      - original_date = 2026-11-16 (Monday, in current week).
+      - new_date = 2026-11-20 (Friday), new_room=206, new_slot=5.
+
+      Then:
+      - Monday 2026-11-16: MOVED_OUT (room 505, plain text). But this might conflict with lesson_regular (Monday slot 1 room 101). Different slot? lesson_move_in at slot 1, lesson_regular at slot 1 → same slot Monday! Conflict in validation?
+
+      Actually, make_lesson uses save_weekly_lesson which validates conflicts. Two lessons in the same group at the same weekday+slot → conflict error. Let me check: lesson_regular is Monday (0) slot 1. If lesson_move_in is Monday slot 1 too, conflict.
+
+      Let me use a different slot for lesson_move_in, e.g. Monday slot 6. But slots only go up to some number. Let me check timeslots. Actually, from the demo, slots go up to 5 (new_slot=5). Let me use slot 2 or 3 on Monday.
+
+      Hmm, actually, let me reconsider the whole approach. The moved-in scenario with new room is somewhat contrived. Let me simplify:
+
+      Actually, the simplest correct approach: make lesson_move_in's weekday NOT in a way that recurs in the week. But weekly lessons always recur on their weekday within the week (valid_from <= day <= valid_until).
+
+      The key insight: a moved lesson (MOVED kind) with new_date in the current week produces a MOVED_IN item. The lesson's own weekday determines where the MOVED_OUT appears.
+
+      For a clean moved-in-with-new-room test, I want:
+      - MOVED_OUT on some day (old room, plain text) — but I already test moved-out separately.
+      - MOVED_IN on new_date (new room, linked).
+
+      If I set lesson weekday = Monday (in week), original_date = Monday 2026-11-16, new_date = Friday 2026-11-20:
+      - MOVED_OUT on Monday (room 505 plain).
+      - MOVED_IN on Friday (room 206 linked).
+
+      The MOVED_OUT on Monday with room 505 — but I don't assert anything about it in the moved-in test. I just assert `href="/map/room/room-206/"` present and `href="/map/room/room-505/"` absent.
+
+      But wait — will room 505 appear as a regular lesson anywhere? No, because the change matches on Monday (original_date), so Monday generates MOVED_OUT (not regular). And the lesson weekday is Monday only, so no other day generates a regular item for it.
+
+      But there's still the concern: does the MOVED_OUT on Monday render room 505 as a `<span>` (plain text)? Yes, moved-out is not happening, so plain text. So `href="/map/room/room-505/"` is absent. 
+
+      So I just need to change lesson_move_in's weekday from 4 (Friday) to 0 (Monday), and use a different slot to avoid conflict with lesson_regular (Monday slot 1).
+
+      Let me set lesson_move_in weekday=0, slot=2 (Monday slot 2). lesson_regular is Monday slot 1. No conflict.
+
+      Actually wait, does slot 2 conflict with anything else? Monday: lesson_regular slot 1, lesson_move_in slot 2. Fine.
+
+      And original_date = 2026-11-16 (Monday), new_date = 2026-11-20 (Friday), new_slot=5, new_room=206.
+
+      Let me update the test setup.
+
+      Actually, hold on. Let me reconsider whether the MOVED_OUT on Monday and the moved-in are both fine. Let me also double check: is there validation that the original_date must match the lesson's weekday? In `save_lesson_change`, there might be validation. Let me check the ChangeRenderingTests: lesson_move weekday 1 (Tuesday), original_date 2026-11-17 (Tuesday). So original_date weekday matches lesson weekday. For my lesson_move_in: weekday 0 (Monday), original_date 2026-11-16 (Monday). Matches. Good.
+
+      Let me update the setup: change lesson_move_in weekday to 0, slot to 2, original_date to 2026-11-16.
+
+      Let me edit.
+    ── Edited schedule/tests/test_views.py +1 -1
+      --- a~/hackatonproject/schedule/tests/test_views.py
+      +++ b~/hackatonproject/schedule/tests/test_views.py
+      -            [cls.group], 4, 1, cls.room_move_in_old, discipline=make_discipline("Въехавшая"), teacher=cls.teacher
+      +            [cls.group], 0, 2, cls.room_move_in_old, discipline=make_discipline("Въехавшая"), teacher=cls.teacher
+    ── Edited schedule/tests/test_views.py +1 -1
+      --- a~/hackatonproject/schedule/tests/test_views.py
+      +++ b~/hackatonproject/schedule/tests/test_views.py
+      -                original_date=date(2026, 11, 13),
+      +                original_date=date(2026, 11, 16),
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test schedule.tests.test_views 2>&1 | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -10 (2s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test schedule.tests.test_views 2>&1 | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -10
+      Ran 32 tests in 0.854s
+      OK
+    ── Thought for 4s
+      Step 4 done. Now step 5: seed + seed tests + admin list_display (already done) + README.
+
+      Seed: `schedule/demo.py`:
+      - `RoomSeed` gets `map_cell: str`.
+      - Values: room-101 N2, room-114 N4, room-205 N3, room-212 S4, room-308 N2, room-315 N5, room-402 N3.
+      - Replace the update_or_create loop.
+
+      Let me check the landmark conflicts:
+      - room-101 N2 (floor 1): floor 1 landmarks are N1 (stairs), S3 (entrance), S4+S5 (canteen). N2 is free. ✓
+      - room-114 N4 (floor 1): N4 free. ✓
+      - room-205 N3 (floor 2): floor 2 landmarks: N1 (stairs), S1+S2 (deanery). N3 free. ✓
+      - room-212 S4 (floor 2): S4 free (deanery is S1+S2). ✓
+      - room-308 N2 (floor 3): floor 3: N1 stairs, S4+S5 library. N2 free. ✓
+      - room-315 N5 (floor 3): N5 free. ✓
+      - room-402 N3 (floor 4): floor 4: N1 stairs only. N3 free. ✓
+
+      All good. No landmark conflicts. And each floor has unique cells:
+      - Floor 1: 101=N2, 114=N4. ✓ (distinct)
+      - Floor 2: 205=N3, 212=S4. ✓
+      - Floor 3: 308=N2, 315=N5. ✓
+      - Floor 4: 402=N3. ✓
+
+      Now update demo.py.
+
+      RoomSeed dataclass: add `map_cell: str`. Then ROOM_SEEDS with map_cell. Then replace the loop.
+
+      Let me edit.
+    ── Edited schedule/demo.py +1
+      --- a~/hackatonproject/schedule/demo.py
+      +++ b~/hackatonproject/schedule/demo.py
+      +    map_cell: str
+    ── Edited schedule/demo.py +7 -7
+      --- a~/hackatonproject/schedule/demo.py
+      +++ b~/hackatonproject/schedule/demo.py
+      -    RoomSeed(code="room-101", floor=1, number="101"),
+      -    RoomSeed(code="room-114", floor=1, number="114"),
+      -    RoomSeed(code="room-205", floor=2, number="205"),
+      -    RoomSeed(code="room-212", floor=2, number="212"),
+      -    RoomSeed(code="room-308", floor=3, number="308"),
+      -    RoomSeed(code="room-315", floor=3, number="315"),
+      -    RoomSeed(code="room-402", floor=4, number="402"),
+      +    RoomSeed(code="room-101", floor=1, number="101", map_cell="N2"),
+      +    RoomSeed(code="room-114", floor=1, number="114", map_cell="N4"),
+      +    RoomSeed(code="room-205", floor=2, number="205", map_cell="N3"),
+      +    RoomSeed(code="room-212", floor=2, number="212", map_cell="S4"),
+      +    RoomSeed(code="room-308", floor=3, number="308", map_cell="N2"),
+      +    RoomSeed(code="room-315", floor=3, number="315", map_cell="N5"),
+      +    RoomSeed(code="room-402", floor=4, number="402", map_cell="N3"),
+    ── Edited schedule/demo.py +4 -3
+      --- a~/hackatonproject/schedule/demo.py
+      +++ b~/hackatonproject/schedule/demo.py
+      -            room, _ = Room.objects.update_or_create(
+      -                code=seed.code, defaults={"floor": seed.floor, "number": seed.number}
+      -            )
+      +            room = Room.objects.filter(code=seed.code).first() or Room(code=seed.code)
+      +            room.floor, room.number, room.map_cell = seed.floor, seed.number, seed.map_cell
+      +            room.full_clean()
+      +            room.save()
+    ── Thought for 3s
+      Now write seed tests in test_demo.py: `test_demo_rooms_valid_and_placed` and `test_seed_twice_keeps_cells`.
+
+      ```python
+      def test_demo_rooms_valid_and_placed(self):
+          self._seed(date(2026, 11, 18))
+          rooms = Room.objects.all()
+          self.assertEqual(rooms.count(), 7)
+          for room in rooms:
+              room.full_clean()
+              self.assertTrue(room.map_cell)
+              self.assertNotIn(room.map_cell, blocked_cells(room.floor))
+
+      def test_seed_twice_keeps_cells(self):
+          self._seed(date(2026, 11, 18))
+          cells1 = {r.code: r.map_cell for r in Room.objects.all()}
+          self._seed(date(2026, 11, 18))
+          cells2 = {r.code: r.map_cell for r in Room.objects.all()}
+          self.assertEqual(cells1, cells2)
+      ```
+
+      Need to import `blocked_cells` from university.building.
+
+      Let me add the import and the two test methods.
+
+      Also need to check: `test_seeded_schedule_has_no_conflicts` and existing tests still pass with full_clean in seed. The seed now calls `room.full_clean()` which validates constraints. The rooms all comply. Good.
+
+      Let me add the import and tests.
+    ── Edited schedule/tests/test_demo.py +1
+      --- a~/hackatonproject/schedule/tests/test_demo.py
+      +++ b~/hackatonproject/schedule/tests/test_demo.py
+      +from university.building import blocked_cells
+    ── Edited schedule/tests/test_demo.py +16
+      --- a~/hackatonproject/schedule/tests/test_demo.py
+      +++ b~/hackatonproject/schedule/tests/test_demo.py
+      +
+      +    def test_demo_rooms_valid_and_placed(self):
+      +        self._seed(date(2026, 11, 18))
+      +        rooms = list(Room.objects.all())
+      +        self.assertEqual(len(rooms), 7)
+      +        for room in rooms:
+      +            room.full_clean()
+      +            self.assertTrue(room.map_cell)
+      +            self.assertNotIn(room.map_cell, blocked_cells(room.floor))
+      +
+      +    def test_seed_twice_keeps_cells(self):
+      +        self._seed(date(2026, 11, 18))
+      +        cells1 = {r.code: r.map_cell for r in Room.objects.all()}
+      +        self._seed(date(2026, 11, 18))
+      +        cells2 = {r.code: r.map_cell for r in Room.objects.all()}
+      +        self.assertEqual(cells1, cells2)
+    ── Thought for 568ms
+      Now the README. Let me read the README to find where "## Notifications" section is and where "Known limitations" is.
+    ── Read file read
+      # Digital Dean's Office of the Future
+
+      A minimal Django skeleton for the "Digital Dean's Office of the Future" prototype.
+
+      > Concept for the MGIMO AI Challenge contest. This is not an official university
+      > service. All data is fictional.
+
+      ## Requirements
+
+      - Python 3.12
+
+      ## Setup
+
+      ```bash
+      /opt/homebrew/bin/python3.12 -m venv .venv
+      source .venv/bin/activate
+      pip install -r requirements-dev.txt
+      cp .env.example .env   # then edit as needed
+      ```
+
+      ## Run
+
+      ```bash
+      python manage.py migrate
+      python manage.py runserver
+      ```
+
+      ## Test & lint
+
+      ```bash
+      ruff check .
+      ruff format --check .
+      python manage.py check
+      python manage.py makemigrations --check --dry-run
+      python manage.py test
+      python scripts/run_tests_at.py 2027-03-01T12:00:00   # tests must not depend on the real date
+      DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop \
+        ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ \
+        python manage.py check --deploy --fail-level WARNING
+      python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"
+      ```
+
+      ## Demo data
+
+      ```bash
+      python manage.py migrate
+      python manage.py seed_demo   # needs DEMO_PASSWORD in .env or the environment
+      ```
+
+      All demo data is fictional. Logins (password: the value of `DEMO_PASSWORD`):
+
+      | Login | Faculty | Group |
+      |---|---|---|
+      | `student1` | FDD | ЦД-101 |
+      | `student2` | FAE | ЭД-201 |
+      | `student3` | FDD | ЦД-101 |
+      | `staff1` | FDD | — |
+      | `staff2` | FAE | — |
+
+      Superuser (Django admin only): `python manage.py createsuperuser`.
+
+      The demo schedule covers 8 weeks before and 12 weeks after the run date.
+      Re-running `seed_demo` replaces the demo schedule changes with fresh ones for
+      the current and next week. Demo schedule rows carry a `seed_key`; rows created
+      by a person in Django admin are never touched by `seed_demo`.
+
+      Demo academics: `student1` is strong (average 5.00, no debts); `student3` has a
+      retake and an open debt («Основы права») and low attendance; `student2` is from
+      the other faculty (average 4.50). The seed only creates missing academic rows.
+
+      Demo requests: `student1` has a submitted certificate and issued/processing
+      requests; `student3` has a ready and a rejected request; `student2` has a
+      submitted and an in-progress request. Each staff faculty has at least one
+      request waiting in its queue.
+
+      ## Schedule
+
+      Students: `/schedule/` (today) and `/schedule/week/` (week view). Staff:
+      `/staff/schedule/` (group list). Schedule editing happens in Django admin.
+
+      ## Grades
+
+      Students: `/grades/` and `/grades/<term_code>/`. Staff open a student's report
+      from the student card (`/staff/students/<pk>/grades/`). Definitions: the
+      average is the arithmetic mean of numeric effective results (2–5, including 2),
+      rounded to 2 decimals half-up; a debt is a finished-session curriculum item
+      with a missing or failing effective result; attendance percent is
+      present/(present+absent), rounded half-up, with excused absences excluded and
+      shown as «не отмечено» when a past occurrence has no record.
+
+      ## Requests
+
+      Students: `/requests/` (my requests), `/requests/new/` (catalog) and a
+      per-request detail with history and downloads. Staff: `/staff/requests/` (queue,
+      own faculty, filtered by status/type, open oldest first) and per-request actions
+      (take in progress, mark ready, mark issued, reject) and staff comments.
+
+      Status workflow:
+
+      | Status | Allowed transitions |
+      |---|---|
+      | Подана (submitted) | В работе, Отклонена |
+      | В работе (in_progress) | Готова, Отклонена |
+      | Готова (ready) | Выдана |
+      | Выдана (issued) | — |
+      | Отклонена (rejected) | — |
+
+      Limits: at most 3 open requests of the same type per student; up to 3
+      attachments, each ≤ 5 MB, PDF only (extension, content type and `%PDF-`
+      signature are all checked). Attachments are stored in `PRIVATE_MEDIA_ROOT`,
+      which must **never** be served by nginx or live inside `static/`; downloads go
+      through Django access checks only. nginx should allow larger request bodies for
+      multipart uploads:
+
+      ```nginx
+      client_max_body_size 20m;
+      ```
+
+      ## Notifications
+
+      Students: `/notifications/` shows a «Ближайшие дедлайны» block (deadlines
+      today or later, nearest first, labelled «сегодня» / «завтра» / «через N
+      дней») and one feed of dean's-office news and personal changes (request status
+      changes and staff comments, schedule changes for lessons in the next 14 days,
+      new current marks and final results). The feed is computed from existing rows,
+      covers the last 30 days, and is capped at 50 items.
+
+      Unread state is one «seen until» timestamp per account (no per-item flags):
+      the nav shows «Уведомления (N)» for students, and opening `/notifications/`
+      marks everything as read.
+
+      Staff: `/staff/announcements/` lists and creates announcements for the staff
+      member's own faculty or one of its groups (no edit, no hard delete; an
+      announcement can be unpublished). University-wide announcements are created
+      only in the Django admin.
+
+      Demo data: `seed_demo` creates 9 announcements (2 university-wide, 5 faculty, 2
+      group; 2 unpublished); published deadlines fall on run day +1…+5.
+
+      ## Login protection
+
+      Failed login attempts are throttled per (username, client IP) and stored in
+      the database (`LOGIN_FAILURE_LIMIT` failures → lockout for
+      `LOGIN_LOCKOUT_SECONDS` seconds). Behind a reverse proxy, set
+      `CLIENT_IP_HEADER=X-Real-IP` **only** if nginx overwrites the header, e.g.:
+
+      ```nginx
+      proxy_set_header X-Real-IP $remote_addr;
+      ```
+
+      ## Deployment notes
+
+      - Run `python manage.py seed_demo` once on the server on 2026-11-22 (submission
+        day), after `migrate`. It needs `DEMO_PASSWORD` in the environment.
+      - Back up `PRIVATE_MEDIA_ROOT` together with the database: attachments are
+        referenced by database rows, so restoring one without the other breaks
+        downloads.
+      - nginx must not serve `PRIVATE_MEDIA_ROOT`; set `client_max_body_size 20m;`
+        (see the «Requests» section).
+
+      ## Known limitations
+
+      - After a student moves to another group, attendance for the former group's
+        lessons is not shown (group transfers are out of scope for the prototype).
+      - `seed_demo` never updates existing academic rows, so data edited in the admin
+        is never overwritten. Re-running it only adds missing rows (new past
+        occurrences). On the server it is run once, on 2026-11-22 (submission day);
+        there is no scheduled re-run.
+      - The unread counter is per account: after one person opens «Уведомления» as
+        `student1`, others logged in as `student1` see no new items.
+      - Grades and lesson changes appear in the feed by the time they were recorded;
+        a grade entered later for an old date still shows as new.
+
+      ## Environment variables
+
+      | Name | Default | Purpose |
+      |---|---|---|
+      | `DEBUG` | `false` | Enable debug mode in development. |
+      | `SECRET_KEY` | (dev key in debug) | Django secret key; required when `DEBUG=false`. |
+      | `ALLOWED_HOSTS` | `localhost,127.0.0.1` (debug) | Comma-separated allowed hostnames. |
+      | `CSRF_TRUSTED_ORIGINS` | (empty) | Comma-separated trusted origins. |
+      | `DATABASE_URL` | `sqlite:///db.sqlite3` | Database URL (SQLite or PostgreSQL). |
+      | `ADMIN_URL` | `admin/` (debug) | Admin path prefix; required when `DEBUG=false`. |
+      | `SECURE_SSL_REDIRECT` | `true` | Redirect HTTP to HTTPS (production only). |
+      | `SECURE_HSTS_SECONDS` | `3600` | HSTS max-age (production only). |
+      | `SECURE_HSTS_INCLUDE_SUBDOMAINS` | `true` | Apply HSTS to subdomains (production only). |
+      | `SECURE_HSTS_PRELOAD` | `false` | Opt in to HSTS preload (production only). |
+      | `LOG_LEVEL` | `INFO` | Logging level. |
+      | `DEMO_PASSWORD` | (none) | Password for demo accounts; required by `seed_demo`. |
+      | `LOGIN_FAILURE_LIMIT` | `5` | Failures per (username, IP) before login lockout. |
+      | `LOGIN_LOCKOUT_SECONDS` | `900` | Login lockout duration in seconds. |
+      | `CLIENT_IP_HEADER` | (empty) | Proxy header for the client IP (`X-Real-IP` or `X-Forwarded-For`). |
+      | `PRIVATE_MEDIA_ROOT` | `<repo>/private_media` | Private uploads (request attachments); never served by nginx. |
+    ── Thought for 4s
+      I need to add a `## Map` section after `## Notifications` (before `## Login protection`), and add a bullet to `## Known limitations`.
+
+      Map section content per spec 4.11:
+      - URLs, grid and landmarks (D3), how to place a room in the admin («Место на схеме»), room-number rule (NNN, first digit = floor), highlight class `map-current`.
+
+      Known limitations bullet: «The map has one building and a fixed grid of 9 room places per floor; landmarks are defined in code (`university/building.py`).»
+
+      Let me write the Map section in Russian (README is in Russian mostly, but the Known limitations is in English? Actually the Known limitations bullets are in English. Let me look: "After a student moves to another group..." — English. So Known limitations is in English. The spec's known limitation bullet is in English. Good.
+
+      The `## Map` section — spec doesn't specify language. Other sections (## Schedule, ## Grades, ## Requests, ## Notifications) are in English. So I'll write ## Map in English.
+
+      Let me write it.
+
+      Grid description: two rows of 5 cells, columns 1-5, top row N1..N5, bottom row S1..S5. N1 is stairs. Landmarks: N1 stairs every floor; floor 1 S3 entrance, S4+S5 canteen; floor 2 S1+S2 deanery; floor 3 S4+S5 library.
+
+      Room rule: NNN exactly 3 digits, first digit = floor (1-9).
+
+      Highlight class map-current.
+
+      Let me write the section.
+    ── Edited README.md +16
+      --- a~/hackatonproject/README.md
+      +++ b~/hackatonproject/README.md
+      +## Map
+      +
+      +Students and staff: `/map/` (lowest floor with rooms), `/map/floor/<n>/`
+      +(a specific floor, 404 when no room is on it) and `/map/room/<code>/` (a room's
+      +floor with that room highlighted). The map is one fictional building drawn as an
+      +inline SVG: two rows of five cells along a central corridor — top row `N1…N5`,
+      +bottom row `S1…S5`. Landmarks are defined in code (`university/building.py`):
+      +«Лестница» on `N1` of every floor, «Вход» (`S3`) and «Столовая» (`S4`+`S5`) on
+      +floor 1, «Деканат» (`S1`+`S2`) on floor 2, «Библиотека» (`S4`+`S5`) on floor 3.
+      +
+      +A room's position is the `Room.map_cell` field, editable in Django admin as
+      +«Место на схеме» (blank = not on the map). One room per cell per floor; cells
+      +taken by a landmark are rejected. A room number is exactly three digits (`NNN`)
+      +and its first digit must equal the floor (1–9). The highlighted room uses the
+      +single CSS class `map-current` (colour token `--color-map-highlight`).
+      +
+    ── Edited README.md +2
+      --- a~/hackatonproject/README.md
+      +++ b~/hackatonproject/README.md
+      +- The map has one building and a fixed grid of 9 room places per floor;
+      +  landmarks are defined in code (`university/building.py`).
+    ── Thought for 520ms
+      Now run the seed tests and full suite for step 5.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test schedule.tests.test_demo 2>&1 | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -10 (22s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test schedule.tests.test_demo 2>&1 | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -10
+      Ran 10 tests in 19.911s
+      OK
+    ── Thought for 3s
+      Seed tests pass. Now let me run ruff format on all changed/new Python files, then run the full suite and section 8 verification.
+
+      Changed/new Python files:
+      - university/building.py (new)
+      - university/models.py
+      - university/admin.py
+      - university/migrations/0003_... (excluded from ruff)
+      - university/tests/test_models.py
+      - university/tests/test_building.py (new)
+      - university/tests/test_admin.py (new)
+      - schedule/tests/helpers.py
+      - schedule/demo.py
+      - schedule/tests/test_views.py
+      - schedule/tests/test_demo.py
+      - campusmap/__init__.py (new)
+      - campusmap/apps.py (new)
+      - campusmap/layout.py (new)
+      - campusmap/views.py (new)
+      - campusmap/urls.py (new)
+      - campusmap/tests/__init__.py (new)
+      - campusmap/tests/test_layout.py (new)
+      - campusmap/tests/test_views.py (new)
+      - core/tests/test_css.py
+      - config/settings.py
+      - config/urls.py
+      - pyproject.toml (not python, skip)
+
+      Templates/HTML/CSS changed (not ruff format targets):
+      - campusmap/templates/campusmap/map.html
+      - schedule/templates/schedule/includes/lesson_item.html
+      - templates/base.html
+      - static/css/tokens.css
+      - static/css/base.css
+      - README.md
+
+      Let me run ruff format on the Python files.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff format university/building.py university/models.py university/admin.py university/tests/test_models.py university/tests/test_building.py university/tests/test_admin.py schedule/tests/helpers.py schedule/demo.py schedule/tests/test_views.py schedule/tests/test_demo.py campusmap/__init__.py campusmap/apps.py campusmap/layout.py campusmap/views.py campusmap/urls.py campusmap/tests/__init__.py campusmap/tests/test_layout.py campusmap/tests/test_views.py core/tests/test_css.py config/settings.py config/urls.py 2>&1 (1s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff format university/building.py university/models.py university/admin.py university/tests/test_models.py university/tests/test_building.py university/tests/test_admin.py schedule/tests/helpers.py schedule/demo.py schedule/tests/test_views.py schedule/tests/test_demo.py campusmap/__init__.py campusmap/apps.py campusmap/layout.py campusmap/views.py campusmap/urls.py campusmap/tests/__init__.py campusmap/tests/test_layout.py campusmap/tests/test_views.py core/tests/test_css.py config/settings.py config/urls.py 2>&1
+      9 files reformatted, 12 files left unchanged
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff check university/building.py university/models.py university/admin.py university/tests/test_models.py university/tests/test_building.py university/tests/test_admin.py schedule/tests/helpers.py schedule/demo.py schedule/tests/test_views.py schedule/tests/test_demo.py campusmap/__init__.py campusmap/apps.py campusmap/layout.py campusmap/views.py campusmap/urls.py campusmap/tests/__init__.py campusmap/tests/test_layout.py campusmap/tests/test_views.py core/tests/test_css.py config/settings.py config/urls.py 2>&1 | tail -20 (1s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff check university/building.py university/models.py university/admin.py university/tests/test_models.py university/tests/test_building.py university/tests/test_admin.py schedule/tests/helpers.py schedule/demo.py schedule/tests/test_views.py schedule/tests/test_demo.py campusmap/__init__.py campusmap/apps.py campusmap/layout.py campusmap/views.py campusmap/urls.py campusmap/tests/__init__.py campusmap/tests/test_layout.py campusmap/tests/test_views.py core/tests/test_css.py config/settings.py config/urls.py 2>&1 | tail -20
+      5 | |     blocked_cells,
+      6 | |     landmarks_on,
+      7 | | )
+      8 | |
+      9 | | from django.test import SimpleTestCase
+        | |______________________________________^
+      help: Organize imports
+         |
+      1  + from django.test import SimpleTestCase
+      2  +
+      3  | from university.building import (
+      --------------------------------------------------------------------------------
+      9  | )
+         -
+         - from django.test import SimpleTestCase
+      10 |
+         |
+
+      Found 4 errors.
+      [*] 4 fixable with `--fix`.
+    ── Thought for 703ms
+      Ruff check found 4 errors, all import ordering issues. Let me see the full output to know all 4 errors.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff check --fix university/tests/test_building.py university/tests/test_admin.py university/tests/test_models.py schedule/tests/test_views.py 2>&1 | tail -20
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff check --fix university/tests/test_building.py university/tests/test_admin.py university/tests/test_models.py schedule/tests/test_views.py 2>&1 | tail -20
+      Found 1 error (1 fixed, 0 remaining).
+    ── Thought for 788ms
+      Only 1 error fixed (test_building.py import ordering). The other 3 errors must be in other files. Wait, the earlier output showed "Found 4 errors." and the diff shown was for test_building.py. Let me run ruff check again on all files to see remaining errors.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff check university/building.py university/models.py university/admin.py university/tests/test_models.py university/tests/test_building.py university/tests/test_admin.py schedule/tests/helpers.py schedule/demo.py schedule/tests/test_views.py schedule/tests/test_demo.py campusmap/__init__.py campusmap/apps.py campusmap/layout.py campusmap/views.py campusmap/urls.py campusmap/tests/__init__.py campusmap/tests/test_layout.py campusmap/tests/test_views.py core/tests/test_css.py config/settings.py config/urls.py 2>&1 | tail -40 (1s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff check university/building.py university/models.py university/admin.py university/tests/test_models.py university/tests/test_building.py university/tests/test_admin.py schedule/tests/helpers.py schedule/demo.py schedule/tests/test_views.py schedule/tests/test_demo.py campusmap/__init__.py campusmap/apps.py campusmap/layout.py campusmap/views.py campusmap/urls.py campusmap/tests/__init__.py campusmap/tests/test_layout.py campusmap/tests/test_views.py core/tests/test_css.py config/settings.py config/urls.py 2>&1 | tail -40
+      - from campusmap import layout
+      3 | from campusmap.layout import (
+        |
+
+      F401 [*] `campusmap.layout.CELL_HEIGHT` imported but unused
+       --> campusmap/tests/test_layout.py:5:5
+        |
+      3 | from campusmap import layout
+      4 | from campusmap.layout import (
+      5 |     CELL_HEIGHT,
+        |     ^^^^^^^^^^^
+      6 |     CELL_WIDTH,
+      7 |     CORRIDOR,
+        |
+      help: Remove unused import: `campusmap.layout.CELL_HEIGHT`
+        |
+      4 | from campusmap.layout import (
+        -     CELL_HEIGHT,
+      5 |     CELL_WIDTH,
+        |
+
+      F401 [*] `university.building.landmarks_on` imported but unused
+        --> campusmap/tests/test_layout.py:16:66
+         |
+      14 |     span_rect,
+      15 | )
+      16 | from university.building import LANDMARKS, STAIRS_CELL, MapCell, landmarks_on
+         |                                                                  ^^^^^^^^^^^^
+      17 | from university.models import Room
+         |
+      help: Remove unused import: `university.building.landmarks_on`
+         |
+      15 | )
+         - from university.building import LANDMARKS, STAIRS_CELL, MapCell, landmarks_on
+      16 + from university.building import LANDMARKS, STAIRS_CELL, MapCell
+      17 | from university.models import Room
+         |
+
+      Found 3 errors.
+      [*] 3 fixable with `--fix`.
+    ── Thought for 561ms
+      I have unused imports in test_layout.py: `from campusmap import layout` (unused), `CELL_HEIGHT` (unused), `landmarks_on` (unused). Let me fix them with --fix.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff check --fix campusmap/tests/test_layout.py 2>&1 | tail -5 && echo "---" && ruff check university/building.py university/models.py university/admin.py university/tests/test_models.py university/tests/test_building.py university/tests/test_admin.py schedule/tests/helpers.py schedule/demo.py schedule/tests/test_views.py schedule/tests/test_demo.py campusmap/__init__.py campusmap/apps.py campusmap/layout.py campusmap/views.py campusmap/urls.py campusmap/tests/__init__.py campusmap/tests/test_layout.py campusmap/tests/test_views.py core/tests/test_css.py config/settings.py config/urls.py 2>&1 | tail -5 (1s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff check --fix campusmap/tests/test_layout.py 2>&1 | tail -5 && echo "---" && ruff check university/building.py university/models.py university/admin.py university/tests/test_models.py university/tests/test_building.py university/tests/test_admin.py schedule/tests/helpers.py schedule/demo.py schedule/tests/test_views.py schedule/tests/test_demo.py campusmap/__init__.py campusmap/apps.py campusmap/layout.py campusmap/views.py campusmap/urls.py campusmap/tests/__init__.py campusmap/tests/test_layout.py campusmap/tests/test_views.py core/tests/test_css.py config/settings.py config/urls.py 2>&1 | tail -5
+      Found 3 errors (3 fixed, 0 remaining).
+      ---
+      All checks passed!
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff format university/tests/test_building.py campusmap/tests/test_layout.py 2>&1
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff format university/tests/test_building.py campusmap/tests/test_layout.py 2>&1
+      2 files left unchanged
+    ── Thought for 423ms
+      Now let me run the full test suite and then section 8 verification.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-full.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -10 (2m 10s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-full.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -10
+      Ran 817 tests in 127.901s
+      OK
+    ── Thought for 8s
+      817 tests OK (was 748, +69 new tests). Let me verify the count: 
+      - university: test_building 5, test_admin 5, test_models RoomNumber 7 + RoomMapCell 6 = 13 → 23
+      - campusmap: test_layout 8, test_views: MapAccess 6 + MapView 18 + MapQuery 2 + MapNav 3 = 29 → 37
+      - schedule: RoomLinkTests 8, test_demo 2 new = 10 → 18
+      - core css: 1 new
+
+      Total new = 23 + 37 + 8 + 2 + 1 = 71. 748 + 71 = 819. But I got 817. Hmm, let me recount.
+
+      Wait, let me count more carefully. Actually the earlier baseline was 748 (after TASK-007-FIX). Let me count new tests:
+
+      university/tests/test_building.py: BuildingTests has 5 tests (test_stairs_on_every_floor, test_floor_landmarks, test_blocked_cells, test_choices_exclude_stairs, test_landmark_cells_adjacent_same_row). = 5.
+
+      university/tests/test_admin.py: 5 tests.
+
+      university/tests/test_models.py: RoomNumberTests has test_valid_numbers, test_bad_number_is_field_error, test_floor_out_of_range_is_field_error, test_floor_must_match_first_digit, test_db_rejects_bad_number, test_db_rejects_mismatch, test_db_rejects_floor_10 = 7. RoomMapCellTests has test_landmark_cell_rejected, test_same_landmark_cell_free_on_other_floor, test_same_cell_same_floor_rejected, test_same_cell_other_floor_ok, test_many_rooms_without_cell_ok, test_db_rejects_unknown_cell = 6. Total 13.
+
+      So university new = 5 + 5 + 13 = 23.
+
+      campusmap/tests/test_layout.py: 8 tests.
+      campusmap/tests/test_views.py: MapAccessTests 6 (anonymous, student, student_without_profile, staff, superuser, post), MapViewTests: test_default_floor_is_lowest, test_switcher_lists_only_floors_with_rooms, test_current_floor_marked, test_floor_without_rooms_404, test_non_numeric_floor_404, test_room_opens_its_floor_and_is_highlighted, test_highlight_has_accessible_name, test_unknown_room_404, test_room_without_cell_listed_and_floor_opens, test_landmarks_per_floor, test_legend_present, test_room_list_grouped_by_floor, test_no_rooms_empty_state, test_query_string_not_rendered, test_svg_scales, test_no_personal_data = 16. MapQueryTests 2. MapNavTests 3. Total = 6 + 16 + 2 + 3 = 27.
+
+      campusmap new = 8 + 27 = 35.
+
+      schedule/tests/test_views.py RoomLinkTests: test_regular_lesson_room_links_to_map, test_cancelled_lesson_room_not_linked, test_moved_out_lesson_room_not_linked, test_room_changed_links_new_room_only, test_moved_in_with_new_room_links_new_room, test_today_page_has_links, test_staff_group_week_has_links, test_week_query_count_unchanged_by_links = 8.
+
+      schedule/tests/test_demo.py: test_demo_rooms_valid_and_placed, test_seed_twice_keeps_cells = 2.
+
+      core/tests/test_css.py: test_map_highlight_rule = 1.
+
+      Total new = 23 + 35 + 8 + 2 + 1 = 69.
+
+      748 + 69 = 817. ✓ 
+
+      Great, 817 tests. Matches.
+
+      Now run section 8 verification.
+
+      Let me run:
+      1. check
+      2. makemigrations --check --dry-run
+      3. run_tests_at 2359 and 0000
+      4. check --deploy
+      5. ruff check . / format --check .
+      6. yaml
+      7. seed twice + migration on seeded data + shell check
+      8. git status
+
+      Let me run the run_tests_at first (they're slow).
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 (1s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1
+      System check identified no issues (0 silenced).
+      No changes detected
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python -u scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-at-2359.log" | grep -E "Ran |OK|FAILED|ERROR" | tail -5 (2m 5s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python -u scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-at-2359.log" | grep -E "Ran |OK|FAILED|ERROR" | tail -5
+      Ran 817 tests in 122.901s
+      OK
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python -u scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-at-0000.log" | grep -E "Ran |OK|FAILED|ERROR" | tail -5 (2m 5s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python -u scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-at-0000.log" | grep -E "Ran |OK|FAILED|ERROR" | tail -5
+      Ran 817 tests in 122.730s
+      OK
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1 && ruff check . 2>&1 | tail -1 && ruff format --check . 2>&1 | tail -1 && python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')" (1s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1 && ruff check . 2>&1 | tail -1 && ruff format --check . 2>&1 | tail -1 && python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"
+      System check identified no issues (1 silenced).
+      All checks passed!
+      160 files already formatted
+      yaml ok
+    ── Thought for 1s
+      Now the seed + migration verification:
+      ```bash
+      export DATABASE_URL="sqlite:///$TMPDIR/task008.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task008-private" DEMO_PASSWORD='Local-Demo-Pass-2026!'
+      rm -f "$TMPDIR/task008.sqlite3"
+      python manage.py migrate && python manage.py seed_demo && python manage.py seed_demo
+      # Migration on data seeded before the change
+      python manage.py migrate university 0002 && python manage.py migrate
+      python manage.py shell -c "from university.models import Room; [r.full_clean() for r in Room.objects.all()]; print(sorted(Room.objects.values_list('number', 'floor', 'map_cell')))"
+      ```
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && export DATABASE_URL="sqlite:///$TMPDIR/task008.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task008-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && rm -f "$TMPDIR/task008.sqlite3" && python manage.py migrate 2>&1 | tail -1 && echo "=== seed 1 ===" && python manage.py seed_demo 2>&1 | tail -2 && echo "=== seed 2 ===" && python manage.py seed_demo 2>&1 | tail -2 && echo "=== migrate down/up ===" && python manage.py migrate university 0002 2>&1 | tail -1 && python manage.py migrate 2>&1 | tail -1 && echo "=== shell check ===" && python manage.py shell -c "from university.models import Room; [r.full_clean() for r in Room.objects.all()]; print(sorted(Room.objects.values_list('number', 'floor', 'map_cell')))" (8s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && export DATABASE_URL="sqlite:///$TMPDIR/task008.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task008-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && rm -f "$TMPDIR/task008.sqlite3" && python manage.py migrate 2>&1 | tail -1 && echo "=== seed 1 ===" && python manage.py seed_demo 2>&1 | tail -2 && echo "=== seed 2 ===" && python manage.py seed_demo 2>&1 | tail -2 && echo "=== migrate down/up ===" && python manage.py migrate university 0002 2>&1 | tail -1 && python manage.py migrate 2>&1 | tail -1 && echo "=== shell check ===" && python manage.py shell -c "from university.models import Room; [r.full_clean() for r in Room.objects.all()]; print(sorted(Room.objects.values_list('number', 'floor', 'map_cell')))"
+      Applying university.0003_room_number_format_and_map_cell... OK
+      === seed 1 ===
+      Requests ready: 4 types, 7 requests, 3 attachments.
+      Notifications ready: 9 announcements.
+      === seed 2 ===
+      Requests ready: 4 types, 0 requests, 0 attachments.
+      Notifications ready: 0 announcements.
+      === migrate down/up ===
+        Unapplying university.0003_room_number_format_and_map_cell... OK
+        Applying university.0003_room_number_format_and_map_cell... OK
+      === shell check ===
+      29 objects imported automatically (use -v 2 for details).
+
+      [('101', 1, ''), ('114', 1, ''), ('205', 2, ''), ('212', 2, ''), ('308', 3, ''), ('315', 3, ''), ('402', 4, '')]
+    ── Thought for 7s
+      The migration down/up works. But the shell check shows map_cell is empty ('') for all rooms after migrate down/up. That's expected: `migrate university 0002` drops the map_cell column (and its values), then `migrate` re-applies 0003 with empty map_cell (default ""). The rooms then have empty map_cell. But wait — the seed already ran BEFORE the down/up, setting map_cell. Then down/up drops and re-adds the column (empty). So the final shell check shows empty map_cell.
+
+      This is actually the expected behavior per the spec's note: "migrate university 0002 reverses 0003 (drops map_cell and the new constraints), then migrate re-applies it on the seeded rows." The point is to verify the migration applies cleanly on seeded data (rooms 101/1, 114/1, etc. kept). The map_cell being empty after re-apply is expected because the column was dropped and re-added with default "".
+
+      The spec's shell check is just `[r.full_clean() for r in Room.objects.all()]` (no error) and print the values. The full_clean passes (no error). The map_cell values are empty after down/up, which is fine — the spec's example output in section 9.4 shows rooms kept with numbers/floors, and the feasibility check output showed "rooms 101/1, 114/1, 205/2, 212/2, 308/3, 315/3, 402/4 kept". So the key is that the rooms survive.
+
+      Actually wait — let me re-read the spec verification section 8:
+
+      ```bash
+      export DATABASE_URL="sqlite:///$TMPDIR/task008.sqlite3" ...
+      rm -f "$TMPDIR/task008.sqlite3"
+      python manage.py migrate && python manage.py seed_demo && python manage.py seed_demo
+      # Migration on data seeded before the change
+      python manage.py migrate university 0002 && python manage.py migrate
+      python manage.py shell -c "from university.models import Room; [r.full_clean() for r in Room.objects.all()]; print(sorted(Room.objects.values_list('number', 'floor', 'map_cell')))"
+      ```
+
+      So the sequence: migrate (full), seed twice (rooms get map_cell), then migrate university 0002 (drops map_cell), then migrate (re-applies with empty map_cell), then shell check.
+
+      The shell check just verifies `full_clean()` doesn't raise (all rooms still valid with empty map_cell) and prints values. The map_cell will be '' after re-apply. That's fine — the rooms still have valid number/floor. full_clean passes because map_cell='' is valid.
+
+      So my output is correct. The rooms have empty map_cell after down/up (expected), full_clean passes (no exception printed).
+
+      Actually, let me double check that full_clean didn't raise. The output shows no error, just the print. So it's fine.
+
+      Now let me clean up the temp DB/media and run git status.
+    ── Ran cd ~/hackatonproject && rm -f "$TMPDIR/task008.sqlite3" && rm -rf "$TMPDIR/task008-private" && git status --short
+      $ cd ~/hackatonproject && rm -f "$TMPDIR/task008.sqlite3" && rm -rf "$TMPDIR/task008-private" && git status --short
+      M README.md
+       M config/settings.py
+       M config/urls.py
+       M core/tests/test_css.py
+       M pyproject.toml
+       M schedule/demo.py
+       M schedule/templates/schedule/includes/lesson_item.html
+       M schedule/tests/helpers.py
+       M schedule/tests/test_demo.py
+       M schedule/tests/test_views.py
+       M static/css/base.css
+       M static/css/tokens.css
+       M templates/base.html
+       M university/admin.py
+       M university/models.py
+       M university/tests/test_models.py
+      ?? campusmap/
+      ?? docs/tasks/TASK-008.md
+      ?? university/building.py
+      ?? university/migrations/0003_room_number_format_and_map_cell.py
+      ?? university/tests/test_admin.py
+      ?? university/tests/test_building.py
+    ── Thought for 5s
+      Let me verify the git status matches the spec's file list (§4.1).
+
+      Spec's "Create" files:
+      - university/building.py ✓ (??)
+      - university/migrations/0003_... ✓ (??)
+      - university/tests/test_building.py ✓ (??)
+      - university/tests/test_admin.py ✓ (??)
+      - campusmap/__init__.py, apps.py, layout.py, views.py, urls.py, templates/map.html, tests/__init__.py, test_layout.py, test_views.py ✓ (all under ?? campusmap/)
+      - (campusmap/tests/test_views.py etc.)
+
+      Spec's "Change" files:
+      - university/models.py ✓ (M)
+      - university/admin.py ✓ (M)
+      - university/tests/test_models.py ✓ (M)
+      - schedule/tests/helpers.py ✓ (M)
+      - schedule/demo.py ✓ (M)
+      - schedule/templates/schedule/includes/lesson_item.html ✓ (M)
+      - schedule/tests/test_views.py ✓ (M)
+      - schedule/tests/test_demo.py ✓ (M)
+      - templates/base.html ✓ (M)
+      - config/settings.py ✓ (M)
+      - config/urls.py ✓ (M)
+      - pyproject.toml ✓ (M)
+      - static/css/tokens.css ✓ (M)
+      - static/css/base.css ✓ (M)
+      - core/tests/test_css.py ✓ (M)
+      - README.md ✓ (M)
+
+      Not mine:
+      - docs/tasks/TASK-008.md (the spec)
+      - plan.md — wait, plan.md is NOT in the git status now! Interesting. Previously it was ` M plan.md`. Now it's not showing. Hmm. Let me check — maybe plan.md was committed or reverted? Actually the base commit is bf09738, and plan.md might have been committed. Or it's not modified anymore.
+
+      Actually, looking at the git status, `plan.md` is absent. That's fine — it means plan.md is either committed or clean. The spec feasibility check said "Clean start — git status --short → only M plan.md". But now plan.md doesn't show. That's not my concern; I didn't touch plan.md.
+
+      Wait, actually let me double-check there's no plan.md change I'm missing. The git status output doesn't list plan.md. So plan.md is clean or committed now. Good.
+
+      Everything matches the spec file list. No unexpected changes (no db.sqlite3, no private_media).
+
+      Now let me verify the campusmap directory contents to make sure I didn't leave anything out or add extra.
+
+      Let me list campusmap/ directory.
+    ── Listed files in campusmap
+    ── Thought for 1s
+      The `__pycache__` directories are present but they should be gitignored (they're not shown in git status, confirming .gitignore handles them). The `git status` shows `?? campusmap/` as a single entry, meaning the whole directory is untracked but only the non-ignored files will be committed. __pycache__ is gitignored.
+
+      Let me verify .gitignore covers __pycache__ and .pyc.
+    ── Ran cd ~/hackatonproject && git status --porcelain --ignored campusmap/ | grep -v '^!!'
+      $ cd ~/hackatonproject && git status --porcelain --ignored campusmap/ | grep -v '^!!'
+      ?? campusmap/
+    ── Thought for 12s
+      The `campusmap/` directory shows as untracked, and the __pycache__ files are ignored (not shown in non-ignored listing). Good. The `__pycache__` won't be committed.
+
+      Everything is complete. Let me verify the test count baseline and finalize. Baseline was 748, now 817 (+69 tests).
+
+      Now let me compose the REPORT to the Reviewer (thr_cpuae9aqw3).
+
+      Let me also double check: did I run the full suite with ruff format applied AFTER the reformat? I ran ruff format, then ruff check (with fixes), then ruff format on 2 files, then the full test suite (817 OK). But wait — after ruff check --fix changed test_layout.py and test_building.py imports, did I re-run the full suite? The full suite (817 OK) was run BEFORE the ruff check --fix? Let me check the order:
+
+      1. ruff format (9 files reformatted)
+      2. ruff check → 4 errors
+      3. ruff check --fix (test_building.py, test_admin.py, test_models.py, test_views.py) → fixed 1
+      4. ruff check → 3 errors in test_layout.py
+      5. ruff check --fix test_layout.py → fixed 3
+      6. ruff format test_building.py + test_layout.py → unchanged
+      7. ruff check all → All checks passed
+      8. full suite 817 OK  ← this was run AFTER the fixes? Let me check the order.
+
+      Actually, looking back at my tool calls:
+      - I ran ruff format (9 files).
+      - Then ruff check → 4 errors.
+      - Then ruff check --fix on 4 files → 1 fixed.
+      - Then ruff check on all → 3 errors (test_layout).
+      - Then ruff check --fix test_layout → 3 fixed.
+      - Then ruff format 2 files.
+      - Then full suite 817 OK.
+
+      Wait, actually the full suite 817 OK was run BEFORE the ruff check steps? Let me re-read my sequence.
+
+      Looking at the actual order of my messages:
+      1. ruff format (9 reformatted) 
+      2. ruff check → 4 errors
+      3. ruff check --fix (4 files) → 1 fixed
+      4. ruff check (all) → 3 errors in test_layout
+      5. ruff check --fix test_layout → 3 fixed
+      6. ruff format 2 files → unchanged
+      7. full suite 817 OK
+
+      Wait no. Let me look again. The full suite (817 OK) was run right after "ruff format university/tests/test_building.py campusmap/tests/test_layout.py". Actually, no.
+
+      Let me trace carefully from my actual tool calls:
+
+      Message 1: ruff format (9 reformatted, 12 unchanged)
+      Message 2: ruff check → "Found 4 errors"
+      Message 3: ruff check --fix (test_building, test_admin, test_models, test_views) → "1 fixed"
+      Message 4: ruff check (all files) → "3 errors" in test_layout
+      Message 5: ruff check --fix test_layout → "3 fixed"
+      Message 6: ruff format test_building + test_layout → "2 unchanged"
+      Message 7: full suite → 817 OK
+
+      Wait, but actually I recall the full suite (817) was run BEFORE the ruff check --fix steps. Let me re-read the actual conversation order.
+
+      Actually, looking at my messages in order:
+      1. "ruff format ..." (9 reformatted)
+      2. "ruff check ..." → 4 errors
+      3. "ruff check --fix test_building test_admin test_models test_views" → 1 fixed
+      4. "ruff check (all)" → 3 errors
+      5. "ruff check --fix test_layout" → 3 fixed
+      6. "ruff format test_building + test_layout" → unchanged
+      7. full suite → 817 OK (Ran 817 tests... OK)
+
+      Hmm wait, actually I need to check. Let me look at what actually happened. The full suite "817 OK" message came right before the section 8 checks. And the ruff fix steps came before that.
+
+      Actually, I'm now confused about the exact ordering. Let me just re-run the full suite one more time to be 100% sure everything passes after all the ruff fixes (since ruff --fix could have changed import order which could theoretically affect runtime, though unlikely for import reordering).
+
+      Actually, the import reordering in test files doesn't change runtime behavior meaningfully (it's just import statement order). But to be safe, and since the final ruff format on test_layout.py happened AFTER... wait, actually the full suite 817 was the LAST test run before section 8. Let me verify by checking: after ruff check --fix, did I run the full suite?
+
+      Looking at my messages: the full suite "817 OK" was run, then I did `check` + `makemigrations`, then run_tests_at twice (817 OK each), then deploy/ruff/yaml, then seed.
+
+      The run_tests_at runs (817 OK each) came AFTER all ruff fixes. So the final state is verified with 817 tests passing at both 23:59:59 and 00:00:00. Those are the definitive verification runs. So everything is confirmed green.
+
+      Actually wait, let me check: the run_tests_at runs were 817 OK. So the final code state (after all ruff fixes and formats) passes 817 tests. Good.
+
+      Everything is done. Let me get the log file names for the REPORT.
+
+      Log files:
+      - test-*-step1.log, step1-full.log, step3.log, step4.log
+      - test-*-full.log (817)
+      - test-*-at-2359.log, test-*-at-0000.log
+
+      Let me get the exact names.
+    ── Listed files in $TMPDIR/test-*.log
+    ── Ran tool 0 todos (1s)
+      {"output":"[\n  {\n    \"content\": \"Step 1: building.py + Room changes + migration 0003 + make_room helper + university tests\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 2: campusmap app skeleton + settings/urls/pyproject + layout.py + test_layout.py\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 3: view, template, CSS, nav + test_views.py + CSS test\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 4: schedule template links + RoomLinkTests\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 5: seed + seed tests + admin list_display + README\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Step 6: ruff format + section 8 verification + REPORT\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  }\n]","metadata":{"todos":[{"content":"Step 1: building.py + Room changes + migration 0003 + make_room helper + university tests","status":"completed","priority":"high"},{"content":"Step 2: campusmap app skeleton + settings/urls/pyproject + layout.py + test_layout.py","status":"completed","priority":"high"},{"content":"Step 3: view, template, CSS, nav + test_views.py + CSS test","status":"completed","priority":"high"},{"content":"Step 4: schedule template links + RoomLinkTests","status":"completed","priority":"high"},{"content":"Step 5: seed + seed tests + admin list_display + README","status":"completed","priority":"high"},{"content":"Step 6: ruff format + section 8 verification + REPORT","status":"completed","priority":"high"}],"truncated":false}}
+    ── Ran cd ~/hackatonproject && bb thread tell thr_cpuae9aqw3 --message-file - <<'EOF' [TASK-008] Coder -> Reviewer: REPORT Spec: docs/tasks/TASK-008.md (base bf09738). Room map: new app `campusmap` (no models) + room rules in `university`. Implemented in spec order (§7). Not committed. ## What was done 1. `university/building.py` — `MapCell`, `STAIRS_CELL`, `Landmark`, `LANDMARKS`, `landmarks_on`, `blocked_cells` (§4.2 verbatim). `Room` (§4.3): `floor` 1–9 validators, `number` RegexValidator + help_text, new `map_cell` (blank, `MapCell` choices), 4 check constraints + conditional unique constraint + `clean()` landmark rejection (absolute import `university.building`, `Cast` import). Migration `university/migrations/0003_room_number_format_and_map_cell.py` generated (RemoveConstraint + AddField map_cell + 2 AlterField + 5 AddConstraint). `RoomAdmin.list_display` += `map_cell`. `make_room` derives floor from number. 2. `campusmap` app: `apps.py` (`CampusmapConfig`, name/verbose_name/default_auto_field), `layout.py` (integer geometry, `Rect` before constants, `cell_rect`/`span_rect`/`floor_plan`), `views.py` (`MapView`, one rooms query, 3 routes), `urls.py`, `map.html` template. Wired: `INSTALLED_APPS` after `notifications`, `config/urls.py` include after notifications, `pyproject.toml` known-first-party. 3. CSS (`--color-map-highlight` token + `base.css` map rules), nav «Карта» (student + staff), CSS test `test_map_highlight_rule`. 4. `lesson_item.html` room links (happening → link to `/map/room/<code>/`; cancelled/moved-out plain `<span>`; original room in `<del>` never a link; moved-in uses new room). 5. `schedule/demo.py`: `RoomSeed.map_cell`, 7 demo cells (none on landmark cells), `full_clean()` before save. README `## Map` + Known limitations bullet. ## Tests - New: `university/tests/test_building.py` (5), `test_admin.py` (5), `test_models.py` `RoomNumberTests` (7) + `RoomMapCellTests` (6); `campusmap/tests/test_layout.py` (8), `test_views.py` `MapAccessTests` (6) + `MapViewTests` (16) + `MapQueryTests` (2) + `MapNavTests` (3); `schedule/tests/test_views.py::RoomLinkTests` (8); `schedule/tests/test_demo.py` (2); `core/tests/test_css.py` (1). - Full suite: **817 tests OK** (baseline 748 → +69). `test_room_code_attribute`, `test_week_view_query_count_constant`, `test_change_rendering` and all pre-existing tests still pass. - During dev I fixed two test issues: `test_landmarks_per_floor` checked the whole page (legend lists all landmark names) → now asserts on the SVG part only; the moved-in lesson double-rendered because its weekday matched the current week → moved-in lesson now weekday=Mon/slot 2 with original_date Mon 11-16. ## Verification (§8) — all green - `check` → no issues; `makemigrations --check --dry-run` → No changes. - `test` → 817 OK; `run_tests_at.py` 2026-11-17T23:59:59 and 2026-11-18T00:00:00 → 817 OK each (no stalls). - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` clean; `ruff format --check .` → 160 files formatted; yaml ok. - Seed twice on temp DB+media → first «9 announcements» / «7 requests, 3 attachments», second «0» / «0» (idempotent). `migrate university 0002` then `migrate` re-applies 0003 on seeded rows; shell `full_clean()` over all rooms → no error; rooms `101/1, 114/1, 205/2, 212/2, 308/3, 315/3, 402/4` (map_cell `''` after the down/up, as expected). Logs: `$TMPDIR/test-20261115-172654-full.log`, `-172917-at-2359.log`, `-173125-at-0000.log`, `-171818-step1-full.log`, `-172302-step3.log`, `-172447-step4.log`. ## git status ```  M README.md  M config/settings.py  M config/urls.py  M core/tests/test_css.py  M pyproject.toml  M schedule/demo.py  M schedule/templates/schedule/includes/lesson_item.html  M schedule/tests/helpers.py  M schedule/tests/test_demo.py  M schedule/tests/test_views.py  M static/css/base.css  M static/css/tokens.css  M templates/base.html  M university/admin.py  M university/models.py  M university/tests/test_models.py ?? campusmap/ ?? docs/tasks/TASK-008.md ?? university/building.py ?? university/migrations/0003_room_number_format_and_map_cell.py ?? university/tests/test_admin.py ?? university/tests/test_building.py ``` All changed/created files match §4.1. Not mine: `docs/tasks/TASK-008.md` (the spec). No `db.sqlite3`/`private_media/` changes; `__pycache__` is gitignored. ## What remains Nothing on my side. Ready for review. EOF (13s)
+      $ cd ~/hackatonproject && bb thread tell thr_cpuae9aqw3 --message-file - <<'EOF'
+    [TASK-008] Coder -> Reviewer: REPORT
+
+    Spec: docs/tasks/TASK-008.md (base bf09738). Room map: new app `campusmap` (no models) + room rules in `university`. Implemented in spec order (§7). Not committed.
+
+    ## What was done
+    1. `university/building.py` — `MapCell`, `STAIRS_CELL`, `Landmark`, `LANDMARKS`, `landmarks_on`, `blocked_cells` (§4.2 verbatim). `Room` (§4.3): `floor` 1–9 validators, `number` RegexValidator + help_text, new `map_cell` (blank, `MapCell` choices), 4 check constraints + conditional unique constraint + `clean()` landmark rejection (absolute import `university.building`, `Cast` import). Migration `university/migrations/0003_room_number_format_and_map_cell.py` generated (RemoveConstraint + AddField map_cell + 2 AlterField + 5 AddConstraint). `RoomAdmin.list_display` += `map_cell`. `make_room` derives floor from number.
+    2. `campusmap` app: `apps.py` (`CampusmapConfig`, name/verbose_name/default_auto_field), `layout.py` (integer geometry, `Rect` before constants, `cell_rect`/`span_rect`/`floor_plan`), `views.py` (`MapView`, one rooms query, 3 routes), `urls.py`, `map.html` template. Wired: `INSTALLED_APPS` after `notifications`, `config/urls.py` include after notifications, `pyproject.toml` known-first-party.
+    3. CSS (`--color-map-highlight` token + `base.css` map rules), nav «Карта» (student + staff), CSS test `test_map_highlight_rule`.
+    4. `lesson_item.html` room links (happening → link to `/map/room/<code>/`; cancelled/moved-out plain `<span>`; original room in `<del>` never a link; moved-in uses new room).
+    5. `schedule/demo.py`: `RoomSeed.map_cell`, 7 demo cells (none on landmark cells), `full_clean()` before save. README `## Map` + Known limitations bullet.
+
+    ## Tests
+    - New: `university/tests/test_building.py` (5), `test_admin.py` (5), `test_models.py` `RoomNumberTests` (7) + `RoomMapCellTests` (6); `campusmap/tests/test_layout.py` (8), `test_views.py` `MapAccessTests` (6) + `MapViewTests` (16) + `MapQueryTests` (2) + `MapNavTests` (3); `schedule/tests/test_views.py::RoomLinkTests` (8); `schedule/tests/test_demo.py` (2); `core/tests/test_css.py` (1).
+    - Full suite: **817 tests OK** (baseline 748 → +69). `test_room_code_attribute`, `test_week_view_query_count_constant`, `test_change_rendering` and all pre-existing tests still pass.
+    - During dev I fixed two test issues: `test_landmarks_per_floor` checked the whole page (legend lists all landmark names) → now asserts on the SVG part only; the moved-in lesson double-rendered because its weekday matched the current week → moved-in lesson now weekday=Mon/slot 2 with original_date Mon 11-16.
+
+    ## Verification (§8) — all green
+    - `check` → no issues; `makemigrations --check --dry-run` → No changes.
+    - `test` → 817 OK; `run_tests_at.py` 2026-11-17T23:59:59 and 2026-11-18T00:00:00 → 817 OK each (no stalls).
+    - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` clean; `ruff format --check .` → 160 files formatted; yaml ok.
+    - Seed twice on temp DB+media → first «9 announcements» / «7 requests, 3 attachments», second «0» / «0» (idempotent). `migrate university 0002` then `migrate` re-applies 0003 on seeded rows; shell `full_clean()` over all rooms → no error; rooms `101/1, 114/1, 205/2, 212/2, 308/3, 315/3, 402/4` (map_cell `''` after the down/up, as expected).
+
+    Logs: `$TMPDIR/test-20261115-172654-full.log`, `-172917-at-2359.log`, `-173125-at-0000.log`, `-171818-step1-full.log`, `-172302-step3.log`, `-172447-step4.log`.
+
+    ## git status
+    ```
+     M README.md
+     M config/settings.py
+     M config/urls.py
+     M core/tests/test_css.py
+     M pyproject.toml
+     M schedule/demo.py
+     M schedule/templates/schedule/includes/lesson_item.html
+     M schedule/tests/helpers.py
+     M schedule/tests/test_demo.py
+     M schedule/tests/test_views.py
+     M static/css/base.css
+     M static/css/tokens.css
+     M templates/base.html
+     M university/admin.py
+     M university/models.py
+     M university/tests/test_models.py
+    ?? campusmap/
+    ?? docs/tasks/TASK-008.md
+    ?? university/building.py
+    ?? university/migrations/0003_room_number_format_and_map_cell.py
+    ?? university/tests/test_admin.py
+    ?? university/tests/test_building.py
+    ```
+    All changed/created files match §4.1. Not mine: `docs/tasks/TASK-008.md` (the spec). No `db.sqlite3`/`private_media/` changes; `__pycache__` is gitignored.
+
+    ## What remains
+    Nothing on my side. Ready for review.
+    EOF
+      Thread thr_cpuae9aqw3 steered
+
+── Assistant ───────────────────────────────────────────────
+TASK-008 реализован полностью и отправлен на проверку Reviewer (thr_cpuae9aqw3).
+
+## Итог
+
+**Новое приложение `campusmap`** (без моделей) + правила аудиторий в `university`, строго по спеке, в порядке раздела 7:
+
+1. **`university/building.py`** — сетка `MapCell`, ориентиры (`Landmark`, `LANDMARKS`, `landmarks_on`, `blocked_cells`). **`Room`**: `floor` 1–9, `number` RegexValidator `^[1-9][0-9]{2}$`, поле `map_cell`, 4 check-ограничения + условный unique + `clean()` (занятые ориентирами ячейки). Сгенерирована миграция `0003`. `make_room` выводит этаж из номера.
+2. **`campusmap`**: `layout.py` (целочисленная геометрия), `MapView` (один запрос к комнатам, 3 маршрута), шаблон с inline-SVG, подключение в settings/urls/pyproject.
+3. **CSS** (токен `--color-map-highlight` + правила карты), пункт навигации «Карта» для студентов и сотрудников.
+4. **Ссылки на аудитории** в расписании: происходящие занятия → ссылка на карту, отменённые/перенесённые → обычный текст, старая аудитория в `<del>` без ссылки.
+5. **Seed** (7 демо-комнат с `map_cell`, `full_clean()`), README «Map» + ограничение.
+
+## Результаты
+- **817 тестов OK** (база 748 → +69 новых), без регрессий.
+- Вся верификация §8 зелёная: `check`, `makemigrations --check`, полный прогон + 2 прогона `run_tests_at.py` (без зависаний), `check --deploy`, `ruff check`/`format`, yaml, сид дважды (идемпотентно), миграция вниз/вверх на засеянных данных.
+- `git status` сверен — все файлы по списку §4.1; `docs/tasks/TASK-008.md` — не моё.
+
+Жду вердикт Reviewer.
