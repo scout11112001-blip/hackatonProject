@@ -116,6 +116,27 @@ multipart uploads:
 client_max_body_size 20m;
 ```
 
+## Notifications
+
+Students: `/notifications/` shows a «Ближайшие дедлайны» block (deadlines
+today or later, nearest first, labelled «сегодня» / «завтра» / «через N
+дней») and one feed of dean's-office news and personal changes (request status
+changes and staff comments, schedule changes for lessons in the next 14 days,
+new current marks and final results). The feed is computed from existing rows,
+covers the last 30 days, and is capped at 50 items.
+
+Unread state is one «seen until» timestamp per account (no per-item flags):
+the nav shows «Уведомления (N)» for students, and opening `/notifications/`
+marks everything as read.
+
+Staff: `/staff/announcements/` lists and creates announcements for the staff
+member's own faculty or one of its groups (no edit, no hard delete; an
+announcement can be unpublished). University-wide announcements are created
+only in the Django admin.
+
+Demo data: `seed_demo` creates 9 announcements (2 university-wide, 5 faculty, 2
+group; 2 unpublished); published deadlines fall on run day +1…+5.
+
 ## Login protection
 
 Failed login attempts are throttled per (username, client IP) and stored in
@@ -145,6 +166,10 @@ proxy_set_header X-Real-IP $remote_addr;
   is never overwritten. Re-running it only adds missing rows (new past
   occurrences). On the server it is run once, on 2026-11-22 (submission day);
   there is no scheduled re-run.
+- The unread counter is per account: after one person opens «Уведомления» as
+  `student1`, others logged in as `student1` see no new items.
+- Grades and lesson changes appear in the feed by the time they were recorded;
+  a grade entered later for an old date still shows as new.
 
 ## Environment variables
 

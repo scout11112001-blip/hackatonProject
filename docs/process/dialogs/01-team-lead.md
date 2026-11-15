@@ -8135,44 +8135,1186 @@ print('deleted', Session.objects.filter(session_key__in=list(d.values())).delete
 ── Assistant ───────────────────────────────────────────────
 Сессии удалены. Обновляю описание скриншотов, историю, план и архив, затем делаю коммит:
 
-── Running python3 -I - <<'EOF' p='docs/process/README.md'; t=open(p,encoding='utf-8').read() t=t.rstrip('\n')+""" | `2026-11-14_13_requests-list_student_fixed.jpg` | 14.11.2026 | После TASK-006-FIX | «Мои заявки»: над списком появилась ссылка «Подать заявку» (раньше была только при пустом списке) | | `2026-11-14_14_request-form_student_fixed.jpg` | 14.11.2026 | После TASK-006-FIX | Форма заявки: подсказка «Обязательно укажите причину обращения» показывается один раз | | `2026-11-14_15_requests-queue_staff_fixed.jpg` | 14.11.2026 | После TASK-006-FIX | Очередь сотрудника: список «Вид заявки» укладывается в ширину экрана 360 px | """ open(p,'w',encoding='utf-8').write(t) p='plan.md'; t=open(p,encoding='utf-8').read() t=t.replace("| TASK-006-FIX | Недочёты TASK-006 (5 пунктов) | У Планировщика |","| TASK-006-FIX | Недочёты TASK-006 (5 пунктов) | Готово |") t=t.replace("Сейчас: `TASK-006-FIX` у Планировщика.","Сейчас: `TASK-006-FIX` закрыта 14.11. Ждёт решения: редкое падение теста неизвестного происхождения.") open(p,'w',encoding='utf-8').write(t) p='CHANGELOG.md'; t=open(p,encoding='utf-8').read() entry="""### TASK-006-FIX: недочёты заявок - В «Моих заявках» ссылка «Подать заявку» видна всегда, а не только при пустом списке (без неё не проходил сценарий жюри). - Поля форм не шире контейнера: очередь сотрудника укладывается в 360 px. - Подсказка об обязательной причине обращения показывается один раз. - Пропавший с диска файл вложения даёт 404 и предупреждение в логе (только UUID) вместо ошибки 500. - `README.md`: `seed_demo` запускается на сервере один раз 22.11; папку вложений копировать вместе с базой. - Ревью: 1 раунд, без замечаний. Всего тестов: 567, проходят в обычном, обратном и случайном порядке. """ t=t.replace("## 2026-11-14\n","## 2026-11-14\n"+entry,1) open(p,'w',encoding='utf-8').write(t) EOF O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && python3 -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]     assert not bad,(f,bad)     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF
-  $ python3 -I - <<'EOF'
-p='docs/process/README.md'; t=open(p,encoding='utf-8').read()
-t=t.rstrip('\n')+"""
-| `2026-11-14_13_requests-list_student_fixed.jpg` | 14.11.2026 | После TASK-006-FIX | «Мои заявки»: над списком появилась ссылка «Подать заявку» (раньше была только при пустом списке) |
-| `2026-11-14_14_request-form_student_fixed.jpg` | 14.11.2026 | После TASK-006-FIX | Форма заявки: подсказка «Обязательно укажите причину обращения» показывается один раз |
-| `2026-11-14_15_requests-queue_staff_fixed.jpg` | 14.11.2026 | После TASK-006-FIX | Очередь сотрудника: список «Вид заявки» укладывается в ширину экрана 360 px |
-"""
-open(p,'w',encoding='utf-8').write(t)
-p='plan.md'; t=open(p,encoding='utf-8').read()
-t=t.replace("| TASK-006-FIX | Недочёты TASK-006 (5 пунктов) | У Планировщика |","| TASK-006-FIX | Недочёты TASK-006 (5 пунктов) | Готово |")
-t=t.replace("Сейчас: `TASK-006-FIX` у Планировщика.","Сейчас: `TASK-006-FIX` закрыта 14.11. Ждёт решения: редкое падение теста неизвестного происхождения.")
-open(p,'w',encoding='utf-8').write(t)
-p='CHANGELOG.md'; t=open(p,encoding='utf-8').read()
-entry="""### TASK-006-FIX: недочёты заявок
-- В «Моих заявках» ссылка «Подать заявку» видна всегда, а не только при пустом списке (без неё не проходил сценарий жюри).
-- Поля форм не шире контейнера: очередь сотрудника укладывается в 360 px.
-- Подсказка об обязательной причине обращения показывается один раз.
-- Пропавший с диска файл вложения даёт 404 и предупреждение в логе (только UUID) вместо ошибки 500.
-- `README.md`: `seed_demo` запускается на сервере один раз 22.11; папку вложений копировать вместе с базой.
-- Ревью: 1 раунд, без замечаний. Всего тестов: 567, проходят в обычном, обратном и случайном порядке.
+── Ran 2 commands ──────────────────────────────────────────
+  ── Ran python3 -I - <<'EOF' p='docs/process/README.md'; t=open(p,encoding='utf-8').read() t=t.rstrip('\n')+""" | `2026-11-14_13_requests-list_student_fixed.jpg` | 14.11.2026 | После TASK-006-FIX | «Мои заявки»: над списком появилась ссылка «Подать заявку» (раньше была только при пустом списке) | | `2026-11-14_14_request-form_student_fixed.jpg` | 14.11.2026 | После TASK-006-FIX | Форма заявки: подсказка «Обязательно укажите причину обращения» показывается один раз | | `2026-11-14_15_requests-queue_staff_fixed.jpg` | 14.11.2026 | После TASK-006-FIX | Очередь сотрудника: список «Вид заявки» укладывается в ширину экрана 360 px | """ open(p,'w',encoding='utf-8').write(t) p='plan.md'; t=open(p,encoding='utf-8').read() t=t.replace("| TASK-006-FIX | Недочёты TASK-006 (5 пунктов) | У Планировщика |","| TASK-006-FIX | Недочёты TASK-006 (5 пунктов) | Готово |") t=t.replace("Сейчас: `TASK-006-FIX` у Планировщика.","Сейчас: `TASK-006-FIX` закрыта 14.11. Ждёт решения: редкое падение теста неизвестного происхождения.") open(p,'w',encoding='utf-8').write(t) p='CHANGELOG.md'; t=open(p,encoding='utf-8').read() entry="""### TASK-006-FIX: недочёты заявок - В «Моих заявках» ссылка «Подать заявку» видна всегда, а не только при пустом списке (без неё не проходил сценарий жюри). - Поля форм не шире контейнера: очередь сотрудника укладывается в 360 px. - Подсказка об обязательной причине обращения показывается один раз. - Пропавший с диска файл вложения даёт 404 и предупреждение в логе (только UUID) вместо ошибки 500. - `README.md`: `seed_demo` запускается на сервере один раз 22.11; папку вложений копировать вместе с базой. - Ревью: 1 раунд, без замечаний. Всего тестов: 567, проходят в обычном, обратном и случайном порядке. """ t=t.replace("## 2026-11-14\n","## 2026-11-14\n"+entry,1) open(p,'w',encoding='utf-8').write(t) EOF O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && python3 -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]     assert not bad,(f,bad)     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF (4s)
+    $ python3 -I - <<'EOF'
+  p='docs/process/README.md'; t=open(p,encoding='utf-8').read()
+  t=t.rstrip('\n')+"""
+  | `2026-11-14_13_requests-list_student_fixed.jpg` | 14.11.2026 | После TASK-006-FIX | «Мои заявки»: над списком появилась ссылка «Подать заявку» (раньше была только при пустом списке) |
+  | `2026-11-14_14_request-form_student_fixed.jpg` | 14.11.2026 | После TASK-006-FIX | Форма заявки: подсказка «Обязательно укажите причину обращения» показывается один раз |
+  | `2026-11-14_15_requests-queue_staff_fixed.jpg` | 14.11.2026 | После TASK-006-FIX | Очередь сотрудника: список «Вид заявки» укладывается в ширину экрана 360 px |
+  """
+  open(p,'w',encoding='utf-8').write(t)
+  p='plan.md'; t=open(p,encoding='utf-8').read()
+  t=t.replace("| TASK-006-FIX | Недочёты TASK-006 (5 пунктов) | У Планировщика |","| TASK-006-FIX | Недочёты TASK-006 (5 пунктов) | Готово |")
+  t=t.replace("Сейчас: `TASK-006-FIX` у Планировщика.","Сейчас: `TASK-006-FIX` закрыта 14.11. Ждёт решения: редкое падение теста неизвестного происхождения.")
+  open(p,'w',encoding='utf-8').write(t)
+  p='CHANGELOG.md'; t=open(p,encoding='utf-8').read()
+  entry="""### TASK-006-FIX: недочёты заявок
+  - В «Моих заявках» ссылка «Подать заявку» видна всегда, а не только при пустом списке (без неё не проходил сценарий жюри).
+  - Поля форм не шире контейнера: очередь сотрудника укладывается в 360 px.
+  - Подсказка об обязательной причине обращения показывается один раз.
+  - Пропавший с диска файл вложения даёт 404 и предупреждение в логе (только UUID) вместо ошибки 500.
+  - `README.md`: `seed_demo` запускается на сервере один раз 22.11; папку вложений копировать вместе с базой.
+  - Ревью: 1 раунд, без замечаний. Всего тестов: 567, проходят в обычном, обратном и случайном порядке.
 
-"""
-t=t.replace("## 2026-11-14\n","## 2026-11-14\n"+entry,1)
-open(p,'w',encoding='utf-8').write(t)
-EOF
-O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && python3 -I - "$O" <<'EOF'
-import os,re,sys
-d=sys.argv[1]; out='docs/process/dialogs'
-for f in sorted(os.listdir(d)):
-    t=open(os.path.join(d,f),encoding='utf-8').read()
-    t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)
-    t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')
-    t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)
-    t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')
-    bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]
-    assert not bad,(f,bad)
-    assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f
-    assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f
-    open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
-EOF
+  """
+  t=t.replace("## 2026-11-14\n","## 2026-11-14\n"+entry,1)
+  open(p,'w',encoding='utf-8').write(t)
+  EOF
+  O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && python3 -I - "$O" <<'EOF'
+  import os,re,sys
+  d=sys.argv[1]; out='docs/process/dialogs'
+  for f in sorted(os.listdir(d)):
+      t=open(os.path.join(d,f),encoding='utf-8').read()
+      t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)
+      t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')
+      t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)
+      t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')
+      bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]
+      assert not bad,(f,bad)
+      assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f
+      assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f
+      open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
+  EOF
+    01-team-lead.md 747 KB
+    02-planner.md 651 KB
+    03-coder-deepseek.md 2558 KB
+    04-reviewer.md 388 KB
+  ── Ran git add -A && git commit -q -F - <<'EOF' TASK-006-FIX: request list action, form controls width, single hint, missing-file 404 Always show "Подать заявку" on the student request list; cap form controls at the container width (360 px fix); render the required-comment hint once; return 404 with a UUID-only warning when an attachment file is missing on disk; README deployment notes (seed once on 2026-11-22, back up PRIVATE_MEDIA_ROOT). Process archive and screenshots updated. 567 tests. Approved by the Reviewer agent. Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com> EOF git log --oneline -1; git show --stat --format= HEAD | tail -1; git status --short | wc -l; for t in thr_ng6cbgatm6 thr_2imsg4kck2 thr_cpuae9aqw3; do echo "$t: $(bb thread show $t 2>&1 | awk '/Status:/{print $2; exit}') | $(bb thread context $t 2>&1 | head -1)"; done (Outside of sandbox) (3s)
+    $ git add -A && git commit -q -F - <<'EOF'
+  TASK-006-FIX: request list action, form controls width, single hint, missing-file 404
+
+  Always show "Подать заявку" on the student request list; cap form
+  controls at the container width (360 px fix); render the required-comment
+  hint once; return 404 with a UUID-only warning when an attachment file is
+  missing on disk; README deployment notes (seed once on 2026-11-22, back
+  up PRIVATE_MEDIA_ROOT). Process archive and screenshots updated.
+  567 tests. Approved by the Reviewer agent.
+
+  Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+  EOF
+  git log --oneline -1; git show --stat --format= HEAD | tail -1; git status --short | wc -l; for t in thr_ng6cbgatm6 thr_2imsg4kck2 thr_cpuae9aqw3; do echo "$t: $(bb thread show $t 2>&1 | awk '/Status:/{print $2; exit}') | $(bb thread context $t 2>&1 | head -1)"; done
+    fb25c57 TASK-006-FIX: request list action, form controls width, single hint, missing-file 404
+     19 files changed, 3749 insertions(+), 43 deletions(-)
+           0
+    thr_ng6cbgatm6: idle | Context window: 277,401 / 1,048,576 tokens
+    thr_2imsg4kck2: idle | Estimated context: 451,073 / 1,000,000 tokens
+    thr_cpuae9aqw3: idle | Estimated context: 428,202 / 1,000,000 tokens
+  ── Thought for 4s
+    I'm now on the flaky test, which is an open item for the user to decide on rather than a code task. My recommendation is a protocol change: agents always save full test output to a log file and report the failing test's name, and if CI fails, that output gets captured. I'll ask the user for their decision, and the one-time compaction of all three agents will follow that decision. Before compaction, I'll mention the numbers.
+
+── Assistant ───────────────────────────────────────────────
+TASK-006-FIX готова и закоммичена, все 5 недочётов исправлены. Осталось одно ваше решение: оно закрывает цикл исправлений и запускает сжатие.
+
+**Коммит `fb25c57`:** TASK-006-FIX: request list action, form controls width, single hint, missing-file 404. Изменено 19 файлов, большая часть строк — архив диалогов.
+
+**Проверки:**
+| Проверка | Результат |
+|---|---|
+| Тесты в обычном порядке | 567 из 567 |
+| Тесты в обратном порядке | 567 из 567 |
+| Тесты в случайном порядке | 567 из 567 |
+| `check`, миграции, `ruff` | Чисто |
+| Ширина 360 px, 3 страницы | 360 px везде |
+| Кнопка «Подать заявку» при заполненном списке | Есть, одна |
+| Подсказка о причине в форме | Одна |
+| Пропавший файл вложения (проверил Ревьюер) | 404 и запись в лог только с UUID |
+
+**Ход ревью:** 1 раунд, без замечаний. Одно отступление Кодера от спецификации Ревьюер принял: тест из спецификации не мог пройти в принципе, потому что в `tokens.css` законно есть `--content-max-width`. Кодер проверил то же самое более точным условием.
+
+**Архив:** 3 скриншота «после исправления», диалоги обновлены.
+
+**Цикл исправлений: остался один пункт.**
+| Пункт | Рекомендация |
+|---|---|
+| **Редкое падение теста неизвестного происхождения.** Ревьюер запустил тесты 5 раз, и 1 раз один тест упал. Имя теста не сохранилось. Я прогнал тесты ещё 3 раза в разном порядке — всё прошло. Оба таких случая за проект были поздно вечером по Москве (около 23:45) | **Код пока не трогать** — искать нечего, пока неизвестно имя теста. Вместо этого изменить протокол: Кодер и Ревьюер всегда сохраняют полный вывод тестов в файл и при любом падении сообщают имя теста. Если падение повторится, сразу будет понятно, что чинить |
+
+**Контекст агентов перед сжатием:**
+| Агент | Контекст сейчас |
+|---|---|
+| Кодер | 277 401 токен (последний запрос) |
+| Планировщик | ≈ 451 тыс. |
+| Ревьюер | ≈ 428 тыс. |
+
+Как только вы ответите про пункт с тестом, цикл закроется. Тогда я по вашему разовому указанию сожму контекст Кодера, Планировщика и Ревьюера и пришлю отчёт. Затем напомню вам ввести `/compact` в моём треде и подготовлю TASK-007 (уведомления).
+
+Согласны с рекомендацией по падающему тесту?
+
+── User ────────────────────────────────────────────────────
+Согласен
+
+── Ran 6 commands ──────────────────────────────────────────
+  ── Thought for 3s
+    I'm planning a protocol change: adding a rule to .bb/AGENTS.md, which both the coder and reviewer read, that test output gets saved to a file and failures are reported with the test name and a traceback excerpt. I'm also weighing whether to record this in the plan journal and whether the coder.md file needs it too.
+
+    Next I'll sequence the remaining steps: send the coder and reviewer the new test-output rule before compacting, since AGENTS.md persists through compaction, then commit, then compact the three agents, and finally report back and consider drafting TASK-007.
+  ── Ran python3 -I - <<'EOF' p='.bb/AGENTS.md'; t=open(p,encoding='utf-8').read() a="## Safety" assert a in t and "## Test runs" not in t t=t.replace(a,"""## Test runs - Always save the full output of every test run to a file, e.g. `python manage.py test 2>&1 | tee "$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log"`. - If any run fails, even once and even if a re-run passes, report the failing test name(s), the time of the run (Moscow time) and the relevant part of the traceback to the Team lead (Coder: in the REPORT; Reviewer: in the verdict message). Never dismiss a failure as flaky without the test name. """+a,1) open(p,'w',encoding='utf-8').write(t) p='plan.md'; t=open(p,encoding='utf-8').read() t=t.replace("Сейчас: `TASK-006-FIX` закрыта 14.11. Ждёт решения: редкое падение теста неизвестного происхождения.","Сейчас: цикл исправлений TASK-006 закрыт 14.11.") t=t.replace("## 8. Журнал решений\n","## 8. Журнал решений\n- 14.11.2026: редкое падение теста (имя не сохранилось) — код не трогаем; агенты сохраняют полный вывод тестов в файл и при любом падении сообщают имя теста и время.\n",1) open(p,'w',encoding='utf-8').write(t) p='CHANGELOG.md'; t=open(p,encoding='utf-8').read() entry="""### Протокол: журналы тестов - Кодер и Ревьюер сохраняют полный вывод каждого прогона тестов в файл. При любом падении, даже разовом, сообщают имя теста, время по Москве и трассировку. Причина: дважды тест падал около 23:45 по Москве, но имя теста не сохранилось. """ t=t.replace("## 2026-11-14\n","## 2026-11-14\n"+entry,1) open(p,'w',encoding='utf-8').write(t) EOF git add .bb/AGENTS.md plan.md CHANGELOG.md && git commit -q -F - <<'EOF' Team protocol: save full test output and report every failure by name Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com> EOF git log --oneline -1 cat > $TMPDIR/testlog-rule.txt <<'EOF' [SETUP] Team lead -> all: PROTOCOL UPDATE New section "Test runs" in `.bb/AGENTS.md`: always save the full output of every test run to a file (`... 2>&1 | tee "$TMPDIR/test-<timestamp>.log"`). If any run fails, even once and even if a re-run passes, report the failing test name(s), the Moscow time of the run and the traceback excerpt (Coder: in the REPORT; Reviewer: in the verdict). Do not reply to this message. EOF for t in thr_ng6cbgatm6 thr_cpuae9aqw3 thr_2imsg4kck2; do bb thread tell $t --message-file $TMPDIR/testlog-rule.txt 2>&1 | tail -1; done (Outside of sandbox) (3s)
+    $ python3 -I - <<'EOF'
+  p='.bb/AGENTS.md'; t=open(p,encoding='utf-8').read()
+  a="## Safety"
+  assert a in t and "## Test runs" not in t
+  t=t.replace(a,"""## Test runs
+  - Always save the full output of every test run to a file, e.g. `python manage.py test 2>&1 | tee "$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log"`.
+  - If any run fails, even once and even if a re-run passes, report the failing test name(s), the time of the run (Moscow time) and the relevant part of the traceback to the Team lead (Coder: in the REPORT; Reviewer: in the verdict message). Never dismiss a failure as flaky without the test name.
+
+  """+a,1)
+  open(p,'w',encoding='utf-8').write(t)
+  p='plan.md'; t=open(p,encoding='utf-8').read()
+  t=t.replace("Сейчас: `TASK-006-FIX` закрыта 14.11. Ждёт решения: редкое падение теста неизвестного происхождения.","Сейчас: цикл исправлений TASK-006 закрыт 14.11.")
+  t=t.replace("## 8. Журнал решений\n","## 8. Журнал решений\n- 14.11.2026: редкое падение теста (имя не сохранилось) — код не трогаем; агенты сохраняют полный вывод тестов в файл и при любом падении сообщают имя теста и время.\n",1)
+  open(p,'w',encoding='utf-8').write(t)
+  p='CHANGELOG.md'; t=open(p,encoding='utf-8').read()
+  entry="""### Протокол: журналы тестов
+  - Кодер и Ревьюер сохраняют полный вывод каждого прогона тестов в файл. При любом падении, даже разовом, сообщают имя теста, время по Москве и трассировку. Причина: дважды тест падал около 23:45 по Москве, но имя теста не сохранилось.
+
+  """
+  t=t.replace("## 2026-11-14\n","## 2026-11-14\n"+entry,1)
+  open(p,'w',encoding='utf-8').write(t)
+  EOF
+  git add .bb/AGENTS.md plan.md CHANGELOG.md && git commit -q -F - <<'EOF'
+  Team protocol: save full test output and report every failure by name
+
+  Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+  EOF
+  git log --oneline -1
+  cat > $TMPDIR/testlog-rule.txt <<'EOF'
+  [SETUP] Team lead -> all: PROTOCOL UPDATE
+  New section "Test runs" in `.bb/AGENTS.md`: always save the full output of every test run to a file (`... 2>&1 | tee "$TMPDIR/test-<timestamp>.log"`). If any run fails, even once and even if a re-run passes, report the failing test name(s), the Moscow time of the run and the traceback excerpt (Coder: in the REPORT; Reviewer: in the verdict). Do not reply to this message.
+  EOF
+  for t in thr_ng6cbgatm6 thr_cpuae9aqw3 thr_2imsg4kck2; do bb thread tell $t --message-file $TMPDIR/testlog-rule.txt 2>&1 | tail -1; done
+    8f7bc4f Team protocol: save full test output and report every failure by name
+    Thread thr_ng6cbgatm6 steered
+    Thread thr_cpuae9aqw3 steered
+    Thread thr_2imsg4kck2 steered
+  ── Thought for 553ms
+    Messages sent to the three of them trigger turns, even ones that say "do not reply." So I'll wait until all three are idle, record their "before" sizes knowing they'll creep up a little, and then compact all three.
+  ── Thought for 4ms
+    Правило записано и доставлено трём агентам; жду, пока они освободятся, и затем запускаю сжатие.
+  ── Ran for i in $(seq 1 60); do busy=0; for t in thr_ng6cbgatm6 thr_2imsg4kck2 thr_cpuae9aqw3; do s=$(bb thread show $t 2>&1 | awk '/Status:/{print $2; exit}'); case $s in active|starting|pending|stopping) busy=1;; esac; done; [ $busy = 0 ] && break; sleep 5; done; echo "all idle after ~$((i*5))s"; for t in thr_ng6cbgatm6 thr_2imsg4kck2 thr_cpuae9aqw3; do echo "$t BEFORE: $(bb thread context $t 2>&1 | head -1) | $(bb thread context $t 2>&1 | sed -n 2p)"; done; for t in thr_ng6cbgatm6 thr_2imsg4kck2 thr_cpuae9aqw3; do bb thread compact $t 2>&1 | tail -1; done (34s)
+    $ for i in $(seq 1 60); do busy=0; for t in thr_ng6cbgatm6 thr_2imsg4kck2 thr_cpuae9aqw3; do s=$(bb thread show $t 2>&1 | awk '/Status:/{print $2; exit}'); case $s in active|starting|pending|stopping) busy=1;; esac; done; [ $busy = 0 ] && break; sleep 5; done; echo "all idle after ~$((i*5))s"; for t in thr_ng6cbgatm6 thr_2imsg4kck2 thr_cpuae9aqw3; do echo "$t BEFORE: $(bb thread context $t 2>&1 | head -1) | $(bb thread context $t 2>&1 | sed -n 2p)"; done; for t in thr_ng6cbgatm6 thr_2imsg4kck2 thr_cpuae9aqw3; do bb thread compact $t 2>&1 | tail -1; done
+    all idle after ~30s
+    thr_ng6cbgatm6 BEFORE: Context window: 278,060 / 1,048,576 tokens | Session cost: 5.838257919999999 USD
+    thr_2imsg4kck2 BEFORE: Estimated context: 452,339 / 1,000,000 tokens | 
+    thr_cpuae9aqw3 BEFORE: Estimated context: 429,325 / 1,000,000 tokens | 
+    Thread thr_ng6cbgatm6 context compaction requested
+    Thread thr_2imsg4kck2 context compaction requested
+    Thread thr_cpuae9aqw3 context compaction requested
+  ── Ran for i in $(seq 1 110); do busy=0; for t in thr_ng6cbgatm6 thr_2imsg4kck2 thr_cpuae9aqw3; do s=$(bb thread show $t 2>&1 | awk '/Status:/{print $2; exit}'); case $s in active|starting|pending|stopping) busy=1;; esac; done; [ $busy = 0 ] && break; sleep 5; done; echo "done after ~$((i*5))s"; for t in thr_ng6cbgatm6 thr_2imsg4kck2 thr_cpuae9aqw3; do echo "$t: $(bb thread show $t 2>&1 | awk '/Status:/{print $2; exit}') | $(bb thread context $t 2>&1 | head -2 | tr '\n' ' ')"; bb thread log $t --limit 1 2>&1 | grep -iE 'compact|error' | head -3; done (1m 40s)
+    $ for i in $(seq 1 110); do busy=0; for t in thr_ng6cbgatm6 thr_2imsg4kck2 thr_cpuae9aqw3; do s=$(bb thread show $t 2>&1 | awk '/Status:/{print $2; exit}'); case $s in active|starting|pending|stopping) busy=1;; esac; done; [ $busy = 0 ] && break; sleep 5; done; echo "done after ~$((i*5))s"; for t in thr_ng6cbgatm6 thr_2imsg4kck2 thr_cpuae9aqw3; do echo "$t: $(bb thread show $t 2>&1 | awk '/Status:/{print $2; exit}') | $(bb thread context $t 2>&1 | head -2 | tr '\n' ' ')"; bb thread log $t --limit 1 2>&1 | grep -iE 'compact|error' | head -3; done
+    done after ~85s
+    thr_ng6cbgatm6: idle | Context window: 215,962 / 1,048,576 tokens Session cost: 5.987819859999999 USD 
+    /compact
+      - link test: `AssertionError: 0 != 1`
+      - hint test: `AssertionError: 2 != 1`
+    thr_2imsg4kck2: idle | Context usage is not available yet. 
+    /compact
+    ── Context compacted ───────────────────────────────────────
+    thr_cpuae9aqw3: idle | Context usage is not available yet. 
+    /compact
+    ── Context compacted ───────────────────────────────────────
+  ── Thought for 6ms
+    I'm checking whether the coder's compaction finished, looking in the log for the "Compacting context" and "compacted" markers. The coder's 215,962 figure belongs to the compaction request, so I won't treat it as a new context size. Cost went up by $0.15. For the planner and reviewer, I'm noting "Context compacted," but their usage won't show until after the next turn.
+  ── Ran bb thread log thr_ng6cbgatm6 --limit 1 2>&1 | grep -nE '── ' | head -8
+    $ bb thread log thr_ng6cbgatm6 --limit 1 2>&1 | grep -nE '── ' | head -8
+    1:── User ────────────────────────────────────────────────────
+    4:── Worked for (45s) ────────────────────────────────────────
+    6:── Assistant ───────────────────────────────────────────────
+  ── Thought for 5ms
+    I'm noticing the last turn shows a "/compact" command, a "Worked for 45s" marker, and an assistant summary, so the compaction seems to have finished. Earlier the TASK-005 log had a "Compacting context" header, but this one looks different. I'll check the events to see whether the thread/compacted count went up.
+  ── Ran bb thread log thr_ng6cbgatm6 --json --all 2>/dev/null | python3 -c ' import json,sys ev=json.load(sys.stdin) print("compacted events:", [e["seq"] for e in ev if e.get("type")=="thread/compacted"]) print("last event seq:", ev[-1]["seq"], ev[-1]["type"])' (1s)
+    $ bb thread log thr_ng6cbgatm6 --json --all 2>/dev/null | python3 -c '
+  import json,sys
+  ev=json.load(sys.stdin)
+  print("compacted events:", [e["seq"] for e in ev if e.get("type")=="thread/compacted"])
+  print("last event seq:", ev[-1]["seq"], ev[-1]["type"])'
+    compacted events: [24023, 31724, 46436]
+    last event seq: 46437 turn/completed
+  ── Thought for 2s
+    The compaction is logged and the plan's "Сейчас" line can note that all three agents' context was compressed on 14.11, with a quick edit and no commit. Next I'll report back, remind about /compact, and offer to draft TASK-007, and I'm deciding whether to draft it now or just offer.
+
+    I'll note the next step: since my context is about to be compacted, it's better to wait for that and then draft TASK-007 on the user's next message, rather than drafting it now.
+  ── Ran python3 -I - <<'EOF' p='plan.md'; t=open(p,encoding='utf-8').read() t=t.replace("Сейчас: цикл исправлений TASK-006 закрыт 14.11.","Сейчас: цикл исправлений TASK-006 закрыт 14.11. Контекст Кодера, Планировщика и Ревьюера сжат 14.11 (разовое указание пользователя).") open(p,'w',encoding='utf-8').write(t) EOF grep -n 'разовое указание' plan.md | cut -c1-80 (1s)
+    $ python3 -I - <<'EOF'
+  p='plan.md'; t=open(p,encoding='utf-8').read()
+  t=t.replace("Сейчас: цикл исправлений TASK-006 закрыт 14.11.","Сейчас: цикл исправлений TASK-006 закрыт 14.11. Контекст Кодера, Планировщика и Ревьюера сжат 14.11 (разовое указание пользователя).")
+  open(p,'w',encoding='utf-8').write(t)
+  EOF
+  grep -n 'разовое указание' plan.md | cut -c1-80
+    100:Сейчас: цикл исправлений TASK-006 закрыт 14.11. �
+
+── Assistant ───────────────────────────────────────────────
+Цикл исправлений TASK-006 закрыт, и я сжал контекст Кодера, Планировщика и Ревьюера.
+
+**Коммит `8f7bc4f`:** новый раздел «Test runs» в `.bb/AGENTS.md`.
+- Кодер и Ревьюер сохраняют полный вывод каждого прогона тестов в файл.
+- При любом падении, даже разовом, они сообщают имя теста, время по Москве и трассировку.
+
+Сообщение о новом правиле получили все трое. Записи добавлены в `plan.md` и `CHANGELOG.md`.
+
+**Сжатие контекста** (разовое указание):
+| Агент | До сжатия | Сжатие | Стоимость |
+|---|---|---|---|
+| Кодер (DeepSeek) | 278 060 токенов (последний запрос) | Выполнено | $0,15 |
+| Планировщик (Opus) | ≈ 452 тыс. | Выполнено | — |
+| Ревьюер (Opus) | ≈ 429 тыс. | Выполнено | — |
+
+Все трое уже свободны. Сжатие заняло около 1,5 минуты.
+
+Цифры после сжатия я пока не называю:
+- для Кодера bb показывает 216 тыс., но это размер самого запроса на сжатие;
+- для Планировщика и Ревьюера bb пишет «данные пока недоступны».
+
+Реальные размеры будут видны после первого хода каждого агента в TASK-007, и я их пришлю. Дальше снова действует обычное правило: контекст Планировщика и Ревьюера я не трогаю.
+
+**Теперь ваша очередь: введите `/compact` в моём треде.** После этого я подготовлю запрос TASK-007 (уведомления).
+
+── User ────────────────────────────────────────────────────
+/compact
+
+── Context compacted ───────────────────────────────────────
+
+── User ────────────────────────────────────────────────────
+Делай task
+
+── Ran 1 command, explored 1 search, 2 lists, 2 files ──────
+  ── Thought for 3s
+    I'm preparing the TASK-007 notifications request draft from "Делай task". Since commands to the Planner only go out after direct approval, and earlier "Готовь запрос" meant prepare-only, I'll show the draft and wait for "Отправляй" before sending anything.
+
+    I'm still holding off on any send until the user explicitly approves this specific draft. Next I'll look through the codebase for existing models, like petition status changes, schedule changes, and deadlines, plus any earlier notification drafts for TASK-007, to design the notifications properly.
+  ── Ran git status --short && ls ~/.bb/thread-storage/thr_4izdzwetb4/ && ls docs/tasks && ls */models.py && grep -n "path(" config/urls.py 2>/dev/null || find . -name urls.py -not -path "./.venv/*" | head
+    $ git status --short && ls ~/.bb/thread-storage/thr_4izdzwetb4/ && ls docs/tasks && ls */models.py && grep -n "path(" config/urls.py 2>/dev/null || find . -name urls.py -not -path "./.venv/*" | head
+    M plan.md
+    Attachments
+    TASK-001.txt
+    TASK-002.txt
+    TASK-003.txt
+    TASK-004.txt
+    TASK-005-FIX.txt
+    TASK-005.txt
+    TASK-006-FIX.txt
+    TASK-006.txt
+    planner-feasibility-draft.md
+    screens-360
+    TASK-001.md
+    TASK-002.md
+    TASK-003.md
+    TASK-004.md
+    TASK-005-FIX.md
+    TASK-005.md
+    TASK-006-FIX.md
+    TASK-006.md
+    academics/models.py
+    accounts/models.py
+    petitions/models.py
+    schedule/models.py
+    university/models.py
+    8:    path(settings.ADMIN_URL, admin.site.urls),
+    9:    path("", include("accounts.urls")),
+    10:    path("", include("schedule.urls")),
+    11:    path("", include("academics.urls")),
+    12:    path("", include("petitions.urls")),
+    13:    path("", include("core.urls")),
+  ── Thought for 5ms
+    I'm going to look over the existing models first to plan the notifications, covering petition status changes, schedule changes (possibly a ScheduleChange model), and deadlines. After that I'll check the nav template.
+  ── Searched for ^class \|models\.\(ForeignKey\|CharField\|DateField\|DateTimeField\|TextField\|BooleanField\|OneToOneField\) in academics/models.py
+  ── Listed files in templates
+  ── Read templates/base.html
+  ── Thought for 4ms
+    I'm checking the TASK-006 request text to use as a format template, and looking at the petition views where status changes happen so I can hook in notifications. I also want to look at the home page and how staff access scoping works, since staff has faculty and there's `students_visible_to` to consider.
+  ── Read ~/.bb/thread-storage/thr_4izdzwetb4/TASK-006.txt
+  ── Thought for 6ms
+    I'm designing the notifications for TASK-007, which the contest requires to cover faculty news, deadlines, and changes. I want to check the original contest text for the exact wording, so I'm searching the hackathon HTML attachment in the thread storage for the notifications section.
+  ── Listed files in .
+  ── Thought for 29s
+    I'm going back to the original requirement for TASK-007, which covers notifications: news and announcements from the dean's office, plus reminders about deadlines and changes. My draft plan is a new `notifications` app, with staff able to publish announcements for their whole faculty or for selected groups, and I'm keeping the first version simple.
+
+    I'm sketching out the deadline and change notifications for TASK-007: deadlines could be an optional date on an announcement, with a countdown, and personal alerts could come from petition status changes, new staff comments, and schedule changes for the student's group in the next two weeks. I'm weighing whether to store notification rows when events happen or to build the feed on the fly from existing records.
+
+    I'm weighing whether the Planner should pick the architecture, or whether I should set the key decision myself. A computed feed built from existing records, with a per-user "last seen" timestamp for unread state, looks simpler and avoids sync problems. Stored rows would be more explicit and testable, but the LessonChange records are created in admin, so they would need hooks there.
+
+    I'm sketching the UI for the notifications feed: a bell with an unread count in the nav, and a page grouped into deadlines, dean's office news, and changes for the student. The page gets marked as read when it's opened. I'm also listing the open questions for the user, mainly who can publish news, whether deadlines and grade updates should be included, and leaving out email or push since those are out of scope.
+
+    I'm working out the storage choice: stored notification rows written in the same transaction as each event, which would keep personal alerts explicit and testable.
+
+    I'm settling the storage question by weighing a single per-user "notifications seen" timestamp: anything newer than it counts as unread, which avoids per-item read tracking. Personal events like schedule changes could be computed from LessonChange records filtered by the student's group and upcoming dates, since those are created in admin and would otherwise need hooks. Grades are the awkward case, because CurrentMark only has a date field while FinalResult has a creation timestamp.
+
+    I'm noting that CurrentMark has no creation timestamp, so grade notifications would need a migration. On architecture, I'll leave the storage choice to the Planner but ask for a justification, with one constraint: every event the student sees has to come from existing records or be written in the same transaction as the event. For access, I'm keeping it simple: staff can create and hide announcements only for their own faculty, students see the ones for their faculty, group, or everyone, and editing stays out of the first version.
+
+    I'm settling the remaining details for the feed: staff can create and take down announcements, and I'll propose these defaults to the user rather than ask about every edge. For the demo data, seeded deadlines should be set relative to the run date so they stay upcoming during jury review. Past deadlines drop out of the deadlines block but still appear in the feed.
+
+    I'm adding a "soon" block that shows deadlines within seven days as "in N days", "today", or "tomorrow", and I need to get the Moscow date boundaries right in the tests. I'm also considering a session-start reminder taken from Term.session_start when it falls within 14 days. For requests, a status change to ready would produce a notification. On navigation, students get an unread count, staff get an announcements page, and I need to keep the count query cheap.
+
+    I'm checking the timeline: the plan has the map and chat on the 15th and 16th, with deployment on the 17th, so the schedule holds. Before sending anything, I'll prepare the TASK-007 draft and show it with the open decisions, since the user hasn't seen the content and some choices are theirs to make.
+
+    I'm checking the code for the faculty scoping helpers, the LessonChange fields, whether CurrentMark has a creation timestamp, the Term model, and where login redirects, so the TASK-007 request is accurate.
+
+── Assistant ───────────────────────────────────────────────
+Готовлю черновик TASK-007 (уведомления). Сейчас проверяю модели, к которым привяжутся уведомления.
+
+── Explored 1 search, created 1 file ───────────────────────
+  ── Searched for LOGIN_REDIRECT_URL\|TIME_ZONE in config/settings.py
+  ── Thought for 18s
+    I'm drafting TASK-007.txt in English for the Planner, then putting together a Russian summary of the key decisions for the user. On the news feature, I'm leaning toward letting staff publish to their own faculty's page (all groups or a single group) and having the superuser publish to everyone from admin. I'm still unsure whether staff should be able to edit posts, since typos happen, and if so whether that needs optimistic concurrency.
+
+    I'm settling on announcements as create plus unpublish only, with no editing, since unpublishing is idempotent and avoids a conflict. Deadlines would be an optional date on an announcement, shown in a "nearest deadlines" block with relative labels, hidden once past, plus an automatic reminder 14 days before the term starts. Personal notifications would cover request status, staff comments, schedule changes for the next two weeks, and new grades, though the grade timestamps still need a decision from the Planner. Unread state would be a nav counter cleared when the feed is opened, with no email or push.
+
+    I'm laying out the home page idea for students: a short summary of the nearest deadlines and latest news after login, which would be a small addition that helps the first impression. I'm leaning toward including it in TASK-007, but I'll offer it to the user as a choice rather than decide it myself. Next I need to check what staff should see in notifications.
+
+    I'm now thinking about who sees what in the notifications. Staff would just get the announcements management page, and the nav counter is for students only. For the Planner, I'm leaving the build-versus-compute choice for personal events open, since admin-created changes have to show up too. Read state could be a per-user "seen up to" timestamp, and access should limit students to announcements for all, their faculty, or their group, plus their own personal events.
+
+    I'm working through the rules for protecting access, so staff can only unpublish announcements for their own faculty and groups, and anything outside that returns a 404. I'm also checking text safety by keeping announcements plain and escaped with length limits, and I'm planning for a fixed number of queries on every page so the nav counter and feed don't cause N+1 problems. Finally, I'm noting that time boundaries should use Moscow dates, and that the feed should show only the last 30 days, up to 50 items, with schedule changes limited to today and later.
+
+    Next I'm settling the out-of-scope list: no email, push, browser alerts, polling, staff notifications, attachments, rich text, announcement editing, visual theme, or chat. Then I'll run the standard checks, run seed_demo twice on a temporary database, and do a 360 px layout check myself before writing the file and the Russian summary.
+
+    I'm deciding how to wrap up: I'll ask the user to approve the plan, and include a decisions table they can adjust, keeping it as a plain text question rather than a structured prompt.
+  ── Created ~/.bb/thread-storage/thr_4izdzwetb4/TASK-007.txt +48
+    --- /dev/null
+    +++ b~/.bb/thread-storage/thr_4izdzwetb4/TASK-007.txt
+    +[TASK-007] Team lead -> Planner: TASK
+    +Approved by the user. Write the spec `docs/tasks/TASK-007.md` and hand it to the Coder.
+    +
+    +## Context
+    +Done: TASK-001..006 and their FIX tasks (users and roles, schedule with changes, grades and attendance, requests/certificates with status history and staff comments). Reuse the existing access helpers (`students_visible_to`, `groups_visible_to`, `petitions_visible_to`, role mixins), the validation pattern (model/service level, admin form errors never 500), `core/testing.py` FrozenClockMixin and `scripts/run_tests_at.py`. Read `plan.md`, `README.md` "Known limitations" and the previous specs. Apply your "Feasibility check" and "Test plan" sections.
+    +
+    +This is a mandatory part of the contest: "news and announcements of the dean's office, reminders about deadlines and changes". The jury will check it on a phone: log in as a student -> see the unread counter -> open notifications -> see news, upcoming deadlines and personal changes; log in as dean's-office staff -> publish an announcement -> the student sees it.
+    +
+    +Later tasks (design for them, do not implement): chat with the dean's office (TASK-009) may later add "new message" notifications, so the personal feed must be easy to extend with a new event source.
+    +
+    +## Goal
+    +Students get one place with dean's-office news, upcoming deadlines and changes that concern them. Staff publish announcements for their faculty.
+    +
+    +## Requirements
+    +1. New app `notifications` (or justify another name).
+    +2. Announcements (news):
+    +   - Fields: title, plain text body, audience, optional deadline date, author, published time, published/unpublished flag. Length limits as named constants.
+    +   - Audience (exactly one): the whole university (superuser in admin only), one faculty, or one study group.
+    +   - Staff create announcements on their own page only for their own faculty or a group of their own faculty (validated at form AND service level; a forged faculty/group ID -> form error or 404, never success).
+    +   - Staff can unpublish ("Снять с публикации") any announcement of their own faculty. No editing, no hard delete on the staff page (user decision: keeps it simple and conflict-free). Unpublishing is idempotent; unpublishing an already unpublished announcement is not an error.
+    +   - Body is plain text: autoescaped, line breaks kept, no HTML or Markdown rendering.
+    +3. Deadlines and reminders:
+    +   - An announcement with a deadline date is a deadline. Students see a "Ближайшие дедлайны" block: deadlines from today on, nearest first, with a relative label "сегодня" / "завтра" / "через N дн." (correct Russian plural forms). Past deadlines leave the block but stay in the news list.
+    +   - Automatic reminder (no stored row needed): "Сессия начинается через N дн." when the current term's session starts within 14 days (named constant), "Идёт сессия" during the session.
+    +   - All date logic uses Moscow dates (`Europe/Moscow`), including the midnight boundary.
+    +4. Personal changes (generated automatically, only for the student they concern):
+    +   - status changes of the student's requests (including "Готова" - ready to collect) and new staff comments on them;
+    +   - schedule changes (cancel, move, room change, teacher change) of the student's group for lessons from today to today + 14 days (by original or new date);
+    +   - new grades: current marks and final results.
+    +   Events created through the Django admin (schedule changes, grades) must appear too. Choose and justify one approach: stored notification rows written in the same transaction as the event, or a feed computed from the existing records (`PetitionStatusChange`, `PetitionComment`, `LessonChange`, `CurrentMark`, `FinalResult`; add a creation timestamp where missing, with a migration). Each feed item links to its page (request detail, schedule week, grades).
+    +5. Unread state:
+    +   - The nav shows "Уведомления" for students with an unread counter (news addressed to the student + personal changes newer than the last visit).
+    +   - Opening the notifications page marks everything as read (a per-user "seen up to" timestamp is acceptable; justify). Opening must be safe on GET or use POST - justify; no CSRF holes.
+    +   - No e-mail, no push, no auto-refresh: the counter updates on page load.
+    +6. Pages (server-rendered, Russian UI, mobile-first, existing CSS layers, no visual theme; all state changes via POST with CSRF):
+    +   - Student "Уведомления": deadlines block, then one feed (news and personal changes, newest first; last 30 days, at most 50 items - named constants), empty state.
+    +   - Staff "Объявления": list of announcements of their faculty (published and unpublished), create form (audience: faculty or a group of the faculty; optional deadline), unpublish action.
+    +   - Navigation: "Уведомления (N)" for students, "Объявления" for staff.
+    +   - Home page `core:home` for students (user decision): replace "Раздел в разработке" with a short summary: the 3 nearest deadlines and the 3 latest news, each with a link to "Уведомления". Login redirect stays as is.
+    +7. Access: a student sees only announcements addressed to the whole university, their faculty or their group, and only their own personal changes; unpublished announcements are hidden from students; staff see and manage only announcements of their own faculty (404 otherwise); students cannot reach staff pages; no access via guessed IDs.
+    +8. Queries: the nav counter runs on every page - a small fixed number of queries; no N+1 on the feed and on the staff list; query-count tests.
+    +9. Demo data: extend `seed_demo` (idempotent): university, faculty and group news; deadlines with dates relative to the run day (the command runs once on the server on 2026-11-22, the jury checks 23-28.11, so deadlines must fall into that window); at least one unread item for every demo student; some unpublished announcement for the staff list.
+    +
+    +## Out of scope
+    +E-mail, push and browser notifications, auto-refresh/polling, notifications for staff, attachments or images in announcements, rich text, editing announcements, chat (TASK-009), room map (TASK-008), visual theme, today's lessons on the home page.
+    +
+    +## Verification
+    +All existing verification commands pass (check, deploy check, makemigrations --check, test with the output saved to a file, `scripts/run_tests_at.py` at a Moscow midnight boundary, ruff only on the task files, CI YAML), `seed_demo` twice on a temporary database and temporary PRIVATE_MEDIA_ROOT. The Team lead checks the student and staff pages at 360 px.
+  ── Thought for 4s
+    Мне нужно показать пользователю решения, которые он должен принять, коротко. Те пункты, что я предложил сам, я отмечу как свои предложения, чтобы было понятно: если он захочет иначе, я поменяю.
+
+── Assistant ───────────────────────────────────────────────
+Черновик запроса TASK-007 «Уведомления» готов, Планировщику я его не отправлял. Файл: [TASK-007.txt](~/.bb/thread-storage/thr_4izdzwetb4/TASK-007.txt).
+
+**Что получит студент.** Пункт меню «Уведомления (N)», где N — число непрочитанных. Страница уведомлений состоит из двух частей:
+1. **Ближайшие дедлайны.** Подписи «сегодня», «завтра», «через N дн.». Отдельно сайт напоминает о сессии: «Сессия начинается через N дн.» или «Идёт сессия».
+2. **Лента, сначала новые записи.** В ней:
+   - новости деканата для всего вуза, факультета или группы студента;
+   - изменения статуса заявок студента и комментарии сотрудников к ним;
+   - изменения расписания его группы на 14 дней вперёд;
+   - новые оценки.
+
+Каждая запись ведёт на свою страницу. Когда студент открывает страницу уведомлений, все записи становятся прочитанными.
+
+**Что получит сотрудник.** Страница «Объявления»:
+- сотрудник создаёт объявление для своего факультета или одной его группы;
+- дату дедлайна можно указать, это необязательно;
+- сотрудник может снять объявление с публикации.
+
+**Защита.** Студент видит только новости для своего вуза, факультета и группы и только свои изменения. Сотрудник работает только с объявлениями своего факультета. Чужой ID в форме или адресе даёт ошибку или 404. Текст объявлений выводится как обычный текст: HTML и Markdown не обрабатываются.
+
+**Демо-данные.** Даты дедлайнов считаются от дня запуска `seed_demo`. Запуск 22.11 поставит дедлайны на 23–28.11, то есть на период проверки жюри.
+
+**Мои решения по умолчанию. Их нужно подтвердить или изменить:**
+1. Сотрудник не редактирует и не удаляет объявления, а только снимает их с публикации. Тогда нет конфликтов одновременной правки. Опечатку исправляют так: снимают объявление и публикуют новое.
+2. Объявление для всего вуза создаёт только администратор через админку.
+3. Сотрудники уведомлений не получают. Новые заявки они и так видят в очереди.
+4. Нет e-mail, push и автообновления. Счётчик обновляется при загрузке страницы.
+5. Главная страница студента сейчас показывает «Раздел в разработке». Предлагаю вывести там 3 ближайших дедлайна и 3 последние новости. Жюри увидит их сразу. Это небольшое дополнение.
+
+В черновике решения 1 и 5 помечены как решения пользователя («user decision»). Если вы что-то измените, я исправлю текст до отправки.
+
+**Как хранить уведомления, выберет Планировщик.** Он обоснует один из двух вариантов: отдельные записи или лента из уже существующих данных. Изменения из админки (расписание, оценки) должны попасть в ленту в обоих вариантах.
+
+Чтобы отправить запрос Планировщику, напишите «Отправляй». Если нужны правки, перечислите их.
+
+── User ────────────────────────────────────────────────────
+> Отдельно сайт напоминает о сессии
+
+Лишнее
+> Каждая запись ведёт на свою страницу.
+
+Поясни
+> дату дедлайна можно указать, это необязательно;
+
+Что ты имеешь ввиду под датой дедлайна?
+
+── Edited 1 file ───────────────────────────────────────────
+  ── Thought for 5s
+    I'm removing the session reminder from the draft, both the automatic reminder bullet under requirement 3 and the matching out-of-scope addition. Then I'll explain "each entry leads to its page" and "deadline date" in Russian, in STE style, without sending anything.
+
+    Now I'm clarifying the feed links: grade entries open the subject page in "Моя успеваемость", and news items show their full text right in the feed, so they have no separate page. I'm also working out the deadline explanation, where a date-bearing announcement also appears in the "Ближайшие дедлайны" block, counting down "через 3 дн.", and drops out once the date passes.
+  ── Edited ~/.bb/thread-storage/thr_4izdzwetb4/TASK-007.txt +2 -2
+    --- a~/.bb/thread-storage/thr_4izdzwetb4/TASK-007.txt
+    +++ b~/.bb/thread-storage/thr_4izdzwetb4/TASK-007.txt
+    -   - An announcement with a deadline date is a deadline. Students see a "Ближайшие дедлайны" block: deadlines from today on, nearest first, with a relative label "сегодня" / "завтра" / "через N дн." (correct Russian plural forms). Past deadlines leave the block but stay in the news list.
+    -   - Automatic reminder (no stored row needed): "Сессия начинается через N дн." when the current term's session starts within 14 days (named constant), "Идёт сессия" during the session.
+    +   - The deadline is a date only (no time), inclusive: "до 25.11" means the last day is 25.11. An announcement with a deadline date is a deadline. Students see a "Ближайшие дедлайны" block: deadlines from today on, nearest first, with a relative label "сегодня" / "завтра" / "через N дн." (correct Russian plural forms). Past deadlines leave the block but stay in the news list.
+    +   - No automatic reminders (e.g. about the session) - user decision.
+  ── Edited ~/.bb/thread-storage/thr_4izdzwetb4/TASK-007.txt +1 -1
+    --- a~/.bb/thread-storage/thr_4izdzwetb4/TASK-007.txt
+    +++ b~/.bb/thread-storage/thr_4izdzwetb4/TASK-007.txt
+    -Each feed item links to its page (request detail, schedule week, grades).
+    +Each personal change links to the page where the student sees the details: request status/comment -> that request's detail page; schedule change -> the schedule week that contains the affected date; new grade -> "Моя успеваемость" (the term of the grade). News items have no separate page: the feed shows the full title and body.
+  ── Thought for 4s
+    I'm adding "automatic reminders" to the out-of-scope list, though the requirements already exclude them. Next I'm checking whether the grades page supports term selection; the earlier "past term" screenshot suggests it does, likely through a query parameter.
+
+── Assistant ───────────────────────────────────────────────
+Я убрал напоминание о сессии из черновика.
+
+**«Каждая запись ведёт на свою страницу»** означает, что запись в ленте — это ссылка. Нажатие открывает страницу с подробностями:
+| Запись в ленте | Что откроется |
+|---|---|
+| «Заявка „Справка об обучении“: Готова» | Карточка этой заявки: статус, история, комментарии |
+| «Новый комментарий сотрудника к заявке» | Та же карточка заявки |
+| «Отменено занятие 18.11: Экономика» | Расписание на неделю, в которой есть 18.11 |
+| «Новая оценка: 5, Экономика» | «Моя успеваемость» за семестр этой оценки |
+
+У новостей своей страницы нет. Заголовок и полный текст новости показаны прямо в ленте.
+
+**Дата дедлайна** — это последний день, когда студенту нужно что-то сделать. Сотрудник указывает её в объявлении, если она есть. Пример: «Подайте заявление на стипендию до 25.11».
+- **Дата указана.** Объявление есть в ленте новостей и в блоке «Ближайшие дедлайны» с подписью «через 3 дн.» или «завтра». После 25.11 оно уходит из блока, но остаётся в ленте.
+- **Даты нет.** Это обычная новость, например «Библиотека закрыта на санитарный день». Она есть только в ленте.
+
+Дата указывается без времени, последний день включается в срок: «до 25.11» значит, что 25.11 ещё можно.
+
+Обновлённый черновик: [TASK-007.txt](~/.bb/thread-storage/thr_4izdzwetb4/TASK-007.txt). Решения 1–5 из прошлого сообщения пока не подтверждены. Чтобы отправить запрос Планировщику, напишите «Отправляй». Если нужны правки, перечислите их.
+
+── User ────────────────────────────────────────────────────
+А, дата дедлайна нужна для перенесения ее в раздел ближайших дедлайнов, понял
+
+── Thought for 7ms ─────────────────────────────────────────
+  I've got the user's confirmation that they understand, though they haven't approved sending anything yet. I'll keep the reply short: confirm, then ask about decisions 1–5 and their "Отправляй" go-ahead.
+
+── Assistant ───────────────────────────────────────────────
+Да, верно. Объявление с датой попадает в раздел «Ближайшие дедлайны», а без даты остаётся обычной новостью.
+
+Решения 1–5 из прошлого сообщения пока не подтверждены:
+1. Сотрудник не редактирует объявления, а только снимает их с публикации.
+2. Объявление для всего вуза создаёт только администратор.
+3. Сотрудники уведомлений не получают.
+4. Нет e-mail, push и автообновления.
+5. На главной странице студента показаны 3 ближайших дедлайна и 3 последние новости.
+
+Если они вам подходят, напишите «Отправляй», и я передам запрос Планировщику. Если нет, укажите номер решения и что изменить.
+
+── User ────────────────────────────────────────────────────
+Подтверждаю решения, отправляй
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Ran bb thread tell thr_2imsg4kck2 --message-file - < ~/.bb/thread-storage/thr_4izdzwetb4/TASK-007.txt (1s)
+    $ bb thread tell thr_2imsg4kck2 --message-file - < ~/.bb/thread-storage/thr_4izdzwetb4/TASK-007.txt
+    Thread thr_2imsg4kck2 steered
+  ── Thought
+    I'm updating the plan.md task table to add TASK-007 as in progress, and changing the "Сейчас" line to match.
+  ── Ran python3 - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() old='| TASK-006-FIX | Недочёты TASK-006 (5 пунктов) | Готово |\n' new=old+'| TASK-007 | Уведомления: новости, дедлайны, личные изменения; объявления сотрудника; сводка на главной | В работе |\n' assert old in s s=s.replace(old,new) old2='- 14.11.2026: редкое падение теста' new2='- 14.11.2026: уведомления (TASK-007): сотрудник только снимает объявления с публикации (без правки), объявление на весь вуз — только через админку, сотрудникам уведомлений нет, без e-mail/push/автообновления, без напоминания о сессии, на главной студента — 3 дедлайна и 3 новости.\n'+old2 assert old2 in s s=s.replace(old2,new2,1) open(p,'w',encoding='utf-8').write(s) EOF git diff --stat (1s)
+    $ python3 - <<'EOF'
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  old='| TASK-006-FIX | Недочёты TASK-006 (5 пунктов) | Готово |\n'
+  new=old+'| TASK-007 | Уведомления: новости, дедлайны, личные изменения; объявления сотрудника; сводка на главной | В работе |\n'
+  assert old in s
+  s=s.replace(old,new)
+  old2='- 14.11.2026: редкое падение теста'
+  new2='- 14.11.2026: уведомления (TASK-007): сотрудник только снимает объявления с публикации (без правки), объявление на весь вуз — только через админку, сотрудникам уведомлений нет, без e-mail/push/автообновления, без напоминания о сессии, на главной студента — 3 дедлайна и 3 новости.\n'+old2
+  assert old2 in s
+  s=s.replace(old2,new2,1)
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  git diff --stat
+    plan.md | 4 +++-
+     1 file changed, 3 insertions(+), 1 deletion(-)
+
+── Assistant ───────────────────────────────────────────────
+Я отправил запрос TASK-007 Планировщику.
+
+Дальше задача идёт по цепочке: Планировщик пишет спецификацию `docs/tasks/TASK-007.md` и передаёт её Кодеру, Кодер пишет код, Ревьюер его проверяет. Когда Ревьюер одобрит, я проверю страницы на ширине 360 px и сделаю коммит. Потом пришлю вам отчёт и черновик TASK-007-FIX.
+
+В `plan.md` я добавил строку «TASK-007 — В работе» и записал ваши решения в журнал. Эти изменения пока не в коммите, они войдут в коммит задачи.
+
+После первого хода Кодера, Планировщика и Ревьюера пришлю реальный размер их контекста после сжатия.
+
+── User ────────────────────────────────────────────────────
+Какие задачи у нас остались до деплоя?
+
+── Explored 1 list, ran 1 command ──────────────────────────
+  ── Thought for 2s
+    I'm going through plan.md for what has to be done before the 17.11 trial deploy: TASK-007 for notifications (already in progress), its fix, then the map and chat tasks with their fixes. I also need to settle the deploy prep, which means picking a hosting provider and domain, which is still the user's call, and possibly a separate task for the deploy config.
+
+    I'm also listing the deploy pieces still to check: gunicorn, PostgreSQL, systemd, and HTTPS setup, plus the plan 6b items. Next I'll look in the repo for existing deploy configs like gunicorn in requirements or a Dockerfile, and check the status of TASK-007.
+  ── Listed files in .
+  ── Thought for 8ms
+    All the threads look idle now, and TASK-007's code seems to be written but not yet committed. I'm not sure whether the Coder has sent it to the Reviewer, and I haven't seen an APPROVE yet, so I'll check the latest messages from both of them to see where things stand.
+  ── Ran for t in thr_cpuae9aqw3 thr_ng6cbgatm6; do echo "=== $t"; bb thread log $t --limit 3 2>/dev/null | tail -40; done (2s)
+    $ for t in thr_cpuae9aqw3 thr_ng6cbgatm6; do echo "=== $t"; bb thread log $t --limit 3 2>/dev/null | tail -40; done
+    === thr_cpuae9aqw3
+
+    Changed only `notifications/tests/test_views.py` (the two query-count tests). Not committed.
+
+    ## Issue 1 — test_feed_queries_constant
+    Now creates N rows (N=1, then N=5) of every one of the 6 sources inside the feed window for student `ax`, via a `_add_feed_batch()` helper:
+    - news: `Announcement` (university)
+    - staff status change: `make_petition` + `change_status(..., "submitted" → "in_progress")`
+    - staff `PetitionComment` with explicit `created_at`
+    - `LessonChange` (cancelled, `save_lesson_change`, distinct room+slot per batch, original 2026-11-11)
+    - `CurrentMark` (distinct date per batch)
+    - `FinalResult` (distinct discipline/curriculum item per batch)
+
+    `set_seen` is re-created before each measured GET; `assertEqual(count_one, count_many)` and `<= 20`.
+
+    ## Issue 2 — test_staff_list_queries_constant
+    The 5 added announcements now mix faculty and group: 3 faculty-addressed + 2 group-addressed (GX1, GX2), so the group `.select_related("group")` path is exercised.
+
+    ## Mutation checks (verified on a copy, then reverted)
+    - `related = ("curriculum_item__term",)` in `CurrentMarkSource` (dropping `__discipline`) → test_feed_queries_constant FAILS `17 != 21`. ✓
+    - `.select_related("faculty")` (dropping `"group"`) in `StaffAnnouncementsView._render` → test_staff_list_queries_constant FAILS `6 != 8`. ✓
+
+    ## Note on your exact probe `related = ()`
+    `related = ()` does not actually remove the `select_related`: in `latest` it runs `.select_related(*self.related)`, and `select_related(*())` == `select_related()` with no args, which in Django 5.2 follows **all non-null FK relations recursively** (verified: `LessonChange.objects.select_related()` already joins weekly_lesson + discipline + teacher + room). So `related = ()` widens rather than removes the join and causes no N+1 — that is why it passed before and still would. The genuine N+1 regression is a *missing/incomplete* field in `related` (or dropping the `.select_related(...)` call), which the rewritten test now catches (proof above).
+
+    ## Verification (§9) — all green
+    - `python manage.py test` → 735 OK.
+    - `run_tests_at.py` 2026-11-17T23:59:59 / 2026-11-18T00:00:00 / 2027-03-01T12:00:00 → 735 OK each.
+    - `check` OK; `makemigrations --check` → No changes; `check --deploy` → no issues (1 silenced).
+    - `ruff check .` clean; `ruff format --check .` → 149 files formatted; yaml ok.
+
+    Logs: `$TMPDIR/test-20261115-*-r1-full.log`, `-r1-at-2359.log`, `-r1-at-0000.log`, `-r1-at-2027.log`.
+
+    git status unchanged from round 0 (only `notifications/tests/test_views.py` touched this round; it is inside the untracked `notifications/`).
+
+    ── Ran 3 commands ──────────────────────────────────────────
+
+    ── Assistant ───────────────────────────────────────────────
+    Кодер исправил оба теста. Мутационные пробы подтвердили исправление. Если частично убрать `select_related` в любом источнике (расписание, статус заявки, комментарий, итоговый результат) или `group` в списке сотрудника, тест падает. Кодер правильно заметил, что моя первая проба `related = ()` была некорректной: пустой `select_related()` в Django подтягивает все связи, а не отключает их. Сейчас идут полный прогон и три прогона с замороженными часами. По результату пришлю вердикт.
+
+    (Showing the newest 3 user-message turns; older history omitted. Use --limit <n> (max 100) or --all to see more.)
+    === thr_ng6cbgatm6
+    [bb message from thread:thr_cpuae9aqw3]
+
+    [TASK-007] Reviewer -> Coder: CHANGES REQUESTED
+
+    Round 1 of 3. Production code is correct; all verification is green on my side (logs: $TMPDIR/test-20261115-125339-rev-full.log, $TMPDIR/test-20261115-125901-rev-at-*.log — 735 OK x4, no failed runs). Two query-count tests do not match spec §7.3 and miss N+1 regressions.
+
+    1. notifications/tests/test_views.py:597 test_feed_queries_constant — problem: only news rows are added. Spec §7.3: "1 row per source vs 5 rows per source". Proof (mutation probes on a copy): `related = ()` in LessonChangeSource, in PetitionStatusSource, or in CurrentMarkSource → all 168 notifications tests still pass. How to fix: in each measured run create, for student ax, N rows (N = 1, then 5) of every one of the 6 sources inside the feed window: announcement; staff status change (via change_status or explicit created_at); staff PetitionComment with explicit created_at; LessonChange in the horizon via save_lesson_change (use distinct dates or lessons so the changes are valid); CurrentMark; FinalResult (distinct curriculum items or attempts). Keep set_seen before each GET, assertEqual(count_one, count_many) and <= 20. Check that each of the three mutations above now fails the test.
+
+    2. notifications/tests/test_views.py:617 test_staff_list_queries_constant — problem: only faculty-addressed rows. Spec §7.3: "1 vs 6 announcements, faculty and group mixed". Proof: `.select_related("faculty")` (without "group") in StaffAnnouncementsView._render → test passes. How to fix: make at least 2 of the 5 added announcements group-addressed (GX1/GX2). Check that this mutation now fails the test.
+
+    On your note 1 (add_staff_comment and created_at): keep it as is. Do not change petitions/services.py, because it is not in the spec change list. I will report the spec mismatch to the Team lead.
+    On your note 2 (300 s tool timeouts): accepted. Those runs did not fail any test.
+
+    Change only notifications/tests/test_views.py. Re-run §9 with logs and send a REPORT.
+
+    ── Worked for (15m 40s) ────────────────────────────────────
+
+    ── Assistant ───────────────────────────────────────────────
+    Исправления по раунду 1 отправлены на проверку Reviewer (thr_cpuae9aqw3).
+
+    ## Что исправлено (только `notifications/tests/test_views.py`)
+
+    **1. `test_feed_queries_constant`** — теперь создаёт N строк (N=1, затем N=5) по каждому из 6 источников ленты для студента `ax` (новости, смена статуса заявки, staff-комментарий, изменение расписания, текущая оценка, итоговый результат). `set_seen` пересоздаётся перед каждым замером; `assertEqual(count_one, count_many)` и `<= 20`.
+
+    **2. `test_staff_list_queries_constant`** — среди 5 добавляемых объявлений теперь 3 факультетских + 2 групповых (GX1/GX2), чтобы проверялся путь `.select_related("group")`.
+
+    ## Проверка мутаций (на копии, затем откат)
+    - `CurrentMarkSource.related` без `__discipline` → тест падает `17 != 21`. ✓
+    - `.select_related("faculty")` без `"group"` → тест падает `6 != 8`. ✓
+
+    ## Важное замечание про пробу `related = ()`
+    Эта проба фактически **не** убирает `select_related`: `select_related(*())` ≡ `select_related()` без аргументов, что в Django 5.2 рекурсивно подтягивает **все** non-null FK. Поэтому N+1 не возникает — реальная регрессия это *неполный/отсутствующий* набор полей в `related` (или удаление вызова `.select_related(...)`), что переписанный тест теперь ловит.
+
+    ## Верификация — всё зелёное
+    - 735 тестов OK (полный прогон + 3 прогона `run_tests_at.py`).
+    - `check`, `makemigrations --check`, `check --deploy`, `ruff check`/`format`, yaml — чисто.
+
+    Жду вердикт Reviewer.
+
+    (Showing the newest 3 user-message turns; older history omitted. Use --limit <n> (max 100) or --all to see more.)
+  ── Thought for 14s
+    The reviewer has gone idle after saying it would send a verdict, and I haven't received an APPROVE yet. It may be running background commands and will be re-invoked, but that isn't what this question needs, so I'll set it aside.
+
+    I'm listing what's still open before the trial deploy on 17.11: notifications (TASK-007) in review with its fix, the room map (TASK-008) and its fix, chat (TASK-009) and its fix, plus deploy setup that still needs a task, since gunicorn isn't in requirements yet. With about two days left and each task taking roughly a day, I'm considering moving the trial deploy up to right after TASK-007.
+
+    I'm weighing whether to move the trial deploy up to right after TASK-007, since PostgreSQL-only locking and HTTPS setup would surface server problems early. That would mean a deploy task taking the next ID and shifting the map and chat tasks, which the user can decide on. I'd also need the user's choice of hosting provider, domain, and budget before going further.
+
+    Keeping it brief: I'm going to skip listing hosting providers unless the user asks, and just keep the answer concise.
+
+── Assistant ───────────────────────────────────────────────
+TASK-007 почти готова. До пробного деплоя (по плану 17.11) остаются ещё 2 задачи и подготовка сервера.
+
+**Задачи:**
+| № | Задача | Состояние |
+|---|---|---|
+| 1 | TASK-007 «Уведомления» | Код написан, в тестах 735, все проходят. Ревьюер заканчивает второй раунд проверки, вердикта пока нет |
+| 2 | TASK-007-FIX | После коммита TASK-007 пришлю вам черновик |
+| 3 | TASK-008 «Карта аудиторий» | Не начата. Один корпус, этажи — если успеем |
+| 4 | TASK-009 «Чат с деканатом» | Не начата. Страница запрашивает новые сообщения раз в N секунд |
+
+У TASK-008 и TASK-009 тоже будут свои FIX-задачи.
+
+**Подготовка к деплою.** Для неё пока нет ни одной задачи:
+- **Сервер в РФ и домен.** Их выбираете вы, пока они не выбраны. Нужен VPS на Ubuntu с 1–2 ГБ памяти и домен для HTTPS.
+- **Отдельная задача для команды** по настройке сервера:
+  - веб-сервер приложения: в `requirements.txt` его пока нет;
+  - nginx;
+  - PostgreSQL;
+  - HTTPS-сертификат;
+  - автозапуск;
+  - пункты из `plan.md` 6b: `CLIENT_IP_HEADER`, nginx не отдаёт `PRIVATE_MEDIA_ROOT`, `client_max_body_size 20m`, резервная копия.
+
+**Риск по срокам.** Сегодня 15.11. За 2 дня карта, чат и их исправления, скорее всего, не успеют.
+
+**Предлагаю сделать деплой раньше, сразу после TASK-007 и её исправлений. Карту и чат выложим на сервер позже.** Причины:
+- Защита от одновременных изменений работает только на PostgreSQL. Локально мы её проверить не можем. На сервере ошибки найдутся раньше.
+- Проблемы с хостингом и HTTPS лучше найти за неделю до сдачи, а не в последние дни.
+- Остальные задачи не меняют настройку сервера, поэтому их выкладка — простое обновление.
+
+Если вы согласны, выберите сервер и домен. Тогда я подготовлю черновик задачи «Подготовка к деплою» и отправлю его только после вашего «Отправляй».
+
+── User ────────────────────────────────────────────────────
+Нет, 2 задачи за 2 дня закрыть успеем. Потом деплой. Мощности арендую до конца выполнения задач
+
+── Explored 1 file, 1 search, ran 1 command ────────────────
+  ── Thought for 7s
+    I've settled on mapping and chatting first over two days, with deployment after that, and I'm logging that decision in the plan.md journal. The user is renting the server before the tasks finish, so I'm weighing whether to draft the deploy task in parallel, but I won't send anything without approval. My next step is drafting TASK-008 for the map so it's ready once TASK-007 closes, since the Planner is currently idle.
+
+    I'm checking the TASK-008 draft against the clean git status rule, so it has to wait until TASK-007 is committed, though I can still prepare it for approval now. The map design needs the user's decisions on what it shows, the building layout, and the floors. I'm also thinking about what the user should rent: a Russian VPS with Ubuntu 24.04, 2 vCPU, 2 GB RAM, 20 GB disk, and a domain, with credentials passed later through `bb secret request` rather than in chat.
+
+    I'm going to sketch the map for TASK-008 as an SVG schematic of the building, drawing room positions from the `university.Room` model. Before going further I want to check whether the model has a floor field, since the room numbers look like they encode floors and that decides whether I need a floor switcher.
+  ── Read university/models.py
+  ── Thought for 4ms
+    The room already has its floor, so now I'm wondering how many floors the demo rooms have. I'll check the seed in schedule/demo.py to see.
+  ── Searched for floor in academics/demo.py
+  ── Thought for 8s
+    The rooms span four floors, so the map has to cover all of them or highlighting rooms on the upper floors won't work. I'm going with one SVG per floor, with switching between them, and the floor containing the highlighted room opening automatically. I'll record that decision in plan.md, then confirm to the user that it's accepted and lay out the sequence: TASK-007, then FIX, then TASK-008.
+
+    I'm proposing to ask the user four map questions now so the TASK-008 draft can start while TASK-007 is still being committed: how many floors to show and how to switch between them, which landmarks belong on the map besides lecture rooms, whether to add a separate "Карта" menu item with links from each lesson, and how the SVG layout should be drawn.
+
+    The map's floor question is settled in the plan, and the open part is how the room coordinates get stored. I'll leave that architecture choice to the Planner, but I'll note the user-facing edge case: a newly added room without coordinates can't be shown on the map, so it needs a fallback message. I also need to check whether staff views should link to the map, since the group schedule would need those links too. I still have to check whether the Reviewer's verdict on TASK-007 has arrived, then write the plan.md journal entry.
+  ── Ran python3 - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() old='- 14.11.2026: уведомления (TASK-007)' new='- 15.11.2026: порядок до деплоя: TASK-007 → TASK-008 (карта) → TASK-009 (чат), каждая со своим FIX; затем пробный деплой. Сервер пользователь арендует до окончания задач.\n'+old assert old in s s=s.replace(old,new,1) open(p,'w',encoding='utf-8').write(s) EOF git diff --stat plan.md (2s)
+    $ python3 - <<'EOF'
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  old='- 14.11.2026: уведомления (TASK-007)'
+  new='- 15.11.2026: порядок до деплоя: TASK-007 → TASK-008 (карта) → TASK-009 (чат), каждая со своим FIX; затем пробный деплой. Сервер пользователь арендует до окончания задач.\n'+old
+  assert old in s
+  s=s.replace(old,new,1)
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  git diff --stat plan.md
+    plan.md | 5 ++++-
+     1 file changed, 4 insertions(+), 1 deletion(-)
+  ── Thought for 5s
+    I'm going to reply in Russian, keeping it concise and covering the server specs and the map questions.
+
+── Assistant ───────────────────────────────────────────────
+Хорошо. Порядок такой: TASK-007, затем карта (TASK-008), затем чат (TASK-009), у каждой задачи свой FIX, потом деплой. Решение я записал в журнал `plan.md`.
+
+**Какой сервер арендовать:**
+- VPS в России, Ubuntu 24.04;
+- 2 vCPU, 2 ГБ памяти, диск от 20 ГБ;
+- домен, который указывает на IP сервера. Он нужен для HTTPS-сертификата;
+- срок аренды — до 28.11 включительно.
+
+Пароли и ключи от сервера не пишите в чат. Когда начнём деплой, я запрошу их через защищённую форму bb.
+
+**Чтобы не терять время, вопросы по карте задаю уже сейчас.** Планировщик начнёт TASK-008 после коммита TASK-007. Так требует его проверка выполнимости: в репозитории не должно быть чужих незакоммиченных изменений.
+
+1. **Этажи.** Демо-аудитории стоят на 4 этажах: 101, 114, 205, 212, 308, 315, 402. Если нарисовать один этаж, аудитории со 2-го по 4-й не подсветятся. Предлагаю 4 этажа с переключателем «1 2 3 4». Когда пользователь открывает аудиторию, её этаж открывается сам.
+2. **Что ещё есть на карте.** Предлагаю добавить ориентиры: вход, лестницы, деканат, библиотеку, столовую. Это элементы рисунка, а не аудитории из расписания.
+3. **Как открыть карту.**
+   - Из расписания: нажатие на «ауд. 205» открывает карту с подсвеченной аудиторией.
+   - Отдельный пункт меню «Карта» со списком аудиторий по этажам. Нажатие на аудиторию подсвечивает её на карте.
+4. **Кто видит карту.** Предлагаю дать её студентам и сотрудникам: у сотрудника тоже есть расписание групп.
+
+Ответьте по пунктам или напишите «согласен со всем». После этого я подготовлю черновик TASK-008.
+
+Вердикт Ревьюера по TASK-007 пока не пришёл.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_cpuae9aqw3]
+
+[TASK-007] Reviewer -> Team lead: APPROVE
+
+Spec: docs/tasks/TASK-007.md. Review rounds: 2 (round 1 CHANGES REQUESTED for tests only; fixed). Changes are uncommitted; the file list matches §4.1. Coder did not touch plan.md (pre-existing M).
+
+Verification (my runs, logs in $TMPDIR):
+- Round 0: test-20261115-125339-rev-full.log, test-20261115-125901-rev-at-*.log → 735 OK x4.
+- Round 1: test-20261115-132110-rev-r1-full.log, test-20261115-132110-rev-r1-at-*.log → 735 OK x4 (plain, 2026-11-17T23:59:59, 2026-11-18T00:00:00, 2027-03-01T12:00:00).
+- No failed runs in this review.
+- check OK; makemigrations --check: No changes; check --deploy: no issues (1 silenced); ruff check and format clean (149 files); yaml ok.
+- Seed twice on temp DB+media: 9, then 0 announcements. migrate academics 0001 → migrate: backfill gives every mark and result created_at on its own date. student1–3 have unread items and upcoming deadlines.
+
+Checked:
+- Access: student scope per source; staff scope through announcements_managed_by. Other-faculty and university-wide unpublish → 404; forged group or "university" target → form error, nothing created; staff and superuser → 403 on the feed; HEAD and POST → 405; no-store set.
+- Autoescape with linebreaksbr. Admin constraint errors → 200, no 500.
+- Mutation probes on a copy: removing the student or group filter from any of the 6 sources, a backwards mark_seen, skipping the service group check, or widening the staff selector → tests fail. After round 1, a partial select_related in the lesson change, status, comment, mark or final result source, or a missing "group" in the staff list → the query-count tests fail.
+- Round 1 issue: the two query-count tests used only news or only faculty rows (spec §7.3 asks for every source, and mixed faculty and group rows). Fixed.
+
+Spec issue (for you to decide, not blocking): §7.0 and §10 item 2 say petitions.services.add_staff_comment sets created_at explicitly. It does not; it relies on default=timezone.now, which FrozenClockMixin does not freeze (D5). Production behaviour is correct, because real time is used. Coder correctly created test comments with an explicit created_at and did not change petitions/services.py (it is not in the change list). Optional follow-up: pass created_at=timezone.now() in add_staff_comment (and the same for Petition.created_at and status_changed_at defaults), so a future test that adds comments through the service under a frozen clock does not silently drop them from the feed.
+
+Minor notes (not blocking):
+- After schedule migration 0004 on an existing local DB, all existing LessonChange rows get updated_at = migration time, so they show as "new" once. This does not affect the fresh server DB.
+- A home-page news link #news-<uuid> points to nothing if that item is beyond the 50-item feed cap (edge case).
+- notifications/feed.py upcoming_deadlines has a function-local import of relative_day_label (style only).
+
+── Explored 2 files, 1 search, ran 3 commands ──────────────
+  ── Thought for 3s
+    I'm approving TASK-007 under the lead.md process. Next I'll re-verify the work myself: check git status, compare the file list against spec §4.1, run the tests and ruff, and confirm migrations are clean. After that I'll do a 360px browser check of the student and staff pages, saving screenshots with descriptions, and then update plan.md.
+
+    I'm going through the rest of the approval steps: updating plan.md to mark it done and CHANGELOG.md, committing the TASK-007 files, then re-exporting the dialogs with redaction and committing those. After that I'll report to the user and draft the TASK-007-FIX notes, with a compaction check once the fix cycle closes. Before any of that, I'll reread lead.md to confirm the exact procedure.
+  ── Read .bb/roles/lead.md
+  ── Read docs/tasks/TASK-007.md
+  ── Thought for 1s
+    I've confirmed the file list matches. Next I'm running the checks: the test suite, `check`, `makemigrations --check`, and ruff lint and format. The test run may take a few minutes, so I'll start it in the background with a log and do the 360px layout check while it runs. For the browser check I'll need a running server on a seeded temporary database, the same setup I used before with the seed command, runserver, and session-cookie injection.
+
+    I'm going to look back through the earlier transcript to see how I ran the browser-automation open commands last time.
+  ── Ran (source .venv/bin/activate && python manage.py check && python manage.py makemigrations --check --dry-run && ruff check . && ruff format --check . && python manage.py test 2>&1 | tee "$TMPDIR/lead-test-007-$(date +%Y%m%d-%H%M%S).log" | tail -5) > "$TMPDIR/lead-verify-007.out" 2>&1; echo exit=$?; tail -12 "$TMPDIR/lead-verify-007.out" (2s)
+    $ (source .venv/bin/activate && python manage.py check && python manage.py makemigrations --check --dry-run && ruff check . && ruff format --check . && python manage.py test 2>&1 | tee "$TMPDIR/lead-test-007-$(date +%Y%m%d-%H%M%S).log" | tail -5) > "$TMPDIR/lead-verify-007.out" 2>&1; echo exit=$?; tail -12 "$TMPDIR/lead-verify-007.out"
+    Command running in background with ID: bfxbpi9zj. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/144a3f75-4ad2-4aa1-80ba-f116a27bcb70/tasks/bfxbpi9zj.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Searched for "command":"[^"]*browser-automation[^"]*" in ~/.claude/projects/-Users-andreyorlov-hackatonproject/7250e76a-c320-42a7-b5f5-b6c2995af838.jsonl
+  ── Thought for 3ms
+    I'm going back to the earlier approach for starting the server with a temporary database and session cookies, along with the run script. I'll pull one complete `bb browser-automation run` command and the server startup command out of the transcript by parsing the JSON.
+  ── Ran python3 - <<'EOF' import json p='~/.claude/projects/-Users-andreyorlov-hackatonproject/7250e76a-c320-42a7-b5f5-b6c2995af838.jsonl' cmds=[] for line in open(p,encoding='utf-8'):     try: o=json.loads(line)     except: continue     m=o.get('message',{})     if not isinstance(m,dict): continue     for c in m.get('content',[]) if isinstance(m.get('content'),list) else []:         if isinstance(c,dict) and c.get('type')=='tool_use' and c.get('name')=='Bash':             cmd=c['input'].get('command','')             if ('runserver' in cmd or 'browser-automation run' in cmd or 'session' in cmd.lower() and 'cookie' in cmd.lower()):                 cmds.append(cmd) for c in cmds[-6:]:     print('=====');print(c[:3000]) EOF
+    $ python3 - <<'EOF'
+  import json
+  p='~/.claude/projects/-Users-andreyorlov-hackatonproject/7250e76a-c320-42a7-b5f5-b6c2995af838.jsonl'
+  cmds=[]
+  for line in open(p,encoding='utf-8'):
+      try: o=json.loads(line)
+      except: continue
+      m=o.get('message',{})
+      if not isinstance(m,dict): continue
+      for c in m.get('content',[]) if isinstance(m.get('content'),list) else []:
+          if isinstance(c,dict) and c.get('type')=='tool_use' and c.get('name')=='Bash':
+              cmd=c['input'].get('command','')
+              if ('runserver' in cmd or 'browser-automation run' in cmd or 'session' in cmd.lower() and 'cookie' in cmd.lower()):
+                  cmds.append(cmd)
+  for c in cmds[-6:]:
+      print('=====');print(c[:3000])
+  EOF
+    =====
+    S=0a00500a-cb19-4241-bb4c-630782875f74 && K1=$(python3 -c "import json;print(json.load(open('$TMPDIR/sess.json'))['student1'])") && bb browser-automation run $S --timeout 60s --json --script "
+    const p = await browser.getPage('main');
+    await p.deleteCookie({name:'sessionid',domain:'127.0.0.1',path:'/'}); await p.setCookie({name:'sessionid',value:'$K1',domain:'127.0.0.1',path:'/'});
+    await p.goto('http://127.0.0.1:8765/requests/');
+    const links = await p.evaluate(() => [...document.querySelectorAll('a')].map(a => a.textContent.trim() + ' -> ' + a.getAttribute('href')));
+    console.log(JSON.stringify(links));" 2>&1 | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d.get("text",d))'; grep -n 'catalog' petitions/templates/petitions/*.html templates/base.html | head
+    =====
+    cd ~/hackatonproject && S=0a00500a-cb19-4241-bb4c-630782875f74 && K1=$(python3 -c "import json;print(json.load(open('$TMPDIR/sess.json'))['student1'])") && bb browser-automation run $S --timeout 60s --json --script "
+    const p = await browser.getPage('main');
+    await p.deleteCookie({name:'sessionid',domain:'127.0.0.1',path:'/'}); await p.setCookie({name:'sessionid',value:'$K1',domain:'127.0.0.1',path:'/'});
+    await p.goto('http://127.0.0.1:8765/requests/');
+    const links = await p.evaluate(() => [...document.querySelectorAll('a')].map(a => a.textContent.trim() + ' -> ' + a.getAttribute('href')));
+    console.log(JSON.stringify(links));" 2>&1 | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d.get("text",d))'; grep -n 'catalog' petitions/templates/petitions/*.html templates/base.html | head
+    =====
+    . .venv/bin/activate && exec python manage.py runserver 127.0.0.1:8765 --noreload
+    =====
+    cd ~/hackatonproject && . .venv/bin/activate && exec python manage.py runserver 127.0.0.1:8765 --noreload
+    =====
+    S=e774dc43-27a4-4d53-b978-3387e0e593ec && J=$TMPDIR/sess.json && K1=$(python3 -c "import json;print(json.load(open('$J'))['student1'])") && KS=$(python3 -c "import json;print(json.load(open('$J'))['staff1'])") && bb browser-automation run $S --timeout 110s --json --script "
+    const p = await browser.getPage('main');
+    await p.setViewport({width: 360, height: 780, deviceScaleFactor: 1});
+    await p.goto('http://127.0.0.1:8765/health/');
+    const res = {};
+    async function as(k){ await p.deleteCookie({name:'sessionid',domain:'127.0.0.1',path:'/'}); await p.setCookie({name:'sessionid',value:k,domain:'127.0.0.1',path:'/'}); }
+    await as('$K1');
+    await p.goto('http://127.0.0.1:8765/requests/');
+    res.list = await p.evaluate(() => ({sw: document.documentElement.scrollWidth, newLinks: [...document.querySelectorAll('a')].filter(a => a.textContent.includes('Подать заявку')).length}));
+    await p.shot({type:'jpeg', maxEdge: 960, quality: 70});
+    await p.goto('http://127.0.0.1:8765/requests/new/2/');
+    res.form = await p.evaluate(() => ({sw: document.documentElement.scrollWidth, hints: (document.body.innerText.match(/Обязательно укажите причину/g)||[]).length}));
+    await p.shot({type:'jpeg', maxEdge: 960, quality: 70});
+    await as('$KS');
+    await p.goto('http://127.0.0.1:8765/staff/requests/');
+    res.queue = await p.evaluate(() => ({sw: document.documentElement.scrollWidth}));
+    await p.shot({type:'jpeg', maxEdge: 960, quality: 70});
+    console.log(JSON.stringify(res));" 2>&1 | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d.get("text"));[print(i["path"]) for i in d.get("images",[])]'
+    =====
+    cd ~/hackatonproject && S=e774dc43-27a4-4d53-b978-3387e0e593ec && J=$TMPDIR/sess.json && K1=$(python3 -c "import json;print(json.load(open('$J'))['student1'])") && KS=$(python3 -c "import json;print(json.load(open('$J'))['staff1'])") && bb browser-automation run $S --timeout 110s --json --script "
+    const p = await browser.getPage('main');
+    await p.setViewport({width: 360, height: 780, deviceScaleFactor: 1});
+    await p.goto('http://127.0.0.1:8765/health/');
+    const res = {};
+    async function as(k){ await p.deleteCookie({name:'sessionid',domain:'127.0.0.1',path:'/'}); await p.setCookie({name:'sessionid',value:k,domain:'127.0.0.1',path:'/'}); }
+    await as('$K1');
+    await p.goto('http://127.0.0.1:8765/requests/');
+    res.list = await p.evaluate(() => ({sw: document.documentElement.scrollWidth, newLinks: [...document.querySelectorAll('a')].filter(a => a.textContent.includes('Подать заявку')).length}));
+    await p.shot({type:'jpeg', maxEdge: 960, quality: 70});
+    await p.goto('http://127.0.0.1:8765/requests/new/2/');
+    res.form = await p.evaluate(() => ({sw: document.documentElement.scrollWidth, hints: (document.body.innerText.match(/Обязательно укажите причину/g)||[]).length}));
+    await p.shot({type:'jpeg', maxEdge: 960, quality: 70});
+    await as('$KS');
+    await p.goto('http://127.0.0.1:8765/staff/requests/');
+    res.queue = await p.evaluate(() => ({sw: document.documentElement.scrollWidth}));
+    await p.shot({type:'jpeg', maxEdge: 960, quality: 70});
+    console.log(JSON.stringify(res));" 2>&1 | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d.get("text"));[print(i["path"]) for i in d.get("images",[])]'
+  ── Thought for 2ms
+    I'm trying to work out how sess.json got created and which database the server was pointed at, so I'm looking for the commands that wrote sess.json and the DATABASE_URL set when runserver started.
+  ── Ran python3 - <<'EOF' import json p='~/.claude/projects/-Users-andreyorlov-hackatonproject/7250e76a-c320-42a7-b5f5-b6c2995af838.jsonl' out=[] for line in open(p,encoding='utf-8'):     try: o=json.loads(line)     except: continue     m=o.get('message',{})     if not isinstance(m,dict) or not isinstance(m.get('content'),list): continue     for c in m['content']:         if isinstance(c,dict) and c.get('type')=='tool_use' and c.get('name')=='Bash':             cmd=c['input'].get('command','')             if 'sess.json' in cmd and ('SessionStore' in cmd or 'session' in cmd and 'json.dump' in cmd) or ('DATABASE_URL' in cmd and 'seed_demo' in cmd):                 out.append((c['input'].get('run_in_background'),cmd)) for bg,c in out[-4:]:     print('=====bg',bg);print(c[:2500]) EOF
+    $ python3 - <<'EOF'
+  import json
+  p='~/.claude/projects/-Users-andreyorlov-hackatonproject/7250e76a-c320-42a7-b5f5-b6c2995af838.jsonl'
+  out=[]
+  for line in open(p,encoding='utf-8'):
+      try: o=json.loads(line)
+      except: continue
+      m=o.get('message',{})
+      if not isinstance(m,dict) or not isinstance(m.get('content'),list): continue
+      for c in m['content']:
+          if isinstance(c,dict) and c.get('type')=='tool_use' and c.get('name')=='Bash':
+              cmd=c['input'].get('command','')
+              if 'sess.json' in cmd and ('SessionStore' in cmd or 'session' in cmd and 'json.dump' in cmd) or ('DATABASE_URL' in cmd and 'seed_demo' in cmd):
+                  out.append((c['input'].get('run_in_background'),cmd))
+  for bg,c in out[-4:]:
+      print('=====bg',bg);print(c[:2500])
+  EOF
+    =====bg None
+    git diff .gitignore | grep '^+' ; grep -n 'PRIVATE_MEDIA_ROOT' config/settings.py .env.example | head -3; . .venv/bin/activate && python manage.py migrate -v0 && python manage.py seed_demo 2>&1 | tail -1 && grep -n "path(" petitions/urls.py | cut -c1-110 && python manage.py shell -c "
+    from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY
+    from django.contrib.sessions.backends.db import SessionStore
+    from petitions.models import Petition
+    import json
+    out={}
+    for name in ['student1','staff1']:
+        u=get_user_model().objects.get(username=name)
+        s=SessionStore(); s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create()
+        out[name]=s.session_key
+    p=Petition.objects.filter(student__user__username='student1').order_by('-created_at').first()
+    out['pid']=str(getattr(p,'public_id',None) or getattr(p,'uuid',None) or p.pk)
+    open('$TMPDIR/sess.json','w').write(json.dumps(out)); print('ok', [f.name for f in Petition._meta.fields][:12])" | tail -1
+    =====bg None
+    cd ~/hackatonproject && git diff .gitignore | grep '^+' ; grep -n 'PRIVATE_MEDIA_ROOT' config/settings.py .env.example | head -3; . .venv/bin/activate && python manage.py migrate -v0 && python manage.py seed_demo 2>&1 | tail -1 && grep -n "path(" petitions/urls.py | cut -c1-110 && python manage.py shell -c "
+    from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY
+    from django.contrib.sessions.backends.db import SessionStore
+    from petitions.models import Petition
+    import json
+    out={}
+    for name in ['student1','staff1']:
+        u=get_user_model().objects.get(username=name)
+        s=SessionStore(); s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create()
+        out[name]=s.session_key
+    p=Petition.objects.filter(student__user__username='student1').order_by('-created_at').first()
+    out['pid']=str(getattr(p,'public_id',None) or getattr(p,'uuid',None) or p.pk)
+    open('$TMPDIR/sess.json','w').write(json.dumps(out)); print('ok', [f.name for f in Petition._meta.fields][:12])" | tail -1
+    =====bg None
+    . .venv/bin/activate && python manage.py migrate -v0 && python manage.py shell -c "
+    from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY
+    from django.contrib.sessions.backends.db import SessionStore
+    import json
+    out={}
+    for name in ['student1','staff1']:
+        u=get_user_model().objects.get(username=name)
+        s=SessionStore(); s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create()
+        out[name]=s.session_key
+    open('$TMPDIR/sess.json','w').write(json.dumps(out)); print('ok')" | tail -1
+    =====bg None
+    cd ~/hackatonproject && . .venv/bin/activate && python manage.py migrate -v0 && python manage.py shell -c "
+    from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY
+    from django.contrib.sessions.backends.db import SessionStore
+    import json
+    out={}
+    for name in ['student1','staff1']:
+        u=get_user_model().objects.get(username=name)
+        s=SessionStore(); s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create()
+        out[name]=s.session_key
+    open('$TMPDIR/sess.json','w').write(json.dumps(out)); print('ok')" | tail -1
+  ── Thought for 4ms
+    I'm treating the local db.sqlite3 as my own database for this, and the local migration is fine to run. A reviewer noted that after migration 0004, existing LessonChanges will pick up the migration time as updated_at and appear as new once, which is acceptable. Next I'll migrate, seed the demo data, create sessions, start the dev server in the background, open the browser, and take screenshots, but first I'll give the user a quick status update.
+
+── Assistant ───────────────────────────────────────────────
+Ревьюер одобрил TASK-007. Сейчас проверяю задачу: тесты уже идут, дальше страницы на ширине 360 px.
+
+── Ran 3 commands, explored 1 search ───────────────────────
+  ── Ran . .venv/bin/activate && python manage.py migrate -v0 && python manage.py seed_demo 2>&1 | tail -3 && python manage.py shell -c " from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY from django.contrib.sessions.backends.db import SessionStore import json out={} for name in ['student1','student2','staff1']:     u=get_user_model().objects.get(username=name)     s=SessionStore(); s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create()     out[name]=s.session_key open('$TMPDIR/sess.json','w').write(json.dumps(out)); print('ok')" | tail -1; cat notifications/urls.py | grep path (4s)
+    $ . .venv/bin/activate && python manage.py migrate -v0 && python manage.py seed_demo 2>&1 | tail -3 && python manage.py shell -c "
+  from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY
+  from django.contrib.sessions.backends.db import SessionStore
+  import json
+  out={}
+  for name in ['student1','student2','staff1']:
+      u=get_user_model().objects.get(username=name)
+      s=SessionStore(); s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create()
+      out[name]=s.session_key
+  open('$TMPDIR/sess.json','w').write(json.dumps(out)); print('ok')" | tail -1; cat notifications/urls.py | grep path
+    Academics ready: 2 terms, 17 curriculum items, 13 final results, 70 marks, 249 attendance records.
+    Requests ready: 4 types, 0 requests, 0 attachments.
+    Notifications ready: 9 announcements.
+    ok
+    from django.urls import path
+        path("notifications/", views.NotificationsView.as_view(), name="feed"),
+        path(
+        path(
+  ── Ran . .venv/bin/activate && exec python manage.py runserver 127.0.0.1:8765 --noreload (2s)
+    $ . .venv/bin/activate && exec python manage.py runserver 127.0.0.1:8765 --noreload
+    Command running in background with ID: b6kj05z2l. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/144a3f75-4ad2-4aa1-80ba-f116a27bcb70/tasks/b6kj05z2l.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Searched for path(\|name= in notifications/urls.py
+  ── Ran sleep 2; curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8765/health/; bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -3 (4s)
+    $ sleep 2; curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8765/health/; bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -3
+    200
+    {"id":"4b30fc49-0b90-4908-960d-a924d35b94fe","threadId":"thr_4izdzwetb4","hostId":"host_cuvmpv75p3","backend":"local","state":"ready","createdAt":1794738628913,"expiresAt":1794740428913,"previewDirective":"::browser-preview{session=\"4b30fc49-0b90-4908-960d-a924d35b94fe\"}"}
+
+── Assistant ───────────────────────────────────────────────
+::browser-preview{session="4b30fc49-0b90-4908-960d-a924d35b94fe"}
+
+── Ran 3 commands, explored 5 files ────────────────────────
+  ── Ran S=4b30fc49-0b90-4908-960d-a924d35b94fe && J=$TMPDIR/sess.json && K1=$(python3 -c "import json;print(json.load(open('$J'))['student1'])") && KS=$(python3 -c "import json;print(json.load(open('$J'))['staff1'])") && bb browser-automation run $S --timeout 120s --json --script " const p = await browser.getPage('main'); await p.setViewport({width: 360, height: 780, deviceScaleFactor: 1}); await p.goto('http://127.0.0.1:8765/health/'); const res = {}; async function as(k){ await p.deleteCookie({name:'sessionid',domain:'127.0.0.1',path:'/'}); await p.setCookie({name:'sessionid',value:k,domain:'127.0.0.1',path:'/'}); } const info = () => p.evaluate(() => ({sw: document.documentElement.scrollWidth, nav: [...document.querySelectorAll('.site-nav a')].map(a=>a.textContent.trim().replace(/\s+/g,' ')), text: document.querySelector('main').innerText.slice(0,1500)})); await as('$K1'); await p.goto('http://127.0.0.1:8765/'); res.home = await info(); await p.shot({type:'jpeg', maxEdge: 960, quality: 70}); await p.goto('http://127.0.0.1:8765/notifications/'); res.feed = await info(); await p.shot({type:'jpeg', maxEdge: 960, quality: 70}); await p.goto('http://127.0.0.1:8765/'); res.homeAfter = (await info()).nav; await as('$KS'); await p.goto('http://127.0.0.1:8765/staff/announcements/'); res.staff = await info(); await p.shot({type:'jpeg', maxEdge: 960, quality: 70}); console.log(JSON.stringify(res));" 2>&1 | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d.get("text"));[print(i["path"]) for i in d.get("images",[])]' (2s)
+    $ S=4b30fc49-0b90-4908-960d-a924d35b94fe && J=$TMPDIR/sess.json && K1=$(python3 -c "import json;print(json.load(open('$J'))['student1'])") && KS=$(python3 -c "import json;print(json.load(open('$J'))['staff1'])") && bb browser-automation run $S --timeout 120s --json --script "
+  const p = await browser.getPage('main');
+  await p.setViewport({width: 360, height: 780, deviceScaleFactor: 1});
+  await p.goto('http://127.0.0.1:8765/health/');
+  const res = {};
+  async function as(k){ await p.deleteCookie({name:'sessionid',domain:'127.0.0.1',path:'/'}); await p.setCookie({name:'sessionid',value:k,domain:'127.0.0.1',path:'/'}); }
+  const info = () => p.evaluate(() => ({sw: document.documentElement.scrollWidth, nav: [...document.querySelectorAll('.site-nav a')].map(a=>a.textContent.trim().replace(/\s+/g,' ')), text: document.querySelector('main').innerText.slice(0,1500)}));
+  await as('$K1');
+  await p.goto('http://127.0.0.1:8765/');
+  res.home = await info();
+  await p.shot({type:'jpeg', maxEdge: 960, quality: 70});
+  await p.goto('http://127.0.0.1:8765/notifications/');
+  res.feed = await info();
+  await p.shot({type:'jpeg', maxEdge: 960, quality: 70});
+  await p.goto('http://127.0.0.1:8765/');
+  res.homeAfter = (await info()).nav;
+  await as('$KS');
+  await p.goto('http://127.0.0.1:8765/staff/announcements/');
+  res.staff = await info();
+  await p.shot({type:'jpeg', maxEdge: 960, quality: 70});
+  console.log(JSON.stringify(res));" 2>&1 | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d.get("text"));[print(i["path"]) for i in d.get("images",[])]'
+    {"home":{"sw":360,"nav":["Профиль","Расписание","Успеваемость","Заявки","Уведомления (20)"],"text":"Цифровой деканат будущего\nБлижайшие дедлайны\nВыбор темы курсовой работы — до 16.11, завтра\nОтчёт по учебной практике — до 18.11, через 3 дня\nАнкета «Качество обучения» — до 20.11, через 5 дней\nНовости деканата\nОтчёт по учебной практике 15.11\nАнкета «Качество обучения» 14.11\nВыбор темы курсовой работы 13.11\n\nВсе уведомления"},"feed":{"sw":360,"nav":["Профиль","Расписание","Успеваемость","Заявки","Уведомления"],"text":"Уведомления\nБлижайшие дедлайны\nВыбор темы курсовой работы — до 16.11.2026, завтра Факультет: Факультет цифровой дипломатии\nОтчёт по учебной практике — до 18.11.2026, через 3 дня Группа ЦД-101\nАнкета «Качество обучения» — до 20.11.2026, через 5 дней Для всех студентов\nЛента\n\nНовое · Дедлайн · 15.11.2026 08:30 · Группа ЦД-101\n\nОтчёт по учебной практике\n\nСрок: до 18.11.2026, через 3 дня\n\nСдайте отчёт старосте группы в бумажном виде.\n\nНовое · Заявка · 14.11.2026 15:14\n\nКомментарий деканата к заявке «Справка для стипендиального отдела»\n\nСправка будет готова к пятнице.\n\nНовое · Дедлайн · 14.11.2026 11:30 · Для всех студентов\n\nАнкета «Качество обучения»\n\nСрок: до 20.11.2026, через 5 дней\n\nПройдите анонимную анкету о качестве преподавания.\nСсылку пришлёт староста группы.\n\nНовое · Дедлайн · 13.11.2026 11:30 · Факультет: Факультет цифровой дипломатии\n\nВыбор темы курсовой работы\n\nСрок: до 16.11.2026, завтра\n\nСообщите тему и научного руководителя в деканат.\nСписок тем — на кафедре.\n\nНовое · Новость · 12.11.2026 13:30 · Для всех студентов\n\nОткрыта запись в студенческие клубы\n\nЗаписаться можно в студенческом совете до конца месяца.\nСписок клубов — на стенде у главного входа.\n\nНовое · Заявка · 11.11.2026 11:14\n\nЗаявка «Справка для стипендиального отдела» взята в работу\n\nНовое · Оценка · 10.11.2026 18:00\n\nНовая оценка 5 — Философия (Тест)\n\nНовое · Оценка · 09.11.2026 18:00\n\nНовая оценка 4 — Анализ данных на Python (Тест)\n\nНовое · Дедлайн · 09.11.2026 13:30 · Факультет: Факультет цифровой дип"},"homeAfter":["Профиль","Расписание","Успеваемость","Заявки","Уведомления"],"staff":{"sw":360,"nav":["Профиль","Расписание","Заявки","Объявления","Студенты"],"text":"Объявления\nНовое объявление\n\nЗаголовок:\n\nТекст: \n\nКому: \nВесь факультет: Факультет цифровой дипломатии\nГруппа ЦД-101\n\nСрок (необязательно):\nПоследний день, включительно.\n\nОпубликовать\nОбъявления факультета\n\nГруппа ЦД-101 · 15.11.2026 08:30 · Опубликовано\n\nОтчёт по учебной практике\n\nСрок: до 18.11.2026\n\nСдайте отчёт старосте группы в бумажном виде.\n\nСнять с публикации\n\nФакультет: Факультет цифровой дипломатии · 13.11.2026 13:30 · Снято с публикации 13.11.2026 14:30\n\nИзменение графика работы деканата\n\nГрафик работы не изменился, объявление снято.\n\nФакультет: Факультет цифровой дипломатии · 13.11.2026 11:30 · Опубликовано\n\nВыбор темы курсовой работы\n\nСрок: до 16.11.2026\n\nСообщите тему и научного руководителя в деканат.\nСписок тем — на кафедре.\n\nСнять с публикации\n\nФакультет: Факультет цифровой дипломатии · 09.11.2026 13:30 · Опубликовано\n\nЗапись на факультативы\n\nСрок: до 13.11.2026\n\nЗапись на факультативы весеннего семестра.\n\nСнять с публикации"}}
+
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-C1Tz3d/db-Xx5lto/tmp/shot-1794738638278-1.jpg
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-C1Tz3d/db-Xx5lto/tmp/shot-1794738638391-2.jpg
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-C1Tz3d/db-Xx5lto/tmp/shot-1794738638533-3.jpg
+  ── Thought for 3s
+    The home page's news list repeats some of the deadline items, since "Отчёт по учебной практике" appears in both blocks. That overlap is minor, but I could leave it out of the news list.
+
+    I'm checking the feed for schedule-change items and the staff page layout, then I'll look at the screenshots.
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-C1Tz3d/db-Xx5lto/tmp/shot-1794738638278-1.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-C1Tz3d/db-Xx5lto/tmp/shot-1794738638391-2.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-C1Tz3d/db-Xx5lto/tmp/shot-1794738638533-3.jpg
+  ── Thought for 9s
+    I'm reviewing the home page's news block, which repeats the same three deadlines already shown above it, and I'm thinking it should only show announcements without a deadline. Next I'm checking the staff "Кому" dropdown, where the "Весь факультет: Факультет цифровой дипломатии" option gets cut off by the select's width, which seems minor.
+
+    I'm going through the remaining findings, including the truncated "Весь факультет" label in the staff dropdown and the redundant "Факультет: Факультет …" wording in deadline items. Next I'm checking the feed for schedule changes and reviewing the reviewer's note about explicit timestamps in the comment tests.
+
+    Now I'm weighing the reviewer's remaining notes on the comment tests: the petitions service should pass an explicit timestamp from the clock so the tests don't break silently, and I'm leaning toward fixing that. The migration that updates existing lesson-change rows will make them show as new once, but the server database is fresh, so I'm inclined to accept that as a limitation. I'm also weighing the home-page news link that points to a missing anchor when an item falls beyond the feed's cap, and I'm leaning toward accepting it since the demo data is small.
+
+    I'm working through the reviewer's last notes: the anchor-link edge case seems acceptable for the demo data, but the function-local import style is trivial enough to fix along with the rest. Next I'll check that schedule-change items appear in the student's feed and count the "Новое" markers.
+  ── Ran S=4b30fc49-0b90-4908-960d-a924d35b94fe && K2=$(python3 -c "import json;print(json.load(open('$TMPDIR/sess.json'))['student2'])") && bb browser-automation run $S --timeout 60s --json --script " const p = await browser.getPage('main'); async function as(k){ await p.deleteCookie({name:'sessionid',domain:'127.0.0.1',path:'/'}); await p.setCookie({name:'sessionid',value:k,domain:'127.0.0.1',path:'/'}); } await as('$K2'); await p.goto('http://127.0.0.1:8765/notifications/'); const r = await p.evaluate(() => { const t=document.querySelector('main').innerText; const kinds={}; (t.match(/· (Новость|Дедлайн|Заявка|Оценка|Расписание|Изменение[^·\n]*) ·/g)||[]).forEach(k=>kinds[k]=(kinds[k]||0)+1); const i=t.indexOf('Расписание'); return {sw: document.documentElement.scrollWidth, kinds, sched: i>=0 ? t.slice(i-40,i+250) : null, links:[...document.querySelectorAll('main a')].slice(0,12).map(a=>a.textContent.trim().slice(0,40)+' -> '+a.getAttribute('href'))}; }); await p.shot({type:'jpeg', maxEdge: 960, quality: 70, fullPage: false}); console.log(JSON.stringify(r));" 2>&1 | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d.get("text"));[print(i["path"]) for i in d.get("images",[])]'
+    $ S=4b30fc49-0b90-4908-960d-a924d35b94fe && K2=$(python3 -c "import json;print(json.load(open('$TMPDIR/sess.json'))['student2'])") && bb browser-automation run $S --timeout 60s --json --script "
+  const p = await browser.getPage('main');
+  async function as(k){ await p.deleteCookie({name:'sessionid',domain:'127.0.0.1',path:'/'}); await p.setCookie({name:'sessionid',value:k,domain:'127.0.0.1',path:'/'}); }
+  await as('$K2');
+  await p.goto('http://127.0.0.1:8765/notifications/');
+  const r = await p.evaluate(() => { const t=document.querySelector('main').innerText; const kinds={}; (t.match(/· (Новость|Дедлайн|Заявка|Оценка|Расписание|Изменение[^·\n]*) ·/g)||[]).forEach(k=>kinds[k]=(kinds[k]||0)+1); const i=t.indexOf('Расписание'); return {sw: document.documentElement.scrollWidth, kinds, sched: i>=0 ? t.slice(i-40,i+250) : null, links:[...document.querySelectorAll('main a')].slice(0,12).map(a=>a.textContent.trim().slice(0,40)+' -> '+a.getAttribute('href'))}; });
+  await p.shot({type:'jpeg', maxEdge: 960, quality: 70, fullPage: false});
+  console.log(JSON.stringify(r));" 2>&1 | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d.get("text"));[print(i["path"]) for i in d.get("images",[])]'
+    {"sw":360,"kinds":{"· Расписание ·":4,"· Новость ·":2,"· Заявка ·":2,"· Дедлайн ·":2,"· Оценка ·":8},"sched":" дней Для всех студентов\nЛента\n\nНовое · Расписание · 15.11.2026 13:30\n\nЗамена преподавателя: Анализ данных на Python, 19.11, 2 пара → Шестакова Л. П.\n\nКомандировка преподавателя\n\nНовое · Расписание · 15.11.2026 13:30\n\nЗамена аудитории: Микроэкономика, 17.11, 2 пара → ауд. 114\n\nАудитория за","links":["Замена преподавателя: Анализ данных на P -> /schedule/week/2026-11-19/","Замена аудитории: Микроэкономика, 17.11, -> /schedule/week/2026-11-17/","Перенос занятия: Философия, 13.11, 3 пар -> /schedule/week/2026-11-16/","Отмена занятия: Микроэкономика, 20.11, 1 -> /schedule/week/2026-11-20/","Комментарий деканата к заявке «Справка д -> /requests/d1379798-ca0e-43fa-b67a-96a1b3e63949/","Заявка «Справка для стипендиального отде -> /requests/d1379798-ca0e-43fa-b67a-96a1b3e63949/","Новая оценка 4 — Философия (Тест) -> /grades/2026-autumn/","Новая оценка 5 — Английский язык (Тест) -> /grades/2026-autumn/","Новая оценка 4 — Анализ данных на Python -> /grades/2026-autumn/","Новая оценка 5 — Микроэкономика (Тест) -> /grades/2026-autumn/","Новая оценка 5 — Философия (Семинар) -> /grades/2026-autumn/","Новая оценка 4 — Английский язык (Семина -> /grades/2026-autumn/"]}
+
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-C1Tz3d/db-Xx5lto/tmp/shot-1794738666119-4.jpg
+  ── Thought for 2s
+    I'm checking the class move for Philosophy from 13.11 to 16.11, which is a future date, so the link to that week is right. The schedule change timestamp of 15.11.2026 13:30 is just the migration time, which matches what the reviewer pointed out. Next I'm wondering whether to grab a screenshot of the student2 feed that shows these schedule changes.
+
+    I'm going to capture a few more screenshots: the home and feed pages for student1 and the staff announcements for staff1. I'm also considering scrolling to the schedule section for student2 so the jury can see the changes.
+  ── Ran S=4b30fc49-0b90-4908-960d-a924d35b94fe && bb browser-automation run $S --timeout 60s --json --script " const p = await browser.getPage('main'); await p.evaluate(() => { const h=[...document.querySelectorAll('h2')].find(e=>e.textContent.trim()==='Лента'); window.scrollTo(0, h.getBoundingClientRect().top + window.scrollY - 8); }); await p.shot({type:'jpeg', maxEdge: 960, quality: 70}); console.log('ok');" 2>&1 | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d.get("text"));[print(i["path"]) for i in d.get("images",[])]' (1s)
+    $ S=4b30fc49-0b90-4908-960d-a924d35b94fe && bb browser-automation run $S --timeout 60s --json --script "
+  const p = await browser.getPage('main');
+  await p.evaluate(() => { const h=[...document.querySelectorAll('h2')].find(e=>e.textContent.trim()==='Лента'); window.scrollTo(0, h.getBoundingClientRect().top + window.scrollY - 8); });
+  await p.shot({type:'jpeg', maxEdge: 960, quality: 70});
+  console.log('ok');" 2>&1 | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d.get("text"));[print(i["path"]) for i in d.get("images",[])]'
+    ok
+
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-C1Tz3d/db-Xx5lto/tmp/shot-1794738673295-5.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-C1Tz3d/db-Xx5lto/tmp/shot-1794738673295-5.jpg
+  ── Thought for 2s
+    I'm weighing whether to list the "Шестакова Л. П." line-wrap as a small defect in the fix list now, since the fix-cycle rule says to report every small issue with a recommendation instead of deferring it, and I'm leaning toward fixing it immediately with non-breaking spaces in the initials.
+
+    I'm settling on the "Шестакова Л. П." wrap as a tiny defect to fix now, using non-breaking spaces in the initials, probably in the shared teacher short-name property, since that would cover the schedule pages too. Next I'll check where the background tests stand.
+  ── Read /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/144a3f75-4ad2-4aa1-80ba-f116a27bcb70/tasks/bfxbpi9zj.output
+  ── Thought for 4ms
+    Tests are still running, so in the meantime I'll copy the screenshots into docs/process/screenshots under the names 2026-11-15_16 through 2026-11-15_19. After that I'll close the browser and stop the server.
+
+── Assistant ───────────────────────────────────────────────
+Страницы на 360 px проверил: горизонтальной прокрутки нет. Пока идут тесты, сохраняю скриншоты для архива.
+
+── Ran 4 commands, ran 1 tool, explored 2 files ────────────
+  ── Ran B=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-C1Tz3d/db-Xx5lto/tmp && D=docs/process/screenshots && cp $B/shot-1794738638278-1.jpg $D/2026-11-15_16_home_student1.jpg && cp $B/shot-1794738638391-2.jpg $D/2026-11-15_17_notifications_student1.jpg && cp $B/shot-1794738673295-5.jpg $D/2026-11-15_18_notifications-feed_student2.jpg && cp $B/shot-1794738638533-3.jpg $D/2026-11-15_19_announcements_staff1.jpg && bb browser-automation close 4b30fc49-0b90-4908-960d-a924d35b94fe --json 2>&1 | tail -1 | cut -c1-120; ls $D | tail -4 (3s)
+    $ B=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-C1Tz3d/db-Xx5lto/tmp && D=docs/process/screenshots && cp $B/shot-1794738638278-1.jpg $D/2026-11-15_16_home_student1.jpg && cp $B/shot-1794738638391-2.jpg $D/2026-11-15_17_notifications_student1.jpg && cp $B/shot-1794738673295-5.jpg $D/2026-11-15_18_notifications-feed_student2.jpg && cp $B/shot-1794738638533-3.jpg $D/2026-11-15_19_announcements_staff1.jpg && bb browser-automation close 4b30fc49-0b90-4908-960d-a924d35b94fe --json 2>&1 | tail -1 | cut -c1-120; ls $D | tail -4
+    {"id":"4b30fc49-0b90-4908-960d-a924d35b94fe","threadId":"thr_4izdzwetb4","hostId":"host_cuvmpv75p3","backend":"local","s
+    2026-11-15_16_home_student1.jpg
+    2026-11-15_17_notifications_student1.jpg
+    2026-11-15_18_notifications-feed_student2.jpg
+    2026-11-15_19_announcements_staff1.jpg
+  ── Stopped task
+    {"message":"Successfully stopped task: b6kj05z2l (. .venv/bin/activate && exec python manage.py runserver 127.0.0.1:8765 --noreload)","task_id":"b6kj05z2l","task_type":"local_bash","command":". .venv/bin/activate && exec python manage.py runserver 127.0.0.1:8765 --noreload"}
+  ── Ran python3 - <<'EOF' p='docs/process/README.md' s=open(p,encoding='utf-8').read() rows='''| `2026-11-15_16_home_student1.jpg` | 15.11.2026 | После TASK-007 (уведомления). Без дизайна | Главная студента `student1`: 3 ближайших дедлайна с подписями «завтра», «через 3 дня» и последние новости; в меню счётчик «Уведомления (20)». Недочёт: новости повторяют дедлайны | | `2026-11-15_17_notifications_student1.jpg` | 15.11.2026 | После TASK-007 | Страница «Уведомления»: блок «Ближайшие дедлайны» и начало ленты с пометкой «Новое». После открытия счётчик в меню исчез | | `2026-11-15_18_notifications-feed_student2.jpg` | 15.11.2026 | После TASK-007 | Лента студента `student2`: изменения расписания его группы (замена преподавателя и аудитории, перенос, отмена) со ссылками на неделю расписания, новость группы, комментарий к заявке | | `2026-11-15_19_announcements_staff1.jpg` | 15.11.2026 | После TASK-007 | «Объявления» сотрудника `staff1`: форма (заголовок, текст, кому — факультет или группа, необязательный срок) и список объявлений факультета с кнопкой «Снять с публикации» | ''' s=s.rstrip('\n')+'\n'+rows open(p,'w',encoding='utf-8').write(s) EOF tail -3 docs/process/README.md | cut -c1-80 (1s)
+    $ python3 - <<'EOF'
+  p='docs/process/README.md'
+  s=open(p,encoding='utf-8').read()
+  rows='''| `2026-11-15_16_home_student1.jpg` | 15.11.2026 | После TASK-007 (уведомления). Без дизайна | Главная студента `student1`: 3 ближайших дедлайна с подписями «завтра», «через 3 дня» и последние новости; в меню счётчик «Уведомления (20)». Недочёт: новости повторяют дедлайны |
+  | `2026-11-15_17_notifications_student1.jpg` | 15.11.2026 | После TASK-007 | Страница «Уведомления»: блок «Ближайшие дедлайны» и начало ленты с пометкой «Новое». После открытия счётчик в меню исчез |
+  | `2026-11-15_18_notifications-feed_student2.jpg` | 15.11.2026 | После TASK-007 | Лента студента `student2`: изменения расписания его группы (замена преподавателя и аудитории, перенос, отмена) со ссылками на неделю расписания, новость группы, комментарий к заявке |
+  | `2026-11-15_19_announcements_staff1.jpg` | 15.11.2026 | После TASK-007 | «Объявления» сотрудника `staff1`: форма (заголовок, текст, кому — факультет или группа, необязательный срок) и список объявлений факультета с кнопкой «Снять с публикации» |
+  '''
+  s=s.rstrip('\n')+'\n'+rows
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  tail -3 docs/process/README.md | cut -c1-80
+    | `2026-11-15_17_notifications_student1.jpg` | 15.11.2026 | После TASK-007 
+    | `2026-11-15_18_notifications-feed_student2.jpg` | 15.11.2026 | После TASK
+    | `2026-11-15_19_announcements_staff1.jpg` | 15.11.2026 | После TASK-007 |
+  ── Thought for 1ms
+    Next I'll update plan.md, marking TASK-007 as done and revising the "Сейчас" line, and then add an entry to CHANGELOG.md. First I want to check the format at the top of CHANGELOG.
+  ── Read CHANGELOG.md
+  ── Read /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/144a3f75-4ad2-4aa1-80ba-f116a27bcb70/tasks/bfxbpi9zj.output
+  ── Thought for 2ms
+    The command is still running, so I'll update plan.md and the CHANGELOG while I wait.
+  ── Ran python3 - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() old='| TASK-007 | Уведомления: новости, дедлайны, личные изменения; объявления сотрудника; сводка на главной | В работе |' assert old in s s=s.replace(old,old.replace('В работе','Готово')) import re old2=re.search(r'Сейчас: .*\n',s).group(0) s=s.replace(old2,'Сейчас: TASK-007 закрыта 15.11, готовится TASK-007-FIX. Контекст Кодера, Планировщика и Ревьюера сжат 14.11 (разовое указание пользователя).\n') open(p,'w',encoding='utf-8').write(s) p='CHANGELOG.md' s=open(p,encoding='utf-8').read() entry='''## 2026-11-15 ### TASK-007: уведомления - Новое приложение `notifications`. Объявления деканата: для всего вуза (только админка), факультета или группы; необязательный срок — тогда объявление попадает в «Ближайшие дедлайны» («сегодня», «завтра», «через N дней»). - Личная лента студента без отдельного хранения: собирается из существующих записей — новости, статусы заявок и комментарии сотрудников, изменения расписания группы на 14 дней вперёд, новые оценки. Каждая запись ведёт на свою страницу. - Счётчик «Уведомления (N)» в меню; открытие страницы отмечает всё прочитанным. - Сотрудник: страница «Объявления» своего факультета — создание и «Снять с публикации» (без правки и удаления). - Главная студента: 3 ближайших дедлайна и 3 последние новости. - У текущих оценок и итоговых результатов появилось время создания, у изменений расписания — время изменения (миграции с заполнением старых записей). - Ревью: 2 раунда; в первом — только тесты на число запросов к базе. Всего тестов: 735. ''' s=s.replace('## 2026-11-14\n',entry+'## 2026-11-14\n',1) open(p,'w',encoding='utf-8').write(s) EOF git diff --stat plan.md CHANGELOG.md (1s)
+    $ python3 - <<'EOF'
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  old='| TASK-007 | Уведомления: новости, дедлайны, личные изменения; объявления сотрудника; сводка на главной | В работе |'
+  assert old in s
+  s=s.replace(old,old.replace('В работе','Готово'))
+  import re
+  old2=re.search(r'Сейчас: .*\n',s).group(0)
+  s=s.replace(old2,'Сейчас: TASK-007 закрыта 15.11, готовится TASK-007-FIX. Контекст Кодера, Планировщика и Ревьюера сжат 14.11 (разовое указание пользователя).\n')
+  open(p,'w',encoding='utf-8').write(s)
+  p='CHANGELOG.md'
+  s=open(p,encoding='utf-8').read()
+  entry='''## 2026-11-15
+  ### TASK-007: уведомления
+  - Новое приложение `notifications`. Объявления деканата: для всего вуза (только админка), факультета или группы; необязательный срок — тогда объявление попадает в «Ближайшие дедлайны» («сегодня», «завтра», «через N дней»).
+  - Личная лента студента без отдельного хранения: собирается из существующих записей — новости, статусы заявок и комментарии сотрудников, изменения расписания группы на 14 дней вперёд, новые оценки. Каждая запись ведёт на свою страницу.
+  - Счётчик «Уведомления (N)» в меню; открытие страницы отмечает всё прочитанным.
+  - Сотрудник: страница «Объявления» своего факультета — создание и «Снять с публикации» (без правки и удаления).
+  - Главная студента: 3 ближайших дедлайна и 3 последние новости.
+  - У текущих оценок и итоговых результатов появилось время создания, у изменений расписания — время изменения (миграции с заполнением старых записей).
+  - Ревью: 2 раунда; в первом — только тесты на число запросов к базе. Всего тестов: 735.
+
+  '''
+  s=s.replace('## 2026-11-14\n',entry+'## 2026-11-14\n',1)
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  git diff --stat plan.md CHANGELOG.md
+    CHANGELOG.md | 10 ++++++++++
+     plan.md      |  5 ++++-
+     2 files changed, 14 insertions(+), 1 deletion(-)
+  ── Thought for 5ms
+    I'm going to re-export the dialogs with redaction applied, so first I need to find the redaction script I wrote earlier in the transcript. I'll search for "redact" or for "dialogs" alongside "re.sub" to locate it.
+  ── Ran python3 - <<'EOF' import json p='~/.claude/projects/-Users-andreyorlov-hackatonproject/7250e76a-c320-42a7-b5f5-b6c2995af838.jsonl' out=[] for line in open(p,encoding='utf-8'):     try: o=json.loads(line)     except: continue     m=o.get('message',{})     if not isinstance(m,dict) or not isinstance(m.get('content'),list): continue     for c in m['content']:         if isinstance(c,dict) and c.get('type')=='tool_use' and c.get('name')=='Bash':             cmd=c['input'].get('command','')             if 'dialogs' in cmd and 'thread log' in cmd:                 out.append(cmd) print(out[-1][:4000] if out else 'none') EOF
+    $ python3 - <<'EOF'
+  import json
+  p='~/.claude/projects/-Users-andreyorlov-hackatonproject/7250e76a-c320-42a7-b5f5-b6c2995af838.jsonl'
+  out=[]
+  for line in open(p,encoding='utf-8'):
+      try: o=json.loads(line)
+      except: continue
+      m=o.get('message',{})
+      if not isinstance(m,dict) or not isinstance(m.get('content'),list): continue
+      for c in m['content']:
+          if isinstance(c,dict) and c.get('type')=='tool_use' and c.get('name')=='Bash':
+              cmd=c['input'].get('command','')
+              if 'dialogs' in cmd and 'thread log' in cmd:
+                  out.append(cmd)
+  print(out[-1][:4000] if out else 'none')
+  EOF
+    cd ~/hackatonproject && python3 -I - <<'EOF'
+    p='docs/process/README.md'; t=open(p,encoding='utf-8').read()
+    t=t.rstrip('\n')+"""
+    | `2026-11-14_13_requests-list_student_fixed.jpg` | 14.11.2026 | После TASK-006-FIX | «Мои заявки»: над списком появилась ссылка «Подать заявку» (раньше была только при пустом списке) |
+    | `2026-11-14_14_request-form_student_fixed.jpg` | 14.11.2026 | После TASK-006-FIX | Форма заявки: подсказка «Обязательно укажите причину обращения» показывается один раз |
+    | `2026-11-14_15_requests-queue_staff_fixed.jpg` | 14.11.2026 | После TASK-006-FIX | Очередь сотрудника: список «Вид заявки» укладывается в ширину экрана 360 px |
+    """
+    open(p,'w',encoding='utf-8').write(t)
+    p='plan.md'; t=open(p,encoding='utf-8').read()
+    t=t.replace("| TASK-006-FIX | Недочёты TASK-006 (5 пунктов) | У Планировщика |","| TASK-006-FIX | Недочёты TASK-006 (5 пунктов) | Готово |")
+    t=t.replace("Сейчас: `TASK-006-FIX` у Планировщика.","Сейчас: `TASK-006-FIX` закрыта 14.11. Ждёт решения: редкое падение теста неизвестного происхождения.")
+    open(p,'w',encoding='utf-8').write(t)
+    p='CHANGELOG.md'; t=open(p,encoding='utf-8').read()
+    entry="""### TASK-006-FIX: недочёты заявок
+    - В «Моих заявках» ссылка «Подать заявку» видна всегда, а не только при пустом списке (без неё не проходил сценарий жюри).
+    - Поля форм не шире контейнера: очередь сотрудника укладывается в 360 px.
+    - Подсказка об обязательной причине обращения показывается один раз.
+    - Пропавший с диска файл вложения даёт 404 и предупреждение в логе (только UUID) вместо ошибки 500.
+    - `README.md`: `seed_demo` запускается на сервере один раз 22.11; папку вложений копировать вместе с базой.
+    - Ревью: 1 раунд, без замечаний. Всего тестов: 567, проходят в обычном, обратном и случайном порядке.
+
+    """
+    t=t.replace("## 2026-11-14\n","## 2026-11-14\n"+entry,1)
+    open(p,'w',encoding='utf-8').write(t)
+    EOF
+    O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && python3 -I - "$O" <<'EOF'
+    import os,re,sys
+    d=sys.argv[1]; out='docs/process/dialogs'
+    for f in sorted(os.listdir(d)):
+        t=open(os.path.join(d,f),encoding='utf-8').read()
+        t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)
+        t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')
+        t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)
+        t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')
+        bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]
+        assert not bad,(f,bad)
+        assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f
+        assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f
+        open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
+    EOF
+  ── Thought for 4ms
+    The tail of the test output is showing seed_demo output rather than a summary line, so I don't yet have the "Ran N tests" result. I'll check the log file for "Ran" and for OK or FAILED.
+
+── Assistant ───────────────────────────────────────────────
+Мои проверки прошли. Сейчас смотрю итог тестов в журнале и выгружаю диалоги агентов в архив.
+
+── Running 2 commands ──────────────────────────────────────
+  ── Ran L=$(ls -t $TMPDIR/lead-test-007-*.log | head -1); echo $L; grep -nE "^Ran [0-9]+ tests|^OK|^FAILED|^(ERROR|FAIL):" "$L" | head
+    $ L=$(ls -t $TMPDIR/lead-test-007-*.log | head -1); echo $L; grep -nE "^Ran [0-9]+ tests|^OK|^FAILED|^(ERROR|FAIL):" "$L" | head
+    /tmp/claude-501/lead-test-007-20261115-022957.log
+    608:Ran 735 tests in 117.031s
+    610:OK
+  ── Thought for 5ms
+    I'm checking the log timestamp against the shell's timezone, but that doesn't really matter here. The 735 tests passed, so I'm moving on to the export dialogs.
+  ── Running O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && python3 -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]     assert not bad,(f,bad)     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF git status --short docs/
+    $ O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && python3 -I - "$O" <<'EOF'
+  import os,re,sys
+  d=sys.argv[1]; out='docs/process/dialogs'
+  for f in sorted(os.listdir(d)):
+      t=open(os.path.join(d,f),encoding='utf-8').read()
+      t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)
+      t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')
+      t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)
+      t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')
+      bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]
+      assert not bad,(f,bad)
+      assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f
+      assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f
+      open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
+  EOF
+  git status --short docs/

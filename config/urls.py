@@ -10,5 +10,6 @@ urlpatterns = [
     path("", include("schedule.urls")),
     path("", include("academics.urls")),
     path("", include("petitions.urls")),
+    path("", include("notifications.urls")),
     path("", include("core.urls")),
 ]

@@ -1,0 +1,11 @@
+TITLE_MAX_LENGTH = 150
+BODY_MAX_LENGTH = 3000
+FEED_WINDOW_DAYS = 30  # feed shows events of the last 30 days
+FEED_MAX_ITEMS = 50  # feed length cap; badge shows "50+" above it
+LESSON_CHANGE_HORIZON_DAYS = 14  # schedule changes for lessons in [today, today + 14]
+DEADLINES_MAX_ITEMS = 10  # deadlines block on /notifications/
+HOME_ITEMS = 3  # deadlines and news on the home page
+STAFF_LIST_MAX_ITEMS = 100  # newest announcements on the staff page
+DEADLINE_MAX_DAYS_AHEAD = 365  # staff may set a deadline at most one year ahead
+TARGET_FACULTY = "faculty"  # form value for "whole faculty"
+TARGET_GROUP_PREFIX = "group-"  # form value for a group: f"group-{pk}"

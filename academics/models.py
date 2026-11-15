@@ -3,6 +3,8 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
+from core.clock import now
+
 
 class AssessmentForm(models.TextChoices):
     EXAM = "exam", "Экзамен"
@@ -140,6 +142,7 @@ class CurrentMark(models.Model):
     )
     date = models.DateField("дата")
     kind = models.CharField("вид работы", max_length=100)
+    created_at = models.DateTimeField("внесено", default=now, editable=False)
     seed_key = models.SlugField(
         "ключ демо-данных", max_length=80, blank=True, default="", editable=False
     )
@@ -196,7 +199,7 @@ class FinalResult(models.Model):
     )
     result = models.CharField("результат", max_length=8, choices=ResultValue.choices)
     date = models.DateField("дата")
-    created_at = models.DateTimeField("создано", auto_now_add=True)
+    created_at = models.DateTimeField("создано", default=now, editable=False)
 
     class Meta:
         ordering = ["curriculum_item", "attempt"]

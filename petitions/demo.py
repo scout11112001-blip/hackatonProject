@@ -198,7 +198,12 @@ def seed_petitions_demo(today: date) -> PetitionsSeedSummary:
                 )
             if seed.get("staff_comment"):
                 who, text = seed["staff_comment"]
-                PetitionComment.objects.create(petition=petition, author=staff[who], text=text)
+                PetitionComment.objects.create(
+                    petition=petition,
+                    author=staff[who],
+                    text=text,
+                    created_at=created_at + timedelta(hours=20 * len(steps)),
+                )
             for fname in seed.get("files", []):
                 store_attachment(petition, ContentFile(DEMO_PDF), fname, len(DEMO_PDF))
                 attachments += 1

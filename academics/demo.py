@@ -5,9 +5,10 @@ always survives). Terms are calendar-based so the data renders weeks later.
 """
 
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 
 from django.db import transaction
+from django.utils import timezone
 
 from academics.models import Attendance, CurrentMark, CurriculumItem, FinalResult, Term
 from academics.mutations import save_validated
@@ -111,6 +112,11 @@ def term_bounds(day: date) -> tuple[str, str, date, date, date, date]:
     )
 
 
+def recorded_at(day: date) -> datetime:
+    """Seeded grades look recorded on their date at 18:00 Moscow time (never in the future)."""
+    return min(timezone.make_aware(datetime.combine(day, time(18, 0))), timezone.now())
+
+
 def seed_academics_demo(today: date) -> AcademicsSeedSummary:
     cur_bounds = term_bounds(today)
     prev_bounds = term_bounds(cur_bounds[2] - timedelta(days=1))
@@ -196,6 +202,7 @@ def seed_academics_demo(today: date) -> AcademicsSeedSummary:
                         attempt=attempt,
                         result=result,
                         date=d,
+                        created_at=recorded_at(d),
                     )
                 )
 
@@ -222,6 +229,7 @@ def seed_academics_demo(today: date) -> AcademicsSeedSummary:
                                 value=PATTERN[username][(k + d) % 5],
                                 date=mark_date,
                                 kind=KINDS[k],
+                                created_at=recorded_at(mark_date),
                                 seed_key=seed_key,
                             )
                         )

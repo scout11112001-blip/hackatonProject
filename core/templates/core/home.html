@@ -1,5 +1,21 @@
 {% extends "base.html" %}
 {% block content %}
   <h1>Цифровой деканат будущего</h1>
-  <p>Прототип личного кабинета студента. Раздел в разработке.</p>
+  {% if summary %}
+    <section aria-labelledby="home-deadlines">
+      <h2 id="home-deadlines">Ближайшие дедлайны</h2>
+      {% if summary.deadlines %}<ul class="deadline-list">{% for d in summary.deadlines %}
+        <li><a href="{% url 'notifications:feed' %}#deadline-{{ d.public_id }}">{{ d.title }}</a> — до {{ d.deadline|date:"d.m" }}, {{ d.label }}</li>
+      {% endfor %}</ul>{% else %}<p>Ближайших дедлайнов нет.</p>{% endif %}
+    </section>
+    <section aria-labelledby="home-news">
+      <h2 id="home-news">Новости деканата</h2>
+      {% if summary.news %}<ul class="deadline-list">{% for item in summary.news %}
+        <li><a href="{% url 'notifications:feed' %}#{{ item.key }}">{{ item.title }}</a> <span class="feed-meta">{{ item.timestamp|date:"d.m" }}</span></li>
+      {% endfor %}</ul>{% else %}<p>Новостей пока нет.</p>{% endif %}
+    </section>
+    <p class="page-actions"><a href="{% url 'notifications:feed' %}">Все уведомления</a></p>
+  {% else %}
+    <p>Прототип личного кабинета студента. Раздел в разработке.</p>
+  {% endif %}
 {% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Объявления{% endblock %}
+{% block content %}
+<h1>Объявления</h1>
+<section aria-labelledby="new-title">
+  <h2 id="new-title">Новое объявление</h2>
+  <form method="post" class="form">{% csrf_token %}{{ form.as_p }}<button type="submit">Опубликовать</button></form>
+</section>
+<section aria-labelledby="list-title">
+  <h2 id="list-title">Объявления факультета</h2>
+  {% if announcements %}
+  <ul class="feed">
+    {% for a in announcements %}
+    <li class="feed-item" id="announcement-{{ a.public_id }}">
+      <p class="feed-meta">{{ a.audience_label }} · {{ a.published_at|date:"d.m.Y H:i" }} · {% if a.is_published %}Опубликовано{% else %}Снято с публикации {{ a.unpublished_at|date:"d.m.Y H:i" }}{% endif %}</p>
+      <h3>{{ a.title }}</h3>
+      {% if a.deadline %}<p>Срок: до {{ a.deadline|date:"d.m.Y" }}</p>{% endif %}
+      <p>{{ a.body|linebreaksbr }}</p>
+      {% if a.is_published %}
+      <form method="post" action="{% url 'notifications:staff_unpublish' a.public_id %}" class="action-form">{% csrf_token %}<button type="submit">Снять с публикации</button></form>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>Объявлений пока нет.</p>
+  {% endif %}
+</section>
+{% endblock %}

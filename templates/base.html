@@ -1,4 +1,4 @@
-{% load static %}<!doctype html>
+{% load static notifications_tags %}<!doctype html>
 <html lang="ru">
 <head>
   <meta charset="utf-8">
@@ -22,9 +22,12 @@
         <li><a href="{% url 'schedule:today' %}">Расписание</a></li>
         <li><a href="{% url 'academics:my_grades' %}">Успеваемость</a></li>
         <li><a href="{% url 'petitions:my_list' %}">Заявки</a></li>
+        {% notifications_badge as badge %}
+        <li><a href="{% url 'notifications:feed' %}">Уведомления{% if badge %} ({{ badge }}){% endif %}</a></li>
         {% elif user.is_deanery_staff %}
         <li><a href="{% url 'schedule:staff_groups' %}">Расписание</a></li>
         <li><a href="{% url 'petitions:staff_queue' %}">Заявки</a></li>
+        <li><a href="{% url 'notifications:staff_announcements' %}">Объявления</a></li>
         {% endif %}
         {% if user.is_deanery_staff %}
         <li><a href="{% url 'accounts:staff_student_list' %}">Студенты</a></li>

@@ -127,6 +127,7 @@ class LessonChange(models.Model):
     )
     reason = models.CharField("причина", max_length=200)
     created_at = models.DateTimeField("создано", auto_now_add=True)
+    updated_at = models.DateTimeField("изменено", auto_now=True)
     seed_key = models.SlugField(
         "ключ демо-данных", max_length=40, blank=True, default="", editable=False
     )

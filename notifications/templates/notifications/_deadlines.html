@@ -1,0 +1,9 @@
+{% if deadlines %}
+<ul class="deadline-list">
+  {% for d in deadlines %}
+  <li id="deadline-{{ d.public_id }}"><strong>{{ d.title }}</strong> — до {{ d.deadline|date:"d.m.Y" }}, {{ d.label }} <span class="feed-meta">{{ d.audience_label }}</span></li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>Ближайших дедлайнов нет.</p>
+{% endif %}

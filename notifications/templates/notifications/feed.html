@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Уведомления{% endblock %}
+{% block content %}
+<h1>Уведомления</h1>
+<section aria-labelledby="deadlines-title">
+  <h2 id="deadlines-title">Ближайшие дедлайны</h2>
+  {% include "notifications/_deadlines.html" %}
+</section>
+<section aria-labelledby="feed-title">
+  <h2 id="feed-title">Лента</h2>
+  {% if items %}
+  <ul class="feed">
+    {% for item in items %}
+    <li class="feed-item" id="{{ item.key }}">
+      <p class="feed-meta">{% if item.is_new %}<strong>Новое</strong> · {% endif %}{{ item.tag }} · <time datetime="{{ item.timestamp|date:'c' }}">{{ item.timestamp|date:"d.m.Y H:i" }}</time>{% if item.audience_label %} · {{ item.audience_label }}{% endif %}</p>
+      <h3>{% if item.url %}<a href="{{ item.url }}">{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}</h3>
+      {% if item.deadline %}<p>Срок: до {{ item.deadline|date:"d.m.Y" }}, {{ item.deadline_label }}</p>{% endif %}
+      {% if item.body %}<p>{{ item.body|linebreaksbr }}</p>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>Уведомлений за последние 30 дней нет.</p>
+  {% endif %}
+</section>
+{% endblock %}

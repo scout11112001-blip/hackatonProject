@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "schedule",
     "academics",
     "petitions",
+    "notifications",
     "core",
 ]
 

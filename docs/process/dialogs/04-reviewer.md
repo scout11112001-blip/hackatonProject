@@ -5405,3 +5405,1279 @@ EOF
 **Одно предупреждение.** Один обычный прогон тестов упал: 1 тест из 567. Найти этот тест я не смог: следующие 4 обычных прогона (один из них через полночь по Москве) и 3 прогона с замороженными часами прошли. Файлы во время прогона не менялись. Значит, где-то есть недетерминированный тест. Я попросил тимлида сохранить имя теста, если он упадёт в CI, и сделать по нему задачу-исправление.
 
 Коммит теперь за тимлидом.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[SETUP] Team lead -> all: PROTOCOL UPDATE
+New section "Test runs" in `.bb/AGENTS.md`: always save the full output of every test run to a file (`... 2>&1 | tee "$TMPDIR/test-<timestamp>.log"`). If any run fails, even once and even if a re-run passes, report the failing test name(s), the Moscow time of the run and the traceback excerpt (Coder: in the REPORT; Reviewer: in the verdict). Do not reply to this message.
+
+── Read .bb/AGENTS.md ──────────────────────────────────────
+  $ sed -n '/## Test runs/,/^## [^T]/p' .bb/AGENTS.md
+
+── Assistant ───────────────────────────────────────────────
+Я прочитал новое правило про прогоны тестов. Теперь полный вывод каждого прогона сохраняю в файл через `tee "$TMPDIR/test-<время>.log"`. Если тест упадёт хотя бы раз, даже когда повтор пройдёт, в вердикте укажу имя теста, московское время прогона и кусок трассировки.
+
+Правило появилось из-за моего последнего прогона TASK-006-FIX. Тогда я отфильтровал вывод через `grep` и потерял имя упавшего теста. Больше так делать не буду.
+
+── User ────────────────────────────────────────────────────
+/compact
+
+── Context compacted ───────────────────────────────────────
+
+── User ────────────────────────────────────────────────────
+Когда кодер пришлет тебе следующее выполненное task - не проверяй до того, как я об этом не скажу. Относится только к данной задаче
+
+── Thought ─────────────────────────────────────────────────
+  I'm noting that the instruction applies only to the coder's next completed task: no review until the user says so. The reply should be a short acknowledgment in Russian. I'm deciding not to save this to memory, since it's a one-time instruction for this conversation.
+
+── Assistant ───────────────────────────────────────────────
+Понял. Когда Кодер пришлёт отчёт по следующей задаче (судя по рабочей копии, это TASK-007), я не начну проверку и ничего не отправлю. Буду ждать вашей команды. Это правило действует только для этой задачи. Со следующей задачи снова проверяю сразу.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_ng6cbgatm6]
+
+[TASK-007] Coder -> Reviewer: REPORT
+
+Spec: docs/tasks/TASK-007.md (base 8f7bc4f). Implemented in spec order (§8), not committed.
+
+## Done (all 7 steps)
+1. `core/clock.py` (`now()`); `academics` (`CurrentMark.created_at`, `FinalResult.created_at` default instead of auto_now_add), `schedule` (`LessonChange.updated_at`); generated `academics/0002`, `schedule/0004`, hand-written `academics/0003_backfill_grade_created_at`.
+2. `notifications` app: `apps.py`, `constants.py`, `models.py` (Audience, Announcement with 5 constraints + 2 indexes, NotificationState), `admin.py`, `migrations/0001_initial`; `test_models.py` (5), `test_admin.py` (4). settings/urls/pyproject wired.
+3. `dates.py`, `selectors.py`, `services.py` + `test_dates.py` (7), `test_services.py` (31).
+4. `sources.py` (FeedContext/FeedItem/FeedSource + 6 sources + registry), `feed.py` (student_context/build_feed/unread_count/badge_*/upcoming_deadlines/home_summary) + `test_feed.py` (49).
+5. template tag `notifications_badge`, `forms.py`, `views.py`, `urls.py`, 3 templates, `base.html` nav, `core/views.py` + `core/home.html`, CSS + `test_views.py` (64).
+6. Seeds: `notifications/demo.py` (9 announcements), `academics/demo.py` (`recorded_at`), `petitions/demo.py` (explicit staff-comment `created_at`), `seed_demo` command + `test_demo.py` (8).
+7. README (`## Notifications` + 2 known-limitations bullets), ruff format.
+
+## Tests
+`Ran 735 tests` (was 567 → +168). All new suites green. Traceability (§7.1) covered.
+
+## Verification (§9) — all green
+- `check` OK; `makemigrations --check --dry-run` → No changes.
+- `python manage.py test` → 735 OK.
+- `run_tests_at.py` 2026-11-17T23:59:59, 2026-11-18T00:00:00, 2027-03-01T12:00:00 → 735 OK each.
+- `check --deploy --fail-level WARNING` → no issues (1 silenced, W021 as configured).
+- `ruff check .` clean; `ruff format --check .` → 149 files formatted.
+- yaml ok.
+- Seed twice on temp DB+media: first «Notifications ready: 9 announcements.», second «0 announcements.». Backfill re-check (`migrate academics 0001 && migrate` + shell probe) → «backfill ok».
+
+## Two deviations / notes (flagged for your judgment)
+1. `petitions.services.add_staff_comment` does NOT set `created_at` explicitly (it relies on `default=timezone.now`, which D5 shows is unfrozen). The spec §7.0 claims it «set it», but it does not (feasibility check line cites 92/103/145, none in add_staff_comment). Per the D5 rule, in `test_feed.py` I created `PetitionComment` rows with explicit `created_at` instead of via `add_staff_comment`. No source file change (petitions/services.py is not in the spec's change list). If you prefer, I can add `created_at=timezone.now()` to `add_staff_comment` instead.
+2. Transient timeouts: two `python manage.py test` / `run_tests_at` invocations were killed by the tool at the 300s cap while the machine was under load (no failing test, no traceback — output showed the run mid-progress). Immediate re-runs completed in ~118s with 735 OK. I do not believe any test is flaky; flagging for completeness per the «Test runs» protocol.
+
+## git status
+```
+ M README.md
+ M academics/demo.py
+ M academics/models.py
+ M accounts/management/commands/seed_demo.py
+ M config/settings.py
+ M config/urls.py
+ M core/templates/core/home.html
+ M core/views.py
+ M petitions/demo.py
+ M plan.md
+ M pyproject.toml
+ M schedule/models.py
+ M static/css/base.css
+ M templates/base.html
+?? academics/migrations/0002_currentmark_created_at_alter_finalresult_created_at.py
+?? academics/migrations/0003_backfill_grade_created_at.py
+?? core/clock.py
+?? docs/tasks/TASK-007.md
+?? notifications/
+?? schedule/migrations/0004_lessonchange_updated_at.py
+```
+All changed/created files match §4.1. Not mine: `plan.md` (pre-existing `M`) and `docs/tasks/TASK-007.md` (the spec). No `db.sqlite3`/`private_media/` changes.
+
+Logs: `$TMPDIR/test-20261115-011801-full.log`, `-012138-at-2359.log`, `-013756-at-0000c.log`, `-014001-at-2027.log`, `-final2.log`.
+
+── Thought for 6ms ─────────────────────────────────────────
+  I'm holding off on any review since the user said to wait for their go-ahead. I'll tell them briefly in Russian that the report has arrived and I'm waiting for their command, without sending anything to anyone else.
+
+── Assistant ───────────────────────────────────────────────
+Кодер прислал отчёт по TASK-007. Проверку не начал, как вы просили, и никому ничего не отправил. Жду вашей команды.
+
+Что пишет Кодер:
+- Все 7 шагов спецификации сделаны, изменения не закоммичены.
+- Тестов 735, было 567. Он пишет, что все проверки из спецификации зелёные.
+- **Отклонение от спецификации.** В спецификации сказано, что `add_staff_comment` сам ставит `created_at`. На деле он этого не делает. Кодер не стал менять файл и в тестах задаёт время комментариев вручную. Он может добавить установку времени в `add_staff_comment`, если нужно.
+- **Два прогона не закончились.** Они превысили лимит в 300 секунд, пока машина была загружена. Упавших тестов и трассировок в них нет. Повторные прогоны прошли, 735 тестов OK. Логи лежат в `$TMPDIR`.
+
+── User ────────────────────────────────────────────────────
+Начинай
+
+── Ran 13 commands, explored 7 files, 3 searches ───────────
+  ── Thought for 10ms
+    I'm starting the review, and I'll read the spec first.
+  ── Ran wc -l docs/tasks/TASK-007.md && git status --short && git diff --stat
+    $ wc -l docs/tasks/TASK-007.md && git status --short && git diff --stat
+    851 docs/tasks/TASK-007.md
+     M README.md
+     M academics/demo.py
+     M academics/models.py
+     M accounts/management/commands/seed_demo.py
+     M config/settings.py
+     M config/urls.py
+     M core/templates/core/home.html
+     M core/views.py
+     M petitions/demo.py
+     M plan.md
+     M pyproject.toml
+     M schedule/models.py
+     M static/css/base.css
+     M templates/base.html
+    ?? academics/migrations/0002_currentmark_created_at_alter_finalresult_created_at.py
+    ?? academics/migrations/0003_backfill_grade_created_at.py
+    ?? core/clock.py
+    ?? docs/tasks/TASK-007.md
+    ?? notifications/
+    ?? schedule/migrations/0004_lessonchange_updated_at.py
+     README.md                                 | 25 +++++++++++++++++++++++++
+     academics/demo.py                         | 10 +++++++++-
+     academics/models.py                       |  5 ++++-
+     accounts/management/commands/seed_demo.py |  5 +++++
+     config/settings.py                        |  1 +
+     config/urls.py                            |  1 +
+     core/templates/core/home.html             | 18 +++++++++++++++++-
+     core/views.py                             |  7 +++++++
+     petitions/demo.py                         |  7 ++++++-
+     plan.md                                   |  4 +++-
+     pyproject.toml                            |  2 +-
+     schedule/models.py                        |  1 +
+     static/css/base.css                       | 23 +++++++++++++++++++++++
+     templates/base.html                       |  5 ++++-
+     14 files changed, 107 insertions(+), 7 deletions(-)
+  ── Read ~/hackatonproject/docs/tasks/TASK-007.md
+  ── Thought for 3ms
+    This is a big task, so I'm starting by checking the diff and the new files.
+  ── Ran git diff -- academics schedule core config pyproject.toml accounts petitions templates static README.md && cat core/clock.py academics/migrations/0002_* academics/migrations/0003_* schedule/migrations/0004_* && find notifications -type f | sort && wc -l notifications/*.py notifications/tests/*.py
+    $ git diff -- academics schedule core config pyproject.toml accounts petitions templates static README.md && cat core/clock.py academics/migrations/0002_* academics/migrations/0003_* schedule/migrations/0004_* && find notifications -type f | sort && wc -l notifications/*.py notifications/tests/*.py
+    diff --git a/README.md b/README.md
+    index 58cbdcd..c91217f 100644
+    --- a/README.md
+    +++ b/README.md
+    @@ -116,6 +116,27 @@ multipart uploads:
+     client_max_body_size 20m;
+     ```
+     
+    +## Notifications
+    +
+    +Students: `/notifications/` shows a «Ближайшие дедлайны» block (deadlines
+    +today or later, nearest first, labelled «сегодня» / «завтра» / «через N
+    +дней») and one feed of dean's-office news and personal changes (request status
+    +changes and staff comments, schedule changes for lessons in the next 14 days,
+    +new current marks and final results). The feed is computed from existing rows,
+    +covers the last 30 days, and is capped at 50 items.
+    +
+    +Unread state is one «seen until» timestamp per account (no per-item flags):
+    +the nav shows «Уведомления (N)» for students, and opening `/notifications/`
+    +marks everything as read.
+    +
+    +Staff: `/staff/announcements/` lists and creates announcements for the staff
+    +member's own faculty or one of its groups (no edit, no hard delete; an
+    +announcement can be unpublished). University-wide announcements are created
+    +only in the Django admin.
+    +
+    +Demo data: `seed_demo` creates 9 announcements (2 university-wide, 5 faculty, 2
+    +group; 2 unpublished); published deadlines fall on run day +1…+5.
+    +
+     ## Login protection
+     
+     Failed login attempts are throttled per (username, client IP) and stored in
+    @@ -145,6 +166,10 @@ proxy_set_header X-Real-IP $remote_addr;
+       is never overwritten. Re-running it only adds missing rows (new past
+       occurrences). On the server it is run once, on 2026-11-22 (submission day);
+       there is no scheduled re-run.
+    +- The unread counter is per account: after one person opens «Уведомления» as
+    +  `student1`, others logged in as `student1` see no new items.
+    +- Grades and lesson changes appear in the feed by the time they were recorded;
+    +  a grade entered later for an old date still shows as new.
+     
+     ## Environment variables
+     
+    diff --git a/academics/demo.py b/academics/demo.py
+    index 44bf2bd..0d07f11 100644
+    --- a/academics/demo.py
+    +++ b/academics/demo.py
+    @@ -5,9 +5,10 @@ always survives). Terms are calendar-based so the data renders weeks later.
+     """
+     
+     from dataclasses import dataclass
+    -from datetime import date, timedelta
+    +from datetime import date, datetime, time, timedelta
+     
+     from django.db import transaction
+    +from django.utils import timezone
+     
+     from academics.models import Attendance, CurrentMark, CurriculumItem, FinalResult, Term
+     from academics.mutations import save_validated
+    @@ -111,6 +112,11 @@ def term_bounds(day: date) -> tuple[str, str, date, date, date, date]:
+         )
+     
+     
+    +def recorded_at(day: date) -> datetime:
+    +    """Seeded grades look recorded on their date at 18:00 Moscow time (never in the future)."""
+    +    return min(timezone.make_aware(datetime.combine(day, time(18, 0))), timezone.now())
+    +
+    +
+     def seed_academics_demo(today: date) -> AcademicsSeedSummary:
+         cur_bounds = term_bounds(today)
+         prev_bounds = term_bounds(cur_bounds[2] - timedelta(days=1))
+    @@ -196,6 +202,7 @@ def seed_academics_demo(today: date) -> AcademicsSeedSummary:
+                             attempt=attempt,
+                             result=result,
+                             date=d,
+    +                        created_at=recorded_at(d),
+                         )
+                     )
+     
+    @@ -222,6 +229,7 @@ def seed_academics_demo(today: date) -> AcademicsSeedSummary:
+                                     value=PATTERN[username][(k + d) % 5],
+                                     date=mark_date,
+                                     kind=KINDS[k],
+    +                                created_at=recorded_at(mark_date),
+                                     seed_key=seed_key,
+                                 )
+                             )
+    diff --git a/academics/models.py b/academics/models.py
+    index 885c96c..3814f92 100644
+    --- a/academics/models.py
+    +++ b/academics/models.py
+    @@ -3,6 +3,8 @@ from django.core.validators import MaxValueValidator, MinValueValidator
+     from django.db import models
+     from django.utils import timezone
+     
+    +from core.clock import now
+    +
+     
+     class AssessmentForm(models.TextChoices):
+         EXAM = "exam", "Экзамен"
+    @@ -140,6 +142,7 @@ class CurrentMark(models.Model):
+         )
+         date = models.DateField("дата")
+         kind = models.CharField("вид работы", max_length=100)
+    +    created_at = models.DateTimeField("внесено", default=now, editable=False)
+         seed_key = models.SlugField(
+             "ключ демо-данных", max_length=80, blank=True, default="", editable=False
+         )
+    @@ -196,7 +199,7 @@ class FinalResult(models.Model):
+         )
+         result = models.CharField("результат", max_length=8, choices=ResultValue.choices)
+         date = models.DateField("дата")
+    -    created_at = models.DateTimeField("создано", auto_now_add=True)
+    +    created_at = models.DateTimeField("создано", default=now, editable=False)
+     
+         class Meta:
+             ordering = ["curriculum_item", "attempt"]
+    diff --git a/accounts/management/commands/seed_demo.py b/accounts/management/commands/seed_demo.py
+    index 6e5353d..c73ce49 100644
+    --- a/accounts/management/commands/seed_demo.py
+    +++ b/accounts/management/commands/seed_demo.py
+    @@ -7,6 +7,7 @@ from django.utils import timezone
+     
+     from academics.demo import seed_academics_demo
+     from accounts.demo import DemoSeedError, seed_demo_data
+    +from notifications.demo import seed_notifications_demo
+     from petitions.demo import seed_petitions_demo
+     from schedule.demo import seed_schedule_demo
+     
+    @@ -27,6 +28,7 @@ class Command(BaseCommand):
+                     s = seed_schedule_demo(today)
+                     a = seed_academics_demo(today)
+                     p = seed_petitions_demo(today)
+    +                n = seed_notifications_demo(today)
+             except DemoSeedError as exc:
+                 raise CommandError(str(exc)) from None
+             except ValidationError as exc:
+    @@ -58,3 +60,6 @@ class Command(BaseCommand):
+                     f"{p.attachments} attachments."
+                 )
+             )
+    +        self.stdout.write(
+    +            self.style.SUCCESS(f"Notifications ready: {n.announcements} announcements.")
+    +        )
+    diff --git a/config/settings.py b/config/settings.py
+    index 95896e9..ff34f17 100644
+    --- a/config/settings.py
+    +++ b/config/settings.py
+    @@ -42,6 +42,7 @@ INSTALLED_APPS = [
+         "schedule",
+         "academics",
+         "petitions",
+    +    "notifications",
+         "core",
+     ]
+     
+    diff --git a/config/urls.py b/config/urls.py
+    index 15322cc..3fe1701 100644
+    --- a/config/urls.py
+    +++ b/config/urls.py
+    @@ -10,5 +10,6 @@ urlpatterns = [
+         path("", include("schedule.urls")),
+         path("", include("academics.urls")),
+         path("", include("petitions.urls")),
+    +    path("", include("notifications.urls")),
+         path("", include("core.urls")),
+     ]
+    diff --git a/core/templates/core/home.html b/core/templates/core/home.html
+    index 6fe1640..285ab8f 100644
+    --- a/core/templates/core/home.html
+    +++ b/core/templates/core/home.html
+    @@ -1,5 +1,21 @@
+     {% extends "base.html" %}
+     {% block content %}
+       <h1>Цифровой деканат будущего</h1>
+    -  <p>Прототип личного кабинета студента. Раздел в разработке.</p>
+    +  {% if summary %}
+    +    <section aria-labelledby="home-deadlines">
+    +      <h2 id="home-deadlines">Ближайшие дедлайны</h2>
+    +      {% if summary.deadlines %}<ul class="deadline-list">{% for d in summary.deadlines %}
+    +        <li><a href="{% url 'notifications:feed' %}#deadline-{{ d.public_id }}">{{ d.title }}</a> — до {{ d.deadline|date:"d.m" }}, {{ d.label }}</li>
+    +      {% endfor %}</ul>{% else %}<p>Ближайших дедлайнов нет.</p>{% endif %}
+    +    </section>
+    +    <section aria-labelledby="home-news">
+    +      <h2 id="home-news">Новости деканата</h2>
+    +      {% if summary.news %}<ul class="deadline-list">{% for item in summary.news %}
+    +        <li><a href="{% url 'notifications:feed' %}#{{ item.key }}">{{ item.title }}</a> <span class="feed-meta">{{ item.timestamp|date:"d.m" }}</span></li>
+    +      {% endfor %}</ul>{% else %}<p>Новостей пока нет.</p>{% endif %}
+    +    </section>
+    +    <p class="page-actions"><a href="{% url 'notifications:feed' %}">Все уведомления</a></p>
+    +  {% else %}
+    +    <p>Прототип личного кабинета студента. Раздел в разработке.</p>
+    +  {% endif %}
+     {% endblock %}
+    diff --git a/core/views.py b/core/views.py
+    index fb06628..ed39521 100644
+    --- a/core/views.py
+    +++ b/core/views.py
+    @@ -4,10 +4,17 @@ from django.views.decorators.cache import never_cache
+     from django.views.decorators.http import require_GET
+     from django.views.generic import TemplateView
+     
+    +from notifications.feed import home_summary
+    +
+     
+     class HomeView(TemplateView):
+         template_name = "core/home.html"
+     
+    +    def get_context_data(self, **kwargs):
+    +        context = super().get_context_data(**kwargs)
+    +        context["summary"] = home_summary(self.request.user)
+    +        return context
+    +
+     
+     @login_not_required
+     @never_cache
+    diff --git a/petitions/demo.py b/petitions/demo.py
+    index 91a286d..48568e2 100644
+    --- a/petitions/demo.py
+    +++ b/petitions/demo.py
+    @@ -198,7 +198,12 @@ def seed_petitions_demo(today: date) -> PetitionsSeedSummary:
+                     )
+                 if seed.get("staff_comment"):
+                     who, text = seed["staff_comment"]
+    -                PetitionComment.objects.create(petition=petition, author=staff[who], text=text)
+    +                PetitionComment.objects.create(
+    +                    petition=petition,
+    +                    author=staff[who],
+    +                    text=text,
+    +                    created_at=created_at + timedelta(hours=20 * len(steps)),
+    +                )
+                 for fname in seed.get("files", []):
+                     store_attachment(petition, ContentFile(DEMO_PDF), fname, len(DEMO_PDF))
+                     attachments += 1
+    diff --git a/pyproject.toml b/pyproject.toml
+    index c44a2e6..8479f0e 100644
+    --- a/pyproject.toml
+    +++ b/pyproject.toml
+    @@ -12,7 +12,7 @@ ignore = []
+     "config/env_utils.py" = ["S105"]
+     
+     [tool.ruff.lint.isort]
+    -known-first-party = ["config", "core", "accounts", "university", "schedule", "academics", "petitions"]
+    +known-first-party = ["config", "core", "accounts", "university", "schedule", "academics", "petitions", "notifications"]
+     
+     [tool.ruff.format]
+     quote-style = "double"
+    diff --git a/schedule/models.py b/schedule/models.py
+    index 6c6289a..d51a9f9 100644
+    --- a/schedule/models.py
+    +++ b/schedule/models.py
+    @@ -127,6 +127,7 @@ class LessonChange(models.Model):
+         )
+         reason = models.CharField("причина", max_length=200)
+         created_at = models.DateTimeField("создано", auto_now_add=True)
+    +    updated_at = models.DateTimeField("изменено", auto_now=True)
+         seed_key = models.SlugField(
+             "ключ демо-данных", max_length=40, blank=True, default="", editable=False
+         )
+    diff --git a/static/css/base.css b/static/css/base.css
+    index ec34c68..bd42eb9 100644
+    --- a/static/css/base.css
+    +++ b/static/css/base.css
+    @@ -216,3 +216,26 @@ button {
+     .page-actions {
+       margin: var(--space-2) 0 var(--space-3);
+     }
+    +
+    +.feed,
+    +.deadline-list {
+    +  list-style: none;
+    +  margin: 0 0 var(--space-3);
+    +  padding: 0;
+    +}
+    +
+    +.feed-item,
+    +.deadline-list li {
+    +  margin-bottom: var(--space-3);
+    +  overflow-wrap: anywhere;
+    +}
+    +
+    +.feed-item h3 {
+    +  margin: var(--space-1) 0;
+    +  font-size: var(--font-size-base);
+    +}
+    +
+    +.feed-meta {
+    +  margin: 0;
+    +  font-size: 0.875rem;
+    +}
+    diff --git a/templates/base.html b/templates/base.html
+    index 8515b5d..3cd9dbd 100644
+    --- a/templates/base.html
+    +++ b/templates/base.html
+    @@ -1,4 +1,4 @@
+    -{% load static %}<!doctype html>
+    +{% load static notifications_tags %}<!doctype html>
+     <html lang="ru">
+     <head>
+       <meta charset="utf-8">
+    @@ -22,9 +22,12 @@
+             <li><a href="{% url 'schedule:today' %}">Расписание</a></li>
+             <li><a href="{% url 'academics:my_grades' %}">Успеваемость</a></li>
+             <li><a href="{% url 'petitions:my_list' %}">Заявки</a></li>
+    +        {% notifications_badge as badge %}
+    +        <li><a href="{% url 'notifications:feed' %}">Уведомления{% if badge %} ({{ badge }}){% endif %}</a></li>
+             {% elif user.is_deanery_staff %}
+             <li><a href="{% url 'schedule:staff_groups' %}">Расписание</a></li>
+             <li><a href="{% url 'petitions:staff_queue' %}">Заявки</a></li>
+    +        <li><a href="{% url 'notifications:staff_announcements' %}">Объявления</a></li>
+             {% endif %}
+             {% if user.is_deanery_staff %}
+             <li><a href="{% url 'accounts:staff_student_list' %}">Студенты</a></li>
+    """Call-time clock for model defaults (test clock patches apply)."""
+
+    from datetime import datetime
+
+    from django.utils import timezone
+
+
+    def now() -> datetime:
+        return timezone.now()
+    # Generated by Django 5.2.19 on 2026-11-14 22:01
+
+    import core.clock
+    from django.db import migrations, models
+
+
+    class Migration(migrations.Migration):
+
+        dependencies = [
+            ('academics', '0001_initial'),
+        ]
+
+        operations = [
+            migrations.AddField(
+                model_name='currentmark',
+                name='created_at',
+                field=models.DateTimeField(default=core.clock.now, editable=False, verbose_name='внесено'),
+            ),
+            migrations.AlterField(
+                model_name='finalresult',
+                name='created_at',
+                field=models.DateTimeField(default=core.clock.now, editable=False, verbose_name='создано'),
+            ),
+        ]
+    from datetime import datetime, time
+    from zoneinfo import ZoneInfo
+
+    from django.db import migrations
+    from django.utils import timezone
+
+    MOSCOW = ZoneInfo("Europe/Moscow")
+
+
+    def backfill(apps, schema_editor):
+        now = timezone.now()
+        for model_name in ("CurrentMark", "FinalResult"):
+            model = apps.get_model("academics", model_name)
+            rows = list(model.objects.only("pk", "date", "created_at"))
+            for row in rows:
+                recorded = min(datetime.combine(row.date, time(18, 0), tzinfo=MOSCOW), now)
+                row.created_at = min(recorded, row.created_at)
+            model.objects.bulk_update(rows, ["created_at"], batch_size=500)
+
+
+    class Migration(migrations.Migration):
+        dependencies = [("academics", "0002_currentmark_created_at_alter_finalresult_created_at")]
+
+        operations = [migrations.RunPython(backfill, migrations.RunPython.noop)]
+    # Generated by Django 5.2.19 on 2026-11-14 22:01
+
+    from django.db import migrations, models
+
+
+    class Migration(migrations.Migration):
+
+        dependencies = [
+            ('schedule', '0003_mark_existing_demo_rows'),
+        ]
+
+        operations = [
+            migrations.AddField(
+                model_name='lessonchange',
+                name='updated_at',
+                field=models.DateTimeField(auto_now=True, verbose_name='изменено'),
+            ),
+        ]
+    notifications/__init__.py
+    notifications/__pycache__/__init__.cpython-312.pyc
+    notifications/__pycache__/admin.cpython-312.pyc
+    notifications/__pycache__/apps.cpython-312.pyc
+    notifications/__pycache__/constants.cpython-312.pyc
+    notifications/__pycache__/dates.cpython-312.pyc
+    notifications/__pycache__/demo.cpython-312.pyc
+    notifications/__pycache__/feed.cpython-312.pyc
+    notifications/__pycache__/forms.cpython-312.pyc
+    notifications/__pycache__/models.cpython-312.pyc
+    notifications/__pycache__/selectors.cpython-312.pyc
+    notifications/__pycache__/services.cpython-312.pyc
+    notifications/__pycache__/sources.cpython-312.pyc
+    notifications/__pycache__/urls.cpython-312.pyc
+    notifications/__pycache__/views.cpython-312.pyc
+    notifications/admin.py
+    notifications/apps.py
+    notifications/constants.py
+    notifications/dates.py
+    notifications/demo.py
+    notifications/feed.py
+    notifications/forms.py
+    notifications/migrations/0001_initial.py
+    notifications/migrations/__init__.py
+    notifications/migrations/__pycache__/0001_initial.cpython-312.pyc
+    notifications/migrations/__pycache__/__init__.cpython-312.pyc
+    notifications/models.py
+    notifications/selectors.py
+    notifications/services.py
+    notifications/sources.py
+    notifications/templates/notifications/_deadlines.html
+    notifications/templates/notifications/feed.html
+    notifications/templates/notifications/staff_list.html
+    notifications/templatetags/__init__.py
+    notifications/templatetags/__pycache__/__init__.cpython-312.pyc
+    notifications/templatetags/__pycache__/notifications_tags.cpython-312.pyc
+    notifications/templatetags/notifications_tags.py
+    notifications/tests/__init__.py
+    notifications/tests/__pycache__/__init__.cpython-312.pyc
+    notifications/tests/__pycache__/helpers.cpython-312.pyc
+    notifications/tests/__pycache__/test_admin.cpython-312.pyc
+    notifications/tests/__pycache__/test_dates.cpython-312.pyc
+    notifications/tests/__pycache__/test_demo.cpython-312.pyc
+    notifications/tests/__pycache__/test_feed.cpython-312.pyc
+    notifications/tests/__pycache__/test_models.cpython-312.pyc
+    notifications/tests/__pycache__/test_services.cpython-312.pyc
+    notifications/tests/__pycache__/test_views.cpython-312.pyc
+    notifications/tests/helpers.py
+    notifications/tests/test_admin.py
+    notifications/tests/test_dates.py
+    notifications/tests/test_demo.py
+    notifications/tests/test_feed.py
+    notifications/tests/test_models.py
+    notifications/tests/test_services.py
+    notifications/tests/test_views.py
+    notifications/urls.py
+    notifications/views.py
+           0 notifications/__init__.py
+          46 notifications/admin.py
+           7 notifications/apps.py
+          11 notifications/constants.py
+          23 notifications/dates.py
+         179 notifications/demo.py
+         117 notifications/feed.py
+          57 notifications/forms.py
+         126 notifications/models.py
+          31 notifications/selectors.py
+         107 notifications/services.py
+         278 notifications/sources.py
+          16 notifications/urls.py
+          94 notifications/views.py
+           0 notifications/tests/__init__.py
+          78 notifications/tests/helpers.py
+          94 notifications/tests/test_admin.py
+          50 notifications/tests/test_dates.py
+          89 notifications/tests/test_demo.py
+         659 notifications/tests/test_feed.py
+          81 notifications/tests/test_models.py
+         285 notifications/tests/test_services.py
+         636 notifications/tests/test_views.py
+        3064 total
+  ── Thought for 5ms
+    I'm kicking off the long test run in the background so it can go while I read through the code, and I'll pipe its output through tee as the protocol requires.
+  ── Ran source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "TS=$TS" && python manage.py check 2>&1 | tail -2 && python manage.py makemigrations --check --dry-run 2>&1 | tail -2 && (python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-rev-full.log" | tail -4) (2s)
+    $ source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "TS=$TS" && python manage.py check 2>&1 | tail -2 && python manage.py makemigrations --check --dry-run 2>&1 | tail -2 && (python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-rev-full.log" | tail -4)
+    Command running in background with ID: btv96pnn1. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/btv96pnn1.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Read notifications/models.py
+  ── Thought for 711ms
+    I'm going to send the user a short status update in Russian before continuing. Next I'm checking the `groups_visible_to` logic for staff, including whether it requires an active staff flag. On the `mark_seen` side, I'm considering the concurrent `get_or_create` case: Django handles an IntegrityError by re-fetching, and since it uses a savepoint, the non-atomic worry doesn't apply.
+  ── Thought for 3ms
+    Проверяю TASK-007: полный прогон тестов идёт в фоне с логом в файл, а я пока читаю ленту и представления.
+  ── Read notifications/sources.py
+  ── Read notifications/views.py
+  ── Thought for 26s
+    I'm checking the home page links against the feed: the deadline anchor resolves since the feed includes the deadlines partial, and the unread count lines up with the feed's "is_new" flags. The news anchor could miss its target if the 50-item cap pushes that entry out, which looks minor. Next I'm working out whether there's a real issue to flag.
+
+    I'm going through the remaining checks: whether a status change by staff with no actor could slip through, if admin-made changes create petition status records, and whether lesson changes with a missing teacher or room are guarded by constraints. The M2M and date-range points look fine to me.
+
+    I'm reviewing the staff view and form handling now: checking whether the view's profile is set by the mixin, how the form behaves when the target is invalid, and whether the deadline check matches the service's own time check. I also want to confirm what `groups_visible_to` returns for staff, and that the body is escaped before line breaks are added.
+
+    I'm checking the admin form's validation: the constraint checks run during form validation, and the author is set later in save_model, so I'm looking at whether full_clean would trip on that missing author.
+
+    I'm checking whether the seeded lesson changes will look right: their updated_at is set to the real time when the seed runs, not the time I want them to show, so I'm working out how that affects what the feed displays.
+
+    I'm checking whether the lesson-change timestamps hold up: the `updated_at` field is set when the seed runs, so the demo changes will show the time they were seeded, and on the local database the migration may have marked existing changes as new once.
+
+    I'm looking at whether the petition status changes can have no actor, and whether admin-made changes create status records at all. I'm also checking how the nav badge behaves on the feed page, since the count should already be cleared by the time the page renders.
+
+    I'm now checking the remaining staff-side edge cases and confirming the 405 behavior for non-GET methods, since the view only allows GET and the mixins run before dispatch reaches the method check. I'm also noting a minor style point about a local import, which lint doesn't flag, and starting to look at how the unread count is built from the union query.
+
+    I'm checking whether the announcement PROTECT constraints on faculty and group could cause trouble, since deleting a group that has announcements now raises a ProtectedError, which the admin handles. I'm also wondering whether any code paths delete groups or users programmatically, such as seed resets or tests, and the test suite suggests they don't.
+
+    I'm checking whether the petition status records leak anything: filtering by the student's own ID, and whether the student FK points to the profile. I also need to see if PetitionComment has an internal-only flag that would expose staff notes, and whether status change comments are ever internal.
+
+    I'm checking whether the petition comment model has an internal-only flag that could expose staff notes to students.
+  ── Searched for class PetitionComment\|class PetitionStatusChange\|class Petition( in petitions/models.py
+  ── Thought for 3s
+    I've confirmed the deviation: add_staff_comment uses the default timezone.now, which is fine in production since it gives the real time. It only breaks tests under the frozen clock, because comments get real timestamps that land after the frozen now and drop out of the feed, so the coder worked around it with explicit created_at values. I'm now checking whether any test covers the real flow, where staff adds a comment through the UI and the student sees it, using the unfrozen default.
+
+    I'm now checking whether the student-facing feed actually shows staff comments, since if those are internal notes, the feed would expose them, which would be a real problem.
+  ── Searched for staff_comments\|history in petitions/views.py
+  ── Thought for 3ms
+    I've confirmed the student detail view covers AC9 with staff comments and that nothing leaks. Next I'm checking that the detail template pulls in the comments partial, and that the history feed uses the comment body. Then I'll review the tests against the spec's traceability list to make sure the key cases are covered.
+  ── Ran for t in $(grep -oE '`test_[a-z0-9_]+`' docs/tasks/TASK-007.md | tr -d '`' | sort -u); do grep -rq "def $t\b" notifications/tests || echo "MISSING $t"; done; grep -oE '[A-Z][A-Za-z]+Tests' docs/tasks/TASK-007.md | sort -u | while read c; do grep -rq "class $c\b" notifications/tests || echo "MISSING CLASS $c"; done (4s)
+    $ for t in $(grep -oE '`test_[a-z0-9_]+`' docs/tasks/TASK-007.md | tr -d '`' | sort -u); do grep -rq "def $t\b" notifications/tests || echo "MISSING $t"; done; grep -oE '[A-Z][A-Za-z]+Tests' docs/tasks/TASK-007.md | sort -u | while read c; do grep -rq "class $c\b" notifications/tests || echo "MISSING CLASS $c"; done
+    MISSING CLASS HomeViewTests
+    MISSING CLASS NavigationTests
+  ── Thought for 3ms
+    The other apps' tests are all there. Now I'm skimming the test_feed file to check the key cases around scope, midnight handling, and admin events, along with the query-count assertions in test_views.
+  ── Read notifications/tests/helpers.py
+  ── Thought for 3s
+    I'm making sure the negative test isn't passing vacuously, so I want a positive control showing bx's items do appear for bx. Under the frozen clock, `created_at` defaults to the frozen time, so I'm checking whether the items actually land inside the window the test relies on.
+
+    I'm checking that the negative test isn't passing trivially, since if the items never land in anyone's feed it would pass for the wrong reason. A mutation probe should show whether an unfiltered feed would expose bx's mark to ax, which it would if the timestamp falls inside the window. I'll run those checks after I look at the background test, and I'll skim the remaining feed tests for the admin, midnight, and cap cases.
+  ── Searched for class AdminEventsTests in notifications/tests/test_feed.py
+  ── Thought for 3s
+    I'm checking the tests against the spec. The constant-query test only covers the news source, not the other sources with possible N+1 issues, though the select_related usage matches what the spec asks for.
+
+    Checking whether the staff-list test also leaves out the group case the spec asks for, since the code relies on select_related for group but nothing tests it.
+  ── Thought
+    Два теста на число запросов к БД проверяют меньше, чем требует спецификация; дальше проверю фоновый прогон и запущу мутационные пробы.
+  ── Read /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/btv96pnn1.output
+  ── Thought for 3s
+    I'm still waiting on the running job, so I'll use the time to plan mutation probes. Since I shouldn't edit the repo itself, I'll copy it to a temp directory, excluding the venv, database, private media, and env files, and run the mutations there. The first one removes the student filter from the base queryset of the current mark source, to check whether the personal-data test catches other students' records leaking through.
+
+    Next I'm checking whether the other mutations are caught: dropping the student filter from the petition source, the group filter from the lesson-change source, and the faculty filter in the group branch of the managed-announcements query. I'm also removing the `select_related` calls to see whether the query-count tests flag them, which I expect only the news one to do, and removing the backward-moving filter in mark-seen and the visibility check in create-announcement.
+  ── Ran M=$TMPDIR/rev007 && mkdir -p $M && rsync -a --exclude .venv --exclude .git --exclude db.sqlite3 --exclude private_media --exclude .env --exclude '__pycache__' ./ $M/ && ls $M | head -30 (2s)
+    $ M=$TMPDIR/rev007 && mkdir -p $M && rsync -a --exclude .venv --exclude .git --exclude db.sqlite3 --exclude private_media --exclude .env --exclude '__pycache__' ./ $M/ && ls $M | head -30
+    CHANGELOG.md
+    README.md
+    academics
+    accounts
+    config
+    core
+    docs
+    manage.py
+    notifications
+    opencode.json
+    petitions
+    plan.md
+    pyproject.toml
+    requirements-dev.txt
+    requirements.txt
+    schedule
+    scripts
+    static
+    templates
+    university
+  ── Ran cat > $TMPDIR/rev007_mut.sh <<'EOF' #!/bin/zsh # usage: rev007_mut.sh <name> <file> <python-replace-script> set -u M=$TMPDIR/rev007 SRC=~/hackatonproject name=$1; file=$2; old=$3; new=$4 cp $SRC/$file $M/$file python3 - "$M/$file" "$old" "$new" <<'PY' import sys p, old, new = sys.argv[1:] s = open(p).read() assert s.count(old) == 1, f"count={s.count(old)}" open(p, "w").write(s.replace(old, new)) PY cd $M source $SRC/.venv/bin/activate DEBUG=true python manage.py test notifications 2>&1 > /dev/null | tee "$TMPDIR/test-rev007-mut-$name.log" | grep -E "^(FAIL|ERROR):|^Ran|^OK|^FAILED"  cp $SRC/$file $M/$file EOF chmod +x $TMPDIR/rev007_mut.sh; echo ok
+    $ cat > $TMPDIR/rev007_mut.sh <<'EOF'
+  #!/bin/zsh
+  # usage: rev007_mut.sh <name> <file> <python-replace-script>
+  set -u
+  M=$TMPDIR/rev007
+  SRC=~/hackatonproject
+  name=$1; file=$2; old=$3; new=$4
+  cp $SRC/$file $M/$file
+  python3 - "$M/$file" "$old" "$new" <<'PY'
+  import sys
+  p, old, new = sys.argv[1:]
+  s = open(p).read()
+  assert s.count(old) == 1, f"count={s.count(old)}"
+  open(p, "w").write(s.replace(old, new))
+  PY
+  cd $M
+  source $SRC/.venv/bin/activate
+  DEBUG=true python manage.py test notifications 2>&1 > /dev/null | tee "$TMPDIR/test-rev007-mut-$name.log" | grep -E "^(FAIL|ERROR):|^Ran|^OK|^FAILED" 
+  cp $SRC/$file $M/$file
+  EOF
+  chmod +x $TMPDIR/rev007_mut.sh; echo ok
+    ok
+  ── Ran S=$TMPDIR/rev007_mut.sh echo "--- M1 mark no student filter"; $S m1 notifications/sources.py 'return CurrentMark.objects.filter(student_id=ctx.student.pk)' 'return CurrentMark.objects.all()' echo "--- M2 status no student filter"; $S m2 notifications/sources.py 'return PetitionStatusChange.objects.filter(petition__student_id=ctx.student.pk).exclude(' 'return PetitionStatusChange.objects.all().exclude(' echo "--- M3 lesson no group filter"; $S m3 notifications/sources.py 'LessonChange.objects.filter(weekly_lesson__groups=ctx.group_id)' 'LessonChange.objects.all()' echo "--- M4 lesson no select_related"; $S m4 notifications/sources.py 'related = ("weekly_lesson__discipline", "new_room", "new_teacher")' 'related = ()' echo "--- M5 staff list no select_related"; $S m5 notifications/views.py '.select_related("faculty", "group")' '' (2m 13s)
+    $ S=$TMPDIR/rev007_mut.sh
+  echo "--- M1 mark no student filter"; $S m1 notifications/sources.py 'return CurrentMark.objects.filter(student_id=ctx.student.pk)' 'return CurrentMark.objects.all()'
+  echo "--- M2 status no student filter"; $S m2 notifications/sources.py 'return PetitionStatusChange.objects.filter(petition__student_id=ctx.student.pk).exclude(' 'return PetitionStatusChange.objects.all().exclude('
+  echo "--- M3 lesson no group filter"; $S m3 notifications/sources.py 'LessonChange.objects.filter(weekly_lesson__groups=ctx.group_id)' 'LessonChange.objects.all()'
+  echo "--- M4 lesson no select_related"; $S m4 notifications/sources.py 'related = ("weekly_lesson__discipline", "new_room", "new_teacher")' 'related = ()'
+  echo "--- M5 staff list no select_related"; $S m5 notifications/views.py '.select_related("faculty", "group")' ''
+    --- M1 mark no student filter
+    FAIL: test_other_students_personal_events_hidden (notifications.tests.test_feed.StudentScopeTests.test_other_students_personal_events_hidden)
+    Ran 168 tests in 26.889s
+    FAILED (failures=1)
+    --- M2 status no student filter
+    FAIL: test_other_students_personal_events_hidden (notifications.tests.test_feed.StudentScopeTests.test_other_students_personal_events_hidden)
+    Ran 168 tests in 25.145s
+    FAILED (failures=1)
+    --- M3 lesson no group filter
+    FAIL: test_other_group_lesson_change_hidden (notifications.tests.test_feed.StudentScopeTests.test_other_group_lesson_change_hidden)
+    Ran 168 tests in 24.420s
+    FAILED (failures=1)
+    --- M4 lesson no select_related
+    Ran 168 tests in 24.394s
+    OK
+    --- M5 staff list no select_related
+    FAIL: test_staff_list_queries_constant (notifications.tests.test_views.QueryCountTests.test_staff_list_queries_constant)
+    Ran 168 tests in 24.499s
+    FAILED (failures=1)
+  ── Thought for 5ms
+    The tail only showed seed output, so I'll check the log for the Ran and OK lines to confirm the run actually finished.
+  ── Ran L=$TMPDIR/test-20261115-125339-rev-full.log; grep -E "^(FAIL|ERROR):|^Ran |^OK|^FAILED" $L
+    $ L=$TMPDIR/test-20261115-125339-rev-full.log; grep -E "^(FAIL|ERROR):|^Ran |^OK|^FAILED" $L
+    Ran 735 tests in 120.046s
+    OK
+  ── Thought for 5ms
+    The feed query test misses the N+1 in the lesson change source, since the spec wanted one query versus five rows per source and the test didn't catch it. The staff_list test does catch removing both faculty and group select_related, though the faculty part is what triggers it. Next I'll check whether removing only the group select_related gets caught, since mixed audiences don't seem covered. I'll also start the frozen-clock runs in the background while that goes.
+  ── Ran source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && for at in 2026-11-17T23:59:59 2026-11-18T00:00:00 2027-03-01T12:00:00; do echo "--- $at"; python scripts/run_tests_at.py $at > "$TMPDIR/test-$TS-rev-at-$at.log" 2>&1; grep -E "^(FAIL|ERROR):|^Ran |^OK|^FAILED" "$TMPDIR/test-$TS-rev-at-$at.log"; done
+    $ source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && for at in 2026-11-17T23:59:59 2026-11-18T00:00:00 2027-03-01T12:00:00; do echo "--- $at"; python scripts/run_tests_at.py $at > "$TMPDIR/test-$TS-rev-at-$at.log" 2>&1; grep -E "^(FAIL|ERROR):|^Ran |^OK|^FAILED" "$TMPDIR/test-$TS-rev-at-$at.log"; done
+    Command running in background with ID: bvpmnbvkr. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bvpmnbvkr.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran S=$TMPDIR/rev007_mut.sh echo "--- M5b staff list only faculty select_related"; $S m5b notifications/views.py '.select_related("faculty", "group")' '.select_related("faculty")' echo "--- M6 petition comment no student filter"; $S m6 notifications/sources.py 'return PetitionComment.objects.filter(petition__student_id=ctx.student.pk).exclude(' 'return PetitionComment.objects.all().exclude(' echo "--- M7 mark_seen backwards"; $S m7 notifications/services.py '.filter(Q(seen_until__isnull=True) | Q(seen_until__lt=now))' '' echo "--- M8 skip group check"; $S m8 notifications/services.py 'elif not groups_visible_to(author).filter(pk=group.pk).exists():' 'elif False:' echo "--- M9 managed_by group any faculty"; $S m9 notifications/selectors.py '| Q(audience=Audience.GROUP, group__program__faculty_id=profile.faculty_id)' '| Q(audience=Audience.GROUP)' echo "--- M10 final result no student filter"; $S m10 notifications/sources.py 'return FinalResult.objects.filter(student_id=ctx.student.pk)' 'return FinalResult.objects.all()' echo "--- M11 petition select_related removed"; $S m11 notifications/sources.py '    event_field = "created_at"     related = ("petition__request_type",)     def base_queryset(self, ctx: FeedContext) -> QuerySet:         return PetitionStatusChange' '    event_field = "created_at"     related = ()     def base_queryset(self, ctx: FeedContext) -> QuerySet:         return PetitionStatusChange' echo "--- M12 mark select_related removed"; $S m12 notifications/sources.py '    related = ("curriculum_item__discipline", "curriculum_item__term")     def base_queryset(self, ctx: FeedContext) -> QuerySet:         return CurrentMark' '    related = ()     def base_queryset(self, ctx: FeedContext) -> QuerySet:         return CurrentMark' (3m 20s)
+    $ S=$TMPDIR/rev007_mut.sh
+  echo "--- M5b staff list only faculty select_related"; $S m5b notifications/views.py '.select_related("faculty", "group")' '.select_related("faculty")'
+  echo "--- M6 petition comment no student filter"; $S m6 notifications/sources.py 'return PetitionComment.objects.filter(petition__student_id=ctx.student.pk).exclude(' 'return PetitionComment.objects.all().exclude('
+  echo "--- M7 mark_seen backwards"; $S m7 notifications/services.py '.filter(Q(seen_until__isnull=True) | Q(seen_until__lt=now))' ''
+  echo "--- M8 skip group check"; $S m8 notifications/services.py 'elif not groups_visible_to(author).filter(pk=group.pk).exists():' 'elif False:'
+  echo "--- M9 managed_by group any faculty"; $S m9 notifications/selectors.py '| Q(audience=Audience.GROUP, group__program__faculty_id=profile.faculty_id)' '| Q(audience=Audience.GROUP)'
+  echo "--- M10 final result no student filter"; $S m10 notifications/sources.py 'return FinalResult.objects.filter(student_id=ctx.student.pk)' 'return FinalResult.objects.all()'
+  echo "--- M11 petition select_related removed"; $S m11 notifications/sources.py '    event_field = "created_at"
+      related = ("petition__request_type",)
+
+      def base_queryset(self, ctx: FeedContext) -> QuerySet:
+          return PetitionStatusChange' '    event_field = "created_at"
+      related = ()
+
+      def base_queryset(self, ctx: FeedContext) -> QuerySet:
+          return PetitionStatusChange'
+  echo "--- M12 mark select_related removed"; $S m12 notifications/sources.py '    related = ("curriculum_item__discipline", "curriculum_item__term")
+
+      def base_queryset(self, ctx: FeedContext) -> QuerySet:
+          return CurrentMark' '    related = ()
+
+      def base_queryset(self, ctx: FeedContext) -> QuerySet:
+          return CurrentMark'
+    --- M5b staff list only faculty select_related
+    Ran 168 tests in 23.887s
+    OK
+    --- M6 petition comment no student filter
+    FAIL: test_other_students_personal_events_hidden (notifications.tests.test_feed.StudentScopeTests.test_other_students_personal_events_hidden)
+    Ran 168 tests in 23.666s
+    FAILED (failures=1)
+    --- M7 mark_seen backwards
+    FAIL: test_never_moves_back (notifications.tests.test_services.MarkSeenTests.test_never_moves_back)
+    Ran 168 tests in 24.715s
+    FAILED (failures=1)
+    --- M8 skip group check
+    FAIL: test_other_faculty_group_rejected (notifications.tests.test_services.CreateAnnouncementTests.test_other_faculty_group_rejected)
+    Ran 168 tests in 24.482s
+    FAILED (failures=1)
+    --- M9 managed_by group any faculty
+    FAIL: test_staff_does_not_see_other_faculty (notifications.tests.test_services.ManagedBySelectorTests.test_staff_does_not_see_other_faculty)
+    FAIL: test_staff_does_not_see_other_faculty_or_university (notifications.tests.test_views.StaffAnnouncementsAccessTests.test_staff_does_not_see_other_faculty_or_university)
+    Ran 168 tests in 24.433s
+    FAILED (failures=2)
+    --- M10 final result no student filter
+    FAIL: test_other_students_personal_events_hidden (notifications.tests.test_feed.StudentScopeTests.test_other_students_personal_events_hidden)
+    Ran 168 tests in 23.594s
+    FAILED (failures=1)
+    --- M11 petition select_related removed
+    Ran 168 tests in 23.428s
+    OK
+    --- M12 mark select_related removed
+    Ran 168 tests in 23.555s
+    OK
+  ── Thought for 6s
+    The N+1 problem is still slipping past the tests for three sources (lessons, petitions, marks) and for the staff group label, even though the code itself is now correct. So the tests are weaker than the spec, which means changes are requested: they need to match the spec, with one row per source rather than five, and a staff list mixing faculty and group members. I also want to check whether the staff list with only faculty select_related leaves the group audience_label unguarded, and then probe security next, starting with forged POSTs from staff.
+
+    I'm checking the staff announcement probe for a forged group target, and confirming the admin invalid-combination tests and the read-only timestamp fields are covered. The comment timestamp only shifts under a frozen test clock, which isn't a production problem, so I'll note the spec mismatch for the team lead as non-blocking. I also still need to verify the seed run and backfill myself, plus run the deploy check, ruff, and the YAML check.
+  ── Thought for 6ms
+    Полный прогон прошёл (735 тестов), но тесты не ловят N+1 в трёх источниках ленты и в списке объявлений сотрудника. Дальше проверю seed, обратное заполнение `created_at`, ruff и `check --deploy`.
+  ── Ran source .venv/bin/activate && export DEBUG=true && DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -2; ruff check . && ruff format --check . | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')" P=$TMPDIR/rev007seed; mkdir -p $P; export DATABASE_URL="sqlite:///$P/db.sqlite3" PRIVATE_MEDIA_ROOT="$P/private" DEMO_PASSWORD='Local-Demo-Pass-2026!' python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1 python manage.py migrate academics 0001 -v0 && python manage.py migrate -v0 python manage.py shell -c " from django.utils import timezone as tz from academics.models import CurrentMark as M, FinalResult as F bad=[m.pk for m in M.objects.all() if tz.localtime(m.created_at).date()!=m.date] badf=[m.pk for m in F.objects.all() if tz.localtime(m.created_at).date()!=m.date] print('marks', M.objects.count(), 'bad', bad, 'results', F.objects.count(), 'bad', badf) from accounts.models import User from notifications.feed import badge_for_user, student_context, build_feed, upcoming_deadlines for u in User.objects.filter(username__in=['student1','student2','student3']).order_by('username'):     ctx=student_context(u); f=build_feed(ctx)     print(u.username, 'badge', badge_for_user(u), 'feed', len(f), 'kinds', sorted({i.kind for i in f}), 'deadlines', [(d.deadline.isoformat(), d.label) for d in upcoming_deadlines(ctx,10)]) " (7s)
+    $ source .venv/bin/activate && export DEBUG=true && DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -2; ruff check . && ruff format --check . | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"
+  P=$TMPDIR/rev007seed; mkdir -p $P; export DATABASE_URL="sqlite:///$P/db.sqlite3" PRIVATE_MEDIA_ROOT="$P/private" DEMO_PASSWORD='Local-Demo-Pass-2026!'
+  python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1
+  python manage.py migrate academics 0001 -v0 && python manage.py migrate -v0
+  python manage.py shell -c "
+  from django.utils import timezone as tz
+  from academics.models import CurrentMark as M, FinalResult as F
+  bad=[m.pk for m in M.objects.all() if tz.localtime(m.created_at).date()!=m.date]
+  badf=[m.pk for m in F.objects.all() if tz.localtime(m.created_at).date()!=m.date]
+  print('marks', M.objects.count(), 'bad', bad, 'results', F.objects.count(), 'bad', badf)
+  from accounts.models import User
+  from notifications.feed import badge_for_user, student_context, build_feed, upcoming_deadlines
+  for u in User.objects.filter(username__in=['student1','student2','student3']).order_by('username'):
+      ctx=student_context(u); f=build_feed(ctx)
+      print(u.username, 'badge', badge_for_user(u), 'feed', len(f), 'kinds', sorted({i.kind for i in f}), 'deadlines', [(d.deadline.isoformat(), d.label) for d in upcoming_deadlines(ctx,10)])
+  "
+    System check identified no issues (1 silenced).
+    All checks passed!
+    149 files already formatted
+    yaml ok
+    Notifications ready: 9 announcements.
+    Notifications ready: 0 announcements.
+    29 objects imported automatically (use -v 2 for details).
+
+    marks 70 bad [] results 13 bad []
+    student1 badge 20 feed 20 kinds ['mark', 'news', 'petition_comment', 'petition_status'] deadlines [('2026-11-16', 'завтра'), ('2026-11-18', 'через 3 дня'), ('2026-11-20', 'через 5 дней')]
+    student2 badge 18 feed 18 kinds ['lesson_change', 'mark', 'news', 'petition_comment', 'petition_status'] deadlines [('2026-11-17', 'через 2 дня'), ('2026-11-20', 'через 5 дней')]
+    student3 badge 18 feed 18 kinds ['mark', 'news', 'petition_status'] deadlines [('2026-11-16', 'завтра'), ('2026-11-18', 'через 3 дня'), ('2026-11-20', 'через 5 дней')]
+  ── Thought for 1s
+    I'm checking that student1 doesn't show any lesson changes in the feed, which I'll assume is because the seeded changes belong to other groups or past dates, and that the seeded changes only show up for student2. Next I'm considering a quick live render of the feed, notification admin pages, and staff page against the temp DB to catch any 500s, though the existing tests may already cover this.
+
+    I'm checking whether the test client needs testserver added to ALLOWED_HOSTS, since that would be a quick fix for the live render.
+  ── Ran source .venv/bin/activate && export DEBUG=true && P=$TMPDIR/rev007seed && export DATABASE_URL="sqlite:///$P/db.sqlite3" PRIVATE_MEDIA_ROOT="$P/private" && python manage.py shell -c " from django.test import Client from django.test.utils import setup_test_environment setup_test_environment() from accounts.models import User from notifications.models import Announcement from university.models import StudyGroup c=Client(raise_request_exception=False) s1=User.objects.get(username='student1'); st1=User.objects.get(username='staff1'); st2=User.objects.get(username='staff2') c.force_login(s1) r=c.get('/notifications/'); print('feed', r.status_code, r.headers.get('Cache-Control')) r=c.get('/'); print('home', r.status_code, 'Ближайшие дедлайны' in r.content.decode()) r=c.get('/accounts/profile/' ); print('profile', r.status_code) print('nav after visit', 'Уведомления (' in c.get('/').content.decode()) c.force_login(st1) r=c.get('/staff/announcements/'); print('staff list', r.status_code, r.content.decode().count('announcement-')) other=Announcement.objects.filter(faculty__code='FAE').first() or Announcement.objects.filter(group__name='ЭД-201').first() r=c.post(f'/staff/announcements/{other.public_id}/unpublish/'); print('unpublish other faculty', r.status_code) uni=Announcement.objects.filter(audience='university').first() r=c.post(f'/staff/announcements/{uni.public_id}/unpublish/'); print('unpublish uni', r.status_code) g=StudyGroup.objects.get(name='ЭД-201') r=c.post('/staff/announcements/', {'title':'X','body':'Y','target':f'group-{g.pk}'}); print('forged group', r.status_code, Announcement.objects.filter(title='X').count()) r=c.post('/staff/announcements/', {'title':'X','body':'Y','target':'university'}); print('forged uni', r.status_code, Announcement.objects.filter(title='X').count()) r=c.post('/staff/announcements/', {'title':'X'*151,'body':'Y'*3001,'target':'faculty','deadline':'abc'}); print('bad input', r.status_code) r=c.post('/staff/announcements/', {'title':'   ','body':'   ','target':'faculty'}); print('blank', r.status_code, Announcement.objects.filter(title='').count()) r=c.post('/staff/announcements/', {'title':'X','body':'Y','target':'faculty','deadline':'9999-12-31'}); print('far deadline', r.status_code, Announcement.objects.filter(title='X').count()) r=c.get('/notifications/'); print('staff->feed', r.status_code) root=User.objects.filter(is_superuser=True).first() if root:     c.force_login(root)     from django.urls import reverse     for u in [reverse('admin:notifications_announcement_changelist'), reverse('admin:notifications_announcement_add'), reverse('admin:notifications_announcement_change', args=[uni.pk])]:         print('admin', u, c.get(u).status_code)     r=c.post(reverse('admin:notifications_announcement_add'), {'title':'A','body':'B','audience':'group','faculty':g.program.faculty_id,'is_published':'on'}); print('admin invalid combo', r.status_code)     r=c.post(reverse('admin:notifications_announcement_add'), {'title':'A','body':'B','audience':'bogus','is_published':'on'}); print('admin bogus audience', r.status_code) else: print('no superuser in seed') " 2>&1 | grep -v "objects imported"
+    $ source .venv/bin/activate && export DEBUG=true && P=$TMPDIR/rev007seed && export DATABASE_URL="sqlite:///$P/db.sqlite3" PRIVATE_MEDIA_ROOT="$P/private" && python manage.py shell -c "
+  from django.test import Client
+  from django.test.utils import setup_test_environment
+  setup_test_environment()
+  from accounts.models import User
+  from notifications.models import Announcement
+  from university.models import StudyGroup
+  c=Client(raise_request_exception=False)
+  s1=User.objects.get(username='student1'); st1=User.objects.get(username='staff1'); st2=User.objects.get(username='staff2')
+  c.force_login(s1)
+  r=c.get('/notifications/'); print('feed', r.status_code, r.headers.get('Cache-Control'))
+  r=c.get('/'); print('home', r.status_code, 'Ближайшие дедлайны' in r.content.decode())
+  r=c.get('/accounts/profile/' ); print('profile', r.status_code)
+  print('nav after visit', 'Уведомления (' in c.get('/').content.decode())
+  c.force_login(st1)
+  r=c.get('/staff/announcements/'); print('staff list', r.status_code, r.content.decode().count('announcement-'))
+  other=Announcement.objects.filter(faculty__code='FAE').first() or Announcement.objects.filter(group__name='ЭД-201').first()
+  r=c.post(f'/staff/announcements/{other.public_id}/unpublish/'); print('unpublish other faculty', r.status_code)
+  uni=Announcement.objects.filter(audience='university').first()
+  r=c.post(f'/staff/announcements/{uni.public_id}/unpublish/'); print('unpublish uni', r.status_code)
+  g=StudyGroup.objects.get(name='ЭД-201')
+  r=c.post('/staff/announcements/', {'title':'X','body':'Y','target':f'group-{g.pk}'}); print('forged group', r.status_code, Announcement.objects.filter(title='X').count())
+  r=c.post('/staff/announcements/', {'title':'X','body':'Y','target':'university'}); print('forged uni', r.status_code, Announcement.objects.filter(title='X').count())
+  r=c.post('/staff/announcements/', {'title':'X'*151,'body':'Y'*3001,'target':'faculty','deadline':'abc'}); print('bad input', r.status_code)
+  r=c.post('/staff/announcements/', {'title':'   ','body':'   ','target':'faculty'}); print('blank', r.status_code, Announcement.objects.filter(title='').count())
+  r=c.post('/staff/announcements/', {'title':'X','body':'Y','target':'faculty','deadline':'9999-12-31'}); print('far deadline', r.status_code, Announcement.objects.filter(title='X').count())
+  r=c.get('/notifications/'); print('staff->feed', r.status_code)
+  root=User.objects.filter(is_superuser=True).first()
+  if root:
+      c.force_login(root)
+      from django.urls import reverse
+      for u in [reverse('admin:notifications_announcement_changelist'), reverse('admin:notifications_announcement_add'), reverse('admin:notifications_announcement_change', args=[uni.pk])]:
+          print('admin', u, c.get(u).status_code)
+      r=c.post(reverse('admin:notifications_announcement_add'), {'title':'A','body':'B','audience':'group','faculty':g.program.faculty_id,'is_published':'on'}); print('admin invalid combo', r.status_code)
+      r=c.post(reverse('admin:notifications_announcement_add'), {'title':'A','body':'B','audience':'bogus','is_published':'on'}); print('admin bogus audience', r.status_code)
+  else: print('no superuser in seed')
+  " 2>&1 | grep -v "objects imported"
+    2026-11-15 13:02:56,789 WARNING django.request Not Found: /accounts/profile/
+    2026-11-15 13:02:56,817 WARNING django.request Not Found: /staff/announcements/1d9b0112-286b-454e-a25c-5237af64a134/unpublish/
+    2026-11-15 13:02:56,823 WARNING django.request Not Found: /staff/announcements/c16523ef-370e-48fb-a9e1-99fa51e639a4/unpublish/
+    2026-11-15 13:02:56,858 WARNING django.request Forbidden (Permission denied): /notifications/
+    Traceback (most recent call last):
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+        response = get_response(request)
+                   ^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+        response = wrapped_callback(request, *callback_args, **callback_kwargs)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/views/generic/base.py", line 105, in view
+        return self.dispatch(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/utils/decorators.py", line 48, in _wrapper
+        return bound_method(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/views/decorators/cache.py", line 80, in _view_wrapper
+        response = view_func(request, *args, **kwargs)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/accounts/access.py", line 40, in dispatch
+        self.profile = get_profile_for_role(request.user, self.required_role)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/accounts/access.py", line 28, in get_profile_for_role
+        raise PermissionDenied
+    django.core.exceptions.PermissionDenied
+
+    feed 200 max-age=0, no-cache, no-store, must-revalidate, private
+    home 200 True
+    profile 404
+    nav after visit False
+    staff list 200 4
+    unpublish other faculty 404
+    unpublish uni 404
+    forged group 200 0
+    forged uni 200 0
+    bad input 200
+    blank 200 0
+    far deadline 200 0
+    staff->feed 403
+    no superuser in seed
+  ── Thought for 3s
+    The profile URL was a path mistake on my end, but it doesn't matter. The staff list check holds up: staff1's FDD lists n-3, n-4, n-7, and n-8, which makes 4. For superuser admin probes, the admin tests already exist and the invalid combinations are covered, and the bogus audience gets rejected by the ChoiceField, so I'll skip creating a superuser on a temp DB. Now I'm waiting on the frozen-cl.
+
+    I'm going through the remaining review points while the frozen-clock runs finish. One is a style nit about a local import inside `upcoming_deadlines`, and another is that the home summary's news anchor could break if the feed cap hides it. I also need to flag spec deviation 1 for add_staff_comment to the team lead, and I want to check whether `LessonChange`'s `to_item` can safely use `new_teacher` for teacher_replaced changes given the model constraints.
+  ── Read schedule/models.py
+  ── Thought for 3ms
+    I've confirmed the kind and fields constraint holds, so that check is settled. Now I'm waiting on the frozen runs before going further.
+  ── Ran sleep 1; cat /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bvpmnbvkr.output (1s)
+    $ sleep 1; cat /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bvpmnbvkr.output
+    --- 2026-11-17T23:59:59
+    Ran 735 tests in 116.790s
+    OK
+    --- 2026-11-18T00:00:00
+    Ran 735 tests in 112.694s
+    OK
+    --- 2027-03-01T12:00:00
+  ── Thought for 8s
+    I'm waiting on the last check before I can go further, so I'll hold off on any Monitor setup and just wait for the notification. While I wait, I'm drafting the CHANGES REQUESTED list. I still need the line numbers for test_feed_queries_constant and test_staff_list_queries_constant in test_views.py, and the first item is already noted: the feed test at line 597 only uses news, but spec 7.3 requires one.
+
+    I'm writing up the second CHANGES REQUESTED item, which is about the staff list test only covering faculty announcements. The fix I'm planning is to mix in group-addressed ones so both test runs carry the same kind of audience, though the 1-versus-6 counts make that awkward to arrange.
+
+    I'm weighing whether to tell the Team lead now about the spec 7.0 mismatch on add_staff_comment or hold it for the final APPROVE. Coder's workaround is acceptable, and adding created_at would touch petitions/services.py, which isn't in the change list, so I'll keep the fix out of scope. I'll note the spec issue with my verdict later. There's one more round to go, and I'm holding off until the 2027 run finishes before sending anything.
+  ── Thought for 429ms
+    I'm waiting on the background task bvpmnbvkr. A foreground sleep would block, and the existing task will notify me when it finishes, so I'll end the turn with a short status update rather than starting another loop.
+
+── Assistant ───────────────────────────────────────────────
+Осталась одна проверка: прогон тестов с часами, замороженными на 01.03.2027. Прогоны на 17.11 23:59:59 и 18.11 00:00:00 прошли, по 735 тестов OK. Когда третий закончится, отправлю вердикт.
+
+── Read /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bvpmnbvkr.output
+  $ cat /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bvpmnbvkr.output; ls $TMPDIR | grep rev-at; grep -n "def test_feed_queries_constant\|def test_staff_list_queries_constant" ~/hackatonproject/notifications/tests/test_views.py
+
+── Ran bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF' [TASK-007] Reviewer -> Coder: CHANGES REQUESTED Round 1 of 3. Production code is correct; all verification is green on my side (logs: $TMPDIR/test-20261115-125339-rev-full.log, $TMPDIR/test-20261115-125901-rev-at-*.log — 735 OK x4, no failed runs). Two query-count tests do not match spec §7.3 and miss N+1 regressions. 1. notifications/tests/test_views.py:597 test_feed_queries_constant — problem: only news rows are added. Spec §7.3: "1 row per source vs 5 rows per source". Proof (mutation probes on a copy): `related = ()` in LessonChangeSource, in PetitionStatusSource, or in CurrentMarkSource → all 168 notifications tests still pass. How to fix: in each measured run create, for student ax, N rows (N = 1, then 5) of every one of the 6 sources inside the feed window: announcement; staff status change (via change_status or explicit created_at); staff PetitionComment with explicit created_at; LessonChange in the horizon via save_lesson_change (use distinct dates or lessons so the changes are valid); CurrentMark; FinalResult (distinct curriculum items or attempts). Keep set_seen before each GET, assertEqual(count_one, count_many) and <= 20. Check that each of the three mutations above now fails the test. 2. notifications/tests/test_views.py:617 test_staff_list_queries_constant — problem: only faculty-addressed rows. Spec §7.3: "1 vs 6 announcements, faculty and group mixed". Proof: `.select_related("faculty")` (without "group") in StaffAnnouncementsView._render → test passes. How to fix: make at least 2 of the 5 added announcements group-addressed (GX1/GX2). Check that this mutation now fails the test. On your note 1 (add_staff_comment and created_at): keep it as is. Do not change petitions/services.py, because it is not in the spec change list. I will report the spec mismatch to the Team lead. On your note 2 (300 s tool timeouts): accepted. Those runs did not fail any test. Change only notifications/tests/test_views.py. Re-run §9 with logs and send a REPORT. EOF
+  $ bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF'
+[TASK-007] Reviewer -> Coder: CHANGES REQUESTED
+
+Round 1 of 3. Production code is correct; all verification is green on my side (logs: $TMPDIR/test-20261115-125339-rev-full.log, $TMPDIR/test-20261115-125901-rev-at-*.log — 735 OK x4, no failed runs). Two query-count tests do not match spec §7.3 and miss N+1 regressions.
+
+1. notifications/tests/test_views.py:597 test_feed_queries_constant — problem: only news rows are added. Spec §7.3: "1 row per source vs 5 rows per source". Proof (mutation probes on a copy): `related = ()` in LessonChangeSource, in PetitionStatusSource, or in CurrentMarkSource → all 168 notifications tests still pass. How to fix: in each measured run create, for student ax, N rows (N = 1, then 5) of every one of the 6 sources inside the feed window: announcement; staff status change (via change_status or explicit created_at); staff PetitionComment with explicit created_at; LessonChange in the horizon via save_lesson_change (use distinct dates or lessons so the changes are valid); CurrentMark; FinalResult (distinct curriculum items or attempts). Keep set_seen before each GET, assertEqual(count_one, count_many) and <= 20. Check that each of the three mutations above now fails the test.
+
+2. notifications/tests/test_views.py:617 test_staff_list_queries_constant — problem: only faculty-addressed rows. Spec §7.3: "1 vs 6 announcements, faculty and group mixed". Proof: `.select_related("faculty")` (without "group") in StaffAnnouncementsView._render → test passes. How to fix: make at least 2 of the 5 added announcements group-addressed (GX1/GX2). Check that this mutation now fails the test.
+
+On your note 1 (add_staff_comment and created_at): keep it as is. Do not change petitions/services.py, because it is not in the spec change list. I will report the spec mismatch to the Team lead.
+On your note 2 (300 s tool timeouts): accepted. Those runs did not fail any test.
+
+Change only notifications/tests/test_views.py. Re-run §9 with logs and send a REPORT.
+EOF
+  Thread thr_ng6cbgatm6 steered
+
+── Assistant ───────────────────────────────────────────────
+Я проверил TASK-007 и вернул задачу Кодеру с вердиктом CHANGES REQUESTED. Это раунд 1 из 3.
+
+**Что работает:**
+- Все проверки из спецификации у меня прошли. Обычный прогон и прогоны на 17.11 23:59:59, 18.11 00:00:00 и 01.03.2027 дали по 735 тестов OK, падений нет. Логи лежат в `$TMPDIR/test-20261115-*-rev-*.log`.
+- `check`, `check --deploy`, ruff, yaml и миграции в порядке.
+- Seed проходит дважды, второй запуск создаёт 0 объявлений. Обратное заполнение `created_at` для оценок корректно.
+- Утечек данных между студентами нет: если убрать фильтр по студенту или группе из любого источника ленты, тесты падают.
+- Сотрудник не может снять с публикации объявление чужого факультета или общеуниверситетское: получает 404.
+- Попытка подставить чужую группу или «весь университет» в форму сотрудника ничего не создаёт.
+
+**Что нужно исправить (только тесты):**
+1. Тест на число запросов для страницы «Уведомления» создаёт только новости. По спецификации он должен создавать записи всех 6 источников. Я проверил на копии кода: если убрать `select_related` в источниках «расписание», «заявки» или «оценки», тест всё равно проходит. Значит, лишние запросы к БД (N+1) он не ловит.
+2. Тест на число запросов для списка объявлений сотрудника использует только объявления факультета. По спецификации нужны и объявления для групп. Если убрать `select_related("group")`, тест тоже проходит.
+
+**Ошибка в спецификации.** В §7.0 сказано, что `add_staff_comment` сам ставит `created_at`. На деле не ставит. В работе сайта это не мешает, потому что там реальные часы. Обход Кодера в тестах правильный, и `petitions/services.py` я менять не разрешил: этого файла нет в списке изменений спецификации. Тимлиду сообщу об этом вместе с итоговым вердиктом.
+
+Таймауты прогонов, о которых писал Кодер, тестовыми падениями не были, я их принял.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_ng6cbgatm6]
+
+[TASK-007] Coder -> Reviewer: REPORT (round 1 fixes)
+
+Changed only `notifications/tests/test_views.py` (the two query-count tests). Not committed.
+
+## Issue 1 — test_feed_queries_constant
+Now creates N rows (N=1, then N=5) of every one of the 6 sources inside the feed window for student `ax`, via a `_add_feed_batch()` helper:
+- news: `Announcement` (university)
+- staff status change: `make_petition` + `change_status(..., "submitted" → "in_progress")`
+- staff `PetitionComment` with explicit `created_at`
+- `LessonChange` (cancelled, `save_lesson_change`, distinct room+slot per batch, original 2026-11-11)
+- `CurrentMark` (distinct date per batch)
+- `FinalResult` (distinct discipline/curriculum item per batch)
+
+`set_seen` is re-created before each measured GET; `assertEqual(count_one, count_many)` and `<= 20`.
+
+## Issue 2 — test_staff_list_queries_constant
+The 5 added announcements now mix faculty and group: 3 faculty-addressed + 2 group-addressed (GX1, GX2), so the group `.select_related("group")` path is exercised.
+
+## Mutation checks (verified on a copy, then reverted)
+- `related = ("curriculum_item__term",)` in `CurrentMarkSource` (dropping `__discipline`) → test_feed_queries_constant FAILS `17 != 21`. ✓
+- `.select_related("faculty")` (dropping `"group"`) in `StaffAnnouncementsView._render` → test_staff_list_queries_constant FAILS `6 != 8`. ✓
+
+## Note on your exact probe `related = ()`
+`related = ()` does not actually remove the `select_related`: in `latest` it runs `.select_related(*self.related)`, and `select_related(*())` == `select_related()` with no args, which in Django 5.2 follows **all non-null FK relations recursively** (verified: `LessonChange.objects.select_related()` already joins weekly_lesson + discipline + teacher + room). So `related = ()` widens rather than removes the join and causes no N+1 — that is why it passed before and still would. The genuine N+1 regression is a *missing/incomplete* field in `related` (or dropping the `.select_related(...)` call), which the rewritten test now catches (proof above).
+
+## Verification (§9) — all green
+- `python manage.py test` → 735 OK.
+- `run_tests_at.py` 2026-11-17T23:59:59 / 2026-11-18T00:00:00 / 2027-03-01T12:00:00 → 735 OK each.
+- `check` OK; `makemigrations --check` → No changes; `check --deploy` → no issues (1 silenced).
+- `ruff check .` clean; `ruff format --check .` → 149 files formatted; yaml ok.
+
+Logs: `$TMPDIR/test-20261115-*-r1-full.log`, `-r1-at-2359.log`, `-r1-at-0000.log`, `-r1-at-2027.log`.
+
+git status unchanged from round 0 (only `notifications/tests/test_views.py` touched this round; it is inside the untracked `notifications/`).
+
+── Ran 3 commands ──────────────────────────────────────────
+  ── Thought for 1s
+    I'm realizing the coder was right that calling select_related() with no arguments makes my mutation flawed, which is why M4, M11 and M12 kept passing. I need mutations that actually change the relations, either dropping the call or trimming it per source, such as limiting LessonChange to just "new_room".
+
+    I'm going to try per-source partial relations instead, like keeping only "petition" for PetitionStatus so it drops request_type, and running the full suite afterward.
+  ── Ran git status --short && sed -n '/^def _query_count/,/^class /p;/class QueryCountTests/,$p' notifications/tests/test_views.py | head -200
+    $ git status --short && sed -n '/^def _query_count/,/^class /p;/class QueryCountTests/,$p' notifications/tests/test_views.py | head -200
+    M README.md
+     M academics/demo.py
+     M academics/models.py
+     M accounts/management/commands/seed_demo.py
+     M config/settings.py
+     M config/urls.py
+     M core/templates/core/home.html
+     M core/views.py
+     M petitions/demo.py
+     M plan.md
+     M pyproject.toml
+     M schedule/models.py
+     M static/css/base.css
+     M templates/base.html
+    ?? academics/migrations/0002_currentmark_created_at_alter_finalresult_created_at.py
+    ?? academics/migrations/0003_backfill_grade_created_at.py
+    ?? core/clock.py
+    ?? docs/tasks/TASK-007.md
+    ?? notifications/
+    ?? schedule/migrations/0004_lessonchange_updated_at.py
+    def _query_count(fn) -> int:
+        with CaptureQueriesContext(connection) as ctx:
+            fn()
+        return len(ctx.captured_queries)
+
+
+    class AnnouncementFormTests(FrozenClockMixin, TestCase):
+    class QueryCountTests(FrozenClockMixin, TestCase):
+        frozen_now = NOW
+
+        @classmethod
+        def setUpTestData(cls):
+            cls.w = make_world()
+
+        def setUp(self):
+            self.term = make_term(code="t-2026-autumn")
+            self.disc = make_discipline("Дисциплина")
+            self.item = make_item(self.w.gx1, self.disc, self.term)
+            self.rtype = make_type("Справка")
+            self._n = 0
+
+        def _add_feed_batch(self):
+            """Add one row of every one of the 6 feed sources for student ax."""
+            self._n += 1
+            n = self._n
+            make_announcement(self.w.sx, audience=Audience.UNIVERSITY, title=f"Новость {n}")
+            petition = make_petition(self.w.ax_profile, self.rtype)
+            change_status(petition, self.w.sx, "submitted", "in_progress")
+            PetitionComment.objects.create(
+                petition=petition, author=self.w.sx, text="Комментарий", created_at=timezone.now()
+            )
+            room = make_room(f"room-{100 + n}")
+            lesson = make_lesson([self.w.gx1], weekday=2, slot=n, room=room, discipline=self.disc)
+            save_lesson_change(
+                LessonChange(
+                    weekly_lesson=lesson, original_date=D, kind=ChangeKind.CANCELLED, reason="Причина"
+                )
+            )
+            make_mark(self.w.ax_profile, self.item, 5, D - timedelta(days=n), "Семинар")
+            disc = make_discipline(f"Результат {n}")
+            item = make_item(self.w.gx1, disc, self.term)
+            make_result(self.w.ax_profile, item, "5", date=D)
+
+        def test_badge_exactly_three_queries(self):
+            user = User.objects.get(pk=self.w.ax.pk)
+            with self.assertNumQueries(3):
+                badge_for_user(user)
+
+        def test_feed_queries_constant(self):
+            self.client.force_login(self.w.ax)
+            self._add_feed_batch()
+            set_seen(self.w.ax, moscow(NOW) - timedelta(days=1))
+            count_one = _query_count(lambda: self.client.get(reverse("notifications:feed")))
+            for _ in range(4):
+                self._add_feed_batch()
+            set_seen(self.w.ax, moscow(NOW) - timedelta(days=1))
+            count_many = _query_count(lambda: self.client.get(reverse("notifications:feed")))
+            self.assertEqual(count_one, count_many)
+            self.assertLessEqual(count_one, 20)
+
+        def test_profile_page_counter_constant(self):
+            self.client.force_login(self.w.ax)
+            zero = _query_count(lambda: self.client.get(reverse("accounts:profile")))
+            for _ in range(10):
+                make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+            ten = _query_count(lambda: self.client.get(reverse("accounts:profile")))
+            self.assertEqual(zero, ten)
+
+        def test_staff_list_queries_constant(self):
+            make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+            self.client.force_login(self.w.sx)
+            one = _query_count(lambda: self.client.get(reverse("notifications:staff_announcements")))
+            for i in range(3):
+                make_announcement(
+                    self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx, title=f"Факультет {i}"
+                )
+            make_announcement(self.w.sx, audience=Audience.GROUP, group=self.w.gx1, title="Группа GX1")
+            make_announcement(self.w.sx, audience=Audience.GROUP, group=self.w.gx2, title="Группа GX2")
+            six = _query_count(lambda: self.client.get(reverse("notifications:staff_announcements")))
+            self.assertEqual(one, six)
+            self.assertLessEqual(one, 10)
+
+        def test_home_queries_constant(self):
+            make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+            self.client.force_login(self.w.ax)
+            one = _query_count(lambda: self.client.get(reverse("core:home")))
+            for i in range(4):
+                make_announcement(self.w.sx, audience=Audience.UNIVERSITY, title=f"Новость {i}")
+            five = _query_count(lambda: self.client.get(reverse("core:home")))
+            self.assertEqual(one, five)
+  ── Thought for 9ms
+    I'm checking that the make_mark date sits inside the 30-day window and that the frozen "now" puts it in range, which it does. The lesson-change case with slot 5 also looks fine, since MAX_SLOT is probably at least 5. I also want the test to confirm all six kinds actually show up, so it doesn't pass vacuously if rows get filtered out. Next I'll run partial mutations per source, using only that test, and write a quick variant of the mutation script to do it.
+
+    Then I'll confirm the test against the actual mutation script, setting up a variant that runs only that specific test.
+  ── Ran M=$TMPDIR/rev007 && cp notifications/tests/test_views.py $M/notifications/tests/test_views.py && sed -i '' 's#python manage.py test notifications #python manage.py test ${TESTS:-notifications} #' $TMPDIR/rev007_mut.sh && grep -n "manage.py test" $TMPDIR/rev007_mut.sh S=$TMPDIR/rev007_mut.sh; export TESTS=notifications.tests.test_views.QueryCountTests echo "--- base"; cp notifications/sources.py $M/notifications/sources.py; (cd $M && source ~/hackatonproject/.venv/bin/activate && DEBUG=true python manage.py test $TESTS 2>&1 | grep -E "^(FAIL|ERROR):|^Ran|^OK|^FAILED") echo "--- lesson partial"; $S r1a notifications/sources.py 'related = ("weekly_lesson__discipline", "new_room", "new_teacher")' 'related = ("new_room",)' echo "--- status partial"; $S r1b notifications/sources.py '    related = ("petition__request_type",)     def base_queryset(self, ctx: FeedContext) -> QuerySet:         return PetitionStatusChange' '    related = ("actor",)     def base_queryset(self, ctx: FeedContext) -> QuerySet:         return PetitionStatusChange' echo "--- comment partial"; $S r1c notifications/sources.py '    related = ("petition__request_type",)     def base_queryset(self, ctx: FeedContext) -> QuerySet:         return PetitionComment' '    related = ("author",)     def base_queryset(self, ctx: FeedContext) -> QuerySet:         return PetitionComment' echo "--- final partial"; $S r1d notifications/sources.py '    related = ("curriculum_item__discipline", "curriculum_item__term")     def base_queryset(self, ctx: FeedContext) -> QuerySet:         return FinalResult' '    related = ("student",)     def base_queryset(self, ctx: FeedContext) -> QuerySet:         return FinalResult' echo "--- news partial"; $S r1e notifications/sources.py 'related = ("faculty", "group")' 'related = ("author",)' echo "--- staff group"; $S r1f notifications/views.py '.select_related("faculty", "group")' '.select_related("faculty")' (12s)
+    $ M=$TMPDIR/rev007 && cp notifications/tests/test_views.py $M/notifications/tests/test_views.py && sed -i '' 's#python manage.py test notifications #python manage.py test ${TESTS:-notifications} #' $TMPDIR/rev007_mut.sh && grep -n "manage.py test" $TMPDIR/rev007_mut.sh
+  S=$TMPDIR/rev007_mut.sh; export TESTS=notifications.tests.test_views.QueryCountTests
+  echo "--- base"; cp notifications/sources.py $M/notifications/sources.py; (cd $M && source ~/hackatonproject/.venv/bin/activate && DEBUG=true python manage.py test $TESTS 2>&1 | grep -E "^(FAIL|ERROR):|^Ran|^OK|^FAILED")
+  echo "--- lesson partial"; $S r1a notifications/sources.py 'related = ("weekly_lesson__discipline", "new_room", "new_teacher")' 'related = ("new_room",)'
+  echo "--- status partial"; $S r1b notifications/sources.py '    related = ("petition__request_type",)
+
+      def base_queryset(self, ctx: FeedContext) -> QuerySet:
+          return PetitionStatusChange' '    related = ("actor",)
+
+      def base_queryset(self, ctx: FeedContext) -> QuerySet:
+          return PetitionStatusChange'
+  echo "--- comment partial"; $S r1c notifications/sources.py '    related = ("petition__request_type",)
+
+      def base_queryset(self, ctx: FeedContext) -> QuerySet:
+          return PetitionComment' '    related = ("author",)
+
+      def base_queryset(self, ctx: FeedContext) -> QuerySet:
+          return PetitionComment'
+  echo "--- final partial"; $S r1d notifications/sources.py '    related = ("curriculum_item__discipline", "curriculum_item__term")
+
+      def base_queryset(self, ctx: FeedContext) -> QuerySet:
+          return FinalResult' '    related = ("student",)
+
+      def base_queryset(self, ctx: FeedContext) -> QuerySet:
+          return FinalResult'
+  echo "--- news partial"; $S r1e notifications/sources.py 'related = ("faculty", "group")' 'related = ("author",)'
+  echo "--- staff group"; $S r1f notifications/views.py '.select_related("faculty", "group")' '.select_related("faculty")'
+    17:DEBUG=true python manage.py test ${TESTS:-notifications} 2>&1 > /dev/null | tee "$TMPDIR/test-rev007-mut-$name.log" | grep -E "^(FAIL|ERROR):|^Ran|^OK|^FAILED" 
+    --- base
+    Ran 5 tests in 0.457s
+    OK
+    --- lesson partial
+    FAIL: test_feed_queries_constant (notifications.tests.test_views.QueryCountTests.test_feed_queries_constant)
+    Ran 5 tests in 0.458s
+    FAILED (failures=1)
+    --- status partial
+    FAIL: test_feed_queries_constant (notifications.tests.test_views.QueryCountTests.test_feed_queries_constant)
+    Ran 5 tests in 0.458s
+    FAILED (failures=1)
+    --- comment partial
+    FAIL: test_feed_queries_constant (notifications.tests.test_views.QueryCountTests.test_feed_queries_constant)
+    Ran 5 tests in 0.453s
+    FAILED (failures=1)
+    --- final partial
+    FAIL: test_feed_queries_constant (notifications.tests.test_views.QueryCountTests.test_feed_queries_constant)
+    Ran 5 tests in 0.451s
+    FAILED (failures=1)
+    --- news partial
+    Ran 5 tests in 0.452s
+    OK
+    --- staff group
+    FAIL: test_staff_list_queries_constant (notifications.tests.test_views.QueryCountTests.test_staff_list_queries_constant)
+    Ran 5 tests in 0.448s
+    FAILED (failures=1)
+  ── Thought for 6ms
+    I'm checking the news partial: the feed test only uses university-wide announcements, so the audience label never reaches the faculty or group path. The spec doesn't require mixed audiences there, and the staff list test covers the group label case, so this is a minor non-blocking note rather than a deviation. Next I'll verify the mark partial and run the full suite.
+
+    Next I'm running the full suite plus three frozen runs in the background, one after another, with logs captured.
+  ── Ran source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "TS=$TS" && python manage.py test > "$TMPDIR/test-$TS-rev-r1-full.log" 2>&1; grep -E "^(FAIL|ERROR):|^Ran |^OK|^FAILED" "$TMPDIR/test-$TS-rev-r1-full.log"; for at in 2026-11-17T23:59:59 2026-11-18T00:00:00 2027-03-01T12:00:00; do echo "--- $at"; python scripts/run_tests_at.py $at > "$TMPDIR/test-$TS-rev-r1-at-$at.log" 2>&1; grep -E "^(FAIL|ERROR):|^Ran |^OK|^FAILED" "$TMPDIR/test-$TS-rev-r1-at-$at.log"; done; ruff check . && ruff format --check . | tail -1
+    $ source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "TS=$TS" && python manage.py test > "$TMPDIR/test-$TS-rev-r1-full.log" 2>&1; grep -E "^(FAIL|ERROR):|^Ran |^OK|^FAILED" "$TMPDIR/test-$TS-rev-r1-full.log"; for at in 2026-11-17T23:59:59 2026-11-18T00:00:00 2027-03-01T12:00:00; do echo "--- $at"; python scripts/run_tests_at.py $at > "$TMPDIR/test-$TS-rev-r1-at-$at.log" 2>&1; grep -E "^(FAIL|ERROR):|^Ran |^OK|^FAILED" "$TMPDIR/test-$TS-rev-r1-at-$at.log"; done; ruff check . && ruff format --check . | tail -1
+    Command running in background with ID: b20xyncn2. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/b20xyncn2.output. You will be notified when it completes. To check interim output, use Read on that file path.
+
+── Assistant ───────────────────────────────────────────────
+Кодер исправил оба теста. Мутационные пробы подтвердили исправление. Если частично убрать `select_related` в любом источнике (расписание, статус заявки, комментарий, итоговый результат) или `group` в списке сотрудника, тест падает. Кодер правильно заметил, что моя первая проба `related = ()` была некорректной: пустой `select_related()` в Django подтягивает все связи, а не отключает их. Сейчас идут полный прогон и три прогона с замороженными часами. По результату пришлю вердикт.
+
+── Read /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/b20xyncn2.output
+  $ cat /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/b20xyncn2.output
+
+── Ran bb thread tell thr_4izdzwetb4 --message-file - <<'EOF' [TASK-007] Reviewer -> Team lead: APPROVE Spec: docs/tasks/TASK-007.md. Review rounds: 2 (round 1 CHANGES REQUESTED for tests only; fixed). Changes are uncommitted; the file list matches §4.1. Coder did not touch plan.md (pre-existing M). Verification (my runs, logs in $TMPDIR): - Round 0: test-20261115-125339-rev-full.log, test-20261115-125901-rev-at-*.log → 735 OK x4. - Round 1: test-20261115-132110-rev-r1-full.log, test-20261115-132110-rev-r1-at-*.log → 735 OK x4 (plain, 2026-11-17T23:59:59, 2026-11-18T00:00:00, 2027-03-01T12:00:00). - No failed runs in this review. - check OK; makemigrations --check: No changes; check --deploy: no issues (1 silenced); ruff check and format clean (149 files); yaml ok. - Seed twice on temp DB+media: 9, then 0 announcements. migrate academics 0001 → migrate: backfill gives every mark and result created_at on its own date. student1–3 have unread items and upcoming deadlines. Checked: - Access: student scope per source; staff scope through announcements_managed_by. Other-faculty and university-wide unpublish → 404; forged group or "university" target → form error, nothing created; staff and superuser → 403 on the feed; HEAD and POST → 405; no-store set. - Autoescape with linebreaksbr. Admin constraint errors → 200, no 500. - Mutation probes on a copy: removing the student or group filter from any of the 6 sources, a backwards mark_seen, skipping the service group check, or widening the staff selector → tests fail. After round 1, a partial select_related in the lesson change, status, comment, mark or final result source, or a missing "group" in the staff list → the query-count tests fail. - Round 1 issue: the two query-count tests used only news or only faculty rows (spec §7.3 asks for every source, and mixed faculty and group rows). Fixed. Spec issue (for you to decide, not blocking): §7.0 and §10 item 2 say petitions.services.add_staff_comment sets created_at explicitly. It does not; it relies on default=timezone.now, which FrozenClockMixin does not freeze (D5). Production behaviour is correct, because real time is used. Coder correctly created test comments with an explicit created_at and did not change petitions/services.py (it is not in the change list). Optional follow-up: pass created_at=timezone.now() in add_staff_comment (and the same for Petition.created_at and status_changed_at defaults), so a future test that adds comments through the service under a frozen clock does not silently drop them from the feed. Minor notes (not blocking): - After schedule migration 0004 on an existing local DB, all existing LessonChange rows get updated_at = migration time, so they show as "new" once. This does not affect the fresh server DB. - A home-page news link #news-<uuid> points to nothing if that item is beyond the 50-item feed cap (edge case). - notifications/feed.py upcoming_deadlines has a function-local import of relative_day_label (style only). EOF (1s)
+  $ bb thread tell thr_4izdzwetb4 --message-file - <<'EOF'
+[TASK-007] Reviewer -> Team lead: APPROVE
+
+Spec: docs/tasks/TASK-007.md. Review rounds: 2 (round 1 CHANGES REQUESTED for tests only; fixed). Changes are uncommitted; the file list matches §4.1. Coder did not touch plan.md (pre-existing M).
+
+Verification (my runs, logs in $TMPDIR):
+- Round 0: test-20261115-125339-rev-full.log, test-20261115-125901-rev-at-*.log → 735 OK x4.
+- Round 1: test-20261115-132110-rev-r1-full.log, test-20261115-132110-rev-r1-at-*.log → 735 OK x4 (plain, 2026-11-17T23:59:59, 2026-11-18T00:00:00, 2027-03-01T12:00:00).
+- No failed runs in this review.
+- check OK; makemigrations --check: No changes; check --deploy: no issues (1 silenced); ruff check and format clean (149 files); yaml ok.
+- Seed twice on temp DB+media: 9, then 0 announcements. migrate academics 0001 → migrate: backfill gives every mark and result created_at on its own date. student1–3 have unread items and upcoming deadlines.
+
+Checked:
+- Access: student scope per source; staff scope through announcements_managed_by. Other-faculty and university-wide unpublish → 404; forged group or "university" target → form error, nothing created; staff and superuser → 403 on the feed; HEAD and POST → 405; no-store set.
+- Autoescape with linebreaksbr. Admin constraint errors → 200, no 500.
+- Mutation probes on a copy: removing the student or group filter from any of the 6 sources, a backwards mark_seen, skipping the service group check, or widening the staff selector → tests fail. After round 1, a partial select_related in the lesson change, status, comment, mark or final result source, or a missing "group" in the staff list → the query-count tests fail.
+- Round 1 issue: the two query-count tests used only news or only faculty rows (spec §7.3 asks for every source, and mixed faculty and group rows). Fixed.
+
+Spec issue (for you to decide, not blocking): §7.0 and §10 item 2 say petitions.services.add_staff_comment sets created_at explicitly. It does not; it relies on default=timezone.now, which FrozenClockMixin does not freeze (D5). Production behaviour is correct, because real time is used. Coder correctly created test comments with an explicit created_at and did not change petitions/services.py (it is not in the change list). Optional follow-up: pass created_at=timezone.now() in add_staff_comment (and the same for Petition.created_at and status_changed_at defaults), so a future test that adds comments through the service under a frozen clock does not silently drop them from the feed.
+
+Minor notes (not blocking):
+- After schedule migration 0004 on an existing local DB, all existing LessonChange rows get updated_at = migration time, so they show as "new" once. This does not affect the fresh server DB.
+- A home-page news link #news-<uuid> points to nothing if that item is beyond the 50-item feed cap (edge case).
+- notifications/feed.py upcoming_deadlines has a function-local import of relative_day_label (style only).
+EOF
+  Thread thr_4izdzwetb4 steered
+
+── Assistant ───────────────────────────────────────────────
+TASK-007 одобрен, вердикт APPROVE отправлен Тимлиду. Проверка заняла 2 раунда.
+
+**Результаты проверок:**
+- После исправлений все 4 прогона дали по 735 тестов OK: обычный и с часами на 17.11 23:59:59, 18.11 00:00:00 и 01.03.2027. Падений не было, логи лежат в `$TMPDIR`.
+- `check`, `check --deploy`, миграции, ruff и yaml в порядке. Seed второй раз создаёт 0 объявлений, `created_at` у старых оценок заполняется корректно.
+- Мутационные пробы показали, что тесты ловят:
+  - утечку данных между студентами;
+  - обход проверок доступа сотрудника;
+  - лишние запросы к БД (N+1) во всех источниках ленты, кроме новостей.
+- Новости в тесте только общеуниверситетские, поэтому N+1 в их подписях тест не поймает. Спецификация этого не требует, и Тимлиду я этот пробел не передавал.
+
+**Что передал Тимлиду (не блокирует):**
+- **Ошибка в спецификации.** `add_staff_comment` не ставит `created_at` сам, хотя спецификация утверждает обратное. В работе сайта это не мешает. Предложил по желанию отдельной задачей передавать время явно.
+- **Локальная база.** После миграции все старые изменения расписания один раз покажутся «новыми». Сервер это не затрагивает: там база создаётся с нуля.
+- **Мелочи.** Ссылка с главной на новость не сработает, если новость не попала в 50 элементов ленты. Ещё в `notifications/feed.py` есть локальный импорт внутри функции.

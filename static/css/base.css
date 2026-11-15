@@ -216,3 +216,26 @@ button {
 .page-actions {
   margin: var(--space-2) 0 var(--space-3);
 }
+
+.feed,
+.deadline-list {
+  list-style: none;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+}
+
+.feed-item,
+.deadline-list li {
+  margin-bottom: var(--space-3);
+  overflow-wrap: anywhere;
+}
+
+.feed-item h3 {
+  margin: var(--space-1) 0;
+  font-size: var(--font-size-base);
+}
+
+.feed-meta {
+  margin: 0;
+  font-size: 0.875rem;
+}

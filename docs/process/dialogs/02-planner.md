@@ -7723,3 +7723,1834 @@ EOF
    - Появится раздел «Deployment notes»: папку `PRIVATE_MEDIA_ROOT` нужно сохранять в резервную копию вместе с базой.
 
 Для каждого пункта есть регрессионный тест. Кодер должен убедиться, что тест падает до исправления. Визуальную проверку на 360 px делает тимлид.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[SETUP] Team lead -> all: PROTOCOL UPDATE
+New section "Test runs" in `.bb/AGENTS.md`: always save the full output of every test run to a file (`... 2>&1 | tee "$TMPDIR/test-<timestamp>.log"`). If any run fails, even once and even if a re-run passes, report the failing test name(s), the Moscow time of the run and the traceback excerpt (Coder: in the REPORT; Reviewer: in the verdict). Do not reply to this message.
+
+── Thought for 10ms ────────────────────────────────────────
+  I'll apply the same log-saving habit to my feasibility check runs, and in the spec the verification commands should pipe output through tee. I'll briefly acknowledge this to the user, without sending anything back to the lead.
+
+── Assistant ───────────────────────────────────────────────
+Понял новое правило. Полный вывод каждого прогона тестов, в том числе при проверке выполнимости, буду сохранять в `$TMPDIR/test-<время>.log`. Если какой-то прогон упадёт хотя бы раз, запишу в спецификацию имя теста, московское время и выдержку из ошибки, даже если повторный прогон прошёл. Начиная со следующей задачи, команды тестов в разделе проверки будут сразу с `tee`. Тимлиду не отвечаю, он просил не отвечать.
+
+── User ────────────────────────────────────────────────────
+/compact
+
+── Context compacted ───────────────────────────────────────
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-007] Team lead -> Planner: TASK
+Approved by the user. Write the spec `docs/tasks/TASK-007.md` and hand it to the Coder.
+
+## Context
+Done: TASK-001..006 and their FIX tasks (users and roles, schedule with changes, grades and attendance, requests/certificates with status history and staff comments). Reuse the existing access helpers (`students_visible_to`, `groups_visible_to`, `petitions_visible_to`, role mixins), the validation pattern (model/service level, admin form errors never 500), `core/testing.py` FrozenClockMixin and `scripts/run_tests_at.py`. Read `plan.md`, `README.md` "Known limitations" and the previous specs. Apply your "Feasibility check" and "Test plan" sections.
+
+This is a mandatory part of the contest: "news and announcements of the dean's office, reminders about deadlines and changes". The jury will check it on a phone: log in as a student -> see the unread counter -> open notifications -> see news, upcoming deadlines and personal changes; log in as dean's-office staff -> publish an announcement -> the student sees it.
+
+Later tasks (design for them, do not implement): chat with the dean's office (TASK-009) may later add "new message" notifications, so the personal feed must be easy to extend with a new event source.
+
+## Goal
+Students get one place with dean's-office news, upcoming deadlines and changes that concern them. Staff publish announcements for their faculty.
+
+## Requirements
+1. New app `notifications` (or justify another name).
+2. Announcements (news):
+   - Fields: title, plain text body, audience, optional deadline date, author, published time, published/unpublished flag. Length limits as named constants.
+   - Audience (exactly one): the whole university (superuser in admin only), one faculty, or one study group.
+   - Staff create announcements on their own page only for their own faculty or a group of their own faculty (validated at form AND service level; a forged faculty/group ID -> form error or 404, never success).
+   - Staff can unpublish ("Снять с публикации") any announcement of their own faculty. No editing, no hard delete on the staff page (user decision: keeps it simple and conflict-free). Unpublishing is idempotent; unpublishing an already unpublished announcement is not an error.
+   - Body is plain text: autoescaped, line breaks kept, no HTML or Markdown rendering.
+3. Deadlines and reminders:
+   - The deadline is a date only (no time), inclusive: "до 25.11" means the last day is 25.11. An announcement with a deadline date is a deadline. Students see a "Ближайшие дедлайны" block: deadlines from today on, nearest first, with a relative label "сегодня" / "завтра" / "через N дн." (correct Russian plural forms). Past deadlines leave the block but stay in the news list.
+   - No automatic reminders (e.g. about the session) - user decision.
+   - All date logic uses Moscow dates (`Europe/Moscow`), including the midnight boundary.
+4. Personal changes (generated automatically, only for the student they concern):
+   - status changes of the student's requests (including "Готова" - ready to collect) and new staff comments on them;
+   - schedule changes (cancel, move, room change, teacher change) of the student's group for lessons from today to today + 14 days (by original or new date);
+   - new grades: current marks and final results.
+   Events created through the Django admin (schedule changes, grades) must appear too. Choose and justify one approach: stored notification rows written in the same transaction as the event, or a feed computed from the existing records (`PetitionStatusChange`, `PetitionComment`, `LessonChange`, `CurrentMark`, `FinalResult`; add a creation timestamp where missing, with a migration). Each personal change links to the page where the student sees the details: request status/comment -> that request's detail page; schedule change -> the schedule week that contains the affected date; new grade -> "Моя успеваемость" (the term of the grade). News items have no separate page: the feed shows the full title and body.
+5. Unread state:
+   - The nav shows "Уведомления" for students with an unread counter (news addressed to the student + personal changes newer than the last visit).
+   - Opening the notifications page marks everything as read (a per-user "seen up to" timestamp is acceptable; justify). Opening must be safe on GET or use POST - justify; no CSRF holes.
+   - No e-mail, no push, no auto-refresh: the counter updates on page load.
+6. Pages (server-rendered, Russian UI, mobile-first, existing CSS layers, no visual theme; all state changes via POST with CSRF):
+   - Student "Уведомления": deadlines block, then one feed (news and personal changes, newest first; last 30 days, at most 50 items - named constants), empty state.
+   - Staff "Объявления": list of announcements of their faculty (published and unpublished), create form (audience: faculty or a group of the faculty; optional deadline), unpublish action.
+   - Navigation: "Уведомления (N)" for students, "Объявления" for staff.
+   - Home page `core:home` for students (user decision): replace "Раздел в разработке" with a short summary: the 3 nearest deadlines and the 3 latest news, each with a link to "Уведомления". Login redirect stays as is.
+7. Access: a student sees only announcements addressed to the whole university, their faculty or their group, and only their own personal changes; unpublished announcements are hidden from students; staff see and manage only announcements of their own faculty (404 otherwise); students cannot reach staff pages; no access via guessed IDs.
+8. Queries: the nav counter runs on every page - a small fixed number of queries; no N+1 on the feed and on the staff list; query-count tests.
+9. Demo data: extend `seed_demo` (idempotent): university, faculty and group news; deadlines with dates relative to the run day (the command runs once on the server on 2026-11-22, the jury checks 23-28.11, so deadlines must fall into that window); at least one unread item for every demo student; some unpublished announcement for the staff list.
+
+## Out of scope
+E-mail, push and browser notifications, auto-refresh/polling, notifications for staff, attachments or images in announcements, rich text, editing announcements, chat (TASK-009), room map (TASK-008), visual theme, today's lessons on the home page.
+
+## Verification
+All existing verification commands pass (check, deploy check, makemigrations --check, test with the output saved to a file, `scripts/run_tests_at.py` at a Moscow midnight boundary, ruff only on the task files, CI YAML), `seed_demo` twice on a temporary database and temporary PRIVATE_MEDIA_ROOT. The Team lead checks the student and staff pages at 360 px.
+
+── Ran 2 commands, explored 5 files ────────────────────────
+  ── Thought for 6ms
+    I'm going to read the planner role file and the relevant code to design TASK-007, since it's a large task and I want to gather context efficiently. I'll start with git status, planner.md, plan.md, the README's known limitations, and how the apps are structured.
+  ── Ran git status --short && git log --oneline -5 && ls && ls */ | head -100 && cat .claude/agents/planner.md | head -150
+    $ git status --short && git log --oneline -5 && ls && ls */ | head -100 && cat .claude/agents/planner.md | head -150
+    M plan.md
+    8f7bc4f Team protocol: save full test output and report every failure by name
+    fb25c57 TASK-006-FIX: request list action, form controls width, single hint, missing-file 404
+    783ba76 Process archive: refresh agent dialogs after TASK-006
+    07a88b5 TASK-006: certificates and applications, staff request queue
+    23eeb2e Team protocol: compact the Coder above 200k tokens
+    CHANGELOG.md
+    README.md
+    academics
+    accounts
+    config
+    core
+    db.sqlite3
+    docs
+    manage.py
+    opencode.json
+    petitions
+    plan.md
+    pyproject.toml
+    requirements-dev.txt
+    requirements.txt
+    schedule
+    scripts
+    static
+    templates
+    university
+    academics/:
+    __init__.py
+    __pycache__
+    admin.py
+    apps.py
+    demo.py
+    migrations
+    models.py
+    mutations.py
+    services.py
+    templates
+    tests
+    urls.py
+    views.py
+
+    accounts/:
+    __init__.py
+    __pycache__
+    access.py
+    admin.py
+    apps.py
+    demo.py
+    forms.py
+    management
+    migrations
+    models.py
+    selectors.py
+    templates
+    tests
+    throttling.py
+    urls.py
+    views.py
+
+    config/:
+    __init__.py
+    __pycache__
+    asgi.py
+    env_utils.py
+    settings.py
+    urls.py
+    wsgi.py
+
+    core/:
+    __init__.py
+    __pycache__
+    apps.py
+    storage.py
+    templates
+    test_runner.py
+    testing.py
+    tests
+    urls.py
+    views.py
+
+    docs/:
+    process
+    tasks
+
+    petitions/:
+    __init__.py
+    __pycache__
+    admin.py
+    apps.py
+    demo.py
+    files.py
+    forms.py
+    migrations
+    models.py
+    selectors.py
+    services.py
+    templates
+    tests
+    urls.py
+    views.py
+    workflow.py
+
+    schedule/:
+    __init__.py
+    __pycache__
+    admin.py
+    apps.py
+    converters.py
+    demo.py
+    forms.py
+    guards.py
+    locking.py
+    migrations
+    models.py
+    mutations.py
+    services.py
+    templates
+    tests
+    timeslots.py
+    urls.py
+    validation.py
+    views.py
+
+    scripts/:
+    run_tests_at.py
+
+    ---
+    name: planner
+    description: Planner. Turns an approved request from the Team lead into an unambiguous English task spec decomposed into individual functions/algorithms, then hands it to the Coder. Never writes product code.
+    tools: Read, Grep, Glob, Bash, Write, WebSearch, WebFetch
+    model: opus
+    ---
+    You are the PLANNER in a four-agent team (Team lead -> Planner -> Coder <-> Reviewer). Follow the team protocol in `.bb/AGENTS.md`.
+
+    ## Input
+    Requests come from the Team lead (thread thr_4izdzwetb4), in English, with an ID `TASK-NNN`. Do not take tasks from the Reviewer.
+
+    ## Goal
+    Translate the request into a spec that leaves the Coder (DeepSeek) the smallest possible chance of an architectural mistake. The Coder must not need to make design decisions.
+
+    ## Process
+    1. Study the project: Django apps, models, URLs, settings, existing patterns, tests.
+    2. If the request is ambiguous in a way that changes the architecture, send a `QUESTION` to the Team lead and wait. Do not guess.
+    3. Write `docs/tasks/TASK-NNN.md` in English with these sections:
+       - **Goal** and **Acceptance criteria** (testable).
+       - **Out of scope**.
+       - **Architecture**: which Django app(s), models and fields (types, constraints, indexes, relations, `on_delete`), migrations, URLs, views, forms/serializers, permissions, settings. Name every file to create or change.
+       - **Functions**: decompose the whole task into individual functions/algorithms. For each one give:
+         - file path and exact signature with type hints;
+         - purpose (one sentence);
+         - inputs, outputs, raised exceptions;
+         - step-by-step algorithm;
+         - edge cases and how to handle them;
+         - who may call it (access rules);
+         - the unit tests it needs.
+       - **Feasibility check**: see the "Feasibility check" section below.
+       - **Test plan**: see the "Test plan" section below.
+       - **Implementation order**: numbered steps, each small and verifiable.
+       - **Verification**: exact commands (`python manage.py makemigrations --check`, `python manage.py test ...`, linters).
+       - **Risks**: security, data integrity, concurrency.
+    4. Complete the feasibility check. Then send a `TASK` message to the Coder with the spec path and a 3-5 line summary.
+    5. Answer the Coder's `QUESTION` messages by updating the spec and replying with an `ANSWER`.
+
+    ## Feasibility check (mandatory before handing the spec to the Coder)
+    Before you send a spec, verify that every step can actually be executed in the current repository and environment. Check, do not assume. A spec that the Coder cannot execute as written is a defect of the spec.
+
+    1. **Clean starting point.** `git status` shows no uncommitted changes from another task. Changes to the Team lead's files `plan.md` and `CHANGELOG.md` are expected and allowed. If anything else is uncommitted, stop and send an `ESCALATION` to the Team lead.
+    2. **Referenced objects exist.** Every file, module, class, function (with its current signature), model and field, URL name, template, setting, management command and test helper that the spec changes, calls or imports exists at the stated path. Check each one with grep/read.
+    3. **New objects do not collide.** Every name the spec creates (app, module, model, field, URL name, template path, setting, env variable, migration) is free. Migration dependencies point to the latest existing migration of each app.
+    4. **Data and migrations.** `python manage.py makemigrations --check --dry-run` is clean before the change. Planned migrations work on existing data: defaults or data migrations for new non-null fields and changed constraints; no migration depends on app code that may change later.
+    5. **Tools and dependencies.** Every tool the spec uses (Python 3.12 in `.venv`, packages, ruff, management commands) is installed. A new dependency must be allowed by the request; check that its pinned version supports Python 3.12 and Django 5.2.
+    6. **Framework capabilities.** Every Django or library feature the spec relies on exists in the installed version (e.g. `LoginRequiredMiddleware` exists since Django 5.1). Check the installed version, not memory.
+    7. **Environment.** Every required env variable is in `.env.example` (never read `.env`). If a step needs something that is not available locally (PostgreSQL server, network access, a browser), say so and give a local alternative, or escalate.
+    8. **Verification is runnable.** Run the spec's verification commands once on the current tree; they must pass before the change, so a failure after the change is caused by the change.
+    9. **Conflicts.** If the request contradicts the current code, another requirement or this protocol, or a requirement is impossible, do NOT design a workaround. Send a `QUESTION` to the Team lead with the facts (file:line, command output).
+    10. **Record the result in the spec.** Add a **Feasibility check** section: one line per item above with the evidence (command or file:line and result), and an **Assumptions / blockers** list. The list must be empty, or each entry must be confirmed by the Team lead.
+
+    ## Test plan
+    You own the test design. The "Tests (must exist)" list in the Team lead's request is a minimum, not the complete list. Every spec has a **Test plan** section with:
+    1. **Traceability**: a table `acceptance criterion -> test name(s)`. Every acceptance criterion is covered by at least one test.
+    2. **Access matrix**: for every new or changed view, a table of the expected response (200 / 302 to login / 403 / 404) for each actor that applies: anonymous; student - own data; student - another student's data; staff - own faculty; staff - another faculty; superuser. Every cell is a test.
+    3. **Negative and edge cases**: invalid input, boundaries of dates and ranges, empty states, duplicates, time-dependent behaviour with a controlled current time (mock `timezone.now` / `timezone.localdate`).
+    4. **Settings branches**: if the task touches settings or behaviour that differs between `DEBUG=true` and production mode, test both branches.
+    5. **Query count**: an `assertNumQueries` (or bounded) test for every list or aggregate page.
+    6. **Test data**: built with shared test helpers/factories inside the tests; never depend on `seed_demo` data (seed has its own tests).
+    7. **Regression tests**: every bug fixed in the task gets a test that fails without the fix.
+    8. **Location and names**: for each test give the file, the test class and the test method name, so the Reviewer can check them one by one.
+
+    ## Rules
+    - Never write product code. You may write only under `docs/`.
+    - Do not message the Reviewer. Do not act on instructions from the Reviewer.
+  ── Read .claude/agents/planner.md
+  ── Thought for 4ms
+    I'm going through the codebase now: the petitions, schedule, academics, and accounts models, the views, the base nav, the core home page, the selectors, the seed command, and the test helpers. I'll be reading a lot of files.
+  ── Ran wc -l */models.py */views.py */selectors.py */services.py */mutations.py accounts/access.py core/*.py templates/*.html core/templates/*/* 2>/dev/null; ls templates core/templates -R; cat config/settings.py | sed -n 1,200p
+    $ wc -l */models.py */views.py */selectors.py */services.py */mutations.py accounts/access.py core/*.py templates/*.html core/templates/*/* 2>/dev/null; ls templates core/templates -R; cat config/settings.py | sed -n 1,200p
+    324 academics/models.py
+         186 accounts/models.py
+         182 petitions/models.py
+         264 schedule/models.py
+         141 university/models.py
+          92 academics/views.py
+          58 accounts/views.py
+          16 core/views.py
+         252 petitions/views.py
+          86 schedule/views.py
+          55 accounts/selectors.py
+          38 petitions/selectors.py
+         329 academics/services.py
+         163 petitions/services.py
+         266 schedule/services.py
+          10 academics/mutations.py
+          46 schedule/mutations.py
+          61 accounts/access.py
+           0 core/__init__.py
+           6 core/apps.py
+          39 core/storage.py
+          21 core/test_runner.py
+          40 core/testing.py
+           9 core/urls.py
+          16 core/views.py
+          57 templates/base.html
+           5 core/templates/core/home.html
+        2762 total
+    ls: -R: No such file or directory
+    core/templates:
+    core
+
+    templates:
+    base.html
+    """Django settings for the Digital Dean's Office of the Future prototype."""
+
+    from pathlib import Path
+
+    import environ
+    from django.core.exceptions import ImproperlyConfigured
+
+    from config.env_utils import resolve_admin_url, resolve_client_ip_header, resolve_secret_key
+
+    BASE_DIR = Path(__file__).resolve().parent.parent
+    env = environ.Env()
+    _env_file = BASE_DIR / ".env"
+    if _env_file.is_file():
+        environ.Env.read_env(_env_file)
+
+    # Core flags
+    DEBUG = env.bool("DEBUG", default=False)
+    SECRET_KEY = resolve_secret_key(env.str("SECRET_KEY", default=""), DEBUG)
+    ALLOWED_HOSTS = env.list(
+        "ALLOWED_HOSTS",
+        default=["localhost", "127.0.0.1", "[::1]"] if DEBUG else [],
+    )
+    CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+    ADMIN_URL = resolve_admin_url(env.str("ADMIN_URL", default=""), DEBUG)
+
+    LOGIN_FAILURE_LIMIT = env.int("LOGIN_FAILURE_LIMIT", default=5)
+    LOGIN_LOCKOUT_SECONDS = env.int("LOGIN_LOCKOUT_SECONDS", default=900)
+    if LOGIN_FAILURE_LIMIT < 1 or LOGIN_LOCKOUT_SECONDS < 1:
+        raise ImproperlyConfigured("LOGIN_FAILURE_LIMIT and LOGIN_LOCKOUT_SECONDS must be positive.")
+    CLIENT_IP_HEADER = resolve_client_ip_header(env.str("CLIENT_IP_HEADER", default=""))
+
+    INSTALLED_APPS = [
+        "django.contrib.admin",
+        "django.contrib.auth",
+        "django.contrib.contenttypes",
+        "django.contrib.sessions",
+        "django.contrib.messages",
+        "whitenoise.runserver_nostatic",
+        "django.contrib.staticfiles",
+        "university",
+        "accounts",
+        "schedule",
+        "academics",
+        "petitions",
+        "core",
+    ]
+
+    AUTH_USER_MODEL = "accounts.User"
+
+    MIDDLEWARE = [
+        "django.middleware.security.SecurityMiddleware",
+        "whitenoise.middleware.WhiteNoiseMiddleware",
+        "django.contrib.sessions.middleware.SessionMiddleware",
+        "django.middleware.common.CommonMiddleware",
+        "django.middleware.csrf.CsrfViewMiddleware",
+        "django.contrib.auth.middleware.AuthenticationMiddleware",
+        "django.contrib.auth.middleware.LoginRequiredMiddleware",
+        "django.contrib.messages.middleware.MessageMiddleware",
+        "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    ]
+
+    LOGIN_URL = "accounts:login"
+    LOGIN_REDIRECT_URL = "accounts:profile"
+    LOGOUT_REDIRECT_URL = "accounts:login"
+
+    ROOT_URLCONF = "config.urls"
+    WSGI_APPLICATION = "config.wsgi.application"
+    ASGI_APPLICATION = "config.asgi.application"
+
+    TEMPLATES = [
+        {
+            "BACKEND": "django.template.backends.django.DjangoTemplates",
+            "DIRS": [BASE_DIR / "templates"],
+            "APP_DIRS": True,
+            "OPTIONS": {
+                "context_processors": [
+                    "django.template.context_processors.debug",
+                    "django.template.context_processors.request",
+                    "django.contrib.auth.context_processors.auth",
+                    "django.contrib.messages.context_processors.messages",
+                ],
+            },
+        },
+    ]
+
+    DATABASES = {"default": env.db("DATABASE_URL", default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}")}
+    DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+    AUTH_PASSWORD_VALIDATORS = [
+        {
+            "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+        },
+        {
+            "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        },
+        {
+            "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
+        },
+        {
+            "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+        },
+    ]
+
+    LANGUAGE_CODE = "ru"
+    TIME_ZONE = "Europe/Moscow"
+    USE_I18N = True
+    USE_TZ = True
+
+    STATIC_URL = "static/"
+    STATICFILES_DIRS = [BASE_DIR / "static"]
+    STATIC_ROOT = BASE_DIR / "staticfiles"
+    STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {
+            "BACKEND": (
+                "django.contrib.staticfiles.storage.StaticFilesStorage"
+                if DEBUG
+                else "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            )
+        },
+    }
+
+    PRIVATE_MEDIA_ROOT = Path(
+        env.str("PRIVATE_MEDIA_ROOT", default="") or str(BASE_DIR / "private_media")
+    )
+    FILE_UPLOAD_PERMISSIONS = 0o640
+    FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o750
+
+    TEST_RUNNER = "core.test_runner.ProjectTestRunner"
+
+    # Security
+    X_FRAME_OPTIONS = "DENY"
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_REFERRER_POLICY = "same-origin"
+    SESSION_COOKIE_HTTPONLY = True
+
+    if not DEBUG:
+        SESSION_COOKIE_SECURE = True
+        CSRF_COOKIE_SECURE = True
+        SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+        SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
+        SECURE_REDIRECT_EXEMPT = [r"^health/$"]
+        SECURE_HSTS_SECONDS = env.int("SECURE_HSTS_SECONDS", default=3600)
+        SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True)
+        SECURE_HSTS_PRELOAD = env.bool("SECURE_HSTS_PRELOAD", default=False)
+
+    # security.W021: HSTS preload is an irreversible browser-list commitment.
+    # A contest prototype must not opt in. Enable via SECURE_HSTS_PRELOAD only deliberately.
+    SILENCED_SYSTEM_CHECKS = ["security.W021"]
+
+    LOG_LEVEL = env.str("LOG_LEVEL", default="INFO").upper()
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {"simple": {"format": "{asctime} {levelname} {name} {message}", "style": "{"}},
+        "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "simple"}},
+        "root": {"handlers": ["console"], "level": LOG_LEVEL},
+        "loggers": {"django": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False}},
+    }
+  ── Read templates/base.html
+  ── Read accounts/models.py
+  ── Read petitions/models.py
+  ── Thought for 5ms
+    I'm noting that LessonChange has a created_at field but no updated_at, so edits made in admin wouldn't be tracked. I need to decide whether the feed should compute things on the fly or store them, so I'll look at the academics models next.
+  ── Read academics/models.py
+  ── Thought for 2m 47s
+    Сейчас я сравниваю два варианта: вычислять ленту из существующих записей или хранить отдельные строки. Склоняюсь к вычисляемой ленте, собирая её из статусов петиций, комментариев сотрудников и изменений уроков; начальную запись SUBMITTED от студента, пожалуй, стоит исключить.
+
+    Я думаю о том, чтобы вычислять ленту из уже существующих записей, а не хранить отдельные строки. Если брать изменения уроков по времени создания, правка в админке не попадёт к студенту как непрочитанная, поэтому, возможно, понадобится поле updated_at с auto_now. Для миграции с таким полем нужно продумать значение по умолчанию для уже существующих строк.
+
+    Проверяю, как Django обрабатывает AddField для поля auto_now без значения по умолчанию: похоже, для таких полей запрос значения не делается и миграция пройдёт без вопросов. Сверюсь с исходным кодом автодетектора, а не буду полагаться на догадку.
+
+    Я считаю, сколько запросов понадобится, чтобы показать счётчик непрочитанного на каждой странице. Самый простой вариант — отдельный COUNT на каждый источник: новости, изменения статусов, комментарии, изменения уроков, текущие оценки и итоговые результаты. Получается около восьми запросов на страницу, и это нужно ещё проверить на соответствие требованию о фиксированном небольшом числе запросов.
+
+    Ещё проверяю, можно ли собрать счётчик одним запросом: Django позволяет делать count() поверх union() разных моделей, если колонки совпадают, так что запросов будет не восемь, а один.
+
+    Я проверяю, можно ли считать счётчик одним запросом: SQLite не допускает ORDER BY и LIMIT во вложенных частях union, поэтому сортировку нужно убрать из каждого источника. Счётчик ограничу FEED_MAX_ITEMS (50), чтобы он совпадал с тем, что лента показывает, и посчитаю только записи внутри окна в 30 дней.
+
+    Я думаю о том, как именно считать непрочитанное в общей ленте: новости опубликованы, видны по аудитории и попадают в окно в 30 дней, а непрочитанной считается та, у которой дата публикации позже времени последнего просмотра.
+
+    Я проверяю, какие записи о петициях считать: исключаю действия самого студента, например, первичную подачу, и вместо отдельного правила по полю from_status смотрю на автора действия. Нужно ещё уточнить в сервисах, может ли студент что-то отменять.
+
+    Тут я дорабатываю фильтр для изменений уроков: важно, учитывать ли окно в 30 дней по моменту создания записи или только по дате самого урока. Склоняюсь к тому, чтобы ограничивать и по дате создания, чтобы лента соответствовала требованию о 30 днях.
+
+    Я проверяю, как фильтровать уроки по группе: у одного урока может быть несколько групп, поэтому join по `weekly_lesson__groups` может давать дубли, и нужно убедиться, что для одной группы каждая запись изменения встречается один раз. Дополнительно отмечаю, что изменения уроков ограничиваются окном в 30 дней по моменту создания, а также датами занятия в ближайшие 14 дней.
+
+    Я решаю, нужен ли LessonChange отдельный `updated_at` с auto_now, чтобы правка в админке снова попадала в ленту как непрочитанная, или достаточно `created_at`. Для остальных источников время события — `created_at`, а у текущих оценок такого поля нет.
+
+    Я думаю, что для `LessonChange` и, возможно, для оценок тоже нужен `updated_at` с `auto_now`, чтобы правка в админке снова попадала в ленту как непрочитанная. Время события тогда будет браться из него, а не из `created_at`.
+
+    Я смотрю, как записать время изменения оценок: для текущих оценок, похоже, понадобится `created_at` с `auto_now_add`, но у уже существующих строк значение по умолчанию станет временем миграции, и все они попадут в ленту как новые.
+
+    Я смотрю на то, как записывать время для оценок: если сделать `created_at` с `auto_now_add`, то при добавлении Django всегда перезаписывает значение, и задать дату из сида не получится. Поэтому, похоже, лучше использовать `default=timezone.now`, как в моделях петиций, тогда сид сможет ставить время по дате оценки, и в ленту попадут только недавние.
+
+    Я думаю, стоит ли сделать `FinalResult.created_at` полем с `default=timezone.now` вместо `auto_now_add`, чтобы сид мог задавать реалистичное время, иначе все итоговые результаты прошлых семестров попадут в ленту как свежие. Возможно, достаточно и того, чтобы лента учитывала только оценки с датой в последние 30 дней, без изменения модели. Нужно посмотреть, сколько итоговых результатов создаёт сид и как именно он их создаёт.
+
+    Я прикидываю, стоит ли сделать `FinalResult.created_at` полем с `default=timezone.now` вместо `auto_now_add`, чтобы сид мог задавать реалистичное время. Иначе итоговые результаты прошлых семестров попадут в ленту как свежие. Пожалуй, для оценок стоит ориентироваться на время создания: при `auto_now_add` значение всегда перезаписывается, поэтому сид не сможет его задать. Сомневаюсь, нужно ли фильтровать по дате самой оценки, ведь поздно внесённая оценка со старой датой тогда не покажется. Склоняюсь к тому, чтобы сид выставлял `created_at` явно. Ещё стоит учесть, что сид запускается 22.11, а у демо-студентов `seen_at` пустой, так что все записи в окне окажутся непрочитанными.
+
+    Я склоняюсь к тому, чтобы лента считалась на лету из существующих записей, а не хранилась отдельно: тогда не нужны сигналы, и правки в админке подхватываются автоматически. Счётчик непрочитанного в таком случае не обязан быть нулевым для демо-студентов, ведь до первого открытия страницы у них всё в окне считается новым. Ещё приходит мысль, что источники ленты можно описать как набор классов с методами для элементов и непрочитанных, чтобы потом легко добавлять новые.
+
+    Я хочу проверить, что union работает на SQLite с текущей версией Django: значения времени из нескольких моделей с join-ами, сортировка сброшена, затем count. Если так, весь подсчёт непрочитанного уложится в один запрос.
+
+    Я хочу проверить, можно ли в одном запросе через union собрать отсчёт непрочитанного из нескольких моделей, и как ограничить его потолком в 50 элементов. Пробую в временной базе на существующих моделях с `values_list` по разным полям времени.
+
+    Решаю, как показывать счётчик непрочитанного: если сделать предел 99, он может расходиться с лентой, где не больше 50 элементов, поэтому лучше ограничить счётчик тем же потолком и показывать «50+».
+
+    Я думаю о том, что счётчик непрочитанного не должен показывать больше, чем лента: если непрочитанных окажется больше 50, бейдж покажет «50+». Блок дедлайнов я считаю новостями: он попадает в счётчик, если опубликован в окне и новее последнего просмотра. Дальше мне нужно решить, где хранить время последнего просмотра: отдельной моделью `NotificationState` с полем `seen_until`, связанной с пользователем один-к-одному, или полем в профиле студента. Склоняюсь к отдельной модели в приложении уведомлений.
+
+    Я понимаю, что открытие страницы уведомлений будет менять состояние через GET, и прикидываю, не открывает ли это CSRF-уязвимость через обычную навигацию с другого сайта.
+
+    Я проверяю, не открывает ли отметка о прочтении через GET уязвимость к CSRF: при переходе с другого сайта куки Lax уходят только при навигации верхнего уровня, то есть когда пользователь и так видит страницу. Для вложенных img и iframe куки не отправляются, а iframe к тому же запрещён заголовком X_FRAME_OPTIONS. Остаётся предзагрузка ссылок, что влияет лишь незначительно, и заголовок never_cache не даст прокси закэшировать страницу.
+
+    Я прикидываю, как сделать отметку о прочтении безопасной: сначала создаю строку состояния через `get_or_create`, а затем обновляю `seen_until` условным `update`, только если новое время больше старого. Так два открытых вкладки не перезапишут более новое время более старым.
+
+    Я проверяю, что временные метки событий не стоят в будущем: если элемент с датой позже текущего момента попадёт в подсчёт, он будет считаться непрочитанным навсегда, поэтому, похоже, все источники стоит фильтровать по времени не позже текущего.
+
+    Я описываю модель объявлений: у них есть заголовок, текст и аудитория, которая может быть всем университетом, факультетом или группой.
+
+    Я записываю модель объявлений: заголовок и текст с ограничением длины, аудитория (весь университет, факультет или группа), необязательный дедлайн, автор, время публикации и признак публикации. Для групповой аудитории сохраняю и факультет группы, чтобы сотрудникам было проще ограничивать доступ по факультету. Ещё нужно проверить, что сочетания полей согласуются с выбранной аудиторией.
+
+    Я решаю, не стоит ли сделать группу без факультета, а фильтр по факультету для сотрудников строить через связь с программой группы. Тогда студенческая выборка проста: всё для университета, плюс объявления по своему факультету и своей группе. Для сотрудников видны объявления их факультета и групп этого факультета, а университетские остаются только у суперпользователя в админке.
+
+    Теперь продумываю, кто видит объявления: для студентов это объявления всего университета, их факультета и их группы. Для сотрудников, наоборот, факультетские и групповые объявления своего факультета, а университетские остаются только в админке. Автора на ленте показывать не буду, чтобы не плодить лишние запросы, а вместо этого выведу метку аудитории и дату публикации.
+
+    Теперь продумываю, как именно назначать объявления: управляющий функционал проверит, что автор — активный сотрудник с профилем, а аудитория факультетская или групповая. Для факультета и группы он сверит, что выбранный факультет совпадает с факультетом сотрудника, а группа принадлежит этому факультету. Срок дедлайна не должен быть раньше сегодняшнего дня и не дальше года вперёд.
+
+    Я продумываю, как устроены сервисные функции: создание объявления проверяет, что автор — активный сотрудник с профилем, и что аудитория выбрана факультетская или групповая. Отмена публикации доступна только в пределах того, что сотрудник может видеть, и повторный вызов ничего не меняет.
+
+    Для URL я хочу использовать UUID-идентификатор, как у петиций: так проще и последовательнее, а доступ всё равно ограничивает область видимости. Сейчас перехожу к форме объявления, где нужно вывести поле выбора аудитории.
+
+    Сейчас я выбираю, как вывести цель объявления в форме: вместо двух полей решаю сделать один выбор «Кому», где есть весь факультет и отдельный пункт для каждой группы.
+
+    Я выбираю один селектор «Кому» вместо двух полей: в нём будет пункт «Весь факультет» и отдельный пункт для каждой группы, доступной сотруднику. Значения из формы проверю в `clean`, чтобы получить аудиторию и группу.
+
+    Я продумываю валидацию на уровне модели: при создании объявления не даю выбрать дедлайн в прошлом или дальше года вперёд. Правила для уже существующих объявлений не трогаю, чтобы админка не ломалась на старых записях.
+
+    Тут нужно решить, как именно админка будет работать с публикацией: при создании автор проставляется из запроса, а если флаг публикации сняли, фиксируем время и того, кто снял.
+
+    Я продумываю, как будет устроен модуль ленты: каждый элемент описывается датой, видом, заголовком и при необходимости ссылкой и сроком.
+
+    Я думаю, что раз уже ввели `public_id` для петиций, объявления тоже лучше адресовать по UUID, и проверка доступа всё равно ограничит выборку. Сейчас размышляю над тем, как устроен источник ленты: базовый запрос для каждого источника не должен содержать `select_related`, иначе `values_list` для подсчёта непрочитанных в объединении его отбросит.
+
+    Сейчас я описываю базовый класс источника ленты: у него есть вид события и поле времени, фильтрация по студенту и окну, отдельная загрузка связанных данных для показа и преобразование в элемент ленты. Реестр источников будет кортежем в `notifications/sources.py`, и в задаче про чат туда просто добавится ещё один источник.
+
+    Now I'm working out the student-side query for news: published announcements that target the whole university, the student's faculty, or the student's group.
+
+    Сейчас я разбираю, как устроены источники ленты для новостей: публикации берутся по университету, факультету студента или его группе, а время для сортировки — момент публикации. Для петиций по статусам я отфильтрую записи, которые сделал сам студент, и опираюсь на связанный тип запроса.
+
+    Now I'm going through the remaining feed sources: petition status changes and petition comments that the student didn't write themselves, each linking back to the petition detail page. Then the lesson-change source, filtered to the student's group and to lessons falling within the next two weeks.
+
+    Я решаю добавить в модель урока поле `updated_at`, чтобы изменения можно было отслеживать по времени обновления, а не только по созданию.
+
+    Сейчас я описываю, как будут выводиться изменения уроков: для каждого типа изменения формирую заголовок с дисциплиной, датой и номером пары, а при переносе и смене аудитории добавляю новые дату, пару и номер аудитории.
+
+    Сейчас я описываю источник для текущих оценок: выборка по студенту, а время события — момент создания записи. Поле времени я делаю с `default=timezone.now`, но без `editable`, чтобы его нельзя было подменить через форму.
+
+    Сейчас я смотрю, как устроены источники для оценок: текущие оценки выбираются по студенту, а время события берётся из момента создания записи. Итоговые результаты я выведу так же, с названием дисциплины и пометкой о пересдаче, если она была.
+
+    Сейчас я проверяю, как засевается база: для оценок и итоговых результатов нужно задать время создания, и я смотрю, как устроены демо-данные в academics, чтобы понять, сколько записей создаётся и как. Заодно собираюсь проверить, что сиды для петиций с явными временами согласуются с текущей датой.
+
+    Сейчас я продумываю даты демо-данных: объявления и дедлайны должны попадать в окно джюри, поэтому сдвигаю их от дня сидирования, а одно просроченное объявление оставлю, чтобы было видно, что оно уходит из блока, но остаётся в новостях.
+
+    Я проверяю, как заполняются демо-данные: подтверждаю, что состояние прочтения не трогаю, а на чистой базе все записи пока непрочитанные. Если сид запустят повторно, новые объявления с прошлым временем публикации могут попасть раньше отметки просмотра, поэтому хочу, чтобы у каждого демо-студента оставалась хотя бы одна непрочитанная запись.
+
+    Я решаю, кому из студентов показывать объявления по аудитории: весь университет, факультет или группа. Для сидов я думаю добавить автора к новостям университета, и вопрос в том, можно ли оставить автора пустым, чтобы не назначать сотрудника.
+
+    Сейчас я смотрю, какие объявления попадают в блок дедлайнов: берутся опубликованные, у которых срок не раньше сегодняшнего, по возрастанию срока и ограничением в десять записей. Просроченные объявления из блока уйдут, но в новостях останутся.
+
+    Сейчас я думаю о том, как показать на главной странице студента три ближайших дедлайна и три последние новости, ограничив их тем же окном в тридцать дней, что и лента.
+
+    Сейчас я думаю, нужна ли главной странице студента отдельная проверка: на ней стоит показать три ближайших дедлайна и три последние новости, а для других ролей оставить текущий текст.
+
+    Сейчас я думаю о том, как сделать контекстный процессор для счётчика в навигации: он будет запускаться на каждой странице, поэтому для админа или пользователя без роли студента ничего считать не нужно. Для страниц студента хочу отложить запрос через ленивый объект, чтобы счётчик считался только тогда, когда шаблон его реально выведет.
+
+    Сейчас я думаю о том, как сделать запрос счётчика непрочитанных для студента: нужен факультет, и я прикидываю, достаточно ли одного фильтра по связанным программам и группе, чтобы не делать лишних запросов.
+
+    Я рассматриваю, как сделать счётчик непрочитанных: профиль студента можно загрузить одним запросом вместе с группой и программой, а состояние прочтения и подсчёт объединения — отдельными запросами. Объединять их в один подзапрос через Subquery я не стану, так проще.
+
+    Сейчас я думаю о счётчике в навигации: для отображения достаточно точного числа, но если оно больше лимита ленты, показывать «50+», а для этого нужна отдельная функция `badge_label(count)`.
+
+    Сейчас я думаю о том, как вывести счётчик в навигации: для студента считаю непрочитанные и показываю число, а если оно выше лимита ленты, то «50+». Для админа и остальных ролей ничего не считаю, а сам счётчик оборачиваю в ленивый объект, чтобы запрос выполнялся только при выводе в шаблоне.
+
+    Я думаю о гонке: событие может получить created_at раньше коммита, и если студент откроет уведомления в промежутке, оно может уйти за отметку просмотра и не попасть в счётчик.
+
+    Я считаю запросы для счётчика: профиль, состояние прочтения и подсчёт, и прикидываю, может ли сам контекстный процессор взять уже загруженные данные, чтобы не делать повторных обращений к базе. Пока склоняюсь к тому, что вьюха передаст значение счётчика явно, а процессор его не перезапишет.
+
+    Я проверяю, как Django подставляет данные контекстных процессоров: значения, переданные из представления, перекрывают результаты процессоров, поэтому представление уведомлений может передать пустой счётчик и избежать лишних запросов. Ленивый объект, созданный процессором, в этом случае не вычисляется вовсе. Для тестов количества запросов я думаю обойтись проверкой границ, а не точными числами.
+
+    Сейчас я проверяю, как писать тесты на количество запросов: для ленты хочу сравнить запросы при одной и пяти записях в каждом источнике и ограничить сверху, а для счётчика навигации проверить ровно три запроса.
+
+    Сейчас я думаю о том, как устроить страницу объявлений для сотрудников: список берётся по факультету, а форма публикации работает на той же странице. Отмена публикации идёт через POST с проверкой, что объявление принадлежит этому сотруднику, и после действия я делаю редирект с сообщением.
+
+    Сейчас я смотрю, как устроены маршруты: для ленты студента нужен путь `/notifications/` с именем `notifications:feed`, а для сотрудников `/staff/announcements/` и отдельный маршрут для снятия с публикации. Ещё я думаю, что тела объявлений выводятся через `linebreaksbr`, который экранирует HTML, поэтому тест с тегами в тексте и переносом строки должен показывать экранированный вывод с `<br>`.
+
+    Сейчас я думаю о границах доступа: дедлайны и ленту я проверяю в пределах лимитов, а для сотрудника ограничиваю списки факультетом. Остаётся вопрос, на какие страницы что можно открывать: студенту — только свою ленту, сотруднику — свои объявления, а остальным ролям отказ или редирект на вход.
+
+    Сейчас я проверяю, не занято ли имя приложения `notifications` в проекте, и смотрю на маршруты, представления и тестовые хелперы петиций и расписания, чтобы новый код повторял существующие шаблоны.
+
+── Assistant ───────────────────────────────────────────────
+Пишу спецификацию TASK-007 (уведомления). Сейчас изучаю код расписания, оценок, заявок и `seed_demo`.
+
+── Explored 5 files, 1 list, 3 searches ────────────────────
+  ── Read petitions/urls.py
+  ── Read petitions/views.py
+  ── Read accounts/tests/helpers.py
+  ── Listed files in accounts/management/commands
+  ── Searched for def \|CurrentMark\|FinalResult\|created\|today\|timedelta in academics/demo.py
+  ── Read academics/demo.py
+  ── Thought for 38s
+    I'm noting that the petition status changes already carry explicit timestamps, so the seed data for those is fine. The staff comments get the seed time as their creation stamp, which also works. The current marks are spread across September through November, with some falling in the last 30 days, and I'm checking whether the seed marks would all pick up the same creation time from the default.
+
+    I'm working out how many CUR_CURRICULUM disciplines each group has, since that sets how many seed marks would all get the same creation time. Roughly 25 marks would all look new under the 30-day window if they share the seed time, so I'm planning to set each mark's created_at to its own date at 18:00 Moscow time instead.
+
+    I'm noticing that the auto-set creation stamp on final results would make every previous-term result look brand new in the feed, so I'm planning to switch that field to a timezone.now default and set each seeded result's created_at to its own date at 18:00 Moscow time.
+
+    Reworking the seed timestamps so they don't all land in the 30-day window. Seeded marks get each mark's own date at 18:00 Moscow time, and final results get the same treatment, so last term's grades don't show up as new. Lesson changes seeded at seed time should still fall inside the 14-day horizon and count as unread, which fits the demo.
+
+    I'm weighing whether to treat lesson-change timestamps as updated_at, since the seed recreates rows anyway, and noting that the auto-updating field won't affect the admin path I'm checking. The demo also needs student3 placed in the same group as student1, with student2 in a different group and the staff roles assigned to match.
+
+    I'm now listing the seed announcements for the notifications demo: a university-wide news item, then a university deadline due in five days, with the author question still open.
+
+    I'm now drafting the seed announcements for the notifications demo: a university-wide news item, a few deadlines spread across the university, faculty, and group audiences, and one past deadline that should show only in the news list.
+
+    I'm settling the remaining seed announcements: one unpublished draft per faculty, and the deadlines falling within the next six days so they show up as upcoming. I'll also confirm that every demo student has at least one unread university item, and then check the seed tests and the command output.
+
+    I'm checking whether any existing test asserts the navigation link count, since adding the notifications link could break it.
+  ── Searched for Раздел в разработке\|core:home\|site-nav in .
+  ── Searched for Раздел в разработке\|core:home\|site-nav\|Ready:\|ready: in academics
+  ── Thought for 4ms
+    The seed re-runs delete and recreate the changes, which bumps their created_at and marks them unread again each time; that's acceptable. Next I'll check the home tests in core/tests/test_views.py and the nav tests around lines 529–540 of the petitions tests.
+  ── Read core/tests/test_views.py
+  ── Thought for 2s
+    I need to make sure the home view doesn't crash for a student who has no profile, so the summary should fall back to default text there. The context processor needs the same safeguard, giving an empty badge instead of an error. I also want to check the `assertNumQueries(0)` assertion on line 77 of the core tests, which is probably about the health check. Next I'm going to confirm how Django handles a union of different models with a count on it.
+
+    I'm going to check whether a union of three different models with an aggregate count works on SQLite, so I'll run a quick feasibility script against the existing models in a temporary database without touching the product code.
+  ── Thought for 4ms
+    Проверяю, работают ли на установленной версии Django нужные возможности: объединение запросов для счётчика и миграция новых полей.
+
+── Ran 9 commands ──────────────────────────────────────────
+  ── Ran source .venv/bin/activate && mkdir -p "$TMPDIR/t007" && export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t007/feas.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t007/priv" && python manage.py migrate -v0 && python - <<'EOF' 2>&1 | tail -20 import django, os os.environ.setdefault("DJANGO_SETTINGS_MODULE","config.settings") django.setup() from datetime import date, timedelta from django.db import connection from django.db.models import Q from django.test.utils import CaptureQueriesContext from django.utils import timezone from petitions.models import PetitionStatusChange, PetitionComment from schedule.models import LessonChange from academics.models import FinalResult now = timezone.now() qs = [   PetitionStatusChange.objects.filter(petition__student_id=1).exclude(actor_id=5).filter(created_at__gt=now-timedelta(days=30), created_at__lte=now).order_by().values_list("created_at"),   PetitionComment.objects.filter(petition__student_id=1).filter(created_at__gt=now-timedelta(days=30)).order_by().values_list("created_at"),   LessonChange.objects.filter(weekly_lesson__groups=1).filter(Q(original_date__range=(date.today(), date.today()+timedelta(days=14)))|Q(new_date__range=(date.today(), date.today()+timedelta(days=14)))).order_by().values_list("created_at"),   FinalResult.objects.filter(student_id=1).order_by().values_list("created_at"), ] with CaptureQueriesContext(connection) as c:     n = qs[0].union(*qs[1:], all=True).count() print("count", n, "queries", len(c.captured_queries)) print(c.captured_queries[0]["sql"][:600]) print(django.get_version()) EOF (3s)
+    $ source .venv/bin/activate && mkdir -p "$TMPDIR/t007" && export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t007/feas.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t007/priv" && python manage.py migrate -v0 && python - <<'EOF' 2>&1 | tail -20
+  import django, os
+  os.environ.setdefault("DJANGO_SETTINGS_MODULE","config.settings")
+  django.setup()
+  from datetime import date, timedelta
+  from django.db import connection
+  from django.db.models import Q
+  from django.test.utils import CaptureQueriesContext
+  from django.utils import timezone
+  from petitions.models import PetitionStatusChange, PetitionComment
+  from schedule.models import LessonChange
+  from academics.models import FinalResult
+  now = timezone.now()
+  qs = [
+    PetitionStatusChange.objects.filter(petition__student_id=1).exclude(actor_id=5).filter(created_at__gt=now-timedelta(days=30), created_at__lte=now).order_by().values_list("created_at"),
+    PetitionComment.objects.filter(petition__student_id=1).filter(created_at__gt=now-timedelta(days=30)).order_by().values_list("created_at"),
+    LessonChange.objects.filter(weekly_lesson__groups=1).filter(Q(original_date__range=(date.today(), date.today()+timedelta(days=14)))|Q(new_date__range=(date.today(), date.today()+timedelta(days=14)))).order_by().values_list("created_at"),
+    FinalResult.objects.filter(student_id=1).order_by().values_list("created_at"),
+  ]
+  with CaptureQueriesContext(connection) as c:
+      n = qs[0].union(*qs[1:], all=True).count()
+  print("count", n, "queries", len(c.captured_queries))
+  print(c.captured_queries[0]["sql"][:600])
+  print(django.get_version())
+  EOF
+    count 0 queries 1
+    SELECT COUNT(*) FROM (SELECT "petitions_petitionstatuschange"."created_at" AS "created_at" FROM "petitions_petitionstatuschange" INNER JOIN "petitions_petition" ON ("petitions_petitionstatuschange"."petition_id" = "petitions_petition"."id") WHERE ("petitions_petition"."student_id" = 1 AND NOT ("petitions_petitionstatuschange"."actor_id" = 5) AND "petitions_petitionstatuschange"."created_at" > '2026-10-15 21:44:27.688213' AND "petitions_petitionstatuschange"."created_at" <= '2026-11-14 21:44:27.688213') UNION ALL SELECT "petitions_petitioncomment"."created_at" AS "created_at" FROM "petitions_pe
+    5.2.19
+  ── Thought for 4ms
+    The union count came back correct in a single query. Next I want to seed the temp database with real rows and rerun the union so I can confirm the counts match. I also need to check whether the Django autodetector prompts for a default when an auto_now AddField is added, so I'll look at its source.
+  ── Ran source .venv/bin/activate && grep -n "preserve_default = (" -A 12 .venv/lib/python3.12/site-packages/django/db/migrations/autodetector.py | head -30; grep -n "def ask_auto_now_add_addition\|def ask_not_null_addition" .venv/lib/python3.12/site-packages/django/db/migrations/questioner.py; grep -n "auto_now_add\|ask_auto_now" .venv/lib/python3.12/site-packages/django/db/migrations/autodetector.py | head; grep -n "def pre_save" -A 8 .venv/lib/python3.12/site-packages/django/db/models/fields/__init__.py | sed -n 1,40p | grep -n "auto_now\|add"
+    $ source .venv/bin/activate && grep -n "preserve_default = (" -A 12 .venv/lib/python3.12/site-packages/django/db/migrations/autodetector.py | head -30; grep -n "def ask_auto_now_add_addition\|def ask_not_null_addition" .venv/lib/python3.12/site-packages/django/db/migrations/questioner.py; grep -n "auto_now_add\|ask_auto_now" .venv/lib/python3.12/site-packages/django/db/migrations/autodetector.py | head; grep -n "def pre_save" -A 8 .venv/lib/python3.12/site-packages/django/db/models/fields/__init__.py | sed -n 1,40p | grep -n "auto_now\|add"
+    1136:        preserve_default = (
+    1137-            field.null
+    1138-            or field.has_default()
+    1139-            or field.has_db_default()
+    1140-            or field.many_to_many
+    1141-            or (field.blank and field.empty_strings_allowed)
+    1142-            or (isinstance(field, time_fields) and field.auto_now)
+    1143-            or (isinstance(field, auto_fields))
+    1144-        )
+    1145-        if not preserve_default:
+    1146-            field = field.clone()
+    1147-            if isinstance(field, time_fields) and field.auto_now_add:
+    1148-                field.default = self.questioner.ask_auto_now_add_addition(
+    57:    def ask_not_null_addition(self, field_name, model_name):
+    79:    def ask_auto_now_add_addition(self, field_name, model_name):
+    172:    def ask_not_null_addition(self, field_name, model_name):
+    255:    def ask_auto_now_add_addition(self, field_name, model_name):
+    321:    def ask_not_null_addition(self, field_name, model_name):
+    339:    def ask_auto_now_add_addition(self, field_name, model_name):
+    1147:            if isinstance(field, time_fields) and field.auto_now_add:
+    1148:                field.default = self.questioner.ask_auto_now_add_addition(
+    1:988:    def pre_save(self, model_instance, add):
+    11:1509:    def pre_save(self, model_instance, add):
+    12:1510-        if self.auto_now or (self.auto_now_add and add):
+    17:1515-            return super().pre_save(model_instance, add)
+    21:1649:    def pre_save(self, model_instance, add):
+    22:1650-        if self.auto_now or (self.auto_now_add and add):
+    27:1655-            return super().pre_save(model_instance, add)
+    31:2609:    def pre_save(self, model_instance, add):
+    32:2610-        if self.auto_now or (self.auto_now_add and add):
+    37:2615-            return super().pre_save(model_instance, add)
+  ── Thought for 14s
+    I'm checking whether Django's schema editor fills in a default for an AddField on an auto_now field during migration, and I'm looking at how `_effective_default` picks `timezone.now()` for DateTimeField.
+
+    Next I'm reading the `timezone.now` mock concern: the test helper patches the module attribute, but a model field's `default=timezone.now` holds the original function object from class creation, so `Petition.created_at` may stay on real time. That would break the feed's `ts <= now` window in tests once the real date passes the frozen one.
+
+    I'm working out whether the test-time clock patch reaches the `default=timezone.now` reference on the model fields, since a function stored as a field default may still point at the original function rather than the patched one. If it doesn't, the tests would see real timestamps and could break once the real date passes the frozen date. So I'm thinking about having tests set explicit timestamps rather than rely on the default.
+
+    Plain fix for the clock problem: the default is a reference to the original `timezone.now` captured at class creation, so the test patch never reaches it, and real timestamps would eventually fall past the frozen "now" and drop out of the feed. A small module-level wrapper that calls `timezone.now()` at call time would let the patch take effect, so I'll use that as the default for the new timestamp fields.
+
+    I'm checking whether there's already a "now" helper in core that resolves the clock at call time, and I'm looking at how the existing petition and FinalResult fields get their timestamps. FinalResult currently uses auto_now_add, which goes through the patched clock, so switching it to `default=timezone.now` would make it bypass the test patch.
+
+    I'm going to verify the default-clock concern with a quick test and then look at how `run_tests_at` patches the clock.
+  ── Ran source .venv/bin/activate && cat scripts/run_tests_at.py | head -60; grep -n "created_at\|timezone.now" petitions/services.py; grep -rn "def now\|timezone.now$" core/ --include=*.py
+    $ source .venv/bin/activate && cat scripts/run_tests_at.py | head -60; grep -n "created_at\|timezone.now" petitions/services.py; grep -rn "def now\|timezone.now$" core/ --include=*.py
+    """Runs the test suite with the clock frozen at a Moscow time.
+
+    Tests must not depend on the real current date.
+
+    Usage: python scripts/run_tests_at.py 2027-03-01T12:00:00 [test labels...]
+    """
+
+    import os
+    import sys
+    from datetime import datetime
+    from pathlib import Path
+    from unittest import mock
+    from zoneinfo import ZoneInfo
+
+    _SCRIPT_DIR = Path(__file__).resolve().parent
+    _REPO_ROOT = _SCRIPT_DIR.parent
+    sys.path.insert(0, str(_REPO_ROOT))
+
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
+
+
+    def main() -> int:
+        if len(sys.argv) < 2:
+            print(__doc__)
+            return 1
+        when = datetime.fromisoformat(sys.argv[1]).replace(tzinfo=ZoneInfo("Europe/Moscow"))
+        mock.patch("django.utils.timezone.now", return_value=when).start()
+
+        import django
+        from django.conf import settings
+        from django.test.utils import get_runner
+
+        django.setup()
+        failures = get_runner(settings)(verbosity=1).run_tests(sys.argv[2:])
+        return 1 if failures else 0
+
+
+    if __name__ == "__main__":
+        sys.exit(main())
+    86:            now = timezone.now()
+    92:                created_at=now,
+    103:                created_at=now,
+    139:        now = timezone.now()
+    145:            created_at=now,
+    (eval):1: no matches found: --include=*.py
+  ── Thought for 2m 6s
+    I'm looking at how the test helper patches the clock before models load, which means model defaults like `timezone.now` get captured as the mock and stay frozen. The other mixin patches after import, so defaults use real time. The petitions services already set timestamps explicitly, so I'll follow that and set timestamps explicitly from `timezone.now()` in all new code.
+
+    I'm settling on a patch-aware default for `CurrentMark.created_at`, since rows get created through admin, seeds, and test helpers without an explicit timestamp. That means a small `core/clock.py` wrapper that looks up `timezone.now` at call time, which I'll reference as the field default. The catch is that the migration will then depend on that module path, so it shouldn't be renamed later.
+
+    I'm checking whether the clock mock reaches the field default, and I'm planning to make FinalResult's `created_at` a `default=` field instead of `auto_now_add`, which means an AlterField migration. I'll have the seed set the timestamp explicitly for both models.
+
+    Next I'm checking whether `run_tests_at` interferes with the defaults, since it patches the clock before models load. For `Announcement.published_at` I'm leaning toward a `core.clock.now` default with `editable=False`, so admin saves fill it in automatically, and I'd add it to `readonly_fields` so it's still visible.
+
+    I'm working out a feed upper bound of `ts <= now`, and the risk is tests using real-time defaults. A `PetitionComment` created directly in a test without `created_at` would get the real date, which could sit after a frozen test clock and get excluded. So tests should always pass explicit timestamps, especially when creating comments or status changes directly.
+
+    I'm checking whether the frozen clock affects the defaults, and the concern is that real-time defaults could land after a frozen test date. To expose that, I'm considering a frozen date earlier than the real current date so the feed test would fail if it happens. That would mean adjusting the notifications test fixture, though I still need to check how the other term dates in those tests fit around it.
+
+    I'm checking whether `run_tests_at` at a date near 2026-11-17 would interact with these defaults, since the boundary could still let a real-time row slip past the frozen clock.
+
+    I'm checking the Moscow midnight boundary for the relative day labels: at 23:59:59 local time today is the 17th, and at 00:00 it becomes the 18th. The UTC date would still read the 17th at 00:30 Moscow time, so the test needs to compare against the local date rather than the UTC one.
+
+    I'm counting the queries for the feed page: the session and user lookups come first, then the student profile. To avoid extra hops through group and program, I'd load the profile with `select_related("group__program")` in a single helper.
+
+    Next I'm checking the query count for the mark-read step: an update_or_create goes through a savepoint, a select, an update and a release, so the count varies, and the tests should compare constant counts across different item numbers instead of asserting a fixed total.
+
+    I'm wiring up the mark-read step so it reads the existing state first, then either creates the row if none exists or updates the seen marker in place.
+
+    I'm working out how the unread badge gets computed: one profile lookup, one state lookup, and one union count, so three queries, which I can pin with an exact query-count assertion on a fresh user object.
+
+    Now I'm sketching the access matrix for the notifications feed: anonymous requests should redirect, a student gets the page, and staff or superusers get a 403.
+
+    I'm mapping out the access rules for the staff announcement views: staff can only see and unpublish announcements in their own faculty, other faculties get a 404, and students and superusers are refused with a 403. I'm also adding a homepage check covering anonymous, student, and student-without-profile cases.
+
+    I'm working through the access matrix for the views: anonymous requests should redirect to login, students get 403 on staff pages, and staff or superusers are refused where the matrix says so. For the unpublish endpoint I'm noting that it must be POST-only, so a GET returns 405, and I'll exercise CSRF with an enforcing client so a missing token gets a 403. The notifications view should be limited to GET by its method list.
+
+    I'm now settling the staff announcement form: a title and body with length limits, a target choice, and an optional deadline that uses a date input and expects ISO format.
+
+    I'm checking the Russian locale's date input formats to see whether an ISO date from a type=date field will be accepted, and how the widget should render the value back in that same ISO form.
+
+    I'm checking whether the date widget and the ru locale's input formats accept ISO dates, since a `type="date"` field submits YYYY-MM-DD. I'm also weighing whether the body length check needs to account for `\r\n` line endings from the textarea.
+
+    I'm writing the `create_announcement` service now, starting by resolving the staff profile and checking that the audience is either the faculty or a group. For a group audience I still need to confirm the group is visible to this author before saving.
+
+    I'm checking the model's `clean()` for consistency between audience and target, and limiting the deadline check to new announcements so editing an older one with a past date still works. I'll also have the form flag a past deadline directly on the deadline field.
+
+    I'm defining a deadline validation helper that both the model clean and the form's deadline field can share, so the date rules live in one place. Next I'm sketching an unpublish service that locks the announcement row and only changes it if it's still published.
+
+    I'm working out the unpublish service: it will lock the announcement row and only change it if it's still published, scoped to announcements this actor can manage. If the row isn't among those, it should raise a permission error rather than return a result.
+
+    I'm checking whether `select_for_update` can be used here at all, since the managed-announcements queryset joins nullable foreign keys and PostgreSQL rejects row locks on the nullable side of an outer join. A filter on primary keys pulled from that queryset might sidestep the problem, but the joins inside its WHERE clause could still trigger the same error.
+
+    I'm checking whether `select_for_update(of=("self",))` will hold up here: the lock only targets the announcement table, so the nullable outer joins in the managed-announcements filter shouldn't trip PostgreSQL. I'm also confirming whether SQLite simply ignores the lock clause, since that's what the test database will run.
+
+    I'm checking whether `select_for_update(of=("self",))` can lock just the announcement row without tripping on the nullable outer joins, and I'm looking at how the petitions `_lock_petition` helper does it so I can reuse that pattern. Next I'm sketching the notifications selectors: one for what a student sees, and one for the announcements a staff member can manage, scoped by faculty through either the faculty or group audience.
+
+    I'm checking whether a `union` with no extra querysets still counts correctly, and whether the default model ordering needs clearing with `.order_by()` so the combined query doesn't fail on SQLite.
+
+    I'm checking how the unread badge should read once the count passes the cap, and whether the count matches what the feed actually displays given the per-source and merged limits.
+
+    I'm mapping the feed link targets now: petitions link to their detail page by public id, lesson changes to the schedule week containing the affected date, and grade updates to the term's grades page. News items have no link and show their full title and body. For status titles, I'm working through the in-progress and ready wording.
+
+    I'm mapping out the status titles for feed items: "in progress" and "ready for pickup at the dean's office" get their own wording, "issued" and "rejected" get short titles, and anything else falls back to a generic status line built from the label. The body for those items is just the change comment.
+
+    Writing the feed template now, with the deadlines section and the list of feed items.
+
+    I'm writing the feed template now: a heading, a deadlines section, and a list of feed items with tags, a "new" marker, timestamps, and links or plain titles. I'm also adding a few small layout classes to the base stylesheet, using the existing tokens.
+
+    Now I'm working on the stylesheet: I'll add small feed layout rules (list reset, item spacing, and wrapping for long words) using the existing tokens, and keep colors out of it. Then I'll move on to the staff announcements template, with a form for title, body, target and deadline, followed by a list showing each item's audience, dates, author and whether it's published or withdrawn.
+
+    Now I'm drafting the staff announcements view as a template view that handles both listing and posting, and checking how a forged cross-faculty group would be rejected on submit.
+
+    I'm working on the home page now: for students with a summary, I'll pull the nearest deadlines and the latest news into the context and list them, with an empty state for each if there's nothing to show, plus a link through to the full feed.
+
+    I'm deciding where the home page anchors should point: each item on the home page will link to the feed with a `#news-<id>` fragment so it scrolls to that entry. I also realize that anchor only works for items still inside the feed's 30-day, top-50 window, so older deadlines will just land at the top of the page without scrolling.
+
+    I'm working out the home page anchors: deadlines will link to `#deadline-<id>` on the feed and news to `#news-<id>`, and I'm giving the deadline items on the feed page matching ids so those links land. Then I'm noting that viewing the feed will mark everything read, and I'm starting the per-user `NotificationState` model with a single `seen_until` timestamp.
+
+    I'm setting up the admin for announcements: a list with title, audience, deadline and publish status, plus filters and read-only author and unpublish fields. On save, I'll stamp the author on new items and record when and by whom an item gets unpublished.
+
+    I'm checking the admin save path: the author is set in `save_model` before the row is written, since it's excluded from form validation, and the model's clean method only looks at the deadline. I'm also considering whether a CheckConstraint will surface its violation during `full_clean` in Django 4.
+
+    I'm weighing whether to drop the model-level clean check and let the database constraint's violation message carry the error in the admin, since running both would show the same problem twice.
+
+    I'm settling on the audience constraint as the single place that enforces the target rules, with a violation message that spells out what each audience needs. I'm sketching the demo seeding helper for the notifications app next.
+
+    I'm setting the seeded marks' timestamps to the evening of their dates, capped at the current time so nothing lands in the future. I'm working out how to build that timezone-aware datetime from the date.
+
+    I'm working out how the seeded marks and final results should be timestamped, putting them at the evening of their dates and capping at the current time. I'm also checking that the added timestamps won't break the existing academics seed tests, since they only add a field. Then I'm counting how many marks fall inside the 30-day window for the first student, which gives about three or four dates per discipline.
+
+    I'm checking how many marks land in the 30-day window for each student, which should be around ten, so the feed has a realistic volume of grade items. I'm deciding the seeded data is fine as it is rather than trimming it. Final results from the previous term fall outside the window, so I'm leaving out a final-result demo item and relying on the unit tests to cover that path. Next I'm looking at the lesson change seed for the 14-day horizon and the petition status timestamps.
+
+    Next I'm settling the constants for the feed and the announcement limits: a 30-day window, up to 50 feed items, a 14-day lesson-change horizon, and a cap of 365 days ahead for deadlines. I'm deciding which ones belong in `notifications/constants.py` and which stay next to the models.
+
+    I'm defining the feed sources in `notifications/sources.py` as a base class plus concrete subclasses, collected in a tuple, so a new source like chat can be added by writing one class and appending it. The feed and the counter would both iterate over that tuple through a `get_feed_sources()` accessor, which keeps tests able to swap in a fake source.
+
+    I'm sketching the base feed source class next: a `FeedSource` with a stable kind, a display tag, the event datetime field used for ordering and unread counts, and related fields to select for rendering. I'll have each source supply its own base queryset.
+
+    Still writing the feed source base class...
+
+    Still writing the feed source base class...
+
+    I'm filling in the feed's merge step: each item gets a unique key, and the combined list is sorted by timestamp and key, newest first, so the order stays deterministic. The `distinct` concern for lesson changes goes away because filtering by the group yields exactly one row per change.
+
+    I'm checking which items the student's own actions should leave out: the petition status feed excludes changes made by the student, and comments exclude the student's own authorship. Petitions can't be cancelled by students and the admin has no petition change permission, so those cases don't need extra handling. Since actors are never null, the exclusion won't hit any null-comparison gaps. I'm also noting that news drops out of the feed once unpublished, which lowers the counter, and that the news window uses publish time between the window start and now.
+
+    I'm settling the deadline list as announcements filtered to future deadlines and already-published items, ordered by deadline and limited in count. The relative day label is still to settle: I'm deciding how to handle a deadline that has already passed.
+
+    I'm settling the relative day label for deadlines: a past date reads as expired, today and tomorrow get their own words, and anything further out uses "через N" with the correct Russian plural form. I'm checking a set of sample counts to make sure the plural forms come out right, and wondering whether a plural helper already exists in `core/text.py`.
+
+    I'm checking whether there's already a plural helper in `core/text.py`, and looking at the base CSS tokens, the Russian date input formats, and how the petitions code locks rows.
+  ── Ran source .venv/bin/activate && grep -rn "plural\|дней\|дня" --include="*.py" accounts core petitions schedule academics university | grep -v tests | head; grep -n "DATE_INPUT_FORMATS" -A4 .venv/lib/python3.12/site-packages/django/conf/locale/ru/formats.py; grep -n "def _lock\|select_for_update" -A3 petitions/services.py | head -20; grep -n "^\s*--\|^[.a-z].*{" static/css/tokens.css static/css/base.css | head -60
+    $ source .venv/bin/activate && grep -rn "plural\|дней\|дня" --include="*.py" accounts core petitions schedule academics university | grep -v tests | head; grep -n "DATE_INPUT_FORMATS" -A4 .venv/lib/python3.12/site-packages/django/conf/locale/ru/formats.py; grep -n "def _lock\|select_for_update" -A3 petitions/services.py | head -20; grep -n "^\s*--\|^[.a-z].*{" static/css/tokens.css static/css/base.css | head -60
+    accounts/models.py:16:        verbose_name_plural = "пользователи"
+    accounts/models.py:86:        verbose_name_plural = "профили студентов"
+    accounts/models.py:143:        verbose_name_plural = "профили сотрудников"
+    accounts/models.py:172:    last_failure_at = models.DateTimeField("последняя неудача")
+    accounts/models.py:183:        verbose_name_plural = "блокировки входа"
+    accounts/migrations/0001_initial.py:41:                'verbose_name_plural': 'пользователи',
+    accounts/migrations/0001_initial.py:60:                'verbose_name_plural': 'профили сотрудников',
+    accounts/migrations/0001_initial.py:77:                'verbose_name_plural': 'профили студентов',
+    accounts/migrations/0002_loginthrottle.py:21:                ('last_failure_at', models.DateTimeField(verbose_name='последняя неудача')),
+    accounts/migrations/0002_loginthrottle.py:26:                'verbose_name_plural': 'блокировки входа',
+    16:DATE_INPUT_FORMATS = [
+    17-    "%d.%m.%Y",  # '25.10.2006'
+    18-    "%d.%m.%y",  # '25.10.06'
+    19-]
+    20-DATETIME_INPUT_FORMATS = [
+    45:def _lock_student(pk: int) -> None:
+    46:    StudentProfile.objects.select_for_update().filter(pk=pk).values_list("pk", flat=True).get()
+    47-
+    48-
+    49:def _lock_petition(pk: int) -> Petition:
+    50:    return Petition.objects.select_for_update().select_related("student__group__program").get(pk=pk)
+    51-
+    52-
+    53-def submit_petition(
+    static/css/tokens.css:2:  --color-bg: #ffffff;
+    static/css/tokens.css:3:  --color-text: #1a1a1a;
+    static/css/tokens.css:4:  --color-muted: #6b6b6b;
+    static/css/tokens.css:5:  --color-accent: #0055aa;
+    static/css/tokens.css:6:  --color-border: #d0d0d0;
+    static/css/tokens.css:7:  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    static/css/tokens.css:8:  --font-heading: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    static/css/tokens.css:9:  --font-size-base: 1rem;
+    static/css/tokens.css:10:  --line-height-base: 1.5;
+    static/css/tokens.css:11:  --space-1: 0.25rem;
+    static/css/tokens.css:12:  --space-2: 0.5rem;
+    static/css/tokens.css:13:  --space-3: 1rem;
+    static/css/tokens.css:14:  --space-4: 1.5rem;
+    static/css/tokens.css:15:  --space-5: 2rem;
+    static/css/tokens.css:16:  --content-max-width: 60rem;
+    static/css/tokens.css:17:  --radius: 0;
+    static/css/tokens.css:18:  --color-changed: #a35200;
+    static/css/tokens.css:19:  --color-now-bg: #eaf2ff;
+    static/css/base.css:7:body {
+    static/css/base.css:18:svg {
+    static/css/base.css:25:.site-footer {
+    static/css/base.css:29:.site-main {
+    static/css/base.css:34:.skip-link {
+    static/css/base.css:43:.skip-link:focus {
+    static/css/base.css:59:.site-nav-list {
+    static/css/base.css:68:.site-nav-logout {
+    static/css/base.css:72:.form input {
+    static/css/base.css:78:.form button {
+    static/css/base.css:82:.fields dt {
+    static/css/base.css:87:.fields dd {
+    static/css/base.css:91:.student-list {
+    static/css/base.css:95:.lesson-list {
+    static/css/base.css:101:.lesson {
+    static/css/base.css:106:.lesson p {
+    static/css/base.css:110:.lesson--now {
+    static/css/base.css:114:.lesson-badge {
+    static/css/base.css:119:.lesson-groups {
+    static/css/base.css:123:.lesson-change {
+    static/css/base.css:128:.lesson--moved-out .lesson-title {
+    static/css/base.css:132:.week-nav {
+    static/css/base.css:138:.day {
+    static/css/base.css:142:.discipline-list {
+    static/css/base.css:147:.discipline {
+    static/css/base.css:153:.status--debt {
+    static/css/base.css:157:.term-nav ul {
+    static/css/base.css:165:details summary {
+    static/css/base.css:169:.messages {
+    static/css/base.css:175:.message {
+    static/css/base.css:181:.message--error {
+    static/css/base.css:185:.status {
+    static/css/base.css:189:.petition-list {
+    static/css/base.css:195:.petition {
+    static/css/base.css:200:.petition p {
+    static/css/base.css:204:.action-form {
+    static/css/base.css:211:button {
+    static/css/base.css:216:.page-actions {
+  ── Thought for 2s
+    I'm checking whether Django's Russian date input formats include the ISO "%Y-%m-%d" pattern, since with localization always on that list decides what DateField accepts. I'm also looking at how `get_format` adds the ISO formats to the input format lists in django/utils/formats.py.
+
+    I'm confirming that Django adds the ISO input formats like "%Y-%m-%d" to the localized lists, and that a DateField actually parses "2026-11-25". I also need to check that the widget rendering for type=date uses that same format.
+  ── Ran source .venv/bin/activate && DEBUG=true python - <<'EOF' import os, django os.environ.setdefault("DJANGO_SETTINGS_MODULE","config.settings"); django.setup() from django import forms from django.utils import translation translation.activate("ru") class F(forms.Form):     d = forms.DateField(required=False, widget=forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"})) f = F({"d": "2026-11-25"}); print(f.is_valid(), f.cleaned_data) f = F({"d": "25.11.2026"}); print(f.is_valid(), f.cleaned_data) import datetime; print(F(initial={"d": datetime.date(2026,11,25)})["d"]) from django.utils.formats import get_format; print(get_format("DATE_INPUT_FORMATS")) # default=timezone.now is not patched by later mock.patch from unittest import mock from django.utils import timezone from petitions.models import PetitionComment with mock.patch("django.utils.timezone.now", return_value=datetime.datetime(2020,1,1,tzinfo=datetime.UTC)):     print("default:", PetitionComment._meta.get_field("created_at").get_default())     print("call-time:", timezone.now()) EOF
+    $ source .venv/bin/activate && DEBUG=true python - <<'EOF'
+  import os, django
+  os.environ.setdefault("DJANGO_SETTINGS_MODULE","config.settings"); django.setup()
+  from django import forms
+  from django.utils import translation
+  translation.activate("ru")
+  class F(forms.Form):
+      d = forms.DateField(required=False, widget=forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}))
+  f = F({"d": "2026-11-25"}); print(f.is_valid(), f.cleaned_data)
+  f = F({"d": "25.11.2026"}); print(f.is_valid(), f.cleaned_data)
+  import datetime; print(F(initial={"d": datetime.date(2026,11,25)})["d"])
+  from django.utils.formats import get_format; print(get_format("DATE_INPUT_FORMATS"))
+  # default=timezone.now is not patched by later mock.patch
+  from unittest import mock
+  from django.utils import timezone
+  from petitions.models import PetitionComment
+  with mock.patch("django.utils.timezone.now", return_value=datetime.datetime(2020,1,1,tzinfo=datetime.UTC)):
+      print("default:", PetitionComment._meta.get_field("created_at").get_default())
+      print("call-time:", timezone.now())
+  EOF
+    True {'d': datetime.date(2026, 11, 25)}
+    True {'d': datetime.date(2026, 11, 25)}
+    <input type="date" name="d" value="2026-11-25" id="id_d">
+    ['%d.%m.%Y', '%d.%m.%y', '%Y-%m-%d']
+    default: 2026-11-14 21:47:11.251500+00:00
+    call-time: 2020-01-01 00:00:00+00:00
+  ── Thought for 2s
+    Confirmed that `default=timezone.now` isn't patched by FrozenClockMixin, so I'll add a `core/clock.py::now()` helper. I'm checking that `core/clock.py` doesn't already exist and that the "notifications" name is free with a grep. Next I want to see how the existing seed tests run, whether `accounts/tests/test_seed_demo.py` asserts exact output, and whether the academics demo tests check `created_at`.
+
+    Next I'm checking whether any notifications files already exist and getting the current test count. I also want to review the ruff config's docs exclusion and the DJ rules on null CharFields, `__str__`, and model member order. After that, I'll look at how the other apps' AppConfig is set up and how petitions forms use `ModelChoiceField`, then run the baseline verification.
+  ── Ran source .venv/bin/activate && ls core/clock.py notifications 2>&1; grep -rn "notifications\|notification" --include="*.py" --include="*.html" config core accounts petitions schedule academics templates | head; cat petitions/apps.py; sed -n 1,40p accounts/tests/test_seed_demo.py; grep -n "ruff" -A 25 pyproject.toml | head -40
+    $ source .venv/bin/activate && ls core/clock.py notifications 2>&1; grep -rn "notifications\|notification" --include="*.py" --include="*.html" config core accounts petitions schedule academics templates | head; cat petitions/apps.py; sed -n 1,40p accounts/tests/test_seed_demo.py; grep -n "ruff" -A 25 pyproject.toml | head -40
+    ls: core/clock.py: No such file or directory
+    ls: notifications: No such file or directory
+    from django.apps import AppConfig
+
+
+    class PetitionsConfig(AppConfig):
+        default_auto_field = "django.db.models.BigAutoField"
+        name = "petitions"
+        verbose_name = "Заявки"
+    import os
+    from io import StringIO
+    from unittest import mock
+
+    from django.core.management import call_command
+    from django.core.management.base import CommandError
+    from django.test import TestCase
+
+    from accounts.models import StaffProfile, StudentProfile, User
+    from core.testing import FrozenClockMixin
+    from university.models import Faculty, Program, StudyGroup
+
+    from .helpers import make_faculty, make_group, make_student
+
+
+    class SeedDemoTests(FrozenClockMixin, TestCase):
+        def test_creates_expected_data(self):
+            with mock.patch.dict(os.environ, {"DEMO_PASSWORD": "Demo-Pass-2026-test!"}):
+                call_command("seed_demo")
+            self.assertEqual(Faculty.objects.count(), 2)
+            self.assertEqual(Program.objects.count(), 2)
+            self.assertEqual(StudyGroup.objects.count(), 2)
+            self.assertEqual(StudentProfile.objects.count(), 3)
+            self.assertEqual(StaffProfile.objects.count(), 2)
+            student1 = User.objects.get(username="student1")
+            staff1 = User.objects.get(username="staff1")
+            self.assertEqual(student1.role, User.Role.STUDENT)
+            self.assertEqual(staff1.role, User.Role.STAFF)
+            self.assertFalse(User.objects.filter(is_staff=True).exists())
+
+        def test_idempotent(self):
+            with mock.patch.dict(os.environ, {"DEMO_PASSWORD": "Demo-Pass-2026-test!"}):
+                call_command("seed_demo")
+                call_command("seed_demo")
+            self.assertEqual(Faculty.objects.count(), 2)
+            self.assertEqual(Program.objects.count(), 2)
+            self.assertEqual(StudyGroup.objects.count(), 2)
+            self.assertEqual(StudentProfile.objects.count(), 3)
+            self.assertEqual(StaffProfile.objects.count(), 2)
+            self.assertEqual(User.objects.count(), 5)
+    1:[tool.ruff]
+    2-target-version = "py312"
+    3-line-length = 100
+    4-extend-exclude = ["*/migrations/*", ".venv", "staticfiles", "docs"]
+    5-
+    6:[tool.ruff.lint]
+    7-select = ["E", "F", "W", "I", "B", "UP", "DJ", "S"]
+    8-ignore = []
+    9-
+    10:[tool.ruff.lint.per-file-ignores]
+    11-"*/tests/*" = ["S101", "S105", "S106"]
+    12-"config/env_utils.py" = ["S105"]
+    13-
+    14:[tool.ruff.lint.isort]
+    15-known-first-party = ["config", "core", "accounts", "university", "schedule", "academics", "petitions"]
+    16-
+    17:[tool.ruff.format]
+    18-quote-style = "double"
+  ── Thought for 581ms
+    I need to make sure `notifications` is listed as known-first-party in pyproject.toml. The lead asked for Ruff only on the task files, but the full ruff check is already clean, so I'll keep both. Next I'll look at whether ci.yml needs any change (the app list looks fine), then run the baseline verification with tee.
+  ── Thought for 5ms
+    Код изучен; сейчас запущу базовую проверку на текущем дереве с сохранением вывода в файл, а затем напишу спецификацию.
+  ── Ran source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t007-feas.log" | tail -4 && python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t007-feas-at-2359.log" | tail -3 && python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t007-feas-at-0000.log" | tail -3 (4m 41s)
+    $ source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t007-feas.log" | tail -4 && python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t007-feas-at-2359.log" | tail -3 && python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t007-feas-at-0000.log" | tail -3
+    MSK 20261115-004724
+    System check identified no issues (0 silenced).
+    No changes detected
+    Demo data ready: 2 faculties, 2 programs, 2 groups, 3 students, 2 staff.
+    Schedule ready: 7 rooms, 6 teachers, 6 disciplines, 18 weekly lessons, 8 changes.
+    Academics ready: 2 terms, 17 curriculum items, 13 final results, 70 marks, 232 attendance records.
+    Requests ready: 4 types, 7 requests, 3 attachments.
+    Schedule ready: 7 rooms, 6 teachers, 6 disciplines, 18 weekly lessons, 8 changes.
+    Academics ready: 2 terms, 17 curriculum items, 13 final results, 70 marks, 232 attendance records.
+    Requests ready: 4 types, 7 requests, 3 attachments.
+    Schedule ready: 7 rooms, 6 teachers, 6 disciplines, 18 weekly lessons, 8 changes.
+    Academics ready: 2 terms, 17 curriculum items, 13 final results, 70 marks, 232 attendance records.
+    Requests ready: 4 types, 7 requests, 3 attachments.
+  ── Ran cd "$TMPDIR" && for f in test-20261115-004724-t007-feas*.log; do echo "== $f"; grep -E "^Ran |^OK|^FAILED|^ERROR:|^FAIL:" "$f"; done
+    $ cd "$TMPDIR" && for f in test-20261115-004724-t007-feas*.log; do echo "== $f"; grep -E "^Ran |^OK|^FAILED|^ERROR:|^FAIL:" "$f"; done
+    == test-20261115-004724-t007-feas-at-0000.log
+    Ran 567 tests in 93.282s
+    OK
+    == test-20261115-004724-t007-feas-at-2359.log
+    Ran 567 tests in 91.404s
+    OK
+    == test-20261115-004724-t007-feas.log
+    Ran 567 tests in 92.278s
+    OK
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 6ms
+    Local time is already past midnight on the 15th in Moscow, so "today" is the 15th, and the frozen notification time of 2026-11-11 is in the past, which means any leak will show up as a failure. Next I'm running the deploy check, ruff, the YAML checks, and seeding twice against a temporary database.
+  ── Ran source .venv/bin/activate && DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; rm -f "$TMPDIR/t007/seed.sqlite3"; export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t007/seed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t007/seed-private" DEMO_PASSWORD='Local-Demo-Pass-2026!'; python manage.py migrate -v0 && python manage.py seed_demo | tail -2 && python manage.py seed_demo | tail -2; grep -n "run_tests_at\|manage.py" .github/workflows/ci.yml (6s)
+    $ source .venv/bin/activate && DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; rm -f "$TMPDIR/t007/seed.sqlite3"; export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t007/seed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t007/seed-private" DEMO_PASSWORD='Local-Demo-Pass-2026!'; python manage.py migrate -v0 && python manage.py seed_demo | tail -2 && python manage.py seed_demo | tail -2; grep -n "run_tests_at\|manage.py" .github/workflows/ci.yml
+    System check identified no issues (1 silenced).
+    All checks passed!
+    123 files already formatted
+    yaml ok
+    Academics ready: 2 terms, 17 curriculum items, 13 final results, 70 marks, 249 attendance records.
+    Requests ready: 4 types, 7 requests, 3 attachments.
+    Academics ready: 2 terms, 17 curriculum items, 13 final results, 70 marks, 249 attendance records.
+    Requests ready: 4 types, 0 requests, 0 attachments.
+    32:        run: python manage.py check
+    34:        run: python manage.py makemigrations --check --dry-run
+    36:        run: python manage.py test
+    38:        run: python scripts/run_tests_at.py 2027-03-01T12:00:00
+    43:          python manage.py migrate --noinput
+    44:          python manage.py seed_demo
+    45:          python manage.py seed_demo
+    51:        run: python manage.py check --deploy --fail-level WARNING
+  ── Thought for 5ms
+    All the baseline checks came back fine. Next I'm pulling the latest migration for the academics and schedule apps, and confirming their names.
+
+── Explored 1 list ─────────────────────────────────────────
+  ── Listed files in academics/migrations
+  ── Thought for 3m 9s
+    I'm checking the admin forms for CurrentMark and FinalResult: the ModelForm runs full_clean and then save, and since created_at is non-editable, its default from core.clock.now gets applied at creation, so that looks fine. Next I'm looking at the LessonChange admin to see whether it goes through save_lesson_change, though it doesn't matter much because save() triggers auto_now anyway.
+
+    I'm skipping the optional readonly display of created_at on the CurrentMark and FinalResult admins to keep the file changes small. Next I'm moving on to the spec, including the expected migration names, and I'm weighing whether existing CurrentMark rows need a data migration, since the default would stamp them all with the migration time.
+
+    I'm planning a data migration to backfill created_at on existing CurrentMark and FinalResult rows from their grade dates, so the local feed doesn't look flooded with every old grade. I'll use the historical models, and on the server it will do nothing since the database is empty at that point.
+
+    I'm planning to backfill created_at on existing rows with a loop and bulk_update, since the data is small. That's worth the extra migration for local demo consistency and for the spec's requirement that migrations work on existing data. I'm also noting that LessonChange.updated_at will be stamped at migration time for existing rows, which is acceptable since those changes are current. For the academics seed, I'll use a helper that sets created_at from the grade day at 18:00 Moscow time, capped at now, and the frozen clock in tests will keep that consistent.
+
+    I'm laying out the announcement seed data: staff1 authors the university, FDD and group ЦД-101 items, staff2 the FAE and ЭД-201 ones, and unpublished entries get unpublished_by set to their author with unpublished_at two hours after publication. I'm working out the published_at offsets from the current time, starting with a university news item from three days ago and a university survey with a deadline five days out.
+
+    I'm working out the seeded announcements for the group ЦД-101, which gets a practice report deadline three days out, posted about five hours ago. Then there's the faculty FAE essay due in two days, and a group meeting notice for ЭД-201 from four hours back. I'm also checking a past-deadline case for the faculty FDD: the model's clean rejects past deadlines on creation, so seeding that row directly would fail validation and I need a way around it.
+
+    I'm weighing whether to run the past-deadline check only in the form and service and leave it out of the model's clean, so the seed can create an already-expired announcement. Admin would still be able to save one, which seems acceptable for backfilling.
+
+    I'm sketching the remaining seeded announcements: two unpublished drafts, one from the faculty FDD and one from FAE, each unpublished two hours after it went out. Then I'm planning the checks: nine announcements total, a second seed run adds nothing, every future deadline falls within the next one to six days, and each demo student has unread items and upcoming deadlines.
+
+    I'm planning the seed tests next: I want to check that staff1 and staff2 each see an unpublished announcement in their managed lists, and that the student feed includes news and petition items, while leaving out schedule changes since those depend on the seeded groups. I'm also going to verify that seeded marks get a created_at matching their date at 18:00, and that last term's final results fall outside the feed window. The feed test will use a frozen clock at 2026-11-11 noon, though the other seed tests stay at the default 2026-11-18.
+
+    I'm going to pin the feed test to a frozen submission-day clock, but the petition comments are seeded with the real current time, so they'd fall out of the window once the real date passes. I'll give the staff comments explicit timestamps in the petitions seed, and assert on the status-change items in the test instead.
+
+    I'm adding the petition comment timestamp as created_at plus 20 hours per step, so the seeded comments stay clock-safe. For the p-2 case that puts the comment about 2.3 days ago, and I'm checking that it never lands in the future.
+
+    I'm checking that the petition comment timestamps stay clock-safe, and I'm deciding to make a one-line change in petitions/demo.py so they're anchored to the seeded steps. Then I'm settling the frozen notifications seed test date at 2026-11-22 noon and planning the mark and final result seeds to use explicit created_at values.
+
+    I'm checking the seed's timing: deadlines fall on 23–28.11 because the seed runs on 22.11 with offsets of +1 to +6 days. I'm also confirming the "через N дн." labels will read correctly for those dates, and that personal schedule changes cover lessons from today through the next 14 days.
+
+    I'm adding a notifications badge to the navigation: students get a "Уведомления" link that shows the unread count, and staff get an "Объявления" link. The badge will come from a new context processor that I'm registering in the template settings.
+
+    Next I'm writing the context processor's badge function so that it pulls the student's context and returns the unread label, and I'm wrapping that call lazily so the count is only computed when the template actually renders it.
+
+    I'm weighing a template tag over a lazy context value: a `notifications_badge` simple tag that takes the context, so the unread count is only computed when the nav actually renders. The feed view would just need to reread it after marking items read, so the badge drops back to zero.
+
+    I'm settling on a template tag rather than a context processor: a `notifications_badge` simple tag that reads the request user and computes the unread count only when base.html renders it in the student branch. That keeps the nav to three queries and avoids lazy-object precedence issues, and the feed view's mark-as-read will naturally bring the badge back to zero on the next render.
+
+    I'm adding a template tag for the notifications badge that counts unread items only when the nav renders, and I'm checking it stays at three queries. I'm also defining the FeedContext dataclass to hold the student, group, faculty, time window, and last-seen timestamp.
+
+    I'm writing the `student_context` function: it returns None for non-students or users without a profile, otherwise it loads the profile with its group and program, reads the last-seen timestamp, and sets the current time, local date, and feed window start.
+
+    I'm defining the feed builder: it collects the latest items from each source, sorts them newest first with a stable key, and trims to the maximum. For the unread count, I'm combining each source's unread queryset with a union and counting the result, returning zero when there are no sources.
+
+    I'm writing the feed view next: it reads the student's context, builds the feed, and marks items as seen.
+
+    I'm wrapping up the notifications view: it checks the student context, pulls the upcoming deadlines and the feed, and then marks everything as seen after building the feed, so the badge reads zero on the next render.
+
+    Writing the staff announcements view with GET and POST handlers...
+
+    I'm defining the staff announcements view with a form that gets the faculty and the groups the user can see, and a list of managed announcements with their related faculty, group, and author details.
+
+    I'm adding the staff list and keeping it simple: it shows the announcements with their faculty and group, and I'm leaving the author off so there's no risk of hitting a missing staff profile. Next I'm starting the unpublish view.
+
+    I'm defining the unpublish view as a POST-only class that calls the service and then shows a success message, and I'm planning to have the service raise a model DoesNotExist error that the view turns into a 404.
+
+    I'm checking the unpublish service: it locks the announcement row inside a transaction, raises if it isn't managed by the actor, and returns early when it's already unpublished. Otherwise it marks it unpublished with a timestamp and the actor, saving only those fields. I'm also noting that the row lock is scoped to the announcement table, which is fine on PostgreSQL.
+
+    I'm checking the unpublish service's ownership and staff-profile handling, and settling on the create service signature with title, body, audience, group and deadline as keyword arguments.
+
+    I'm drafting the announcement form: a title and body, a target choice, and an optional deadline date field, with the faculty and groups passed into its constructor.
+
+    I'm writing the form's clean method so the target choice gets resolved into an audience and group, and I'm checking the deadline against today's date.
+
+    Still writing the form's deadline validation...
+
+    Now I'm writing the model for the announcement, with a public id, title, body, and an audience choice.
+
+    I'm writing the Announcement model's remaining fields: the foreign keys to faculty, group, and author, the optional deadline date, and the published and unpublished timestamps with their flags.
+
+    Still writing the Announcement model's constraints...
+
+    I'm defining the notification constraints on the Announcement model: the audience must match its faculty and group fields, and the title and body can't be empty. I'm also working out an unpublished-state check so the unpublished timestamp and the actor stay consistent with the publish flag.
+
+    Now I'm deciding to drop the unpublished-state constraint, since the admin path would skip validating it and a mis-set row could surface as a database error.
+
+    Still writing the Announcement model's Meta options and constraints...
+
+    I'm setting up the NotificationState model: a one-to-one link to the user with a nullable seen-until timestamp, and I'm keeping its string form to the user's id so it doesn't trigger an extra query. Next I'm checking the migration dependencies, since the notifications initial migration needs the latest university migration and the user model swappable reference.
+
+    I'm wrapping up the model layer with the templates folder and the template tags, and I'm deciding to have the home page pull its summary from the notifications app, which is acceptable even though core is meant to be lightweight.
+
+    I'm working out the home summary helper: it gets the student context, returns nothing for non-students, and otherwise pairs the upcoming deadlines with the latest news items for the home page.
+
+    Writing the home page template's deadline and news sections...
+
+    I'm writing the feed item anchors and the deadline dataclass fields, then turning to how the news labels show the deadline date.
+
+    Still writing the feed item dataclass and the source definitions...
+
+    I'm settling on how the student-side selector gets its inputs: rather than passing the whole student profile, it'll take the faculty and group ids directly, so the query doesn't trigger extra lookups through the group and program relations.
+
+    Next I'm setting up the news source to key each item by its public id, pulling the title, body and deadline, and adding a relative deadline label when there is one. Then I'm defining the petition status source: it covers status changes on the student's own petitions, skipping the ones the student made, and keys each by its primary key.
+
+    Still writing the petition status source mapping...
+
+    Now I'm writing the lesson change source, which covers changes to the student's group schedule within the coming days and builds a title for each change type: a cancellation, a move, or a room or teacher swap.
+
+    Still writing the lesson change title formats...
+
+    Still writing the final result source and its title format...
+
+    Now I'm writing the test plan, starting with the shared helper that builds announcements with a given audience, deadline and publish state.
+
+    I'm planning the test files now: helpers for building announcements, model and service tests, and a text module for the Russian plural and relative-day helpers. The feed tests will cover scoping and each source's output.
+
+    I'm listing the remaining test files: the views tests with access checks for the three views and the home page, CSRF, escaping and line breaks, query counts, and staff form validation, plus the seed tests and a migration check.
+
+    I'm planning the migration check: on a seeded temp database, I'll roll academics back to 0001 so the created_at field is removed, then migrate forward again so the backfill runs on the existing rows, and confirm the counts afterward.
+
+    I'm planning the migration as a single file with an AddField, an AlterField, and a RunPython backfill, with the backfill reversed as a noop. I also want a verification step: roll academics back to 0001 on the seeded temp database, migrate forward again, and check with a shell one-liner that each mark's created_at matches its date.
+
+    Still writing the backfill function: it walks each mark and final result, setting its created_at from its date in Moscow time.
+
+    Still working out the backfill: each mark gets a recorded time of 18:00 Moscow time on its date, capped at now, and the existing timestamp takes the earlier of the two. I'm also planning a matching helper in the academics demo seed so new seeded data follows the same rule.
+
+    Still writing the seed function for notifications, with its announcement table and the faculty and group lookups.
+
+    Still writing the seed loop for notifications: it skips any announcement whose seed key already exists, sets its publish time from the base timestamp minus its age, and sets a deadline offset from today when one is given.
+
+    Still writing the seed data for the notifications demo: I'm adding the unpublished announcement with a publish time and a moderation time in the past, and the older one with a deadline already behind us.
+
+    Next I'm writing the remaining seeded announcements: a university-wide notice about student clubs with no deadline, a course survey with a deadline five days out, and a faculty-level note on choosing coursework topics due tomorrow.
+
+    Now I'm writing the seed entries for the remaining notifications: a group report due in three days, an essay for the economics faculty due in two, and a group meeting notice with no deadline.
+
+    I'm checking the remaining seed entries: the last student-facing announcement and the two unpublished ones, then confirming the future deadlines fall in the expected window. Next I'm working out which announcements the demo student should see as unread.
+
+    I'm checking the staff lists: staff1 sees the FDD announcements including the unpublished one, and staff2 sees the FAE ones. Next I'm planning the escape test, a body with a script tag and a newline, and the query-count tests for the feed.
+
+    Now I'm writing the query-count tests: the feed should cost the same number of queries whether it has one item per source or five, and the nav badge should take exactly three queries. The staff list and home page get the same constant-query checks with more announcements and news.
+
+    Still writing the CSS for the feed and deadline lists...
+
+    Still writing the feed and deadline list styles...
+
+    Still writing the staff announcement list template...
+
+    Still writing the staff announcement template: each item shows its audience, publish time, and whether it's live or unpublished, then its title, deadline, and body with line breaks.
+
+    Still writing the access matrix for the feed view, starting with the anonymous case.
+
+    Now I'm going through the access matrix for the staff announcement view, covering the anonymous, student, and staff cases for GET and POST.
+
+    Now I'm writing the access matrix for the staff unpublish view: it covers anonymous and student requests, staff from the same faculty, staff from another faculty, university-wide and unknown announcements, and a superuser.
+
+    I'm working through the access matrices for the home page and the notification views, and I'm about to write out the full test plan with class and method names. I'm also noting the clock setup: a frozen date of 2026-11-11 for the notification tests, chosen to sit before the real date so any unpatched timestamp shows up immediately.
+
+    I'm confirming the timestamps: the patched clock and auto_now fields all read the frozen 2026-11-11 time, and login updates go through the same patched timezone.now, so nothing leaks the real date. I'm also adding a pair of midnight-boundary tests for the Moscow-time cutoff.
+
+    I'm settling on the two midnight-boundary test classes, one frozen at 23:59:59 on the 17th and one at 00:00:00 on the 18th, so the Moscow-time cutoff gets checked on both sides. Since the frozen date is after the real current date, I'm noting that a clock leak would be caught elsewhere rather than here, and I'm making sure all notification test data goes through the helpers and services.
+
+    Now I'm checking the midnight cutoff on the Moscow side: a deadline of the 10th should read "завтра" at 23:59:59 on the 9th and "сегодня" at 00:30 on the 10th, since 00:30 Moscow time is still the previous day in UTC.
+
+    I'm checking the midnight edge cases for the lesson-change horizon: a lesson dated the 9th should count as in-horizon until midnight and drop out after, and I'm planning a test for that. I still need to confirm the weekdays for the 9th and the 11th, and then I'll check the 30-day window boundary.
+
+    Next I'm planning the unread-count tests: with no state every item counts as new, and after a feed visit the count drops to zero with the last-seen time set to the frozen now. To test newer items I'm setting the last-seen time an hour back and creating some items before it and some half an hour before now.
+
+    I'm laying out the extensibility test: I want to swap in a single news source and confirm that both the feed and the unread count only reflect that source. The open question is how to patch the source list, so I'm leaning toward having feed.py call it through the sources module so the patch target is stable.
+
+    I'm writing the service-layer tests: creating an announcement for a faculty or a group sets the right audience, author and publish time, while invalid cases like another faculty's group, a university-wide audience, a missing group, or a past or too-far deadline are rejected. I'm also checking that a non-staff author gets a PermissionDenied, and that unpublishing an announcement from the author's own faculty succeeds.
+
+    I'm writing the model tests for the audience and faculty/group combinations, checking which ones get rejected by full_clean and which are valid. I'm also planning a database-level check that an invalid faculty audience with no faculty fails with an IntegrityError, and then the admin tests: a superuser creating a university announcement, an invalid combination returning a form error rather than a server error, and unchecking is_published setting the unpublished fields.
+
+    I'm planning the admin tests for the announcement form, then the date helper tests for the Russian plural and relative day labels. For the seed command, I'm writing a test class with a frozen clock that checks the announcement count and unpublished split, that a second run doesn't duplicate anything, that the published deadlines fall within the jury window, and that every demo runs.
+
+    I'm now listing the seed-command tests: the unread badge and upcoming deadlines for students, the unpublished split for staff lists, that CurrentMark creation dates follow their assigned dates without exceeding now, that previous-term results stay out of the student feed, and that a staff comment on petition p-2 gets an explicit timestamp 40 hours after the petition.
+
+    I'm leaving out a migration backfill test since it would need MigrationExecutor and is heavy for this case, so I'll verify that step by hand. For the LessonChange edit case, I'll check that a change saved after the original seen time comes back as new: I'll patch timezone.now to a later moment for the save, then call student_context with that later time explicitly.
+
+    Next I'm checking the admin setup for the lesson-change and mark models: whether the admin field lists are explicit, and whether an editable=False timestamp would drop out of the form either way. I'm also confirming that the test helpers create marks through save_validated, so they pick up the frozen clock.
+
+    I'm checking whether the existing academics tests compare FinalResult timestamps against auto_now_add fields, since that could break once created_at becomes non-editable.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran source .venv/bin/activate && python -c " from datetime import date for d in ['2026-11-09','2026-11-10','2026-11-11','2026-11-22','2026-11-23']: print(d, date.fromisoformat(d).strftime('%A'))"; grep -rn "created_at" academics/ schedule/ --include="*.py" | grep -v migrations; sed -n 40,60p schedule/admin.py; sed -n 1,40p academics/admin.py | grep -n "fields\|exclude"
+    $ source .venv/bin/activate && python -c "
+  from datetime import date
+  for d in ['2026-11-09','2026-11-10','2026-11-11','2026-11-22','2026-11-23']: print(d, date.fromisoformat(d).strftime('%A'))"; grep -rn "created_at" academics/ schedule/ --include="*.py" | grep -v migrations; sed -n 40,60p schedule/admin.py; sed -n 1,40p academics/admin.py | grep -n "fields\|exclude"
+    2026-11-09 Monday
+    2026-11-10 Tuesday
+    2026-11-11 Wednesday
+    2026-11-22 Sunday
+    2026-11-23 Monday
+    academics/models.py:199:    created_at = models.DateTimeField("создано", auto_now_add=True)
+    schedule/models.py:129:    created_at = models.DateTimeField("создано", auto_now_add=True)
+    class LessonChangeAdmin(admin.ModelAdmin):
+        list_display = (
+            "original_date",
+            "kind",
+            "weekly_lesson",
+            "new_date",
+            "new_slot",
+            "new_room",
+            "new_teacher",
+            "reason",
+        )
+        list_filter = ("kind",)
+        date_hierarchy = "original_date"
+        list_select_related = ("weekly_lesson__discipline", "new_room", "new_teacher")
+        readonly_fields = ("seed_key",)
+
+        def get_actions(self, request):
+            actions = super().get_actions(request)
+            actions.pop("delete_selected", None)
+            return actions
+
+    9:    search_fields = ("code", "name")
+    17:    search_fields = ("discipline__name", "group__name")
+    24:    readonly_fields = ("seed_key",)
+    26:    search_fields = ("student__last_name", "curriculum_item__discipline__name")
+    34:    search_fields = ("student__last_name", "curriculum_item__discipline__name")
+  ── Thought for 2s
+    I'm checking that the select_for_update(of=("self",)) call is harmless on SQLite, where it gets ignored. I'm also making sure that a union with a count still works when one side uses exclude, and that values_list over the M2M and Q OR filter combines correctly, which I already confirmed with LessonChange. Last, I want to confirm that union behaves when the two querysets have different field types.
+
+    Next I'm confirming that the union still holds when the datetime fields line up across both querysets. Then I'll write the spec, which will be a long document, so I need to be careful and precise.
+  ── Thought
+    Тесты на текущем дереве прошли (567 OK, включая два прогона у полуночи по Москве), ruff и seed чистые. Дальше пишу спецификацию.
+
+── Created 1 file ──────────────────────────────────────────
+  ── Created docs/tasks/TASK-007.md +851
+    --- /dev/null
+    +++ b~/hackatonproject/docs/tasks/TASK-007.md
+    +# TASK-007: notifications — dean's-office announcements, deadlines, personal changes
+    +
+    +Author: Planner. Status: ready for implementation.
+    +Base commit: `8f7bc4f`. Related specs: `TASK-003.md` (schedule), `TASK-005.md` (academics), `TASK-006.md` (petitions).
+    +
+    +Students get one page «Уведомления» with dean's-office news, the nearest deadlines and changes that concern them (request statuses and staff comments, schedule changes, new grades). Staff publish announcements for their own faculty or one of its groups and can unpublish them. The nav shows an unread counter.
+    +
+    +---
+    +
+    +## 1. Goal and acceptance criteria
+    +
+    +| ID | Criterion |
+    +|---|---|
+    +| AC1 | New app `notifications` with models `Announcement` and `NotificationState`, admin for `Announcement` (superuser), migrations. |
+    +| AC2 | An announcement has exactly one audience: whole university (`university`, admin only), one faculty (`faculty`), or one study group (`group`). The DB enforces the audience/target combination. Lengths are named constants. |
+    +| AC3 | Staff page «Объявления» (`/staff/announcements/`): list of their faculty's announcements (faculty- and group-addressed, published and unpublished), create form (target = own faculty or a group of own faculty, optional deadline), «Снять с публикации» button. Target and deadline are validated in the form AND in the service. A forged group (other faculty) or audience → form error, nothing created. |
+    +| AC4 | Unpublish (`POST /staff/announcements/<uuid>/unpublish/`) is idempotent: the second call changes nothing and is not an error. Another faculty's or a university-wide announcement → 404. No edit, no hard delete on staff pages. |
+    +| AC5 | Announcement bodies are plain text: autoescaped, line breaks kept (`linebreaksbr`), no HTML/Markdown rendering. |
+    +| AC6 | Student page «Уведомления» (`/notifications/`): block «Ближайшие дедлайны» (deadline ≥ today, nearest first, label «сегодня» / «завтра» / «через N день/дня/дней»), then one feed (news + personal changes, newest first, last 30 days, at most 50 items), empty states. |
+    +| AC7 | Personal changes are computed from existing records (no stored notification rows): staff status changes and staff comments on the student's requests; schedule changes of the student's group for lessons whose original or new date is in [today, today + 14]; the student's new current marks and final results. Changes made in the Django admin appear automatically. Each personal item links to its page (request detail / schedule week of the affected date / grades of the term). |
+    +| AC8 | Unread state: per-user «seen until» timestamp. Nav shows «Уведомления (N)» for students (N = feed items newer than the last visit; «50+» above the cap). Opening `/notifications/` (GET) marks everything as read. HEAD/POST on that URL → 405. |
+    +| AC9 | All date logic uses Moscow dates, including the midnight boundary. |
+    +| AC10 | Access: students see only announcements addressed to the university, their faculty or their group, only published ones, and only their own personal changes; staff see and manage only their faculty's announcements (404 otherwise); students → 403 on staff pages; staff/superuser → 403 on the student page. |
+    +| AC11 | Queries: the nav counter costs exactly 3 queries; the feed, staff list and home page have a constant number of queries (no N+1). |
+    +| AC12 | Home page `core:home` for a student with a profile: 3 nearest deadlines and 3 latest news, each linking to «Уведомления». Other users see the current text. Login redirect unchanged. |
+    +| AC13 | `seed_demo` (idempotent) creates 9 demo announcements: university, faculty and group news; deadlines at run day + 1…+5 (inside 23–28.11 when run on 22.11); one past deadline; one unpublished announcement per faculty; every demo student has unread items. Seeded grades get realistic `created_at` (grade date 18:00 MSK) so old grades do not flood the feed. |
+    +| AC14 | Feed sources are a registry: TASK-009 (chat) adds a new source class without changing the feed, the counter or the templates. |
+    +| AC15 | Nav: «Уведомления (N)» for students, «Объявления» for staff. |
+    +
+    +## 2. Out of scope
+    +E-mail, push, browser notifications, auto-refresh/polling, notifications for staff, attachments/images, rich text, editing announcements, per-item read state, chat (TASK-009), room map (TASK-008), visual theme, today's lessons on the home page, author name on announcement pages, re-publishing on the staff page (superuser can re-publish in the admin).
+    +
+    +## 3. Design decisions (justification)
+    +
+    +**D1. Computed feed, not stored notification rows.** Every personal event already has a row with a timestamp (`PetitionStatusChange.created_at`, `PetitionComment.created_at`, `LessonChange`, `CurrentMark`, `FinalResult`). Computing the feed from these rows:
+    +- covers admin-made changes with no signals or admin hooks (the admin writes the same rows);
+    +- cannot get out of sync (a deleted lesson change disappears from the feed; a stored row would stay);
+    +- needs no fan-out writes (one announcement to a faculty would otherwise create one row per student).
+    +Cost: one query per source per page (6 now) and one UNION query for the counter. Missing timestamps are added: `CurrentMark.created_at` (new), `LessonChange.updated_at` (new; an admin edit of a change makes it new again). `FinalResult.created_at` changes from `auto_now_add` to a default so the seed can set realistic values.
+    +
+    +**D2. Read state = one timestamp per user (`NotificationState.seen_until`).** Unread = feed items with event time > `seen_until`. One row per student, no per-item rows, monotonic. Limitation: no per-item read flags (out of scope).
+    +
+    +**D3. Marking as read happens on GET of `/notifications/`.** The requirement is "opening the page marks everything as read", so the state change is a side effect of viewing. It is safe because: (a) the effect is limited to the current user, idempotent and monotonic (`seen_until` never moves back) and destroys no data; (b) the session cookie is `SameSite=Lax` (Django default), so cross-site sub-requests (`<img>`, `<iframe>`, `fetch`) carry no session and change nothing; a cross-site top-level navigation does open the page for the user, so marking as read is then truthful; (c) `X_FRAME_OPTIONS = "DENY"` already blocks framing; (d) the view allows only GET (HEAD → 405, so link checkers using HEAD do not mark), and the response has `Cache-Control: no-store` (`never_cache`) so no proxy or browser cache serves a stale page. All real state changes (create, unpublish) are POST with CSRF.
+    +
+    +**D4. Event clock.** All feed time comparisons use one `now` taken once per request; Moscow date `today = timezone.localdate(now)`. Feed window: `now - 30 days < event_time <= now`.
+    +
+    +**D5. Clock-safe defaults.** `default=timezone.now` stores the original function object, so `FrozenClockMixin` (which patches `django.utils.timezone.now` after models are imported) does NOT freeze it (verified, see 9.6). New timestamp defaults use `core.clock.now`, which looks up `timezone.now` at call time. Services always pass timestamps explicitly from `timezone.now()`.
+    +
+    +**D6. Audience storage without redundancy.** `faculty` is set only for `faculty` audience, `group` only for `group` audience. Staff scope: `faculty = F` OR `group.program.faculty = F`.
+    +
+    +---
+    +
+    +## 4. Architecture
+    +
+    +### 4.1 Files
+    +
+    +Create:
+    +| File | Content |
+    +|---|---|
+    +| `core/clock.py` | `now()` (D5) |
+    +| `notifications/__init__.py` | empty |
+    +| `notifications/apps.py` | `NotificationsConfig` (`name = "notifications"`, `verbose_name = "Уведомления"`, `default_auto_field = "django.db.models.BigAutoField"`) |
+    +| `notifications/constants.py` | all named constants (4.2) |
+    +| `notifications/models.py` | `Audience`, `Announcement`, `NotificationState` |
+    +| `notifications/migrations/__init__.py`, `notifications/migrations/0001_initial.py` | generated by `makemigrations notifications` |
+    +| `notifications/dates.py` | `ru_plural`, `relative_day_label` |
+    +| `notifications/selectors.py` | `announcements_for_student`, `announcements_managed_by` |
+    +| `notifications/services.py` | `deadline_errors`, `create_announcement`, `unpublish_announcement`, `mark_seen` |
+    +| `notifications/sources.py` | `FeedContext`, `FeedItem`, `FeedSource` + 6 sources, `get_feed_sources` |
+    +| `notifications/feed.py` | `student_context`, `build_feed`, `unread_count`, `badge_label`, `badge_for_user`, `DeadlineItem`, `upcoming_deadlines`, `HomeSummary`, `home_summary` |
+    +| `notifications/forms.py` | `AnnouncementForm` |
+    +| `notifications/views.py` | `NotificationsView`, `StaffAnnouncementsView`, `StaffUnpublishView` |
+    +| `notifications/urls.py` | 3 routes |
+    +| `notifications/admin.py` | `AnnouncementAdmin` |
+    +| `notifications/demo.py` | `seed_notifications_demo` |
+    +| `notifications/templatetags/__init__.py`, `notifications/templatetags/notifications_tags.py` | `notifications_badge` tag |
+    +| `notifications/templates/notifications/feed.html`, `staff_list.html`, `_deadlines.html` | templates |
+    +| `notifications/tests/__init__.py`, `helpers.py`, `test_models.py`, `test_dates.py`, `test_services.py`, `test_feed.py`, `test_views.py`, `test_admin.py`, `test_demo.py` | tests (section 7) |
+    +| `academics/migrations/0002_…py` (generated), `academics/migrations/0003_backfill_grade_created_at.py` (hand-written) | 4.4 |
+    +| `schedule/migrations/0004_lessonchange_updated_at.py` (generated) | 4.4 |
+    +
+    +Change:
+    +| File | Change |
+    +|---|---|
+    +| `config/settings.py` | add `"notifications"` to `INSTALLED_APPS` right after `"petitions"` (before `"core"`) |
+    +| `config/urls.py` | add `path("", include("notifications.urls")),` after the petitions include |
+    +| `pyproject.toml` | add `"notifications"` to `known-first-party` |
+    +| `academics/models.py` | `CurrentMark.created_at` (new), `FinalResult.created_at` (default instead of `auto_now_add`) |
+    +| `schedule/models.py` | `LessonChange.updated_at` (new) |
+    +| `academics/demo.py` | `recorded_at()` helper; pass `created_at` for seeded marks and results |
+    +| `petitions/demo.py` | pass explicit `created_at` for seeded staff comments |
+    +| `accounts/management/commands/seed_demo.py` | call `seed_notifications_demo(today)`; print one summary line |
+    +| `templates/base.html` | nav links |
+    +| `core/views.py`, `core/templates/core/home.html` | student summary |
+    +| `static/css/base.css` | layout rules (4.9) |
+    +| `README.md` | feature section + known limitations (4.10) |
+    +
+    +Do not change any other file. No new dependencies, no new env variables.
+    +
+    +### 4.2 Constants — `notifications/constants.py`
+    +```python
+    +TITLE_MAX_LENGTH = 150
+    +BODY_MAX_LENGTH = 3000
+    +FEED_WINDOW_DAYS = 30          # feed shows events of the last 30 days
+    +FEED_MAX_ITEMS = 50            # feed length cap; badge shows "50+" above it
+    +LESSON_CHANGE_HORIZON_DAYS = 14  # schedule changes for lessons in [today, today + 14]
+    +DEADLINES_MAX_ITEMS = 10       # deadlines block on /notifications/
+    +HOME_ITEMS = 3                 # deadlines and news on the home page
+    +STAFF_LIST_MAX_ITEMS = 100     # newest announcements on the staff page
+    +DEADLINE_MAX_DAYS_AHEAD = 365  # staff may set a deadline at most one year ahead
+    +TARGET_FACULTY = "faculty"     # form value for "whole faculty"
+    +TARGET_GROUP_PREFIX = "group-" # form value for a group: f"group-{pk}"
+    +```
+    +
+    +### 4.3 Models — `notifications/models.py`
+    +
+    +```python
+    +class Audience(models.TextChoices):
+    +    UNIVERSITY = "university", "Весь университет"
+    +    FACULTY = "faculty", "Факультет"
+    +    GROUP = "group", "Группа"
+    +```
+    +
+    +`Announcement(models.Model)` (field order as listed):
+    +| Field | Definition |
+    +|---|---|
+    +| `public_id` | `UUIDField(default=uuid.uuid4, unique=True, editable=False)` |
+    +| `title` | `CharField("заголовок", max_length=TITLE_MAX_LENGTH)` |
+    +| `body` | `TextField("текст", max_length=BODY_MAX_LENGTH)` |
+    +| `audience` | `CharField("кому", max_length=16, choices=Audience.choices)` |
+    +| `faculty` | `ForeignKey("university.Faculty", on_delete=PROTECT, null=True, blank=True, related_name="announcements", verbose_name="факультет")` |
+    +| `group` | `ForeignKey("university.StudyGroup", on_delete=PROTECT, null=True, blank=True, related_name="announcements", verbose_name="группа")` |
+    +| `deadline` | `DateField("срок (включительно)", null=True, blank=True)` |
+    +| `author` | `ForeignKey(settings.AUTH_USER_MODEL, on_delete=PROTECT, related_name="announcements", verbose_name="автор")` |
+    +| `published_at` | `DateTimeField("опубликовано", default=core.clock.now, editable=False)` |
+    +| `is_published` | `BooleanField("опубликовано", default=True)` |
+    +| `unpublished_at` | `DateTimeField("снято с публикации", null=True, blank=True, editable=False)` |
+    +| `unpublished_by` | `ForeignKey(settings.AUTH_USER_MODEL, on_delete=PROTECT, null=True, blank=True, editable=False, related_name="+", verbose_name="снял с публикации")` |
+    +| `seed_key` | `SlugField(max_length=40, blank=True, default="", editable=False)` |
+    +
+    +`Meta`:
+    +- `ordering = ["-published_at", "-pk"]`
+    +- `indexes = [Index(fields=["is_published", "published_at"], name="notif_ann_published_idx"), Index(fields=["deadline"], name="notif_ann_deadline_idx")]`
+    +- `constraints`:
+    +  - `CheckConstraint(name="notifications_announcement_audience_target", condition=Q(audience="university", faculty__isnull=True, group__isnull=True) | Q(audience="faculty", faculty__isnull=False, group__isnull=True) | Q(audience="group", faculty__isnull=True, group__isnull=False), violation_error_message="Получатели не соответствуют аудитории: для всего университета не выбирайте ни факультет, ни группу; для факультета выберите только факультет; для группы выберите только группу.")`
+    +  - `CheckConstraint(condition=~Q(title=""), name="notifications_announcement_title_not_empty")`
+    +  - `CheckConstraint(condition=~Q(body=""), name="notifications_announcement_body_not_empty")`
+    +  - `CheckConstraint(condition=Q(audience__in=["university", "faculty", "group"]), name="notifications_announcement_audience_value")`
+    +  - `UniqueConstraint(fields=["seed_key"], condition=~Q(seed_key=""), name="notifications_announcement_unique_seed_key")`
+    +- `verbose_name = "объявление"`, `verbose_name_plural = "объявления"`
+    +
+    +Methods (after `__str__`, ruff DJ012 order):
+    +- `__str__` → `self.title`.
+    +- `audience_label` (property) → `"Для всех студентов"` (university) / `f"Факультет: {self.faculty.name}"` / `f"Группа {self.group.name}"`. Callers must `select_related("faculty", "group")`.
+    +
+    +No `clean()` on `Announcement`: the audience rule is the DB constraint above (Django's `full_clean` reports its `violation_error_message` as a non-field error, so admin errors never 500); the deadline rules are applied by the form and the service only (D-rule: the seed and the superuser may create past deadlines).
+    +
+    +`NotificationState(models.Model)`:
+    +| Field | Definition |
+    +|---|---|
+    +| `user` | `OneToOneField(settings.AUTH_USER_MODEL, on_delete=CASCADE, related_name="notification_state", verbose_name="пользователь")` |
+    +| `seen_until` | `DateTimeField("просмотрено до", null=True, blank=True)` |
+    +
+    +`Meta`: `verbose_name = "состояние уведомлений"`, `verbose_name_plural = "состояния уведомлений"`. `__str__` → `f"{self.user_id}: {self.seen_until}"`. Not registered in the admin.
+    +
+    +### 4.4 Changes to existing models and migrations
+    +
+    +`core/clock.py`:
+    +```python
+    +"""Call-time clock for model defaults (test clock patches apply)."""
+    +from datetime import datetime
+    +from django.utils import timezone
+    +
+    +def now() -> datetime:
+    +    return timezone.now()
+    +```
+    +Never rename or move this function: migrations reference `core.clock.now`.
+    +
+    +`academics/models.py`:
+    +- `CurrentMark`: add after `kind` (before `seed_key`): `created_at = models.DateTimeField("внесено", default=now, editable=False)` where `from core.clock import now`.
+    +- `FinalResult.created_at`: replace `auto_now_add=True` with `default=now, editable=False` (label stays «создано»).
+    +
+    +`schedule/models.py`:
+    +- `LessonChange`: add after `created_at`: `updated_at = models.DateTimeField("изменено", auto_now=True)`.
+    +
+    +Migrations:
+    +1. `python manage.py makemigrations academics schedule notifications` → expected files: `academics/migrations/0002_currentmark_created_at_alter_finalresult_created_at.py`, `schedule/migrations/0004_lessonchange_updated_at.py`, `notifications/migrations/0001_initial.py`. No interactive prompt is expected (`auto_now` and a callable default need no one-off default). If makemigrations prompts, stop and send a `QUESTION`.
+    +2. Hand-write `academics/migrations/0003_backfill_grade_created_at.py`, dependency `("academics", "0002_currentmark_created_at_alter_finalresult_created_at")`:
+    +```python
+    +from datetime import datetime, time
+    +from zoneinfo import ZoneInfo
+    +
+    +from django.db import migrations
+    +from django.utils import timezone
+    +
+    +MOSCOW = ZoneInfo("Europe/Moscow")
+    +
+    +
+    +def backfill(apps, schema_editor):
+    +    now = timezone.now()
+    +    for model_name in ("CurrentMark", "FinalResult"):
+    +        model = apps.get_model("academics", model_name)
+    +        rows = list(model.objects.only("pk", "date", "created_at"))
+    +        for row in rows:
+    +            recorded = min(datetime.combine(row.date, time(18, 0), tzinfo=MOSCOW), now)
+    +            row.created_at = min(recorded, row.created_at)
+    +        model.objects.bulk_update(rows, ["created_at"], batch_size=500)
+    +
+    +
+    +class Migration(migrations.Migration):
+    +    dependencies = [("academics", "0002_currentmark_created_at_alter_finalresult_created_at")]
+    +    operations = [migrations.RunPython(backfill, migrations.RunPython.noop)]
+    +```
+    +Purpose: existing local rows (all created by an earlier seed) otherwise get "now" and flood every feed. On a fresh server DB the migration is a no-op. It uses only historical models (no app code).
+    +
+    +### 4.5 URLs — `notifications/urls.py`
+    +```python
+    +app_name = "notifications"
+    +urlpatterns = [
+    +    path("notifications/", views.NotificationsView.as_view(), name="feed"),
+    +    path("staff/announcements/", views.StaffAnnouncementsView.as_view(), name="staff_announcements"),
+    +    path("staff/announcements/<uuid:public_id>/unpublish/", views.StaffUnpublishView.as_view(), name="staff_unpublish"),
+    +]
+    +```
+    +
+    +### 4.6 Templates
+    +- `base.html`, student branch, after the «Заявки» item:
+    +  ```django
+    +  {% notifications_badge as badge %}
+    +  <li><a href="{% url 'notifications:feed' %}">Уведомления{% if badge %} ({{ badge }}){% endif %}</a></li>
+    +  ```
+    +  Staff branch, after the staff «Заявки» item: `<li><a href="{% url 'notifications:staff_announcements' %}">Объявления</a></li>`. Add `notifications_tags` to the `{% load static %}` line: `{% load static notifications_tags %}`.
+    +- `notifications/_deadlines.html` (included by `feed.html`): `<ul class="deadline-list">` with one `<li id="deadline-{{ d.public_id }}">` per item: `<strong>{{ d.title }}</strong> — до {{ d.deadline|date:"d.m.Y" }}, {{ d.label }}` and `<span class="feed-meta">{{ d.audience_label }}</span>`; if empty: `<p>Ближайших дедлайнов нет.</p>`.
+    +- `notifications/feed.html` (extends `base.html`, title «Уведомления»):
+    +  ```django
+    +  <h1>Уведомления</h1>
+    +  <section aria-labelledby="deadlines-title">
+    +    <h2 id="deadlines-title">Ближайшие дедлайны</h2>
+    +    {% include "notifications/_deadlines.html" %}
+    +  </section>
+    +  <section aria-labelledby="feed-title">
+    +    <h2 id="feed-title">Лента</h2>
+    +    {% if items %}
+    +    <ul class="feed">
+    +      {% for item in items %}
+    +      <li class="feed-item" id="{{ item.key }}">
+    +        <p class="feed-meta">{% if item.is_new %}<strong>Новое</strong> · {% endif %}{{ item.tag }} · <time datetime="{{ item.timestamp|date:'c' }}">{{ item.timestamp|date:"d.m.Y H:i" }}</time>{% if item.audience_label %} · {{ item.audience_label }}{% endif %}</p>
+    +        <h3>{% if item.url %}<a href="{{ item.url }}">{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}</h3>
+    +        {% if item.deadline %}<p>Срок: до {{ item.deadline|date:"d.m.Y" }}, {{ item.deadline_label }}</p>{% endif %}
+    +        {% if item.body %}<p>{{ item.body|linebreaksbr }}</p>{% endif %}
+    +      </li>
+    +      {% endfor %}
+    +    </ul>
+    +    {% else %}
+    +    <p>Уведомлений за последние 30 дней нет.</p>
+    +    {% endif %}
+    +  </section>
+    +  ```
+    +- `notifications/staff_list.html` (extends `base.html`, title «Объявления»):
+    +  1. `<h1>Объявления</h1>`
+    +  2. Section «Новое объявление»: `<form method="post" class="form">{% csrf_token %}{{ form.as_p }}<button type="submit">Опубликовать</button></form>` (action = same URL).
+    +  3. Section «Объявления факультета»: `<ul class="feed">`, one `<li class="feed-item" id="announcement-{{ a.public_id }}">` per announcement: meta line `{{ a.audience_label }} · {{ a.published_at|date:"d.m.Y H:i" }} · ` + «Опубликовано» or «Снято с публикации {{ a.unpublished_at|date:"d.m.Y H:i" }}»; `<h3>{{ a.title }}</h3>`; deadline line if set; `<p>{{ a.body|linebreaksbr }}</p>`; if published: `<form method="post" action="{% url 'notifications:staff_unpublish' a.public_id %}" class="action-form">{% csrf_token %}<button type="submit">Снять с публикации</button></form>`. Empty state `<p>Объявлений пока нет.</p>`.
+    +- `core/home.html`:
+    +  ```django
+    +  <h1>Цифровой деканат будущего</h1>
+    +  {% if summary %}
+    +    <section aria-labelledby="home-deadlines">
+    +      <h2 id="home-deadlines">Ближайшие дедлайны</h2>
+    +      {% if summary.deadlines %}<ul class="deadline-list">{% for d in summary.deadlines %}
+    +        <li><a href="{% url 'notifications:feed' %}#deadline-{{ d.public_id }}">{{ d.title }}</a> — до {{ d.deadline|date:"d.m" }}, {{ d.label }}</li>
+    +      {% endfor %}</ul>{% else %}<p>Ближайших дедлайнов нет.</p>{% endif %}
+    +    </section>
+    +    <section aria-labelledby="home-news">
+    +      <h2 id="home-news">Новости деканата</h2>
+    +      {% if summary.news %}<ul class="deadline-list">{% for item in summary.news %}
+    +        <li><a href="{% url 'notifications:feed' %}#{{ item.key }}">{{ item.title }}</a> <span class="feed-meta">{{ item.timestamp|date:"d.m" }}</span></li>
+    +      {% endfor %}</ul>{% else %}<p>Новостей пока нет.</p>{% endif %}
+    +    </section>
+    +    <p class="page-actions"><a href="{% url 'notifications:feed' %}">Все уведомления</a></p>
+    +  {% else %}
+    +    <p>Прототип личного кабинета студента. Раздел в разработке.</p>
+    +  {% endif %}
+    +  ```
+    +
+    +### 4.7 Admin — `notifications/admin.py`
+    +`AnnouncementAdmin(admin.ModelAdmin)`, registered for `Announcement`:
+    +- `list_display = ("title", "audience", "faculty", "group", "deadline", "is_published", "published_at")`, `list_filter = ("audience", "is_published")`, `search_fields = ("title",)`, `list_select_related = ("faculty", "group")`.
+    +- `fields = ("title", "body", "audience", "faculty", "group", "deadline", "is_published", "author", "published_at", "unpublished_at", "unpublished_by")` (explicit list, ruff DJ007); `readonly_fields = ("author", "published_at", "unpublished_at", "unpublished_by")`.
+    +- `save_model(self, request, obj, form, change)`:
+    +  1. if not change: `obj.author = request.user`.
+    +  2. if `"is_published" in form.changed_data` or not change:
+    +     - if `obj.is_published`: `obj.unpublished_at = None`, `obj.unpublished_by = None`;
+    +     - else: `obj.unpublished_at = timezone.now()`, `obj.unpublished_by = request.user`.
+    +  3. `super().save_model(...)`.
+    +- Default delete stays (superuser only; staff pages have no delete).
+    +
+    +### 4.8 Views — `notifications/views.py`
+    +
+    +`NotificationsView(StudentRequiredMixin, TemplateView)`, decorated `@method_decorator(never_cache, name="dispatch")`:
+    +- `template_name = "notifications/feed.html"`, `http_method_names = ["get"]` (HEAD/POST → 405).
+    +- `get_context_data`: `ctx = student_context(self.request.user)`; if `None` → `raise PermissionDenied`; `context["deadlines"] = upcoming_deadlines(ctx, DEADLINES_MAX_ITEMS)`; `context["items"] = build_feed(ctx)`; then `mark_seen(ctx.user_id, ctx.now)` (after building, so `is_new` uses the old value). Return context.
+    +
+    +`StaffAnnouncementsView(StaffRequiredMixin, TemplateView)`:
+    +- `template_name = "notifications/staff_list.html"`, `http_method_names = ["get", "post"]`.
+    +- `_form(self, data=None) -> AnnouncementForm`: `AnnouncementForm(data, faculty=self.profile.faculty, groups=list(groups_visible_to(self.request.user).order_by("name")), today=timezone.localdate())`.
+    +- `_render(self, form) -> HttpResponse`: `announcements = announcements_managed_by(self.request.user).select_related("faculty", "group").order_by("-published_at", "-pk")[:STAFF_LIST_MAX_ITEMS]`; `return self.render_to_response(self.get_context_data(form=form, announcements=announcements))`.
+    +- `get`: `return self._render(self._form())`.
+    +- `post`: `form = self._form(request.POST)`; if valid: try `create_announcement(request.user, title=…, body=…, audience=form.cleaned_data["audience"], group=form.cleaned_data["group"], deadline=form.cleaned_data["deadline"])`; on `ValidationError as exc`: `form.add_error(None, exc)`; else `messages.success(request, "Объявление опубликовано.")` and `return redirect("notifications:staff_announcements")`. Fall through: `return self._render(form)` (status 200).
+    +
+    +`StaffUnpublishView(StaffRequiredMixin, View)`:
+    +- `http_method_names = ["post"]`.
+    +- `post(self, request, public_id)`: try `changed = unpublish_announcement(request.user, public_id)` except `Announcement.DoesNotExist` → `raise Http404`. Message: changed → `messages.success(request, "Объявление снято с публикации.")`; not changed → `messages.info(request, "Объявление уже снято с публикации.")`. `return redirect("notifications:staff_announcements")`.
+    +
+    +`core/views.py` `HomeView.get_context_data`: `context["summary"] = home_summary(self.request.user)` (import from `notifications.feed`).
+    +
+    +### 4.9 CSS — append to `static/css/base.css` (layout only, tokens only)
+    +```css
+    +.feed,
+    +.deadline-list {
+    +  list-style: none;
+    +  margin: 0 0 var(--space-3);
+    +  padding: 0;
+    +}
+    +
+    +.feed-item,
+    +.deadline-list li {
+    +  margin-bottom: var(--space-3);
+    +  overflow-wrap: anywhere;
+    +}
+    +
+    +.feed-item h3 {
+    +  margin: var(--space-1) 0;
+    +  font-size: var(--font-size-base);
+    +}
+    +
+    +.feed-meta {
+    +  margin: 0;
+    +  font-size: 0.875rem;
+    +}
+    +```
+    +Do not change `tokens.css` or `theme.css` (`core/tests/test_css.py` asserts this for `max-width`).
+    +
+    +### 4.10 README
+    +- New section `## Notifications` (after the requests section): what students see (deadlines block, feed of news + personal changes, 30 days / 50 items, schedule horizon 14 days), unread counter semantics (one «seen until» per account; opening the page marks all as read), staff page (faculty/group only, unpublish, no edit/delete), university-wide announcements only via the admin, demo data (9 announcements; deadlines run day +1…+5).
+    +- "Known limitations": add two bullets: «The unread counter is per account: after one person opens «Уведомления» as `student1`, others logged in as `student1` see no new items.» and «Grades and lesson changes appear in the feed by the time they were recorded; a grade entered later for an old date still shows as new.»
+    +
+    +---
+    +
+    +## 5. Functions
+    +
+    +All functions have type hints. `FeedContext` etc. are defined in `notifications/sources.py`.
+    +
+    +### 5.1 `notifications/dates.py`
+    +
+    +**`ru_plural(n: int, one: str, few: str, many: str) -> str`**
+    +Purpose: Russian plural form. Algorithm: `n = abs(n)`; if `n % 10 == 1 and n % 100 != 11` → `one`; elif `n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14)` → `few`; else `many`.
+    +Tests (`test_dates.py::RuPluralTests::test_forms`): 1 день, 2 дня, 4 дня, 5 дней, 11 дней, 12 дней, 14 дней, 21 день, 22 дня, 25 дней, 101 день, 111 дней, 112 дней, 0 дней.
+    +
+    +**`relative_day_label(day: date, today: date) -> str`**
+    +Purpose: label for a deadline. `delta = (day - today).days`: `< 0` → `"срок прошёл"`; `0` → `"сегодня"`; `1` → `"завтра"`; else `f"через {delta} {ru_plural(delta, 'день', 'дня', 'дней')}"`.
+    +Tests (`RelativeDayLabelTests`): `test_past`, `test_today`, `test_tomorrow`, `test_two_days` («через 2 дня»), `test_five_days` («через 5 дней»), `test_twenty_one_days` («через 21 день»).
+    +
+    +### 5.2 `notifications/selectors.py`
+    +
+    +**`announcements_for_student(student: StudentProfile) -> QuerySet[Announcement]`**
+    +Purpose: published announcements addressed to this student. Requires `student.group.program` to be loaded (uses `student.group.program.faculty_id`). Returns `Announcement.objects.filter(is_published=True).filter(Q(audience=Audience.UNIVERSITY) | Q(audience=Audience.FACULTY, faculty_id=faculty_id) | Q(audience=Audience.GROUP, group_id=student.group_id))`. No time filter, no ordering change.
+    +Callers: feed sources and `upcoming_deadlines` only, always with the profile of `request.user`.
+    +Tests: `test_feed.py::StudentScopeTests` (5.6).
+    +
+    +**`announcements_managed_by(user: AbstractBaseUser | AnonymousUser) -> QuerySet[Announcement]`**
+    +Purpose: announcements a staff member sees and manages. Algorithm: not authenticated / not active / role ≠ staff → `Announcement.objects.none()`; `profile = user.staff_profile` (`ObjectDoesNotExist` → `none()`); return `Announcement.objects.filter(Q(audience=Audience.FACULTY, faculty_id=profile.faculty_id) | Q(audience=Audience.GROUP, group__program__faculty_id=profile.faculty_id))`. Published and unpublished. University-wide never.
+    +Tests: `test_services.py::ManagedBySelectorTests`: `test_staff_sees_faculty_and_group_items`, `test_staff_does_not_see_other_faculty`, `test_staff_does_not_see_university`, `test_student_and_superuser_get_none`, `test_staff_without_profile_gets_none`, `test_inactive_staff_gets_none`.
+    +
+    +### 5.3 `notifications/services.py`
+    +
+    +**`deadline_errors(deadline: date | None, today: date) -> list[str]`**
+    +`None` → `[]`; `deadline < today` → `["Срок не может быть в прошлом."]`; `deadline > today + timedelta(days=DEADLINE_MAX_DAYS_AHEAD)` → `[f"Срок — не позже чем через {DEADLINE_MAX_DAYS_AHEAD} дней."]`; else `[]`.
+    +Tests (`DeadlineErrorsTests`): `test_none_ok`, `test_today_ok`, `test_yesterday_error`, `test_max_ahead_ok` (today + 365), `test_beyond_max_error` (today + 366).
+    +
+    +**`create_announcement(author: User, *, title: str, body: str, audience: str, group: StudyGroup | None, deadline: date | None) -> Announcement`**
+    +Purpose: the only write path for staff-created announcements.
+    +Algorithm:
+    +1. `staff = get_profile_for_role(author, User.Role.STAFF)` (raises `PermissionDenied` for anyone else).
+    +2. `now = timezone.now()`; `today = timezone.localdate(now)`.
+    +3. `errors = deadline_errors(deadline, today)`.
+    +4. If `audience == Audience.FACULTY`: `faculty, target_group = staff.faculty, None`.
+    +   Elif `audience == Audience.GROUP`: if `group is None` → append «Выберите группу.»; elif `not groups_visible_to(author).filter(pk=group.pk).exists()` → append «Группа не относится к вашему факультету.»; `faculty, target_group = None, group`.
+    +   Else → append «Сотрудник может адресовать объявление только своему факультету или его группе.»
+    +5. If `errors` → `raise ValidationError(errors)` (non-field).
+    +6. `with transaction.atomic():` build `Announcement(title=title, body=body, audience=audience, faculty=faculty, group=target_group, deadline=deadline, author=author, published_at=now, is_published=True)`, `full_clean()`, `save()`. Return it.
+    +Edge cases: title/body too long or empty → `full_clean` raises `ValidationError` (field-keyed; the view adds it with `form.add_error(None, exc)`, which is safe because `form.add_error(None, ValidationError(dict))` with keys that are form fields adds field errors and other keys raise — **therefore** the view must pass `ValidationError(exc.messages)` instead: `form.add_error(None, ValidationError(exc.messages))`). The form limits lengths first, so this is a fallback.
+    +Tests (`CreateAnnouncementTests`): `test_faculty_announcement` (fields set, `published_at == frozen now`, `author`), `test_own_group_announcement` (`faculty is None`, `group` set), `test_other_faculty_group_rejected` (ValidationError, count 0), `test_university_rejected`, `test_group_without_group_rejected`, `test_past_deadline_rejected`, `test_deadline_today_ok`, `test_too_long_title_rejected`, `test_student_
+    …[40,635 more characters truncated]
+  ── Thought for 23s
+    I'm checking how Django's add_error handles a None field with an error dict: keys that aren't real form fields raise a ValueError. Title and body are valid fields, but I'm wondering whether the faculty, group, and audience keys would trigger that.
+
+    Now I'm checking whether the faculty, group, and audience keys could trigger Django's ValueError: constraint errors use the non-field key, so those are fine. To be safe I'll switch the view's add_error call to pass `exc.messages`, and I'm verifying the date arithmetic in the tests, where 2026-11-26 is a Thursday rather than a Tuesday.
+
+    Now I'm checking the test seed counts against the audience and deadline windows, and the numbers line up. Next I'm confirming the staff comment test uses the submitted and in-progress status path.
+
+    I'm checking the seeded test timestamps: the steps-based +40h offset holds, and the frozen clock at 2026-11-22 covers the seed tests. Previous-term results are dated in June, so they fall outside the feed window, and the seeded marks are dated before today, so their creation times come before now.
+
+    I'm checking whether the seeded marks with dates before today still pass the creation-time check, and they do. Next I'm confirming that reverse-migrating the academics app to 0001 is safe, since no other app's migrations depend on 0002 or 0003.
+
+    I'm checking the query count for the feed page: session, user, profile, and deadline lookups, plus the sources and the mark-seen update and insert, and then the badge tag after that, which keeps it under the limit of 20.
+
+    I'm working out the query budget for the feed page: about 16 queries if the seen-state is pre-created so the mark-seen step is just one update, which leaves room under a limit of 20. I'll pre-create that state in both measurement runs so they compare like with like, and note that in the test.
+
+    I'm also checking the badge test: I need to fetch the user before the assertNumQueries block, so the count only covers badge_for_user itself. The profile counter test with 0 versus 10 unread should come out equal, and the nav test showing the notification count is fine. The home summary tests use the same fixtures, so they should hold. One possible issue remains: NotificationsView sets http_method_names to GET only, and RoleRequiredMixin's dispatch runs before that check, so I need to confirm the role check still gates the request correctly.
+
+    Now I'm checking the remaining parts of the view: the logged-in redirect and the HEAD handling look right, and the never_cache wrapper covers the mixin's 403 responses too. I'm also confirming that StaffAnnouncementsView reads self.profile from the mixin and that its context gets the form and announcements, and I'm looking at the notifications badge tag in the template.
+
+    Now I'm checking the template wiring: the badge tag loads alongside the static tag, and the core home view's import of the notifications feed is fine.
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Ran python3 - <<'EOF' p = "docs/tasks/TASK-007.md" s = open(p, encoding="utf-8").read() reps = [ ("""Edge cases: title/body too long or empty → `full_clean` raises `ValidationError` (field-keyed; the view adds it with `form.add_error(None, exc)`, which is safe because `form.add_error(None, ValidationError(dict))` with keys that are form fields adds field errors and other keys raise — **therefore** the view must pass `ValidationError(exc.messages)` instead: `form.add_error(None, ValidationError(exc.messages))`). The form limits lengths first, so this is a fallback.""", """Edge cases: title/body too long or empty → `full_clean` raises a field-keyed `ValidationError`. The form limits lengths first, so this is a fallback. The view always adds service errors as non-field errors with `form.add_error(None, ValidationError(exc.messages))` (passing a dict-based error with a key that is not a form field would raise `ValueError` → 500)."""), ("""on `ValidationError as exc`: `form.add_error(None, exc)`;""", """on `ValidationError as exc`: `form.add_error(None, ValidationError(exc.messages))`;"""), ("""the deadline rules are applied by the form and the service only (D-rule: the seed and the superuser may create past deadlines).""", """the deadline rules are applied by the form and the service only, so the seed (past-deadline demo item) and the superuser in the admin may create past deadlines."""), ("""- `test_beyond_horizon_excluded` (2026-12-02; and a Tuesday lesson on 2026-11-26 = today + 15)""", """- `test_beyond_horizon_excluded` (Wednesday 2026-12-02; and a Thursday lesson on 2026-11-26 = today + 15)"""), ("""  - `test_badge_exactly_three_queries` (`assertNumQueries(3)` around `badge_for_user(User.objects.get(pk=…))`)   - `test_feed_queries_constant` (1 row per source vs 5 rows per source → equal counts; and ≤ 20)""", """  - `test_badge_exactly_three_queries` (fetch `user = User.objects.get(pk=…)` first, then `with self.assertNumQueries(3): badge_for_user(user)`)   - `test_feed_queries_constant` (pre-create the state with `set_seen(user, now - 1 day)` before each measured GET so `mark_seen` is one UPDATE in both runs; 1 row per source vs 5 rows per source → equal counts; and ≤ 20)"""), ] for a, b in reps:     assert s.count(a) == 1, a[:60]     s = s.replace(a, b) open(p, "w", encoding="utf-8").write(s) EOF grep -n "D-rule\|add_error(None, exc)" docs/tasks/TASK-007.md; wc -l docs/tasks/TASK-007.md (1s)
+    $ python3 - <<'EOF'
+  p = "docs/tasks/TASK-007.md"
+  s = open(p, encoding="utf-8").read()
+  reps = [
+  ("""Edge cases: title/body too long or empty → `full_clean` raises `ValidationError` (field-keyed; the view adds it with `form.add_error(None, exc)`, which is safe because `form.add_error(None, ValidationError(dict))` with keys that are form fields adds field errors and other keys raise — **therefore** the view must pass `ValidationError(exc.messages)` instead: `form.add_error(None, ValidationError(exc.messages))`). The form limits lengths first, so this is a fallback.""",
+  """Edge cases: title/body too long or empty → `full_clean` raises a field-keyed `ValidationError`. The form limits lengths first, so this is a fallback. The view always adds service errors as non-field errors with `form.add_error(None, ValidationError(exc.messages))` (passing a dict-based error with a key that is not a form field would raise `ValueError` → 500)."""),
+  ("""on `ValidationError as exc`: `form.add_error(None, exc)`;""", """on `ValidationError as exc`: `form.add_error(None, ValidationError(exc.messages))`;"""),
+  ("""the deadline rules are applied by the form and the service only (D-rule: the seed and the superuser may create past deadlines).""", """the deadline rules are applied by the form and the service only, so the seed (past-deadline demo item) and the superuser in the admin may create past deadlines."""),
+  ("""- `test_beyond_horizon_excluded` (2026-12-02; and a Tuesday lesson on 2026-11-26 = today + 15)""", """- `test_beyond_horizon_excluded` (Wednesday 2026-12-02; and a Thursday lesson on 2026-11-26 = today + 15)"""),
+  ("""  - `test_badge_exactly_three_queries` (`assertNumQueries(3)` around `badge_for_user(User.objects.get(pk=…))`)
+    - `test_feed_queries_constant` (1 row per source vs 5 rows per source → equal counts; and ≤ 20)""",
+  """  - `test_badge_exactly_three_queries` (fetch `user = User.objects.get(pk=…)` first, then `with self.assertNumQueries(3): badge_for_user(user)`)
+    - `test_feed_queries_constant` (pre-create the state with `set_seen(user, now - 1 day)` before each measured GET so `mark_seen` is one UPDATE in both runs; 1 row per source vs 5 rows per source → equal counts; and ≤ 20)"""),
+  ]
+  for a, b in reps:
+      assert s.count(a) == 1, a[:60]
+      s = s.replace(a, b)
+  open(p, "w", encoding="utf-8").write(s)
+  EOF
+  grep -n "D-rule\|add_error(None, exc)" docs/tasks/TASK-007.md; wc -l docs/tasks/TASK-007.md
+    851 docs/tasks/TASK-007.md
+  ── Thought for 3s
+    I'm confirming the Room string format and Teacher.short_name, both of which check out. Next I need to verify that change_status and add_staff_comment exist in petitions/services.py, since the tests depend on them, and confirm the admin registrations for the lesson change and current mark models.
+
+    I'm checking that the Petition queries with `select_for_update(of=("self",))` won't raise on SQLite, since that backend skips row locking. We're already inside an atomic block, so the transaction requirement is met. I'll run a quick test to confirm this with the Petition model and its OR join.
+  ── Ran source .venv/bin/activate && grep -n "^def change_status\|^def add_staff_comment" -A3 petitions/services.py; DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t007/feas.sqlite3" python - <<'EOF' import os, django os.environ.setdefault("DJANGO_SETTINGS_MODULE","config.settings"); django.setup() from django.db import transaction from django.db.models import Q from petitions.models import Petition with transaction.atomic():     print(Petition.objects.filter(Q(student__group__program__faculty_id=1) | Q(request_type_id=2)).select_for_update(of=("self",)).filter(public_id="00000000-0000-0000-0000-000000000000").first()) print("sfu ok") EOF
+    $ source .venv/bin/activate && grep -n "^def change_status\|^def add_staff_comment" -A3 petitions/services.py; DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t007/feas.sqlite3" python - <<'EOF'
+  import os, django
+  os.environ.setdefault("DJANGO_SETTINGS_MODULE","config.settings"); django.setup()
+  from django.db import transaction
+  from django.db.models import Q
+  from petitions.models import Petition
+  with transaction.atomic():
+      print(Petition.objects.filter(Q(student__group__program__faculty_id=1) | Q(request_type_id=2)).select_for_update(of=("self",)).filter(public_id="00000000-0000-0000-0000-000000000000").first())
+  print("sfu ok")
+  EOF
+    115:def change_status(
+    116-    petition: Petition,
+    117-    actor: User,
+    118-    expected_status: str,
+    --
+    154:def add_staff_comment(petition: Petition, actor: User, text: str) -> PetitionComment:
+    155-    staff = get_profile_for_role(actor, User.Role.STAFF)
+    156-    if petition.student.group.program.faculty_id != staff.faculty_id:
+    157-        raise PermissionDenied
+    None
+    sfu ok
+  ── Thought for 4ms
+    Everything checks out, so I'll hand the task off to Coder with a short three-to-five line summary.
+
+── Ran bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF' [TASK-007] Planner -> Coder: TASK Spec: docs/tasks/TASK-007.md (base 8f7bc4f). Notifications: new app `notifications`. - Models `Announcement` (audience university/faculty/group, DB constraint) and `NotificationState` (one `seen_until` per user); staff page /staff/announcements/ (create for own faculty or own group, idempotent unpublish, 404 for other faculties); student page /notifications/ (deadlines block + feed, marks read on GET); nav badge via template tag (exactly 3 queries); home summary for students. - The feed is COMPUTED from existing rows through a source registry (`notifications/sources.py`, 6 sources); counter = one UNION ALL count query. Add `CurrentMark.created_at`, `LessonChange.updated_at`, change `FinalResult.created_at` default (use `core.clock.now`, see D5) + hand-written backfill migration `academics/0003`. - Seeds: 9 announcements, realistic `created_at` for seeded grades, explicit time for seeded staff comments. - Follow section 7.0 test rules (frozen clock 2026-11-11, explicit timestamps), implementation order in section 8, verification in section 9 with `tee` logs. Do not commit. EOF
+  $ bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF'
+[TASK-007] Planner -> Coder: TASK
+Spec: docs/tasks/TASK-007.md (base 8f7bc4f). Notifications: new app `notifications`.
+- Models `Announcement` (audience university/faculty/group, DB constraint) and `NotificationState` (one `seen_until` per user); staff page /staff/announcements/ (create for own faculty or own group, idempotent unpublish, 404 for other faculties); student page /notifications/ (deadlines block + feed, marks read on GET); nav badge via template tag (exactly 3 queries); home summary for students.
+- The feed is COMPUTED from existing rows through a source registry (`notifications/sources.py`, 6 sources); counter = one UNION ALL count query. Add `CurrentMark.created_at`, `LessonChange.updated_at`, change `FinalResult.created_at` default (use `core.clock.now`, see D5) + hand-written backfill migration `academics/0003`.
+- Seeds: 9 announcements, realistic `created_at` for seeded grades, explicit time for seeded staff comments.
+- Follow section 7.0 test rules (frozen clock 2026-11-11, explicit timestamps), implementation order in section 8, verification in section 9 with `tee` logs. Do not commit.
+EOF
+  Thread thr_ng6cbgatm6 steered
+
+── Assistant ───────────────────────────────────────────────
+Спецификация TASK-007 готова и передана Кодеру: [docs/tasks/TASK-007.md](docs/tasks/TASK-007.md).
+
+**Что внутри:**
+- Новое приложение `notifications`.
+- **Объявления деканата.** У объявления одна аудитория: весь университет (только через админку), факультет или группа. Сотрудник публикует объявление для своего факультета или его группы и может снять его с публикации. Повторное снятие ничего не меняет и не считается ошибкой.
+- **Страница студента «Уведомления».** Сверху блок «Ближайшие дедлайны» с подписями «сегодня», «завтра», «через N дней». Ниже общая лента: новости и личные изменения за 30 дней, не больше 50 записей.
+- **Личные изменения не хранятся отдельно.** Их собирают из уже существующих записей: статусы и комментарии по заявкам, изменения расписания, оценки. Поэтому изменения, сделанные через админку, тоже попадают в ленту. Для чата (TASK-009) достаточно добавить новый источник.
+- **Счётчик непрочитанного** стоит 3 запроса на странице. Для каждого пользователя хранится время последнего просмотра. Всё отмечается прочитанным при открытии страницы (GET). Почему это безопасно, объяснено в разделе D3.
+- **Главная страница студента:** 3 ближайших дедлайна и 3 последние новости.
+- **Демо-данные:** 9 объявлений, в том числе 2 снятых с публикации. Если запустить `seed_demo` 22.11, сроки придутся на 23–27.11. Старые оценки из демо-данных не забивают ленту.
+
+**Что нашёл при проверке:**
+- Ловушка с часами в тестах. Поле с `default=timezone.now` не подчиняется замороженному времени в тестах и берёт реальное. Поэтому новые поля берут время через `core.clock.now`. Тесты уведомлений идут с датой 11.11, раньше сегодняшней. Если где-то утечёт реальное время, тест упадёт сразу, а не через неделю.
+- Если в базе уже есть оценки, после миграции все они выглядели бы новыми. Чтобы этого не было, добавил миграцию, которая проставляет им время по дате оценки. На сервере база пустая, там миграция ничего не делает.
+
+**Проверка на текущем коде:** 567 тестов прошли в трёх прогонах: обычном, в 23:59:59 и в 00:00 по Москве. Ошибок не было. Логи лежат в `$TMPDIR/test-20261115-004724-t007-feas*.log`. ruff, `check --deploy`, проверка YAML и двойной запуск `seed_demo` прошли чисто.
+
+**Одно ограничение — решать тимлиду.** Счётчик общий на аккаунт. Если один член жюри откроет «Уведомления» под `student1`, остальные под этим аккаунтом увидят 0. Я записал это в Known limitations в README.
