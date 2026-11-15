@@ -8,5 +8,8 @@
     }
   },
   "model": "deepseek/deepseek-v4-pro",
-  "default_agent": "coder"
+  "default_agent": "coder",
+  "compaction": {
+    "prune": true
+  }
 }
