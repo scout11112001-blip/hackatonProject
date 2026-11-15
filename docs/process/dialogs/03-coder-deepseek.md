@@ -53562,3 +53562,3165 @@ Change only notifications/tests/test_views.py. Re-run §9 with logs and send a R
 - `check`, `makemigrations --check`, `check --deploy`, `ruff check`/`format`, yaml — чисто.
 
 Жду вердикт Reviewer.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_2imsg4kck2]
+
+[TASK-007-FIX] Planner -> Coder: TASK
+Spec: docs/tasks/TASK-007-FIX.md (base 4608e59). Six small fixes, regression tests first (section 5.2 marks which must fail before the fix).
+- Home: heading «Новости»; news exclude only the deadlines shown on home (`home_summary`, fetch HOME_ITEMS + len(shown), filter by key `news-<uuid>`).
+- Form label «Весь факультет» (drop the unused `faculty` kwarg from AnnouncementForm, its view call and 7 test calls); `audience_label` faculty branch → faculty name only.
+- `Teacher.short_name` with U+00A0 (`NBSP` constant), update `test_teacher_short_name`.
+- Petitions: defaults → `core.clock.now`, services use `clock.now()` explicitly (incl. `add_staff_comment`); generate `petitions/0002_alter_petition_created_at_and_more.py`.
+- Move the `relative_day_label` import in `notifications/feed.py` to module level. Verification in section 8 with `tee` logs (baseline 735 tests). Do not commit.
+
+── Worked for (19m 5s) ─────────────────────────────────────
+  ── Ran 24 tools, edited 13 files, ran 14 commands, explored 2 searches, 1 list
+    ── Thought for 371ms
+      New task TASK-007-FIX. Let me read the spec first.
+    ── Read file read
+      # TASK-007-FIX: home news without shown deadlines, short labels, non-breaking teacher initials, clock-safe petition timestamps
+
+      Author: Planner. Status: ready for implementation.
+      Base commit: `4608e59`. Related specs: `docs/tasks/TASK-007.md` (D5 = clock-safe defaults), `docs/tasks/TASK-006.md`. Screenshots: `docs/process/screenshots/2026-11-15_16..19_*.jpg`.
+
+      No new features. Each fix is minimal and has a regression test that fails without it (except item 6, a style change).
+
+      ---
+
+      ## 1. Acceptance criteria
+      | ID | Criterion |
+      |---|---|
+      | AC1 | Home page (student): the news heading is «Новости». The news block excludes ONLY the announcements shown in the home deadlines block at that moment (the `HOME_ITEMS` nearest deadlines). Other announcements, including deadlines not shown there (4th nearest, past), stay eligible. Up to `HOME_ITEMS` news, newest first. `/notifications/` is unchanged. Home query count does not grow. |
+      | AC2 | Staff form: the faculty option label is «Весь факультет». Group options stay «Группа <name>». |
+      | AC3 | Audience label for a faculty announcement is the faculty name only (e.g. «Факультет цифровой дипломатии»); «Для всех студентов» and «Группа <name>» unchanged. One place builds it: `Announcement.audience_label`. |
+      | AC4 | `Teacher.short_name` uses U+00A0 (no-break space) between the last name and the first initial and between the initials. Pages render it unchanged (Django's `escape` does not touch U+00A0). |
+      | AC5 | Petition services take the time from `core.clock.now()` and pass it explicitly: `submit_petition`, `change_status`, `add_staff_comment`. Model defaults of `Petition.created_at`, `Petition.status_changed_at`, `PetitionStatusChange.created_at`, `PetitionComment.created_at`, `PetitionAttachment.uploaded_at` are `core.clock.now`. Migration `petitions/0002` is generated. Production behaviour is unchanged (`core.clock.now()` returns `timezone.now()`). |
+      | AC6 | `notifications/feed.py`: `relative_day_label` is imported at module level (no import cycle, see 6.2). |
+
+      ## 2. Out of scope
+      New features, visual theme, room map (TASK-008), chat (TASK-009). Accepted limitations (do not fix): existing lesson changes appear as «Новое» once after `schedule/0004`; a home `#news-<uuid>` link may point to nothing if the item is outside the feed.
+
+      ## 3. Files
+      Change only:
+      - `notifications/feed.py` (items 1, 6), `core/templates/core/home.html` (item 1)
+      - `notifications/forms.py`, `notifications/views.py` (item 2)
+      - `notifications/models.py` (item 3)
+      - `university/models.py` (item 4)
+      - `petitions/models.py`, `petitions/services.py`, new `petitions/migrations/0002_alter_petition_created_at_and_more.py` (generated) (item 5)
+      - tests: `notifications/tests/test_views.py`, `notifications/tests/test_models.py`, `university/tests/test_models.py`, `schedule/tests/test_views.py`, `petitions/tests/test_services.py`
+
+      No settings, no new dependencies, no other migrations.
+
+      ---
+
+      ## 4. Fixes
+
+      ### 4.1 Item 1 — home news (`notifications/feed.py::home_summary`, `core/home.html`)
+      Replace the body of `home_summary` after `ctx` is built:
+      ```python
+      deadlines = upcoming_deadlines(ctx, HOME_ITEMS)
+      shown = {f"news-{d.public_id}" for d in deadlines}
+      candidates = NewsSource().latest(ctx, HOME_ITEMS + len(shown))
+      news = [item for item in candidates if item.key not in shown][:HOME_ITEMS]
+      return HomeSummary(deadlines=deadlines, news=news)
+      ```
+      Why `HOME_ITEMS + len(shown)`: at most `len(shown)` candidates are dropped, so at least `HOME_ITEMS` remain when that many exist. Still one query for news (same count as before). The key format `news-<public_id>` is the one `NewsSource.to_item` builds (`notifications/sources.py`); do not build another format.
+      `core/home.html`: `<h2 id="home-news">Новости деканата</h2>` → `<h2 id="home-news">Новости</h2>`. Nothing else changes in the template.
+
+      ### 4.2 Item 2 — form label (`notifications/forms.py`, `notifications/views.py`)
+      - `AnnouncementForm.__init__`: remove the `faculty: Faculty` keyword argument (it becomes unused) and its import if unused; the first choice becomes `(TARGET_FACULTY, "Весь факультет")`.
+      - `StaffAnnouncementsView._form`: remove `faculty=self.profile.faculty`.
+      - Existing `AnnouncementFormTests` construct the form with `faculty=…`: remove that argument in each call (mechanical change, list it in the `REPORT`).
+
+      ### 4.3 Item 3 — audience label (`notifications/models.py`)
+      `Announcement.audience_label`, faculty branch: `return self.faculty.name`. The templates already use this property only (`feed.html`, `_deadlines.html`, `staff_list.html`, via `FeedItem.audience_label` / `DeadlineItem.audience_label`); do not build the label anywhere else. Update `notifications/tests/test_models.py::…::test_str_and_audience_label` expected value to `"Факультет FX"`.
+
+      ### 4.4 Item 4 — teacher short name (`university/models.py`)
+      ```python
+      NBSP = " "
+      ...
+      @property
+      def short_name(self) -> str:
+          middle = f"{NBSP}{self.middle_name[0]}." if self.middle_name else ""
+          return f"{self.last_name}{NBSP}{self.first_name[0]}.{middle}"
+      ```
+      `NBSP` is a module-level constant in `university/models.py`. Update `university/tests/test_models.py::…::test_teacher_short_name` to `"Лебедев А. С."` and `"Фомин П."`. No other test or template depends on the plain-space form (checked, see 6.2).
+
+      ### 4.5 Item 5 — petition timestamps (`petitions/models.py`, `petitions/services.py`)
+      - `petitions/models.py`: `from core.clock import now`; the five defaults listed in AC5 become `default=now`. Remove `from django.utils import timezone` if it becomes unused (it does on the current tree).
+      - `python manage.py makemigrations petitions` → `petitions/migrations/0002_alter_petition_created_at_and_more.py` (5 `AlterField`, default only). On PostgreSQL this changes no SQL; on SQLite Django rebuilds the five tables and copies the data (checked on a seeded copy: 7 petitions and 3 attachments kept).
+      - `petitions/services.py`: `from core import clock`.
+        - `submit_petition`: `now = clock.now()` (instead of `timezone.now()`); `expected_ready_date=add_working_days(timezone.localdate(now), …)` (same Moscow date as `now`).
+        - `change_status`: `now = clock.now()`.
+        - `add_staff_comment`: `return PetitionComment.objects.create(petition=petition, author=actor, text=text, created_at=clock.now())`.
+        - Keep `from django.utils import timezone` (still used by `localdate`).
+      - `store_attachment` (`petitions/files.py`) is not changed: `uploaded_at` takes the new clock-safe default.
+
+      ### 4.6 Item 6 — import (`notifications/feed.py`)
+      Delete `from .dates import relative_day_label` inside `upcoming_deadlines`; add it to the module imports (`from .dates import relative_day_label`, isort order between `.constants` and `.models`).
+
+      ---
+
+      ## 5. Test plan
+
+      ### 5.1 Rules
+      - New test classes use `FrozenClockMixin` with `frozen_now = "2026-11-11 12:00"` (before the real date, so a timestamp from the real clock is detected at once), and the existing helpers (`make_world`, `make_announcement`, `make_faculty`, `make_group`, `make_student`, `make_staff`, `make_type`, `make_petition`, `pdf_upload`, `make_lesson`, `make_room`, `make_teacher`).
+      - Save full output of every test run to a file; report any failed run by test name, Moscow time and traceback excerpt.
+
+      ### 5.2 Traceability and regression evidence
+      | AC | Test (file::class::method) | Fails before fix because |
+      |---|---|---|
+      | AC1 | `notifications/tests/test_views.py::HomeSummaryTests::test_news_exclude_shown_deadlines` | shown deadlines fill the news block, the 4th deadline and plain news are hidden |
+      | AC1 | `…::HomeSummaryTests::test_news_without_deadlines_unchanged` | (guard) |
+      | AC1 | `…::HomeSummaryTests::test_news_heading` | heading is «Новости деканата» |
+      | AC1 | `…::QueryCountTests::test_home_queries_same_with_deadlines` | (guard: count does not grow) |
+      | AC2 | `notifications/tests/test_views.py::AnnouncementFormTests::test_faculty_option_label` | label contains the faculty name |
+      | AC3 | `notifications/tests/test_views.py::AudienceLabelRenderTests::test_feed_shows_faculty_name_only`, `test_staff_list_shows_faculty_name_only`; updated `test_models.py::…::test_str_and_audience_label` | «Факультет: » prefix |
+      | AC4 | `university/tests/test_models.py::…::test_teacher_short_name` (updated), `schedule/tests/test_views.py::TeacherShortNameRenderTests::test_week_page_has_no_break_spaces` | plain spaces |
+      | AC5 | `petitions/tests/test_services.py::ServiceClockTests::test_staff_comment_gets_frozen_time`, `test_attachment_gets_frozen_time` | real time from `default=timezone.now` |
+      | AC5 | `…::ServiceClockTests::test_submit_gets_frozen_time`, `test_status_change_gets_frozen_time`, `test_model_defaults_are_clock_now` | (guards; `timezone.now()` call was already patched; the last one fails before: default is `timezone.now`) |
+      | AC6 | none (style); Reviewer checks `grep -n "import" notifications/feed.py` | — |
+
+      ### 5.3 Test details
+      - `HomeSummaryTests` (existing class, `frozen_now = NOW` of the module):
+        - `test_news_exclude_shown_deadlines`: university announcements: `d1..d4` with deadlines `D+1..D+4` and `published_at = now - 1h, -2h, -3h, -4h`; plain news `p` with `published_at = now - 5h`. GET `/` as `ax`. Split the content at `id="home-news"` and use the part after it: contains `#news-{p.public_id}` and `#news-{d4.public_id}`; contains none of `#news-{d1/d2/d3.public_id}`. The part before contains `#deadline-{d1..d3.public_id}`.
+        - `test_news_without_deadlines_unchanged`: 4 plain news (published now - 1h … now - 4h) → news part contains exactly the 3 newest (`#news-` count 3, oldest absent).
+        - `test_news_heading`: `'<h2 id="home-news">Новости</h2>'` in content; «Новости деканата» absent.
+        - The existing `test_limits_to_three` must still pass unchanged.
+      - `QueryCountTests::test_home_queries_same_with_deadlines`: count A = GET `/` with 1 plain news; then add 4 deadline announcements and 3 more news; count B; `assertEqual(A, B)`.
+      - `AnnouncementFormTests::test_faculty_option_label`: `dict(form.fields["target"].choices)["faculty"] == "Весь факультет"`; group label `f"Группа {gx1.name}"` unchanged.
+      - `AudienceLabelRenderTests(FrozenClockMixin, TestCase)` (new class in `notifications/tests/test_views.py`, world from `make_world`, faculty name is «Факультет FX»):
+        - `test_feed_shows_faculty_name_only`: FX faculty announcement; GET `/notifications/` as `ax` → «Факультет FX» in content; `"Факультет: "` not in content.
+        - `test_staff_list_shows_faculty_name_only`: same item; GET `/staff/announcements/` as `sx` → same assertions.
+      - `TeacherShortNameRenderTests(FrozenClockMixin, TestCase)` (new class in `schedule/tests/test_views.py`, `frozen_now = "2026-11-11 12:00"`): a student's group has a Wednesday lesson with teacher `Teacher(last_name="Шестакова", first_name="Людмила", middle_name="Петровна")`; GET `schedule:week_of` for 2026-11-11 → content contains `"Шестакова Л. П."` and does not contain `"Шестакова Л."`.
+      - `ServiceClockTests(FrozenClockMixin, TestCase)` (new class in `petitions/tests/test_services.py`, `frozen_now = "2026-11-11 12:00"`, expected `moscow("2026-11-11 12:00")`):
+        - `test_submit_gets_frozen_time`: `submit_petition(...)` → `petition.created_at`, `status_changed_at` and the history row `created_at` equal the frozen time.
+        - `test_attachment_gets_frozen_time`: `submit_petition(..., [pdf_upload()])` → `attachment.uploaded_at` equals the frozen time.
+        - `test_status_change_gets_frozen_time`: `change_status(...)` → new history row and `status_changed_at` equal the frozen time.
+        - `test_staff_comment_gets_frozen_time`: `add_staff_comment(...)` → `created_at` equals the frozen time.
+        - `test_model_defaults_are_clock_now`: for the five fields, `Model._meta.get_field(name).default is core.clock.now`.
+
+      ### 5.4 Access matrix
+      No access rules change. Existing access tests of `core:home`, `notifications:feed`, `notifications:staff_announcements` and the petitions views must keep passing.
+
+      ### 5.5 Settings branches / query count
+      No settings change. Query count: 5.3 (`test_home_queries_same_with_deadlines`); existing `test_home_queries_constant` and `test_badge_exactly_three_queries` must keep passing.
+
+      ---
+
+      ## 6. Feasibility check (2026-11-15 13:43 MSK on `4608e59`)
+      1. Clean start — `git status --short` → only ` M plan.md`. OK.
+      2. Referenced objects — `home_summary`, `upcoming_deadlines` (function-local import at `notifications/feed.py` inside `upcoming_deadlines`), `NewsSource.to_item` key `news-<public_id>`, `HOME_ITEMS`; `core/home.html:12` heading «Новости деканата»; `AnnouncementForm.__init__(…, faculty, groups, today)` label `f"Весь факультет: {faculty.name}"` (`notifications/forms.py:37`), used by `notifications/views.py:41-44` and 7 calls in `notifications/tests/test_views.py`; `Announcement.audience_label` (`notifications/models.py:104-109`) — the only builder, used by `sources.py:125`, `feed.py:98`, templates `feed.html`, `_deadlines.html`, `staff_list.html`; `Teacher.short_name` (`university/models.py:126-128`), used by `schedule/templates/schedule/includes/lesson_item.html:9` and `notifications/sources.py:204`; tests on its text: only `university/tests/test_models.py:51-55` (grep for `short_name`, `[А-Я]\. [А-Я]\.` in all tests); petitions defaults `petitions/models.py:81,82,122,147,170` (`default=timezone.now`); services `submit_petition` (`timezone.now()` line 86), `change_status` (line 139), `add_staff_comment` (no `created_at`, line ~163); `core/clock.py::now`. OK.
+      3. No collisions — `NBSP` not defined in `university/models.py`; test classes `AudienceLabelRenderTests`, `TeacherShortNameRenderTests`, `ServiceClockTests` and the new method names do not exist; latest petitions migration is `0001_initial`. OK.
+      4. Migrations — `makemigrations --check --dry-run` → «No changes detected». On a temporary copy of `HEAD` with the item-5 defaults: `makemigrations petitions --dry-run` → `0002_alter_petition_created_at_and_more.py` (5 AlterField); applied on a seeded temp DB (`migrate petitions 0001` → `seed_demo` → `migrate`) → 7 petitions and 3 attachments kept. No other app gets a migration (`short_name` is a property). OK.
+      5. Tools — unchanged (Python 3.12, Django 5.2.19, ruff 0.17.4). OK.
+      6. Framework — Django template autoescape leaves U+00A0 as the raw character (`Template("{{ x }}")` with `"Фомин П."` renders `'Фомин\xa0П.'`), so tests assert the raw character. `default=timezone.now` is not patched by `FrozenClockMixin`, a call-time lookup is (TASK-007 feasibility 6). No import cycle for item 6: `notifications/dates.py` imports only `datetime`, and `notifications/sources.py` already imports `relative_day_label` at module level. OK.
+      7. Environment — no new env variables. OK.
+      8. Verification runnable — current tree, logs `$TMPDIR/test-20261115-134337-t007fix-feas*.log`: results in 6a below.
+      9. Conflicts — none.
+      10. Assumptions / blockers — none.
+
+      ### 6a. Verification results on the current tree
+      - `check` → no issues; `makemigrations --check --dry-run` → «No changes detected».
+      - `test` → `Ran 735 tests … OK`; `run_tests_at.py 2026-11-17T23:59:59` → 735 OK; `run_tests_at.py 2026-11-18T00:00:00` → 735 OK. No failed runs.
+      - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` → all passed; `ruff format --check .` → 149 files already formatted; CI YAML ok.
+      - `seed_demo` twice on a temporary DB and PRIVATE_MEDIA_ROOT → OK (second run: «Notifications ready: 0 announcements.», «0 requests»).
+
+      ## 7. Implementation order
+      1. Write the tests in 5.2/5.3 and run them: the ones marked "fails before fix" must fail.
+      2. Fixes 4.1–4.6 (4.5: models → `makemigrations petitions` → services).
+      3. `ruff format` on changed Python files only (not migrations); section 8; `REPORT` to the Reviewer with the regression evidence (which tests failed before the fix). Do not commit.
+
+      ## 8. Verification
+      ```bash
+      source .venv/bin/activate
+      export DEBUG=true
+      TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S)
+      python manage.py check
+      python manage.py makemigrations --check --dry-run
+      python manage.py test 2>&1 | tee "$TMPDIR/test-$TS.log"
+      python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-at-2359.log"
+      python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-at-0000.log"
+      DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop \
+        ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ \
+        python manage.py check --deploy --fail-level WARNING
+      ruff check . && ruff format --check .
+      python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"
+      export DATABASE_URL="sqlite:///$TMPDIR/task007fix.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task007fix-private" DEMO_PASSWORD='Local-Demo-Pass-2026!'
+      rm -f "$TMPDIR/task007fix.sqlite3"
+      python manage.py migrate && python manage.py seed_demo && python manage.py seed_demo
+      git status --short
+      ```
+      `REPORT`: output tails, test count (was 735), log file names, any failed run by test name and Moscow time, `git status`.
+
+      ## 9. Risks
+      - Non-breaking spaces make the short name one unit. It is short (last name + 2 initials) and `body` already has `overflow-wrap: anywhere` (`static/css/base.css:14`), so an extremely long name still cannot overflow 360 px. The Team lead re-checks the schedule page at 360 px.
+      - The SQLite table rebuild in `petitions/0002` copies data; run it only through `migrate` (never by hand). The local `db.sqlite3` is migrated by the Team lead, not by the Coder.
+    ── Thought for 4s
+      This is a smaller fix task. Let me plan the work:
+
+      **Step 1: Write the tests (5.2/5.3) and run them (marked "fails before fix" must fail).**
+
+      Tests to add/update:
+      1. `notifications/tests/test_views.py`:
+         - `HomeSummaryTests::test_news_exclude_shown_deadlines` (fails before)
+         - `HomeSummaryTests::test_news_without_deadlines_unchanged` (guard)
+         - `HomeSummaryTests::test_news_heading` (fails before)
+         - `QueryCountTests::test_home_queries_same_with_deadlines` (guard)
+         - `AnnouncementFormTests::test_faculty_option_label` (fails before)
+         - `AudienceLabelRenderTests` (new class, 2 tests, fail before)
+         - Also need to remove `faculty=...` from 7 AnnouncementFormTests calls.
+      2. `notifications/tests/test_models.py`:
+         - update `test_str_and_audience_label` expected value to "Факультет FX".
+      3. `university/tests/test_models.py`:
+         - update `test_teacher_short_name` to NBSP forms.
+      4. `schedule/tests/test_views.py`:
+         - `TeacherShortNameRenderTests` (new class, 1 test).
+      5. `petitions/tests/test_services.py`:
+         - `ServiceClockTests` (new class, 5 tests).
+
+      **Step 2: Fixes 4.1-4.6.**
+
+      **Step 3: ruff format + verification + REPORT.**
+
+      Let me first understand the current state of the relevant files. Let me read the key files I'll be modifying.
+
+      Let me start by reading:
+      - notifications/feed.py (home_summary, upcoming_deadlines, imports)
+      - notifications/forms.py
+      - notifications/views.py (_form)
+      - notifications/models.py (audience_label)
+      - university/models.py (short_name)
+      - petitions/models.py (defaults)
+      - petitions/services.py (services)
+      - core/templates/core/home.html
+
+      I already have most of these from before, but let me re-read the ones I need to modify precisely.
+
+      Actually, I have the content of most from the previous task. But let me re-read to be safe since some may have changed (the ruff format etc.).
+
+      Let me read the current versions of the key files and the test files I need to modify.
+
+      Let me plan carefully and start. First, set up a todo list.
+
+      Actually, let me be efficient. Let me read the files I need in parallel.
+    ── Ran tool 8 todos (2s)
+      {"output":"[\n  {\n    \"content\": \"Write regression tests (5.2/5.3) + run to confirm failures before fix\",\n    \"status\": \"in_progress\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix 4.1 home news + heading\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix 4.2 form label «Весь факультет» (drop faculty kwarg)\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix 4.3 audience_label faculty branch\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix 4.4 Teacher.short_name NBSP\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix 4.5 petition clock defaults + services + migration 0002\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix 4.6 relative_day_label module import\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"ruff format + section 8 verification + REPORT\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  }\n]","metadata":{"todos":[{"content":"Write regression tests (5.2/5.3) + run to confirm failures before fix","status":"in_progress","priority":"high"},{"content":"Fix 4.1 home news + heading","status":"pending","priority":"high"},{"content":"Fix 4.2 form label «Весь факультет» (drop faculty kwarg)","status":"pending","priority":"high"},{"content":"Fix 4.3 audience_label faculty branch","status":"pending","priority":"high"},{"content":"Fix 4.4 Teacher.short_name NBSP","status":"pending","priority":"high"},{"content":"Fix 4.5 petition clock defaults + services + migration 0002","status":"pending","priority":"high"},{"content":"Fix 4.6 relative_day_label module import","status":"pending","priority":"high"},{"content":"ruff format + section 8 verification + REPORT","status":"pending","priority":"high"}],"truncated":false}}
+    ── Read file read
+      """Feed composition, unread counter and home summary."""
+
+      from dataclasses import dataclass
+      from datetime import date, datetime, timedelta
+      from uuid import UUID
+
+      from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
+      from django.utils import timezone
+
+      from accounts.models import StudentProfile, User
+
+      from .constants import FEED_MAX_ITEMS, FEED_WINDOW_DAYS, HOME_ITEMS
+      from .models import NotificationState
+      from .selectors import announcements_for_student
+      from .sources import FeedContext, FeedItem, NewsSource, get_feed_sources
+
+
+      def student_context(
+          user: AbstractBaseUser | AnonymousUser, now: datetime | None = None
+      ) -> FeedContext | None:
+          if not user.is_authenticated or not user.is_active or user.role != User.Role.STUDENT:
+              return None
+          student = (
+              StudentProfile.objects.select_related("group__program").filter(user_id=user.pk).first()
+          )
+          if student is None:
+              return None
+          seen = (
+              NotificationState.objects.filter(user_id=user.pk)
+              .values_list("seen_until", flat=True)
+    ── Read file read
+      deadline: date
+          label: str
+          audience_label: str
+
+
+      def upcoming_deadlines(ctx: FeedContext, limit: int) -> list[DeadlineItem]:
+          from .dates import relative_day_label
+
+          announcements = (
+              announcements_for_student(ctx.student)
+              .filter(deadline__gte=ctx.today, published_at__lte=ctx.now)
+              .select_related("faculty", "group")
+              .order_by("deadline", "-published_at", "pk")[:limit]
+          )
+          return [
+              DeadlineItem(
+                  public_id=a.public_id,
+                  title=a.title,
+                  deadline=a.deadline,
+                  label=relative_day_label(a.deadline, ctx.today),
+                  audience_label=a.audience_label,
+              )
+              for a in announcements
+          ]
+
+
+      @dataclass(frozen=True)
+      class HomeSummary:
+          deadlines: list[DeadlineItem]
+          news: list[FeedItem]
+
+
+      def home_summary(user: AbstractBaseUser | AnonymousUser) -> HomeSummary | None:
+          ctx = student_context(user)
+          if ctx is None:
+              return None
+          return HomeSummary(
+              deadlines=upcoming_deadlines(ctx, HOME_ITEMS),
+              news=NewsSource().latest(ctx, HOME_ITEMS),
+          )
+    ── Read file read
+      from collections.abc import Sequence
+      from datetime import date
+
+      from django import forms
+
+      from university.models import Faculty, StudyGroup
+
+      from .constants import BODY_MAX_LENGTH, TARGET_FACULTY, TARGET_GROUP_PREFIX, TITLE_MAX_LENGTH
+      from .models import Audience
+      from .services import deadline_errors
+
+
+      class AnnouncementForm(forms.Form):
+          title = forms.CharField(label="Заголовок", max_length=TITLE_MAX_LENGTH)
+          body = forms.CharField(
+              label="Текст", max_length=BODY_MAX_LENGTH, widget=forms.Textarea(attrs={"rows": 6})
+          )
+          target = forms.ChoiceField(label="Кому")
+          deadline = forms.DateField(
+              label="Срок (необязательно)",
+              required=False,
+              help_text="Последний день, включительно.",
+              widget=forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
+          )
+
+          def __init__(
+              self,
+              *args,
+              faculty: Faculty,
+              groups: Sequence[StudyGroup],
+              today: date,
+              **kwargs,
+          ):
+              super().__init__(*args, **kwargs)
+              self.today = today
+              self._groups = {f"{TARGET_GROUP_PREFIX}{g.pk}": g for g in groups}
+              self.fields["target"].choices = [(TARGET_FACULTY, f"Весь факультет: {faculty.name}")] + [
+                  (key, f"Группа {g.name}") for key, g in self._groups.items()
+              ]
+
+          def clean_deadline(self):
+              value = self.cleaned_data.get("deadline")
+              errors = deadline_errors(value, self.today)
+              if errors:
+                  raise forms.ValidationError(errors)
+              return value
+
+          def clean(self):
+              cleaned = super().clean()
+              target = cleaned.get("target")
+              if target == TARGET_FACULTY:
+                  cleaned["audience"] = Audience.FACULTY
+                  cleaned["group"] = None
+              elif target in self._groups:
+                  cleaned["audience"] = Audience.GROUP
+                  cleaned["group"] = self._groups[target]
+              return cleaned
+    ── Read file read
+      def __str__(self) -> str:
+              return self.title
+
+          @property
+          def audience_label(self) -> str:
+              if self.audience == Audience.UNIVERSITY:
+                  return "Для всех студентов"
+              if self.audience == Audience.FACULTY:
+                  return f"Факультет: {self.faculty.name}"
+              return f"Группа {self.group.name}"
+
+
+      class NotificationState(models.Model):
+          user = models.OneToOneField(
+              settings.AUTH_USER_MODEL,
+    ── Thought for 1s
+      Now let me read the remaining files: university/models.py (short_name), petitions/models.py (defaults), petitions/services.py, and the test files I need to modify (test_views.py HomeSummaryTests/AnnouncementFormTests/QueryCountTests, test_models.py, university/tests/test_models.py, schedule/tests/test_views.py, petitions/tests/test_services.py).
+
+      Let me read them in parallel.
+    ── Read file read
+      def __str__(self) -> str:
+              return self.full_name
+
+          @property
+          def full_name(self) -> str:
+              return " ".join(
+                  part for part in (self.last_name, self.first_name, self.middle_name) if part
+              )
+
+          @property
+          def short_name(self) -> str:
+              middle = f" {self.middle_name[0]}." if self.middle_name else ""
+              return f"{self.last_name} {self.first_name[0]}.{middle}"
+    ── Read file read
+      from django.core.exceptions import ValidationError
+      from django.db import IntegrityError, transaction
+      from django.test import TestCase
+
+      from university.models import Faculty, Program, Room, StudyGroup, Teacher
+
+
+      class UniversityModelTests(TestCase):
+          @classmethod
+          def setUpTestData(cls):
+              cls.faculty = Faculty.objects.create(code="FX", name="Факультет X")
+              cls.program = Program.objects.create(faculty=cls.faculty, code="41.03.05", name="Программа")
+
+          def test_course_out_of_range_rejected(self):
+              for course in (0, 7):
+                  with self.subTest(course=course):
+                      with self.assertRaises(IntegrityError):
+                          with transaction.atomic():
+                              StudyGroup.objects.create(
+                                  program=self.program, name=f"G{course}", course=course
+                              )
+              group = StudyGroup(program=self.program, name="GX", course=7)
+              with self.assertRaises(ValidationError):
+                  group.full_clean()
+
+          def test_program_unique_per_faculty(self):
+              with self.assertRaises(IntegrityError):
+                  with transaction.atomic():
+                      Program.objects.create(faculty=self.faculty, code="41.03.05", name="Дубль")
+              other = Faculty.objects.create(code="FY", name="Факультет Y")
+              Program.objects.create(faculty=other, code="41.03.05", name="Тот же код")
+
+          def test_group_faculty_property(self):
+              group = StudyGroup.objects.create(program=self.program, name="ЦД-101", course=1)
+              self.assertEqual(group.faculty, self.faculty)
+
+          def test_room_code_validator(self):
+              for bad in ("Room-1", "1room"):
+                  with self.subTest(code=bad):
+                      room = Room(code=bad, floor=1, number="999")
+                      with self.assertRaises(ValidationError):
+                          room.full_clean()
+              good = Room(code="room-1", floor=1, number="998")
+              good.full_clean()
+
+          def test_room_floor_out_of_range_rejected(self):
+              with self.assertRaises(IntegrityError):
+                  with transaction.atomic():
+                      Room.objects.create(code="room-0", floor=0, number="000")
+
+          def test_teacher_short_name(self):
+              with_middle = Teacher(last_name="Лебедев", first_name="Аркадий", middle_name="Семёнович")
+              self.assertEqual(with_middle.short_name, "Лебедев А. С.")
+              without_middle = Teacher(last_name="Фомин", first_name="Павел")
+              self.assertEqual(without_middle.short_name, "Фомин П.")
+
+          def test_duplicate_teacher_name_rejected(self):
+              Teacher.objects.create(last_name="Иванов", first_name="Иван", middle_name="Иванович")
+              with self.assertRaises(IntegrityError):
+                  with transaction.atomic():
+                      Teacher.objects.create(
+                          last_name="Иванов", first_name="Иван", middle_name="Иванович"
+                      )
+    ── Read file read (error)
+      Offset 85 is out of range for this file (81 lines)
+    ── Read file read
+      body="Текст",
+                      audience=Audience.FACULTY,
+                  )
+
+          def test_lengths_are_constants(self):
+              self.assertEqual(Announcement._meta.get_field("title").max_length, TITLE_MAX_LENGTH)
+              self.assertEqual(Announcement._meta.get_field("body").max_length, BODY_MAX_LENGTH)
+
+          def test_str_and_audience_label(self):
+              university = self._ann(title="Новость университета")
+              self.assertEqual(str(university), "Новость университета")
+              self.assertEqual(university.audience_label, "Для всех студентов")
+
+              faculty = make_announcement(
+                  self.author, audience=Audience.FACULTY, faculty=self.faculty, title="Новость факультета"
+              )
+              self.assertEqual(faculty.audience_label, "Факультет: Факультет FX")
+
+              group = make_announcement(
+                  self.author, audience=Audience.GROUP, group=self.group, title="Новость группы"
+              )
+              self.assertEqual(group.audience_label, "Группа GX1")
+    ── Read file read
+      """Petition services: submission, status transitions, staff comments."""
+
+      from datetime import date, timedelta
+
+      from django.core.exceptions import PermissionDenied, ValidationError
+      from django.db import transaction
+      from django.utils import timezone
+
+      from accounts.access import get_profile_for_role
+      from accounts.models import StudentProfile, User
+      from core.storage import get_private_storage
+      from petitions.files import store_attachment, validate_attachments
+      from petitions.models import (
+          MAX_COMMENT_LENGTH,
+          Petition,
+          PetitionComment,
+          PetitionStatus,
+          PetitionStatusChange,
+      )
+      from petitions.workflow import COMMENT_REQUIRED_FOR, OPEN_STATUSES, SUBMITTED, can_transition
+    ── Thought for 685ms
+      Now let me read the test_views.py sections I need to modify (HomeSummaryTests, AnnouncementFormTests, QueryCountTests), and schedule/tests/test_views.py, and petitions/tests/test_services.py (to understand where to add ServiceClockTests).
+
+      Let me read the relevant sections.
+    ── Read file read
+      def _query_count(fn) -> int:
+          with CaptureQueriesContext(connection) as ctx:
+              fn()
+          return len(ctx.captured_queries)
+
+
+      class AnnouncementFormTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+
+          def test_choices_only_own_faculty_groups(self):
+              form = AnnouncementForm(
+                  None,
+                  faculty=self.w.fx,
+                  groups=[self.w.gx1, self.w.gx2],
+                  today=D,
+              )
+              choices = dict(form.fields["target"].choices)
+              self.assertIn("faculty", choices)
+              self.assertIn(f"group-{self.w.gx1.pk}", choices)
+              self.assertIn(f"group-{self.w.gx2.pk}", choices)
+              self.assertNotIn(f"group-{self.w.gy1.pk}", choices)
+
+          def test_faculty_target(self):
+              form = AnnouncementForm(
+                  {"title": "Заголовок", "body": "Текст", "target": "faculty"},
+                  faculty=self.w.fx,
+                  groups=[self.w.gx1, self.w.gx2],
+                  today=D,
+              )
+              self.assertTrue(form.is_valid())
+              self.assertEqual(form.cleaned_data["audience"], Audience.FACULTY)
+              self.assertIsNone(form.cleaned_data["group"])
+
+          def test_group_target(self):
+              form = AnnouncementForm(
+                  {"title": "Заголовок", "body": "Текст", "target": f"group-{self.w.gx1.pk}"},
+                  faculty=self.w.fx,
+                  groups=[self.w.gx1, self.w.gx2],
+                  today=D,
+              )
+              self.assertTrue(form.is_valid())
+              self.assertEqual(form.cleaned_data["audience"], Audience.GROUP)
+              self.assertEqual(form.cleaned_data["group"], self.w.gx1)
+
+          def test_forged_group_rejected(self):
+              form = AnnouncementForm(
+                  {"title": "Заголовок", "body": "Текст", "target": f"group-{self.w.gy1.pk}"},
+                  faculty=self.w.fx,
+                  groups=[self.w.gx1, self.w.gx2],
+                  today=D,
+              )
+              self.assertFalse(form.is_valid())
+
+          def test_university_value_rejected(self):
+              form = AnnouncementForm(
+                  {"title": "Заголовок", "body": "Текст", "target": "university"},
+                  faculty=self.w.fx,
+                  groups=[self.w.gx1, self.w.gx2],
+                  today=D,
+              )
+              self.assertFalse(form.is_valid())
+
+          def test_iso_date_accepted(self):
+              form = AnnouncementForm(
+                  {"title": "Заголовок", "body": "Текст", "target": "faculty", "deadline": "2026-11-20"},
+                  faculty=self.w.fx,
+                  groups=[self.w.gx1, self.w.gx2],
+                  today=D,
+              )
+              self.assertTrue(form.is_valid())
+
+          def test_past_deadline_field_error(self):
+              form = AnnouncementForm(
+                  {"title": "Заголовок", "body": "Текст", "target": "faculty", "deadline": "2026-11-10"},
+                  faculty=self.w.fx,
+                  groups=[self.w.gx1, self.w.gx2],
+                  today=D,
+              )
+              self.assertFalse(form.is_valid())
+              self.assertIn("deadline", form.errors)
+
+
+      class FeedAccessTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+
+          def test_anonymous_redirects(self):
+              response = self.client.get(reverse("notifications:feed"))
+              self.assertEqual(response.status_code, 302)
+              self.assertEqual(response["Location"], "/login/?next=/notifications/")
+
+          def test_student_ok(self):
+    ── Thought for 1s
+      I see the AnnouncementFormTests. There are 7 calls with `faculty=...`. Let me find them all. The 7 test methods with `faculty=self.w.fx` are:
+      1. test_choices_only_own_faculty_groups
+      2. test_faculty_target
+      3. test_group_target
+      4. test_forged_group_rejected
+      5. test_university_value_rejected
+      6. test_iso_date_accepted
+      7. test_past_deadline_field_error
+
+      Now let me read the HomeSummaryTests and QueryCountTests sections.
+    ── Read file read
+      self.w.sx, audience=Audience.UNIVERSITY, deadline=D + timedelta(days=1), title="Дедлайн"
+              )
+              self.client.force_login(self.w.ax)
+              response = self.client.get(reverse("core:home"))
+              content = response.content.decode()
+              self.assertEqual(response.status_code, 200)
+              self.assertIn("Ближайшие дедлайны", content)
+              self.assertIn("Дедлайн", content)
+              self.assertIn("/notifications/#", content)
+
+          def test_limits_to_three(self):
+              for i in range(5):
+                  make_announcement(
+                      self.w.sx,
+                      audience=Audience.UNIVERSITY,
+                      deadline=D + timedelta(days=i + 1),
+                      title=f"Дедлайн {i}",
+                  )
+                  make_announcement(
+                      self.w.sx,
+                      audience=Audience.UNIVERSITY,
+                      published_at=moscow(NOW) - timedelta(hours=i),
+                      title=f"Новость {i}",
+                  )
+              self.client.force_login(self.w.ax)
+              response = self.client.get(reverse("core:home"))
+              content = response.content.decode()
+              self.assertEqual(content.count("#deadline-"), 3)
+              self.assertEqual(content.count("#news-"), 3)
+
+          def test_student_without_profile(self):
+              user = User.objects.create_user("noprof", role=User.Role.STUDENT)
+              self.client.force_login(user)
+              response = self.client.get(reverse("core:home"))
+              self.assertEqual(response.status_code, 200)
+              self.assertIn("Раздел в разработке", response.content.decode())
+
+          def test_staff_no_summary(self):
+              self.client.force_login(self.w.sx)
+              response = self.client.get(reverse("core:home"))
+              self.assertIn("Раздел в разработке", response.content.decode())
+
+          def test_superuser_no_summary(self):
+              self.client.force_login(self.w.root)
+              response = self.client.get(reverse("core:home"))
+              self.assertIn("Раздел в разработке", response.content.decode())
+
+          def test_home_does_not_mark_read(self):
+              make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+              self.client.force_login(self.w.ax)
+              self.client.get(reverse("core:home"))
+              self.assertFalse(NotificationState.objects.filter(user=self.w.ax).exists())
+
+
+      class CsrfTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+
+          def setUp(self):
+              self.client = Client(enforce_csrf_checks=True)
+              self.client.force_login(self.w.sx)
+
+          def test_create_without_token_403(self):
+              response = self.client.post(
+                  reverse("notifications:staff_announcements"),
+                  {"title": "Заголовок", "body": "Текст", "target": "faculty"},
+              )
+              self.assertEqual(response.status_code, 403)
+              self.assertEqual(Announcement.objects.count(), 0)
+
+          def test_unpublish_without_token_403(self):
+              announcement = make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+              response = self.client.post(
+                  reverse("notifications:staff_unpublish", args=[announcement.public_id])
+              )
+              self.assertEqual(response.status_code, 403)
+              announcement.refresh_from_db()
+    ── Thought for 656ms
+      Let me read the HomeSummaryTests class header (around line 290) and the QueryCountTests (around line 585+).
+    ── Read file read
+      self.assertEqual(response.status_code, 405)
+
+
+      class HomeSummaryTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+
+          def test_student_summary(self):
+              make_announcement(
+                  self.w.sx, audience=Audience.UNIVERSITY, deadline=D + timedelta(days=1), title="Дедлайн"
+              )
+              self.client.force_login(self.w.ax)
+              response = self.client.get(reverse("core:home"))
+              content = response.content.decode()
+              self.assertEqual(response.status_code, 200)
+    ── Read file read
+      @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+
+          def setUp(self):
+              self.term = make_term(code="t-2026-autumn")
+              self.disc = make_discipline("Дисциплина")
+              self.item = make_item(self.w.gx1, self.disc, self.term)
+              self.rtype = make_type("Справка")
+              self._n = 0
+
+          def _add_feed_batch(self):
+              """Add one row of every one of the 6 feed sources for student ax."""
+              self._n += 1
+              n = self._n
+              make_announcement(self.w.sx, audience=Audience.UNIVERSITY, title=f"Новость {n}")
+              petition = make_petition(self.w.ax_profile, self.rtype)
+              change_status(petition, self.w.sx, "submitted", "in_progress")
+              PetitionComment.objects.create(
+                  petition=petition, author=self.w.sx, text="Комментарий", created_at=timezone.now()
+              )
+              room = make_room(f"room-{100 + n}")
+              lesson = make_lesson([self.w.gx1], weekday=2, slot=n, room=room, discipline=self.disc)
+              save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=lesson, original_date=D, kind=ChangeKind.CANCELLED, reason="Причина"
+                  )
+              )
+              make_mark(self.w.ax_profile, self.item, 5, D - timedelta(days=n), "Семинар")
+              disc = make_discipline(f"Результат {n}")
+              item = make_item(self.w.gx1, disc, self.term)
+              make_result(self.w.ax_profile, item, "5", date=D)
+
+          def test_badge_exactly_three_queries(self):
+              user = User.objects.get(pk=self.w.ax.pk)
+              with self.assertNumQueries(3):
+                  badge_for_user(user)
+
+          def test_feed_queries_constant(self):
+              self.client.force_login(self.w.ax)
+              self._add_feed_batch()
+              set_seen(self.w.ax, moscow(NOW) - timedelta(days=1))
+              count_one = _query_count(lambda: self.client.get(reverse("notifications:feed")))
+              for _ in range(4):
+                  self._add_feed_batch()
+              set_seen(self.w.ax, moscow(NOW) - timedelta(days=1))
+              count_many = _query_count(lambda: self.client.get(reverse("notifications:feed")))
+              self.assertEqual(count_one, count_many)
+              self.assertLessEqual(count_one, 20)
+
+          def test_profile_page_counter_constant(self):
+              self.client.force_login(self.w.ax)
+              zero = _query_count(lambda: self.client.get(reverse("accounts:profile")))
+              for _ in range(10):
+                  make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+              ten = _query_count(lambda: self.client.get(reverse("accounts:profile")))
+              self.assertEqual(zero, ten)
+
+          def test_staff_list_queries_constant(self):
+              make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+              self.client.force_login(self.w.sx)
+              one = _query_count(lambda: self.client.get(reverse("notifications:staff_announcements")))
+              for i in range(3):
+                  make_announcement(
+                      self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx, title=f"Факультет {i}"
+                  )
+              make_announcement(self.w.sx, audience=Audience.GROUP, group=self.w.gx1, title="Группа GX1")
+              make_announcement(self.w.sx, audience=Audience.GROUP, group=self.w.gx2, title="Группа GX2")
+              six = _query_count(lambda: self.client.get(reverse("notifications:staff_announcements")))
+              self.assertEqual(one, six)
+              self.assertLessEqual(one, 10)
+
+          def test_home_queries_constant(self):
+              make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+              self.client.force_login(self.w.ax)
+              one = _query_count(lambda: self.client.get(reverse("core:home")))
+              for i in range(4):
+                  make_announcement(self.w.sx, audience=Audience.UNIVERSITY, title=f"Новость {i}")
+              five = _query_count(lambda: self.client.get(reverse("core:home")))
+              self.assertEqual(one, five)
+    ── Thought for 764ms
+      Now I have the full picture of test_views.py. Let me read the schedule/tests/test_views.py header and petitions/tests/test_services.py header to understand where to add the new test classes.
+
+      Let me read schedule/tests/test_views.py (header + imports) and petitions/tests/test_services.py (header + imports + relevant structure).
+    ── Read file read
+      from datetime import date
+      from unittest import mock
+
+      from django.db import connection
+      from django.test import SimpleTestCase, TestCase
+      from django.test.utils import CaptureQueriesContext
+      from django.urls import reverse
+
+      from accounts.tests.helpers import make_faculty, make_group, make_staff, make_student
+      from core.testing import FrozenClockMixin
+      from schedule.converters import IsoDateConverter
+      from schedule.models import ChangeKind, LessonChange
+      from schedule.mutations import save_lesson_change
+
+      from .helpers import aware, make_discipline, make_lesson, make_room, make_teacher
+
+
+      class IsoDateConverterTests(SimpleTestCase):
+          def test_to_python(self):
+              conv = IsoDateConverter()
+              self.assertEqual(conv.to_python("2026-11-16"), date(2026, 11, 16))
+
+          def test_to_python_invalid(self):
+              conv = IsoDateConverter()
+              for value in ("2026-02-30", "1999-12-31"):
+                  with self.subTest(value=value):
+                      with self.assertRaises(ValueError):
+                          conv.to_python(value)
+
+          def test_to_url(self):
+              conv = IsoDateConverter()
+              self.assertEqual(conv.to_url(date(2026, 11, 16)), "2026-11-16")
+
+
+      class ScheduleViewsTests(FrozenClockMixin, TestCase):
+          @classmethod
+          def setUpTestData(cls):
+              cls.faculty_x = make_faculty("FX")
+              cls.faculty_y = make_faculty("FY")
+              cls.group_x1 = make_group(cls.faculty_x, "GX1")
+    ── Read file read
+      from datetime import date
+      from unittest import mock
+
+      from django.contrib.auth.models import AnonymousUser
+      from django.core.exceptions import PermissionDenied, ValidationError
+      from django.test import SimpleTestCase, TestCase
+      from django.utils import timezone
+
+      from accounts.models import User
+      from accounts.tests.helpers import make_faculty, make_group, make_staff, make_student
+      from core.storage import get_private_storage
+      from core.testing import FrozenClockMixin
+      from petitions.files import store_attachment
+      from petitions.models import MAX_COMMENT_LENGTH, Petition, PetitionAttachment
+      from petitions.selectors import attachments_visible_to, petitions_visible_to
+      from petitions.services import (
+          StaleStatusError,
+          _lock_petition,
+          _lock_student,
+          add_staff_comment,
+          add_working_days,
+          change_status,
+          submit_petition,
+      )
+      from petitions.tests.helpers import fake_upload, make_petition, make_type, pdf_upload
+
+
+      def _drive_to(petition, staff, status):
+          path = {
+              "submitted": [],
+              "in_progress": ["in_progress"],
+              "ready": ["in_progress", "ready"],
+              "issued": ["in_progress", "ready", "issued"],
+              "rejected": ["rejected"],
+          }[status]
+          for s in path:
+              comment = "причина" if s == "rejected" else ""
+              change_status(petition, staff, petition.status, s, comment)
+              petition.refresh_from_db()
+          return petition
+
+
+      class WorkingDaysTests(SimpleTestCase):
+          def test_mon_plus_1(self):
+              self.assertEqual(add_working_days(date(2026, 11, 16), 1), date(2026, 11, 17))
+
+          def test_fri_plus_1(self):
+              self.assertEqual(add_working_days(date(2026, 11, 20), 1), date(2026, 11, 23))
+
+          def test_sat_plus_1(self):
+              self.assertEqual(add_working_days(date(2026, 11, 21), 1), date(2026, 11, 23))
+
+          def test_sun_plus_1(self):
+              self.assertEqual(add_working_days(date(2026, 11, 22), 1), date(2026, 11, 23))
+
+          def test_fri_plus_5(self):
+              self.assertEqual(add_working_days(date(2026, 11, 20), 5), date(2026, 11, 27))
+
+          def test_wed_plus_10(self):
+              self.assertEqual(add_working_days(date(2026, 11, 18), 10), date(2026, 12, 2))
+
+          def test_days_less_than_1(self):
+              with self.assertRaises(ValueError):
+                  add_working_days(date(2026, 11, 18), 0)
+
+
+      class SelectorTests(FrozenClockMixin, TestCase):
+          def setUp(self):
+              self.fac_x = make_faculty("FX")
+              self.fac_y = make_faculty("FY")
+    ── Thought for 913ms
+      Now I understand the structure. Let me look at the petitions/tests/test_services.py to understand how submit_petition is used in existing tests (to write ServiceClockTests correctly). Let me look at the SubmitTests class.
+
+      Let me read more of test_services.py to understand the patterns for submit_petition, make_petition, etc.
+    ── Read file read
+      class SubmitTests(FrozenClockMixin, TestCase):
+          def setUp(self):
+              self.faculty = make_faculty("FDD")
+              self.group = make_group(self.faculty, "ЦД-101")
+              self.student = make_student("s1", self.group, "ST-0001").student_profile
+              self.type = make_type(days=3)
+
+          def test_submit_creates_petition_and_history(self):
+              petition = submit_petition(self.student, self.type, "Комментарий", [])
+              self.assertEqual(petition.status, "submitted")
+              self.assertEqual(petition.expected_ready_date, date(2026, 11, 23))
+              self.assertEqual(petition.history.count(), 1)
+              row = petition.history.get()
+              self.assertEqual(row.from_status, "")
+              self.assertEqual(row.to_status, "submitted")
+              self.assertEqual(row.actor, self.student.user)
+
+          def test_comment_required_rejected(self):
+              req = make_type(name="Справка2", comment_required=True, hint="Причина")
+              with self.assertRaises(ValidationError) as cm:
+                  submit_petition(self.student, req, "", [])
+              self.assertTrue(any("комментарий обязателен" in m for m in cm.exception.messages))
+
+          def test_comment_whitespace_only_rejected_when_required(self):
+              req = make_type(name="Справка3", comment_required=True, hint="Причина")
+              with self.assertRaises(ValidationError):
+                  submit_petition(self.student, req, "   ", [])
+
+          def test_comment_optional_ok(self):
+              petition = submit_petition(self.student, self.type, "", [])
+              self.assertEqual(petition.comment, "")
+
+          def test_comment_too_long(self):
+              with self.assertRaises(ValidationError):
+                  submit_petition(self.student, self.type, "x" * (MAX_COMMENT_LENGTH + 1), [])
+
+          def test_inactive_type_rejected(self):
+              inactive = make_type(name="Inactive")
+              inactive.is_active = False
+              inactive.save()
+              with self.assertRaises(ValidationError):
+                  submit_petition(self.student, inactive, "", [])
+
+          def test_attachments_stored_privately(self):
+              upload = pdf_upload()
+              expected = upload.read()
+              upload.seek(0)
+              petition = submit_petition(self.student, self.type, "", [upload])
+              att = petition.attachments.get()
+              self.assertRegex(att.file.name, r"^request_attachments/[0-9a-f]{2}/[0-9a-f]{32}\.pdf$")
+              root = str(get_private_storage().location)
+              self.assertTrue(att.file.path.startswith(root))
+              with att.file.open("rb") as fh:
+                  self.assertEqual(fh.read(), expected)
+
+          def test_invalid_attachment_rejected_nothing_stored(self):
+              bad = fake_upload("evil.exe", b"MZ\x90\x00\x03", "application/octet-stream")
+              with self.assertRaises(ValidationError):
+                  submit_petition(self.student, self.type, "", [bad])
+              self.assertEqual(Petition.objects.count(), 0)
+              self.assertEqual(PetitionAttachment.objects.count(), 0)
+
+          def test_limit_three_open_per_type(self):
+              for _ in range(3):
+                  submit_petition(self.student, self.type, "", [])
+              with self.assertRaises(ValidationError) as cm:
+                  submit_petition(self.student, self.type, "", [])
+              self.assertTrue(any("открытые заявки" in m for m in cm.exception.messages))
+              other = make_type(name="Заявление", kind="application", days=5)
+              submit_petition(self.student, other, "", [])
+              p = Petition.objects.filter(student=self.student, request_type=self.type).first()
+              p.status = "issued"
+              p.save(update_fields=["status"])
+              submit_petition(self.student, self.type, "", [])
+
+          def test_limit_counts_in_progress(self):
+              for _ in range(3):
+                  submit_petition(self.student, self.type, "", [])
+              p = Petition.objects.filter(student=self.student, request_type=self.type).first()
+              p.status = "in_progress"
+              p.save(update_fields=["status"])
+              with self.assertRaises(ValidationError):
+                  submit_petition(self.student, self.type, "", [])
+
+          def test_files_removed_on_failure(self):
+              saved_names = []
+              real_store = store_attachment
+
+              def flaky(petition, upload, original_name, size):
+                  if saved_names:
+                      raise RuntimeError("boom")
+                  att = real_store(petition, upload, original_name, size)
+                  saved_names.append(att.file.name)
+                  return att
+
+              uploads = [pdf_upload("a.pdf"), pdf_upload("b.pdf")]
+              with mock.patch("petitions.services.store_attachment", side_effect=flaky):
+                  with self.assertRaises(RuntimeError):
+                      submit_petition(self.student, self.type, "", uploads)
+              self.assertEqual(Petition.objects.count(), 0)
+              storage = get_private_storage()
+              self.assertFalse(storage.exists(saved_names[0]))
+
+          def test_student_row_locked(self):
+              with mock.patch("petitions.services._lock_student", wraps=_lock_student) as patched:
+                  submit_petition(self.student, self.type, "", [])
+              patched.assert_called_once_with(self.student.pk)
+
+
+      class TransitionTests(FrozenClockMixin, TestCase):
+          def setUp(self):
+              self.fac_x = make_faculty("FX")
+              self.fac_y = make_faculty("FY")
+              self.group_x = make_group(self.fac_x, "GX")
+              self.group_y = make_group(self.fac_y, "GY")
+              self.student_a = make_student("a", self.group_x, "SA").student_profile
+              self.staff_x = make_staff("sx", self.fac_x)
+              self.staff_x2 = make_staff("sx2", self.fac_x)
+              self.staff_y = make_staff("sy", self.fac_y)
+              self.type = make_type()
+    ── Thought for 6s
+      Now I understand the structure. I have enough context to write the tests. Let me check the existing `test_services.py` FrozenClockMixin default and whether the SubmitTests uses a frozen_now. Note that SubmitTests uses FrozenClockMixin (default frozen_now = "2026-11-18 12:00"). But the spec says new test classes use `frozen_now = "2026-11-11 12:00"`.
+
+      Wait, but the SubmitTests test `test_submit_creates_petition_and_history` asserts `expected_ready_date == date(2026, 11, 23)`. This is computed from `add_working_days(localdate, 3)`. With default FrozenClockMixin frozen_now = "2026-11-18 12:00", localdate = 2026-11-18, +3 working days = 2026-11-23. So the existing SubmitTests rely on the default frozen clock of 2026-11-18.
+
+      For my new ServiceClockTests, I'll use `frozen_now = "2026-11-11 12:00"` and expected `moscow("2026-11-11 12:00")`.
+
+      Now let me understand the current `submit_petition` and `change_status` and `add_staff_comment` to write the ServiceClockTests correctly.
+
+      From the earlier read of petitions/services.py:
+      - `submit_petition(student, request_type, comment, uploads)`: uses `now = timezone.now()`, creates petition with created_at=now, status_changed_at=now, expected_ready_date=add_working_days(timezone.localdate(), ...), and PetitionStatusChange with created_at=now.
+      - `change_status(petition, actor, expected_status, new_status, comment="")`: uses `now = timezone.now()`, creates PetitionStatusChange with created_at=now, sets status_changed_at=now.
+      - `add_staff_comment(petition, actor, text)`: creates PetitionComment without created_at (currently).
+
+      For ServiceClockTests:
+      - `test_submit_gets_frozen_time`: submit_petition → petition.created_at, status_changed_at, history[0].created_at == frozen time.
+      - `test_attachment_gets_frozen_time`: submit with [pdf_upload()] → attachment.uploaded_at == frozen.
+      - `test_status_change_gets_frozen_time`: create petition (via make_petition or submit), then change_status → new history row + status_changed_at == frozen.
+      - `test_staff_comment_gets_frozen_time`: add_staff_comment → created_at == frozen.
+      - `test_model_defaults_are_clock_now`: for 5 fields, `Model._meta.get_field(name).default is core.clock.now`.
+
+      For `test_model_defaults_are_clock_now`, I need to check `Petition.created_at`, `Petition.status_changed_at`, `PetitionStatusChange.created_at`, `PetitionComment.created_at`, `PetitionAttachment.uploaded_at`. And `core.clock.now`.
+
+      Now, the regression evidence:
+      - `test_staff_comment_gets_frozen_time` fails BEFORE fix: because add_staff_comment uses default=timezone.now (unfrozen real time). After fix (created_at=clock.now()), it passes.
+      - `test_attachment_gets_frozen_time` fails BEFORE fix: because PetitionAttachment.uploaded_at default=timezone.now (unfrozen). After fix (default=now → clock.now), store_attachment creates without explicit uploaded_at → uses default=core.clock.now → frozen.
+
+      Wait, let me check store_attachment (petitions/files.py) to see if it sets uploaded_at explicitly.
+
+      Let me read petitions/files.py.
+    ── Read file read
+      """Attachment handling: upload path, display name sanitizing, validation, storage."""
+
+      import unicodedata
+      import uuid
+      from collections.abc import Sequence
+
+      from django.core.exceptions import ValidationError
+      from django.core.files import File
+      from django.core.files.uploadedfile import UploadedFile
+      from django.db import IntegrityError, transaction
+
+      from core.storage import get_private_storage
+
+      MAX_ATTACHMENTS = 3
+      MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024
+      PDF_CONTENT_TYPE = "application/pdf"
+      PDF_SIGNATURE = b"%PDF-"
+      MAX_NAME_ATTEMPTS = 5
+      ATTACHMENT_DIR = "request_attachments"
+      MAX_DISPLAY_NAME = 120
+
+
+      class AttachmentStorageError(Exception):
+          pass
+
+
+      def attachment_upload_to(instance: object, filename: str) -> str:
+          name = uuid.uuid4().hex
+          return f"{ATTACHMENT_DIR}/{name[:2]}/{name}.pdf"
+
+
+      def sanitize_display_name(raw: str) -> str:
+          name = unicodedata.normalize("NFC", raw or "")
+          name = name.replace("\\", "/").rsplit("/", 1)[-1]
+          kept = [c for c in name if not unicodedata.category(c).startswith("C") and c != '"']
+          name = " ".join("".join(kept).split())
+          if not name.lower().endswith(".pdf"):
+              name += ".pdf"
+          stem = name[:-4]
+          if not stem:
+              return "document.pdf"
+          if len(name) > MAX_DISPLAY_NAME:
+              return stem[: MAX_DISPLAY_NAME - 4] + ".pdf"
+          return name
+
+
+      def validate_pdf(upload: UploadedFile) -> None:
+          name = sanitize_display_name(upload.name)
+          if not upload.name.lower().endswith(".pdf"):
+              raise ValidationError(f"Файл «{name}»: допускаются только PDF.")
+          if upload.content_type != PDF_CONTENT_TYPE:
+              raise ValidationError(f"Файл «{name}»: допускаются только PDF.")
+          if upload.size == 0:
+              raise ValidationError(f"Файл «{name}» пустой.")
+          if upload.size > MAX_ATTACHMENT_SIZE:
+              raise ValidationError(f"Файл «{name}» больше 5 МБ.")
+          upload.seek(0)
+          head = upload.read(5)
+          upload.seek(0)
+          if head != PDF_SIGNATURE:
+              raise ValidationError(f"Файл «{name}» не является PDF.")
+
+
+      def validate_attachments(uploads: Sequence[UploadedFile]) -> None:
+          messages: list[str] = []
+          if len(uploads) > MAX_ATTACHMENTS:
+              messages.append("Можно приложить не больше 3 файлов.")
+          for upload in uploads:
+              try:
+                  validate_pdf(upload)
+              except ValidationError as exc:
+                  messages.extend(exc.messages)
+          if messages:
+              raise ValidationError(messages)
+
+
+      def store_attachment(petition: object, upload: File, original_name: str, size: int) -> "object":
+          from petitions.models import PetitionAttachment  # lazy import to avoid a cycle
+
+          storage = get_private_storage()
+          for _ in range(MAX_NAME_ATTEMPTS):
+              name = attachment_upload_to(None, "")
+              if storage.exists(name) or PetitionAttachment.objects.filter(file=name).exists():
+                  continue
+              upload.seek(0)
+              try:
+                  saved = storage.save(name, upload)
+              except FileExistsError:
+                  continue
+              if saved != name:
+                  storage.delete(saved)
+                  raise RuntimeError("Storage returned an unexpected name.")
+              try:
+                  with transaction.atomic():
+                      return PetitionAttachment.objects.create(
+                          petition=petition,
+                          file=saved,
+                          original_name=sanitize_display_name(original_name),
+                          size=size,
+                      )
+              except IntegrityError:
+                  storage.delete(saved)
+                  continue
+          raise AttachmentStorageError("Не удалось сохранить файл. Попробуйте ещё раз.")
+    ── Thought for 43s
+      `store_attachment` creates `PetitionAttachment.objects.create(petition=..., file=..., original_name=..., size=...)` WITHOUT `uploaded_at`. So `uploaded_at` uses the model default. Currently default=timezone.now (unfrozen), after fix default=core.clock.now (frozen).
+
+      So `test_attachment_gets_frozen_time` fails before fix (real time), passes after (frozen time). Good.
+
+      Now I have full understanding. Let me start writing the tests (step 1).
+
+      Let me plan the test file changes carefully.
+
+      ### 1. notifications/tests/test_views.py
+
+      **AnnouncementFormTests**: 
+      - Remove `faculty=self.w.fx` from all 7 calls.
+      - Add `test_faculty_option_label`.
+
+      **HomeSummaryTests**:
+      - Add `test_news_exclude_shown_deadlines`, `test_news_without_deadlines_unchanged`, `test_news_heading`.
+
+      **QueryCountTests**:
+      - Add `test_home_queries_same_with_deadlines`.
+
+      **New class AudienceLabelRenderTests**.
+
+      ### 2. notifications/tests/test_models.py
+      - Update `test_str_and_audience_label` faculty expected to "Факультет FX".
+
+      ### 3. university/tests/test_models.py
+      - Update `test_teacher_short_name` to NBSP forms.
+
+      ### 4. schedule/tests/test_views.py
+      - Add `TeacherShortNameRenderTests`.
+
+      ### 5. petitions/tests/test_services.py
+      - Add `ServiceClockTests`.
+
+      Let me start writing. First, the test_views.py changes.
+
+      Let me write the test methods carefully.
+
+      **test_news_exclude_shown_deadlines** (spec 5.3):
+      ```python
+      def test_news_exclude_shown_deadlines(self):
+          d1 = make_announcement(self.w.sx, audience=Audience.UNIVERSITY, deadline=D + timedelta(days=1), published_at=moscow(NOW) - timedelta(hours=1))
+          d2 = make_announcement(self.w.sx, audience=Audience.UNIVERSITY, deadline=D + timedelta(days=2), published_at=moscow(NOW) - timedelta(hours=2))
+          d3 = make_announcement(self.w.sx, audience=Audience.UNIVERSITY, deadline=D + timedelta(days=3), published_at=moscow(NOW) - timedelta(hours=3))
+          d4 = make_announcement(self.w.sx, audience=Audience.UNIVERSITY, deadline=D + timedelta(days=4), published_at=moscow(NOW) - timedelta(hours=4))
+          p = make_announcement(self.w.sx, audience=Audience.UNIVERSITY, published_at=moscow(NOW) - timedelta(hours=5))
+          self.client.force_login(self.w.ax)
+          content = self.client.get(reverse("core:home")).content.decode()
+          news_part = content.split('id="home-news"', 1)[1]
+          self.assertIn(f"#news-{p.public_id}", news_part)
+          self.assertIn(f"#news-{d4.public_id}", news_part)
+          for d in (d1, d2, d3):
+              self.assertNotIn(f"#news-{d.public_id}", news_part)
+          before = content.split('id="home-news"', 1)[0]
+          for d in (d1, d2, d3):
+              self.assertIn(f"#deadline-{d.public_id}", before)
+      ```
+
+      Wait, but there's a subtlety: the news block is inside the `home-news` section. The `#deadline-` links are in the `home-deadlines` section (before `home-news`). The news links `#news-<uuid>` are in the `home-news` section.
+
+      The `deadline` announcements (d1-d4) are all published (is_published=True), have deadlines, and published_at within 30 days. So they appear in BOTH:
+      - deadlines block (upcoming_deadlines, nearest 3 = d1, d2, d3)
+      - news feed (NewsSource.latest, all published announcements)
+
+      Before the fix, `home_summary` news = NewsSource().latest(ctx, HOME_ITEMS=3). This returns the 3 newest announcements. The 3 newest (by published_at desc) are d1 (-1h), d2 (-2h), d3 (-3h). So the news block shows d1, d2, d3 (which are the shown deadlines). d4 (-4h) and p (-5h) are NOT in the news block (only 3 items).
+
+      After the fix: deadlines = d1, d2, d3 (shown). shown = {news-d1, news-d2, news-d3}. candidates = NewsSource().latest(ctx, 3 + 3 = 6). The 6 newest: d1, d2, d3, d4, p (only 5 announcements total). Filter out shown (d1,d2,d3) → [d4, p]. Take first 3 → [d4, p]. So news block shows d4 and p.
+
+      So the test asserts:
+      - news_part contains `#news-{p}` and `#news-{d4}`.
+      - news_part does NOT contain `#news-{d1,d2,d3}`.
+      - before part contains `#deadline-{d1,d2,d3}`.
+
+      Before the fix, the news block shows d1,d2,d3 (not p, not d4). So `#news-{p}` NOT in news_part → FAIL. And `#news-{d1}` IS in news_part → the `assertNotIn` fails. So this test fails before fix. ✓
+
+      **test_news_without_deadlines_unchanged** (guard):
+      ```python
+      def test_news_without_deadlines_unchanged(self):
+          for i in range(4):
+              make_announcement(self.w.sx, audience=Audience.UNIVERSITY, published_at=moscow(NOW) - timedelta(hours=i+1))
+          self.client.force_login(self.w.ax)
+          content = self.client.get(reverse("core:home")).content.decode()
+          news_part = content.split('id="home-news"', 1)[1]
+          self.assertEqual(news_part.count("#news-"), 3)
+      ```
+      The 4 plain news (no deadline), newest 3 shown. The 4th (oldest) absent. So `#news-` count in news_part == 3.
+
+      But wait — the news announcements have no deadline, so they don't appear in the deadlines block (deadline__gte=today filter excludes None). So upcoming_deadlines returns []. shown = empty set. candidates = latest(3). news = 3 newest. So 3 news items. `#news-` count == 3. ✓ (guard, passes before and after).
+
+      **test_news_heading** (fails before):
+      ```python
+      def test_news_heading(self):
+          self.client.force_login(self.w.ax)
+          content = self.client.get(reverse("core:home")).content.decode()
+          self.assertIn('<h2 id="home-news">Новости</h2>', content)
+          self.assertNotIn("Новости деканата", content)
+      ```
+      Before fix: heading is "Новости деканата", so `assertIn('<h2 id="home-news">Новости</h2>')` fails (the heading is `<h2 id="home-news">Новости деканата</h2>`), and "Новости деканата" IS in content. So fails. ✓
+
+      **QueryCountTests::test_home_queries_same_with_deadlines** (guard):
+      ```python
+      def test_home_queries_same_with_deadlines(self):
+          make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+          self.client.force_login(self.w.ax)
+          count_a = _query_count(lambda: self.client.get(reverse("core:home")))
+          for i in range(4):
+              make_announcement(self.w.sx, audience=Audience.UNIVERSITY, deadline=D + timedelta(days=i+1))
+          for i in range(3):
+              make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+          count_b = _query_count(lambda: self.client.get(reverse("core:home")))
+          self.assertEqual(count_a, count_b)
+      ```
+
+      **AnnouncementFormTests::test_faculty_option_label**:
+      ```python
+      def test_faculty_option_label(self):
+          form = AnnouncementForm(None, groups=[self.w.gx1, self.w.gx2], today=D)
+          choices = dict(form.fields["target"].choices)
+          self.assertEqual(choices["faculty"], "Весь факультет")
+          self.assertEqual(choices[f"group-{self.w.gx1.pk}"], "Группа GX1")
+      ```
+      Note: this uses the NEW signature (no faculty). This test must be written AFTER I remove the faculty kwarg... but wait, the spec says "write tests first, run them (must fail before fix)".
+
+      Hmm, but `test_faculty_option_label` tests the NEW behavior. It can't be written with the OLD signature (which requires faculty). Actually, the test would fail before fix because the label is "Весь факультет: Факультет FX" (not "Весь факультет").
+
+      But the form signature change (removing faculty kwarg) means the test call `AnnouncementForm(None, groups=..., today=D)` would fail with TypeError before fix (missing required faculty arg).
+
+      So there's an ordering issue: the `test_faculty_option_label` test (with new signature) can't even be constructed before the fix (faculty is required).
+
+      But the spec's 5.2 says test_faculty_option_label "fails before fix because: label contains the faculty name". And 4.2 says remove the faculty kwarg from 7 test calls.
+
+      The practical approach: 
+      1. Write the test with the new signature (no faculty). It will fail before fix with TypeError (missing faculty).
+      2. Also update the 7 existing test calls to remove faculty (this is a "mechanical change" that must be done together with the form fix, because the form's __init__ signature changes).
+
+      Actually, the spec says (4.2): "Existing AnnouncementFormTests construct the form with faculty=…: remove that argument in each call (mechanical change, list it in the REPORT)."
+
+      And (7 order): "1. Write the tests in 5.2/5.3 and run them: the ones marked 'fails before fix' must fail."
+
+      So I write the tests. But `test_faculty_option_label` with new signature won't even run (TypeError). That's a form of "fails before fix".
+
+      Actually, the cleaner interpretation: I write ALL the tests (including updating the 7 existing calls to remove faculty, and adding test_faculty_option_label). Then I run the tests. Before the fix:
+      - test_faculty_option_label: fails (TypeError because form still requires faculty, OR if I write it to pass faculty... no).
+
+      Hmm, this is getting complicated. Let me think about the cleanest sequence:
+
+      The spec's intent:
+      1. Write tests that assert the NEW behavior.
+      2. Run them → they fail (because code still has OLD behavior).
+      3. Fix the code.
+      4. Run → they pass.
+
+      For the form: the NEW behavior is (a) faculty kwarg removed, (b) label "Весь факультет".
+
+      The test `test_faculty_option_label` uses the new signature (no faculty) and asserts label == "Весь факультет".
+
+      Before the fix, the form still has `faculty` as a required kwarg. So `AnnouncementForm(None, groups=..., today=D)` raises TypeError (missing faculty). The test "fails" with TypeError.
+
+      But ALSO, the 7 existing test calls pass `faculty=...`. If I change the form signature (remove faculty) but keep the 7 test calls with `faculty=...`, those 7 tests would fail with TypeError (unexpected keyword 'faculty').
+
+      So the mechanical change (removing faculty from 7 test calls) MUST happen together with the form signature change. Since I'm writing tests FIRST, I should:
+
+      Option A: Write all test changes first (add test_faculty_option_label with new signature, remove faculty from 7 existing calls). Then run. Before fix:
+      - test_faculty_option_label: fails (TypeError, missing faculty).
+      - The 7 existing tests: fail (TypeError, unexpected faculty kwarg) — wait no, they still pass `faculty=...` which the OLD form accepts. If I remove faculty from the 7 calls but the OLD form requires faculty, then the 7 calls fail with TypeError (missing faculty).
+
+      So if I remove faculty from the 7 existing calls AND the form still requires faculty (old code), then the 7 existing tests fail with TypeError.
+
+      This is messy. The cleaner approach is to do it in a way that demonstrates the regression clearly.
+
+      Actually, let me reconsider. The spec says (5.2): test_faculty_option_label "fails before fix because: label contains the faculty name". This implies the test should be runnable before the fix, and fail because the label is wrong (not because of a signature TypeError).
+
+      But if the test uses the new signature (no faculty), it can't run before the fix (TypeError).
+
+      Hmm. Wait — maybe the intent is different. Let me reconsider. The `faculty` kwarg is used ONLY to build the label `f"Весь факультет: {faculty.name}"`. If I write `test_faculty_option_label` to STILL pass faculty (old signature) but assert the NEW label, then:
+
+      ```python
+      def test_faculty_option_label(self):
+          form = AnnouncementForm(None, faculty=self.w.fx, groups=[...], today=D)
+          self.assertEqual(dict(form.fields["target"].choices)["faculty"], "Весь факультет")
+      ```
+
+      Before fix: label is "Весь факультет: Факультет FX", so `assertEqual(..., "Весь факультет")` fails. ✓
+
+      Then AFTER I remove the faculty kwarg from the form, I also remove it from this test call.
+
+      So the flow is:
+      1. Write test_faculty_option_label using the OLD signature (with faculty) but asserting NEW label. Run → fails (label mismatch). ✓ regression evidence.
+      2. Fix the form (remove faculty kwarg, label "Весь факультет").
+      3. Update ALL 8 test calls (7 existing + 1 new) to remove faculty.
+      4. Run → passes.
+
+      This is the cleanest. The spec 5.3 says `test_faculty_option_label`: `dict(form.fields["target"].choices)["faculty"] == "Весь факультет"`. It doesn't specify the signature. So I can write it with the old signature initially for the regression evidence, then update it during the fix.
+
+      Actually, wait — but the spec's regression evidence table (5.2) for AC2 says test_faculty_option_label "fails before fix because: label contains the faculty name". So the test should fail because the label has the faculty name. This means at the "before fix" stage, the test is written with the OLD signature (faculty passed) and asserts "Весь факультет" (new label), so it fails because old label is "Весь факультет: Факультет FX".
+
+      OK, so my plan:
+      1. Write test_faculty_option_label WITH faculty kwarg (old signature), asserting "Весь факультет". This fails before fix (label mismatch).
+      2. Fix: remove faculty kwarg from form + label change.
+      3. Update test_faculty_option_label + 7 existing calls to remove faculty.
+
+      Actually, to keep it simple and match the spec's "mechanical change, list it in REPORT", let me:
+
+      Step 1 (write tests): 
+      - Add test_faculty_option_label using old signature (faculty passed), assert "Весь факультет".
+      - Add other tests (home news, audience label, teacher, service clock).
+
+      Step 2 (run): confirm the marked tests fail.
+
+      Step 3 (fix code): apply all 6 fixes, including removing faculty kwarg from form + views.
+
+      Step 4 (fix tests): remove faculty from 8 test calls (7 existing + 1 new).
+
+      Step 5: run full suite.
+
+      Actually, this is a bit awkward because between step 1 and step 4, the form still has faculty. Let me just do it straightforwardly.
+
+      Actually, let me simplify: I'll write ALL tests now (including the ones using the NEW signature where it makes sense), but for the regression evidence I'll note which fail.
+
+      Let me reconsider what "fails before fix" means for each test in 5.2:
+
+      | AC | Test | Fails before fix |
+      |---|---|---|
+      | AC1 | test_news_exclude_shown_deadlines | shown deadlines fill news block |
+      | AC1 | test_news_without_deadlines_unchanged | (guard) - passes |
+      | AC1 | test_news_heading | heading «Новости деканата» |
+      | AC1 | test_home_queries_same_with_deadlines | (guard) - passes |
+      | AC2 | test_faculty_option_label | label contains faculty name |
+      | AC3 | test_feed_shows_faculty_name_only, test_staff_list_shows_faculty_name_only; updated test_str_and_audience_label | «Факультет: » prefix |
+      | AC4 | test_teacher_short_name (updated), TeacherShortNameRenderTests | plain spaces |
+      | AC5 | test_staff_comment_gets_frozen_time, test_attachment_gets_frozen_time | real time |
+      | AC5 | test_submit_gets_frozen_time, test_status_change_gets_frozen_time, test_model_defaults_are_clock_now | (guards; last one fails before) |
+
+      So the tests that MUST fail before fix:
+      - test_news_exclude_shown_deadlines ✓
+      - test_news_heading ✓
+      - test_faculty_option_label ✓
+      - AudienceLabelRenderTests (2 tests) ✓
+      - test_teacher_short_name (updated) ✓
+      - TeacherShortNameRenderTests ✓
+      - test_staff_comment_gets_frozen_time ✓
+      - test_attachment_gets_frozen_time ✓
+      - test_model_defaults_are_clock_now ✓
+
+      Guards (pass before):
+      - test_news_without_deadlines_unchanged
+      - test_home_queries_same_with_deadlines
+      - test_submit_gets_frozen_time
+      - test_status_change_gets_frozen_time
+
+      Now, for `test_faculty_option_label`, the regression is "label contains faculty name". I'll write it to use the old signature (faculty) and assert the new label. Before fix, it fails because label = "Весь факультет: Факультет FX".
+
+      For the `updated test_str_and_audience_label` and `test_teacher_short_name`, these are UPDATES to existing tests (changing expected values). They'll fail before fix (old code produces old value).
+
+      Let me now write everything. I'll be systematic.
+
+      Let me first write the tests (step 1), then run to confirm failures, then apply fixes.
+
+      Let me write the test changes.
+
+      For test_models.py `test_str_and_audience_label` line 76: change "Факультет: Факультет FX" → "Факультет FX".
+
+      For university/tests/test_models.py test_teacher_short_name: change to NBSP forms.
+
+      For schedule/tests/test_views.py: add TeacherShortNameRenderTests class.
+
+      For petitions/tests/test_services.py: add ServiceClockTests class.
+
+      Let me write all these test changes now.
+
+      First, let me handle the announcements in test_views.py.
+
+      Let me write the edits. I'll do them carefully.
+
+      For the HomeSummaryTests additions, I'll add after `test_student_summary` (or before `test_student_without_profile`). Let me add them after test_limits_to_three, actually let me add after test_student_summary and before test_limits_to_three, or just add at the end before test_student_without_profile. Order doesn't matter for tests. Let me insert the 3 new tests after `test_limits_to_three` (before `test_student_without_profile`).
+
+      Actually, let me add them right after `test_student_summary` (line 308) and before `test_limits_to_three` (line 310). Or simpler, add after test_limits_to_three.
+
+      Let me insert after line 328 (end of test_limits_to_three).
+
+      Now for the QueryCountTests, add test_home_queries_same_with_deadlines after test_home_queries_constant (end of file).
+
+      Let me write all the edits now.
+
+      Let me start with test_views.py. I'll do multiple edits.
+
+      Edit 1: AnnouncementFormTests — remove faculty from 7 calls + add test_faculty_option_label.
+
+      Actually, the 7 calls each have `faculty=self.w.fx,`. I need to remove that line from each. Let me do a careful replaceAll? No, they're not identical contexts. Let me use individual edits, or better, since the pattern `faculty=self.w.fx,\n` is consistent, I can replace all occurrences of `faculty=self.w.fx,\n` with empty. But wait, `faculty=self.w.fx` also appears in HomeSummaryTests? No, those use `faculty=self.w.fx` in make_announcement calls, not in AnnouncementForm. Let me check.
+
+      Actually, `faculty=self.w.fx,` appears in:
+      - AnnouncementFormTests (7 times, as the kwarg to AnnouncementForm)
+      - Possibly in make_announcement calls elsewhere (e.g., `audience=Audience.FACULTY, faculty=self.w.fx`).
+
+      Wait, in the AnnouncementFormTests, the pattern is:
+      ```python
+      form = AnnouncementForm(
+          None,
+          faculty=self.w.fx,
+          groups=[...],
+          today=D,
+      )
+      ```
+
+      And `make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx, ...)` uses `faculty=self.w.fx` too but in a different context (as a keyword to make_announcement, on the same line).
+
+      So I can't just replaceAll `faculty=self.w.fx,`.
+
+      Let me do targeted edits. Since the AnnouncementForm calls have `faculty=self.w.fx,\n            groups=`, I can match that specific pattern.
+
+      Actually, the cleanest is to do individual edits for each of the 7 test methods. That's tedious but safe. Alternatively, I can rewrite the entire AnnouncementFormTests class.
+
+      Actually, let me reconsider the ORDER. The spec says write tests first, then fix. For the form test, I'll:
+      1. Add test_faculty_option_label (with old signature for now).
+      2. Run tests → confirm failures.
+      3. Fix form + views (remove faculty kwarg).
+      4. Remove faculty from all 8 test calls (7 existing + 1 new).
+
+      So I need to do the "remove faculty from test calls" AFTER the form fix. But actually, the form fix (removing faculty kwarg) will BREAK the 7 existing test calls (they pass faculty). So I must remove faculty from the test calls at the same time as the form fix.
+
+      To keep it manageable, let me:
+      1. Write the regression tests (add test_faculty_option_label with old signature, add all other new tests, update test_models.py and university test_models.py expected values).
+      2. Run → confirm marked tests fail.
+      3. Apply all fixes (including form signature change).
+      4. Remove faculty from the 8 test calls.
+      5. Run full suite.
+
+      Let me write the new tests now (step 1), keeping the form's old signature in the new test for now.
+
+      Actually, wait — I realize I should think about whether to write test_faculty_option_label with old or new signature for step 1.
+
+      For the regression evidence (step 2), test_faculty_option_label should fail because "label contains faculty name". With old signature:
+      ```python
+      def test_faculty_option_label(self):
+          form = AnnouncementForm(None, faculty=self.w.fx, groups=[self.w.gx1, self.w.gx2], today=D)
+          choices = dict(form.fields["target"].choices)
+          self.assertEqual(choices["faculty"], "Весь факультет")
+          self.assertEqual(choices[f"group-{self.w.gx1.pk}"], "Группа GX1")
+      ```
+      Before fix: choices["faculty"] = "Весь факультет: Факультет FX" ≠ "Весь факультет". Fails. ✓
+
+      After fix: I remove `faculty=self.w.fx` from this call (and the 7 others).
+
+      This works. Let me write test_faculty_option_label with the old signature for now.
+
+      OK let me just write everything. I'll do the test edits first.
+
+      Let me write the edits for test_views.py:
+
+      1. Add test_faculty_option_label to AnnouncementFormTests (after test_choices_only_own_faculty_groups, or at the end before the class ends).
+
+      2. Add 3 tests to HomeSummaryTests.
+
+      3. Add test_home_queries_same_with_deadlines to QueryCountTests.
+
+      4. Add AudienceLabelRenderTests class.
+
+      Let me do these edits.
+
+      For the new test methods, I need to make sure imports are available: `moscow`, `timedelta`, `date`, `timezone` are already imported in test_views.py. Let me verify: yes, `from datetime import date, timedelta`, `from django.utils import timezone`, `from core.testing import FrozenClockMixin, moscow`.
+
+      Let me write the edits now.
+
+      First, add test_faculty_option_label. I'll add it right after test_choices_only_own_faculty_groups (after line 53).
+    ── Edited notifications/tests/test_views.py +11
+      --- a~/hackatonproject/notifications/tests/test_views.py
+      +++ b~/hackatonproject/notifications/tests/test_views.py
+      +    def test_faculty_option_label(self):
+      +        form = AnnouncementForm(
+      +            None,
+      +            faculty=self.w.fx,
+      +            groups=[self.w.gx1, self.w.gx2],
+      +            today=D,
+      +        )
+      +        choices = dict(form.fields["target"].choices)
+      +        self.assertEqual(choices["faculty"], "Весь факультет")
+      +        self.assertEqual(choices[f"group-{self.w.gx1.pk}"], "Группа GX1")
+      +
+    ── Thought for 1s
+      Now add the 3 HomeSummaryTests tests. Let me add after test_limits_to_three (which ends at line ~328, now shifted). Let me find the current location. Actually, let me add after test_student_summary and before test_limits_to_three, or after test_limits_to_three.
+
+      Let me add the 3 tests after test_limits_to_three's closing (before test_student_without_profile).
+
+      I'll match the end of test_limits_to_three:
+      ```python
+              self.assertEqual(content.count("#deadline-"), 3)
+              self.assertEqual(content.count("#news-"), 3)
+
+          def test_student_without_profile(self):
+      ```
+    ── Edited notifications/tests/test_views.py +55
+      --- a~/hackatonproject/notifications/tests/test_views.py
+      +++ b~/hackatonproject/notifications/tests/test_views.py
+      +    def test_news_exclude_shown_deadlines(self):
+      +        d1 = make_announcement(
+      +            self.w.sx,
+      +            audience=Audience.UNIVERSITY,
+      +            deadline=D + timedelta(days=1),
+      +            published_at=moscow(NOW) - timedelta(hours=1),
+      +        )
+      +        d2 = make_announcement(
+      +            self.w.sx,
+      +            audience=Audience.UNIVERSITY,
+      +            deadline=D + timedelta(days=2),
+      +            published_at=moscow(NOW) - timedelta(hours=2),
+      +        )
+      +        d3 = make_announcement(
+      +            self.w.sx,
+      +            audience=Audience.UNIVERSITY,
+      +            deadline=D + timedelta(days=3),
+      +            published_at=moscow(NOW) - timedelta(hours=3),
+      +        )
+      +        d4 = make_announcement(
+      +            self.w.sx,
+      +            audience=Audience.UNIVERSITY,
+      +            deadline=D + timedelta(days=4),
+      +            published_at=moscow(NOW) - timedelta(hours=4),
+      +        )
+      +        plain = make_announcement(
+      +            self.w.sx, audience=Audience.UNIVERSITY, published_at=moscow(NOW) - timedelta(hours=5)
+      +        )
+      +        self.client.force_login(self.w.ax)
+      +        content = self.client.get(reverse("core:home")).content.decode()
+      +        before, news_part = content.split('id="home-news"', 1)
+      +        self.assertIn(f"#news-{plain.public_id}", news_part)
+      +        self.assertIn(f"#news-{d4.public_id}", news_part)
+      +        for d in (d1, d2, d3):
+      +            self.assertNotIn(f"#news-{d.public_id}", news_part)
+      +            self.assertIn(f"#deadline-{d.public_id}", before)
+      +
+      +    def test_news_without_deadlines_unchanged(self):
+      +        for i in range(4):
+      +            make_announcement(
+      +                self.w.sx,
+      +                audience=Audience.UNIVERSITY,
+      +                published_at=moscow(NOW) - timedelta(hours=i + 1),
+      +            )
+      +        self.client.force_login(self.w.ax)
+      +        content = self.client.get(reverse("core:home")).content.decode()
+      +        news_part = content.split('id="home-news"', 1)[1]
+      +        self.assertEqual(news_part.count("#news-"), 3)
+      +
+      +    def test_news_heading(self):
+      +        self.client.force_login(self.w.ax)
+      +        content = self.client.get(reverse("core:home")).content.decode()
+      +        self.assertIn('<h2 id="home-news">Новости</h2>', content)
+      +        self.assertNotIn("Новости деканата", content)
+      +
+    ── Thought for 425ms
+      Now add test_home_queries_same_with_deadlines to QueryCountTests (after test_home_queries_constant, at end of file).
+    ── Edited notifications/tests/test_views.py +13
+      --- a~/hackatonproject/notifications/tests/test_views.py
+      +++ b~/hackatonproject/notifications/tests/test_views.py
+      +
+      +    def test_home_queries_same_with_deadlines(self):
+      +        make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+      +        self.client.force_login(self.w.ax)
+      +        count_a = _query_count(lambda: self.client.get(reverse("core:home")))
+      +        for i in range(4):
+      +            make_announcement(
+      +                self.w.sx, audience=Audience.UNIVERSITY, deadline=D + timedelta(days=i + 1)
+      +            )
+      +        for _ in range(3):
+      +            make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+      +        count_b = _query_count(lambda: self.client.get(reverse("core:home")))
+      +        self.assertEqual(count_a, count_b)
+    ── Thought for 4s
+      Now add the AudienceLabelRenderTests class. I'll add it at the end of the file (after QueryCountTests). Let me read the end of the file to know the exact last lines.
+
+      Actually, the file now ends with test_home_queries_same_with_deadlines (which I just added). Let me add the new class after it.
+
+      The AudienceLabelRenderTests class:
+      ```python
+      class AudienceLabelRenderTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+
+          def test_feed_shows_faculty_name_only(self):
+              make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+              self.client.force_login(self.w.ax)
+              content = self.client.get(reverse("notifications:feed")).content.decode()
+              self.assertIn("Факультет FX", content)
+              self.assertNotIn("Факультет: ", content)
+
+          def test_staff_list_shows_faculty_name_only(self):
+              make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+              self.client.force_login(self.w.sx)
+              content = self.client.get(reverse("notifications:staff_announcements")).content.decode()
+              self.assertIn("Факультет FX", content)
+              self.assertNotIn("Факультет: ", content)
+      ```
+
+      Wait, the faculty name from `make_world()` is `make_faculty("FX")` → name "Факультет FX". So audience_label (after fix) = faculty.name = "Факультет FX".
+
+      Before fix: "Факультет: Факультет FX". The test asserts "Факультет FX" in content (which is a substring of "Факультет: Факультет FX", so `assertIn` passes!) and "Факультет: " NOT in content (fails because "Факультет: Факультет FX" contains "Факультет: ").
+
+      So the test fails before fix because `assertNotIn("Факультет: ", content)` fails. ✓
+
+      Let me add this class. Let me use the edit to append after the last test.
+
+      Actually, I'll match the end of test_home_queries_same_with_deadlines and append the class.
+    ── Edited notifications/tests/test_views.py +22
+      --- a~/hackatonproject/notifications/tests/test_views.py
+      +++ b~/hackatonproject/notifications/tests/test_views.py
+      +
+      +
+      +class AudienceLabelRenderTests(FrozenClockMixin, TestCase):
+      +    frozen_now = NOW
+      +
+      +    @classmethod
+      +    def setUpTestData(cls):
+      +        cls.w = make_world()
+      +
+      +    def test_feed_shows_faculty_name_only(self):
+      +        make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+      +        self.client.force_login(self.w.ax)
+      +        content = self.client.get(reverse("notifications:feed")).content.decode()
+      +        self.assertIn("Факультет FX", content)
+      +        self.assertNotIn("Факультет: ", content)
+      +
+      +    def test_staff_list_shows_faculty_name_only(self):
+      +        make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+      +        self.client.force_login(self.w.sx)
+      +        content = self.client.get(reverse("notifications:staff_announcements")).content.decode()
+      +        self.assertIn("Факультет FX", content)
+      +        self.assertNotIn("Факультет: ", content)
+    ── Thought for 955ms
+      Now update test_models.py (audience label expected value) and university/tests/test_models.py (teacher short name).
+
+      test_models.py line 76: `self.assertEqual(faculty.audience_label, "Факультет: Факультет FX")` → `self.assertEqual(faculty.audience_label, "Факультет FX")`.
+
+      university/tests/test_models.py test_teacher_short_name: change expected to NBSP forms.
+
+      Let me do these edits.
+    ── Edited notifications/tests/test_models.py +1 -1
+      --- a~/hackatonproject/notifications/tests/test_models.py
+      +++ b~/hackatonproject/notifications/tests/test_models.py
+      -        self.assertEqual(faculty.audience_label, "Факультет: Факультет FX")
+      +        self.assertEqual(faculty.audience_label, "Факультет FX")
+    ── Edited university/tests/test_models.py +2 -2
+      --- a~/hackatonproject/university/tests/test_models.py
+      +++ b~/hackatonproject/university/tests/test_models.py
+      -        self.assertEqual(with_middle.short_name, "Лебедев А. С.")
+      +        self.assertEqual(with_middle.short_name, "Лебедев\u00a0А.\u00a0С.")
+      -        self.assertEqual(without_middle.short_name, "Фомин П.")
+      +        self.assertEqual(without_middle.short_name, "Фомин\u00a0П.")
+    ── Thought for 1s
+      Now add the TeacherShortNameRenderTests class to schedule/tests/test_views.py.
+
+      I need to understand how schedule/tests/test_views.py sets up lessons and views. The test needs a student's group with a Wednesday lesson with a teacher, and GET schedule:week_of for 2026-11-11.
+
+      Let me look at how existing tests in schedule/tests/test_views.py set up lessons and views (to mimic the pattern).
+
+      Let me read more of schedule/tests/test_views.py.
+    ── Read file read
+      class ScheduleViewsTests(FrozenClockMixin, TestCase):
+          @classmethod
+          def setUpTestData(cls):
+              cls.faculty_x = make_faculty("FX")
+              cls.faculty_y = make_faculty("FY")
+              cls.group_x1 = make_group(cls.faculty_x, "GX1")
+              cls.group_x2 = make_group(cls.faculty_x, "GX2")
+              cls.group_y = make_group(cls.faculty_y, "GY")
+              cls.student_a = make_student("a", cls.group_x1, "REC-A")
+              cls.student_b = make_student("b", cls.group_y, "REC-B")
+              cls.staff_x = make_staff("sx", cls.faculty_x)
+              cls.staff_y = make_staff("sy", cls.faculty_y)
+              cls.room = make_room("room-101")
+              cls.teacher = make_teacher("Лебедев")
+              cls.d1 = make_discipline("GX1-дисциплина-1")
+              cls.d2 = make_discipline("GX1-дисциплина-2")
+              cls.d3 = make_discipline("GX1-дисциплина-3")
+              cls.d_gy = make_discipline("GY-дисциплина")
+              cls.d_shared = make_discipline("Общая дисциплина")
+              make_lesson([cls.group_x1], 0, 1, cls.room, discipline=cls.d1, teacher=cls.teacher)
+              make_lesson([cls.group_x1], 0, 2, cls.room, discipline=cls.d2, teacher=cls.teacher)
+              make_lesson([cls.group_x1], 0, 3, cls.room, discipline=cls.d3, teacher=cls.teacher)
+              make_lesson([cls.group_y], 0, 4, cls.room, discipline=cls.d_gy, teacher=cls.teacher)
+              make_lesson(
+                  [cls.group_x1, cls.group_y],
+                  1,
+                  1,
+                  cls.room,
+                  discipline=cls.d_shared,
+                  teacher=cls.teacher,
+              )
+              # A base change so both query-count measurements have a non-empty change list.
+              wed_lesson = make_lesson(
+                  [cls.group_x1],
+                  2,
+                  1,
+                  cls.room,
+                  discipline=make_discipline("Средовая дисциплина"),
+                  teacher=cls.teacher,
+              )
+              save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=wed_lesson,
+                      original_date=date(2026, 11, 18),
+                      kind=ChangeKind.CANCELLED,
+                      reason="Отмена",
+                  )
+              )
+
+          def test_anonymous_redirected(self):
+              urls = [
+                  "/schedule/",
+                  "/schedule/week/",
+                  "/schedule/week/2026-11-16/",
+                  "/staff/schedule/",
+                  f"/staff/schedule/{self.group_x1.pk}/",
+                  f"/staff/schedule/{self.group_x1.pk}/2026-11-16/",
+              ]
+              for url in urls:
+                  with self.subTest(url=url):
+                      response = self.client.get(url)
+                      self.assertEqual(response.status_code, 302)
+                      self.assertTrue(response["Location"].startswith("/login/?next="))
+
+          def test_student_urls_have_no_ids(self):
+              self.assertEqual(reverse("schedule:today"), "/schedule/")
+              self.assertEqual(reverse("schedule:week"), "/schedule/week/")
+
+          def test_today_in_progress_and_next(self):
+              self.client.force_login(self.student_a)
+              with mock.patch("django.utils.timezone.now", return_value=aware("2026-11-16 10:50")):
+                  response = self.client.get("/schedule/")
+              annotation = response.context["annotation"]
+              self.assertEqual(annotation.in_progress.slot.number, 2)
+              self.assertEqual(annotation.next_item.slot.number, 3)
+              content = response.content.decode()
+              self.assertIn("Сейчас", content)
+              self.assertIn("Следующая", content)
+
+          def test_today_empty_day(self):
+              self.client.force_login(self.student_a)
+              with mock.patch("django.utils.timezone.now", return_value=aware("2026-11-22 12:00")):
+                  response = self.client.get("/schedule/")
+              self.assertIn("Сегодня занятий нет.", response.content.decode())
+
+          def test_today_day_finished(self):
+              self.client.force_login(self.student_a)
+              with mock.patch("django.utils.timezone.now", return_value=aware("2026-11-16 22:00")):
+                  response = self.client.get("/schedule/")
+              self.assertIn("Занятия на сегодня закончились.", response.content.decode())
+
+          def test_week_shows_only_own_group(self):
+              self.client.force_login(self.student_a)
+              content = self.client.get("/schedule/week/").content.decode()
+              self.assertIn(self.d1.name, content)
+              self.assertIn(self.d2.name, content)
+              self.assertIn(self.d3.name, content)
+              self.assertIn(self.d_shared.name, content)
+              self.assertNotIn(self.d_gy.name, content)
+
+          def test_week_navigation(self):
+              self.client.force_login(self.student_a)
+              response = self.client.get("/schedule/week/2026-11-18/")
+              self.assertEqual(response.context["week"].start, date(2026, 11, 16))
+              content = response.content.decode()
+              self.assertIn("/schedule/week/2026-11-09/", content)
+              self.assertIn("/schedule/week/2026-11-23/", content)
+
+          def test_week_boundaries(self):
+              sunday_disc = make_discipline("Воскресная дисциплина")
+              make_lesson([self.group_x1], 6, 1, self.room, discipline=sunday_disc, teacher=self.teacher)
+              self.client.force_login(self.student_a)
+              response = self.client.get("/schedule/week/2026-11-16/")
+              week = response.context["week"]
+              self.assertEqual(week.start, date(2026, 11, 16))
+              self.assertEqual(week.end, date(2026, 11, 22))
+              self.assertEqual(week.days[-1].date, date(2026, 11, 22))
+              self.assertTrue(
+                  any(i.lesson.discipline.name == "Воскресная дисциплина" for i in week.days[6].items)
+              )
+    ── Thought for 9s
+      I understand the schedule test structure. Now let me write the TeacherShortNameRenderTests class. It should:
+      - Use FrozenClockMixin with frozen_now = "2026-11-11 12:00".
+      - Create a faculty, group, student, a Wednesday (weekday=2) lesson with a specific teacher (last_name="Шестакова", first_name="Людмила", middle_name="Петровна").
+      - GET schedule:week_of for 2026-11-11.
+      - Assert content contains "Шестакова\u00a0Л.\u00a0П." and does not contain "Шестакова Л.".
+
+      Note: the teacher in the lesson is rendered in the lesson_item template via `teacher.short_name` (per feasibility check: `schedule/templates/schedule/includes/lesson_item.html:9`).
+
+      Let me check how the teacher is rendered. The lesson_item.html uses `lesson.teacher.short_name` presumably. The test asserts the NBSP form appears.
+
+      Let me look at how make_teacher works: `make_teacher(last_name)` → `Teacher.objects.create(last_name=last_name, first_name="Иван")`. But I need a specific teacher with first_name="Людмила" and middle_name="Петровна". So I'll create the Teacher directly:
+
+      ```python
+      teacher = Teacher.objects.create(last_name="Шестакова", first_name="Людмила", middle_name="Петровна")
+      ```
+
+      But wait, `Teacher` unique constraint is (last_name, first_name, middle_name). So I can create it directly.
+
+      Then `make_lesson([group], 2, 1, room, discipline=..., teacher=teacher)` with weekday=2 (Wednesday), slot=1, and the lesson's valid_from/valid_until default (2026-09-01 to 2026-12-31).
+
+      Then GET `/schedule/week/2026-11-11/` (or `reverse("schedule:week_of", kwargs={"day": date(2026,11,11)})`).
+
+      The lesson is on Wednesday (weekday 2), and 2026-11-11 is a Wednesday. So the lesson appears on 2026-11-11's day.
+
+      The template renders the teacher's short_name. So the content should contain "Шестакова\u00a0Л.\u00a0П." (NBSP).
+
+      Let me verify: `Teacher.short_name` with last_name="Шестакова", first_name="Людмила", middle_name="Петровна":
+      - middle = "\u00a0П." (NBSP + П.)
+      - return "Шестакова\u00a0Л.\u00a0П."
+
+      After fix. Before fix: "Шестакова Л. П." (plain spaces).
+
+      So the test asserts:
+      - content contains "Шестакова\u00a0Л.\u00a0П." (fails before fix).
+      - content does NOT contain "Шестакова Л." (passes before fix, because "Шестакова Л. П." has "Шестакова Л." as a prefix... wait).
+
+      Hmm, actually "Шестакова Л. П." (plain space) contains "Шестакова Л." as a substring. So `assertNotIn("Шестакова Л.", content)` would FAIL before fix (because "Шестакова Л. П." contains "Шестакова Л.").
+
+      Wait, let me check the spec 5.3: `content contains "Шестакова Л. П." and does not contain "Шестакова Л."`.
+
+      Hmm, wait — but after fix, "Шестакова\u00a0Л.\u00a0П." does NOT contain "Шестакова Л." (because between Шестакова and Л there's a NBSP, not a space). So `assertNotIn("Шестакова Л.", content)` passes after fix.
+
+      Before fix: "Шестакова Л. П." contains "Шестакова Л." → assertNotIn fails.
+
+      So:
+      - `assertIn("Шестакова\u00a0Л.\u00a0П.", content)` — fails before fix (plain space, not NBSP).
+      - `assertNotIn("Шестакова Л.", content)` — fails before fix (contains plain space prefix).
+
+      Both assertions fail before fix. Good.
+
+      Now, there's a subtlety: how does the template escape NBSP? Per feasibility check 6, Django autoescape leaves U+00A0 as raw character. So the content will have the raw NBSP.
+
+      Let me write the class. I'll add it at the end of schedule/tests/test_views.py.
+
+      Let me check what `reverse("schedule:week_of", ...)` needs. From schedule/urls.py: `path("schedule/week/<isodate:day>/", ...)`. And the test uses `/schedule/week/2026-11-18/` directly. I'll use reverse with day=date(2026, 11, 11).
+
+      Also, I need to import `Teacher` from university.models in the test file. Let me check current imports — schedule/tests/test_views.py imports `from schedule.models import ChangeKind, LessonChange`. It doesn't import Teacher. I'll need to add `from university.models import Teacher`.
+
+      Actually, let me check if there's a simpler way. The `make_teacher` helper creates with first_name="Иван" only (no middle name). For the NBSP test with middle name, I need a teacher WITH middle name. So I'll create Teacher directly.
+
+      Let me write the class and add the import.
+
+      Let me add the import first, then the class.
+
+      Actually, let me check the end of schedule/tests/test_views.py to know where to append.
+    ── Read file read
+      original_date=date(2026, 11, 19),
+                      kind=ChangeKind.TEACHER_REPLACED,
+                      new_teacher=cls.teacher2,
+                      reason="Болезнь",
+                  )
+              )
+
+          def test_student_week_has_no_back_link(self):
+              self.client.force_login(self.student)
+              content = self.client.get("/schedule/week/2026-11-16/").content.decode()
+              self.assertNotIn("К списку групп", content)
+
+          def test_staff_week_back_link_url(self):
+              staff = make_staff("sfu", self.faculty)
+              self.client.force_login(staff)
+              content = self.client.get(f"/staff/schedule/{self.group.pk}/2026-11-16/").content.decode()
+              self.assertIn('href="/staff/schedule/"', content)
+              self.assertIn("К списку групп", content)
+
+          def test_change_label_no_space_before_period(self):
+              self.client.force_login(self.student)
+              content = self.client.get("/schedule/week/2026-11-16/").content.decode()
+              self.assertIn("Отменено. Причина:", content)
+              self.assertIn("Замена аудитории. Причина:", content)
+              self.assertIn("Замена преподавателя. Причина:", content)
+              self.assertIn("). Причина:", content)  # moved-out
+              self.assertIn("пара. Причина:", content)  # moved-in
+              self.assertNotIn(" . Причина", content)
+    ── Thought for 6s
+      Now I understand. The schedule test file has `make_teacher` imported from `.helpers`. Let me check if there's a `teacher2` or how teachers with middle names are handled.
+
+      Actually, the `make_teacher(last_name)` creates `Teacher(last_name=..., first_name="Иван")` (no middle name). For the NBSP test, I need a teacher WITH middle name. So I'll create Teacher directly via `Teacher.objects.create(...)`.
+
+      Let me add the import for Teacher and the new class at the end of the file.
+
+      Let me add the import line. Current imports include:
+      ```python
+      from schedule.converters import IsoDateConverter
+      from schedule.models import ChangeKind, LessonChange
+      from schedule.mutations import save_lesson_change
+      ```
+
+      I need to add `from university.models import Teacher`.
+
+      Let me do that and append the class.
+
+      Actually, let me also check the schedule test file's frozen_now usage. The ScheduleViewsTests uses default FrozenClockMixin (2026-11-18 12:00). But my new class needs frozen_now = "2026-11-11 12:00" (spec).
+
+      Let me write the class:
+
+      ```python
+      class TeacherShortNameRenderTests(FrozenClockMixin, TestCase):
+          frozen_now = "2026-11-11 12:00"
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.faculty = make_faculty("FX")
+              cls.group = make_group(cls.faculty, "GX1")
+              cls.student = make_student("a", cls.group, "REC-A")
+              cls.room = make_room("room-101")
+              cls.teacher = Teacher.objects.create(
+                  last_name="Шестакова", first_name="Людмила", middle_name="Петровна"
+              )
+              make_lesson(
+                  [cls.group], 2, 1, cls.room, discipline=make_discipline("Дисциплина"), teacher=cls.teacher
+              )
+
+          def test_week_page_has_no_break_spaces(self):
+              self.client.force_login(self.student)
+              content = self.client.get(reverse("schedule:week_of", kwargs={"day": date(2026, 11, 11)})
+                  ).content.decode()
+              self.assertIn("Шестакова\u00a0Л.\u00a0П.", content)
+              self.assertNotIn("Шестакова Л.", content)
+      ```
+
+      Wait, the lesson is weekday=2 (Wednesday), and 2026-11-11 is Wednesday. The lesson has valid_from=2026-09-01, valid_until=2026-12-31 (defaults). So it appears on 2026-11-11.
+
+      But I need to make sure the student sees this lesson on the week page. The week_of for 2026-11-11 shows the week starting Monday 2026-11-09. The Wednesday (11-11) has the lesson. Good.
+
+      Now, `make_lesson([cls.group], 2, 1, cls.room, discipline=..., teacher=cls.teacher)`. The `make_lesson` signature: `make_lesson(groups, weekday, slot, room, *, discipline=None, teacher=None, lesson_type=..., valid_from=..., valid_until=...)`.
+
+      So `make_lesson([cls.group], 2, 1, cls.room, discipline=make_discipline("Дисциплина"), teacher=cls.teacher)`.
+
+      Now let me write the edits.
+
+      For the import, add `from university.models import Teacher` after the schedule imports.
+
+      Let me do the edits.
+    ── Edited schedule/tests/test_views.py +1
+      --- a~/hackatonproject/schedule/tests/test_views.py
+      +++ b~/hackatonproject/schedule/tests/test_views.py
+      +from university.models import Teacher
+    ── Edited schedule/tests/test_views.py +30
+      --- a~/hackatonproject/schedule/tests/test_views.py
+      +++ b~/hackatonproject/schedule/tests/test_views.py
+      +
+      +
+      +class TeacherShortNameRenderTests(FrozenClockMixin, TestCase):
+      +    frozen_now = "2026-11-11 12:00"
+      +
+      +    @classmethod
+      +    def setUpTestData(cls):
+      +        cls.faculty = make_faculty("FX")
+      +        cls.group = make_group(cls.faculty, "GX1")
+      +        cls.student = make_student("a", cls.group, "REC-A")
+      +        cls.room = make_room("room-101")
+      +        cls.teacher = Teacher.objects.create(
+      +            last_name="Шестакова", first_name="Людмила", middle_name="Петровна"
+      +        )
+      +        make_lesson(
+      +            [cls.group],
+      +            2,
+      +            1,
+      +            cls.room,
+      +            discipline=make_discipline("Дисциплина"),
+      +            teacher=cls.teacher,
+      +        )
+      +
+      +    def test_week_page_has_no_break_spaces(self):
+      +        self.client.force_login(self.student)
+      +        content = self.client.get(
+      +            reverse("schedule:week_of", kwargs={"day": date(2026, 11, 11)})
+      +        ).content.decode()
+      +        self.assertIn("Шестакова\u00a0Л.\u00a0П.", content)
+      +        self.assertNotIn("Шестакова Л.", content)
+    ── Thought for 16s
+      Now add the ServiceClockTests class to petitions/tests/test_services.py.
+
+      I need:
+      - import `core.clock` (for `test_model_defaults_are_clock_now`)
+      - import `moscow` from core.testing
+      - import `PetitionComment`, `PetitionStatusChange` from petitions.models (currently imports `MAX_COMMENT_LENGTH, Petition, PetitionAttachment`)
+
+      Let me check the current imports in test_services.py:
+      ```python
+      from core.testing import FrozenClockMixin
+      from petitions.models import MAX_COMMENT_LENGTH, Petition, PetitionAttachment
+      ```
+
+      I need to add:
+      - `from core import clock`
+      - `from core.testing import FrozenClockMixin, moscow`
+      - `PetitionComment, PetitionStatusChange` to the petitions.models import.
+
+      Let me write the ServiceClockTests class:
+
+      ```python
+      class ServiceClockTests(FrozenClockMixin, TestCase):
+          frozen_now = "2026-11-11 12:00"
+
+          def setUp(self):
+              self.faculty = make_faculty("FDD")
+              self.group = make_group(self.faculty, "ЦД-101")
+              self.student = make_student("s1", self.group, "ST-0001").student_profile
+              self.type = make_type(days=3)
+              self.staff = make_staff("st1", self.faculty)
+              self.now = moscow("2026-11-11 12:00")
+
+          def test_submit_gets_frozen_time(self):
+              petition = submit_petition(self.student, self.type, "", [])
+              self.assertEqual(petition.created_at, self.now)
+              self.assertEqual(petition.status_changed_at, self.now)
+              self.assertEqual(petition.history.get().created_at, self.now)
+
+          def test_attachment_gets_frozen_time(self):
+              petition = submit_petition(self.student, self.type, "", [pdf_upload()])
+              self.assertEqual(petition.attachments.get().uploaded_at, self.now)
+
+          def test_status_change_gets_frozen_time(self):
+              petition = submit_petition(self.student, self.type, "", [])
+              change_status(petition, self.staff, "submitted", "in_progress")
+              petition.refresh_from_db()
+              self.assertEqual(petition.status_changed_at, self.now)
+              self.assertEqual(petition.history.last().created_at, self.now)
+
+          def test_staff_comment_gets_frozen_time(self):
+              petition = submit_petition(self.student, self.type, "", [])
+              comment = add_staff_comment(petition, self.staff, "Комментарий")
+              self.assertEqual(comment.created_at, self.now)
+
+          def test_model_defaults_are_clock_now(self):
+              from petitions.models import PetitionComment, PetitionStatusChange
+              cases = {
+                  (Petition, "created_at"): ...,
+                  (Petition, "status_changed_at"): ...,
+                  (PetitionStatusChange, "created_at"): ...,
+                  (PetitionComment, "created_at"): ...,
+                  (PetitionAttachment, "uploaded_at"): ...,
+              }
+              for model, field in cases:
+                  self.assertIs(model._meta.get_field(field).default, clock.now)
+      ```
+
+      Wait, `clock.now` is `core.clock.now`. And `model._meta.get_field(field).default` should be `core.clock.now` (the function object). `assertIs(..., clock.now)` checks identity.
+
+      Let me write it more cleanly:
+
+      ```python
+          def test_model_defaults_are_clock_now(self):
+              from petitions.models import PetitionComment, PetitionStatusChange
+              cases = [
+                  (Petition, "created_at"),
+                  (Petition, "status_changed_at"),
+                  (PetitionStatusChange, "created_at"),
+                  (PetitionComment, "created_at"),
+                  (PetitionAttachment, "uploaded_at"),
+              ]
+              for model, field in cases:
+                  with self.subTest(model=model.__name__, field=field):
+                      self.assertIs(model._meta.get_field(field).default, clock.now)
+      ```
+
+      Now, for `test_status_change_gets_frozen_time`, the `change_status` uses `expected_status`. After submit, petition.status = "submitted". change_status(petition, staff, "submitted", "in_progress") → valid transition (submitted → in_progress).
+
+      But wait — the staff needs to be in the same faculty as the student. The student is in ЦД-101 (FDD faculty). The staff is make_staff("st1", FDD). So `change_status` checks `locked.student.group.program.faculty_id == staff.faculty_id`. student's group is ЦД-101 with program faculty FDD. staff faculty FDD. Match. Good.
+
+      For `test_staff_comment_gets_frozen_time`, `add_staff_comment(petition, self.staff, "Комментарий")`. Same faculty check. Good.
+
+      Now, there's a subtlety with `test_submit_gets_frozen_time`: `expected_ready_date = add_working_days(timezone.localdate(), ...)`. The spec says submit_petition should use `clock.now()` and `add_working_days(timezone.localdate(now), ...)`. But my test only checks created_at, status_changed_at, history.created_at == now. Not expected_ready_date. So it's fine.
+
+      Actually wait, let me reconsider the submit_petition fix. The spec 4.5 says:
+      - `submit_petition`: `now = clock.now()` (instead of `timezone.now()`); `expected_ready_date=add_working_days(timezone.localdate(now), …)`.
+
+      So the `localdate` should use `now` (clock.now()) instead of `timezone.localdate()`. Let me look at the current code:
+
+      ```python
+      now = timezone.now()
+      petition = Petition.objects.create(
+          ...
+          created_at=now,
+          status_changed_at=now,
+          expected_ready_date=add_working_days(timezone.localdate(), request_type.processing_days),
+      )
+      ```
+
+      So currently `expected_ready_date=add_working_days(timezone.localdate(), ...)`. The fix changes to `add_working_days(timezone.localdate(now), ...)`.
+
+      Actually, `timezone.localdate()` (no arg) uses the current time (timezone.now()), and `timezone.localdate(now)` uses the given `now`. Both give the same Moscow date if now = clock.now() (which is timezone.now()). But the spec explicitly wants `timezone.localdate(now)` to be consistent with the frozen clock in tests.
+
+      Hmm, actually `timezone.localdate()` internally calls `timezone.now()` which is patched in FrozenClockMixin. So `timezone.localdate()` would already give the frozen date. But the spec wants `timezone.localdate(now)` where `now = clock.now()`.
+
+      Wait, but there's a subtlety with D5. `clock.now()` looks up `timezone.now` at call time. `timezone.localdate()` also looks up `timezone.now` at call time. So both are frozen. But the spec wants consistency: `now = clock.now()`, then `localdate(now)`.
+
+      Actually the reason: `timezone.localdate()` uses `timezone.now()` internally, but if we already have `now = clock.now()`, we should use `localdate(now)` to be consistent (same instant). This matters if there's a tiny time difference, but in tests with frozen clock, they're identical.
+
+      Let me just follow the spec exactly: `now = clock.now()`, `localdate(now)`.
+
+      Now, for my test `test_submit_gets_frozen_time`, I only check created_at, status_changed_at, history.created_at. These are all `now = clock.now()` = frozen = moscow("2026-11-11 12:00"). Good.
+
+      But wait — before the fix, `submit_petition` uses `now = timezone.now()`. With FrozenClockMixin, `timezone.now()` IS patched to return moscow("2026-11-11 12:00"). So `now = timezone.now()` = frozen. So `test_submit_gets_frozen_time` would PASS even before the fix (because timezone.now() is already frozen).
+
+      This is why the spec marks `test_submit_gets_frozen_time` as "(guards; timezone.now() call was already patched)". So it's a guard, not a regression test. It passes before AND after.
+
+      Similarly `test_status_change_gets_frozen_time` — change_status already uses `now = timezone.now()` (frozen). So it passes before. Guard.
+
+      The regression tests (fails before) are:
+      - `test_staff_comment_gets_frozen_time`: before fix, add_staff_comment creates WITHOUT created_at → uses default=timezone.now (UNFROZEN). So created_at = real time ≠ frozen. Fails. ✓
+      - `test_attachment_gets_frozen_time`: before fix, PetitionAttachment.uploaded_at default=timezone.now (UNFROZEN). store_attachment creates without uploaded_at → real time. Fails. ✓
+      - `test_model_defaults_are_clock_now`: before fix, defaults are timezone.now (not clock.now). So `assertIs(default, clock.now)` fails. ✓
+
+      Good.
+
+      Now, let me also note: for `test_submit_gets_frozen_time`, the `PetitionStatusChange` history row's created_at is set by `submit_petition` as `created_at=now` (explicit). So it's frozen. Passes before (guard).
+
+      Now let me write the class and imports.
+
+      Let me add imports:
+      - `from core import clock` 
+      - `from core.testing import FrozenClockMixin, moscow`
+      - `PetitionComment, PetitionStatusChange` to petitions.models import.
+
+      Let me check current import line:
+      ```python
+      from core.testing import FrozenClockMixin
+      ```
+      → `from core.testing import FrozenClockMixin, moscow`
+
+      ```python
+      from petitions.models import MAX_COMMENT_LENGTH, Petition, PetitionAttachment
+      ```
+      → add PetitionComment, PetitionStatusChange.
+
+      And add `from core import clock`.
+
+      Let me write these edits, then append the ServiceClockTests class.
+
+      Let me read the end of test_services.py to know where to append.
+    ── Read file read
+      class CommentTests(FrozenClockMixin, TestCase):
+          def setUp(self):
+              self.fac_x = make_faculty("FX")
+              self.fac_y = make_faculty("FY")
+              self.group_x = make_group(self.fac_x, "GX")
+              self.group_y = make_group(self.fac_y, "GY")
+              self.student_a = make_student("a", self.group_x, "SA").student_profile
+              self.staff_x = make_staff("sx", self.fac_x)
+              self.staff_x2 = make_staff("sx2", self.fac_x)
+              self.staff_y = make_staff("sy", self.fac_y)
+              self.type = make_type()
+              self.petition = make_petition(self.student_a, self.type)
+
+          def test_append_at_every_status(self):
+              for status in ["submitted", "in_progress", "ready", "issued", "rejected"]:
+                  p = make_petition(self.student_a, self.type)
+                  _drive_to(p, self.staff_x, status)
+                  add_staff_comment(p, self.staff_x, "комментарий")
+                  self.assertEqual(p.staff_comments.count(), 1)
+
+          def test_two_staff_both_add(self):
+              c1 = add_staff_comment(self.petition, self.staff_x, "первый")
+              add_staff_comment(self.petition, self.staff_x2, "второй")
+              self.assertEqual(self.petition.staff_comments.count(), 2)
+              c1.refresh_from_db()
+              self.assertEqual(c1.text, "первый")
+              self.assertEqual(c1.author, self.staff_x)
+
+          def test_empty_rejected(self):
+              with self.assertRaises(ValidationError):
+                  add_staff_comment(self.petition, self.staff_x, "   ")
+
+          def test_student_cannot(self):
+              with self.assertRaises(PermissionDenied):
+                  add_staff_comment(self.petition, self.student_a.user, "x")
+
+          def test_other_faculty_staff_cannot(self):
+              with self.assertRaises(PermissionDenied):
+                  add_staff_comment(self.petition, self.staff_y, "x")
+
+          def test_comment_after_concurrent_transition(self):
+              change_status(self.petition, self.staff_x, "submitted", "in_progress")
+              comment = add_staff_comment(self.petition, self.staff_x, "заметка")
+              self.assertEqual(comment.text, "заметка")
+    ── Edited petitions/tests/test_services.py +9 -2
+      --- a~/hackatonproject/petitions/tests/test_services.py
+      +++ b~/hackatonproject/petitions/tests/test_services.py
+      +from core import clock
+      -from core.testing import FrozenClockMixin
+      +from core.testing import FrozenClockMixin, moscow
+      -from petitions.models import MAX_COMMENT_LENGTH, Petition, PetitionAttachment
+      +from petitions.models import (
+      +    MAX_COMMENT_LENGTH,
+      +    Petition,
+      +    PetitionAttachment,
+      +    PetitionComment,
+      +    PetitionStatusChange,
+      +)
+    ── Edited petitions/tests/test_services.py +46
+      --- a~/hackatonproject/petitions/tests/test_services.py
+      +++ b~/hackatonproject/petitions/tests/test_services.py
+      +
+      +
+      +class ServiceClockTests(FrozenClockMixin, TestCase):
+      +    frozen_now = "2026-11-11 12:00"
+      +
+      +    def setUp(self):
+      +        self.faculty = make_faculty("FDD")
+      +        self.group = make_group(self.faculty, "ЦД-101")
+      +        self.student = make_student("s1", self.group, "ST-0001").student_profile
+      +        self.type = make_type(days=3)
+      +        self.staff = make_staff("st1", self.faculty)
+      +        self.now = moscow("2026-11-11 12:00")
+      +
+      +    def test_submit_gets_frozen_time(self):
+      +        petition = submit_petition(self.student, self.type, "", [])
+      +        self.assertEqual(petition.created_at, self.now)
+      +        self.assertEqual(petition.status_changed_at, self.now)
+      +        self.assertEqual(petition.history.get().created_at, self.now)
+      +
+      +    def test_attachment_gets_frozen_time(self):
+      +        petition = submit_petition(self.student, self.type, "", [pdf_upload()])
+      +        self.assertEqual(petition.attachments.get().uploaded_at, self.now)
+      +
+      +    def test_status_change_gets_frozen_time(self):
+      +        petition = submit_petition(self.student, self.type, "", [])
+      +        change_status(petition, self.staff, "submitted", "in_progress")
+      +        petition.refresh_from_db()
+      +        self.assertEqual(petition.status_changed_at, self.now)
+      +        self.assertEqual(petition.history.last().created_at, self.now)
+      +
+      +    def test_staff_comment_gets_frozen_time(self):
+      +        petition = submit_petition(self.student, self.type, "", [])
+      +        comment = add_staff_comment(petition, self.staff, "Комментарий")
+      +        self.assertEqual(comment.created_at, self.now)
+      +
+      +    def test_model_defaults_are_clock_now(self):
+      +        cases = [
+      +            (Petition, "created_at"),
+      +            (Petition, "status_changed_at"),
+      +            (PetitionStatusChange, "created_at"),
+      +            (PetitionComment, "created_at"),
+      +            (PetitionAttachment, "uploaded_at"),
+      +        ]
+      +        for model, field in cases:
+      +            with self.subTest(model=model.__name__, field=field):
+      +                self.assertIs(model._meta.get_field(field).default, clock.now)
+    ── Thought for 1s
+      Now let me run the tests to confirm the "fails before fix" tests actually fail. Let me run the specific test classes.
+
+      Let me run:
+      - notifications.tests.test_views (HomeSummaryTests, AnnouncementFormTests.test_faculty_option_label, AudienceLabelRenderTests, QueryCountTests.test_home_queries_same_with_deadlines)
+      - notifications.tests.test_models
+      - university.tests.test_models
+      - schedule.tests.test_views.TeacherShortNameRenderTests
+      - petitions.tests.test_services.ServiceClockTests
+
+      Let me run them all and see which fail.
+
+      Actually, let me run the full set of relevant test modules to see the failures.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test notifications.tests.test_views notifications.tests.test_models university.tests.test_models schedule.tests.test_views.TeacherShortNameRenderTests petitions.tests.test_services.ServiceClockTests 2>&1 | tee "$TMPDIR/test-$TS-regression-before.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -30 (5s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test notifications.tests.test_views notifications.tests.test_models university.tests.test_models schedule.tests.test_views.TeacherShortNameRenderTests petitions.tests.test_services.ServiceClockTests 2>&1 | tee "$TMPDIR/test-$TS-regression-before.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -30
+      FAIL: test_faculty_option_label (notifications.tests.test_views.AnnouncementFormTests.test_faculty_option_label)
+      FAIL: test_feed_shows_faculty_name_only (notifications.tests.test_views.AudienceLabelRenderTests.test_feed_shows_faculty_name_only)
+      FAIL: test_staff_list_shows_faculty_name_only (notifications.tests.test_views.AudienceLabelRenderTests.test_staff_list_shows_faculty_name_only)
+      FAIL: test_news_exclude_shown_deadlines (notifications.tests.test_views.HomeSummaryTests.test_news_exclude_shown_deadlines)
+      FAIL: test_news_heading (notifications.tests.test_views.HomeSummaryTests.test_news_heading)
+      FAIL: test_str_and_audience_label (notifications.tests.test_models.AnnouncementModelTests.test_str_and_audience_label)
+      FAIL: test_teacher_short_name (university.tests.test_models.UniversityModelTests.test_teacher_short_name)
+      FAIL: test_week_page_has_no_break_spaces (schedule.tests.test_views.TeacherShortNameRenderTests.test_week_page_has_no_break_spaces)
+      FAIL: test_attachment_gets_frozen_time (petitions.tests.test_services.ServiceClockTests.test_attachment_gets_frozen_time)
+      FAIL: test_model_defaults_are_clock_now (petitions.tests.test_services.ServiceClockTests.test_model_defaults_are_clock_now) (model='Petition', field='created_at')
+      FAIL: test_model_defaults_are_clock_now (petitions.tests.test_services.ServiceClockTests.test_model_defaults_are_clock_now) (model='Petition', field='status_changed_at')
+      FAIL: test_model_defaults_are_clock_now (petitions.tests.test_services.ServiceClockTests.test_model_defaults_are_clock_now) (model='PetitionStatusChange', field='created_at')
+      FAIL: test_model_defaults_are_clock_now (petitions.tests.test_services.ServiceClockTests.test_model_defaults_are_clock_now) (model='PetitionComment', field='created_at')
+      FAIL: test_model_defaults_are_clock_now (petitions.tests.test_services.ServiceClockTests.test_model_defaults_are_clock_now) (model='PetitionAttachment', field='uploaded_at')
+      FAIL: test_staff_comment_gets_frozen_time (petitions.tests.test_services.ServiceClockTests.test_staff_comment_gets_frozen_time)
+      Ran 89 tests in 3.339s
+      FAILED (failures=15)
+    ── Thought for 5s
+      The regression tests fail as expected. Let me verify the exact set of failures matches the spec's "fails before fix" list:
+
+      Expected to fail (from 5.2):
+      1. test_news_exclude_shown_deadlines ✓ (FAIL)
+      2. test_news_heading ✓ (FAIL)
+      3. test_faculty_option_label ✓ (FAIL)
+      4. test_feed_shows_faculty_name_only ✓ (FAIL)
+      5. test_staff_list_shows_faculty_name_only ✓ (FAIL)
+      6. test_str_and_audience_label ✓ (FAIL)
+      7. test_teacher_short_name ✓ (FAIL)
+      8. test_week_page_has_no_break_spaces ✓ (FAIL)
+      9. test_staff_comment_gets_frozen_time ✓ (FAIL)
+      10. test_attachment_gets_frozen_time ✓ (FAIL)
+      11. test_model_defaults_are_clock_now ✓ (FAIL, 5 subTest failures)
+
+      Guards (should pass):
+      - test_news_without_deadlines_unchanged (passed, not in FAIL list)
+      - test_home_queries_same_with_deadlines (passed)
+      - test_submit_gets_frozen_time (passed)
+      - test_status_change_gets_frozen_time (passed)
+
+      All 15 failures match the expected regression evidence. 
+
+      Now let me apply the fixes (4.1-4.6).
+
+      ### Fix 4.1 — home news + heading
+
+      `notifications/feed.py::home_summary`:
+      ```python
+      def home_summary(user):
+          ctx = student_context(user)
+          if ctx is None:
+              return None
+          deadlines = upcoming_deadlines(ctx, HOME_ITEMS)
+          shown = {f"news-{d.public_id}" for d in deadlines}
+          candidates = NewsSource().latest(ctx, HOME_ITEMS + len(shown))
+          news = [item for item in candidates if item.key not in shown][:HOME_ITEMS]
+          return HomeSummary(deadlines=deadlines, news=news)
+      ```
+
+      `core/home.html`: heading change.
+
+      ### Fix 4.2 — form label
+
+      `notifications/forms.py`: remove faculty kwarg + label "Весь факультет".
+      `notifications/views.py`: remove `faculty=self.profile.faculty` from `_form`.
+
+      ### Fix 4.3 — audience_label faculty branch
+
+      `notifications/models.py`: `return self.faculty.name`.
+
+      ### Fix 4.4 — Teacher.short_name NBSP
+
+      `university/models.py`: add NBSP constant + change short_name.
+
+      ### Fix 4.5 — petition timestamps
+
+      `petitions/models.py`: `from core.clock import now`, 5 defaults → `default=now`, remove timezone import if unused.
+      `makemigrations petitions` → 0002.
+      `petitions/services.py`: `from core import clock`, submit_petition now = clock.now(), change_status now = clock.now(), add_staff_comment created_at=clock.now().
+
+      ### Fix 4.6 — import
+
+      `notifications/feed.py`: move `from .dates import relative_day_label` to module level.
+
+      Let me apply all fixes now.
+
+      Let me start with the source code fixes (not the test files, which I've already written the tests for but still need to remove faculty from 8 test calls).
+
+      First, fix 4.1 (feed.py home_summary + home.html heading).
+    ── Edited notifications/feed.py +5 -4
+      --- a~/hackatonproject/notifications/feed.py
+      +++ b~/hackatonproject/notifications/feed.py
+      -    return HomeSummary(
+      -        deadlines=upcoming_deadlines(ctx, HOME_ITEMS),
+      -        news=NewsSource().latest(ctx, HOME_ITEMS),
+      -    )
+      +    deadlines = upcoming_deadlines(ctx, HOME_ITEMS)
+      +    shown = {f"news-{d.public_id}" for d in deadlines}
+      +    candidates = NewsSource().latest(ctx, HOME_ITEMS + len(shown))
+      +    news = [item for item in candidates if item.key not in shown][:HOME_ITEMS]
+      +    return HomeSummary(deadlines=deadlines, news=news)
+    ── Edited core/templates/core/home.html +1 -1
+      --- a~/hackatonproject/core/templates/core/home.html
+      +++ b~/hackatonproject/core/templates/core/home.html
+      -      <h2 id="home-news">Новости деканата</h2>
+      +      <h2 id="home-news">Новости</h2>
+    ── Thought for 1s
+      Now fix 4.6 (import) — move `from .dates import relative_day_label` to module level in feed.py.
+
+      Current feed.py imports (lines 12-15):
+      ```python
+      from .constants import FEED_MAX_ITEMS, FEED_WINDOW_DAYS, HOME_ITEMS
+      from .models import NotificationState
+      from .selectors import announcements_for_student
+      from .sources import FeedContext, FeedItem, NewsSource, get_feed_sources
+      ```
+
+      I need to add `from .dates import relative_day_label` between `.constants` and `.models` (isort order).
+
+      And remove the function-local `from .dates import relative_day_label` in `upcoming_deadlines`.
+
+      Let me do both edits.
+    ── Edited notifications/feed.py +1
+      --- a~/hackatonproject/notifications/feed.py
+      +++ b~/hackatonproject/notifications/feed.py
+      +from .dates import relative_day_label
+    ── Edited notifications/feed.py -2
+      --- a~/hackatonproject/notifications/feed.py
+      +++ b~/hackatonproject/notifications/feed.py
+      -    from .dates import relative_day_label
+      -
+    ── Thought for 2s
+      Now fix 4.2 — form label + remove faculty kwarg from forms.py and views.py.
+
+      forms.py: remove `faculty: Faculty` kwarg, change label to "Весь факультет", remove Faculty import (it's now unused).
+
+      Current forms.py imports:
+      ```python
+      from university.models import Faculty, StudyGroup
+      ```
+      Faculty becomes unused (StudyGroup still used in type hints). So change to `from university.models import StudyGroup`.
+
+      Current __init__:
+      ```python
+      def __init__(self, *args, faculty: Faculty, groups: Sequence[StudyGroup], today: date, **kwargs):
+          super().__init__(*args, **kwargs)
+          self.today = today
+          self._groups = {f"{TARGET_GROUP_PREFIX}{g.pk}": g for g in groups}
+          self.fields["target"].choices = [(TARGET_FACULTY, f"Весь факультет: {faculty.name}")] + [...]
+      ```
+
+      Change to:
+      ```python
+      def __init__(self, *args, groups: Sequence[StudyGroup], today: date, **kwargs):
+          super().__init__(*args, **kwargs)
+          self.today = today
+          self._groups = {f"{TARGET_GROUP_PREFIX}{g.pk}": g for g in groups}
+          self.fields["target"].choices = [(TARGET_FACULTY, "Весь факультет")] + [...]
+      ```
+
+      views.py: `_form` remove `faculty=self.profile.faculty`.
+
+      Let me do these edits.
+    ── Edited notifications/forms.py +1 -1
+      --- a~/hackatonproject/notifications/forms.py
+      +++ b~/hackatonproject/notifications/forms.py
+      -from university.models import Faculty, StudyGroup
+      +from university.models import StudyGroup
+    ── Edited notifications/forms.py +1 -2
+      --- a~/hackatonproject/notifications/forms.py
+      +++ b~/hackatonproject/notifications/forms.py
+      -        faculty: Faculty,
+      -        self.fields["target"].choices = [(TARGET_FACULTY, f"Весь факультет: {faculty.name}")] + [
+      +        self.fields["target"].choices = [(TARGET_FACULTY, "Весь факультет")] + [
+    ── Read file read
+      def _form(self, data=None):
+              return AnnouncementForm(
+                  data,
+                  faculty=self.profile.faculty,
+                  groups=list(groups_visible_to(self.request.user).order_by("name")),
+                  today=timezone.localdate(),
+              )
+
+          def _render(self, form):
+              announcements = (
+                  announcements_managed_by(self.request.user)
+    ── Edited notifications/views.py -1
+      --- a~/hackatonproject/notifications/views.py
+      +++ b~/hackatonproject/notifications/views.py
+      -            faculty=self.profile.faculty,
+    ── Thought for 550ms
+      Now fix 4.3 — audience_label faculty branch.
+
+      `notifications/models.py` line 108: `return f"Факультет: {self.faculty.name}"` → `return self.faculty.name`.
+    ── Edited notifications/models.py +1 -1
+      --- a~/hackatonproject/notifications/models.py
+      +++ b~/hackatonproject/notifications/models.py
+      -            return f"Факультет: {self.faculty.name}"
+      +            return self.faculty.name
+    ── Thought for 3s
+      Now fix 4.4 — Teacher.short_name NBSP.
+
+      `university/models.py`: add NBSP constant at module level, change short_name.
+
+      Current short_name:
+      ```python
+          @property
+          def short_name(self) -> str:
+              middle = f" {self.middle_name[0]}." if self.middle_name else ""
+              return f"{self.last_name} {self.first_name[0]}.{middle}"
+      ```
+
+      New:
+      ```python
+          @property
+          def short_name(self) -> str:
+              middle = f"{NBSP}{self.middle_name[0]}." if self.middle_name else ""
+              return f"{self.last_name}{NBSP}{self.first_name[0]}.{middle}"
+      ```
+
+      And add `NBSP = "\u00a0"` at module level. Where to put it? After imports, before the first model class. Let me check the top of university/models.py.
+
+      From earlier read, university/models.py starts with imports then `class Faculty`. Let me add `NBSP = "\u00a0"` after imports.
+
+      Actually, the spec shows `NBSP = " "` (with the literal NBSP character in the source). Let me use `NBSP = "\u00a0"` (explicit escape) to avoid invisible characters in the source. Both are equivalent. But the spec literally wrote `NBSP = " "` with an actual NBSP char. For clarity and to avoid confusion, I'll use `NBSP = "\u00a0"`.
+
+      Actually, wait — the spec 4.4 shows:
+      ```python
+      NBSP = " "
+      ```
+      where the `" "` contains a literal NBSP character. Using `"\u00a0"` is clearer and produces the same string. But will ruff or anything complain? No. Let me use `NBSP = "\u00a0"`.
+
+      Let me add it after the imports.
+    ── Edited university/models.py +2
+      --- a~/hackatonproject/university/models.py
+      +++ b~/hackatonproject/university/models.py
+      +NBSP = "\u00a0"
+      +
+    ── Edited university/models.py +2 -2
+      --- a~/hackatonproject/university/models.py
+      +++ b~/hackatonproject/university/models.py
+      -        middle = f" {self.middle_name[0]}." if self.middle_name else ""
+      -        return f"{self.last_name} {self.first_name[0]}.{middle}"
+      +        middle = f"{NBSP}{self.middle_name[0]}." if self.middle_name else ""
+      +        return f"{self.last_name}{NBSP}{self.first_name[0]}.{middle}"
+    ── Thought for 3s
+      Now fix 4.5 — petition timestamps.
+
+      `petitions/models.py`:
+      - Add `from core.clock import now`.
+      - 5 defaults → `default=now`.
+      - Remove `from django.utils import timezone` if unused.
+
+      Let me check the current petitions/models.py imports and the 5 default fields.
+
+      From earlier read:
+      - Line 1-9 imports: `import uuid`, `from django.conf import settings`, `from django.core.exceptions import ValidationError`, `from django.core.validators import ...`, `from django.db import models`, `from django.utils import timezone`, `from core.storage import get_private_storage`, `from petitions.files import attachment_upload_to`.
+
+      - Petition.created_at (line 81): `created_at = models.DateTimeField("подана", default=timezone.now)`
+      - Petition.status_changed_at (line 82): `status_changed_at = models.DateTimeField("статус изменён", default=timezone.now)`
+      - PetitionAttachment.uploaded_at (line 122): `uploaded_at = models.DateTimeField(default=timezone.now)`
+      - PetitionStatusChange.created_at (line 147): `created_at = models.DateTimeField(default=timezone.now)`
+      - PetitionComment.created_at (line 170): `created_at = models.DateTimeField(default=timezone.now)`
+
+      I need to change all 5 to `default=now`.
+
+      Is `timezone` used elsewhere in petitions/models.py? Let me check. There's no other use of timezone in models.py (I read the whole file earlier — the only timezone usage is these 5 defaults). Actually, let me verify by grepping.
+
+      Let me check.
+    ── Searched for timezone in petitions/models.py
+    ── Thought for 2s
+      `timezone` is only used in those 5 default fields. So after changing them to `now`, I can remove the `from django.utils import timezone` import.
+
+      Let me do the edits:
+      1. Replace `from django.utils import timezone` with `from core.clock import now` (and keep the core.storage import). Actually, I need to add `from core.clock import now` and remove the timezone import.
+
+      Current imports:
+      ```python
+      import uuid
+
+      from django.conf import settings
+      from django.core.exceptions import ValidationError
+      from django.core.validators import MaxValueValidator, MinValueValidator
+      from django.db import models
+      from django.utils import timezone
+
+      from core.storage import get_private_storage
+      from petitions.files import attachment_upload_to
+      ```
+
+      Change to:
+      ```python
+      import uuid
+
+      from django.conf import settings
+      from django.core.exceptions import ValidationError
+      from django.core.validators import MaxValueValidator, MinValueValidator
+      from django.db import models
+
+      from core.clock import now
+      from core.storage import get_private_storage
+      from petitions.files import attachment_upload_to
+      ```
+
+      2. Replace the 5 `default=timezone.now` with `default=now`.
+
+      Let me do these.
+    ── Edited petitions/models.py +1 -1
+      --- a~/hackatonproject/petitions/models.py
+      +++ b~/hackatonproject/petitions/models.py
+      -from django.utils import timezone
+      +from core.clock import now
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && sed -i '' 's/default=timezone\.now/default=now/g' petitions/models.py && grep -n "default=now\|default=timezone" petitions/models.py
+      $ cd ~/hackatonproject && source .venv/bin/activate && sed -i '' 's/default=timezone\.now/default=now/g' petitions/models.py && grep -n "default=now\|default=timezone" petitions/models.py
+      81:    created_at = models.DateTimeField("подана", default=now)
+      82:    status_changed_at = models.DateTimeField("статус изменён", default=now)
+      122:    uploaded_at = models.DateTimeField(default=now)
+      147:    created_at = models.DateTimeField(default=now)
+      170:    created_at = models.DateTimeField(default=now)
+    ── Thought for 5s
+      Now update petitions/services.py:
+      - `from core import clock`
+      - `submit_petition`: `now = clock.now()` (instead of `timezone.now()`); `expected_ready_date=add_working_days(timezone.localdate(now), ...)`.
+      - `change_status`: `now = clock.now()`.
+      - `add_staff_comment`: `created_at=clock.now()`.
+      - Keep `from django.utils import timezone` (still used by `localdate`).
+
+      Let me read the current services.py to see the exact lines.
+
+      From earlier read:
+      - Line 7: `from django.utils import timezone`
+      - submit_petition (line ~86): `now = timezone.now()`, then `expected_ready_date=add_working_days(timezone.localdate(), ...)`.
+      - change_status (line ~139): `now = timezone.now()`.
+      - add_staff_comment (line ~163): `return PetitionComment.objects.create(petition=petition, author=actor, text=text)`.
+
+      Let me do the edits.
+
+      First, add `from core import clock`. Where? After `from django.utils import timezone`? Actually, isort order: `from core import clock` is a first-party import, should go after the django imports but before `from accounts...`. Let me look at the import block:
+
+      ```python
+      from datetime import date, timedelta
+
+      from django.core.exceptions import PermissionDenied, ValidationError
+      from django.db import transaction
+      from django.utils import timezone
+
+      from accounts.access import get_profile_for_role
+      from accounts.models import StudentProfile, User
+      from core.storage import get_private_storage
+      from petitions.files import store_attachment, validate_attachments
+      ...
+      ```
+
+      I'll add `from core import clock` right before `from core.storage import get_private_storage` (alphabetically `core.clock` < `core.storage`).
+
+      Actually, isort would sort `from core import clock` before `from core.storage import get_private_storage`. So:
+      ```python
+      from core import clock
+      from core.storage import get_private_storage
+      ```
+
+      Let me do the edits.
+
+      1. Add import.
+      2. submit_petition: `now = timezone.now()` → `now = clock.now()`; `add_working_days(timezone.localdate(), ...)` → `add_working_days(timezone.localdate(now), ...)`.
+      3. change_status: `now = timezone.now()` → `now = clock.now()`.
+      4. add_staff_comment: add `created_at=clock.now()`.
+
+      Let me look at the exact text of submit_petition's now and localdate.
+
+      From earlier full read:
+      ```python
+                  now = timezone.now()
+                  petition = Petition.objects.create(
+                      student=student,
+                      request_type=request_type,
+                      comment=comment,
+                      status=SUBMITTED,
+                      created_at=now,
+                      status_changed_at=now,
+                      expected_ready_date=add_working_days(
+                          timezone.localdate(), request_type.processing_days
+                      ),
+                  )
+      ```
+
+      And change_status:
+      ```python
+              now = timezone.now()
+              PetitionStatusChange.objects.create(
+                  ...
+                  created_at=now,
+                  ...
+              )
+              locked.status = new_status
+              locked.status_changed_at = now
+      ```
+
+      And add_staff_comment:
+      ```python
+          return PetitionComment.objects.create(petition=petition, author=actor, text=text)
+      ```
+
+      Let me do the edits carefully.
+    ── Edited petitions/services.py +1
+      --- a~/hackatonproject/petitions/services.py
+      +++ b~/hackatonproject/petitions/services.py
+      +from core import clock
+    ── Edited petitions/services.py +2 -2
+      --- a~/hackatonproject/petitions/services.py
+      +++ b~/hackatonproject/petitions/services.py
+      -            now = timezone.now()
+      +            now = clock.now()
+      -                    timezone.localdate(), request_type.processing_days
+      +                    timezone.localdate(now), request_type.processing_days
+    ── Edited petitions/services.py +1 -1
+      --- a~/hackatonproject/petitions/services.py
+      +++ b~/hackatonproject/petitions/services.py
+      -        now = timezone.now()
+      +        now = clock.now()
+    ── Edited petitions/services.py +3 -1
+      --- a~/hackatonproject/petitions/services.py
+      +++ b~/hackatonproject/petitions/services.py
+      -    return PetitionComment.objects.create(petition=petition, author=actor, text=text)
+      +    return PetitionComment.objects.create(
+      +        petition=petition, author=actor, text=text, created_at=clock.now()
+      +    )
+    ── Thought for 329ms
+      Now generate the migration for petitions.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py makemigrations petitions 2>&1
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py makemigrations petitions 2>&1
+      Migrations for 'petitions':
+        petitions/migrations/0002_alter_petition_created_at_and_more.py
+          ~ Alter field created_at on petition
+          ~ Alter field status_changed_at on petition
+          ~ Alter field uploaded_at on petitionattachment
+          ~ Alter field created_at on petitioncomment
+          ~ Alter field created_at on petitionstatuschange
+    ── Thought for 1s
+      The migration is generated with 5 AlterFields. Now I need to remove `faculty=self.w.fx` from the 8 test calls in test_views.py (7 existing + 1 new test_faculty_option_label).
+
+      Let me find all the `faculty=self.w.fx,` occurrences in the AnnouncementFormTests class. They're in the AnnouncementForm(...) calls.
+
+      Let me use grep to find them.
+    ── Searched for faculty=self.w.fx in notifications/tests/test_views.py
+    ── Thought for 5s
+      The 8 AnnouncementForm calls are at lines 45, 58, 69, 80, 91, 100, 109, 118 (all with `faculty=self.w.fx,` on its own line, indented 12 spaces inside `AnnouncementForm(...)`). The rest (lines 193, 238, etc.) are `make_announcement` calls with `faculty=self.w.fx` as a keyword on the same line — those are DIFFERENT (they're the `faculty` argument to make_announcement, NOT the AnnouncementForm).
+
+      So I need to remove `faculty=self.w.fx,` from the 8 AnnouncementForm calls only. These 8 have the pattern where `faculty=self.w.fx,` is on its own line.
+
+      Looking at the indentation: the AnnouncementForm calls have `faculty=self.w.fx,` at 12 spaces indentation (inside the `AnnouncementForm(\n    None,\n    faculty=...` structure).
+
+      Actually, the cleanest approach: the 8 lines are at lines 45, 58, 69, 80, 91, 100, 109, 118. Each is `            faculty=self.w.fx,` (12 spaces). The make_announcement calls have `faculty=self.w.fx` as inline keyword (not on its own line with that exact indentation).
+
+      Let me verify the exact text of these 8 lines. They're all `            faculty=self.w.fx,` (12 spaces + `faculty=self.w.fx,`). 
+
+      The make_announcement calls at lines 193 etc. have `faculty=self.w.fx,` inline (e.g., `self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx, title=...`), so the `faculty=self.w.fx,` is NOT at line start.
+
+      So I can safely remove the 8 lines that are exactly `            faculty=self.w.fx,`.
+
+      Let me use sed to remove those lines. But I need to be careful. Let me use a Python script to remove lines matching `^\s+faculty=self\.w\.fx,$` (only within the AnnouncementForm tests, but actually this pattern only appears in those 8 lines).
+
+      Actually, let me verify: is `faculty=self.w.fx,` on its own line (with only whitespace before) ONLY in the 8 AnnouncementForm calls? From the grep, the lines 45, 58, 69, 80, 91, 100, 109, 118 are the standalone ones (they have `faculty=self.w.fx,` and nothing else). The make_announcement ones have more content on the line.
+
+      Let me use sed to delete lines matching exactly `^            faculty=self\.w\.fx,$`.
+
+      Actually, let me use a Python script to be safe.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && python - <<'PY' import re p = "notifications/tests/test_views.py" lines = open(p).read().split("\n") out = [ln for ln in lines if ln.strip() != "faculty=self.w.fx,"] open(p, "w").write("\n".join(out)) print("removed", len(lines) - len(out), "lines") PY grep -n "faculty=self.w.fx" notifications/tests/test_views.py
+      $ cd ~/hackatonproject && source .venv/bin/activate && python - <<'PY'
+    import re
+    p = "notifications/tests/test_views.py"
+    lines = open(p).read().split("\n")
+    out = [ln for ln in lines if ln.strip() != "faculty=self.w.fx,"]
+    open(p, "w").write("\n".join(out))
+    print("removed", len(lines) - len(out), "lines")
+    PY
+    grep -n "faculty=self.w.fx" notifications/tests/test_views.py
+      removed 8 lines
+      185:            self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx, title="FX факультет"
+      230:        announcement = make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+      239:        announcement = make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+      246:        announcement = make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+      279:        announcement = make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+      286:        announcement = make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+      432:        announcement = make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+      561:            self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx, is_published=False
+      570:            self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx, body="<b>жирный</b>"
+      600:        announcement = make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+      607:        announcement = make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+      712:        make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+      717:                self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx, title=f"Факультет {i}"
+      756:        make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+      763:        make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+    ── Thought for 791ms
+      Removed 8 lines (the standalone `faculty=self.w.fx,` lines in AnnouncementForm calls). The remaining `faculty=self.w.fx` are all inline (make_announcement keyword args). Good.
+
+      Now let me run the regression tests again to confirm they pass after the fix.
+
+      Actually, let me first run the specific test modules to confirm all the fixes work.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test notifications.tests.test_views notifications.tests.test_models university.tests.test_models schedule.tests.test_views.TeacherShortNameRenderTests petitions.tests.test_services.ServiceClockTests 2>&1 | tee "$TMPDIR/test-$TS-regression-after.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -20 (5s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test notifications.tests.test_views notifications.tests.test_models university.tests.test_models schedule.tests.test_views.TeacherShortNameRenderTests petitions.tests.test_services.ServiceClockTests 2>&1 | tee "$TMPDIR/test-$TS-regression-after.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -20
+      Ran 89 tests in 3.369s
+      OK
+    ── Thought for 1s
+      All 89 tests pass now. Let me run ruff format on the changed Python files, then run the full test suite, then section 8 verification.
+
+      Changed Python files (source + tests):
+      - notifications/feed.py
+      - notifications/forms.py
+      - notifications/views.py
+      - notifications/models.py
+      - university/models.py
+      - petitions/models.py
+      - petitions/services.py
+      - core/templates/core/home.html (template, not python)
+      - notifications/tests/test_views.py
+      - notifications/tests/test_models.py
+      - university/tests/test_models.py
+      - schedule/tests/test_views.py
+      - petitions/tests/test_services.py
+
+      Let me run ruff format on these Python files (not the migration, which is excluded anyway).
+
+      Actually, ruff format on the changed files. Let me list them.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff format notifications/feed.py notifications/forms.py notifications/views.py notifications/models.py university/models.py petitions/models.py petitions/services.py notifications/tests/test_views.py notifications/tests/test_models.py university/tests/test_models.py schedule/tests/test_views.py petitions/tests/test_services.py 2>&1
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff format notifications/feed.py notifications/forms.py notifications/views.py notifications/models.py university/models.py petitions/models.py petitions/services.py notifications/tests/test_views.py notifications/tests/test_models.py university/tests/test_models.py schedule/tests/test_views.py petitions/tests/test_services.py 2>&1
+      12 files left unchanged
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff check notifications/feed.py notifications/forms.py notifications/views.py notifications/models.py university/models.py petitions/models.py petitions/services.py notifications/tests/test_views.py notifications/tests/test_models.py university/tests/test_models.py schedule/tests/test_views.py petitions/tests/test_services.py 2>&1 | tail -20
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff check notifications/feed.py notifications/forms.py notifications/views.py notifications/models.py university/models.py petitions/models.py petitions/services.py notifications/tests/test_views.py notifications/tests/test_models.py university/tests/test_models.py schedule/tests/test_views.py petitions/tests/test_services.py 2>&1 | tail -20
+      All checks passed!
+    ── Thought for 598ms
+      Ruff check passes. Now let me run the full test suite + section 8 verification.
+
+      Let me run the full test suite first.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-full.log" | grep -E "Ran |OK|FAILED|ERROR" | tail -5 (3m 30s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-full.log" | grep -E "Ran |OK|FAILED|ERROR" | tail -5
+      Ran 748 tests in 120.624s
+      OK
+    ── Thought for 5s
+      748 tests now (735 + 13 new). Let me count the new tests:
+      - test_views.py: test_faculty_option_label (1), test_news_exclude_shown_deadlines (1), test_news_without_deadlines_unchanged (1), test_news_heading (1), test_home_queries_same_with_deadlines (1), AudienceLabelRenderTests (2) = 6 new.
+      - schedule/tests/test_views.py: TeacherShortNameRenderTests (1) = 1.
+      - petitions/tests/test_services.py: ServiceClockTests (5) = 5.
+
+      Total new = 6 + 1 + 5 = 12. 735 + 12 = 747. But I got 748. Hmm, let me recount.
+
+      Wait, maybe I'm miscounting. Let me count the new tests more carefully:
+
+      test_views.py:
+      1. AnnouncementFormTests.test_faculty_option_label (+1)
+      2. HomeSummaryTests.test_news_exclude_shown_deadlines (+1)
+      3. HomeSummaryTests.test_news_without_deadlines_unchanged (+1)
+      4. HomeSummaryTests.test_news_heading (+1)
+      5. QueryCountTests.test_home_queries_same_with_deadlines (+1)
+      6. AudienceLabelRenderTests.test_feed_shows_faculty_name_only (+1)
+      7. AudienceLabelRenderTests.test_staff_list_shows_faculty_name_only (+1)
+      = 7 new in test_views.py.
+
+      schedule/tests/test_views.py:
+      8. TeacherShortNameRenderTests.test_week_page_has_no_break_spaces (+1)
+      = 1.
+
+      petitions/tests/test_services.py:
+      9. ServiceClockTests.test_submit_gets_frozen_time (+1)
+      10. test_attachment_gets_frozen_time (+1)
+      11. test_status_change_gets_frozen_time (+1)
+      12. test_staff_comment_gets_frozen_time (+1)
+      13. test_model_defaults_are_clock_now (+1)
+      = 5.
+
+      Total = 7 + 1 + 5 = 13 new. 735 + 13 = 748. ✓
+
+      So 748 tests, +13 new.
+
+      Now let me run the section 8 verification: run_tests_at 2 dates (2359, 0000), check, makemigrations --check, check --deploy, ruff check ., ruff format --check ., yaml, seed twice + backfill, git status.
+
+      Let me run these.
+
+      Actually, the spec section 8 for TASK-007-FIX has:
+      - check
+      - makemigrations --check --dry-run
+      - test
+      - run_tests_at 2359, 0000 (2 dates)
+      - check --deploy
+      - ruff check . && ruff format --check .
+      - yaml
+      - seed twice (no backfill this time)
+      - git status
+
+      Let me run the 2 run_tests_at dates.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python -u scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-at-2359.log" | tail -3 (2m)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python -u scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-at-2359.log" | tail -3
+      OK
+      Destroying test database for alias 'default'...
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python -u scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-at-0000.log" | tail -3 (1m 59s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python -u scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-at-0000.log" | tail -3
+      OK
+      Destroying test database for alias 'default'...
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1 && ruff check . 2>&1 | tail -1 && ruff format --check . 2>&1 | tail -1 && python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')" (2s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1 && ruff check . 2>&1 | tail -1 && ruff format --check . 2>&1 | tail -1 && python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"
+      System check identified no issues (0 silenced).
+      No changes detected
+      System check identified no issues (1 silenced).
+      All checks passed!
+      149 files already formatted
+      yaml ok
+    ── Thought for 1s
+      All good. Now run the seed twice (with temp DB + private media), then git status.
+
+      The spec section 8 for TASK-007-FIX does NOT include the backfill check (that was TASK-007). It's just:
+      ```bash
+      export DATABASE_URL=... PRIVATE_MEDIA_ROOT=... DEMO_PASSWORD=...
+      rm -f ...
+      python manage.py migrate && python manage.py seed_demo && python manage.py seed_demo
+      git status --short
+      ```
+
+      Let me run the seed.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && export DATABASE_URL="sqlite:///$TMPDIR/task007fix.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task007fix-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && rm -f "$TMPDIR/task007fix.sqlite3" && python manage.py migrate 2>&1 | tail -2 && echo "=== seed 1 ===" && python manage.py seed_demo 2>&1 | tail -2 && echo "=== seed 2 ===" && python manage.py seed_demo 2>&1 | tail -2 && rm -f "$TMPDIR/task007fix.sqlite3" && rm -rf "$TMPDIR/task007fix-private" (6s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && export DATABASE_URL="sqlite:///$TMPDIR/task007fix.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task007fix-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && rm -f "$TMPDIR/task007fix.sqlite3" && python manage.py migrate 2>&1 | tail -2 && echo "=== seed 1 ===" && python manage.py seed_demo 2>&1 | tail -2 && echo "=== seed 2 ===" && python manage.py seed_demo 2>&1 | tail -2 && rm -f "$TMPDIR/task007fix.sqlite3" && rm -rf "$TMPDIR/task007fix-private"
+      Applying schedule.0004_lessonchange_updated_at... OK
+        Applying sessions.0001_initial... OK
+      === seed 1 ===
+      Requests ready: 4 types, 7 requests, 3 attachments.
+      Notifications ready: 9 announcements.
+      === seed 2 ===
+      Requests ready: 4 types, 0 requests, 0 attachments.
+      Notifications ready: 0 announcements.
+    ── Ran cd ~/hackatonproject && git status --short
+      $ cd ~/hackatonproject && git status --short
+      M core/templates/core/home.html
+       M notifications/feed.py
+       M notifications/forms.py
+       M notifications/models.py
+       M notifications/tests/test_models.py
+       M notifications/tests/test_views.py
+       M notifications/views.py
+       M petitions/models.py
+       M petitions/services.py
+       M petitions/tests/test_services.py
+       M plan.md
+       M schedule/tests/test_views.py
+       M university/models.py
+       M university/tests/test_models.py
+      ?? docs/tasks/TASK-007-FIX.md
+      ?? petitions/migrations/0002_alter_petition_created_at_and_more.py
+    ── Thought for 7s
+      Let me compare with the spec's file list (section 3):
+
+      Change only:
+      - `notifications/feed.py` ✓ (M)
+      - `core/templates/core/home.html` ✓ (M)
+      - `notifications/forms.py` ✓ (M)
+      - `notifications/views.py` ✓ (M)
+      - `notifications/models.py` ✓ (M)
+      - `university/models.py` ✓ (M)
+      - `petitions/models.py` ✓ (M)
+      - `petitions/services.py` ✓ (M)
+      - new `petitions/migrations/0002_...` ✓ (??)
+      - tests: `notifications/tests/test_views.py` ✓ (M), `notifications/tests/test_models.py` ✓ (M), `university/tests/test_models.py` ✓ (M), `schedule/tests/test_views.py` ✓ (M), `petitions/tests/test_services.py` ✓ (M)
+
+      Not mine:
+      - `plan.md` (pre-existing M)
+      - `docs/tasks/TASK-007-FIX.md` (the spec)
+
+      All matches! 
+
+      Wait, but the git status shows these files as `M` (modified), but earlier in the previous tasks these files were already `??` (untracked) because they were part of the `notifications/` untracked directory. Now, after the base commit `4608e59` was made (the Planner said base commit 4608e59), the notifications/ files are now TRACKED (committed). So they show as `M` now.
+
+      Actually, this is interesting — the base commit changed. The previous TASK-007 work was committed (base 4608e59), so now the notifications/ files are tracked and show as `M` for my changes.
+
+      Also note: `notifications/tests/test_views.py` and `notifications/tests/test_models.py` show as `M` (tracked now). And `petitions/migrations/0002...` is `??` (new).
+
+      The `university/models.py`, `university/tests/test_models.py`, `schedule/tests/test_views.py`, `petitions/models.py`, `petitions/services.py`, `petitions/tests/test_services.py`, `core/templates/core/home.html` are all `M`.
+
+      Everything matches the spec's file list. Good.
+
+      Now let me verify there are no other stray changes (like db.sqlite3 or private_media). The git status doesn't show them (gitignored). Let me quickly confirm no stray files.
+
+      Actually, the seed used temp DB and temp private media, and I removed them. Good.
+
+      Now let me compose the REPORT.
+
+      Summary:
+      - Task TASK-007-FIX, 6 fixes.
+      - Regression tests written first (15 failures before fix, all matching spec 5.2).
+      - Fixes applied.
+      - 748 tests (was 735, +13).
+      - Section 8 verification green.
+      - git status.
+
+      Let me also note the mechanical change (removed faculty kwarg from 8 test calls, per spec 4.2).
+
+      Let me write the REPORT.
+
+      Test count: was 735, now 748 (+13 new).
+
+      Regression evidence (15 failures before fix):
+      1. test_faculty_option_label
+      2. test_feed_shows_faculty_name_only
+      3. test_staff_list_shows_faculty_name_only
+      4. test_news_exclude_shown_deadlines
+      5. test_news_heading
+      6. test_str_and_audience_label
+      7. test_teacher_short_name
+      8. test_week_page_has_no_break_spaces
+      9. test_attachment_gets_frozen_time
+      10. test_model_defaults_are_clock_now (5 subtest failures: Petition.created_at, Petition.status_changed_at, PetitionStatusChange.created_at, PetitionComment.created_at, PetitionAttachment.uploaded_at)
+      11. test_staff_comment_gets_frozen_time
+
+      Total 15 failures.
+
+      Guards that passed before (and after):
+      - test_news_without_deadlines_unchanged
+      - test_home_queries_same_with_deadlines
+      - test_submit_gets_frozen_time
+      - test_status_change_gets_frozen_time
+
+      Let me write the report.
+
+      Log file names:
+      - test-*-regression-before.log
+      - test-*-regression-after.log
+      - test-*-full.log (748 OK)
+      - test-*-at-2359.log, test-*-at-0000.log
+
+      Let me get the exact log filenames.
+    ── Listed files in $TMPDIR/test-*.log
+    ── Ran cd ~/hackatonproject && bb thread tell thr_cpuae9aqw3 --message-file - <<'EOF' [TASK-007-FIX] Coder -> Reviewer: REPORT Spec: docs/tasks/TASK-007-FIX.md (base 4608e59). Six fixes, regression tests written first (section 5.2). Not committed. ## Regression evidence (before fix — 15 failures, all matching §5.2) - `AnnouncementFormTests.test_faculty_option_label` — label contained the faculty name. - `AudienceLabelRenderTests.test_feed_shows_faculty_name_only`, `test_staff_list_shows_faculty_name_only` — «Факультет: » prefix. - `HomeSummaryTests.test_news_exclude_shown_deadlines` — shown deadlines filled the news block. - `HomeSummaryTests.test_news_heading` — «Новости деканата». - `AnnouncementModelTests.test_str_and_audience_label` — «Факультет: » prefix. - `UniversityModelTests.test_teacher_short_name` — plain spaces. - `TeacherShortNameRenderTests.test_week_page_has_no_break_spaces` — plain spaces. - `ServiceClockTests.test_attachment_gets_frozen_time` — real time from `default=timezone.now`. - `ServiceClockTests.test_staff_comment_gets_frozen_time` — real time (no `created_at`). - `ServiceClockTests.test_model_defaults_are_clock_now` — 5 sub-failures (defaults were `timezone.now`). Guards passed before and after: `test_news_without_deadlines_unchanged`, `test_home_queries_same_with_deadlines`, `test_submit_gets_frozen_time`, `test_status_change_gets_frozen_time`. ## Fixes applied 1. `home_summary` (feed.py): `deadlines = upcoming_deadlines(ctx, HOME_ITEMS)`, `shown = {f"news-{d.public_id}"}`, fetch `HOME_ITEMS + len(shown)` candidates, drop shown by key `news-<uuid>`. `core/home.html`: heading «Новости». 2. `AnnouncementForm`: dropped `faculty` kwarg (and its `Faculty` import), label «Весь факультет»; `StaffAnnouncementsView._form` no longer passes it. Removed `faculty=…` from 8 form-construction calls in the tests (mechanical, per §4.2). 3. `Announcement.audience_label` faculty branch → `self.faculty.name`. 4. `university/models.py`: module constant `NBSP = "\u00a0"`; `Teacher.short_name` uses NBSP between last name/initial and between initials. 5. Petitions: 5 model defaults → `core.clock.now` (removed the now-unused `timezone` import); `submit_petition`/`change_status` use `clock.now()`, `add_staff_comment` passes `created_at=clock.now()`, `submit_petition` uses `timezone.localdate(now)`. Generated `petitions/migrations/0002_alter_petition_created_at_and_more.py` (5 AlterField). 6. `notifications/feed.py`: `relative_day_label` import moved to module level (removed the function-local import). ## Tests `Ran 748 tests` (was 735 → +13: 7 in test_views.py, 1 in schedule/test_views.py, 5 in petitions/test_services.py). All green. ## Verification (§8) — all green - `check` OK; `makemigrations --check --dry-run` → No changes. - `python manage.py test` → 748 OK. - `run_tests_at.py` 2026-11-17T23:59:59 / 2026-11-18T00:00:00 → 748 OK each. - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` clean; `ruff format --check .` → 149 files formatted; yaml ok. - Seed twice on temp DB+media → first «9 announcements» / «7 requests, 3 attachments», second «0 announcements» / «0 requests»; temp removed. Logs: `$TMPDIR/test-20261115-140542-regression-before.log`, `-140717-regression-after.log`, `-140734-full.log`, `-141111-at-2359.log`, `-141314-at-0000.log`. ## git status ```  M core/templates/core/home.html  M notifications/feed.py  M notifications/forms.py  M notifications/models.py  M notifications/tests/test_models.py  M notifications/tests/test_views.py  M notifications/views.py  M petitions/models.py  M petitions/services.py  M petitions/tests/test_services.py  M plan.md  M schedule/tests/test_views.py  M university/models.py  M university/tests/test_models.py ?? docs/tasks/TASK-007-FIX.md ?? petitions/migrations/0002_alter_petition_created_at_and_more.py ``` All changed/created files match §3. Not mine: `plan.md` (pre-existing `M`) and `docs/tasks/TASK-007-FIX.md` (the spec). No `db.sqlite3`/`private_media/` changes. EOF (8s)
+      $ cd ~/hackatonproject && bb thread tell thr_cpuae9aqw3 --message-file - <<'EOF'
+    [TASK-007-FIX] Coder -> Reviewer: REPORT
+
+    Spec: docs/tasks/TASK-007-FIX.md (base 4608e59). Six fixes, regression tests written first (section 5.2). Not committed.
+
+    ## Regression evidence (before fix — 15 failures, all matching §5.2)
+    - `AnnouncementFormTests.test_faculty_option_label` — label contained the faculty name.
+    - `AudienceLabelRenderTests.test_feed_shows_faculty_name_only`, `test_staff_list_shows_faculty_name_only` — «Факультет: » prefix.
+    - `HomeSummaryTests.test_news_exclude_shown_deadlines` — shown deadlines filled the news block.
+    - `HomeSummaryTests.test_news_heading` — «Новости деканата».
+    - `AnnouncementModelTests.test_str_and_audience_label` — «Факультет: » prefix.
+    - `UniversityModelTests.test_teacher_short_name` — plain spaces.
+    - `TeacherShortNameRenderTests.test_week_page_has_no_break_spaces` — plain spaces.
+    - `ServiceClockTests.test_attachment_gets_frozen_time` — real time from `default=timezone.now`.
+    - `ServiceClockTests.test_staff_comment_gets_frozen_time` — real time (no `created_at`).
+    - `ServiceClockTests.test_model_defaults_are_clock_now` — 5 sub-failures (defaults were `timezone.now`).
+
+    Guards passed before and after: `test_news_without_deadlines_unchanged`, `test_home_queries_same_with_deadlines`, `test_submit_gets_frozen_time`, `test_status_change_gets_frozen_time`.
+
+    ## Fixes applied
+    1. `home_summary` (feed.py): `deadlines = upcoming_deadlines(ctx, HOME_ITEMS)`, `shown = {f"news-{d.public_id}"}`, fetch `HOME_ITEMS + len(shown)` candidates, drop shown by key `news-<uuid>`. `core/home.html`: heading «Новости».
+    2. `AnnouncementForm`: dropped `faculty` kwarg (and its `Faculty` import), label «Весь факультет»; `StaffAnnouncementsView._form` no longer passes it. Removed `faculty=…` from 8 form-construction calls in the tests (mechanical, per §4.2).
+    3. `Announcement.audience_label` faculty branch → `self.faculty.name`.
+    4. `university/models.py`: module constant `NBSP = "\u00a0"`; `Teacher.short_name` uses NBSP between last name/initial and between initials.
+    5. Petitions: 5 model defaults → `core.clock.now` (removed the now-unused `timezone` import); `submit_petition`/`change_status` use `clock.now()`, `add_staff_comment` passes `created_at=clock.now()`, `submit_petition` uses `timezone.localdate(now)`. Generated `petitions/migrations/0002_alter_petition_created_at_and_more.py` (5 AlterField).
+    6. `notifications/feed.py`: `relative_day_label` import moved to module level (removed the function-local import).
+
+    ## Tests
+    `Ran 748 tests` (was 735 → +13: 7 in test_views.py, 1 in schedule/test_views.py, 5 in petitions/test_services.py). All green.
+
+    ## Verification (§8) — all green
+    - `check` OK; `makemigrations --check --dry-run` → No changes.
+    - `python manage.py test` → 748 OK.
+    - `run_tests_at.py` 2026-11-17T23:59:59 / 2026-11-18T00:00:00 → 748 OK each.
+    - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` clean; `ruff format --check .` → 149 files formatted; yaml ok.
+    - Seed twice on temp DB+media → first «9 announcements» / «7 requests, 3 attachments», second «0 announcements» / «0 requests»; temp removed.
+
+    Logs: `$TMPDIR/test-20261115-140542-regression-before.log`, `-140717-regression-after.log`, `-140734-full.log`, `-141111-at-2359.log`, `-141314-at-0000.log`.
+
+    ## git status
+    ```
+     M core/templates/core/home.html
+     M notifications/feed.py
+     M notifications/forms.py
+     M notifications/models.py
+     M notifications/tests/test_models.py
+     M notifications/tests/test_views.py
+     M notifications/views.py
+     M petitions/models.py
+     M petitions/services.py
+     M petitions/tests/test_services.py
+     M plan.md
+     M schedule/tests/test_views.py
+     M university/models.py
+     M university/tests/test_models.py
+    ?? docs/tasks/TASK-007-FIX.md
+    ?? petitions/migrations/0002_alter_petition_created_at_and_more.py
+    ```
+    All changed/created files match §3. Not mine: `plan.md` (pre-existing `M`) and `docs/tasks/TASK-007-FIX.md` (the spec). No `db.sqlite3`/`private_media/` changes.
+    EOF
+      Thread thr_cpuae9aqw3 steered
+    ── Ran tool 0 todos (1s)
+      {"output":"[\n  {\n    \"content\": \"Write regression tests (5.2/5.3) + run to confirm failures before fix\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix 4.1 home news + heading\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix 4.2 form label «Весь факультет» (drop faculty kwarg)\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix 4.3 audience_label faculty branch\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix 4.4 Teacher.short_name NBSP\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix 4.5 petition clock defaults + services + migration 0002\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix 4.6 relative_day_label module import\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"ruff format + section 8 verification + REPORT\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  }\n]","metadata":{"todos":[{"content":"Write regression tests (5.2/5.3) + run to confirm failures before fix","status":"completed","priority":"high"},{"content":"Fix 4.1 home news + heading","status":"completed","priority":"high"},{"content":"Fix 4.2 form label «Весь факультет» (drop faculty kwarg)","status":"completed","priority":"high"},{"content":"Fix 4.3 audience_label faculty branch","status":"completed","priority":"high"},{"content":"Fix 4.4 Teacher.short_name NBSP","status":"completed","priority":"high"},{"content":"Fix 4.5 petition clock defaults + services + migration 0002","status":"completed","priority":"high"},{"content":"Fix 4.6 relative_day_label module import","status":"completed","priority":"high"},{"content":"ruff format + section 8 verification + REPORT","status":"completed","priority":"high"}],"truncated":false}}
+
+── Assistant ───────────────────────────────────────────────
+TASK-007-FIX реализован полностью и отправлен на проверку Reviewer (thr_cpuae9aqw3).
+
+## Итог
+
+**Регрессионные тесты написаны первыми** — 15 падений до фикса, все строго по разделу 5.2 спеки (новости/заголовок, ярлык «Весь факультет», faculty-only `audience_label`, NBSP в `short_name`, clock-safe таймстемпы петиций).
+
+**Шесть фиксов:**
+1. `home_summary` исключает из новостей только показанные на главной дедлайны (ключ `news-<uuid>`); заголовок «Новости».
+2. Из `AnnouncementForm` убран неиспользуемый kwarg `faculty`, ярлык «Весь факультет» (и механическая правка 8 вызовов в тестах).
+3. `audience_label` для факультета → только имя факультета.
+4. `Teacher.short_name` с U+00A0 (`NBSP`).
+5. Пять дефолтов петиций → `core.clock.now`; сервисы используют `clock.now()` явно (в т.ч. `add_staff_comment`); сгенерирована миграция `petitions/0002`.
+6. Импорт `relative_day_label` в `notifications/feed.py` перенесён на уровень модуля.
+
+## Результаты
+- **748 тестов OK** (было 735, +13).
+- Вся верификация раздела 8 зелёная: `check`, `makemigrations --check`, полный прогон + 2 прогона `run_tests_at.py`, `check --deploy`, `ruff check`/`format`, yaml, сид дважды (идемпотентно).
+- `git status` сверен: все изменённые/созданные файлы по списку спеки (§3); `plan.md` и `docs/tasks/TASK-007-FIX.md` — не мои.
+
+Жду вердикт Reviewer.

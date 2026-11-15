@@ -8,10 +8,17 @@ from django.utils import timezone
 
 from accounts.models import User
 from accounts.tests.helpers import make_faculty, make_group, make_staff, make_student
+from core import clock
 from core.storage import get_private_storage
-from core.testing import FrozenClockMixin
+from core.testing import FrozenClockMixin, moscow
 from petitions.files import store_attachment
-from petitions.models import MAX_COMMENT_LENGTH, Petition, PetitionAttachment
+from petitions.models import (
+    MAX_COMMENT_LENGTH,
+    Petition,
+    PetitionAttachment,
+    PetitionComment,
+    PetitionStatusChange,
+)
 from petitions.selectors import attachments_visible_to, petitions_visible_to
 from petitions.services import (
     StaleStatusError,
@@ -363,3 +370,49 @@ class CommentTests(FrozenClockMixin, TestCase):
         change_status(self.petition, self.staff_x, "submitted", "in_progress")
         comment = add_staff_comment(self.petition, self.staff_x, "заметка")
         self.assertEqual(comment.text, "заметка")
+
+
+class ServiceClockTests(FrozenClockMixin, TestCase):
+    frozen_now = "2026-11-11 12:00"
+
+    def setUp(self):
+        self.faculty = make_faculty("FDD")
+        self.group = make_group(self.faculty, "ЦД-101")
+        self.student = make_student("s1", self.group, "ST-0001").student_profile
+        self.type = make_type(days=3)
+        self.staff = make_staff("st1", self.faculty)
+        self.now = moscow("2026-11-11 12:00")
+
+    def test_submit_gets_frozen_time(self):
+        petition = submit_petition(self.student, self.type, "", [])
+        self.assertEqual(petition.created_at, self.now)
+        self.assertEqual(petition.status_changed_at, self.now)
+        self.assertEqual(petition.history.get().created_at, self.now)
+
+    def test_attachment_gets_frozen_time(self):
+        petition = submit_petition(self.student, self.type, "", [pdf_upload()])
+        self.assertEqual(petition.attachments.get().uploaded_at, self.now)
+
+    def test_status_change_gets_frozen_time(self):
+        petition = submit_petition(self.student, self.type, "", [])
+        change_status(petition, self.staff, "submitted", "in_progress")
+        petition.refresh_from_db()
+        self.assertEqual(petition.status_changed_at, self.now)
+        self.assertEqual(petition.history.last().created_at, self.now)
+
+    def test_staff_comment_gets_frozen_time(self):
+        petition = submit_petition(self.student, self.type, "", [])
+        comment = add_staff_comment(petition, self.staff, "Комментарий")
+        self.assertEqual(comment.created_at, self.now)
+
+    def test_model_defaults_are_clock_now(self):
+        cases = [
+            (Petition, "created_at"),
+            (Petition, "status_changed_at"),
+            (PetitionStatusChange, "created_at"),
+            (PetitionComment, "created_at"),
+            (PetitionAttachment, "uploaded_at"),
+        ]
+        for model, field in cases:
+            with self.subTest(model=model.__name__, field=field):
+                self.assertIs(model._meta.get_field(field).default, clock.now)

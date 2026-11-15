@@ -9,7 +9,7 @@
       {% endfor %}</ul>{% else %}<p>Ближайших дедлайнов нет.</p>{% endif %}
     </section>
     <section aria-labelledby="home-news">
-      <h2 id="home-news">Новости деканата</h2>
+      <h2 id="home-news">Новости</h2>
       {% if summary.news %}<ul class="deadline-list">{% for item in summary.news %}
         <li><a href="{% url 'notifications:feed' %}#{{ item.key }}">{{ item.title }}</a> <span class="feed-meta">{{ item.timestamp|date:"d.m" }}</span></li>
       {% endfor %}</ul>{% else %}<p>Новостей пока нет.</p>{% endif %}

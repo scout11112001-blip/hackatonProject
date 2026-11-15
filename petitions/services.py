@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from accounts.access import get_profile_for_role
 from accounts.models import StudentProfile, User
+from core import clock
 from core.storage import get_private_storage
 from petitions.files import store_attachment, validate_attachments
 from petitions.models import (
@@ -83,7 +84,7 @@ def submit_petition(
                     f"У вас уже {MAX_OPEN_PER_TYPE} открытые заявки этого вида. "
                     "Дождитесь их выполнения."
                 )
-            now = timezone.now()
+            now = clock.now()
             petition = Petition.objects.create(
                 student=student,
                 request_type=request_type,
@@ -92,7 +93,7 @@ def submit_petition(
                 created_at=now,
                 status_changed_at=now,
                 expected_ready_date=add_working_days(
-                    timezone.localdate(), request_type.processing_days
+                    timezone.localdate(now), request_type.processing_days
                 ),
             )
             PetitionStatusChange.objects.create(
@@ -136,7 +137,7 @@ def change_status(
             )
         if new_status in COMMENT_REQUIRED_FOR and not comment:
             raise ValidationError("Укажите причину отклонения.")
-        now = timezone.now()
+        now = clock.now()
         PetitionStatusChange.objects.create(
             petition=locked,
             from_status=locked.status,
@@ -160,4 +161,6 @@ def add_staff_comment(petition: Petition, actor: User, text: str) -> PetitionCom
         raise ValidationError("Комментарий не может быть пустым.")
     if len(text) > MAX_COMMENT_LENGTH:
         raise ValidationError("Комментарий слишком длинный.")
-    return PetitionComment.objects.create(petition=petition, author=actor, text=text)
+    return PetitionComment.objects.create(
+        petition=petition, author=actor, text=text, created_at=clock.now()
+    )

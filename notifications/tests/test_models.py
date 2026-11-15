@@ -73,7 +73,7 @@ class AnnouncementModelTests(FrozenClockMixin, TestCase):
         faculty = make_announcement(
             self.author, audience=Audience.FACULTY, faculty=self.faculty, title="Новость факультета"
         )
-        self.assertEqual(faculty.audience_label, "Факультет: Факультет FX")
+        self.assertEqual(faculty.audience_label, "Факультет FX")
 
         group = make_announcement(
             self.author, audience=Audience.GROUP, group=self.group, title="Новость группы"

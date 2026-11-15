@@ -10,6 +10,7 @@ from django.utils import timezone
 from accounts.models import StudentProfile, User
 
 from .constants import FEED_MAX_ITEMS, FEED_WINDOW_DAYS, HOME_ITEMS
+from .dates import relative_day_label
 from .models import NotificationState
 from .selectors import announcements_for_student
 from .sources import FeedContext, FeedItem, NewsSource, get_feed_sources
@@ -81,8 +82,6 @@ class DeadlineItem:
 
 
 def upcoming_deadlines(ctx: FeedContext, limit: int) -> list[DeadlineItem]:
-    from .dates import relative_day_label
-
     announcements = (
         announcements_for_student(ctx.student)
         .filter(deadline__gte=ctx.today, published_at__lte=ctx.now)
@@ -111,7 +110,8 @@ def home_summary(user: AbstractBaseUser | AnonymousUser) -> HomeSummary | None:
     ctx = student_context(user)
     if ctx is None:
         return None
-    return HomeSummary(
-        deadlines=upcoming_deadlines(ctx, HOME_ITEMS),
-        news=NewsSource().latest(ctx, HOME_ITEMS),
-    )
+    deadlines = upcoming_deadlines(ctx, HOME_ITEMS)
+    shown = {f"news-{d.public_id}" for d in deadlines}
+    candidates = NewsSource().latest(ctx, HOME_ITEMS + len(shown))
+    news = [item for item in candidates if item.key not in shown][:HOME_ITEMS]
+    return HomeSummary(deadlines=deadlines, news=news)

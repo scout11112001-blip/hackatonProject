@@ -9554,3 +9554,550 @@ EOF
 **Проверка на текущем коде:** 567 тестов прошли в трёх прогонах: обычном, в 23:59:59 и в 00:00 по Москве. Ошибок не было. Логи лежат в `$TMPDIR/test-20261115-004724-t007-feas*.log`. ruff, `check --deploy`, проверка YAML и двойной запуск `seed_demo` прошли чисто.
 
 **Одно ограничение — решать тимлиду.** Счётчик общий на аккаунт. Если один член жюри откроет «Уведомления» под `student1`, остальные под этим аккаунтом увидят 0. Я записал это в Known limitations в README.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-007-FIX] Team lead -> Planner: TASK
+Approved by the user. Write the spec `docs/tasks/TASK-007-FIX.md` and hand it to the Coder.
+
+## Context
+Fix task for small defects found in TASK-007 (commit 4608e59) by the Reviewer and by the Team lead's 360 px browser check (screenshots: `docs/process/screenshots/2026-11-15_16..19_*.jpg`). No new features. Each fix is minimal and has a regression test that fails without it. Apply your "Feasibility check" and "Test plan" sections.
+
+## Items to fix
+1. Home page news repeat the deadlines (user decision, exact behaviour).
+   On `core:home` for students, the news block shows the same announcements as the "Ближайшие дедлайны" block (in the demo data the 3 latest announcements are the 3 nearest deadlines, so the real news "Открыта запись в студенческие клубы" is hidden).
+   - Rename the heading "Новости деканата" to "Новости".
+   - Exclude from the home news block ONLY the announcements that are shown in the home deadlines block at that moment (the `HOME_ITEMS` nearest deadlines). Every other announcement stays eligible as news, including announcements with a deadline that are not in the home deadlines block (e.g. the 4th nearest deadline, or a past deadline).
+   - The news block still shows up to `HOME_ITEMS` items, newest first, filled from the remaining announcements. The `/notifications/` page does not change.
+   - Tests: with 4 upcoming deadlines and 1 plain news item, the home news block contains the plain news and the 4th deadline and none of the 3 shown deadlines; with no deadlines, news are unchanged; heading text is "Новости"; query count of the home page does not grow.
+2. Staff form audience option is cut off at 360 px.
+   "Весь факультет: Факультет цифровой дипломатии" does not fit the `<select>`. The faculty option label becomes "Весь факультет" (the staff member has exactly one faculty). Group options stay "Группа <name>". Test: the option label.
+3. Repeated word in the audience label.
+   The feed and the staff list show "Факультет: Факультет цифровой дипломатии". Show only the faculty name (e.g. "Факультет цифровой дипломатии"); "Для всех студентов" and "Группа <name>" stay. One place that builds the label. Test: the rendered label on both pages.
+4. Teacher initials wrap to a new line ("Шестакова Л." / "П.").
+   `university.models.Teacher.short_name` joins the parts with normal spaces. Use non-breaking spaces between the last name and the initials and between the initials, so the short name never wraps. This also affects the schedule pages - check that no test or template relies on the plain-space form (update such tests). Test: `short_name` uses U+00A0; a page that shows a teacher contains the non-breaking form (autoescaping may render it as the raw character - assert on what Django outputs).
+5. Petition timestamps ignore the frozen test clock (Reviewer).
+   `petitions/services.py` (`add_staff_comment`, and `submit_petition` / `change_status` where they use `timezone.now()` or rely on `default=timezone.now`) must take the time from `core.clock.now()` (D5 from TASK-007) and set it explicitly, and the `default=` of `Petition.created_at`, `Petition.status_changed_at`, `PetitionStatusChange.created_at`, `PetitionComment.created_at` and `PetitionAttachment.uploaded_at` must be `core.clock.now` (check whether this needs a migration; if it does, generate it). Production behaviour must not change. Test: under FrozenClockMixin a comment, a status change and a new petition created through the services get the frozen time.
+6. Style (Reviewer): `notifications/feed.py` `upcoming_deadlines` has a function-local import of `relative_day_label`. Move it to the module imports (check for an import cycle first; if there is one, keep it and say why in the spec).
+
+## Accepted limitations (user decision, do not fix)
+- After migration `schedule/0004` on an existing database, all existing lesson changes appear as "Новое" once (the server database will be fresh).
+- A home-page news link `#news-<uuid>` points to nothing if the item is outside the feed (older than 30 days or beyond the 50-item cap). Not reachable with the demo data during the jury period.
+
+## Out of scope
+New features, visual theme, the room map (TASK-008), chat (TASK-009).
+
+## Verification
+All existing verification commands pass (check, deploy check, makemigrations --check, test with the output saved to a file, `scripts/run_tests_at.py` at a Moscow midnight boundary, ruff only on the task files, CI YAML), `seed_demo` twice on a temporary database and temporary PRIVATE_MEDIA_ROOT. The Team lead checks the home page, the feed and the staff page at 360 px.
+
+── Ran 1 command, explored 3 searches, 2 files, 1 list ─────
+  ── Ran git status --short && git log --oneline -4 && cat notifications/feed.py && grep -n "audience_label" -A12 notifications/models.py && grep -rn "audience_label\|Весь факультет\|Новости деканата\|short_name" --include=*.py --include=*.html notifications core university schedule academics petitions accounts templates | grep -v migrations
+    $ git status --short && git log --oneline -4 && cat notifications/feed.py && grep -n "audience_label" -A12 notifications/models.py && grep -rn "audience_label\|Весь факультет\|Новости деканата\|short_name" --include=*.py --include=*.html notifications core university schedule academics petitions accounts templates | grep -v migrations
+    M plan.md
+    4608e59 TASK-007: notifications feed, deadlines and staff announcements
+    8f7bc4f Team protocol: save full test output and report every failure by name
+    fb25c57 TASK-006-FIX: request list action, form controls width, single hint, missing-file 404
+    783ba76 Process archive: refresh agent dialogs after TASK-006
+    """Feed composition, unread counter and home summary."""
+
+    from dataclasses import dataclass
+    from datetime import date, datetime, timedelta
+    from uuid import UUID
+
+    from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
+    from django.utils import timezone
+
+    from accounts.models import StudentProfile, User
+
+    from .constants import FEED_MAX_ITEMS, FEED_WINDOW_DAYS, HOME_ITEMS
+    from .models import NotificationState
+    from .selectors import announcements_for_student
+    from .sources import FeedContext, FeedItem, NewsSource, get_feed_sources
+
+
+    def student_context(
+        user: AbstractBaseUser | AnonymousUser, now: datetime | None = None
+    ) -> FeedContext | None:
+        if not user.is_authenticated or not user.is_active or user.role != User.Role.STUDENT:
+            return None
+        student = (
+            StudentProfile.objects.select_related("group__program").filter(user_id=user.pk).first()
+        )
+        if student is None:
+            return None
+        seen = (
+            NotificationState.objects.filter(user_id=user.pk)
+            .values_list("seen_until", flat=True)
+            .first()
+        )
+        now = now or timezone.now()
+        return FeedContext(
+            user_id=user.pk,
+            student=student,
+            group_id=student.group_id,
+            faculty_id=student.group.program.faculty_id,
+            now=now,
+            today=timezone.localdate(now),
+            window_start=now - timedelta(days=FEED_WINDOW_DAYS),
+            seen_until=seen,
+        )
+
+
+    def build_feed(ctx: FeedContext) -> list[FeedItem]:
+        items = [item for source in get_feed_sources() for item in source.latest(ctx, FEED_MAX_ITEMS)]
+        items.sort(key=lambda i: (i.timestamp, i.key), reverse=True)
+        return items[:FEED_MAX_ITEMS]
+
+
+    def unread_count(ctx: FeedContext) -> int:
+        querysets = [s.unread_values(ctx) for s in get_feed_sources()]
+        if not querysets:
+            return 0
+        return querysets[0].union(*querysets[1:], all=True).count()
+
+
+    def badge_label(count: int) -> str:
+        if count == 0:
+            return ""
+        if count > FEED_MAX_ITEMS:
+            return f"{FEED_MAX_ITEMS}+"
+        return str(count)
+
+
+    def badge_for_user(user: AbstractBaseUser | AnonymousUser) -> str:
+        ctx = student_context(user)
+        if ctx is None:
+            return ""
+        return badge_label(unread_count(ctx))
+
+
+    @dataclass(frozen=True)
+    class DeadlineItem:
+        public_id: UUID
+        title: str
+        deadline: date
+        label: str
+        audience_label: str
+
+
+    def upcoming_deadlines(ctx: FeedContext, limit: int) -> list[DeadlineItem]:
+        from .dates import relative_day_label
+
+        announcements = (
+            announcements_for_student(ctx.student)
+            .filter(deadline__gte=ctx.today, published_at__lte=ctx.now)
+            .select_related("faculty", "group")
+            .order_by("deadline", "-published_at", "pk")[:limit]
+        )
+        return [
+            DeadlineItem(
+                public_id=a.public_id,
+                title=a.title,
+                deadline=a.deadline,
+                label=relative_day_label(a.deadline, ctx.today),
+                audience_label=a.audience_label,
+            )
+            for a in announcements
+        ]
+
+
+    @dataclass(frozen=True)
+    class HomeSummary:
+        deadlines: list[DeadlineItem]
+        news: list[FeedItem]
+
+
+    def home_summary(user: AbstractBaseUser | AnonymousUser) -> HomeSummary | None:
+        ctx = student_context(user)
+        if ctx is None:
+            return None
+        return HomeSummary(
+            deadlines=upcoming_deadlines(ctx, HOME_ITEMS),
+            news=NewsSource().latest(ctx, HOME_ITEMS),
+        )
+    104:    def audience_label(self) -> str:
+    105-        if self.audience == Audience.UNIVERSITY:
+    106-            return "Для всех студентов"
+    107-        if self.audience == Audience.FACULTY:
+    108-            return f"Факультет: {self.faculty.name}"
+    109-        return f"Группа {self.group.name}"
+    110-
+    111-
+    112-class NotificationState(models.Model):
+    113-    user = models.OneToOneField(
+    114-        settings.AUTH_USER_MODEL,
+    115-        on_delete=models.CASCADE,
+    116-        related_name="notification_state",
+    (eval):1: no matches found: --include=*.py
+  ── Searched for audience_label\|Весь факультет\|Новости деканата\|short_name\|Факультет:  in static
+  ── Thought for 9ms
+    The import side looks clean, since dates.py only pulls in datetime and sources already has it at module level. Next I want to check whether any tests depend on the short_name plain-space format or on the audience label strings, like "Факультет:", "Весь факультет", or "Новости деканата". I'll grep the tests for those, plus teacher names such as "Лебедев А." in the schedule tests.
+  ── Searched for Факультет: \|Весь факультет\|Новости деканата\|short_name\| [А-Я]\. [А-Я]\.\|[а-я] [А-Я]\." in */tests/*.py
+  ── Read petitions/services.py
+  ── Thought for 6s
+    I'm rechecking my earlier claim about add_staff_comment: I had said it sets created_at at line 145, but those lines actually belong to change_status. add_staff_comment has no created_at of its own, so it falls back to the default timezone.now, which isn't patched. The reviewer caught that, and it's fine.
+
+    Now I'm checking whether the clock change needs a migration, since switching the field default to a callable will likely register as a schema change. I'm also weighing whether `timezone.localdate()` in submit_petition should take the shared `now` value for consistency.
+
+    I'm going to test the migration question in a temporary copy of the repo, so the real one stays untouched, and run makemigrations in dry-run mode to confirm the default change gets picked up. I also want to check whether any notification or schedule tests assert on teacher short-name strings, since nothing obvious has turned up so far.
+  ── Listed files in petitions/migrations
+  ── Read notifications/tests/test_views.py
+  ── Thought for 12s
+    I'm checking the existing test_limits_to_three: five deadlines published at the frozen "now" and five plain news items published hours earlier. After the fix, the home page should show deadlines 0 through 2 and leave deadlines 3 and 4 eligible for the news section, but the tie on published_at still leaves three news items, so the `#news-` count should be 3.
+
+    I'm weighing two ways to exclude the shown deadlines from the news query: a new method on NewsSource, or fetching twice as many items and filtering them in Python. The second keeps the same single query and needs no new API, so I'm leaning toward it.
+
+    Next I'm writing the tests: one with four upcoming deadlines plus a plain news item, checking that the news block holds the plain news and the fourth deadline while none of the three shown deadlines appear. I'll locate the news section by splitting the content at `id="home-news"` and check the `#news-` and `#deadline-` links there. I'm also adding a heading check for "Новости" and a query-count test to confirm the exclusion doesn't add queries.
+
+    I'm settling on removing the `faculty` argument from the form and the view call, since leaving it in would just be an unused parameter. Next I need to check which tests pass `faculty=` into AnnouncementForm, because those would need updating too.
+
+    I'm deciding whether to keep the `faculty` parameter on the form, since leaving it unused would be misleading, and I'm going to check how many tests pass `faculty=` into AnnouncementForm before removing it from the form and the view.
+  ── Searched for AnnouncementForm(\|faculty=self.profile\|_form in notifications/
+  ── Thought for 14s
+    I'm weighing whether to drop the `faculty` keyword argument from the 7 test call sites. Keeping it would mean no test churn, but it would leave the parameter unused, which a reviewer would likely flag, so I'll remove it.
+
+    I'm updating the `audience_label` property in models.py to return the faculty name and adjusting the test_models expectation to match. For the short name, I'm switching the separator to a non-breaking space, then checking whether Django's escape would mangle it (it doesn't) and adding a schedule view test to confirm the rendered output.
+
+    I'm planning the petitions change next: swapping `timezone.now()` for an aliased `clock_now` in the services, keeping `timezone` for `localdate`, and checking whether `petitions/models.py` still needs its own `timezone` import.
+
+    I'm checking whether the migration is needed by running makemigrations on a temporary copy of the repo with the model defaults swapped. I also want to confirm the petitions defaults and demo base still behave correctly once the clock is patched at call time.
+
+    I'm checking which regression tests fail before the fix: the news test, the two label tests, the non-breaking-space test, and the comment and attachment tests that stamp the real time. The submit and status tests already use call-time time, so they act as guards rather than failing cases. I'll also add an attachment to the new petition test since its `uploaded_at` would show the same problem.
+
+    I'm writing up the plan for the remaining checks: first confirming the git tree is clean apart from plan.md, then running a baseline test pass. I'll also try the migration experiment on a temporary copy of the repo.
+
+── Assistant ───────────────────────────────────────────────
+Готовлю TASK-007-FIX. Проверяю на временной копии проекта, нужна ли миграция для `petitions`, и запускаю базовые тесты.
+
+── Ran 3 commands ──────────────────────────────────────────
+  ── Ran source .venv/bin/activate && rm -rf "$TMPDIR/t007fix" && mkdir -p "$TMPDIR/t007fix" && git archive HEAD | tar -x -C "$TMPDIR/t007fix" && cd "$TMPDIR/t007fix" && python - <<'EOF' import re p="petitions/models.py"; s=open(p).read() s=s.replace("default=timezone.now","default=now").replace("from core.storage import get_private_storage","from core.clock import now\nfrom core.storage import get_private_storage") open(p,"w").write(s) EOF grep -n "timezone" petitions/models.py; DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t007fix/x.sqlite3" python manage.py makemigrations petitions --dry-run -v 2 2>&1 | head -40 (2s)
+    $ source .venv/bin/activate && rm -rf "$TMPDIR/t007fix" && mkdir -p "$TMPDIR/t007fix" && git archive HEAD | tar -x -C "$TMPDIR/t007fix" && cd "$TMPDIR/t007fix" && python - <<'EOF'
+  import re
+  p="petitions/models.py"; s=open(p).read()
+  s=s.replace("default=timezone.now","default=now").replace("from core.storage import get_private_storage","from core.clock import now\nfrom core.storage import get_private_storage")
+  open(p,"w").write(s)
+  EOF
+  grep -n "timezone" petitions/models.py; DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t007fix/x.sqlite3" python manage.py makemigrations petitions --dry-run -v 2 2>&1 | head -40
+    9:from django.utils import timezone
+    Migrations for 'petitions':
+      petitions/migrations/0002_alter_petition_created_at_and_more.py
+        ~ Alter field created_at on petition
+        ~ Alter field status_changed_at on petition
+        ~ Alter field uploaded_at on petitionattachment
+        ~ Alter field created_at on petitioncomment
+        ~ Alter field created_at on petitionstatuschange
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 1s
+    I'm checking the pending migration `0002_alter_petition_created_at_and_more.py`, which only changes a default. I expect sqlmigrate to produce little or nothing on PostgreSQL, since the default isn't stored in the database, though SQLite might rebuild the table. I'll generate and run sqlmigrate on a temp copy to confirm, and I still need to look at the unused `timezone` import on line 9.
+
+    I still need to check whether `timezone` is used anywhere else in `petitions/models.py`, since the grep only turned up the import line. If it's unused, ruff will flag it under F401, so the import should come out. I'll also run sqlmigrate on a temp SQLite copy to see what the migration actually does.
+  ── Ran cd "$TMPDIR/t007fix" && source ~/hackatonproject/.venv/bin/activate && export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t007fix/x.sqlite3" && python manage.py makemigrations petitions -v0 && python manage.py sqlmigrate petitions 0002 | head -8; python manage.py sqlmigrate petitions 0002 | grep -c "CREATE TABLE"; python - <<'EOF' s=open("university/models.py").read() s=s.replace('''        middle = f" {self.middle_name[0]}." if self.middle_name else ""         return f"{self.last_name} {self.first_name[0]}.{middle}"''','''        middle = f"\\u00a0{self.middle_name[0]}." if self.middle_name else ""         return f"{self.last_name}\\u00a0{self.first_name[0]}.{middle}"''') open("university/models.py","w").write(s) EOF grep -n "u00a0" university/models.py; python -c " import os,django;os.environ['DJANGO_SETTINGS_MODULE']='config.settings';django.setup() from django.utils.html import escape; from django.template import Template, Context print(repr(Template('{{ x }}').render(Context({'x':'Фомин П.'}))))" (2s)
+    $ cd "$TMPDIR/t007fix" && source ~/hackatonproject/.venv/bin/activate && export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t007fix/x.sqlite3" && python manage.py makemigrations petitions -v0 && python manage.py sqlmigrate petitions 0002 | head -8; python manage.py sqlmigrate petitions 0002 | grep -c "CREATE TABLE"; python - <<'EOF'
+  s=open("university/models.py").read()
+  s=s.replace('''        middle = f" {self.middle_name[0]}." if self.middle_name else ""
+          return f"{self.last_name} {self.first_name[0]}.{middle}"''','''        middle = f"\\u00a0{self.middle_name[0]}." if self.middle_name else ""
+          return f"{self.last_name}\\u00a0{self.first_name[0]}.{middle}"''')
+  open("university/models.py","w").write(s)
+  EOF
+  grep -n "u00a0" university/models.py; python -c "
+  import os,django;os.environ['DJANGO_SETTINGS_MODULE']='config.settings';django.setup()
+  from django.utils.html import escape; from django.template import Template, Context
+  print(repr(Template('{{ x }}').render(Context({'x':'Фомин П.'}))))"
+    BEGIN;
+    --
+    -- Alter field created_at on petition
+    --
+    CREATE TABLE "new__petitions_petition" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "created_at" datetime NOT NULL, "public_id" char(32) NOT NULL UNIQUE, "comment" text NOT NULL, "status" varchar(16) NOT NULL, "status_changed_at" datetime NOT NULL, "expected_ready_date" date NOT NULL, "seed_key" varchar(40) NOT NULL, "student_id" bigint NOT NULL REFERENCES "accounts_studentprofile" ("id") DEFERRABLE INITIALLY DEFERRED, "request_type_id" bigint NOT NULL REFERENCES "petitions_requesttype" ("id") DEFERRABLE INITIALLY DEFERRED, CONSTRAINT "petitions_status_value" CHECK ("status" IN ('submitted', 'in_progress', 'ready', 'issued', 'rejected')));
+    INSERT INTO "new__petitions_petition" ("id", "public_id", "comment", "status", "status_changed_at", "expected_ready_date", "seed_key", "student_id", "request_type_id", "created_at") SELECT "id", "public_id", "comment", "status", "status_changed_at", "expected_ready_date", "seed_key", "student_id", "request_type_id", "created_at" FROM "petitions_petition";
+    DROP TABLE "petitions_petition";
+    ALTER TABLE "new__petitions_petition" RENAME TO "petitions_petition";
+    5
+    127:        middle = f"\u00a0{self.middle_name[0]}." if self.middle_name else ""
+    128:        return f"{self.last_name}\u00a0{self.first_name[0]}.{middle}"
+    'Фомин\xa0П.'
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 6ms
+    I'm noting that SQLite rebuilds tables, which copies the data and is harmless, while on PostgreSQL the default-only AlterField produces no SQL. The production database is fresh anyway, so that's worth recording. I also want to check that the Django escape keeps the raw non-breaking space intact.
+
+    Next I'll test the migration in a temporary copy: migrate to 0001, seed the data, then apply the rest, to confirm 0002 runs against existing rows.
+  ── Ran cd "$TMPDIR/t007fix" && source ~/hackatonproject/.venv/bin/activate && export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t007fix/y.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t007fix/priv" DEMO_PASSWORD='Local-Demo-Pass-2026!' && python manage.py migrate -v0 && python manage.py migrate petitions 0001 -v0 && python manage.py seed_demo | tail -1 && python manage.py migrate -v0 && python manage.py shell -c "from petitions.models import Petition, PetitionAttachment as A; print(Petition.objects.count(), A.objects.count())" (5s)
+    $ cd "$TMPDIR/t007fix" && source ~/hackatonproject/.venv/bin/activate && export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t007fix/y.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t007fix/priv" DEMO_PASSWORD='Local-Demo-Pass-2026!' && python manage.py migrate -v0 && python manage.py migrate petitions 0001 -v0 && python manage.py seed_demo | tail -1 && python manage.py migrate -v0 && python manage.py shell -c "from petitions.models import Petition, PetitionAttachment as A; print(Petition.objects.count(), A.objects.count())"
+    Notifications ready: 9 announcements.
+    29 objects imported automatically (use -v 2 for details).
+
+    7 3
+    Shell cwd was reset to ~/hackatonproject
+
+── Assistant ───────────────────────────────────────────────
+Now the baseline run on the real tree (with saved logs).
+
+── Ran 2 commands, created 1 file, explored 1 search ───────
+  ── Ran source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t007fix-feas.log" | grep -E "^Ran|^OK|^FAILED" ; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t007fix-feas-at-2359.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t007fix-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t007fix/seed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t007fix/seed-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t007fix/seed.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1 (10m 1s)
+    $ source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t007fix-feas.log" | grep -E "^Ran|^OK|^FAILED" ; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t007fix-feas-at-2359.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t007fix-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t007fix/seed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t007fix/seed-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t007fix/seed.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1
+    MSK 20261115-134337
+    System check identified no issues (0 silenced).
+    No changes detected
+    Ran 735 tests in 120.746s
+    OK
+    Command did not complete within its 600s timeout and was moved to the background (ID: bulwg4yip). Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bulwg4yip.output. You will be notified when it completes. If it is still running after 30m in the background, it will be stopped and you will be notified. It is running now: do not start a second copy while it runs. If it is no longer needed, stop it with TaskStop. To check interim output, use Read on that file path.
+  ── Thought for 4ms
+    I'm going to write the spec while the run goes. For the five fix tests, I'll freeze the clock at 2026-11-11 12:00 so any real-time leak makes them fail, and I'll put them in petitions/tests/test_services.py under ServiceClockTests. The make_petition helper already passes created_at, so that's fine. Last, I'm checking where Teacher.short_name is used: it shows up only in the template and the sources, so I'm treating that as settled.
+  ── Created docs/tasks/TASK-007-FIX.md +175
+    --- /dev/null
+    +++ b~/hackatonproject/docs/tasks/TASK-007-FIX.md
+    +# TASK-007-FIX: home news without shown deadlines, short labels, non-breaking teacher initials, clock-safe petition timestamps
+    +
+    +Author: Planner. Status: ready for implementation.
+    +Base commit: `4608e59`. Related specs: `docs/tasks/TASK-007.md` (D5 = clock-safe defaults), `docs/tasks/TASK-006.md`. Screenshots: `docs/process/screenshots/2026-11-15_16..19_*.jpg`.
+    +
+    +No new features. Each fix is minimal and has a regression test that fails without it (except item 6, a style change).
+    +
+    +---
+    +
+    +## 1. Acceptance criteria
+    +| ID | Criterion |
+    +|---|---|
+    +| AC1 | Home page (student): the news heading is «Новости». The news block excludes ONLY the announcements shown in the home deadlines block at that moment (the `HOME_ITEMS` nearest deadlines). Other announcements, including deadlines not shown there (4th nearest, past), stay eligible. Up to `HOME_ITEMS` news, newest first. `/notifications/` is unchanged. Home query count does not grow. |
+    +| AC2 | Staff form: the faculty option label is «Весь факультет». Group options stay «Группа <name>». |
+    +| AC3 | Audience label for a faculty announcement is the faculty name only (e.g. «Факультет цифровой дипломатии»); «Для всех студентов» and «Группа <name>» unchanged. One place builds it: `Announcement.audience_label`. |
+    +| AC4 | `Teacher.short_name` uses U+00A0 (no-break space) between the last name and the first initial and between the initials. Pages render it unchanged (Django's `escape` does not touch U+00A0). |
+    +| AC5 | Petition services take the time from `core.clock.now()` and pass it explicitly: `submit_petition`, `change_status`, `add_staff_comment`. Model defaults of `Petition.created_at`, `Petition.status_changed_at`, `PetitionStatusChange.created_at`, `PetitionComment.created_at`, `PetitionAttachment.uploaded_at` are `core.clock.now`. Migration `petitions/0002` is generated. Production behaviour is unchanged (`core.clock.now()` returns `timezone.now()`). |
+    +| AC6 | `notifications/feed.py`: `relative_day_label` is imported at module level (no import cycle, see 6.2). |
+    +
+    +## 2. Out of scope
+    +New features, visual theme, room map (TASK-008), chat (TASK-009). Accepted limitations (do not fix): existing lesson changes appear as «Новое» once after `schedule/0004`; a home `#news-<uuid>` link may point to nothing if the item is outside the feed.
+    +
+    +## 3. Files
+    +Change only:
+    +- `notifications/feed.py` (items 1, 6), `core/templates/core/home.html` (item 1)
+    +- `notifications/forms.py`, `notifications/views.py` (item 2)
+    +- `notifications/models.py` (item 3)
+    +- `university/models.py` (item 4)
+    +- `petitions/models.py`, `petitions/services.py`, new `petitions/migrations/0002_alter_petition_created_at_and_more.py` (generated) (item 5)
+    +- tests: `notifications/tests/test_views.py`, `notifications/tests/test_models.py`, `university/tests/test_models.py`, `schedule/tests/test_views.py`, `petitions/tests/test_services.py`
+    +
+    +No settings, no new dependencies, no other migrations.
+    +
+    +---
+    +
+    +## 4. Fixes
+    +
+    +### 4.1 Item 1 — home news (`notifications/feed.py::home_summary`, `core/home.html`)
+    +Replace the body of `home_summary` after `ctx` is built:
+    +```python
+    +deadlines = upcoming_deadlines(ctx, HOME_ITEMS)
+    +shown = {f"news-{d.public_id}" for d in deadlines}
+    +candidates = NewsSource().latest(ctx, HOME_ITEMS + len(shown))
+    +news = [item for item in candidates if item.key not in shown][:HOME_ITEMS]
+    +return HomeSummary(deadlines=deadlines, news=news)
+    +```
+    +Why `HOME_ITEMS + len(shown)`: at most `len(shown)` candidates are dropped, so at least `HOME_ITEMS` remain when that many exist. Still one query for news (same count as before). The key format `news-<public_id>` is the one `NewsSource.to_item` builds (`notifications/sources.py`); do not build another format.
+    +`core/home.html`: `<h2 id="home-news">Новости деканата</h2>` → `<h2 id="home-news">Новости</h2>`. Nothing else changes in the template.
+    +
+    +### 4.2 Item 2 — form label (`notifications/forms.py`, `notifications/views.py`)
+    +- `AnnouncementForm.__init__`: remove the `faculty: Faculty` keyword argument (it becomes unused) and its import if unused; the first choice becomes `(TARGET_FACULTY, "Весь факультет")`.
+    +- `StaffAnnouncementsView._form`: remove `faculty=self.profile.faculty`.
+    +- Existing `AnnouncementFormTests` construct the form with `faculty=…`: remove that argument in each call (mechanical change, list it in the `REPORT`).
+    +
+    +### 4.3 Item 3 — audience label (`notifications/models.py`)
+    +`Announcement.audience_label`, faculty branch: `return self.faculty.name`. The templates already use this property only (`feed.html`, `_deadlines.html`, `staff_list.html`, via `FeedItem.audience_label` / `DeadlineItem.audience_label`); do not build the label anywhere else. Update `notifications/tests/test_models.py::…::test_str_and_audience_label` expected value to `"Факультет FX"`.
+    +
+    +### 4.4 Item 4 — teacher short name (`university/models.py`)
+    +```python
+    +NBSP = " "
+    +...
+    +@property
+    +def short_name(self) -> str:
+    +    middle = f"{NBSP}{self.middle_name[0]}." if self.middle_name else ""
+    +    return f"{self.last_name}{NBSP}{self.first_name[0]}.{middle}"
+    +```
+    +`NBSP` is a module-level constant in `university/models.py`. Update `university/tests/test_models.py::…::test_teacher_short_name` to `"Лебедев А. С."` and `"Фомин П."`. No other test or template depends on the plain-space form (checked, see 6.2).
+    +
+    +### 4.5 Item 5 — petition timestamps (`petitions/models.py`, `petitions/services.py`)
+    +- `petitions/models.py`: `from core.clock import now`; the five defaults listed in AC5 become `default=now`. Remove `from django.utils import timezone` if it becomes unused (it does on the current tree).
+    +- `python manage.py makemigrations petitions` → `petitions/migrations/0002_alter_petition_created_at_and_more.py` (5 `AlterField`, default only). On PostgreSQL this changes no SQL; on SQLite Django rebuilds the five tables and copies the data (checked on a seeded copy: 7 petitions and 3 attachments kept).
+    +- `petitions/services.py`: `from core import clock`.
+    +  - `submit_petition`: `now = clock.now()` (instead of `timezone.now()`); `expected_ready_date=add_working_days(timezone.localdate(now), …)` (same Moscow date as `now`).
+    +  - `change_status`: `now = clock.now()`.
+    +  - `add_staff_comment`: `return PetitionComment.objects.create(petition=petition, author=actor, text=text, created_at=clock.now())`.
+    +  - Keep `from django.utils import timezone` (still used by `localdate`).
+    +- `store_attachment` (`petitions/files.py`) is not changed: `uploaded_at` takes the new clock-safe default.
+    +
+    +### 4.6 Item 6 — import (`notifications/feed.py`)
+    +Delete `from .dates import relative_day_label` inside `upcoming_deadlines`; add it to the module imports (`from .dates import relative_day_label`, isort order between `.constants` and `.models`).
+    +
+    +---
+    +
+    +## 5. Test plan
+    +
+    +### 5.1 Rules
+    +- New test classes use `FrozenClockMixin` with `frozen_now = "2026-11-11 12:00"` (before the real date, so a timestamp from the real clock is detected at once), and the existing helpers (`make_world`, `make_announcement`, `make_faculty`, `make_group`, `make_student`, `make_staff`, `make_type`, `make_petition`, `pdf_upload`, `make_lesson`, `make_room`, `make_teacher`).
+    +- Save full output of every test run to a file; report any failed run by test name, Moscow time and traceback excerpt.
+    +
+    +### 5.2 Traceability and regression evidence
+    +| AC | Test (file::class::method) | Fails before fix because |
+    +|---|---|---|
+    +| AC1 | `notifications/tests/test_views.py::HomeSummaryTests::test_news_exclude_shown_deadlines` | shown deadlines fill the news block, the 4th deadline and plain news are hidden |
+    +| AC1 | `…::HomeSummaryTests::test_news_without_deadlines_unchanged` | (guard) |
+    +| AC1 | `…::HomeSummaryTests::test_news_heading` | heading is «Новости деканата» |
+    +| AC1 | `…::QueryCountTests::test_home_queries_same_with_deadlines` | (guard: count does not grow) |
+    +| AC2 | `notifications/tests/test_views.py::AnnouncementFormTests::test_faculty_option_label` | label contains the faculty name |
+    +| AC3 | `notifications/tests/test_views.py::AudienceLabelRenderTests::test_feed_shows_faculty_name_only`, `test_staff_list_shows_faculty_name_only`; updated `test_models.py::…::test_str_and_audience_label` | «Факультет: » prefix |
+    +| AC4 | `university/tests/test_models.py::…::test_teacher_short_name` (updated), `schedule/tests/test_views.py::TeacherShortNameRenderTests::test_week_page_has_no_break_spaces` | plain spaces |
+    +| AC5 | `petitions/tests/test_services.py::ServiceClockTests::test_staff_comment_gets_frozen_time`, `test_attachment_gets_frozen_time` | real time from `default=timezone.now` |
+    +| AC5 | `…::ServiceClockTests::test_submit_gets_frozen_time`, `test_status_change_gets_frozen_time`, `test_model_defaults_are_clock_now` | (guards; `timezone.now()` call was already patched; the last one fails before: default is `timezone.now`) |
+    +| AC6 | none (style); Reviewer checks `grep -n "import" notifications/feed.py` | — |
+    +
+    +### 5.3 Test details
+    +- `HomeSummaryTests` (existing class, `frozen_now = NOW` of the module):
+    +  - `test_news_exclude_shown_deadlines`: university announcements: `d1..d4` with deadlines `D+1..D+4` and `published_at = now - 1h, -2h, -3h, -4h`; plain news `p` with `published_at = now - 5h`. GET `/` as `ax`. Split the content at `id="home-news"` and use the part after it: contains `#news-{p.public_id}` and `#news-{d4.public_id}`; contains none of `#news-{d1/d2/d3.public_id}`. The part before contains `#deadline-{d1..d3.public_id}`.
+    +  - `test_news_without_deadlines_unchanged`: 4 plain news (published now - 1h … now - 4h) → news part contains exactly the 3 newest (`#news-` count 3, oldest absent).
+    +  - `test_news_heading`: `'<h2 id="home-news">Новости</h2>'` in content; «Новости деканата» absent.
+    +  - The existing `test_limits_to_three` must still pass unchanged.
+    +- `QueryCountTests::test_home_queries_same_with_deadlines`: count A = GET `/` with 1 plain news; then add 4 deadline announcements and 3 more news; count B; `assertEqual(A, B)`.
+    +- `AnnouncementFormTests::test_faculty_option_label`: `dict(form.fields["target"].choices)["faculty"] == "Весь факультет"`; group label `f"Группа {gx1.name}"` unchanged.
+    +- `AudienceLabelRenderTests(FrozenClockMixin, TestCase)` (new class in `notifications/tests/test_views.py`, world from `make_world`, faculty name is «Факультет FX»):
+    +  - `test_feed_shows_faculty_name_only`: FX faculty announcement; GET `/notifications/` as `ax` → «Факультет FX» in content; `"Факультет: "` not in content.
+    +  - `test_staff_list_shows_faculty_name_only`: same item; GET `/staff/announcements/` as `sx` → same assertions.
+    +- `TeacherShortNameRenderTests(FrozenClockMixin, TestCase)` (new class in `schedule/tests/test_views.py`, `frozen_now = "2026-11-11 12:00"`): a student's group has a Wednesday lesson with teacher `Teacher(last_name="Шестакова", first_name="Людмила", middle_name="Петровна")`; GET `schedule:week_of` for 2026-11-11 → content contains `"Шестакова Л. П."` and does not contain `"Шестакова Л."`.
+    +- `ServiceClockTests(FrozenClockMixin, TestCase)` (new class in `petitions/tests/test_services.py`, `frozen_now = "2026-11-11 12:00"`, expected `moscow("2026-11-11 12:00")`):
+    +  - `test_submit_gets_frozen_time`: `submit_petition(...)` → `petition.created_at`, `status_changed_at` and the history row `created_at` equal the frozen time.
+    +  - `test_attachment_gets_frozen_time`: `submit_petition(..., [pdf_upload()])` → `attachment.uploaded_at` equals the frozen time.
+    +  - `test_status_change_gets_frozen_time`: `change_status(...)` → new history row and `status_changed_at` equal the frozen time.
+    +  - `test_staff_comment_gets_frozen_time`: `add_staff_comment(...)` → `created_at` equals the frozen time.
+    +  - `test_model_defaults_are_clock_now`: for the five fields, `Model._meta.get_field(name).default is core.clock.now`.
+    +
+    +### 5.4 Access matrix
+    +No access rules change. Existing access tests of `core:home`, `notifications:feed`, `notifications:staff_announcements` and the petitions views must keep passing.
+    +
+    +### 5.5 Settings branches / query count
+    +No settings change. Query count: 5.3 (`test_home_queries_same_with_deadlines`); existing `test_home_queries_constant` and `test_badge_exactly_three_queries` must keep passing.
+    +
+    +---
+    +
+    +## 6. Feasibility check (2026-11-15 13:43 MSK on `4608e59`)
+    +1. Clean start — `git status --short` → only ` M plan.md`. OK.
+    +2. Referenced objects — `home_summary`, `upcoming_deadlines` (function-local import at `notifications/feed.py` inside `upcoming_deadlines`), `NewsSource.to_item` key `news-<public_id>`, `HOME_ITEMS`; `core/home.html:12` heading «Новости деканата»; `AnnouncementForm.__init__(…, faculty, groups, today)` label `f"Весь факультет: {faculty.name}"` (`notifications/forms.py:37`), used by `notifications/views.py:41-44` and 7 calls in `notifications/tests/test_views.py`; `Announcement.audience_label` (`notifications/models.py:104-109`) — the only builder, used by `sources.py:125`, `feed.py:98`, templates `feed.html`, `_deadlines.html`, `staff_list.html`; `Teacher.short_name` (`university/models.py:126-128`), used by `schedule/templates/schedule/includes/lesson_item.html:9` and `notifications/sources.py:204`; tests on its text: only `university/tests/test_models.py:51-55` (grep for `short_name`, `[А-Я]\. [А-Я]\.` in all tests); petitions defaults `petitions/models.py:81,82,122,147,170` (`default=timezone.now`); services `submit_petition` (`timezone.now()` line 86), `change_status` (line 139), `add_staff_comment` (no `created_at`, line ~163); `core/clock.py::now`. OK.
+    +3. No collisions — `NBSP` not defined in `university/models.py`; test classes `AudienceLabelRenderTests`, `TeacherShortNameRenderTests`, `ServiceClockTests` and the new method names do not exist; latest petitions migration is `0001_initial`. OK.
+    +4. Migrations — `makemigrations --check --dry-run` → «No changes detected». On a temporary copy of `HEAD` with the item-5 defaults: `makemigrations petitions --dry-run` → `0002_alter_petition_created_at_and_more.py` (5 AlterField); applied on a seeded temp DB (`migrate petitions 0001` → `seed_demo` → `migrate`) → 7 petitions and 3 attachments kept. No other app gets a migration (`short_name` is a property). OK.
+    +5. Tools — unchanged (Python 3.12, Django 5.2.19, ruff 0.17.4). OK.
+    +6. Framework — Django template autoescape leaves U+00A0 as the raw character (`Template("{{ x }}")` with `"Фомин П."` renders `'Фомин\xa0П.'`), so tests assert the raw character. `default=timezone.now` is not patched by `FrozenClockMixin`, a call-time lookup is (TASK-007 feasibility 6). No import cycle for item 6: `notifications/dates.py` imports only `datetime`, and `notifications/sources.py` already imports `relative_day_label` at module level. OK.
+    +7. Environment — no new env variables. OK.
+    +8. Verification runnable — current tree, logs `$TMPDIR/test-20261115-134337-t007fix-feas*.log`: results in 6a below.
+    +9. Conflicts — none.
+    +10. Assumptions / blockers — none.
+    +
+    +### 6a. Verification results on the current tree
+    +See the hand-off message (filled after the background runs finish).
+    +
+    +## 7. Implementation order
+    +1. Write the tests in 5.2/5.3 and run them: the ones marked "fails before fix" must fail.
+    +2. Fixes 4.1–4.6 (4.5: models → `makemigrations petitions` → services).
+    +3. `ruff format` on changed Python files only (not migrations); section 8; `REPORT` to the Reviewer with the regression evidence (which tests failed before the fix). Do not commit.
+    +
+    +## 8. Verification
+    +```bash
+    +source .venv/bin/activate
+    +export DEBUG=true
+    +TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S)
+    +python manage.py check
+    +python manage.py makemigrations --check --dry-run
+    +python manage.py test 2>&1 | tee "$TMPDIR/test-$TS.log"
+    +python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-at-2359.log"
+    +python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-at-0000.log"
+    +DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop \
+    +  ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ \
+    +  python manage.py check --deploy --fail-level WARNING
+    +ruff check . && ruff format --check .
+    +python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"
+    +export DATABASE_URL="sqlite:///$TMPDIR/task007fix.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task007fix-private" DEMO_PASSWORD='Local-Demo-Pass-2026!'
+    +rm -f "$TMPDIR/task007fix.sqlite3"
+    +python manage.py migrate && python manage.py seed_demo && python manage.py seed_demo
+    +git status --short
+    +```
+    +`REPORT`: output tails, test count (was 735), log file names, any failed run by test name and Moscow time, `git status`.
+    +
+    +## 9. Risks
+    +- Non-breaking spaces make a long teacher name a single unbreakable unit; `overflow-wrap: anywhere` on `.lesson`? Not present — the short name is at most ~25 characters, which fits 360 px. The Team lead re-checks the schedule page at 360 px.
+    +- The SQLite table rebuild in `petitions/0002` copies data; run it only through `migrate` (never by hand). The local `db.sqlite3` is migrated by the Team lead, not by the Coder.
+  ── Thought for 2ms
+    I'm going back over the overflow-wrap risk bullet, since its wording is sloppy, and checking the CSS for .lesson to see what it actually does. I'm also confirming that the coder's `manage.py test` runs against the test DB, so the migration on the local db.sqlite3 doesn't affect that check. Next I'll look at base.css for overflow-wrap.
+  ── Searched for overflow-wrap\|word-break in static/css/*.css
+  ── Thought for 2ms
+    I'm checking the body's overflow-wrap setting on line 14: since it's set to anywhere, a long non-breaking space string will only wrap if it actually overflows, which is acceptable. Next I need to fix the risk bullet.
+  ── Ran python3 - <<'EOF' p="docs/tasks/TASK-007-FIX.md"; s=open(p,encoding="utf-8").read() a="- Non-breaking spaces make a long teacher name a single unbreakable unit; `overflow-wrap: anywhere` on `.lesson`? Not present — the short name is at most ~25 characters, which fits 360 px. The Team lead re-checks the schedule page at 360 px." b="- Non-breaking spaces make the short name one unit. It is short (last name + 2 initials) and `body` already has `overflow-wrap: anywhere` (`static/css/base.css:14`), so an extremely long name still cannot overflow 360 px. The Team lead re-checks the schedule page at 360 px." assert s.count(a)==1; s=s.replace(a,b); open(p,"w",encoding="utf-8").write(s) EOF (2s)
+    $ python3 - <<'EOF'
+  p="docs/tasks/TASK-007-FIX.md"; s=open(p,encoding="utf-8").read()
+  a="- Non-breaking spaces make a long teacher name a single unbreakable unit; `overflow-wrap: anywhere` on `.lesson`? Not present — the short name is at most ~25 characters, which fits 360 px. The Team lead re-checks the schedule page at 360 px."
+  b="- Non-breaking spaces make the short name one unit. It is short (last name + 2 initials) and `body` already has `overflow-wrap: anywhere` (`static/css/base.css:14`), so an extremely long name still cannot overflow 360 px. The Team lead re-checks the schedule page at 360 px."
+  assert s.count(a)==1; s=s.replace(a,b); open(p,"w",encoding="utf-8").write(s)
+  EOF
+    exit code 0
+
+── Assistant ───────────────────────────────────────────────
+Waiting for the background verification to finish.
+
+── Ran 3 commands ──────────────────────────────────────────
+  ── Ran F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bulwg4yip.output; until grep -q "Notifications ready" "$F" && [ $(grep -c "Notifications ready" "$F") -ge 2 ] || grep -qE "Traceback|Error|FAILED" "$F"; do sleep 5; done; grep -v " ready:" "$F" | tail -20 (1m 46s)
+    $ F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bulwg4yip.output; until grep -q "Notifications ready" "$F" && [ $(grep -c "Notifications ready" "$F") -ge 2 ] || grep -qE "Traceback|Error|FAILED" "$F"; do sleep 5; done; grep -v " ready:" "$F" | tail -20
+    MSK 20261115-134337
+    System check identified no issues (0 silenced).
+    No changes detected
+    Ran 735 tests in 120.746s
+    OK
+    Ran 735 tests in 119.257s
+    OK
+    Ran 735 tests in 119.764s
+    OK
+    System check identified no issues (1 silenced).
+    All checks passed!
+    149 files already formatted
+    yaml ok
+
+    [exited with code 0]
+  ── Ran F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bulwg4yip.output; grep -c "Notifications ready" $F; grep "Notifications ready\|Requests ready" $F | tail -4; cd ~/hackatonproject && python3 - <<'EOF' p="docs/tasks/TASK-007-FIX.md"; s=open(p,encoding="utf-8").read() a="### 6a. Verification results on the current tree\nSee the hand-off message (filled after the background runs finish).\n" b="""### 6a. Verification results on the current tree - `check` → no issues; `makemigrations --check --dry-run` → «No changes detected». - `test` → `Ran 735 tests … OK`; `run_tests_at.py 2026-11-17T23:59:59` → 735 OK; `run_tests_at.py 2026-11-18T00:00:00` → 735 OK. No failed runs. - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` → all passed; `ruff format --check .` → 149 files already formatted; CI YAML ok. - `seed_demo` twice on a temporary DB and PRIVATE_MEDIA_ROOT → OK (second run: «Notifications ready: 0 announcements.», «0 requests»). """ assert s.count(a)==1; s=s.replace(a,b); open(p,"w",encoding="utf-8").write(s) EOF (1s)
+    $ F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bulwg4yip.output; grep -c "Notifications ready" $F; grep "Notifications ready\|Requests ready" $F | tail -4; cd ~/hackatonproject && python3 - <<'EOF'
+  p="docs/tasks/TASK-007-FIX.md"; s=open(p,encoding="utf-8").read()
+  a="### 6a. Verification results on the current tree\nSee the hand-off message (filled after the background runs finish).\n"
+  b="""### 6a. Verification results on the current tree
+  - `check` → no issues; `makemigrations --check --dry-run` → «No changes detected».
+  - `test` → `Ran 735 tests … OK`; `run_tests_at.py 2026-11-17T23:59:59` → 735 OK; `run_tests_at.py 2026-11-18T00:00:00` → 735 OK. No failed runs.
+  - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` → all passed; `ruff format --check .` → 149 files already formatted; CI YAML ok.
+  - `seed_demo` twice on a temporary DB and PRIVATE_MEDIA_ROOT → OK (second run: «Notifications ready: 0 announcements.», «0 requests»).
+  """
+  assert s.count(a)==1; s=s.replace(a,b); open(p,"w",encoding="utf-8").write(s)
+  EOF
+    2
+    Notifications ready: 9 announcements.
+    Notifications ready: 0 announcements.
+    [This command modified 1 file you've previously read: docs/tasks/TASK-007-FIX.md. Call Read before editing.]
+  ── Ran grep -n "Requests ready" /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bulwg4yip.output | tail -2; bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF' [TASK-007-FIX] Planner -> Coder: TASK Spec: docs/tasks/TASK-007-FIX.md (base 4608e59). Six small fixes, regression tests first (section 5.2 marks which must fail before the fix). - Home: heading «Новости»; news exclude only the deadlines shown on home (`home_summary`, fetch HOME_ITEMS + len(shown), filter by key `news-<uuid>`). - Form label «Весь факультет» (drop the unused `faculty` kwarg from AnnouncementForm, its view call and 7 test calls); `audience_label` faculty branch → faculty name only. - `Teacher.short_name` with U+00A0 (`NBSP` constant), update `test_teacher_short_name`. - Petitions: defaults → `core.clock.now`, services use `clock.now()` explicitly (incl. `add_staff_comment`); generate `petitions/0002_alter_petition_created_at_and_more.py`. - Move the `relative_day_label` import in `notifications/feed.py` to module level. Verification in section 8 with `tee` logs (baseline 735 tests). Do not commit. EOF
+    $ grep -n "Requests ready" /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bulwg4yip.output | tail -2; bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF'
+  [TASK-007-FIX] Planner -> Coder: TASK
+  Spec: docs/tasks/TASK-007-FIX.md (base 4608e59). Six small fixes, regression tests first (section 5.2 marks which must fail before the fix).
+  - Home: heading «Новости»; news exclude only the deadlines shown on home (`home_summary`, fetch HOME_ITEMS + len(shown), filter by key `news-<uuid>`).
+  - Form label «Весь факультет» (drop the unused `faculty` kwarg from AnnouncementForm, its view call and 7 test calls); `audience_label` faculty branch → faculty name only.
+  - `Teacher.short_name` with U+00A0 (`NBSP` constant), update `test_teacher_short_name`.
+  - Petitions: defaults → `core.clock.now`, services use `clock.now()` explicitly (incl. `add_staff_comment`); generate `petitions/0002_alter_petition_created_at_and_more.py`.
+  - Move the `relative_day_label` import in `notifications/feed.py` to module level. Verification in section 8 with `tee` logs (baseline 735 tests). Do not commit.
+  EOF
+    Thread thr_ng6cbgatm6 steered
+
+── Assistant ───────────────────────────────────────────────
+Спецификация TASK-007-FIX готова и передана Кодеру: [docs/tasks/TASK-007-FIX.md](docs/tasks/TASK-007-FIX.md).
+
+**Что исправит Кодер:**
+1. **Главная.** Заголовок «Новости». Из новостей убираются только те 3 дедлайна, которые уже стоят в блоке «Ближайшие дедлайны». Четвёртый дедлайн и обычные новости остаются. Запросов к базе не станет больше.
+2. **Форма сотрудника.** В списке «Кому» вместо «Весь факультет: Факультет …» будет просто «Весь факультет».
+3. **Подпись аудитории.** Будет «Факультет цифровой дипломатии» вместо «Факультет: Факультет цифровой дипломатии». Подпись по-прежнему строится в одном месте.
+4. **Инициалы преподавателя.** Между фамилией и инициалами будут неразрывные пробелы, и строка не переносится. Простые пробелы проверял только один тест, его обновят.
+5. **Время в заявках.** Сервисы и поля моделей берут время через `core.clock.now`. Нужна миграция `petitions/0002`. Я применил её на копии базы с демо-данными: все 7 заявок и 3 вложения на месте. На PostgreSQL она не меняет схему.
+6. **Импорт.** `relative_day_label` переносится в начало модуля. Циклического импорта нет.
+
+**Проверка на текущем коде:**
+- Тесты прошли: 735 OK в трёх прогонах (обычный, 23:59:59 и 00:00 по Москве), ни одного падения. Логи: `$TMPDIR/test-20261115-134337-t007fix-feas*.log`.
+- `check --deploy`, ruff и проверка YAML чистые.
+- `seed_demo` дважды отработал без ошибок.
+
+Вопросов к тебе нет.

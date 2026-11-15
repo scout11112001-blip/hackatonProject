@@ -11,6 +11,7 @@ from core.testing import FrozenClockMixin
 from schedule.converters import IsoDateConverter
 from schedule.models import ChangeKind, LessonChange
 from schedule.mutations import save_lesson_change
+from university.models import Teacher
 
 from .helpers import aware, make_discipline, make_lesson, make_room, make_teacher
 
@@ -425,3 +426,33 @@ class ScheduleUiFixTests(FrozenClockMixin, TestCase):
         self.assertIn("). Причина:", content)  # moved-out
         self.assertIn("пара. Причина:", content)  # moved-in
         self.assertNotIn(" . Причина", content)
+
+
+class TeacherShortNameRenderTests(FrozenClockMixin, TestCase):
+    frozen_now = "2026-11-11 12:00"
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.faculty = make_faculty("FX")
+        cls.group = make_group(cls.faculty, "GX1")
+        cls.student = make_student("a", cls.group, "REC-A")
+        cls.room = make_room("room-101")
+        cls.teacher = Teacher.objects.create(
+            last_name="Шестакова", first_name="Людмила", middle_name="Петровна"
+        )
+        make_lesson(
+            [cls.group],
+            2,
+            1,
+            cls.room,
+            discipline=make_discipline("Дисциплина"),
+            teacher=cls.teacher,
+        )
+
+    def test_week_page_has_no_break_spaces(self):
+        self.client.force_login(self.student)
+        content = self.client.get(
+            reverse("schedule:week_of", kwargs={"day": date(2026, 11, 11)})
+        ).content.decode()
+        self.assertIn("Шестакова\u00a0Л.\u00a0П.", content)
+        self.assertNotIn("Шестакова Л.", content)

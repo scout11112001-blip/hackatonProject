@@ -6,8 +6,8 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.utils import timezone
 
+from core.clock import now
 from core.storage import get_private_storage
 from petitions.files import attachment_upload_to
 
@@ -78,8 +78,8 @@ class Petition(models.Model):
     status = models.CharField(
         "статус", max_length=16, choices=PetitionStatus.choices, default=PetitionStatus.SUBMITTED
     )
-    created_at = models.DateTimeField("подана", default=timezone.now)
-    status_changed_at = models.DateTimeField("статус изменён", default=timezone.now)
+    created_at = models.DateTimeField("подана", default=now)
+    status_changed_at = models.DateTimeField("статус изменён", default=now)
     expected_ready_date = models.DateField("ожидаемая дата готовности")
     seed_key = models.SlugField(max_length=40, blank=True, default="", editable=False)
 
@@ -119,7 +119,7 @@ class PetitionAttachment(models.Model):
     )
     original_name = models.CharField("имя файла", max_length=120)
     size = models.PositiveIntegerField("размер, байт")
-    uploaded_at = models.DateTimeField(default=timezone.now)
+    uploaded_at = models.DateTimeField(default=now)
 
     class Meta:
         ordering = ["uploaded_at", "pk"]
@@ -144,7 +144,7 @@ class PetitionStatusChange(models.Model):
         related_name="petition_status_changes",
         verbose_name="автор",
     )
-    created_at = models.DateTimeField(default=timezone.now)
+    created_at = models.DateTimeField(default=now)
     comment = models.TextField(blank=True, default="", max_length=MAX_COMMENT_LENGTH)
 
     class Meta:
@@ -167,7 +167,7 @@ class PetitionComment(models.Model):
         related_name="petition_comments",
         verbose_name="автор",
     )
-    created_at = models.DateTimeField(default=timezone.now)
+    created_at = models.DateTimeField(default=now)
     text = models.TextField(max_length=MAX_COMMENT_LENGTH)
 
     class Meta:

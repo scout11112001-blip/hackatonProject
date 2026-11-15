@@ -50,9 +50,9 @@ class UniversityModelTests(TestCase):
 
     def test_teacher_short_name(self):
         with_middle = Teacher(last_name="Лебедев", first_name="Аркадий", middle_name="Семёнович")
-        self.assertEqual(with_middle.short_name, "Лебедев А. С.")
+        self.assertEqual(with_middle.short_name, "Лебедев\u00a0А.\u00a0С.")
         without_middle = Teacher(last_name="Фомин", first_name="Павел")
-        self.assertEqual(without_middle.short_name, "Фомин П.")
+        self.assertEqual(without_middle.short_name, "Фомин\u00a0П.")
 
     def test_duplicate_teacher_name_rejected(self):
         Teacher.objects.create(last_name="Иванов", first_name="Иван", middle_name="Иванович")

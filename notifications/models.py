@@ -105,7 +105,7 @@ class Announcement(models.Model):
         if self.audience == Audience.UNIVERSITY:
             return "Для всех студентов"
         if self.audience == Audience.FACULTY:
-            return f"Факультет: {self.faculty.name}"
+            return self.faculty.name
         return f"Группа {self.group.name}"
 
 

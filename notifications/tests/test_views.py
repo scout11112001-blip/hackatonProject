@@ -42,7 +42,6 @@ class AnnouncementFormTests(FrozenClockMixin, TestCase):
     def test_choices_only_own_faculty_groups(self):
         form = AnnouncementForm(
             None,
-            faculty=self.w.fx,
             groups=[self.w.gx1, self.w.gx2],
             today=D,
         )
@@ -52,10 +51,19 @@ class AnnouncementFormTests(FrozenClockMixin, TestCase):
         self.assertIn(f"group-{self.w.gx2.pk}", choices)
         self.assertNotIn(f"group-{self.w.gy1.pk}", choices)
 
+    def test_faculty_option_label(self):
+        form = AnnouncementForm(
+            None,
+            groups=[self.w.gx1, self.w.gx2],
+            today=D,
+        )
+        choices = dict(form.fields["target"].choices)
+        self.assertEqual(choices["faculty"], "Весь факультет")
+        self.assertEqual(choices[f"group-{self.w.gx1.pk}"], "Группа GX1")
+
     def test_faculty_target(self):
         form = AnnouncementForm(
             {"title": "Заголовок", "body": "Текст", "target": "faculty"},
-            faculty=self.w.fx,
             groups=[self.w.gx1, self.w.gx2],
             today=D,
         )
@@ -66,7 +74,6 @@ class AnnouncementFormTests(FrozenClockMixin, TestCase):
     def test_group_target(self):
         form = AnnouncementForm(
             {"title": "Заголовок", "body": "Текст", "target": f"group-{self.w.gx1.pk}"},
-            faculty=self.w.fx,
             groups=[self.w.gx1, self.w.gx2],
             today=D,
         )
@@ -77,7 +84,6 @@ class AnnouncementFormTests(FrozenClockMixin, TestCase):
     def test_forged_group_rejected(self):
         form = AnnouncementForm(
             {"title": "Заголовок", "body": "Текст", "target": f"group-{self.w.gy1.pk}"},
-            faculty=self.w.fx,
             groups=[self.w.gx1, self.w.gx2],
             today=D,
         )
@@ -86,7 +92,6 @@ class AnnouncementFormTests(FrozenClockMixin, TestCase):
     def test_university_value_rejected(self):
         form = AnnouncementForm(
             {"title": "Заголовок", "body": "Текст", "target": "university"},
-            faculty=self.w.fx,
             groups=[self.w.gx1, self.w.gx2],
             today=D,
         )
@@ -95,7 +100,6 @@ class AnnouncementFormTests(FrozenClockMixin, TestCase):
     def test_iso_date_accepted(self):
         form = AnnouncementForm(
             {"title": "Заголовок", "body": "Текст", "target": "faculty", "deadline": "2026-11-20"},
-            faculty=self.w.fx,
             groups=[self.w.gx1, self.w.gx2],
             today=D,
         )
@@ -104,7 +108,6 @@ class AnnouncementFormTests(FrozenClockMixin, TestCase):
     def test_past_deadline_field_error(self):
         form = AnnouncementForm(
             {"title": "Заголовок", "body": "Текст", "target": "faculty", "deadline": "2026-11-10"},
-            faculty=self.w.fx,
             groups=[self.w.gx1, self.w.gx2],
             today=D,
         )
@@ -326,6 +329,61 @@ class HomeSummaryTests(FrozenClockMixin, TestCase):
         content = response.content.decode()
         self.assertEqual(content.count("#deadline-"), 3)
         self.assertEqual(content.count("#news-"), 3)
+
+    def test_news_exclude_shown_deadlines(self):
+        d1 = make_announcement(
+            self.w.sx,
+            audience=Audience.UNIVERSITY,
+            deadline=D + timedelta(days=1),
+            published_at=moscow(NOW) - timedelta(hours=1),
+        )
+        d2 = make_announcement(
+            self.w.sx,
+            audience=Audience.UNIVERSITY,
+            deadline=D + timedelta(days=2),
+            published_at=moscow(NOW) - timedelta(hours=2),
+        )
+        d3 = make_announcement(
+            self.w.sx,
+            audience=Audience.UNIVERSITY,
+            deadline=D + timedelta(days=3),
+            published_at=moscow(NOW) - timedelta(hours=3),
+        )
+        d4 = make_announcement(
+            self.w.sx,
+            audience=Audience.UNIVERSITY,
+            deadline=D + timedelta(days=4),
+            published_at=moscow(NOW) - timedelta(hours=4),
+        )
+        plain = make_announcement(
+            self.w.sx, audience=Audience.UNIVERSITY, published_at=moscow(NOW) - timedelta(hours=5)
+        )
+        self.client.force_login(self.w.ax)
+        content = self.client.get(reverse("core:home")).content.decode()
+        before, news_part = content.split('id="home-news"', 1)
+        self.assertIn(f"#news-{plain.public_id}", news_part)
+        self.assertIn(f"#news-{d4.public_id}", news_part)
+        for d in (d1, d2, d3):
+            self.assertNotIn(f"#news-{d.public_id}", news_part)
+            self.assertIn(f"#deadline-{d.public_id}", before)
+
+    def test_news_without_deadlines_unchanged(self):
+        for i in range(4):
+            make_announcement(
+                self.w.sx,
+                audience=Audience.UNIVERSITY,
+                published_at=moscow(NOW) - timedelta(hours=i + 1),
+            )
+        self.client.force_login(self.w.ax)
+        content = self.client.get(reverse("core:home")).content.decode()
+        news_part = content.split('id="home-news"', 1)[1]
+        self.assertEqual(news_part.count("#news-"), 3)
+
+    def test_news_heading(self):
+        self.client.force_login(self.w.ax)
+        content = self.client.get(reverse("core:home")).content.decode()
+        self.assertIn('<h2 id="home-news">Новости</h2>', content)
+        self.assertNotIn("Новости деканата", content)
 
     def test_student_without_profile(self):
         user = User.objects.create_user("noprof", role=User.Role.STUDENT)
@@ -672,3 +730,38 @@ class QueryCountTests(FrozenClockMixin, TestCase):
             make_announcement(self.w.sx, audience=Audience.UNIVERSITY, title=f"Новость {i}")
         five = _query_count(lambda: self.client.get(reverse("core:home")))
         self.assertEqual(one, five)
+
+    def test_home_queries_same_with_deadlines(self):
+        make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+        self.client.force_login(self.w.ax)
+        count_a = _query_count(lambda: self.client.get(reverse("core:home")))
+        for i in range(4):
+            make_announcement(
+                self.w.sx, audience=Audience.UNIVERSITY, deadline=D + timedelta(days=i + 1)
+            )
+        for _ in range(3):
+            make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+        count_b = _query_count(lambda: self.client.get(reverse("core:home")))
+        self.assertEqual(count_a, count_b)
+
+
+class AudienceLabelRenderTests(FrozenClockMixin, TestCase):
+    frozen_now = NOW
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.w = make_world()
+
+    def test_feed_shows_faculty_name_only(self):
+        make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+        self.client.force_login(self.w.ax)
+        content = self.client.get(reverse("notifications:feed")).content.decode()
+        self.assertIn("Факультет FX", content)
+        self.assertNotIn("Факультет: ", content)
+
+    def test_staff_list_shows_faculty_name_only(self):
+        make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+        self.client.force_login(self.w.sx)
+        content = self.client.get(reverse("notifications:staff_announcements")).content.decode()
+        self.assertIn("Факультет FX", content)
+        self.assertNotIn("Факультет: ", content)

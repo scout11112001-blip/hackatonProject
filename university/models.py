@@ -1,6 +1,8 @@
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models
 
+NBSP = "\u00a0"
+
 
 class Faculty(models.Model):
     code = models.CharField("код", max_length=20, unique=True)
@@ -124,8 +126,8 @@ class Teacher(models.Model):
 
     @property
     def short_name(self) -> str:
-        middle = f" {self.middle_name[0]}." if self.middle_name else ""
-        return f"{self.last_name} {self.first_name[0]}.{middle}"
+        middle = f"{NBSP}{self.middle_name[0]}." if self.middle_name else ""
+        return f"{self.last_name}{NBSP}{self.first_name[0]}.{middle}"
 
 
 class Discipline(models.Model):

@@ -41,7 +41,6 @@ class StaffAnnouncementsView(StaffRequiredMixin, TemplateView):
     def _form(self, data=None):
         return AnnouncementForm(
             data,
-            faculty=self.profile.faculty,
             groups=list(groups_visible_to(self.request.user).order_by("name")),
             today=timezone.localdate(),
         )
