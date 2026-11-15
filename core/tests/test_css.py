@@ -31,3 +31,10 @@ class BaseCssTests(SimpleTestCase):
             r"@media \(min-width: 48rem\)\s*\{\s*\.site-nav--wide\s*\{\s*display:\s*block;\s*\}"
             r"\s*\.site-nav-compact\s*\{\s*display:\s*none;",
         )
+
+    def test_chat_alignment_rules(self):
+        base_css = (Path(settings.BASE_DIR) / "static/css/base.css").read_text()
+        self.assertRegex(base_css, r"\.chat-message--own\s*\{\s*margin-left:")
+        self.assertRegex(base_css, r"\.chat-message--other\s*\{\s*margin-right:")
+        self.assertNotIn(".chat-message--student {", base_css)
+        self.assertNotIn(".chat-message--staff {", base_css)

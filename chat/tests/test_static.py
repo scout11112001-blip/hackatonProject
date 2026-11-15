@@ -41,3 +41,8 @@ class ChatJsTests(SimpleTestCase):
     def test_strict_iife(self):
         self.assertTrue(self.js.startswith("(function () {"))
         self.assertIn('"use strict"', self.js)
+
+    def test_single_loop_guard(self):
+        self.assertIn("var inFlight = false;", self.js)
+        self.assertIn("if (inFlight || stopped)", self.js)
+        self.assertIn("!inFlight", self.js)

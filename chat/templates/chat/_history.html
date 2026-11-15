@@ -1,9 +1,9 @@
 <section class="chat" data-chat-poll-url="{{ poll_url }}" data-chat-poll-ms="{{ poll_ms }}" data-chat-max-errors="{{ poll_max_errors }}">
   {% if truncated %}<p class="chat-note">Показаны последние {{ history_limit }} сообщений.</p>{% endif %}
   <ol class="chat-messages" id="chat-messages">
-    {% for m in messages %}{% include "chat/_message.html" %}{% endfor %}
+    {% for m in chat_messages %}{% include "chat/_message.html" %}{% endfor %}
   </ol>
-  {% if not messages %}<p class="chat-empty" id="chat-empty">{{ empty_text }}</p>{% endif %}
+  {% if not chat_messages %}<p class="chat-empty" id="chat-empty">{{ empty_text }}</p>{% endif %}
   <p class="chat-status" data-chat-status role="status" aria-live="polite"></p>
   <p class="page-actions"><a href="{{ refresh_url }}">Обновить</a></p>
 </section>

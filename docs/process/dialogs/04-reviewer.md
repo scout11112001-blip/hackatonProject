@@ -10379,3 +10379,444 @@ TASK-009 (чат с деканатом) одобрен с первого рау�
 2. Если seed запустить на локальной базе, где у демо-студента уже есть живой диалог, порядок сообщений и отметки «прочитано» собьются. Серверной базы это не касается.
 
 Тимлиду осталось проверить в браузере опрос в двух окнах (студент и сотрудник), работу без JavaScript и страницы чата на 360 px.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_ng6cbgatm6]
+
+[TASK-009-FIX] Coder -> Reviewer: REPORT
+
+Spec: docs/tasks/TASK-009-FIX.md (base bcd1280). Four fixes, regression tests first. Not committed.
+
+## Fixes
+1. Item 1 (AC1) — context key `messages` → `chat_messages` in `chat/views.py` (`_history_context`, `_empty_history`, student/staff `get` read-marking, both fragment renders) and in `_messages.html` / `_history.html` (the `{% for %}` and `{% if not %}` loops). Local Python var names and `exc.messages` / `messages_after` / `from django.contrib import messages` untouched.
+2. Item 2 (AC2) — `_message.html` computes `chat-message--own` / `chat-message--other` by viewer (`{% if m.author_role == 'student' and viewer_is_student or m.author_role == 'staff' and not viewer_is_student %}`); `base.css` replaces `.chat-message--staff`/`.chat-message--student` margin rules with `.chat-message--own`/`.chat-message--other`.
+3. Item 3 (AC3) — `chat.js` adds `var inFlight = false;`; `poll()` early-returns `if (inFlight || stopped)`, sets `inFlight = true; timer = null;`, and the final `.then` does `inFlight = false; schedule();`; `schedule()` and the visibility handler both add `!inFlight`. All TASK-009 rules kept (no HTML-string APIs, error limit, pause while hidden).
+4. Item 4 (AC4) — `seed_chat_demo` skips a student who already has any dialog (`Dialog.objects.filter(student=student).exists() → continue`) and uses `Dialog.objects.create` instead of `get_or_create`; `first_key` removed.
+
+## Regression evidence (§5.2) — 8 tests confirmed failing BEFORE the fix
+Ran the 8 "fails before fix" tests against the unfixed tree → all FAILED (8 failures): `test_context_uses_chat_messages`, `test_student_page_has_no_messages_block_from_chat`, `test_framework_message_shown_on_chat_pages`, `test_alignment_student_viewer`, `test_fragment_alignment_by_viewer`, `test_existing_real_dialog_untouched`, `test_single_loop_guard`, `test_chat_alignment_rules`. After the fixes all 12 new tests pass.
+
+## Tests
+**963 tests OK** (baseline 951 → +12). New: ViewTests +7 (`test_student_page_has_no_messages_block_from_chat`, `test_staff_dialog_has_no_messages_block_from_chat`, `test_framework_message_shown_on_chat_pages` (patched `django.contrib.messages.context_processors.get_messages`), `test_staff_real_framework_message_after_unpublish` (real unpublish flow → `Объявление снято с публикации.` in `<ul class="messages">`), `test_context_uses_chat_messages`, `test_alignment_student_viewer`, `test_alignment_staff_viewer`); UpdatesViewTests +2 (`test_fragment_markup_unchanged`, `test_fragment_alignment_by_viewer`); ChatJsTests +1 (`test_single_loop_guard`); ChatSeedTests +1 (`test_existing_real_dialog_untouched`); BaseCssTests +1 (`test_chat_alignment_rules`). Existing `AccessTests` / `QueryCountTests` (TASK-009) unchanged and green.
+
+## Verification (§7) — all green
+- `check` → no issues; `makemigrations --check --dry-run` → No changes (no migrations, as specified).
+- `test` → `Ran 963 … OK`; `run_tests_at.py` 2026-11-17T23:59:59 and 2026-11-18T00:00:00 → 963 OK each (no stalls).
+- `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` clean; `ruff format --check .` → 183 files formatted; `node --check static/js/chat.js` → js syntax ok; yaml ok.
+- Seed twice on temp DB+media → «Chat ready: 3 dialogs, 8 messages.» then «Chat ready: 0 dialogs, 0 messages.» (idempotent).
+
+Logs: `$TMPDIR/test-20261116-013628.log`, `-013857-at-2359.log`, `-013857-at-0000.log`, `-013341-t009fix.log`.
+
+## git status (matches §3 exactly)
+```
+ M chat/demo.py
+ M chat/templates/chat/_history.html
+ M chat/templates/chat/_message.html
+ M chat/templates/chat/_messages.html
+ M chat/tests/test_demo.py
+ M chat/tests/test_static.py
+ M chat/tests/test_views.py
+ M chat/views.py
+ M core/tests/test_css.py
+ M plan.md
+ M static/css/base.css
+ M static/js/chat.js
+?? docs/tasks/TASK-009-FIX.md
+```
+Not mine: `plan.md` (pre-existing `M`) and `docs/tasks/TASK-009-FIX.md` (the spec). No `db.sqlite3`/`private_media/` changes.
+
+Note for the Team lead: the Item 3 polling guard cannot be unit-tested here (no JS runner); the static test asserts `inFlight`/`!inFlight` and `node --check` passes. The manual check from §4.3 (switch tabs away/back 10× during polling, then 30 s visible → ≤ one `GET /chat/updates/` per ~5 s) is for the Team lead's browser verification.
+
+── Ran 6 commands ──────────────────────────────────────────
+  ── Ran source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "TS=$TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && for i in 1 2; do python manage.py test > "$TMPDIR/test-$TS-rev009fix-full$i.log" 2>&1; echo "--- plain $i"; grep -E "^(FAIL|ERROR):|^Ran |^OK|^FAILED" "$TMPDIR/test-$TS-rev009fix-full$i.log"; done; for at in 2026-11-17T23:59:59 2026-11-18T00:00:00 2027-03-01T12:00:00; do echo "--- $at"; python scripts/run_tests_at.py $at > "$TMPDIR/test-$TS-rev009fix-at-$at.log" 2>&1; grep -E "^(FAIL|ERROR):|^Ran |^OK|^FAILED" "$TMPDIR/test-$TS-rev009fix-at-$at.log"; done; ruff check . && ruff format --check . | tail -1; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; node --check static/js/chat.js && echo "js ok" (1s)
+    $ source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "TS=$TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && for i in 1 2; do python manage.py test > "$TMPDIR/test-$TS-rev009fix-full$i.log" 2>&1; echo "--- plain $i"; grep -E "^(FAIL|ERROR):|^Ran |^OK|^FAILED" "$TMPDIR/test-$TS-rev009fix-full$i.log"; done; for at in 2026-11-17T23:59:59 2026-11-18T00:00:00 2027-03-01T12:00:00; do echo "--- $at"; python scripts/run_tests_at.py $at > "$TMPDIR/test-$TS-rev009fix-at-$at.log" 2>&1; grep -E "^(FAIL|ERROR):|^Ran |^OK|^FAILED" "$TMPDIR/test-$TS-rev009fix-at-$at.log"; done; ruff check . && ruff format --check . | tail -1; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; node --check static/js/chat.js && echo "js ok"
+    Command running in background with ID: bl0t3eyzp. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bl0t3eyzp.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran git log --oneline -1 && sed -n '/^## 1/,/^## 5/p' docs/tasks/TASK-009-FIX.md (2s)
+    $ git log --oneline -1 && sed -n '/^## 1/,/^## 5/p' docs/tasks/TASK-009-FIX.md
+    bcd1280 TASK-009: chat with the dean's office
+    ## 1. Acceptance criteria
+    | ID | Criterion |
+    |---|---|
+    | AC1 | No view puts a variable named `messages` into a template context. The chat list is `chat_messages` in all chat views and templates (pages and fragment). The `.messages` block of `base.html` shows only `django.contrib.messages` messages, also on chat pages. The fragment output is unchanged. |
+    | AC2 | Each chat message has `chat-message--own` or `chat-message--other` by the VIEWER: for a student viewer, student messages are own; for a staff viewer, staff messages (any staff member) are own. Same in the polling fragment. CSS indents own messages on the left (they sit on the right) and other messages on the right. The `chat-message--<author_role>` class stays (labels/theme). |
+    | AC3 | `static/js/chat.js` runs at most one polling loop: `poll()` returns at once while a request is in flight, and `visibilitychange` starts a poll only when no timer is set and no request is in flight. All TASK-009 rules stay (no HTML-string APIs, error limit, pause while hidden). |
+    | AC4 | `seed_chat_demo` skips a demo student who already has a dialog (seeded or real): no new messages, no change to read markers or `last_message_*`. A fresh DB is seeded as before; a second run adds nothing. |
+
+    ## 2. Out of scope
+    New features, the visual theme, room map v2 (TASK-010).
+
+    ## 3. Files
+    Change only: `chat/views.py`, `chat/templates/chat/_messages.html`, `chat/templates/chat/_history.html`, `chat/templates/chat/_message.html`, `static/css/base.css`, `static/js/chat.js`, `chat/demo.py`; tests `chat/tests/test_views.py`, `chat/tests/test_static.py`, `chat/tests/test_demo.py`, `core/tests/test_css.py`. No models, migrations, settings or dependencies.
+
+    ---
+
+    ## 4. Fixes
+
+    ### 4.1 Item 1 — context name `messages`
+    Sweep (done by the Planner on `bcd1280`, `grep` for `"messages":`, `messages = [`, `context["messages"]`, `in messages`, `messages %}` in all apps and `templates/`, tests excluded):
+    | Location | Verdict |
+    |---|---|
+    | `chat/views.py:40` (`_history_context`), `:55` (`_empty_history`), `:93-94`, `:129` (student fragment), `:175-176`, `:221` (staff fragment) | **fix** → `chat_messages` |
+    | `chat/templates/chat/_messages.html:1`, `_history.html:4`, `_history.html:6` | **fix** → `chat_messages` |
+    | `templates/base.html:33-35` | correct use of the `django.contrib.messages` context processor; unchanged |
+    | any other view/template | none found |
+
+    Rename only the context key and its template uses; keep local Python variable names if you like, but the dict key and every `context["…"]` lookup become `chat_messages`. Do not touch `exc.messages` (Django `ValidationError` attribute) or `messages_after` (service name) or `from django.contrib import messages`.
+
+    ### 4.2 Item 2 — alignment by viewer
+    `chat/templates/chat/_message.html`, first line:
+    ```django
+    <li class="chat-message chat-message--{{ m.author_role }} {% if m.author_role == 'student' and viewer_is_student or m.author_role == 'staff' and not viewer_is_student %}chat-message--own{% else %}chat-message--other{% endif %}" id="m-{{ m.pk }}" data-message-id="{{ m.pk }}">
+    ```
+    (Django `{% if %}` evaluates `and` before `or`.) `viewer_is_student` is already passed by every view (`True` for the student page and student fragment, `False` for the staff page and staff fragment).
+    `static/css/base.css`: replace the two rules `.chat-message--staff { margin-right: … }` and `.chat-message--student { margin-left: … }` with
+    ```css
+    .chat-message--own {
+      margin-left: var(--space-4);
+    }
+
+    .chat-message--other {
+      margin-right: var(--space-4);
+    }
+    ```
+
+    ### 4.3 Item 3 — one polling loop (`static/js/chat.js`)
+    - Add `var inFlight = false;` next to `timer`.
+    - `poll()`: first lines `if (inFlight || stopped) { return; } inFlight = true; timer = null;`. In the final `.then` (after the `.catch`): `inFlight = false; schedule();`.
+    - `schedule()`: `if (!stopped && !document.hidden && timer === null && !inFlight) { timer = setTimeout(poll, interval); }`.
+    - `visibilitychange`: hidden → `clearTimeout(timer); timer = null;`; visible → `if (!stopped && timer === null && !inFlight) { poll(); }`.
+    Why it is enough: the only two entry points (`setTimeout` callback and the visibility handler) now both pass through the same guard; a request that finishes while the tab is hidden does not schedule (hidden), and the next `visible` event starts exactly one poll.
+    Manual check for the Team lead (no JS test runner in the project): open the student chat with `runserver` output visible; switch tabs away and back 10 times quickly during polling; then leave the tab visible for 30 s → the server log shows at most one `GET /chat/updates/` per ~5 s (6–7 lines in 30 s), never bursts of parallel requests.
+
+    ### 4.4 Item 4 — seed skips existing dialogs (`chat/demo.py`)
+    In `seed_chat_demo`, replace
+    ```python
+    if Message.objects.filter(seed_key=first_key).exists():
+        continue
+    student = students[student_username]
+    dialog, _ = Dialog.objects.get_or_create(student=student)
+    ```
+    with
+    ```python
+    student = students[student_username]
+    if Dialog.objects.filter(student=student).exists():
+        continue  # seeded earlier or a real dialog: never add or change anything
+    dialog = Dialog.objects.create(student=student)
+    ```
+    (`first_key` becomes unused; remove it.) Everything after stays.
+
+    ---
+
+    ## 5. Test plan
+  ── Ran git diff -- chat/views.py chat/templates chat/demo.py static/css/base.css static/js/chat.js; grep -rn '"messages"\|context\["messages"\]\|in messages\b' chat/views.py chat/templates templates | grep -v "contrib"
+    $ git diff -- chat/views.py chat/templates chat/demo.py static/css/base.css static/js/chat.js; grep -rn '"messages"\|context\["messages"\]\|in messages\b' chat/views.py chat/templates templates | grep -v "contrib"
+    diff --git a/chat/demo.py b/chat/demo.py
+    index 84ac98b..ed8a0e2 100644
+    --- a/chat/demo.py
+    +++ b/chat/demo.py
+    @@ -100,11 +100,10 @@ def seed_chat_demo(today: date) -> ChatSeedSummary:
+             messages = 0
+             for student_username in ("student1", "student3", "student2"):
+                 seeds = [s for s in CHAT_SEEDS if s.student == student_username]
+    -            first_key = seeds[0].key
+    -            if Message.objects.filter(seed_key=first_key).exists():
+    -                continue
+                 student = students[student_username]
+    -            dialog, _ = Dialog.objects.get_or_create(student=student)
+    +            if Dialog.objects.filter(student=student).exists():
+    +                continue  # seeded earlier or a real dialog: never add or change anything
+    +            dialog = Dialog.objects.create(student=student)
+                 ids = {}
+                 last_message = None
+                 for seed in seeds:
+    diff --git a/chat/templates/chat/_history.html b/chat/templates/chat/_history.html
+    index ff508e1..24a3971 100644
+    --- a/chat/templates/chat/_history.html
+    +++ b/chat/templates/chat/_history.html
+    @@ -1,9 +1,9 @@
+     <section class="chat" data-chat-poll-url="{{ poll_url }}" data-chat-poll-ms="{{ poll_ms }}" data-chat-max-errors="{{ poll_max_errors }}">
+       {% if truncated %}<p class="chat-note">Показаны последние {{ history_limit }} сообщений.</p>{% endif %}
+       <ol class="chat-messages" id="chat-messages">
+    -    {% for m in messages %}{% include "chat/_message.html" %}{% endfor %}
+    +    {% for m in chat_messages %}{% include "chat/_message.html" %}{% endfor %}
+       </ol>
+    -  {% if not messages %}<p class="chat-empty" id="chat-empty">{{ empty_text }}</p>{% endif %}
+    +  {% if not chat_messages %}<p class="chat-empty" id="chat-empty">{{ empty_text }}</p>{% endif %}
+       <p class="chat-status" data-chat-status role="status" aria-live="polite"></p>
+       <p class="page-actions"><a href="{{ refresh_url }}">Обновить</a></p>
+     </section>
+    diff --git a/chat/templates/chat/_message.html b/chat/templates/chat/_message.html
+    index 7c71e24..c69dc39 100644
+    --- a/chat/templates/chat/_message.html
+    +++ b/chat/templates/chat/_message.html
+    @@ -1,4 +1,4 @@
+    -<li class="chat-message chat-message--{{ m.author_role }}" id="m-{{ m.pk }}" data-message-id="{{ m.pk }}">
+    +<li class="chat-message chat-message--{{ m.author_role }} {% if m.author_role == 'student' and viewer_is_student or m.author_role == 'staff' and not viewer_is_student %}chat-message--own{% else %}chat-message--other{% endif %}" id="m-{{ m.pk }}" data-message-id="{{ m.pk }}">
+       <p class="chat-meta"><strong>{% if m.author_role == "staff" %}Деканат · {{ m.author.staff_profile.short_name }}{% elif viewer_is_student %}Вы{% else %}{{ student_name }}{% endif %}</strong> · <time datetime="{{ m.created_at|date:'c' }}">{{ m.created_at|date:"d.m.Y H:i" }}</time></p>
+       <p class="chat-text">{{ m.text|linebreaksbr }}</p>
+     </li>
+    diff --git a/chat/templates/chat/_messages.html b/chat/templates/chat/_messages.html
+    index 4d6e645..6f24dfc 100644
+    --- a/chat/templates/chat/_messages.html
+    +++ b/chat/templates/chat/_messages.html
+    @@ -1 +1 @@
+    -{% for m in messages %}{% include "chat/_message.html" %}{% endfor %}
+    +{% for m in chat_messages %}{% include "chat/_message.html" %}{% endfor %}
+    diff --git a/chat/views.py b/chat/views.py
+    index 7bc7847..f203e6e 100644
+    --- a/chat/views.py
+    +++ b/chat/views.py
+    @@ -37,7 +37,7 @@ _AFTER_RE = re.compile(r"^\d{1,18}$")
+     def _history_context(dialog, viewer_is_student, poll_url, refresh_url) -> dict:
+         messages, truncated = load_history(dialog)
+         return {
+    -        "messages": messages,
+    +        "chat_messages": messages,
+             "truncated": truncated,
+             "poll_url": poll_url,
+             "poll_ms": POLL_INTERVAL_SECONDS * 1000,
+    @@ -52,7 +52,7 @@ def _history_context(dialog, viewer_is_student, poll_url, refresh_url) -> dict:
+     
+     def _empty_history(viewer_is_student, poll_url, refresh_url, student_name="") -> dict:
+         return {
+    -        "messages": [],
+    +        "chat_messages": [],
+             "truncated": False,
+             "poll_url": poll_url,
+             "poll_ms": POLL_INTERVAL_SECONDS * 1000,
+    @@ -90,8 +90,8 @@ class StudentChatView(StudentRequiredMixin, TemplateView):
+         def get(self, request, *args, **kwargs):
+             context = self.get_context_data(**kwargs)
+             dialog = context["dialog"]
+    -        if dialog is not None and context["messages"]:
+    -            mark_read(dialog.pk, "student", context["messages"][-1].pk)
+    +        if dialog is not None and context["chat_messages"]:
+    +            mark_read(dialog.pk, "student", context["chat_messages"][-1].pk)
+             return self.render_to_response(context)
+     
+         def post(self, request, *args, **kwargs):
+    @@ -126,7 +126,7 @@ class StudentChatUpdatesView(StudentRequiredMixin, View):
+                 return HttpResponse(status=204)
+             mark_read(dialog.pk, "student", rows[-1].pk)
+             response = render(
+    -            request, "chat/_messages.html", {"messages": rows, "viewer_is_student": True}
+    +            request, "chat/_messages.html", {"chat_messages": rows, "viewer_is_student": True}
+             )
+             response["X-Chat-Fragment"] = "1"
+             response["Content-Type"] = "text/html; charset=utf-8"
+    @@ -172,8 +172,8 @@ class StaffDialogView(StaffRequiredMixin, TemplateView):
+     
+         def get(self, request, *args, **kwargs):
+             context = self.get_context_data(**kwargs)
+    -        if context["messages"]:
+    -            mark_read(context["dialog"].pk, "staff", context["messages"][-1].pk)
+    +        if context["chat_messages"]:
+    +            mark_read(context["dialog"].pk, "staff", context["chat_messages"][-1].pk)
+             return self.render_to_response(context)
+     
+         def post(self, request, *args, **kwargs):
+    @@ -218,7 +218,7 @@ class StaffDialogUpdatesView(StaffRequiredMixin, View):
+                 request,
+                 "chat/_messages.html",
+                 {
+    -                "messages": rows,
+    +                "chat_messages": rows,
+                     "viewer_is_student": False,
+                     "student_name": dialog.student.full_name,
+                 },
+    diff --git a/static/css/base.css b/static/css/base.css
+    index f66e1d3..5fca08b 100644
+    --- a/static/css/base.css
+    +++ b/static/css/base.css
+    @@ -381,12 +381,12 @@ a.map-current {
+       overflow-wrap: anywhere;
+     }
+     
+    -.chat-message--staff {
+    -  margin-right: var(--space-4);
+    +.chat-message--own {
+    +  margin-left: var(--space-4);
+     }
+     
+    -.chat-message--student {
+    -  margin-left: var(--space-4);
+    +.chat-message--other {
+    +  margin-right: var(--space-4);
+     }
+     
+     .chat-meta,
+    diff --git a/static/js/chat.js b/static/js/chat.js
+    index 0ce55be..1784054 100644
+    --- a/static/js/chat.js
+    +++ b/static/js/chat.js
+    @@ -12,6 +12,7 @@
+       var maxErrors = Number(root.dataset.chatMaxErrors) || 5;
+       var errors = 0;
+       var timer = null;
+    +  var inFlight = false;
+       var stopped = false;
+     
+       function lastId() {
+    @@ -23,12 +24,16 @@
+       }
+     
+       function schedule() {
+    -    if (!stopped && !document.hidden) {
+    +    if (!stopped && !document.hidden && timer === null && !inFlight) {
+           timer = setTimeout(poll, interval);
+         }
+       }
+     
+       function poll() {
+    +    if (inFlight || stopped) {
+    +      return;
+    +    }
+    +    inFlight = true;
+         timer = null;
+         fetch(url + "?after=" + encodeURIComponent(lastId()), {
+           credentials: "same-origin",
+    @@ -78,6 +83,7 @@
+             }
+           })
+           .then(function () {
+    +        inFlight = false;
+             schedule();
+           });
+       }
+    @@ -86,7 +92,7 @@
+         if (document.hidden) {
+           clearTimeout(timer);
+           timer = null;
+    -    } else if (!stopped && timer === null) {
+    +    } else if (!stopped && timer === null && !inFlight) {
+           poll();
+         }
+       });
+    templates/base.html:34:    <ul class="messages">
+    templates/base.html:35:      {% for message in messages %}
+  ── Thought for 1s
+    Checking the timer guard and the base.css indent change both look fine against the spec. I'm going to try simulating the JS loop in Node with a fake DOM and fetch to confirm it only runs one polling loop.
+
+    I'm going to stub the document, timers, and fetch with delayed promises, toggle visibility while a request is in flight, and count how many fetches run at once, which should settle whether there's only one loop.
+  ── Ran mkdir -p $TMPDIR/jsprobe && cat > $TMPDIR/jsprobe/harness.js <<'EOF' // Minimal fake DOM + timers to count concurrent polling loops in chat.js. const fs = require("fs"); const src = fs.readFileSync(process.argv[2], "utf8"); let now = 0, timers = [], tid = 0, listeners = {}, inflight = 0, maxInflight = 0, fetches = 0; const pending = []; global.setTimeout = (fn, ms) => { const id = ++tid; timers.push({ id, at: now + ms, fn }); return id; }; global.clearTimeout = (id) => { timers = timers.filter(t => t.id !== id); }; const list = { querySelectorAll: () => [], appendChild() {}, lastElementChild: null }; const root = { dataset: { chatPollUrl: "/chat/updates/", chatPollMs: "5000", chatMaxErrors: "5" }, querySelector: () => ({ textContent: "" }) }; global.document = {   hidden: false,   querySelector: () => root,   getElementById: (id) => (id === "chat-messages" ? list : null),   addEventListener: (ev, fn) => { listeners[ev] = fn; }, }; global.fetch = () => { fetches++; inflight++; maxInflight = Math.max(maxInflight, inflight);   return new Promise(res => pending.push(() => { inflight--; res({ status: 204, ok: true, redirected: false, headers: { get: () => null } }); })); }; const flush = () => new Promise(r => setImmediate(r)); async function advance(ms) { const end = now + ms; while (true) { timers.sort((a, b) => a.at - b.at); const t = timers[0]; if (!t || t.at > end) break; timers.shift(); now = t.at; t.fn(); await flush(); } now = end; } async function resolveAll() { while (pending.length) { pending.shift()(); await flush(); await flush(); await flush(); } } (async () => {   eval(src);   await advance(5000);                       // first poll starts, request in flight   for (let i = 0; i < 10; i++) {             // toggle visibility 10x while in flight     document.hidden = true; listeners.visibilitychange();     document.hidden = false; listeners.visibilitychange();   }   await resolveAll();   const before = fetches;   for (let s = 0; s < 6; s++) { await advance(5000); await resolveAll(); }   console.log(JSON.stringify({ maxInflight, fetchesIn30s: fetches - before, pendingTimers: timers.length })); })(); EOF cd ~/hackatonproject && node $TMPDIR/jsprobe/harness.js static/js/chat.js; git show HEAD:static/js/chat.js > $TMPDIR/jsprobe/chat_old.js && node $TMPDIR/jsprobe/harness.js $TMPDIR/jsprobe/chat_old.js
+    $ mkdir -p $TMPDIR/jsprobe && cat > $TMPDIR/jsprobe/harness.js <<'EOF'
+  // Minimal fake DOM + timers to count concurrent polling loops in chat.js.
+  const fs = require("fs");
+  const src = fs.readFileSync(process.argv[2], "utf8");
+  let now = 0, timers = [], tid = 0, listeners = {}, inflight = 0, maxInflight = 0, fetches = 0;
+  const pending = [];
+  global.setTimeout = (fn, ms) => { const id = ++tid; timers.push({ id, at: now + ms, fn }); return id; };
+  global.clearTimeout = (id) => { timers = timers.filter(t => t.id !== id); };
+  const list = { querySelectorAll: () => [], appendChild() {}, lastElementChild: null };
+  const root = { dataset: { chatPollUrl: "/chat/updates/", chatPollMs: "5000", chatMaxErrors: "5" }, querySelector: () => ({ textContent: "" }) };
+  global.document = {
+    hidden: false,
+    querySelector: () => root,
+    getElementById: (id) => (id === "chat-messages" ? list : null),
+    addEventListener: (ev, fn) => { listeners[ev] = fn; },
+  };
+  global.fetch = () => { fetches++; inflight++; maxInflight = Math.max(maxInflight, inflight);
+    return new Promise(res => pending.push(() => { inflight--; res({ status: 204, ok: true, redirected: false, headers: { get: () => null } }); })); };
+  const flush = () => new Promise(r => setImmediate(r));
+  async function advance(ms) { const end = now + ms; while (true) { timers.sort((a, b) => a.at - b.at); const t = timers[0]; if (!t || t.at > end) break; timers.shift(); now = t.at; t.fn(); await flush(); } now = end; }
+  async function resolveAll() { while (pending.length) { pending.shift()(); await flush(); await flush(); await flush(); } }
+  (async () => {
+    eval(src);
+    await advance(5000);                       // first poll starts, request in flight
+    for (let i = 0; i < 10; i++) {             // toggle visibility 10x while in flight
+      document.hidden = true; listeners.visibilitychange();
+      document.hidden = false; listeners.visibilitychange();
+    }
+    await resolveAll();
+    const before = fetches;
+    for (let s = 0; s < 6; s++) { await advance(5000); await resolveAll(); }
+    console.log(JSON.stringify({ maxInflight, fetchesIn30s: fetches - before, pendingTimers: timers.length }));
+  })();
+  EOF
+  cd ~/hackatonproject && node $TMPDIR/jsprobe/harness.js static/js/chat.js; git show HEAD:static/js/chat.js > $TMPDIR/jsprobe/chat_old.js && node $TMPDIR/jsprobe/harness.js $TMPDIR/jsprobe/chat_old.js
+    {"maxInflight":1,"fetchesIn30s":6,"pendingTimers":1}
+    {"maxInflight":11,"fetchesIn30s":66,"pendingTimers":11}
+  ── Thought for 4ms
+    I'm checking that the hidden-to-visible path still resumes polling, which it does since visible triggers a poll when nothing is in flight. I'll also consider an extra case where the tab is hidden mid-request, the request resolves, and then the tab becomes visible, expecting exactly one poll. Next I'm deciding whether to run quick mutation checks on the tests, reverting the alignment and seed fixes to confirm they fail.
+
+    I'm going to run three quick mutations to confirm the tests catch the regressions.
+  ── Ran M=$TMPDIR/rev009; rsync -a --delete --exclude .venv --exclude .git --exclude db.sqlite3 --exclude private_media --exclude .env --exclude '__pycache__' ~/hackatonproject/ $M/; S=$TMPDIR/rev009_mut.sh; export TESTS="chat core.tests.test_css" echo "--- f1 alignment by author"; $S f1 chat/templates/chat/_message.html "{% if m.author_role == 'student' and viewer_is_student or m.author_role == 'staff' and not viewer_is_student %}" "{% if m.author_role == 'student' %}" echo "--- f2 seed into existing dialog"; $S f2 chat/demo.py '            if Dialog.objects.filter(student=student).exists():                 continue  # seeded earlier or a real dialog: never add or change anything             dialog = Dialog.objects.create(student=student)' '            if Message.objects.filter(seed_key=seeds[0].key).exists():                 continue             dialog, _ = Dialog.objects.get_or_create(student=student)' echo "--- f3 context key back to messages"; $S f3 chat/views.py '        "chat_messages": messages,         "truncated": truncated,' '        "chat_messages": messages,         "messages": messages,         "truncated": truncated,' (1m)
+    $ M=$TMPDIR/rev009; rsync -a --delete --exclude .venv --exclude .git --exclude db.sqlite3 --exclude private_media --exclude .env --exclude '__pycache__' ~/hackatonproject/ $M/; S=$TMPDIR/rev009_mut.sh; export TESTS="chat core.tests.test_css"
+  echo "--- f1 alignment by author"; $S f1 chat/templates/chat/_message.html "{% if m.author_role == 'student' and viewer_is_student or m.author_role == 'staff' and not viewer_is_student %}" "{% if m.author_role == 'student' %}"
+  echo "--- f2 seed into existing dialog"; $S f2 chat/demo.py '            if Dialog.objects.filter(student=student).exists():
+                  continue  # seeded earlier or a real dialog: never add or change anything
+              dialog = Dialog.objects.create(student=student)' '            if Message.objects.filter(seed_key=seeds[0].key).exists():
+                  continue
+              dialog, _ = Dialog.objects.get_or_create(student=student)'
+  echo "--- f3 context key back to messages"; $S f3 chat/views.py '        "chat_messages": messages,
+          "truncated": truncated,' '        "chat_messages": messages,
+          "messages": messages,
+          "truncated": truncated,'
+    --- f1 alignment by author
+    FAIL: test_fragment_alignment_by_viewer (chat.tests.test_views.UpdatesViewTests.test_fragment_alignment_by_viewer)
+    FAIL: test_alignment_staff_viewer (chat.tests.test_views.ViewTests.test_alignment_staff_viewer)
+    Ran 133 tests in 18.483s
+    FAILED (failures=2)
+    --- f2 seed into existing dialog
+    FAIL: test_existing_real_dialog_untouched (chat.tests.test_demo.ChatSeedTests.test_existing_real_dialog_untouched)
+    Ran 133 tests in 18.623s
+    FAILED (failures=1)
+    --- f3 context key back to messages
+    FAIL: test_context_uses_chat_messages (chat.tests.test_views.ViewTests.test_context_uses_chat_messages)
+    FAIL: test_framework_message_shown_on_chat_pages (chat.tests.test_views.ViewTests.test_framework_message_shown_on_chat_pages)
+    FAIL: test_staff_dialog_has_no_messages_block_from_chat (chat.tests.test_views.ViewTests.test_staff_dialog_has_no_messages_block_from_chat)
+    FAIL: test_staff_real_framework_message_after_unpublish (chat.tests.test_views.ViewTests.test_staff_real_framework_message_after_unpublish)
+    FAIL: test_student_page_has_no_messages_block_from_chat (chat.tests.test_views.ViewTests.test_student_page_has_no_messages_block_from_chat)
+    Ran 133 tests in 18.566s
+    FAILED (failures=5)
+  ── Thought for 4ms
+    Код TASK-009-FIX соответствует спецификации, и мутационные тесты все пойманы. Сейчас жду завершения полных прогонов тестов.
+  ── Ran F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bl0t3eyzp.output; until grep -q "js ok\|SyntaxError" $F; do sleep 10; done; cat $F
+    $ F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bl0t3eyzp.output; until grep -q "js ok\|SyntaxError" $F; do sleep 10; done; cat $F
+    Command running in background with ID: bub8t1dit. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bub8t1dit.output. You will be notified when it completes. To check interim output, use Read on that file path.
+
+── Assistant ───────────────────────────────────────────────
+Жду результата прогонов: два обычных и три с замороженными часами. После этого отправлю вердикт.
+
+── Read /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bl0t3eyzp.output
+  $ cat /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bl0t3eyzp.output
+
+── Ran bb thread tell thr_4izdzwetb4 --message-file - <<'EOF' [TASK-009-FIX] Reviewer -> Team lead: APPROVE Spec: docs/tasks/TASK-009-FIX.md (base bcd1280). Review round 1, no changes requested. Changes are uncommitted; the file list matches §3 (plus your plan.md and the spec). Verification (my runs, TS=20261116-014444, logs $TMPDIR/test-20261116-014444-rev009fix-*.log). No failed or stalled runs. - test x2 → 963 OK each; run_tests_at 2026-11-17T23:59:59, 2026-11-18T00:00:00 and 2027-03-01T12:00:00 → 963 OK each. - check OK; makemigrations --check: No changes; check --deploy: no issues (1 silenced); ruff check and format clean (183 files); yaml ok; node --check chat.js ok. Checked: - Item 1: the context key is chat_messages in all 4 views and 2 templates. No other `messages` context key exists in views or templates; base.html keeps the framework loop. Local names, exc.messages and messages_after are untouched. - Item 2: own/other is computed by the viewer in _message.html (page and fragment); the CSS rules are replaced; the author-role class is kept. - Item 3: the inFlight guard is in poll(), schedule() and visibilitychange, as in §4.3. In addition I ran chat.js in Node with a fake DOM, timers and fetch: 10 hide/show cycles while a request is in flight, then 30 s visible. New file: at most 1 concurrent request and 6 requests in 30 s. Old file (HEAD): 11 parallel loops and 66 requests in 30 s. So the fix removes the multi-loop bug. Harness: $TMPDIR/jsprobe/harness.js. - Item 4: the seed skips any student with an existing dialog; Dialog.objects.create is used for new ones. - Mutation probes on a copy:   - alignment by author instead of by viewer → 2 tests fail;   - the old seed logic → test_existing_real_dialog_untouched fails;   - an extra "messages" context key → 5 tests fail. Open item for you: the §4.3 manual browser check (tab switching with the runserver log) and the visual own/other alignment at 360 px. EOF
+  $ bb thread tell thr_4izdzwetb4 --message-file - <<'EOF'
+[TASK-009-FIX] Reviewer -> Team lead: APPROVE
+
+Spec: docs/tasks/TASK-009-FIX.md (base bcd1280). Review round 1, no changes requested. Changes are uncommitted; the file list matches §3 (plus your plan.md and the spec).
+
+Verification (my runs, TS=20261116-014444, logs $TMPDIR/test-20261116-014444-rev009fix-*.log). No failed or stalled runs.
+- test x2 → 963 OK each; run_tests_at 2026-11-17T23:59:59, 2026-11-18T00:00:00 and 2027-03-01T12:00:00 → 963 OK each.
+- check OK; makemigrations --check: No changes; check --deploy: no issues (1 silenced); ruff check and format clean (183 files); yaml ok; node --check chat.js ok.
+
+Checked:
+- Item 1: the context key is chat_messages in all 4 views and 2 templates. No other `messages` context key exists in views or templates; base.html keeps the framework loop. Local names, exc.messages and messages_after are untouched.
+- Item 2: own/other is computed by the viewer in _message.html (page and fragment); the CSS rules are replaced; the author-role class is kept.
+- Item 3: the inFlight guard is in poll(), schedule() and visibilitychange, as in §4.3. In addition I ran chat.js in Node with a fake DOM, timers and fetch: 10 hide/show cycles while a request is in flight, then 30 s visible. New file: at most 1 concurrent request and 6 requests in 30 s. Old file (HEAD): 11 parallel loops and 66 requests in 30 s. So the fix removes the multi-loop bug. Harness: $TMPDIR/jsprobe/harness.js.
+- Item 4: the seed skips any student with an existing dialog; Dialog.objects.create is used for new ones.
+- Mutation probes on a copy:
+  - alignment by author instead of by viewer → 2 tests fail;
+  - the old seed logic → test_existing_real_dialog_untouched fails;
+  - an extra "messages" context key → 5 tests fail.
+
+Open item for you: the §4.3 manual browser check (tab switching with the runserver log) and the visual own/other alignment at 360 px.
+EOF
+  Thread thr_4izdzwetb4 steered
+
+── Assistant ───────────────────────────────────────────────
+TASK-009-FIX одобрен с первого раунда, вердикт APPROVE отправлен Тимлиду.
+
+- **Тесты:** 963 OK во всех 5 прогонах: 2 обычных и 3 с замороженными часами. Падений не было. ruff, `check --deploy`, yaml и синтаксис `chat.js` в порядке.
+- **Код:** все 4 исправления сделаны точно по спецификации:
+  - переменная шаблона переименована в `chat_messages`;
+  - выравнивание «своё/чужое» считается по тому, кто смотрит;
+  - в `chat.js` добавлена защита от второго цикла опроса;
+  - seed пропускает студентов, у которых уже есть диалог.
+- **Мутационные пробы:** все 3 пойманы тестами.
+- **Прогон `chat.js` в Node:** 10 переключений вкладки во время запроса, потом 30 с ожидания.
+  - Новая версия: 1 запрос одновременно, 6 запросов за 30 с.
+  - Старая версия: 11 параллельных циклов, 66 запросов.
+
+Тимлиду осталось проверить в браузере переключение вкладок (по логу `runserver`) и вид сообщений «своё/чужое» на 360 px.

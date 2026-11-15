@@ -1,21 +1,25 @@
 """View tests for the chat app."""
 
 import uuid
+from unittest import mock
 
+from django.contrib.messages import constants
+from django.contrib.messages.storage.base import Message as FrameworkMessage
 from django.db import connection
 from django.test import Client, TestCase
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from accounts.models import User
-from accounts.tests.helpers import make_student
+from accounts.tests.helpers import make_staff, make_student
 from chat.constants import RATE_LIMIT_MESSAGES
 from chat.models import AuthorRole, Dialog, Message
 from chat.selectors import student_unread_count
 from chat.tests.helpers import add_message, make_dialog
 from core.testing import FrozenClockMixin
 from notifications.feed import badge_for_user
-from notifications.tests.helpers import make_world
+from notifications.models import Audience
+from notifications.tests.helpers import make_announcement, make_world
 
 NOW = "2026-11-11 12:00"
 
@@ -404,6 +408,85 @@ class ViewTests(_ChatWorld):
         for url in urls:
             self.assertIn("no-store", self.client.get(url)["Cache-Control"])
 
+    def test_student_page_has_no_messages_block_from_chat(self):
+        dialog = self.ax_dialog
+        add_message(dialog, self.w.sx, AuthorRole.STAFF)
+        add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+        self.client.force_login(self.w.ax)
+        content = self.client.get("/chat/").content.decode()
+        self.assertNotIn('<ul class="messages">', content)
+        for m in dialog.messages.all():
+            self.assertEqual(content.count(f'data-message-id="{m.pk}"'), 1)
+
+    def test_staff_dialog_has_no_messages_block_from_chat(self):
+        dialog = self.ax_dialog
+        add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+        self.client.force_login(self.w.sx)
+        content = self.client.get(f"/staff/chats/{self.ax_uuid}/").content.decode()
+        self.assertNotIn('<ul class="messages">', content)
+        for m in dialog.messages.all():
+            self.assertEqual(content.count(f'data-message-id="{m.pk}"'), 1)
+
+    def test_framework_message_shown_on_chat_pages(self):
+        framework = [FrameworkMessage(constants.INFO, "Проверочное сообщение")]
+        self.client.force_login(self.w.ax)
+        with mock.patch(
+            "django.contrib.messages.context_processors.get_messages",
+            return_value=framework,
+        ):
+            content = self.client.get("/chat/").content.decode()
+        self.assertIn('<li class="message message--info">Проверочное сообщение</li>', content)
+        self.client.force_login(self.w.sx)
+        with mock.patch(
+            "django.contrib.messages.context_processors.get_messages",
+            return_value=framework,
+        ):
+            content = self.client.get(f"/staff/chats/{self.ax_uuid}/").content.decode()
+        self.assertIn('<li class="message message--info">Проверочное сообщение</li>', content)
+
+    def test_staff_real_framework_message_after_unpublish(self):
+        announcement = make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+        self.client.force_login(self.w.sx)
+        self.client.post(reverse("notifications:staff_unpublish", args=[announcement.public_id]))
+        content = self.client.get(f"/staff/chats/{self.ax_uuid}/").content.decode()
+        self.assertIn('<ul class="messages">', content)
+        self.assertIn("Объявление снято с публикации.", content)
+
+    def test_context_uses_chat_messages(self):
+        self.client.force_login(self.w.ax)
+        response = self.client.get("/chat/")
+        self.assertIn("chat_messages", response.context)
+        ids = [m.pk for m in response.context["chat_messages"]]
+        self.assertEqual(ids, list(self.ax_dialog.messages.values_list("id", flat=True)))
+        self.assertFalse(isinstance(response.context["messages"], list))
+
+    def test_alignment_student_viewer(self):
+        dialog = self.ax_dialog
+        student_msg = add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+        staff_msg = add_message(dialog, self.w.sx, AuthorRole.STAFF)
+        self.client.force_login(self.w.ax)
+        content = self.client.get("/chat/").content.decode()
+        self.assertIn(
+            f'class="chat-message chat-message--student chat-message--own" id="m-{student_msg.pk}"',
+            content,
+        )
+        self.assertIn(
+            f'class="chat-message chat-message--staff chat-message--other" id="m-{staff_msg.pk}"',
+            content,
+        )
+
+    def test_alignment_staff_viewer(self):
+        dialog = self.ax_dialog
+        sx2 = make_staff("sx2", self.w.fx)
+        student_msg = add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+        staff_msg = add_message(dialog, sx2, AuthorRole.STAFF)
+        self.client.force_login(self.w.sx)
+        content = self.client.get(f"/staff/chats/{dialog.public_id}/").content.decode()
+        student_other = 'class="chat-message chat-message--student chat-message--other"'
+        self.assertIn(f'{student_other} id="m-{student_msg.pk}"', content)
+        staff_own = 'class="chat-message chat-message--staff chat-message--own"'
+        self.assertIn(f'{staff_own} id="m-{staff_msg.pk}"', content)
+
 
 class UpdatesViewTests(_ChatWorld):
     def test_student_204_without_dialog(self):
@@ -468,6 +551,33 @@ class UpdatesViewTests(_ChatWorld):
         self.client.force_login(self.w.ax)
         content = self.client.get("/chat/updates/?after=0").content.decode()
         self.assertIn("&lt;b&gt;x&lt;/b&gt;", content)
+
+    def test_fragment_markup_unchanged(self):
+        self.client.force_login(self.w.ax)
+        response = self.client.get("/chat/updates/?after=0")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["X-Chat-Fragment"], "1")
+        content = response.content.decode()
+        self.assertNotIn('<ul class="messages">', content)
+        self.assertIn('<li class="chat-message', content)
+
+    def test_fragment_alignment_by_viewer(self):
+        dialog = self.ax_dialog
+        staff_msg = add_message(dialog, self.w.sx, AuthorRole.STAFF)
+        self.client.force_login(self.w.ax)
+        content = self.client.get("/chat/updates/?after=0").content.decode()
+        self.assertIn(
+            f'class="chat-message chat-message--staff chat-message--other" id="m-{staff_msg.pk}"',
+            content,
+        )
+        self.client.force_login(self.w.sx)
+        content = self.client.get(
+            f"/staff/chats/{dialog.public_id}/updates/?after=0"
+        ).content.decode()
+        self.assertIn(
+            f'class="chat-message chat-message--staff chat-message--own" id="m-{staff_msg.pk}"',
+            content,
+        )
 
 
 class AdminTests(FrozenClockMixin, TestCase):

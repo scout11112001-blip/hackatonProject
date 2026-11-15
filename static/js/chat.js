@@ -12,6 +12,7 @@
   var maxErrors = Number(root.dataset.chatMaxErrors) || 5;
   var errors = 0;
   var timer = null;
+  var inFlight = false;
   var stopped = false;
 
   function lastId() {
@@ -23,12 +24,16 @@
   }
 
   function schedule() {
-    if (!stopped && !document.hidden) {
+    if (!stopped && !document.hidden && timer === null && !inFlight) {
       timer = setTimeout(poll, interval);
     }
   }
 
   function poll() {
+    if (inFlight || stopped) {
+      return;
+    }
+    inFlight = true;
     timer = null;
     fetch(url + "?after=" + encodeURIComponent(lastId()), {
       credentials: "same-origin",
@@ -78,6 +83,7 @@
         }
       })
       .then(function () {
+        inFlight = false;
         schedule();
       });
   }
@@ -86,7 +92,7 @@
     if (document.hidden) {
       clearTimeout(timer);
       timer = null;
-    } else if (!stopped && timer === null) {
+    } else if (!stopped && timer === null && !inFlight) {
       poll();
     }
   });

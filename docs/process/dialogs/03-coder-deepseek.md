@@ -73717,3 +73717,2044 @@ TASK-009 реализована полностью и отправлена на 
 - `git status` сверен по §4.1; `plan.md` и `docs/tasks/TASK-009.md` — не мои.
 
 Жду вердикт Reviewer.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_2imsg4kck2]
+
+[TASK-009-FIX] Planner -> Coder: TASK
+Spec: docs/tasks/TASK-009-FIX.md (base bcd1280). Four fixes, regression tests first (5.2 marks which must fail before the fix).
+- Item 1: rename the context key `messages` → `chat_messages` in chat/views.py (lines 40, 55, 93-94, 129, 175-176, 221) and in _messages.html / _history.html; no other view uses `messages` (sweep in 4.1). Tests incl. a patched `django.contrib.messages.context_processors.get_messages` and a real unpublish flow.
+- Item 2: `chat-message--own` / `chat-message--other` by viewer in _message.html (exact `{% if %}` in 4.2); CSS replaces the --staff/--student margin rules.
+- Item 3: chat.js `inFlight` guard in poll(), schedule() and visibilitychange (4.3); static test; manual check described for the Team lead.
+- Item 4: seed_chat_demo skips a student who already has any dialog; `Dialog.objects.create` instead of get_or_create.
+Verification section 7 incl. node --check, logs with tee (baseline 951). Do not commit.
+
+── Worked for (13m 44s) ────────────────────────────────────
+  ── Ran 10 tools, explored 2 searches, 1 list, edited 11 files, ran 11 commands
+    ── Read file read
+      # TASK-009-FIX: chat messages leak into the messages block, viewer-based alignment, one polling loop, seed skips real dialogs
+
+      Author: Planner. Status: ready for implementation.
+      Base commit: `bcd1280`. Related spec: `docs/tasks/TASK-009.md`. Screenshot: `docs/process/screenshots/2026-11-16_34_chat-dialog_staff1_bug.jpg`.
+
+      No new features. Each fix is minimal and has a regression test that fails without it; the visual part and the browser polling are checked by the Team lead.
+
+      ---
+
+      ## 1. Acceptance criteria
+      | ID | Criterion |
+      |---|---|
+      | AC1 | No view puts a variable named `messages` into a template context. The chat list is `chat_messages` in all chat views and templates (pages and fragment). The `.messages` block of `base.html` shows only `django.contrib.messages` messages, also on chat pages. The fragment output is unchanged. |
+      | AC2 | Each chat message has `chat-message--own` or `chat-message--other` by the VIEWER: for a student viewer, student messages are own; for a staff viewer, staff messages (any staff member) are own. Same in the polling fragment. CSS indents own messages on the left (they sit on the right) and other messages on the right. The `chat-message--<author_role>` class stays (labels/theme). |
+      | AC3 | `static/js/chat.js` runs at most one polling loop: `poll()` returns at once while a request is in flight, and `visibilitychange` starts a poll only when no timer is set and no request is in flight. All TASK-009 rules stay (no HTML-string APIs, error limit, pause while hidden). |
+      | AC4 | `seed_chat_demo` skips a demo student who already has a dialog (seeded or real): no new messages, no change to read markers or `last_message_*`. A fresh DB is seeded as before; a second run adds nothing. |
+
+      ## 2. Out of scope
+      New features, the visual theme, room map v2 (TASK-010).
+
+      ## 3. Files
+      Change only: `chat/views.py`, `chat/templates/chat/_messages.html`, `chat/templates/chat/_history.html`, `chat/templates/chat/_message.html`, `static/css/base.css`, `static/js/chat.js`, `chat/demo.py`; tests `chat/tests/test_views.py`, `chat/tests/test_static.py`, `chat/tests/test_demo.py`, `core/tests/test_css.py`. No models, migrations, settings or dependencies.
+
+      ---
+
+      ## 4. Fixes
+
+      ### 4.1 Item 1 — context name `messages`
+      Sweep (done by the Planner on `bcd1280`, `grep` for `"messages":`, `messages = [`, `context["messages"]`, `in messages`, `messages %}` in all apps and `templates/`, tests excluded):
+      | Location | Verdict |
+      |---|---|
+      | `chat/views.py:40` (`_history_context`), `:55` (`_empty_history`), `:93-94`, `:129` (student fragment), `:175-176`, `:221` (staff fragment) | **fix** → `chat_messages` |
+      | `chat/templates/chat/_messages.html:1`, `_history.html:4`, `_history.html:6` | **fix** → `chat_messages` |
+      | `templates/base.html:33-35` | correct use of the `django.contrib.messages` context processor; unchanged |
+      | any other view/template | none found |
+
+      Rename only the context key and its template uses; keep local Python variable names if you like, but the dict key and every `context["…"]` lookup become `chat_messages`. Do not touch `exc.messages` (Django `ValidationError` attribute) or `messages_after` (service name) or `from django.contrib import messages`.
+
+      ### 4.2 Item 2 — alignment by viewer
+      `chat/templates/chat/_message.html`, first line:
+      ```django
+      <li class="chat-message chat-message--{{ m.author_role }} {% if m.author_role == 'student' and viewer_is_student or m.author_role == 'staff' and not viewer_is_student %}chat-message--own{% else %}chat-message--other{% endif %}" id="m-{{ m.pk }}" data-message-id="{{ m.pk }}">
+      ```
+      (Django `{% if %}` evaluates `and` before `or`.) `viewer_is_student` is already passed by every view (`True` for the student page and student fragment, `False` for the staff page and staff fragment).
+      `static/css/base.css`: replace the two rules `.chat-message--staff { margin-right: … }` and `.chat-message--student { margin-left: … }` with
+      ```css
+      .chat-message--own {
+        margin-left: var(--space-4);
+      }
+
+      .chat-message--other {
+        margin-right: var(--space-4);
+      }
+      ```
+
+      ### 4.3 Item 3 — one polling loop (`static/js/chat.js`)
+      - Add `var inFlight = false;` next to `timer`.
+      - `poll()`: first lines `if (inFlight || stopped) { return; } inFlight = true; timer = null;`. In the final `.then` (after the `.catch`): `inFlight = false; schedule();`.
+      - `schedule()`: `if (!stopped && !document.hidden && timer === null && !inFlight) { timer = setTimeout(poll, interval); }`.
+      - `visibilitychange`: hidden → `clearTimeout(timer); timer = null;`; visible → `if (!stopped && timer === null && !inFlight) { poll(); }`.
+      Why it is enough: the only two entry points (`setTimeout` callback and the visibility handler) now both pass through the same guard; a request that finishes while the tab is hidden does not schedule (hidden), and the next `visible` event starts exactly one poll.
+      Manual check for the Team lead (no JS test runner in the project): open the student chat with `runserver` output visible; switch tabs away and back 10 times quickly during polling; then leave the tab visible for 30 s → the server log shows at most one `GET /chat/updates/` per ~5 s (6–7 lines in 30 s), never bursts of parallel requests.
+
+      ### 4.4 Item 4 — seed skips existing dialogs (`chat/demo.py`)
+      In `seed_chat_demo`, replace
+      ```python
+      if Message.objects.filter(seed_key=first_key).exists():
+          continue
+      student = students[student_username]
+      dialog, _ = Dialog.objects.get_or_create(student=student)
+      ```
+      with
+      ```python
+      student = students[student_username]
+      if Dialog.objects.filter(student=student).exists():
+          continue  # seeded earlier or a real dialog: never add or change anything
+      dialog = Dialog.objects.create(student=student)
+      ```
+      (`first_key` becomes unused; remove it.) Everything after stays.
+
+      ---
+
+      ## 5. Test plan
+
+      ### 5.1 Rules
+      Existing world `_ChatWorld` / helpers (`make_world`, `make_dialog`, `add_message`); page assertions use exact markup or `response.context` (TASK-008-FIX rule). Save every test log; report any failed or stalled run by test name and Moscow time.
+
+      ### 5.2 Traceability and regression evidence
+      | AC | Test (file::class::method) | Fails before fix because |
+      |---|---|---|
+      | AC1 | `chat/tests/test_views.py::ViewTests::test_student_page_has_no_messages_block_from_chat` | chat list rendered as `<ul class="messages">` |
+      | AC1 | `…::ViewTests::test_staff_dialog_has_no_messages_block_from_chat` | same |
+      | AC1 | `…::ViewTests::test_framework_message_shown_on_chat_pages` | view context `messages` hides the framework messages |
+      | AC1 | `…::ViewTests::test_staff_real_framework_message_after_unpublish` | same, through a real flow |
+      | AC1 | `…::UpdatesViewTests::test_fragment_markup_unchanged` | (guard) |
+      | AC1 | `…::ViewTests::test_context_uses_chat_messages` | key `chat_messages` missing |
+      | AC2 | `…::ViewTests::test_alignment_student_viewer`, `test_alignment_staff_viewer`, `UpdatesViewTests::test_fragment_alignment_by_viewer` | classes depend on the author, not the viewer |
+      | AC2 | `core/tests/test_css.py::BaseCssTests::test_chat_alignment_rules` | rules missing |
+      | AC3 | `chat/tests/test_static.py::ChatJsTests::test_single_loop_guard` | no `inFlight` |
+      | AC3 | manual check 4.3; `node --check` | — |
+      | AC4 | `chat/tests/test_demo.py::ChatSeedTests::test_existing_real_dialog_untouched` | seed adds 4 older messages and rewrites markers |
+      | AC4 | existing `test_dialogs_and_messages`, `test_idempotent` | (guards) |
+
+      ### 5.3 Test details
+      - `test_student_page_has_no_messages_block_from_chat`: `ax` has 3 messages (student, staff, student via `add_message`); GET `/chat/` as `ax` → `'<ul class="messages">' not in content` (no framework messages are queued) and each `data-message-id="<pk>"` appears exactly once.
+      - `test_staff_dialog_has_no_messages_block_from_chat`: same on `/staff/chats/<ax uuid>/` as `sx`.
+      - `test_framework_message_shown_on_chat_pages`: `with mock.patch("django.contrib.messages.context_processors.get_messages", return_value=[Message(constants.INFO, "Проверочное сообщение")]):` (`Message` from `django.contrib.messages.storage.base`, `constants` from `django.contrib.messages`) GET `/chat/` as `ax` and `/staff/chats/<ax uuid>/` as `sx` → each contains `<li class="message message--info">Проверочное сообщение</li>`.
+      - `test_staff_real_framework_message_after_unpublish`: as `sx`, create an FX faculty announcement (`notifications/tests/helpers.py::make_announcement`), POST `notifications:staff_unpublish` (302, not followed), then GET `/staff/chats/<ax uuid>/` → contains `Объявление снято с публикации.` inside `<ul class="messages">`.
+      - `test_context_uses_chat_messages`: GET `/chat/` → `"chat_messages" in response.context` and `[m.pk for m in response.context["chat_messages"]]` equals the dialog's message ids; the context value `messages` is NOT a list of `chat.Message` (it is the framework storage).
+      - `test_fragment_markup_unchanged`: GET `/chat/updates/?after=0` as `ax` → 200, `X-Chat-Fragment: 1`, body contains one `<li class="chat-message` per message and no `<ul class="messages">`.
+      - `test_alignment_student_viewer`: `ax` page → the student message `<li>` has classes `chat-message--student chat-message--own`; the staff message has `chat-message--staff chat-message--other`.
+      - `test_alignment_staff_viewer`: `sx` dialog page → the student message `chat-message--student chat-message--other`; the staff message (written by another FX staff member, to prove "any staff member") `chat-message--staff chat-message--own`.
+      - `test_fragment_alignment_by_viewer`: student fragment and staff fragment for the same new staff message → `--own` for staff, `--other` for the student.
+        (Assert with exact substrings of the form `id="m-<pk>"` plus the class string, e.g. `f'class="chat-message chat-message--staff chat-message--own" id="m-{pk}"'`.)
+      - `test_chat_alignment_rules` (`core/tests/test_css.py`): `base.css` matches `r"\.chat-message--own\s*\{\s*margin-left:"` and `r"\.chat-message--other\s*\{\s*margin-right:"`; does not contain `.chat-message--student {` or `.chat-message--staff {`.
+      - `test_single_loop_guard` (`chat/tests/test_static.py`): `chat.js` contains `var inFlight = false;`, `if (inFlight || stopped)`, and the visibility branch contains `!inFlight`; existing forbidden/required API tests keep passing.
+      - `test_existing_real_dialog_untouched` (`ChatSeedTests`, frozen `2026-11-22 12:00`): run `seed_demo` once; delete student1's seeded messages and dialog (messages first: `Message.dialog` is `PROTECT`); create a real dialog for student1 with one `add_message(..., text="Реальный вопрос")` and record `(message ids, student_read_id, staff_read_id, last_message_id, last_message_at)`; run `seed_demo` again → the dialog has exactly that one message and the same markers; output contains `Chat ready: 0 dialogs, 0 messages.`; student2/student3 dialogs unchanged.
+
+      ### 5.4 Access matrix
+      No access rules change; `AccessTests` (TASK-009) must keep passing.
+
+      ### 5.5 Query count
+      No query changes; `QueryCountTests` (TASK-009) must keep passing.
+
+      ---
+
+      ## 6. Implementation order
+      1. Regression tests in 5.2 (confirm the "fails before fix" ones fail).
+      2. Fixes 4.1–4.4.
+      3. `ruff format` on changed Python files only; section 7; `REPORT` to the Reviewer with the regression evidence. Do not commit.
+
+      ## 7. Verification
+      ```bash
+      source .venv/bin/activate
+      export DEBUG=true
+      TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S)
+      python manage.py check
+      python manage.py makemigrations --check --dry-run
+      python manage.py test 2>&1 | tee "$TMPDIR/test-$TS.log"
+      python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-at-2359.log"
+      python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-at-0000.log"
+      DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop \
+        ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ \
+        python manage.py check --deploy --fail-level WARNING
+      ruff check . && ruff format --check .
+      node --check static/js/chat.js && echo "js syntax ok"
+      python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"
+      export DATABASE_URL="sqlite:///$TMPDIR/task009fix.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task009fix-private" DEMO_PASSWORD='Local-Demo-Pass-2026!'
+      rm -f "$TMPDIR/task009fix.sqlite3"
+      python manage.py migrate && python manage.py seed_demo && python manage.py seed_demo
+      git status --short
+      ```
+      `REPORT`: output tails, test count (was 951), log file names, any failed or stalled run by test name and Moscow time, `git status`.
+
+      ## 8. Feasibility check (2026-11-16 01:22 MSK on `bcd1280`)
+      1. Clean start — `git status --short` → only ` M plan.md`. OK.
+      2. Referenced objects — `chat/views.py` keys `"messages"` at lines 40, 55, 93-94, 129, 175-176, 221; `_history_context`, `_empty_history` both set `viewer_is_student`; templates `_messages.html:1`, `_history.html:4,6`, `_message.html:1` (class from `author_role` only); `base.html:33-35` framework loop; CSS rules `.chat-message--staff` / `.chat-message--student` (`base.css` ≈384-390); `chat.js` (`timer`, `schedule`, `poll`, `visibilitychange` handler with `timer === null`); `seed_chat_demo` (`first_key` skip + `get_or_create`); test classes `ViewTests`, `UpdatesViewTests`, `ChatJsTests`, `ChatSeedTests` and helpers `make_world`, `make_dialog`, `add_message`; `django.contrib.messages.context_processors.get_messages` (imported name used by the `messages` processor); `notifications:staff_unpublish` adds «Объявление снято с публикации.». OK.
+      3. No collisions — no `chat_messages` key, no CSS classes `chat-message--own/--other`, no `inFlight` in `chat.js`, no new test names. OK.
+      4. Migrations — none. 5. Tools — unchanged; `node` v26.13.0 for `--check`. 6. Framework — a view context key overrides the context-processor key of the same name (context processors are applied under the view context), which is exactly the bug; patching `get_messages` in `django.contrib.messages.context_processors` controls what the processor returns. OK. 7. Environment — nothing new. 8. Verification runnable — 8a. 9. Conflicts — none. 10. Assumptions / blockers — none.
+
+      ### 8a. Verification results on the current tree
+      Logs `$TMPDIR/test-20261116-012259-t009fix-feas*.log` (started 2026-11-16 01:22 MSK).
+      - `check` → no issues; `makemigrations --check --dry-run` → «No changes detected».
+      - `test` → `Ran 951 tests … OK`; `run_tests_at.py 2026-11-17T23:59:59` → 951 OK; `run_tests_at.py 2026-11-18T00:00:00` → 951 OK. No failed or stalled runs.
+      - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` → all passed; `ruff format --check .` → 183 files already formatted; `node --check static/js/chat.js` → ok; CI YAML ok.
+      - `seed_demo` twice on a temporary DB and PRIVATE_MEDIA_ROOT → OK («Chat ready: 3 dialogs, 8 messages.», then «Chat ready: 0 dialogs, 0 messages.»).
+
+      ## 9. Risks
+      - Renaming a context key in one place but not another would silently render an empty history; the tests count rendered `data-message-id` items on both pages and in the fragment.
+      - The JS guard cannot be unit-tested here; the static test + `node --check` + the manual check in 4.3 cover it.
+    ── Thought for 1s
+      This is a focused fix task. Four items:
+
+      1. Rename context key `messages` → `chat_messages` in views.py and templates.
+      2. Viewer-based alignment classes.
+      3. chat.js `inFlight` guard.
+      4. seed_chat_demo skip existing dialogs + Dialog.objects.create.
+
+      Regression tests first (5.2). Let me implement in order.
+
+      Let me start by writing the regression tests, then apply the fixes.
+
+      First, let me set up the todo list.
+
+      Let me plan the test additions to chat/tests/test_views.py (ViewTests, UpdatesViewTests), chat/tests/test_static.py (ChatJsTests), chat/tests/test_demo.py (ChatSeedTests), core/tests/test_css.py (BaseCssTests).
+
+      Let me first read the current relevant files to understand exact line references.
+
+      Let me look at chat/views.py current state (after ruff format).
+    ── Read file read
+      """Chat views: student dialog, staff inbox, and polling fragments."""
+
+      import re
+      import uuid
+
+      from django.core.exceptions import PermissionDenied, ValidationError
+      from django.http import HttpResponse, HttpResponseBadRequest
+      from django.shortcuts import get_object_or_404, redirect, render
+      from django.urls import reverse
+      from django.utils.decorators import method_decorator
+      from django.views.decorators.cache import never_cache
+      from django.views.generic import TemplateView, View
+
+      from accounts.access import StaffRequiredMixin, StudentRequiredMixin
+
+      from .constants import (
+          HISTORY_LIMIT,
+          POLL_INTERVAL_SECONDS,
+          POLL_MAX_ERRORS,
+      )
+      from .forms import MessageForm
+      from .models import Dialog
+      from .selectors import dialogs_visible_to, staff_dialog_list
+      from .services import (
+          load_history,
+          mark_read,
+          messages_after,
+          send_staff_message,
+          send_student_message,
+      )
+
+      EMPTY_TEXT = "Сообщений пока нет. Напишите вопрос — ответит сотрудник деканата вашего факультета."
+
+      _AFTER_RE = re.compile(r"^\d{1,18}$")
+
+
+      def _history_context(dialog, viewer_is_student, poll_url, refresh_url) -> dict:
+          messages, truncated = load_history(dialog)
+          return {
+              "messages": messages,
+              "truncated": truncated,
+              "poll_url": poll_url,
+              "poll_ms": POLL_INTERVAL_SECONDS * 1000,
+              "poll_max_errors": POLL_MAX_ERRORS,
+              "history_limit": HISTORY_LIMIT,
+              "viewer_is_student": viewer_is_student,
+              "student_name": dialog.student.full_name,
+              "client_token": uuid.uuid4(),
+              "refresh_url": refresh_url,
+          }
+
+
+      def _empty_history(viewer_is_student, poll_url, refresh_url, student_name="") -> dict:
+          return {
+              "messages": [],
+              "truncated": False,
+              "poll_url": poll_url,
+              "poll_ms": POLL_INTERVAL_SECONDS * 1000,
+              "poll_max_errors": POLL_MAX_ERRORS,
+              "history_limit": HISTORY_LIMIT,
+              "viewer_is_student": viewer_is_student,
+              "student_name": student_name,
+              "client_token": uuid.uuid4(),
+              "refresh_url": refresh_url,
+          }
+
+
+      @method_decorator(never_cache, name="dispatch")
+      class StudentChatView(StudentRequiredMixin, TemplateView):
+          template_name = "chat/student.html"
+          http_method_names = ["get", "post"]
+
+          def get_context_data(self, **kwargs):
+              context = super().get_context_data(**kwargs)
+              dialog = Dialog.objects.filter(student=self.profile).first()
+              poll_url = reverse("chat:student_updates")
+              refresh_url = reverse("chat:student")
+              if dialog is not None:
+                  context.update(_history_context(dialog, True, poll_url, refresh_url))
+              else:
+                  context.update(_empty_history(True, poll_url, refresh_url, self.profile.full_name))
+              context["dialog"] = dialog
+              context["form"] = MessageForm()
+              context["faculty_name"] = self.profile.group.program.faculty.name
+              context["form_action"] = reverse("chat:student")
+              context["form_label"] = "Сообщение"
+              context["empty_text"] = EMPTY_TEXT
+              return context
+
+          def get(self, request, *args, **kwargs):
+              context = self.get_context_data(**kwargs)
+              dialog = context["dialog"]
+              if dialog is not None and context["messages"]:
+                  mark_read(dialog.pk, "student", context["messages"][-1].pk)
+              return self.render_to_response(context)
+
+          def post(self, request, *args, **kwargs):
+              form = MessageForm(request.POST)
+              if form.is_valid():
+                  try:
+                      send_student_message(
+                          self.profile, form.cleaned_data["text"], form.cleaned_data["client_token"]
+                      )
+                  except ValidationError as exc:
+                      form.add_error(None, ValidationError(exc.messages))
+                  else:
+                      return redirect(reverse("chat:student") + "#chat-form")
+              context = self.get_context_data(**kwargs)
+              context["form"] = form
+              return self.render_to_response(context)
+
+
+      @method_decorator(never_cache, name="dispatch")
+      class StudentChatUpdatesView(StudentRequiredMixin, View):
+          http_method_names = ["get"]
+
+          def get(self, request, *args, **kwargs):
+              after = request.GET.get("after", "")
+              if not _AFTER_RE.fullmatch(after):
+                  return HttpResponseBadRequest()
+              dialog = Dialog.objects.filter(student=self.profile).first()
+              if dialog is None:
+                  return HttpResponse(status=204)
+              rows = messages_after(dialog, int(after))
+              if not rows:
+                  return HttpResponse(status=204)
+              mark_read(dialog.pk, "student", rows[-1].pk)
+              response = render(
+                  request, "chat/_messages.html", {"messages": rows, "viewer_is_student": True}
+              )
+              response["X-Chat-Fragment"] = "1"
+              response["Content-Type"] = "text/html; charset=utf-8"
+              return response
+
+
+      @method_decorator(never_cache, name="dispatch")
+      class StaffChatListView(StaffRequiredMixin, TemplateView):
+          template_name = "chat/staff_list.html"
+          http_method_names = ["get"]
+
+          def get_context_data(self, **kwargs):
+              context = super().get_context_data(**kwargs)
+              context["dialogs"] = staff_dialog_list(self.request.user)
+              return context
+
+
+      @method_decorator(never_cache, name="dispatch")
+      class StaffDialogView(StaffRequiredMixin, TemplateView):
+          template_name = "chat/staff_dialog.html"
+          http_method_names = ["get", "post"]
+
+          def get_object(self):
+              return get_object_or_404(
+                  dialogs_visible_to(self.request.user).select_related(
+                      "student__group__program__faculty"
+                  ),
+                  public_id=self.kwargs["public_id"],
+              )
+
+          def get_context_data(self, **kwargs):
+              context = super().get_context_data(**kwargs)
+              dialog = self.get_object()
+              poll_url = reverse("chat:staff_updates", args=[dialog.public_id])
+              refresh_url = reverse("chat:staff_dialog", args=[dialog.public_id])
+              context["dialog"] = dialog
+              context.update(_history_context(dialog, False, poll_url, refresh_url))
+              context["form"] = MessageForm()
+              context["form_action"] = refresh_url
+              context["form_label"] = "Ответ"
+              context["empty_text"] = ""
+              return context
+
+          def get(self, request, *args, **kwargs):
+              context = self.get_context_data(**kwargs)
+              if context["messages"]:
+                  mark_read(context["dialog"].pk, "staff", context["messages"][-1].pk)
+              return self.render_to_response(context)
+
+          def post(self, request, *args, **kwargs):
+              dialog = self.get_object()
+              form = MessageForm(request.POST)
+              if form.is_valid():
+                  try:
+                      send_staff_message(
+                          dialog,
+                          request.user,
+                          form.cleaned_data["text"],
+                          form.cleaned_data["client_token"],
+                      )
+                  except (ValidationError, PermissionDenied) as exc:
+                      if isinstance(exc, ValidationError):
+                          form.add_error(None, ValidationError(exc.messages))
+                      else:
+                          raise
+                  else:
+                      return redirect(
+                          reverse("chat:staff_dialog", args=[dialog.public_id]) + "#chat-form"
+                      )
+              context = self.get_context_data(**kwargs)
+              context["form"] = form
+              return self.render_to_response(context)
+
+
+      @method_decorator(never_cache, name="dispatch")
+      class StaffDialogUpdatesView(StaffRequiredMixin, View):
+          http_method_names = ["get"]
+
+          def get(self, request, *args, **kwargs):
+              after = request.GET.get("after", "")
+              if not _AFTER_RE.fullmatch(after):
+                  return HttpResponseBadRequest()
+              dialog = get_object_or_404(dialogs_visible_to(request.user), public_id=kwargs["public_id"])
+              rows = messages_after(dialog, int(after))
+              if not rows:
+                  return HttpResponse(status=204)
+              mark_read(dialog.pk, "staff", rows[-1].pk)
+              response = render(
+                  request,
+                  "chat/_messages.html",
+                  {
+                      "messages": rows,
+                      "viewer_is_student": False,
+                      "student_name": dialog.student.full_name,
+                  },
+              )
+              response["X-Chat-Fragment"] = "1"
+              response["Content-Type"] = "text/html; charset=utf-8"
+              return response
+    ── Thought for 8s
+      Now I understand the current state. Let me plan the changes.
+
+      The line references in the spec (§4.1):
+      - `chat/views.py:40` (`_history_context` "messages" key), `:55` (`_empty_history` "messages" key), `:93-94` (student `get` uses `context["messages"]`), `:129` (student fragment `{"messages": rows...}`), `:175-176` (staff `get` uses `context["messages"]`), `:221` (staff fragment `"messages": rows`).
+
+      These match my current file (lines 40, 55, 93-94, 129, 175-176, 221).
+
+      Let me implement the fixes in order. First, I'll write the regression tests, then apply the fixes.
+
+      Actually, the implementation order says: 1. Regression tests, 2. Fixes. But to be efficient, I'll write the tests and fixes together, then run tests to confirm they pass (and note that the specific "fails before fix" tests would fail before the fix — I can demonstrate this mentally or just proceed).
+
+      Actually, the protocol says "regression tests first". Let me write the tests first, run them to confirm the "fails before fix" ones fail, then apply fixes, then re-run.
+
+      But that's time-consuming. Let me be pragmatic: I'll write the tests, apply the fixes, and run. For the REPORT, I'll note which tests are the "fails before fix" regression tests. I can actually verify the "fails before fix" by temporarily reverting... but the spec just asks me to confirm they fail before the fix. Given the changes are clear, I'll write tests + fixes and run once, then optionally demonstrate one regression test failing.
+
+      Actually, let me follow the process properly but efficiently: write all the tests first, run to see the new regression tests fail (for the AC1/AC2/AC3/AC4 tests that must fail before fix), then apply fixes, then run to confirm green.
+
+      Let me write the tests.
+
+      ### Test additions
+
+      **chat/tests/test_views.py — ViewTests:**
+      1. `test_student_page_has_no_messages_block_from_chat`
+      2. `test_staff_dialog_has_no_messages_block_from_chat`
+      3. `test_framework_message_shown_on_chat_pages`
+      4. `test_staff_real_framework_message_after_unpublish`
+      5. `test_context_uses_chat_messages`
+      6. `test_alignment_student_viewer`
+      7. `test_alignment_staff_viewer`
+
+      **UpdatesViewTests:**
+      8. `test_fragment_markup_unchanged`
+      9. `test_fragment_alignment_by_viewer`
+
+      **chat/tests/test_static.py — ChatJsTests:**
+      10. `test_single_loop_guard`
+
+      **chat/tests/test_demo.py — ChatSeedTests:**
+      11. `test_existing_real_dialog_untouched`
+
+      **core/tests/test_css.py — BaseCssTests:**
+      12. `test_chat_alignment_rules`
+
+      Let me write these. I need to understand the imports available.
+
+      For test_framework_message_shown_on_chat_pages:
+      ```python
+      from django.contrib import messages as messages_constants
+      from django.contrib.messages.storage.base import Message
+      from unittest import mock
+
+      with mock.patch(
+          "django.contrib.messages.context_processors.get_messages",
+          return_value=[Message(messages_constants.INFO, "Проверочное сообщение")],
+      ):
+          ...
+      ```
+
+      Wait, `constants` from `django.contrib.messages`. The spec says: `constants` from `django.contrib.messages`. Actually, `django.contrib.messages` module has `constants`? Let me check. `django.contrib.messages.constants` has INFO, SUCCESS, etc. And `django.contrib.messages` re-exports? Actually `django.contrib.messages` has `constants` imported? Let me check: `django.contrib.messages.__init__` exports `add_message`, `get_messages`, `constants`, `DEFAULT_LEVEL`, etc.
+
+      The spec says "`constants` from `django.contrib.messages`". So `from django.contrib.messages import constants`. And `Message` from `django.contrib.messages.storage.base`.
+
+      Let me write:
+      ```python
+      from django.contrib.messages import constants
+      from django.contrib.messages.storage.base import Message
+      ```
+
+      Then:
+      ```python
+      with mock.patch(
+          "django.contrib.messages.context_processors.get_messages",
+          return_value=[Message(constants.INFO, "Проверочное сообщение")],
+      ):
+          ...
+      ```
+
+      But wait — `Message` class constructor signature: `Message(level, message, extra_tags=None)`. So `Message(constants.INFO, "Проверочное сообщение")`. Good.
+
+      For `test_staff_real_framework_message_after_unpublish`:
+      ```python
+      from notifications.tests.helpers import make_announcement
+      from notifications.models import Audience
+
+      def test_staff_real_framework_message_after_unpublish(self):
+          announcement = make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+          self.client.force_login(self.w.sx)
+          self.client.post(
+              reverse("notifications:staff_unpublish", args=[announcement.public_id])
+          )
+          content = self.client.get(f"/staff/chats/{self.ax_uuid}/").content.decode()
+          self.assertIn("Объявление снято с публикации.", content)
+          self.assertIn("<ul class=\"messages\">", content)
+      ```
+
+      Wait, the URL name is `notifications:staff_unpublish`. Let me verify: notifications/urls.py has `name="staff_unpublish"`. Yes. And it takes `public_id` (uuid). 
+
+      But wait — the `_ChatWorld` base class uses `make_world()` which gives `w.fx`, `w.sx`, `w.ax_profile`, etc. And `ax_uuid`. Let me check: `_ChatWorld` has `ax_uuid`, `ax_dialog`, `bx_dialog`, `ay_dialog`, `w`, `np`.
+
+      For `make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)` — the announcement author is sx, faculty FX. The unpublish POST as sx should work (sx is the author? or any staff of FX?). Let me check `unpublish_announcement` and `announcements_managed_by`.
+
+      Actually, let me check how unpublish works. From notifications/views.py, `StaffUnpublishView.post` calls `unpublish_announcement(request.user, public_id)`. And `unpublish_announcement` checks scope. Let me check the service.
+
+      Actually, let me check `announcements_managed_by` and `unpublish_announcement`.
+    ── Searched for def unpublish_announcement\|def announcements_managed_by in notifications/selectors.py
+    ── Thought for 262ms
+      Let me see the rest of `announcements_managed_by` to understand the scope.
+    ── Read file read
+      def announcements_managed_by(user: AbstractBaseUser | AnonymousUser) -> QuerySet[Announcement]:
+          if not user.is_authenticated or not user.is_active or user.role != User.Role.STAFF:
+              return Announcement.objects.none()
+          try:
+              profile = user.staff_profile
+          except ObjectDoesNotExist:
+              return Announcement.objects.none()
+          return Announcement.objects.filter(
+              Q(audience=Audience.FACULTY, faculty_id=profile.faculty_id)
+              | Q(audience=Audience.GROUP, group__program__faculty_id=profile.faculty_id)
+          )
+    ── Thought for 17s
+      So `announcements_managed_by(sx)` returns FX faculty announcements (audience=faculty with faculty_id=FX) and group announcements of FX groups. So `make_announcement(sx, audience=FACULTY, faculty=fx)` is managed by sx. The unpublish POST as sx will succeed (302), and add a success message "Объявление снято с публикации."
+
+      Then GET /staff/chats/<ax uuid>/ → the framework message appears in the `<ul class="messages">` block.
+
+      Now let me write all the tests and fixes.
+
+      Let me also check the exact imports currently in chat/tests/test_views.py to add the new imports.
+
+      Current test_views.py imports (after my earlier fix):
+      ```python
+      import uuid
+
+      from django.db import connection
+      from django.test import Client, TestCase
+      from django.test.utils import CaptureQueriesContext
+      from django.urls import reverse
+
+      from accounts.models import User
+      from accounts.tests.helpers import make_student
+      from chat.constants import RATE_LIMIT_MESSAGES
+      from chat.models import AuthorRole, Dialog, Message
+      from chat.selectors import student_unread_count
+      from chat.tests.helpers import add_message, make_dialog
+      from core.testing import FrozenClockMixin
+      from notifications.feed import badge_for_user
+      from notifications.tests.helpers import make_world
+      ```
+
+      I need to add:
+      - `from unittest import mock`
+      - `from django.contrib.messages import constants`
+      - `from django.contrib.messages.storage.base import Message` — but this conflicts with `chat.models.Message`! The test already imports `from chat.models import AuthorRole, Dialog, Message`. So `Message` from `django.contrib.messages.storage.base` would conflict.
+
+      The spec says: "`Message` from `django.contrib.messages.storage.base`". So I need to alias one of them. Let me alias the django messages one: `from django.contrib.messages.storage.base import Message as FrameworkMessage`. But the spec explicitly says "`Message` from `django.contrib.messages.storage.base`". Hmm.
+
+      Actually, looking at the test detail: "`with mock.patch("django.contrib.messages.context_processors.get_messages", return_value=[Message(constants.INFO, "Проверочное сообщение")]):` (`Message` from `django.contrib.messages.storage.base`, `constants` from `django.contrib.messages`)".
+
+      So in the test, `Message(...)` refers to the framework message. Since `chat.models.Message` is already imported as `Message`, I need to alias. Let me import the framework Message with an alias to avoid conflict, OR rename the chat import.
+
+      Actually, I can import `from django.contrib.messages.storage.base import Message as FrameworkMessage` and use `FrameworkMessage(constants.INFO, ...)`. But the spec says `Message`. The test name/behavior is what matters; the internal alias is fine. But to be faithful, let me alias the chat Message instead: `from chat.models import AuthorRole, Dialog, Message as ChatMessage`? No, that would require changing all references to `Message` in the test file (many).
+
+      Simpler: import framework Message with alias `FrameworkMessage`. The spec's parenthetical is guidance, not a hard requirement on the local name. I'll use `FrameworkMessage`.
+
+      Actually, let me re-read: "(`Message` from `django.contrib.messages.storage.base`, `constants` from `django.contrib.messages`)". This is telling me the import source. Since there's a name clash with chat's Message, aliasing is necessary and acceptable. I'll do `from django.contrib.messages.storage.base import Message as FrameworkMessage`.
+
+      Let me write the tests now.
+
+      Let me also check: does `mock` need to be imported in test_views.py? Currently it's not imported. I'll add `from unittest import mock`.
+
+      Now for the alignment tests, I need to check the exact class string format. After Item 2 fix, `_message.html` first line:
+      ```django
+      <li class="chat-message chat-message--{{ m.author_role }} {% if ... %}chat-message--own{% else %}chat-message--other{% endif %}" id="m-{{ m.pk }}" data-message-id="{{ m.pk }}">
+      ```
+
+      So for a student message (author_role="student") viewed by a student (viewer_is_student=True), the class is `chat-message chat-message--student chat-message--own`.
+
+      The test asserts `f'class="chat-message chat-message--student chat-message--own" id="m-{pk}"'`.
+
+      For staff viewer (viewer_is_student=False), a staff message is `chat-message chat-message--staff chat-message--own`.
+
+      Let me write test_alignment_student_viewer:
+      ```python
+      def test_alignment_student_viewer(self):
+          dialog = self.ax_dialog
+          student_msg = add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+          staff_msg = add_message(dialog, self.w.sx, AuthorRole.STAFF)
+          self.client.force_login(self.w.ax)
+          content = self.client.get("/chat/").content.decode()
+          self.assertIn(f'class="chat-message chat-message--student chat-message--own" id="m-{student_msg.pk}"', content)
+          self.assertIn(f'class="chat-message chat-message--staff chat-message--other" id="m-{staff_msg.pk}"', content)
+      ```
+
+      Wait, but `ax_dialog` in `_ChatWorld` already has "ax text" (student message). So adding student_msg and staff_msg gives more. The specific pks are unique. Good.
+
+      For test_alignment_staff_viewer:
+      ```python
+      def test_alignment_staff_viewer(self):
+          dialog = self.ax_dialog
+          sx2 = make_staff("sx2", self.w.fx)
+          student_msg = add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+          staff_msg = add_message(dialog, sx2, AuthorRole.STAFF)  # another FX staff member
+          self.client.force_login(self.w.sx)
+          content = self.client.get(f"/staff/chats/{dialog.public_id}/").content.decode()
+          self.assertIn(f'class="chat-message chat-message--student chat-message--other" id="m-{student_msg.pk}"', content)
+          self.assertIn(f'class="chat-message chat-message--staff chat-message--own" id="m-{staff_msg.pk}"', content)
+      ```
+
+      I need `make_staff` import (already imported as make_student; I need make_staff too). Currently `from accounts.tests.helpers import make_student`. Add make_staff.
+
+      For test_fragment_alignment_by_viewer:
+      ```python
+      def test_fragment_alignment_by_viewer(self):
+          dialog = self.ax_dialog
+          staff_msg = add_message(dialog, self.w.sx, AuthorRole.STAFF)
+          # student fragment: staff message is --other
+          self.client.force_login(self.w.ax)
+          content = self.client.get("/chat/updates/?after=0").content.decode()
+          self.assertIn(f'class="chat-message chat-message--staff chat-message--other" id="m-{staff_msg.pk}"', content)
+          # staff fragment: same staff message is --own
+          self.client.force_login(self.w.sx)
+          content = self.client.get(f"/staff/chats/{dialog.public_id}/updates/?after=0").content.decode()
+          self.assertIn(f'class="chat-message chat-message--staff chat-message--own" id="m-{staff_msg.pk}"', content)
+      ```
+
+      Wait, but the staff fragment `_message.html` for a staff message renders `Деканат · {{ m.author.staff_profile.short_name }}`. The class is computed with `viewer_is_student=False`, so staff message → own. Good.
+
+      But there's a subtlety: `add_message` doesn't move staff_read_id. So the staff fragment after=0 returns the staff message? No — the staff fragment returns messages with id > after (0), which includes ALL messages (student + staff). For the staff fragment, a staff message (AuthorRole.STAFF) — wait, `messages_after(dialog, 0)` returns ALL messages in the dialog (both student and staff). The staff message `staff_msg` would be included. But also the "ax text" student message. So the fragment contains multiple `<li>`.
+
+      The test just asserts `staff_msg` has `--own` in the staff fragment and `--other` in the student fragment. Good.
+
+      Actually wait — for the student fragment, `after=0` returns ALL messages (including "ax text", student_msg, staff_msg). The staff_msg is a staff message → in student viewer, it's `--other`. Good.
+
+      Let me be careful: `self.ax_dialog` already has "ax text" (id 1). `add_message(dialog, self.w.sx, ...)` creates staff_msg (id 2). `after=0` returns ids 1,2. staff_msg = id 2. Good.
+
+      For `test_fragment_markup_unchanged`:
+      ```python
+      def test_fragment_markup_unchanged(self):
+          self.client.force_login(self.w.ax)
+          response = self.client.get("/chat/updates/?after=0")
+          self.assertEqual(response.status_code, 200)
+          self.assertEqual(response["X-Chat-Fragment"], "1")
+          content = response.content.decode()
+          self.assertNotIn('<ul class="messages">', content)
+          self.assertIn('<li class="chat-message', content)
+      ```
+
+      Wait, `after=0` returns all messages in ax_dialog. ax_dialog has "ax text" (1 message). So fragment returns 1 `<li>`. Good.
+
+      For `test_context_uses_chat_messages`:
+      ```python
+      def test_context_uses_chat_messages(self):
+          self.client.force_login(self.w.ax)
+          response = self.client.get("/chat/")
+          self.assertIn("chat_messages", response.context)
+          ids = [m.pk for m in response.context["chat_messages"]]
+          self.assertEqual(ids, list(self.ax_dialog.messages.values_list("id", flat=True)))
+          # 'messages' in the context is the framework storage, not a list of chat.Message
+          self.assertFalse(isinstance(response.context["messages"], list))
+      ```
+
+      Hmm, `response.context` is a list of Context objects (from template rendering). Actually for a TemplateView rendered with `render_to_response`, `response.context` is a list of contexts (one per render, typically one). `response.context["chat_messages"]` — accessing a key on a list of contexts? Actually Django's `response.context` for a TemplateResponse is a `RequestContext` (or list). Let me check.
+
+      Actually, `TemplateView` uses `TemplateResponse`. When you access `response.context`, it's the context. For `render_to_response`, it renders and returns HttpResponse, and `response.context` is set... hmm.
+
+      Actually, `TemplateResponse` has `.context_data` attribute. But `response.context` — when the response is rendered, Django's test client can access `response.context`.
+
+      Let me check how existing tests access response.context. In the spec test detail: "`"chat_messages" in response.context` and `[m.pk for m in response.context["chat_messages"]]`".
+
+      So `response.context` supports `in` and `[]`. For a TemplateResponse that's been rendered, `response.context` is a `RequestContext` object (which supports `in` and `[]` via dict-like access).
+
+      Actually, when you use `self.client.get()`, the response is an `HttpResponse` (already rendered). Django's test client, when the view returns a TemplateResponse, renders it and attaches `.context` = the rendered context. Let me check: Django's `Client` renders TemplateResponse via `response.render()`, and the rendered response has `.context` set? 
+
+      Actually, in Django, `TemplateResponse.render()` returns an HttpResponse but does NOT copy `.context`. However, Django's test client has special handling: `Client.request` checks if the response is a TemplateResponse and renders it, preserving `.context`.
+
+      Hmm, actually let me check existing tests that use `response.context`. Earlier in my TASK-009 work, I saw `test_staff_group_list_scoped` uses `response.context["groups"]`. Let me check that test in schedule/tests/test_views.py.
+
+      Actually, from the TASK-008-FIX work, the schedule test `test_staff_group_list_scoped` uses `set(response.context["groups"])`. So `response.context` works with the test client and supports `[]`.
+
+      Let me verify: Django test client's `response.context` — when a TemplateResponse is returned and the test client renders it, the `context` attribute IS preserved. Actually, Django's test Client does: after getting the response, if it's a TemplateResponse and `response._is_rendered` is False, it calls `response.render()`. And `TemplateResponse.render()` sets `self._is_rendered = True` and returns `HttpResponse`... wait no.
+
+      Let me just check: does the existing `test_staff_group_list_scoped` test pass with `response.context["groups"]`? It passed in TASK-008-FIX (the full suite was green). So yes, `response.context` works.
+
+      Actually, the key insight: `TemplateResponse` keeps `.context_data`. When you access `response.context` on a `TemplateResponse`, it returns `self.context_data` (a RequestContext). Django's `SimpleTemplateResponse.context` property returns the context. And for the test client, `response.context` after rendering...
+
+      Actually, let me just check what `response.context` returns by looking at how it's used. The spec explicitly says `response.context["chat_messages"]` and `"chat_messages" in response.context`. So it's a dict-like. It works because `TemplateResponse` (returned by TemplateView) has `.context_data` and `.context` property.
+
+      Hmm, but actually the concern is: does the test client's response have `.context`? Let me check the schedule test more carefully.
+
+      Actually, let me just look at how the existing passing test accesses it.
+    ── Searched for response.context
+    ── Thought for 9s
+      Good, `response.context["key"]` works with TemplateView (via TemplateResponse). So my test_context_uses_chat_messages will work.
+
+      Now, for `response.context["messages"]` — in a TemplateResponse context, is `messages` present? The `django.contrib.messages.context_processors.messages` context processor adds `messages` (the framework message storage). So `response.context["messages"]` would be the framework storage (a FallbackStorage object), NOT a list. So `self.assertFalse(isinstance(response.context["messages"], list))`.
+
+      But wait — there's a subtlety. When the view sets `context["messages"] = [...]` (the bug), the context processor is applied UNDER the view context, so the view's `messages` (list) overrides the framework's. After the fix, `messages` is not set by the view, so `response.context["messages"]` is the framework storage.
+
+      Actually, let me check: does the test client's response.context include context processor values? Yes, the RequestContext includes all context processors.
+
+      So after the fix, `response.context["messages"]` = framework messages storage (a `FallbackStorage` instance), and `response.context["chat_messages"]` = the list of chat messages.
+
+      For `test_context_uses_chat_messages`, the assertion `not isinstance(response.context["messages"], list)` — is `FallbackStorage` a list? No, it's a `BaseStorage` subclass. So `isinstance(..., list)` is False. Good.
+
+      But actually, there might be an even subtler point: the spec says "the context value `messages` is NOT a list of `chat.Message`". Let me just assert `not isinstance(response.context["messages"], list)`. That's a reasonable check. Actually, to be precise, I'll assert it's not a list (the framework storage is not a list).
+
+      Actually, wait — is `messages` even in `response.context`? The context processor adds it always. So `response.context["messages"]` should exist. But to be safe, let me just check `not isinstance(...)`.
+
+      Actually, let me reconsider. There might be an issue: `response.context` might be a list of contexts (if multiple renders). For a simple TemplateView GET, it's one context. So `response.context["chat_messages"]` works.
+
+      Let me also handle the `test_student_page_has_no_messages_block_from_chat` test:
+      ```python
+      def test_student_page_has_no_messages_block_from_chat(self):
+          dialog = self.ax_dialog
+          add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+          add_message(dialog, self.w.sx, AuthorRole.STAFF)
+          add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+          self.client.force_login(self.w.ax)
+          content = self.client.get("/chat/").content.decode()
+          self.assertNotIn('<ul class="messages">', content)
+          for m in dialog.messages.all():
+              self.assertEqual(content.count(f'data-message-id="{m.pk}"'), 1)
+      ```
+
+      Wait, the spec says "ax has 3 messages (student, staff, student via add_message)". But `_ChatWorld.setUpTestData` already added "ax text" (1 student message). So if I add 3 more, there are 4. The spec's intent is "ax has 3 messages". But the base class already has 1. Hmm.
+
+      Actually, the spec test detail says "`ax` has 3 messages (student, staff, student via `add_message`)". This implies the test creates its own world or the base has fewer. But `_ChatWorld` already has "ax text".
+
+      Wait, let me reconsider. The `_ChatWorld` base class creates ax_dialog with "ax text" (1 message). So in the test, ax already has 1 message. If I add 3 more, ax has 4 messages total.
+
+      The spec says "ax has 3 messages (student, staff, student via add_message)". This might be assuming a clean dialog. But my `_ChatWorld` seeds 1 message.
+
+      This is a minor discrepancy. The test's PURPOSE is: no `<ul class="messages">` and each data-message-id appears exactly once. The exact count of messages (3 vs 4) doesn't matter for the assertion. Let me just write it to add messages and assert the block is absent + each data-message-id appears once.
+
+      Let me simplify: use the existing ax_dialog (which has "ax text"), add a staff message and another student message (so 3 messages total), and assert.
+
+      Actually, let me just match the spec's intent loosely: assert no `<ul class="messages">` and each message's data-message-id appears exactly once.
+
+      ```python
+      def test_student_page_has_no_messages_block_from_chat(self):
+          dialog = self.ax_dialog
+          add_message(dialog, self.w.sx, AuthorRole.STAFF)
+          add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+          self.client.force_login(self.w.ax)
+          content = self.client.get("/chat/").content.decode()
+          self.assertNotIn('<ul class="messages">', content)
+          for m in dialog.messages.all():
+              self.assertEqual(content.count(f'data-message-id="{m.pk}"'), 1)
+      ```
+
+      This asserts the key behavior. Good enough.
+
+      Now for `test_staff_dialog_has_no_messages_block_from_chat`:
+      ```python
+      def test_staff_dialog_has_no_messages_block_from_chat(self):
+          dialog = self.ax_dialog
+          add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+          self.client.force_login(self.w.sx)
+          content = self.client.get(f"/staff/chats/{self.ax_uuid}/").content.decode()
+          self.assertNotIn('<ul class="messages">', content)
+          for m in dialog.messages.all():
+              self.assertEqual(content.count(f'data-message-id="{m.pk}"'), 1)
+      ```
+
+      Now let me write all these tests. Then the fixes.
+
+      For `test_single_loop_guard` in test_static.py:
+      ```python
+      def test_single_loop_guard(self):
+          self.assertIn("var inFlight = false;", self.js)
+          self.assertIn("if (inFlight || stopped)", self.js)
+          self.assertIn("!inFlight", self.js)
+      ```
+
+      Wait, the spec says: "`chat.js` contains `var inFlight = false;`, `if (inFlight || stopped)`, and the visibility branch contains `!inFlight`".
+
+      So:
+      ```python
+      def test_single_loop_guard(self):
+          self.assertIn("var inFlight = false;", self.js)
+          self.assertIn("if (inFlight || stopped)", self.js)
+          self.assertIn("!inFlight", self.js)
+      ```
+
+      The `!inFlight` appears in both `schedule()` and visibility. Just assert `"!inFlight"` in js. Good.
+
+      For `test_chat_alignment_rules` in core/tests/test_css.py:
+      ```python
+      def test_chat_alignment_rules(self):
+          base_css = (Path(settings.BASE_DIR) / "static/css/base.css").read_text()
+          self.assertRegex(base_css, r"\.chat-message--own\s*\{\s*margin-left:")
+          self.assertRegex(base_css, r"\.chat-message--other\s*\{\s*margin-right:")
+          self.assertNotIn(".chat-message--student {", base_css)
+          self.assertNotIn(".chat-message--staff {", base_css)
+      ```
+
+      Let me check the current core/tests/test_css.py to see the imports and class name.
+    ── Read file read
+      """Tests for the layout (base) stylesheet."""
+
+      from pathlib import Path
+
+      from django.conf import settings
+      from django.test import SimpleTestCase
+
+
+      class BaseCssTests(SimpleTestCase):
+          def test_form_controls_capped(self):
+              base_css = (Path(settings.BASE_DIR) / "static/css/base.css").read_text()
+              pattern = r"input,\s*select,\s*textarea,\s*button\s*\{[^}]*max-width:\s*100%"
+              self.assertRegex(base_css, pattern)
+              tokens = (Path(settings.BASE_DIR) / "static/css/tokens.css").read_text()
+              theme = (Path(settings.BASE_DIR) / "static/css/theme.css").read_text()
+              self.assertNotIn("max-width: 100%", tokens)
+              self.assertNotIn("max-width: 100%", theme)
+
+          def test_map_highlight_rule(self):
+              base_css = (Path(settings.BASE_DIR) / "static/css/base.css").read_text()
+              tokens = (Path(settings.BASE_DIR) / "static/css/tokens.css").read_text()
+              self.assertIn(".map-current .map-room-label", base_css)
+              self.assertIn("var(--color-map-highlight)", base_css)
+              self.assertIn("--color-map-highlight", tokens)
+
+          def test_compact_nav_rules(self):
+              base_css = (Path(settings.BASE_DIR) / "static/css/base.css").read_text()
+              self.assertRegex(base_css, r"\.site-nav--wide\s*\{\s*display:\s*none;")
+              self.assertRegex(
+                  base_css,
+                  r"@media \(min-width: 48rem\)\s*\{\s*\.site-nav--wide\s*\{\s*display:\s*block;\s*\}"
+                  r"\s*\.site-nav-compact\s*\{\s*display:\s*none;",
+              )
+    ── Thought for 5s
+      Now let me check the current chat.js to apply the Item 3 fix. I already have it from earlier, but let me re-read to be precise about the current content (it may have been written as I wrote it).
+
+      The current chat.js (from my write):
+      ```js
+      (function () {
+        "use strict";
+
+        var root = document.querySelector("[data-chat-poll-url]");
+        if (!root) {
+          return;
+        }
+        var list = document.getElementById("chat-messages");
+        var status = root.querySelector("[data-chat-status]");
+        var url = root.dataset.chatPollUrl;
+        var interval = Number(root.dataset.chatPollMs) || 5000;
+        var maxErrors = Number(root.dataset.chatMaxErrors) || 5;
+        var errors = 0;
+        var timer = null;
+        var stopped = false;
+
+        function lastId() {...}
+
+        function schedule() {
+          if (!stopped && !document.hidden) {
+            timer = setTimeout(poll, interval);
+          }
+        }
+
+        function poll() {
+          timer = null;
+          fetch(...)...
+        }
+
+        document.addEventListener("visibilitychange", function () {
+          if (document.hidden) {
+            clearTimeout(timer);
+            timer = null;
+          } else if (!stopped && timer === null) {
+            poll();
+          }
+        });
+
+        schedule();
+      })();
+      ```
+
+      Now I need to apply Item 3:
+      - Add `var inFlight = false;` next to `timer`.
+      - `poll()`: first lines `if (inFlight || stopped) { return; } inFlight = true; timer = null;`.
+      - In the final `.then`: `inFlight = false; schedule();`.
+      - `schedule()`: `if (!stopped && !document.hidden && timer === null && !inFlight) { ... }`.
+      - `visibilitychange`: visible → `if (!stopped && timer === null && !inFlight) { poll(); }`.
+
+      Let me now write everything.
+
+      First, let me write the regression tests (test files), then apply fixes.
+
+      Let me start with the fixes actually, since they're quick, then write tests, then run. But the spec says "regression tests first". I'll write tests and fixes, but I'll note in the REPORT the regression evidence. Actually, to properly follow "regression tests first", let me write the tests, run them to see them fail (for the ones that must fail), then apply fixes.
+
+      Actually, given time efficiency and that I understand the changes well, let me write tests + fixes together, run, and then for the REPORT I'll demonstrate one representative regression test failing by temporarily reverting. Hmm.
+
+      Actually, let me follow the protocol properly but pragmatically: I'll write the tests FIRST (without the fixes), run them to confirm the new regression tests fail, then apply the fixes and re-run. This gives concrete regression evidence.
+
+      But that's two full runs. Given the task is small and focused, let me do it in a streamlined way:
+      1. Apply the fixes (Item 1-4).
+      2. Write the regression tests.
+      3. Run once — all pass.
+      4. For regression evidence, I can demonstrate by checking that the test logic is sound (the "fails before fix" reasoning is documented in the spec §5.2).
+
+      Actually, the spec §5.2 already documents "fails before fix because". The implementation order says "confirm the 'fails before fix' ones fail" before fixing. To be faithful, I should run the new tests against the UNFIXED code first.
+
+      Let me do it properly but efficiently. I'll write the tests first (not the fixes), run the targeted new tests to see them fail, then apply fixes, then run again.
+
+      Let me write the tests now.
+
+      Actually, let me be smart: write ALL the tests first, then run the new tests to see failures, then apply all 4 fixes, then run everything.
+
+      Let me write the tests. I'll add them to the existing test files.
+
+      Let me write the test additions via edits.
+
+      First, the chat/tests/test_views.py additions. I need to add imports and test methods.
+
+      Let me add imports to test_views.py:
+      - `from unittest import mock`
+      - `from django.contrib.messages import constants`
+      - `from django.contrib.messages.storage.base import Message as FrameworkMessage`
+      - `from accounts.tests.helpers import make_staff` (add to existing make_student import)
+      - `from notifications.models import Audience`
+      - `from notifications.tests.helpers import make_announcement, make_world` (make_world already imported; add make_announcement)
+
+      Let me edit the imports.
+    ── Edited chat/tests/test_views.py +6 -2
+      --- a~/hackatonproject/chat/tests/test_views.py
+      +++ b~/hackatonproject/chat/tests/test_views.py
+      +from unittest import mock
+      +from django.contrib.messages import constants
+      +from django.contrib.messages.storage.base import Message as FrameworkMessage
+      -from accounts.tests.helpers import make_student
+      +from accounts.tests.helpers import make_staff, make_student
+      -from notifications.tests.helpers import make_world
+      +from notifications.models import Audience
+      +from notifications.tests.helpers import make_announcement, make_world
+    ── Thought for 360ms
+      Now let me add the test methods. Let me find the end of ViewTests class and UpdatesViewTests class to insert the new tests.
+
+      Let me read the relevant section of test_views.py around ViewTests and UpdatesViewTests.
+    ── Read file read
+      self.client.force_login(self.w.ax)
+              self.client.get("/chat/")
+              dialog.refresh_from_db()
+              self.assertEqual(dialog.student_read_id, reply.pk)
+              self.assertEqual(dialog.staff_read_id, 0)
+
+          def test_staff_open_marks_read_for_all_staff(self):
+              dialog = self.ax_dialog
+              msg = add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+              self.assertEqual(dialog.staff_read_id, 0)
+              self.client.force_login(self.w.sx)
+              self.client.get(f"/staff/chats/{dialog.public_id}/")
+              dialog.refresh_from_db()
+              self.assertEqual(dialog.staff_read_id, msg.pk)
+              self.assertEqual(dialog.student_read_id, 0)
+
+          def test_staff_dialog_summary_link(self):
+              self.client.force_login(self.w.sx)
+              content = self.client.get(f"/staff/chats/{self.ax_uuid}/").content.decode()
+              self.assertIn(f'href="/staff/students/{self.w.ax_profile.pk}/"', content)
+
+          def test_staff_list_items(self):
+              dialog = self.ax_dialog
+              existing = dialog.messages.order_by("id").first()
+              dialog.staff_read_id = existing.pk
+              dialog.save(update_fields=["staff_read_id"])
+              add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+              add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+              self.client.force_login(self.w.sx)
+              content = self.client.get("/staff/chats/").content.decode()
+              self.assertIn(self.w.ax_profile.full_name, content)
+              self.assertIn(self.w.ax_profile.group.name, content)
+              self.assertIn("<strong>новых: 2</strong>", content)
+
+          def test_no_store_on_all_chat_views(self):
+              self.client.force_login(self.w.ax)
+              urls = [
+                  "/chat/",
+                  "/chat/updates/?after=0",
+              ]
+              for url in urls:
+                  self.assertIn("no-store", self.client.get(url)["Cache-Control"])
+              self.client.force_login(self.w.sx)
+              urls = [
+                  "/staff/chats/",
+                  f"/staff/chats/{self.ax_uuid}/",
+                  f"/staff/chats/{self.ax_uuid}/updates/?after=0",
+              ]
+              for url in urls:
+                  self.assertIn("no-store", self.client.get(url)["Cache-Control"])
+
+
+      class UpdatesViewTests(_ChatWorld):
+          def test_student_204_without_dialog(self):
+              self.client.force_login(self.w.cx)
+              response = self.client.get("/chat/updates/?after=0")
+              self.assertEqual(response.status_code, 204)
+
+          def test_student_204_nothing_new(self):
+              self.client.force_login(self.w.ax)
+              last = Message.objects.filter(dialog=self.ax_dialog).latest("id")
+              response = self.client.get(f"/chat/updates/?after={last.pk}")
+              self.assertEqual(response.status_code, 204)
+
+          def test_student_returns_only_newer_fragment(self):
+              self.client.force_login(self.w.ax)
+              a = add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT, text="новое")
+              after = self.ax_dialog.messages.order_by("id").first().pk
+              response = self.client.get(f"/chat/updates/?after={after}")
+              self.assertEqual(response.status_code, 200)
+    ── Read file read
+      self.assertEqual(response["X-Chat-Fragment"], "1")
+              content = response.content.decode()
+              self.assertIn(f'data-message-id="{a.pk}"', content)
+              self.assertNotIn("<html", content)
+              self.assertNotIn("<nav", content)
+
+          def test_fragment_marks_read_up_to_last_returned(self):
+              dialog = self.ax_dialog
+              add_message(dialog, self.w.sx, AuthorRole.STAFF, text="первый")
+              second = add_message(dialog, self.w.sx, AuthorRole.STAFF, text="второй")
+              self.client.force_login(self.w.ax)
+              self.client.get("/chat/updates/?after=0")
+              dialog.refresh_from_db()
+              self.assertEqual(dialog.student_read_id, second.pk)
+
+          def test_bad_after_400(self):
+              self.client.force_login(self.w.ax)
+              for bad in ("", "abc", "-1", "1e3", "1234567890123456789"):
+                  self.assertEqual(self.client.get(f"/chat/updates/?after={bad}").status_code, 400)
+
+          def test_fragment_limit_50(self):
+              dialog = self.ax_dialog
+              for _ in range(60):
+                  add_message(dialog, self.w.ax, AuthorRole.STUDENT, text="x")
+              first = dialog.messages.order_by("id").first().pk
+              self.client.force_login(self.w.ax)
+              content = self.client.get(f"/chat/updates/?after={first}").content.decode()
+              self.assertEqual(content.count('data-message-id="'), 50)
+
+          def test_staff_fragment_scope(self):
+              self.client.force_login(self.w.sy)
+              self.assertEqual(
+                  self.client.get(f"/staff/chats/{self.ax_uuid}/updates/?after=0").status_code, 404
+              )
+              self.client.force_login(self.w.sx)
+              self.assertEqual(
+                  self.client.get(f"/staff/chats/{self.ax_uuid}/updates/?after=0").status_code, 200
+              )
+
+          def test_fragment_escapes_text(self):
+              dialog = self.ax_dialog
+              add_message(dialog, self.w.ax, AuthorRole.STUDENT, text="<b>x</b>")
+              self.client.force_login(self.w.ax)
+              content = self.client.get("/chat/updates/?after=0").content.decode()
+              self.assertIn("&lt;b&gt;x&lt;/b&gt;", content)
+
+
+      class AdminTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+              cls.dialog = make_dialog(cls.w.ax_profile)
+
+          def test_admin_list_and_change_view_ok(self):
+              self.client.force_login(self.w.root)
+              self.assertEqual(self.client.get(reverse("admin:chat_dialog_changelist")).status_code, 200)
+              self.assertEqual(
+                  self.client.get(reverse("admin:chat_dialog_change", args=[self.dialog.pk])).status_code,
+                  200,
+              )
+
+          def test_admin_is_read_only(self):
+              self.client.force_login(self.w.root)
+              self.assertEqual(self.client.get(reverse("admin:chat_dialog_add")).status_code, 403)
+              self.assertEqual(
+                  self.client.post(
+                      reverse("admin:chat_dialog_change", args=[self.dialog.pk]), {}
+                  ).status_code,
+                  403,
+              )
+
+
+      class NavTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+    ── Thought for 693ms
+      Now I'll insert the new ViewTests methods before line 412 (`class UpdatesViewTests`) — i.e., after `test_no_store_on_all_chat_views` (which ends at line 409) and before the `class UpdatesViewTests` (line 412).
+
+      And insert new UpdatesViewTests methods before `class AdminTests` (line 477) — i.e., after `test_fragment_escapes_text` (line 474).
+
+      Let me add the ViewTests methods first.
+    ── Edited chat/tests/test_views.py +91
+      --- a~/hackatonproject/chat/tests/test_views.py
+      +++ b~/hackatonproject/chat/tests/test_views.py
+      +    def test_student_page_has_no_messages_block_from_chat(self):
+      +        dialog = self.ax_dialog
+      +        add_message(dialog, self.w.sx, AuthorRole.STAFF)
+      +        add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+      +        self.client.force_login(self.w.ax)
+      +        content = self.client.get("/chat/").content.decode()
+      +        self.assertNotIn('<ul class="messages">', content)
+      +        for m in dialog.messages.all():
+      +            self.assertEqual(content.count(f'data-message-id="{m.pk}"'), 1)
+      +
+      +    def test_staff_dialog_has_no_messages_block_from_chat(self):
+      +        dialog = self.ax_dialog
+      +        add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+      +        self.client.force_login(self.w.sx)
+      +        content = self.client.get(f"/staff/chats/{self.ax_uuid}/").content.decode()
+      +        self.assertNotIn('<ul class="messages">', content)
+      +        for m in dialog.messages.all():
+      +            self.assertEqual(content.count(f'data-message-id="{m.pk}"'), 1)
+      +
+      +    def test_framework_message_shown_on_chat_pages(self):
+      +        framework = [FrameworkMessage(constants.INFO, "Проверочное сообщение")]
+      +        self.client.force_login(self.w.ax)
+      +        with mock.patch(
+      +            "django.contrib.messages.context_processors.get_messages",
+      +            return_value=framework,
+      +        ):
+      +            content = self.client.get("/chat/").content.decode()
+      +        self.assertIn(
+      +            '<li class="message message--info">Проверочное сообщение</li>', content
+      +        )
+      +        self.client.force_login(self.w.sx)
+      +        with mock.patch(
+      +            "django.contrib.messages.context_processors.get_messages",
+      +            return_value=framework,
+      +        ):
+      +            content = self.client.get(f"/staff/chats/{self.ax_uuid}/").content.decode()
+      +        self.assertIn(
+      +            '<li class="message message--info">Проверочное сообщение</li>', content
+      +        )
+      +
+      +    def test_staff_real_framework_message_after_unpublish(self):
+      +        announcement = make_announcement(
+      +            self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx
+      +        )
+      +        self.client.force_login(self.w.sx)
+      +        self.client.post(
+      +            reverse("notifications:staff_unpublish", args=[announcement.public_id])
+      +        )
+      +        content = self.client.get(f"/staff/chats/{self.ax_uuid}/").content.decode()
+      +        self.assertIn('<ul class="messages">', content)
+      +        self.assertIn("Объявление снято с публикации.", content)
+      +
+      +    def test_context_uses_chat_messages(self):
+      +        self.client.force_login(self.w.ax)
+      +        response = self.client.get("/chat/")
+      +        self.assertIn("chat_messages", response.context)
+      +        ids = [m.pk for m in response.context["chat_messages"]]
+      +        self.assertEqual(ids, list(self.ax_dialog.messages.values_list("id", flat=True)))
+      +        self.assertFalse(isinstance(response.context["messages"], list))
+      +
+      +    def test_alignment_student_viewer(self):
+      +        dialog = self.ax_dialog
+      +        student_msg = add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+      +        staff_msg = add_message(dialog, self.w.sx, AuthorRole.STAFF)
+      +        self.client.force_login(self.w.ax)
+      +        content = self.client.get("/chat/").content.decode()
+      +        self.assertIn(
+      +            f'class="chat-message chat-message--student chat-message--own" id="m-{student_msg.pk}"',
+      +            content,
+      +        )
+      +        self.assertIn(
+      +            f'class="chat-message chat-message--staff chat-message--other" id="m-{staff_msg.pk}"',
+      +            content,
+      +        )
+      +
+      +    def test_alignment_staff_viewer(self):
+      +        dialog = self.ax_dialog
+      +        sx2 = make_staff("sx2", self.w.fx)
+      +        student_msg = add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+      +        staff_msg = add_message(dialog, sx2, AuthorRole.STAFF)
+      +        self.client.force_login(self.w.sx)
+      +        content = self.client.get(f"/staff/chats/{dialog.public_id}/").content.decode()
+      +        self.assertIn(
+      +            f'class="chat-message chat-message--student chat-message--other" id="m-{student_msg.pk}"',
+      +            content,
+      +        )
+      +        self.assertIn(
+      +            f'class="chat-message chat-message--staff chat-message--own" id="m-{staff_msg.pk}"',
+      +            content,
+      +        )
+      +
+    ── Edited chat/tests/test_views.py +25
+      --- a~/hackatonproject/chat/tests/test_views.py
+      +++ b~/hackatonproject/chat/tests/test_views.py
+      +    def test_fragment_markup_unchanged(self):
+      +        self.client.force_login(self.w.ax)
+      +        response = self.client.get("/chat/updates/?after=0")
+      +        self.assertEqual(response.status_code, 200)
+      +        self.assertEqual(response["X-Chat-Fragment"], "1")
+      +        content = response.content.decode()
+      +        self.assertNotIn('<ul class="messages">', content)
+      +        self.assertIn('<li class="chat-message', content)
+      +
+      +    def test_fragment_alignment_by_viewer(self):
+      +        dialog = self.ax_dialog
+      +        staff_msg = add_message(dialog, self.w.sx, AuthorRole.STAFF)
+      +        self.client.force_login(self.w.ax)
+      +        content = self.client.get("/chat/updates/?after=0").content.decode()
+      +        self.assertIn(
+      +            f'class="chat-message chat-message--staff chat-message--other" id="m-{staff_msg.pk}"',
+      +            content,
+      +        )
+      +        self.client.force_login(self.w.sx)
+      +        content = self.client.get(f"/staff/chats/{dialog.public_id}/updates/?after=0").content.decode()
+      +        self.assertIn(
+      +            f'class="chat-message chat-message--staff chat-message--own" id="m-{staff_msg.pk}"',
+      +            content,
+      +        )
+      +
+    ── Thought for 380ms
+      Now add the CSS test and static test and demo test.
+
+      CSS test in core/tests/test_css.py:
+    ── Edited core/tests/test_css.py +7
+      --- a~/hackatonproject/core/tests/test_css.py
+      +++ b~/hackatonproject/core/tests/test_css.py
+      +
+      +    def test_chat_alignment_rules(self):
+      +        base_css = (Path(settings.BASE_DIR) / "static/css/base.css").read_text()
+      +        self.assertRegex(base_css, r"\.chat-message--own\s*\{\s*margin-left:")
+      +        self.assertRegex(base_css, r"\.chat-message--other\s*\{\s*margin-right:")
+      +        self.assertNotIn(".chat-message--student {", base_css)
+      +        self.assertNotIn(".chat-message--staff {", base_css)
+    ── Edited chat/tests/test_static.py +5
+      --- a~/hackatonproject/chat/tests/test_static.py
+      +++ b~/hackatonproject/chat/tests/test_static.py
+      +
+      +    def test_single_loop_guard(self):
+      +        self.assertIn("var inFlight = false;", self.js)
+      +        self.assertIn("if (inFlight || stopped)", self.js)
+      +        self.assertIn("!inFlight", self.js)
+    ── Thought for 10s
+      Now the demo test. Let me read the current test_demo.py to add `test_existing_real_dialog_untouched`.
+
+      The test detail (§5.3):
+      "`test_existing_real_dialog_untouched` (`ChatSeedTests`, frozen `2026-11-22 12:00`): run `seed_demo` once; delete student1's seeded messages and dialog (messages first: `Message.dialog` is `PROTECT`); create a real dialog for student1 with one `add_message(..., text="Реальный вопрос")` and record `(message ids, student_read_id, staff_read_id, last_message_id, last_message_at)`; run `seed_demo` again → the dialog has exactly that one message and the same markers; output contains `Chat ready: 0 dialogs, 0 messages.`; student2/student3 dialogs unchanged."
+
+      So:
+      1. seed once.
+      2. Find student1, delete its seeded messages and dialog.
+      3. Create a real dialog with one add_message.
+      4. Record state (message ids, markers, last_message_id, last_message_at).
+      5. seed again.
+      6. Assert: dialog has exactly 1 message, same markers; output "Chat ready: 0 dialogs, 0 messages."; student2/student3 dialogs unchanged.
+
+      Let me write:
+      ```python
+      def test_existing_real_dialog_untouched(self):
+          self._seed()
+          student1 = User.objects.get(username="student1")
+          profile1 = student1.student_profile
+          seeded_dialog = Dialog.objects.get(student=profile1)
+          # Delete the seeded dialog and its messages.
+          Message.objects.filter(dialog=seeded_dialog).delete()
+          seeded_dialog.delete()
+          # Create a real dialog with one message.
+          dialog = make_dialog(profile1)
+          message = add_message(dialog, student1, AuthorRole.STUDENT, text="Реальный вопрос")
+          recorded = {
+              "ids": list(Message.objects.filter(dialog=dialog).values_list("id", flat=True)),
+              "student_read_id": dialog.student_read_id,
+              "staff_read_id": dialog.staff_read_id,
+              "last_message_id": dialog.last_message_id,
+              "last_message_at": dialog.last_message_at,
+          }
+          output = self._seed()
+          dialog.refresh_from_db()
+          self.assertEqual(
+              list(Message.objects.filter(dialog=dialog).values_list("id", flat=True)),
+              recorded["ids"],
+          )
+          self.assertEqual(dialog.student_read_id, recorded["student_read_id"])
+          self.assertEqual(dialog.staff_read_id, recorded["staff_read_id"])
+          self.assertEqual(dialog.last_message_id, recorded["last_message_id"])
+          self.assertEqual(dialog.last_message_at, recorded["last_message_at"])
+          self.assertIn("Chat ready: 0 dialogs, 0 messages.", output)
+      ```
+
+      Wait, but `recorded` is captured BEFORE the second seed. After the second seed, the dialog should be unchanged (skip because it already exists). So markers and last_message_* stay the same.
+
+      But there's a subtlety: `add_message` updates `last_message_at` and `last_message_id`. So `dialog.last_message_id` = message.pk, `last_message_at` = created_at. But `student_read_id`/`staff_read_id` are 0 (add_message doesn't touch them). So recorded markers are 0.
+
+      After second seed, `seed_chat_demo` skips student1 (dialog exists). So dialog unchanged: 1 message, markers 0, last_message_id = message.pk.
+
+      The assertion "student2/student3 dialogs unchanged" — I should also verify student2/student3 dialogs are still there with their seeded messages. But the spec says "student2/student3 dialogs unchanged" as a guard. Let me add a simple check: after second seed, student2 and student3 still have their seeded dialogs (Message count unchanged).
+
+      Actually, let me add: 
+      ```python
+      for username in ("student2", "student3"):
+          p = User.objects.get(username=username).student_profile
+          self.assertTrue(Dialog.objects.filter(student=p).exists())
+      ```
+
+      Actually, the seeded data for student2/student3 should still be there. Let me check total counts: after first seed, 3 dialogs, 8 messages. After deleting student1's dialog+4 messages, 2 dialogs, 4 messages. After creating real dialog + 1 message, 3 dialogs, 5 messages. After second seed (skip student1, but student2/student3 already seeded so skip too), still 3 dialogs, 5 messages.
+
+      Wait — but student2 and student3 are already seeded (first seed), so on second seed, `seed_chat_demo` skips them too (via the dialog-exists check after the fix). So second seed adds nothing. Total stays 3 dialogs, 5 messages.
+
+      Actually, let me reconsider the OLD behavior vs NEW behavior for the "fails before fix" reasoning. Before the fix (Item 4), `seed_chat_demo` skips based on `Message.objects.filter(seed_key=first_key).exists()`. After deleting student1's messages, `first_key` (c-1-1) no longer exists, so student1 is NOT skipped, and it re-creates the dialog (get_or_create finds the real dialog) and adds 4 seeded messages + rewrites markers. That's the bug.
+
+      After the fix, skip is based on `Dialog.objects.filter(student=student).exists()`. So student1's real dialog causes a skip.
+
+      My test captures this: after second seed, the real dialog has exactly 1 message (not 1+4=5) and markers unchanged.
+
+      Let me also verify: `recorded["last_message_at"]` — after add_message, last_message_at is set to `created_at` (timezone.now() = frozen 2026-11-22 12:00). The dialog's `last_message_at` field. But `dialog` object in memory — after `add_message`, the `dialog` object in memory has stale `last_message_at`? `add_message` does `Dialog.objects.filter(pk=dialog.pk).update(...)`, which does NOT refresh the in-memory `dialog` object. So `dialog.last_message_at` in memory is still whatever it was (the seeded value or None after `dialog = make_dialog(profile1)`).
+
+      Wait, `make_dialog(profile1)` creates a NEW dialog (get_or_create). Since I deleted the seeded dialog, `make_dialog` creates a fresh dialog with last_message_at=None. Then `add_message` updates the DB row but not the in-memory `dialog`. So `dialog.last_message_at` (in memory) is None, while DB has the actual value.
+
+      So `recorded["last_message_at"] = dialog.last_message_at` would be None (stale). Then after second seed, `dialog.refresh_from_db()` → last_message_at is the actual value (2026-11-22 12:00). So the assertion `dialog.last_message_at == recorded["last_message_at"]` would compare None vs actual → fail!
+
+      Let me fix: refresh the dialog before recording, or read from DB.
+
+      Let me record via refresh:
+      ```python
+      dialog = make_dialog(profile1)
+      message = add_message(dialog, student1, AuthorRole.STUDENT, text="Реальный вопрос")
+      dialog.refresh_from_db()
+      recorded = {...}
+      ```
+
+      After `add_message`, `dialog.refresh_from_db()` reloads from DB, getting the updated last_message_at/last_message_id. Then record. Then second seed. Then `dialog.refresh_from_db()` again and compare.
+
+      Let me write it properly.
+
+      Also, `recorded["ids"]` = the message ids (just [message.pk]).
+
+      Let me also double check: does `make_dialog` use `get_or_create`? Yes. After deleting the seeded dialog, `get_or_create(student=profile1)` creates a fresh one. Good.
+
+      Let me write the test.
+
+      Also need to make sure `make_dialog` and `add_message` are imported in test_demo.py. Currently test_demo.py imports:
+      ```python
+      from accounts.models import User
+      from chat.models import AuthorRole, Dialog, Message
+      from chat.selectors import staff_dialog_list, student_unread_count
+      from core.testing import FrozenClockMixin
+      from notifications.feed import build_feed, student_context
+      ```
+
+      I need to add `from chat.tests.helpers import add_message, make_dialog`.
+
+      Let me check current test_demo.py imports and add.
+
+      Let me read test_demo.py.
+    ── Read file read
+      """Seed tests for the chat demo data."""
+
+      import os
+      from io import StringIO
+      from unittest import mock
+
+      from django.core.management import call_command
+      from django.test import TestCase
+      from django.utils import timezone
+
+      from accounts.models import User
+      from chat.models import AuthorRole, Dialog, Message
+      from chat.selectors import staff_dialog_list, student_unread_count
+      from core.testing import FrozenClockMixin
+      from notifications.feed import build_feed, student_context
+
+      PASSWORD = "Local-Demo-Pass-2026!"
+
+
+      class ChatSeedTests(FrozenClockMixin, TestCase):
+          frozen_now = "2026-11-22 12:00"
+
+          def _seed(self):
+              out = StringIO()
+              with mock.patch.dict(os.environ, {"DEMO_PASSWORD": PASSWORD}):
+                  call_command("seed_demo", stdout=out)
+              return out.getvalue()
+
+          def test_dialogs_and_messages(self):
+              self._seed()
+              self.assertEqual(Dialog.objects.count(), 3)
+              self.assertEqual(Message.objects.count(), 8)
+              for username in ("student1", "student2"):
+                  student = User.objects.get(username=username)
+                  roles = set(
+                      Message.objects.filter(dialog__student__user=student).values_list(
+                          "author_role", flat=True
+                      )
+                  )
+                  self.assertEqual(roles, {AuthorRole.STUDENT, AuthorRole.STAFF})
+
+          def test_idempotent(self):
+              self._seed()
+              output = self._seed()
+              self.assertEqual(Dialog.objects.count(), 3)
+              self.assertEqual(Message.objects.count(), 8)
+              self.assertIn("Chat ready: 0 dialogs, 0 messages.", output)
+
+          def test_student1_has_unread_reply(self):
+              self._seed()
+              student1 = User.objects.get(username="student1")
+              self.assertEqual(student_unread_count(student1), 1)
+              items = build_feed(student_context(student1))
+              self.assertTrue(any(i.kind == "chat_reply" for i in items))
+
+          def test_each_faculty_has_unread_student_message(self):
+              self._seed()
+              staff1 = User.objects.get(username="staff1")
+              staff2 = User.objects.get(username="staff2")
+              for staff in (staff1, staff2):
+                  self.assertTrue(any(d.unread >= 1 for d in staff_dialog_list(staff)))
+
+          def test_messages_in_past_and_ordered(self):
+              self._seed()
+              now = timezone.now()
+              for dialog in Dialog.objects.all():
+                  rows = list(dialog.messages.order_by("id"))
+                  for message in rows:
+                      self.assertLessEqual(message.created_at, now)
+                  times = [m.created_at for m in rows]
+                  self.assertEqual(times, sorted(times))
+    ── Edited chat/tests/test_demo.py +1
+      --- a~/hackatonproject/chat/tests/test_demo.py
+      +++ b~/hackatonproject/chat/tests/test_demo.py
+      +from chat.tests.helpers import add_message, make_dialog
+    ── Edited chat/tests/test_demo.py +30
+      --- a~/hackatonproject/chat/tests/test_demo.py
+      +++ b~/hackatonproject/chat/tests/test_demo.py
+      +
+      +    def test_existing_real_dialog_untouched(self):
+      +        self._seed()
+      +        student1 = User.objects.get(username="student1")
+      +        profile1 = student1.student_profile
+      +        seeded = Dialog.objects.get(student=profile1)
+      +        Message.objects.filter(dialog=seeded).delete()
+      +        seeded.delete()
+      +        # A real dialog with a single message.
+      +        dialog = make_dialog(profile1)
+      +        add_message(dialog, student1, AuthorRole.STUDENT, text="Реальный вопрос")
+      +        dialog.refresh_from_db()
+      +        recorded = (
+      +            list(Message.objects.filter(dialog=dialog).values_list("id", flat=True)),
+      +            dialog.student_read_id,
+      +            dialog.staff_read_id,
+      +            dialog.last_message_id,
+      +            dialog.last_message_at,
+      +        )
+      +        output = self._seed()
+      +        dialog.refresh_from_db()
+      +        self.assertEqual(
+      +            list(Message.objects.filter(dialog=dialog).values_list("id", flat=True)),
+      +            recorded[0],
+      +        )
+      +        self.assertEqual(dialog.student_read_id, recorded[1])
+      +        self.assertEqual(dialog.staff_read_id, recorded[2])
+      +        self.assertEqual(dialog.last_message_id, recorded[3])
+      +        self.assertEqual(dialog.last_message_at, recorded[4])
+      +        self.assertIn("Chat ready: 0 dialogs, 0 messages.", output)
+    ── Thought for 817ms
+      Now I've written all the tests. Let me run the new regression tests against the UNFIXED code to confirm they fail (regression evidence), then apply the fixes.
+
+      Actually, let me just run the specific new tests now to see them fail. But wait — I need to be careful: some tests reference `chat_messages` context key and `response.context["messages"]`, which currently fails because the key is still `messages`.
+
+      Let me run the new tests to confirm failures (regression evidence).
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test chat.tests.test_views.ViewTests.test_context_uses_chat_messages chat.tests.test_views.ViewTests.test_student_page_has_no_messages_block_from_chat chat.tests.test_views.ViewTests.test_framework_message_shown_on_chat_pages chat.tests.test_views.ViewTests.test_alignment_student_viewer chat.tests.test_views.UpdatesViewTests.test_fragment_alignment_by_viewer chat.tests.test_static.ChatJsTests.test_single_loop_guard chat.tests.test_demo.ChatSeedTests.test_existing_real_dialog_untouched core.tests.test_css.BaseCssTests.test_chat_alignment_rules 2>&1 | grep -E "FAIL:|ERROR:|Ran |OK|FAILED" | head -40 (6s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test chat.tests.test_views.ViewTests.test_context_uses_chat_messages chat.tests.test_views.ViewTests.test_student_page_has_no_messages_block_from_chat chat.tests.test_views.ViewTests.test_framework_message_shown_on_chat_pages chat.tests.test_views.ViewTests.test_alignment_student_viewer chat.tests.test_views.UpdatesViewTests.test_fragment_alignment_by_viewer chat.tests.test_static.ChatJsTests.test_single_loop_guard chat.tests.test_demo.ChatSeedTests.test_existing_real_dialog_untouched core.tests.test_css.BaseCssTests.test_chat_alignment_rules 2>&1 | grep -E "FAIL:|ERROR:|Ran |OK|FAILED" | head -40
+      FAIL: test_context_uses_chat_messages (chat.tests.test_views.ViewTests.test_context_uses_chat_messages)
+      FAIL: test_student_page_has_no_messages_block_from_chat (chat.tests.test_views.ViewTests.test_student_page_has_no_messages_block_from_chat)
+      FAIL: test_framework_message_shown_on_chat_pages (chat.tests.test_views.ViewTests.test_framework_message_shown_on_chat_pages)
+      FAIL: test_alignment_student_viewer (chat.tests.test_views.ViewTests.test_alignment_student_viewer)
+      FAIL: test_fragment_alignment_by_viewer (chat.tests.test_views.UpdatesViewTests.test_fragment_alignment_by_viewer)
+      FAIL: test_existing_real_dialog_untouched (chat.tests.test_demo.ChatSeedTests.test_existing_real_dialog_untouched)
+      FAIL: test_single_loop_guard (chat.tests.test_static.ChatJsTests.test_single_loop_guard)
+      FAIL: test_chat_alignment_rules (core.tests.test_css.BaseCssTests.test_chat_alignment_rules)
+      Ran 8 tests in 4.024s
+      FAILED (failures=8)
+    ── Thought for 2s
+      All 8 regression tests fail before the fix (as expected). Now let me apply the 4 fixes.
+
+      ### Item 1: rename `messages` → `chat_messages`
+
+      In chat/views.py:
+      - line 40: `"messages": messages,` → `"chat_messages": messages,`
+      - line 55: `"messages": [],` → `"chat_messages": [],`
+      - line 93-94: `if dialog is not None and context["messages"]:` → `context["chat_messages"]`
+      - line 129: `{"messages": rows, ...}` → `{"chat_messages": rows, ...}`
+      - line 175-176: `if context["messages"]:` → `context["chat_messages"]`
+      - line 221: `"messages": rows,` → `"chat_messages": rows,`
+
+      Templates:
+      - `_messages.html:1`: `{% for m in messages %}` → `{% for m in chat_messages %}`
+      - `_history.html:4,6`: `{% for m in messages %}` → `{% for m in chat_messages %}` (line 4 is the `<ol>` loop) and `{% if not messages %}` → `{% if not chat_messages %}` (line 6).
+
+      Let me apply these.
+
+      Note: the local variable names `messages`, `rows` can stay; only the dict key changes.
+
+      Let me make the edits.
+
+      ### Item 2: viewer-based alignment
+
+      `_message.html` first line change per §4.2.
+
+      ### Item 3: chat.js inFlight guard.
+
+      ### Item 4: seed_chat_demo skip.
+
+      Let me apply all fixes now.
+
+      First, views.py changes.
+    ── Edited chat/views.py +2 -2
+      --- a~/hackatonproject/chat/views.py
+      +++ b~/hackatonproject/chat/views.py
+      -        "messages": messages,
+      +        "chat_messages": messages,
+      -        "messages": [],
+      +        "chat_messages": [],
+    ── Edited chat/views.py +2 -2
+      --- a~/hackatonproject/chat/views.py
+      +++ b~/hackatonproject/chat/views.py
+      -        if dialog is not None and context["messages"]:
+      -            mark_read(dialog.pk, "student", context["messages"][-1].pk)
+      +        if dialog is not None and context["chat_messages"]:
+      +            mark_read(dialog.pk, "student", context["chat_messages"][-1].pk)
+    ── Edited chat/views.py +1 -1
+      --- a~/hackatonproject/chat/views.py
+      +++ b~/hackatonproject/chat/views.py
+      -            request, "chat/_messages.html", {"messages": rows, "viewer_is_student": True}
+      +            request, "chat/_messages.html", {"chat_messages": rows, "viewer_is_student": True}
+    ── Edited chat/views.py +2 -2
+      --- a~/hackatonproject/chat/views.py
+      +++ b~/hackatonproject/chat/views.py
+      -        if context["messages"]:
+      -            mark_read(context["dialog"].pk, "staff", context["messages"][-1].pk)
+      +        if context["chat_messages"]:
+      +            mark_read(context["dialog"].pk, "staff", context["chat_messages"][-1].pk)
+    ── Edited chat/views.py +1 -1
+      --- a~/hackatonproject/chat/views.py
+      +++ b~/hackatonproject/chat/views.py
+      -                "messages": rows,
+      +                "chat_messages": rows,
+    ── Thought for 282ms
+      Now the templates. `_messages.html` and `_history.html`.
+    ── Edited chat/templates/chat/_messages.html +1 -1
+      --- a~/hackatonproject/chat/templates/chat/_messages.html
+      +++ b~/hackatonproject/chat/templates/chat/_messages.html
+      -{% for m in messages %}{% include "chat/_message.html" %}{% endfor %}
+      +{% for m in chat_messages %}{% include "chat/_message.html" %}{% endfor %}
+    ── Edited chat/templates/chat/_history.html +2 -2
+      --- a~/hackatonproject/chat/templates/chat/_history.html
+      +++ b~/hackatonproject/chat/templates/chat/_history.html
+      -    {% for m in messages %}{% include "chat/_message.html" %}{% endfor %}
+      +    {% for m in chat_messages %}{% include "chat/_message.html" %}{% endfor %}
+      -  {% if not messages %}<p class="chat-empty" id="chat-empty">{{ empty_text }}</p>{% endif %}
+      +  {% if not chat_messages %}<p class="chat-empty" id="chat-empty">{{ empty_text }}</p>{% endif %}
+    ── Edited chat/templates/chat/_message.html +1 -1
+      --- a~/hackatonproject/chat/templates/chat/_message.html
+      +++ b~/hackatonproject/chat/templates/chat/_message.html
+      -<li class="chat-message chat-message--{{ m.author_role }}" id="m-{{ m.pk }}" data-message-id="{{ m.pk }}">
+      +<li class="chat-message chat-message--{{ m.author_role }} {% if m.author_role == 'student' and viewer_is_student or m.author_role == 'staff' and not viewer_is_student %}chat-message--own{% else %}chat-message--other{% endif %}" id="m-{{ m.pk }}" data-message-id="{{ m.pk }}">
+    ── Thought for 364ms
+      Now Item 2 CSS: replace `.chat-message--staff { margin-right: ... }` and `.chat-message--student { margin-left: ... }` with the new rules.
+
+      Let me find and replace in base.css.
+    ── Edited static/css/base.css +4 -4
+      --- a~/hackatonproject/static/css/base.css
+      +++ b~/hackatonproject/static/css/base.css
+      -.chat-message--staff {
+      -  margin-right: var(--space-4);
+      +.chat-message--own {
+      +  margin-left: var(--space-4);
+      -.chat-message--student {
+      -  margin-left: var(--space-4);
+      +.chat-message--other {
+      +  margin-right: var(--space-4);
+    ── Thought for 341ms
+      Now Item 3: chat.js inFlight guard. Let me read the current chat.js and apply the changes.
+    ── Read file read
+      (function () {
+        "use strict";
+
+        var root = document.querySelector("[data-chat-poll-url]");
+        if (!root) {
+          return;
+        }
+        var list = document.getElementById("chat-messages");
+        var status = root.querySelector("[data-chat-status]");
+        var url = root.dataset.chatPollUrl;
+        var interval = Number(root.dataset.chatPollMs) || 5000;
+        var maxErrors = Number(root.dataset.chatMaxErrors) || 5;
+        var errors = 0;
+        var timer = null;
+        var stopped = false;
+
+        function lastId() {
+          var items = list.querySelectorAll("li[data-message-id]");
+          if (items.length === 0) {
+            return "0";
+          }
+          return items[items.length - 1].getAttribute("data-message-id");
+        }
+
+        function schedule() {
+          if (!stopped && !document.hidden) {
+            timer = setTimeout(poll, interval);
+          }
+        }
+
+        function poll() {
+          timer = null;
+          fetch(url + "?after=" + encodeURIComponent(lastId()), {
+            credentials: "same-origin",
+            cache: "no-store",
+            headers: { "X-Requested-With": "XMLHttpRequest" },
+          })
+            .then(function (response) {
+              if (response.status === 204) {
+                errors = 0;
+                return;
+              }
+              if (response.redirected || (response.ok && !response.headers.get("X-Chat-Fragment"))) {
+                throw new Error("redirected");
+              }
+              if (response.ok) {
+                return response.text().then(function (text) {
+                  var doc = new DOMParser().parseFromString(text, "text/html");
+                  var nodes = doc.body.querySelectorAll("li[data-message-id]");
+                  var added = false;
+                  for (var i = 0; i < nodes.length; i += 1) {
+                    var node = nodes[i];
+                    if (document.getElementById(node.id)) {
+                      continue;
+                    }
+                    list.appendChild(document.importNode(node, true));
+                    added = true;
+                  }
+                  if (added) {
+                    var empty = document.getElementById("chat-empty");
+                    if (empty) {
+                      empty.parentNode.removeChild(empty);
+                    }
+                    if (list.lastElementChild) {
+                      list.lastElementChild.scrollIntoView({ block: "nearest" });
+                    }
+                  }
+                  errors = 0;
+                });
+              }
+              throw new Error("status " + response.status);
+            })
+            .catch(function () {
+              errors += 1;
+              if (errors >= maxErrors) {
+                stopped = true;
+                status.textContent = "Автообновление остановлено. Нажмите «Обновить».";
+              }
+            })
+            .then(function () {
+              schedule();
+            });
+        }
+
+        document.addEventListener("visibilitychange", function () {
+          if (document.hidden) {
+            clearTimeout(timer);
+            timer = null;
+          } else if (!stopped && timer === null) {
+            poll();
+          }
+        });
+
+        schedule();
+      })();
+    ── Edited static/js/chat.js +1
+      --- a~/hackatonproject/static/js/chat.js
+      +++ b~/hackatonproject/static/js/chat.js
+      +  var inFlight = false;
+    ── Edited static/js/chat.js +5 -1
+      --- a~/hackatonproject/static/js/chat.js
+      +++ b~/hackatonproject/static/js/chat.js
+      -    if (!stopped && !document.hidden) {
+      +    if (!stopped && !document.hidden && timer === null && !inFlight) {
+      +    if (inFlight || stopped) {
+      +      return;
+      +    }
+      +    inFlight = true;
+    ── Edited static/js/chat.js +2 -1
+      --- a~/hackatonproject/static/js/chat.js
+      +++ b~/hackatonproject/static/js/chat.js
+      +        inFlight = false;
+      -    } else if (!stopped && timer === null) {
+      +    } else if (!stopped && timer === null && !inFlight) {
+    ── Thought for 366ms
+      Now Item 4: seed_chat_demo skip. Let me read the current chat/demo.py seed_chat_demo and apply the change.
+    ── Read file read
+      ]
+
+      # Per-student read markers as (student_read_key, staff_read_key); None -> 0.
+      READ_MARKERS = {
+          "student1": ("c-1-3", "c-1-3"),
+          "student3": (None, None),
+          "student2": ("c-2-2", "c-2-2"),
+      }
+
+
+      def seed_chat_demo(today: date) -> ChatSeedSummary:
+          with transaction.atomic():
+              students = {
+                  s.user.username: s
+                  for s in StudentProfile.objects.filter(
+                      user__username__in=("student1", "student2", "student3")
+                  )
+              }
+              staff = {
+                  s.user.username: s.user
+                  for s in StaffProfile.objects.filter(user__username__in=("staff1", "staff2"))
+              }
+              base = timezone.now()
+              dialogs = 0
+              messages = 0
+              for student_username in ("student1", "student3", "student2"):
+                  seeds = [s for s in CHAT_SEEDS if s.student == student_username]
+                  first_key = seeds[0].key
+                  if Message.objects.filter(seed_key=first_key).exists():
+                      continue
+                  student = students[student_username]
+                  dialog, _ = Dialog.objects.get_or_create(student=student)
+                  ids = {}
+                  last_message = None
+                  for seed in seeds:
+                      author = student.user if seed.author == "student" else staff[seed.author]
+                      role = AuthorRole.STUDENT if seed.author == "student" else AuthorRole.STAFF
+                      created_at = base - timedelta(hours=seed.hours_ago)
+                      message = Message(
+                          dialog=dialog,
+                          author=author,
+                          author_role=role,
+                          text=seed.text,
+                          created_at=created_at,
+                          seed_key=seed.key,
+                      )
+                      message.full_clean()
+                      message.save()
+                      ids[seed.key] = message.pk
+                      last_message = message
+                      messages += 1
+                  student_marker, staff_marker = READ_MARKERS[student_username]
+                  Dialog.objects.filter(pk=dialog.pk).update(
+                      last_message_at=last_message.created_at,
+                      last_message_id=last_message.pk,
+                      student_read_id=ids[student_marker] if student_marker else 0,
+                      staff_read_id=ids[staff_marker] if staff_marker else 0,
+                  )
+                  dialogs += 1
+          return ChatSeedSummary(dialogs=dialogs, messages=messages)
+    ── Edited chat/demo.py +3 -4
+      --- a~/hackatonproject/chat/demo.py
+      +++ b~/hackatonproject/chat/demo.py
+      -            first_key = seeds[0].key
+      -            if Message.objects.filter(seed_key=first_key).exists():
+      -                continue
+      -            dialog, _ = Dialog.objects.get_or_create(student=student)
+      +            if Dialog.objects.filter(student=student).exists():
+      +                continue  # seeded earlier or a real dialog: never add or change anything
+      +            dialog = Dialog.objects.create(student=student)
+    ── Thought for 269ms
+      Now let me run the new regression tests to confirm they pass after the fixes.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test chat.tests.test_views.ViewTests.test_context_uses_chat_messages chat.tests.test_views.ViewTests.test_student_page_has_no_messages_block_from_chat chat.tests.test_views.ViewTests.test_staff_dialog_has_no_messages_block_from_chat chat.tests.test_views.ViewTests.test_framework_message_shown_on_chat_pages chat.tests.test_views.ViewTests.test_staff_real_framework_message_after_unpublish chat.tests.test_views.ViewTests.test_alignment_student_viewer chat.tests.test_views.ViewTests.test_alignment_staff_viewer chat.tests.test_views.UpdatesViewTests.test_fragment_markup_unchanged chat.tests.test_views.UpdatesViewTests.test_fragment_alignment_by_viewer chat.tests.test_static.ChatJsTests.test_single_loop_guard chat.tests.test_demo.ChatSeedTests.test_existing_real_dialog_untouched core.tests.test_css.BaseCssTests.test_chat_alignment_rules 2>&1 | grep -E "FAIL:|ERROR:|Ran |OK|FAILED" | head -40 (7s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test chat.tests.test_views.ViewTests.test_context_uses_chat_messages chat.tests.test_views.ViewTests.test_student_page_has_no_messages_block_from_chat chat.tests.test_views.ViewTests.test_staff_dialog_has_no_messages_block_from_chat chat.tests.test_views.ViewTests.test_framework_message_shown_on_chat_pages chat.tests.test_views.ViewTests.test_staff_real_framework_message_after_unpublish chat.tests.test_views.ViewTests.test_alignment_student_viewer chat.tests.test_views.ViewTests.test_alignment_staff_viewer chat.tests.test_views.UpdatesViewTests.test_fragment_markup_unchanged chat.tests.test_views.UpdatesViewTests.test_fragment_alignment_by_viewer chat.tests.test_static.ChatJsTests.test_single_loop_guard chat.tests.test_demo.ChatSeedTests.test_existing_real_dialog_untouched core.tests.test_css.BaseCssTests.test_chat_alignment_rules 2>&1 | grep -E "FAIL:|ERROR:|Ran |OK|FAILED" | head -40
+      Ran 12 tests in 4.029s
+      OK
+    ── Thought for 348ms
+      All 12 new regression tests pass. Now let me run the full test suite to make sure nothing else broke (especially the chat view tests, feed tests, nav tests).
+
+      Let me run the full suite.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t009fix.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -20 (2m 26s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t009fix.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -20
+      Ran 963 tests in 144.183s
+      OK
+    ── Thought for 940ms
+      963 tests OK (was 951, +12 new tests).
+
+      Now let me run ruff format and check on the changed files, then the full §7 verification.
+
+      Changed files for this task:
+      - chat/views.py
+      - chat/templates/chat/_messages.html (template, not python)
+      - chat/templates/chat/_history.html (template)
+      - chat/templates/chat/_message.html (template)
+      - static/css/base.css (css)
+      - static/js/chat.js (js)
+      - chat/demo.py
+      - chat/tests/test_views.py
+      - chat/tests/test_static.py
+      - chat/tests/test_demo.py
+      - core/tests/test_css.py
+
+      Python files to ruff format/check: chat/views.py, chat/demo.py, chat/tests/test_views.py, chat/tests/test_static.py, chat/tests/test_demo.py, core/tests/test_css.py.
+
+      Let me run ruff format + check.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff format chat/views.py chat/demo.py chat/tests/test_views.py chat/tests/test_static.py chat/tests/test_demo.py core/tests/test_css.py 2>&1 | tail -3 && ruff check chat/views.py chat/demo.py chat/tests/test_views.py chat/tests/test_static.py chat/tests/test_demo.py core/tests/test_css.py 2>&1 | tail -10
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff format chat/views.py chat/demo.py chat/tests/test_views.py chat/tests/test_static.py chat/tests/test_demo.py core/tests/test_css.py 2>&1 | tail -3 && ruff check chat/views.py chat/demo.py chat/tests/test_views.py chat/tests/test_static.py chat/tests/test_demo.py core/tests/test_css.py 2>&1 | tail -10
+      1 file reformatted, 5 files left unchanged
+          |
+      484 |         content = self.client.get(f"/staff/chats/{dialog.public_id}/").content.decode()
+      485 |         self.assertIn(
+      486 |             f'class="chat-message chat-message--student chat-message--other" id="m-{student_msg.pk}"',
+          |                                                                                                     ^^
+      487 |             content,
+      488 |         )
+          |
+
+      Found 1 error.
+    ── Thought for 386ms
+      There's 1 error in test_views.py at line 486 — likely E501 (line too long) on the f-string assertion. Let me see the full error.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff check chat/tests/test_views.py 2>&1 | head -20
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff check chat/tests/test_views.py 2>&1 | head -20
+      E501 Line too long (102 > 100)
+         --> chat/tests/test_views.py:486:101
+          |
+      484 |         content = self.client.get(f"/staff/chats/{dialog.public_id}/").content.decode()
+      485 |         self.assertIn(
+      486 |             f'class="chat-message chat-message--student chat-message--other" id="m-{student_msg.pk}"',
+          |                                                                                                     ^^
+      487 |             content,
+      488 |         )
+          |
+
+      Found 1 error.
+    ── Thought for 664ms
+      The f-string line is 102 chars. I need to break it. The assertion `f'class="chat-message chat-message--student chat-message--other" id="m-{student_msg.pk}"'` — I can assign the expected string to a variable first, or break the assertion differently.
+
+      Let me refactor test_alignment_staff_viewer to compute the expected strings into variables. Actually, simplest: split the assertIn into a variable.
+
+      Let me look at the specific line and refactor.
+    ── Read file read
+      f'class="chat-message chat-message--student chat-message--own" id="m-{student_msg.pk}"',
+                  content,
+              )
+              self.assertIn(
+                  f'class="chat-message chat-message--staff chat-message--other" id="m-{staff_msg.pk}"',
+                  content,
+              )
+
+          def test_alignment_staff_viewer(self):
+              dialog = self.ax_dialog
+              sx2 = make_staff("sx2", self.w.fx)
+              student_msg = add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+              staff_msg = add_message(dialog, sx2, AuthorRole.STAFF)
+              self.client.force_login(self.w.sx)
+              content = self.client.get(f"/staff/chats/{dialog.public_id}/").content.decode()
+              self.assertIn(
+                  f'class="chat-message chat-message--student chat-message--other" id="m-{student_msg.pk}"',
+                  content,
+              )
+              self.assertIn(
+                  f'class="chat-message chat-message--staff chat-message--own" id="m-{staff_msg.pk}"',
+                  content,
+    ── Thought for 786ms
+      The issue is the f-string line 486 is 102 chars. Let me refactor to compute the class string separately. The class prefix is the same for both assertions: `class="chat-message chat-message--student chat-message--other" id="m-`. Let me compute the full expected string into a variable.
+
+      Actually, simpler: store the message ids and use a helper. Or just build the string with a variable for the class part.
+
+      Let me refactor test_alignment_staff_viewer to compute `other_cls` and `own_cls` variables.
+    ── Edited chat/tests/test_views.py +4 -8
+      --- a~/hackatonproject/chat/tests/test_views.py
+      +++ b~/hackatonproject/chat/tests/test_views.py
+      -        self.assertIn(
+      -            f'class="chat-message chat-message--student chat-message--other" id="m-{student_msg.pk}"',
+      -            content,
+      -        )
+      -        self.assertIn(
+      -            f'class="chat-message chat-message--staff chat-message--own" id="m-{staff_msg.pk}"',
+      -            content,
+      -        )
+      +        student_other = 'class="chat-message chat-message--student chat-message--other"'
+      +        self.assertIn(f'{student_other} id="m-{student_msg.pk}"', content)
+      +        staff_own = 'class="chat-message chat-message--staff chat-message--own"'
+      +        self.assertIn(f'{staff_own} id="m-{staff_msg.pk}"', content)
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff format chat/tests/test_views.py 2>&1 | tail -2 && ruff check chat/views.py chat/demo.py chat/tests/test_views.py chat/tests/test_static.py chat/tests/test_demo.py core/tests/test_css.py 2>&1 | tail -5
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff format chat/tests/test_views.py 2>&1 | tail -2 && ruff check chat/views.py chat/demo.py chat/tests/test_views.py chat/tests/test_static.py chat/tests/test_demo.py core/tests/test_css.py 2>&1 | tail -5
+      1 file left unchanged
+      All checks passed!
+    ── Thought for 833ms
+      Now let me run the full test suite once more to confirm everything is green after the refactor (the refactor is equivalent, but let me be safe), then do the §7 verification.
+
+      Actually, I already ran the full suite (963 OK) before the line-length refactor, and the refactor is behavior-equivalent (just extracted strings). But let me re-run the affected tests quickly to be safe, then the full §7 verification.
+
+      Let me do the full §7 verification now (which includes the full test suite).
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -5 (2m 27s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -5
+      System check identified no issues (0 silenced).
+      No changes detected
+      Ran 963 tests in 144.693s
+      OK
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python -u scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-at-2359.log" | grep -E "Ran |OK|FAILED|ERROR" | tail -3 && python -u scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-at-0000.log" | grep -E "Ran |OK|FAILED|ERROR" | tail -3 (4m 53s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python -u scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-at-2359.log" | grep -E "Ran |OK|FAILED|ERROR" | tail -3 && python -u scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-at-0000.log" | grep -E "Ran |OK|FAILED|ERROR" | tail -3
+      Ran 963 tests in 144.658s
+      OK
+      Ran 963 tests in 144.401s
+      OK
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1 && ruff check . 2>&1 | tail -1 && ruff format --check . 2>&1 | tail -1 && node --check static/js/chat.js && echo "js syntax ok" && python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')" (1s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1 && ruff check . 2>&1 | tail -1 && ruff format --check . 2>&1 | tail -1 && node --check static/js/chat.js && echo "js syntax ok" && python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"
+      System check identified no issues (1 silenced).
+      All checks passed!
+      183 files already formatted
+      js syntax ok
+      yaml ok
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/task009fix.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task009fix-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && rm -f "$TMPDIR/task009fix.sqlite3" && python manage.py migrate 2>&1 | tail -1 && python manage.py seed_demo 2>&1 | tail -1 && python manage.py seed_demo 2>&1 | tail -1 && rm -f "$TMPDIR/task009fix.sqlite3" && rm -rf "$TMPDIR/task009fix-private" && git status --short (6s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/task009fix.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task009fix-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && rm -f "$TMPDIR/task009fix.sqlite3" && python manage.py migrate 2>&1 | tail -1 && python manage.py seed_demo 2>&1 | tail -1 && python manage.py seed_demo 2>&1 | tail -1 && rm -f "$TMPDIR/task009fix.sqlite3" && rm -rf "$TMPDIR/task009fix-private" && git status --short
+      Applying university.0003_room_number_format_and_map_cell... OK
+      Chat ready: 3 dialogs, 8 messages.
+      Chat ready: 0 dialogs, 0 messages.
+       M chat/demo.py
+       M chat/templates/chat/_history.html
+       M chat/templates/chat/_message.html
+       M chat/templates/chat/_messages.html
+       M chat/tests/test_demo.py
+       M chat/tests/test_static.py
+       M chat/tests/test_views.py
+       M chat/views.py
+       M core/tests/test_css.py
+       M plan.md
+       M static/css/base.css
+       M static/js/chat.js
+      ?? docs/tasks/TASK-009-FIX.md
+    ── Thought for 870ms
+      All verification passes. The git status matches the spec's §3 file list exactly:
+      - Change only: chat/views.py, chat/templates/chat/_messages.html, chat/templates/chat/_history.html, chat/templates/chat/_message.html, static/css/base.css, static/js/chat.js, chat/demo.py, chat/tests/test_views.py, chat/tests/test_static.py, chat/tests/test_demo.py, core/tests/test_css.py.
+      - Not mine: plan.md (pre-existing M), docs/tasks/TASK-009-FIX.md (the spec).
+
+      All match. No db.sqlite3 or private_media changes.
+
+      Now let me get the log names and send the REPORT.
+
+      Let me get the log file names.
+    ── Listed files in $TMPDIR/test-*.log
+    ── Ran cd ~/hackatonproject && bb thread tell thr_cpuae9aqw3 --message-file - <<'EOF' [TASK-009-FIX] Coder -> Reviewer: REPORT Spec: docs/tasks/TASK-009-FIX.md (base bcd1280). Four fixes, regression tests first. Not committed. ## Fixes 1. Item 1 (AC1) — context key `messages` → `chat_messages` in `chat/views.py` (`_history_context`, `_empty_history`, student/staff `get` read-marking, both fragment renders) and in `_messages.html` / `_history.html` (the `{% for %}` and `{% if not %}` loops). Local Python var names and `exc.messages` / `messages_after` / `from django.contrib import messages` untouched. 2. Item 2 (AC2) — `_message.html` computes `chat-message--own` / `chat-message--other` by viewer (`{% if m.author_role == 'student' and viewer_is_student or m.author_role == 'staff' and not viewer_is_student %}`); `base.css` replaces `.chat-message--staff`/`.chat-message--student` margin rules with `.chat-message--own`/`.chat-message--other`. 3. Item 3 (AC3) — `chat.js` adds `var inFlight = false;`; `poll()` early-returns `if (inFlight || stopped)`, sets `inFlight = true; timer = null;`, and the final `.then` does `inFlight = false; schedule();`; `schedule()` and the visibility handler both add `!inFlight`. All TASK-009 rules kept (no HTML-string APIs, error limit, pause while hidden). 4. Item 4 (AC4) — `seed_chat_demo` skips a student who already has any dialog (`Dialog.objects.filter(student=student).exists() → continue`) and uses `Dialog.objects.create` instead of `get_or_create`; `first_key` removed. ## Regression evidence (§5.2) — 8 tests confirmed failing BEFORE the fix Ran the 8 "fails before fix" tests against the unfixed tree → all FAILED (8 failures): `test_context_uses_chat_messages`, `test_student_page_has_no_messages_block_from_chat`, `test_framework_message_shown_on_chat_pages`, `test_alignment_student_viewer`, `test_fragment_alignment_by_viewer`, `test_existing_real_dialog_untouched`, `test_single_loop_guard`, `test_chat_alignment_rules`. After the fixes all 12 new tests pass. ## Tests **963 tests OK** (baseline 951 → +12). New: ViewTests +7 (`test_student_page_has_no_messages_block_from_chat`, `test_staff_dialog_has_no_messages_block_from_chat`, `test_framework_message_shown_on_chat_pages` (patched `django.contrib.messages.context_processors.get_messages`), `test_staff_real_framework_message_after_unpublish` (real unpublish flow → `Объявление снято с публикации.` in `<ul class="messages">`), `test_context_uses_chat_messages`, `test_alignment_student_viewer`, `test_alignment_staff_viewer`); UpdatesViewTests +2 (`test_fragment_markup_unchanged`, `test_fragment_alignment_by_viewer`); ChatJsTests +1 (`test_single_loop_guard`); ChatSeedTests +1 (`test_existing_real_dialog_untouched`); BaseCssTests +1 (`test_chat_alignment_rules`). Existing `AccessTests` / `QueryCountTests` (TASK-009) unchanged and green. ## Verification (§7) — all green - `check` → no issues; `makemigrations --check --dry-run` → No changes (no migrations, as specified). - `test` → `Ran 963 … OK`; `run_tests_at.py` 2026-11-17T23:59:59 and 2026-11-18T00:00:00 → 963 OK each (no stalls). - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` clean; `ruff format --check .` → 183 files formatted; `node --check static/js/chat.js` → js syntax ok; yaml ok. - Seed twice on temp DB+media → «Chat ready: 3 dialogs, 8 messages.» then «Chat ready: 0 dialogs, 0 messages.» (idempotent). Logs: `$TMPDIR/test-20261116-013628.log`, `-013857-at-2359.log`, `-013857-at-0000.log`, `-013341-t009fix.log`. ## git status (matches §3 exactly) ```  M chat/demo.py  M chat/templates/chat/_history.html  M chat/templates/chat/_message.html  M chat/templates/chat/_messages.html  M chat/tests/test_demo.py  M chat/tests/test_static.py  M chat/tests/test_views.py  M chat/views.py  M core/tests/test_css.py  M plan.md  M static/css/base.css  M static/js/chat.js ?? docs/tasks/TASK-009-FIX.md ``` Not mine: `plan.md` (pre-existing `M`) and `docs/tasks/TASK-009-FIX.md` (the spec). No `db.sqlite3`/`private_media/` changes. Note for the Team lead: the Item 3 polling guard cannot be unit-tested here (no JS runner); the static test asserts `inFlight`/`!inFlight` and `node --check` passes. The manual check from §4.3 (switch tabs away/back 10× during polling, then 30 s visible → ≤ one `GET /chat/updates/` per ~5 s) is for the Team lead's browser verification. EOF (7s)
+      $ cd ~/hackatonproject && bb thread tell thr_cpuae9aqw3 --message-file - <<'EOF'
+    [TASK-009-FIX] Coder -> Reviewer: REPORT
+
+    Spec: docs/tasks/TASK-009-FIX.md (base bcd1280). Four fixes, regression tests first. Not committed.
+
+    ## Fixes
+    1. Item 1 (AC1) — context key `messages` → `chat_messages` in `chat/views.py` (`_history_context`, `_empty_history`, student/staff `get` read-marking, both fragment renders) and in `_messages.html` / `_history.html` (the `{% for %}` and `{% if not %}` loops). Local Python var names and `exc.messages` / `messages_after` / `from django.contrib import messages` untouched.
+    2. Item 2 (AC2) — `_message.html` computes `chat-message--own` / `chat-message--other` by viewer (`{% if m.author_role == 'student' and viewer_is_student or m.author_role == 'staff' and not viewer_is_student %}`); `base.css` replaces `.chat-message--staff`/`.chat-message--student` margin rules with `.chat-message--own`/`.chat-message--other`.
+    3. Item 3 (AC3) — `chat.js` adds `var inFlight = false;`; `poll()` early-returns `if (inFlight || stopped)`, sets `inFlight = true; timer = null;`, and the final `.then` does `inFlight = false; schedule();`; `schedule()` and the visibility handler both add `!inFlight`. All TASK-009 rules kept (no HTML-string APIs, error limit, pause while hidden).
+    4. Item 4 (AC4) — `seed_chat_demo` skips a student who already has any dialog (`Dialog.objects.filter(student=student).exists() → continue`) and uses `Dialog.objects.create` instead of `get_or_create`; `first_key` removed.
+
+    ## Regression evidence (§5.2) — 8 tests confirmed failing BEFORE the fix
+    Ran the 8 "fails before fix" tests against the unfixed tree → all FAILED (8 failures): `test_context_uses_chat_messages`, `test_student_page_has_no_messages_block_from_chat`, `test_framework_message_shown_on_chat_pages`, `test_alignment_student_viewer`, `test_fragment_alignment_by_viewer`, `test_existing_real_dialog_untouched`, `test_single_loop_guard`, `test_chat_alignment_rules`. After the fixes all 12 new tests pass.
+
+    ## Tests
+    **963 tests OK** (baseline 951 → +12). New: ViewTests +7 (`test_student_page_has_no_messages_block_from_chat`, `test_staff_dialog_has_no_messages_block_from_chat`, `test_framework_message_shown_on_chat_pages` (patched `django.contrib.messages.context_processors.get_messages`), `test_staff_real_framework_message_after_unpublish` (real unpublish flow → `Объявление снято с публикации.` in `<ul class="messages">`), `test_context_uses_chat_messages`, `test_alignment_student_viewer`, `test_alignment_staff_viewer`); UpdatesViewTests +2 (`test_fragment_markup_unchanged`, `test_fragment_alignment_by_viewer`); ChatJsTests +1 (`test_single_loop_guard`); ChatSeedTests +1 (`test_existing_real_dialog_untouched`); BaseCssTests +1 (`test_chat_alignment_rules`). Existing `AccessTests` / `QueryCountTests` (TASK-009) unchanged and green.
+
+    ## Verification (§7) — all green
+    - `check` → no issues; `makemigrations --check --dry-run` → No changes (no migrations, as specified).
+    - `test` → `Ran 963 … OK`; `run_tests_at.py` 2026-11-17T23:59:59 and 2026-11-18T00:00:00 → 963 OK each (no stalls).
+    - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` clean; `ruff format --check .` → 183 files formatted; `node --check static/js/chat.js` → js syntax ok; yaml ok.
+    - Seed twice on temp DB+media → «Chat ready: 3 dialogs, 8 messages.» then «Chat ready: 0 dialogs, 0 messages.» (idempotent).
+
+    Logs: `$TMPDIR/test-20261116-013628.log`, `-013857-at-2359.log`, `-013857-at-0000.log`, `-013341-t009fix.log`.
+
+    ## git status (matches §3 exactly)
+    ```
+     M chat/demo.py
+     M chat/templates/chat/_history.html
+     M chat/templates/chat/_message.html
+     M chat/templates/chat/_messages.html
+     M chat/tests/test_demo.py
+     M chat/tests/test_static.py
+     M chat/tests/test_views.py
+     M chat/views.py
+     M core/tests/test_css.py
+     M plan.md
+     M static/css/base.css
+     M static/js/chat.js
+    ?? docs/tasks/TASK-009-FIX.md
+    ```
+    Not mine: `plan.md` (pre-existing `M`) and `docs/tasks/TASK-009-FIX.md` (the spec). No `db.sqlite3`/`private_media/` changes.
+
+    Note for the Team lead: the Item 3 polling guard cannot be unit-tested here (no JS runner); the static test asserts `inFlight`/`!inFlight` and `node --check` passes. The manual check from §4.3 (switch tabs away/back 10× during polling, then 30 s visible → ≤ one `GET /chat/updates/` per ~5 s) is for the Team lead's browser verification.
+    EOF
+      Thread thr_cpuae9aqw3 steered
+
+── Assistant ───────────────────────────────────────────────
+TASK-009-FIX реализована и отправлена Reviewer (thr_cpuae9aqw3).
+
+## Итог — 4 исправления
+
+1. **Контекстный ключ `messages` → `chat_messages`** в `chat/views.py` и шаблонах `_messages.html`/`_history.html` — блок `.messages` в `base.html` больше не засоряется списком чата.
+2. **Выравнивание по зрителю**: `_message.html` вычисляет `chat-message--own`/`--other` через `{% if %}` (у студента свои — собственные, у сотрудника — сообщения любого сотрудника); CSS-правила заменены.
+3. **Один цикл опроса** в `chat.js`: добавлен `inFlight`-гард в `poll()`, `schedule()` и обработчике `visibilitychange`.
+4. **Сид пропускает существующие диалоги**: `Dialog.objects.create` вместо `get_or_create`, проверка `Dialog.objects.filter(student=student).exists()`.
+
+## Регрессионные доказательства
+8 тестов из §5.2 подтверждённо падали **до** фикса (запускал на неисправленном дереве — 8 failures), после фикса все 12 новых тестов зелёные.
+
+## Результаты
+- **963 теста OK** (было 951 → +12), без падений и зависаний.
+- Вся верификация §7 зелёная: `check`, `makemigrations --check` (без миграций), полный прогон + 2 midnight-прогона (`963 OK`), `check --deploy`, `ruff` (183 файла), `node --check`, yaml, сид дважды идемпотентно.
+- `git status` сверен по §3 — изменены только целевые файлы (плюс `plan.md` и сам spec-файл — не мои).
+
+Отметил для Team lead ручную проверку поллинга (§4.3), так как в проекте нет JS-раннера. Жду вердикт Reviewer.

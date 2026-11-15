@@ -37,7 +37,7 @@ _AFTER_RE = re.compile(r"^\d{1,18}$")
 def _history_context(dialog, viewer_is_student, poll_url, refresh_url) -> dict:
     messages, truncated = load_history(dialog)
     return {
-        "messages": messages,
+        "chat_messages": messages,
         "truncated": truncated,
         "poll_url": poll_url,
         "poll_ms": POLL_INTERVAL_SECONDS * 1000,
@@ -52,7 +52,7 @@ def _history_context(dialog, viewer_is_student, poll_url, refresh_url) -> dict:
 
 def _empty_history(viewer_is_student, poll_url, refresh_url, student_name="") -> dict:
     return {
-        "messages": [],
+        "chat_messages": [],
         "truncated": False,
         "poll_url": poll_url,
         "poll_ms": POLL_INTERVAL_SECONDS * 1000,
@@ -90,8 +90,8 @@ class StudentChatView(StudentRequiredMixin, TemplateView):
     def get(self, request, *args, **kwargs):
         context = self.get_context_data(**kwargs)
         dialog = context["dialog"]
-        if dialog is not None and context["messages"]:
-            mark_read(dialog.pk, "student", context["messages"][-1].pk)
+        if dialog is not None and context["chat_messages"]:
+            mark_read(dialog.pk, "student", context["chat_messages"][-1].pk)
         return self.render_to_response(context)
 
     def post(self, request, *args, **kwargs):
@@ -126,7 +126,7 @@ class StudentChatUpdatesView(StudentRequiredMixin, View):
             return HttpResponse(status=204)
         mark_read(dialog.pk, "student", rows[-1].pk)
         response = render(
-            request, "chat/_messages.html", {"messages": rows, "viewer_is_student": True}
+            request, "chat/_messages.html", {"chat_messages": rows, "viewer_is_student": True}
         )
         response["X-Chat-Fragment"] = "1"
         response["Content-Type"] = "text/html; charset=utf-8"
@@ -172,8 +172,8 @@ class StaffDialogView(StaffRequiredMixin, TemplateView):
 
     def get(self, request, *args, **kwargs):
         context = self.get_context_data(**kwargs)
-        if context["messages"]:
-            mark_read(context["dialog"].pk, "staff", context["messages"][-1].pk)
+        if context["chat_messages"]:
+            mark_read(context["dialog"].pk, "staff", context["chat_messages"][-1].pk)
         return self.render_to_response(context)
 
     def post(self, request, *args, **kwargs):
@@ -218,7 +218,7 @@ class StaffDialogUpdatesView(StaffRequiredMixin, View):
             request,
             "chat/_messages.html",
             {
-                "messages": rows,
+                "chat_messages": rows,
                 "viewer_is_student": False,
                 "student_name": dialog.student.full_name,
             },

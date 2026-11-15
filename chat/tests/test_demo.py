@@ -11,6 +11,7 @@ from django.utils import timezone
 from accounts.models import User
 from chat.models import AuthorRole, Dialog, Message
 from chat.selectors import staff_dialog_list, student_unread_count
+from chat.tests.helpers import add_message, make_dialog
 from core.testing import FrozenClockMixin
 from notifications.feed import build_feed, student_context
 
@@ -69,3 +70,33 @@ class ChatSeedTests(FrozenClockMixin, TestCase):
                 self.assertLessEqual(message.created_at, now)
             times = [m.created_at for m in rows]
             self.assertEqual(times, sorted(times))
+
+    def test_existing_real_dialog_untouched(self):
+        self._seed()
+        student1 = User.objects.get(username="student1")
+        profile1 = student1.student_profile
+        seeded = Dialog.objects.get(student=profile1)
+        Message.objects.filter(dialog=seeded).delete()
+        seeded.delete()
+        # A real dialog with a single message.
+        dialog = make_dialog(profile1)
+        add_message(dialog, student1, AuthorRole.STUDENT, text="Реальный вопрос")
+        dialog.refresh_from_db()
+        recorded = (
+            list(Message.objects.filter(dialog=dialog).values_list("id", flat=True)),
+            dialog.student_read_id,
+            dialog.staff_read_id,
+            dialog.last_message_id,
+            dialog.last_message_at,
+        )
+        output = self._seed()
+        dialog.refresh_from_db()
+        self.assertEqual(
+            list(Message.objects.filter(dialog=dialog).values_list("id", flat=True)),
+            recorded[0],
+        )
+        self.assertEqual(dialog.student_read_id, recorded[1])
+        self.assertEqual(dialog.staff_read_id, recorded[2])
+        self.assertEqual(dialog.last_message_id, recorded[3])
+        self.assertEqual(dialog.last_message_at, recorded[4])
+        self.assertIn("Chat ready: 0 dialogs, 0 messages.", output)

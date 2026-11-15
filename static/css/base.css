@@ -381,12 +381,12 @@ a.map-current {
   overflow-wrap: anywhere;
 }
 
-.chat-message--staff {
-  margin-right: var(--space-4);
+.chat-message--own {
+  margin-left: var(--space-4);
 }
 
-.chat-message--student {
-  margin-left: var(--space-4);
+.chat-message--other {
+  margin-right: var(--space-4);
 }
 
 .chat-meta,

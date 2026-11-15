@@ -100,11 +100,10 @@ def seed_chat_demo(today: date) -> ChatSeedSummary:
         messages = 0
         for student_username in ("student1", "student3", "student2"):
             seeds = [s for s in CHAT_SEEDS if s.student == student_username]
-            first_key = seeds[0].key
-            if Message.objects.filter(seed_key=first_key).exists():
-                continue
             student = students[student_username]
-            dialog, _ = Dialog.objects.get_or_create(student=student)
+            if Dialog.objects.filter(student=student).exists():
+                continue  # seeded earlier or a real dialog: never add or change anything
+            dialog = Dialog.objects.create(student=student)
             ids = {}
             last_message = None
             for seed in seeds:
