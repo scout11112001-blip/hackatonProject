@@ -13,37 +13,21 @@
   <a class="skip-link" href="#main">Перейти к содержимому</a>
   <header class="site-header">
     <a class="site-title" href="{% url 'core:home' %}">Цифровой деканат будущего</a>
-    <nav class="site-nav" aria-label="Основная навигация">
-      {% block nav %}
-      {% if user.is_authenticated %}
-      <ul class="site-nav-list">
-        <li><a href="{% url 'accounts:profile' %}">Профиль</a></li>
-        {% if user.is_student %}
-        <li><a href="{% url 'schedule:today' %}">Расписание</a></li>
-        <li><a href="{% url 'campusmap:map' %}">Карта</a></li>
-        <li><a href="{% url 'academics:my_grades' %}">Успеваемость</a></li>
-        <li><a href="{% url 'petitions:my_list' %}">Заявки</a></li>
-        {% notifications_badge as badge %}
-        <li><a href="{% url 'notifications:feed' %}">Уведомления{% if badge %} ({{ badge }}){% endif %}</a></li>
-        {% elif user.is_deanery_staff %}
-        <li><a href="{% url 'schedule:staff_groups' %}">Расписание</a></li>
-        <li><a href="{% url 'campusmap:map' %}">Карта</a></li>
-        <li><a href="{% url 'petitions:staff_queue' %}">Заявки</a></li>
-        <li><a href="{% url 'notifications:staff_announcements' %}">Объявления</a></li>
-        {% endif %}
-        {% if user.is_deanery_staff %}
-        <li><a href="{% url 'accounts:staff_student_list' %}">Студенты</a></li>
-        {% endif %}
-        <li>
-          <form class="site-nav-logout" method="post" action="{% url 'accounts:logout' %}">
-            {% csrf_token %}
-            <button type="submit">Выйти</button>
-          </form>
-        </li>
-      </ul>
-      {% endif %}
-      {% endblock %}
+    {% if user.is_student %}{% notifications_badge as badge %}{% endif %}
+    <nav class="site-nav site-nav--wide" aria-label="Основная навигация">
+      {% block nav %}{% if user.is_authenticated %}{% include "includes/site_nav_items.html" %}{% endif %}{% endblock %}
     </nav>
+    {% if user.is_authenticated %}
+    <div class="site-nav-compact">
+      <details class="site-menu">
+        <summary class="site-menu-toggle">Меню</summary>
+        <nav class="site-nav" aria-label="Основная навигация">
+          {% include "includes/site_nav_items.html" %}
+        </nav>
+      </details>
+      {% if badge %}<a class="site-menu-badge" href="{% url 'notifications:feed' %}">Уведомления ({{ badge }})</a>{% endif %}
+    </div>
+    {% endif %}
   </header>
   <main id="main" class="site-main">
     {% if messages %}

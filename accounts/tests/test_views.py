@@ -173,4 +173,7 @@ class AccessViewsTests(TestCase):
         self.client.force_login(self.staff_x)
         full_content = self.client.get(reverse("accounts:staff_student_list")).content.decode()
         self.assertIn('<ul class="student-list">', full_content)
-        self.assertIn("<li>", full_content)
+        detail_url = reverse(
+            "accounts:staff_student_detail", args=[self.student_a.student_profile.pk]
+        )
+        self.assertIn(f'href="{detail_url}"', full_content)

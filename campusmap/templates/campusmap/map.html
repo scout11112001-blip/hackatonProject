@@ -21,7 +21,7 @@
     <g class="map-{{ s.kind }}{% if s.is_current %} map-current{% endif %}"{% if s.is_current %} aria-current="location"{% endif %}>
       <title>{% if s.kind == "room" %}Аудитория {{ s.label }}{% else %}{{ s.label }}{% endif %}</title>
       <rect x="{{ s.rect.x }}" y="{{ s.rect.y }}" width="{{ s.rect.width }}" height="{{ s.rect.height }}"/>
-      <text class="map-{{ s.kind }}-label" x="{{ s.rect.cx }}" y="{{ s.rect.cy }}" text-anchor="middle" dominant-baseline="central">{{ s.label }}</text>
+      <text class="map-{{ s.kind }}-label" x="{{ s.rect.cx }}" y="{{ s.rect.cy }}" text-anchor="middle" dominant-baseline="central"{% if s.text_length %} textLength="{{ s.text_length }}" lengthAdjust="spacingAndGlyphs"{% endif %}>{{ s.label }}</text>
     </g>
     {% endfor %}
   </svg>

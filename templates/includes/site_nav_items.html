@@ -1,0 +1,24 @@
+<ul class="site-nav-list">
+  {% url 'accounts:profile' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Профиль</a></li>
+  {% if user.is_student %}
+  {% url 'schedule:today' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Расписание</a></li>
+  {% url 'campusmap:map' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Карта</a></li>
+  {% url 'academics:my_grades' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Успеваемость</a></li>
+  {% url 'petitions:my_list' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Заявки</a></li>
+  {% url 'notifications:feed' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Уведомления{% if badge %} ({{ badge }}){% endif %}</a></li>
+  {% elif user.is_deanery_staff %}
+  {% url 'schedule:staff_groups' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Расписание</a></li>
+  {% url 'campusmap:map' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Карта</a></li>
+  {% url 'petitions:staff_queue' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Заявки</a></li>
+  {% url 'notifications:staff_announcements' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Объявления</a></li>
+  {% endif %}
+  {% if user.is_deanery_staff %}
+  {% url 'accounts:staff_student_list' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Студенты</a></li>
+  {% endif %}
+  <li>
+    <form class="site-nav-logout" method="post" action="{% url 'accounts:logout' %}">
+      {% csrf_token %}
+      <button type="submit">Выйти</button>
+    </form>
+  </li>
+</ul>

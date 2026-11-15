@@ -11071,30 +11071,27 @@ Open item for you: the 360 px manual check of /map/ (AC10). The tests cover the 
 ── Assistant ───────────────────────────────────────────────
 Карта на 360 px работает. Пока идут тесты, сохраняю скриншоты и закрываю браузер.
 
-── Ran B=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-46XTjG/db-3t2lX1/tmp && D=docs/process/screenshots && cp $B/shot-1794754411111-2.jpg $D/2026-11-15_23_map-room-101_student2.jpg && cp $B/shot-1794754411010-1.jpg $D/2026-11-15_24_map-room-402_student2.jpg && cp $B/shot-1794754426964-3.jpg $D/2026-11-15_25_map-floor-2_staff1.jpg && cp $B/shot-1794754427017-4.jpg $D/2026-11-15_26_map-floor-3_staff1.jpg && bb browser-automation close 24e9d3df-7ef2-4989-a7e1-e10452730128 --json >/dev/null 2>&1; python3 - <<'EOF' p='docs/process/README.md' s=open(p,encoding='utf-8').read().rstrip('\n')+'\n' s+='''| `2026-11-15_23_map-room-101_student2.jpg` | 15.11.2026 | После TASK-008 (карта аудиторий). Без дизайна | Карта, открытая по ссылке из расписания: 1 этаж, номер 101 выделен красным; ориентиры «Лестница», «Вход», «Столовая»; ниже список всех аудиторий по этажам. Недочёт: подпись «Лестница» упирается в границы клетки | | `2026-11-15_24_map-room-402_student2.jpg` | 15.11.2026 | После TASK-008 | Аудитория 402: карта сама открыла 4 этаж (в переключателе выделен «4»), номер 402 красный | | `2026-11-15_25_map-floor-2_staff1.jpg` | 15.11.2026 | После TASK-008 | 2 этаж у сотрудника: аудитории 205 и 212, ориентир «Деканат» | | `2026-11-15_26_map-floor-3_staff1.jpg` | 15.11.2026 | После TASK-008 | 3 этаж: аудитории 308 и 315, ориентир «Библиотека» | ''' open(p,'w',encoding='utf-8').write(s) EOF ls docs/process/screenshots | tail -4 (3s)
-  $ B=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-46XTjG/db-3t2lX1/tmp && D=docs/process/screenshots && cp $B/shot-1794754411111-2.jpg $D/2026-11-15_23_map-room-101_student2.jpg && cp $B/shot-1794754411010-1.jpg $D/2026-11-15_24_map-room-402_student2.jpg && cp $B/shot-1794754426964-3.jpg $D/2026-11-15_25_map-floor-2_staff1.jpg && cp $B/shot-1794754427017-4.jpg $D/2026-11-15_26_map-floor-3_staff1.jpg && bb browser-automation close 24e9d3df-7ef2-4989-a7e1-e10452730128 --json >/dev/null 2>&1; python3 - <<'EOF'
-p='docs/process/README.md'
-s=open(p,encoding='utf-8').read().rstrip('\n')+'\n'
-s+='''| `2026-11-15_23_map-room-101_student2.jpg` | 15.11.2026 | После TASK-008 (карта аудиторий). Без дизайна | Карта, открытая по ссылке из расписания: 1 этаж, номер 101 выделен красным; ориентиры «Лестница», «Вход», «Столовая»; ниже список всех аудиторий по этажам. Недочёт: подпись «Лестница» упирается в границы клетки |
-| `2026-11-15_24_map-room-402_student2.jpg` | 15.11.2026 | После TASK-008 | Аудитория 402: карта сама открыла 4 этаж (в переключателе выделен «4»), номер 402 красный |
-| `2026-11-15_25_map-floor-2_staff1.jpg` | 15.11.2026 | После TASK-008 | 2 этаж у сотрудника: аудитории 205 и 212, ориентир «Деканат» |
-| `2026-11-15_26_map-floor-3_staff1.jpg` | 15.11.2026 | После TASK-008 | 3 этаж: аудитории 308 и 315, ориентир «Библиотека» |
-'''
-open(p,'w',encoding='utf-8').write(s)
-EOF
-ls docs/process/screenshots | tail -4
-  2026-11-15_23_map-room-101_student2.jpg
-  2026-11-15_24_map-room-402_student2.jpg
-  2026-11-15_25_map-floor-2_staff1.jpg
-  2026-11-15_26_map-floor-3_staff1.jpg
-
-── Ran 1 tool ──────────────────────────────────────────────
+── Ran 3 commands, ran 1 tool ──────────────────────────────
+  ── Ran B=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-46XTjG/db-3t2lX1/tmp && D=docs/process/screenshots && cp $B/shot-1794754411111-2.jpg $D/2026-11-15_23_map-room-101_student2.jpg && cp $B/shot-1794754411010-1.jpg $D/2026-11-15_24_map-room-402_student2.jpg && cp $B/shot-1794754426964-3.jpg $D/2026-11-15_25_map-floor-2_staff1.jpg && cp $B/shot-1794754427017-4.jpg $D/2026-11-15_26_map-floor-3_staff1.jpg && bb browser-automation close 24e9d3df-7ef2-4989-a7e1-e10452730128 --json >/dev/null 2>&1; python3 - <<'EOF' p='docs/process/README.md' s=open(p,encoding='utf-8').read().rstrip('\n')+'\n' s+='''| `2026-11-15_23_map-room-101_student2.jpg` | 15.11.2026 | После TASK-008 (карта аудиторий). Без дизайна | Карта, открытая по ссылке из расписания: 1 этаж, номер 101 выделен красным; ориентиры «Лестница», «Вход», «Столовая»; ниже список всех аудиторий по этажам. Недочёт: подпись «Лестница» упирается в границы клетки | | `2026-11-15_24_map-room-402_student2.jpg` | 15.11.2026 | После TASK-008 | Аудитория 402: карта сама открыла 4 этаж (в переключателе выделен «4»), номер 402 красный | | `2026-11-15_25_map-floor-2_staff1.jpg` | 15.11.2026 | После TASK-008 | 2 этаж у сотрудника: аудитории 205 и 212, ориентир «Деканат» | | `2026-11-15_26_map-floor-3_staff1.jpg` | 15.11.2026 | После TASK-008 | 3 этаж: аудитории 308 и 315, ориентир «Библиотека» | ''' open(p,'w',encoding='utf-8').write(s) EOF ls docs/process/screenshots | tail -4 (3s)
+    $ B=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-46XTjG/db-3t2lX1/tmp && D=docs/process/screenshots && cp $B/shot-1794754411111-2.jpg $D/2026-11-15_23_map-room-101_student2.jpg && cp $B/shot-1794754411010-1.jpg $D/2026-11-15_24_map-room-402_student2.jpg && cp $B/shot-1794754426964-3.jpg $D/2026-11-15_25_map-floor-2_staff1.jpg && cp $B/shot-1794754427017-4.jpg $D/2026-11-15_26_map-floor-3_staff1.jpg && bb browser-automation close 24e9d3df-7ef2-4989-a7e1-e10452730128 --json >/dev/null 2>&1; python3 - <<'EOF'
+  p='docs/process/README.md'
+  s=open(p,encoding='utf-8').read().rstrip('\n')+'\n'
+  s+='''| `2026-11-15_23_map-room-101_student2.jpg` | 15.11.2026 | После TASK-008 (карта аудиторий). Без дизайна | Карта, открытая по ссылке из расписания: 1 этаж, номер 101 выделен красным; ориентиры «Лестница», «Вход», «Столовая»; ниже список всех аудиторий по этажам. Недочёт: подпись «Лестница» упирается в границы клетки |
+  | `2026-11-15_24_map-room-402_student2.jpg` | 15.11.2026 | После TASK-008 | Аудитория 402: карта сама открыла 4 этаж (в переключателе выделен «4»), номер 402 красный |
+  | `2026-11-15_25_map-floor-2_staff1.jpg` | 15.11.2026 | После TASK-008 | 2 этаж у сотрудника: аудитории 205 и 212, ориентир «Деканат» |
+  | `2026-11-15_26_map-floor-3_staff1.jpg` | 15.11.2026 | После TASK-008 | 3 этаж: аудитории 308 и 315, ориентир «Библиотека» |
+  '''
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  ls docs/process/screenshots | tail -4
+    2026-11-15_23_map-room-101_student2.jpg
+    2026-11-15_24_map-room-402_student2.jpg
+    2026-11-15_25_map-floor-2_staff1.jpg
+    2026-11-15_26_map-floor-3_staff1.jpg
   ── Stopped task (3s)
     {"message":"Successfully stopped task: bvyxyshqb (. .venv/bin/activate && exec python manage.py runserver 127.0.0.1:8765 --noreload)","task_id":"bvyxyshqb","task_type":"local_bash","command":". .venv/bin/activate && exec python manage.py runserver 127.0.0.1:8765 --noreload"}
   ── Thought for 2ms
     I'm checking that the screenshots 25 and 26 were taken as staff1, since the session cookie was set by the last as() call in the first script and floors 2 and 3 ran in the second, so that holds. Next I'll update plan.md and CHANGELOG while the tests run.
-
-── Running 2 commands ──────────────────────────────────────
   ── Ran python3 - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() s=s.replace('| TASK-008 | Карта аудиторий: 4 этажа, ориентиры, ссылки из расписания, номера NNN | В работе |','| TASK-008 | Карта аудиторий: 4 этажа, ориентиры, ссылки из расписания, номера NNN | Готово |') s=s.replace('Сейчас: TASK-008 (карта) в работе.','Сейчас: TASK-008 закрыта 15.11, готовится TASK-008-FIX.') open(p,'w',encoding='utf-8').write(s) p='CHANGELOG.md' s=open(p,encoding='utf-8').read() entry='''### TASK-008: карта аудиторий - Новое приложение `campusmap`: схема одного корпуса в SVG без JavaScript, этажи 1–4 с переключателем, список всех аудиторий по этажам. Пункт меню «Карта» для студентов и сотрудников. - Ссылка с аудитории в расписании открывает нужный этаж; номер аудитории выделен красным (временно, до оформления интерфейса). Если занятие перенесли в другую аудиторию, ссылка ведёт в новую. - Ориентиры: вход, лестницы, деканат, библиотека, столовая (заданы в коде, `university/building.py`). - Номер аудитории — 3 цифры, первая — этаж (проверка в админке и ограничение в базе). Место аудитории на схеме задаётся в админке; аудитория без места не ломает страницу. - Ревью: 1 раунд, без замечаний. Ревьюер нашёл причину редкого падения теста с 14.11: тест искал «GY» во всей странице, а эти буквы иногда встречаются в случайном CSRF-токене (≈1,5% прогонов). Всего тестов: 817. ''' s=s.replace('## 2026-11-15\n','## 2026-11-15\n'+entry,1) open(p,'w',encoding='utf-8').write(s) EOF git diff --stat plan.md CHANGELOG.md (1s)
     $ python3 - <<'EOF'
   p='plan.md'
@@ -11121,6 +11118,587 @@ ls docs/process/screenshots | tail -4
      2 files changed, 9 insertions(+), 2 deletions(-)
   ── Thought for 2ms
     I'm exporting the dialogs first so they're included, since the lead dialog captures everything up to this point and that's fine. After that I'll draft the TASK-008-FIX text in Russian for the report.
+  ── Ran O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && python3 -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]     assert not bad,(f,bad)     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF (5s)
+    $ O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && python3 -I - "$O" <<'EOF'
+  import os,re,sys
+  d=sys.argv[1]; out='docs/process/dialogs'
+  for f in sorted(os.listdir(d)):
+      t=open(os.path.join(d,f),encoding='utf-8').read()
+      t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)
+      t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')
+      t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)
+      t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')
+      bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]
+      assert not bad,(f,bad)
+      assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f
+      assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f
+      open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
+  EOF
+    01-team-lead.md 1057 KB
+    02-planner.md 992 KB
+    03-coder-deepseek.md 3758 KB
+    04-reviewer.md 629 KB
+  ── Thought for 499ms
+    I'll wait for the monitor event to come back, so a short status note is enough for now.
+
+── Assistant ───────────────────────────────────────────────
+Ревьюер одобрил TASK-008 «Карта аудиторий». Я проверил карту на 360 px, сохранил скриншоты и обновил архив диалогов. Жду окончания своего прогона тестов. Потом сделаю коммит и пришлю отчёт с черновиком TASK-008-FIX.
+
+── Explored 1 file, ran 3 commands ─────────────────────────
+  ── Read /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/144a3f75-4ad2-4aa1-80ba-f116a27bcb70/tasks/b570989i0.output
+  ── Thought for 4s
+    I'm checking the traceback to confirm the failure is the known CSRF token case, and grepping the log for the assertion and the 'GY' match. I'm weighing whether to rerun that test class, a few repeats, or the full suite in the background, since the failure rate is only around 1.5% and hitting it on the first run may just be bad luck.
+
+    Now I'm weighing whether the 'GY' hits are just bad luck at about 1.6% per token, or whether something in the page has raised the odds, since two failures across my runs and the reviewer's look somewhat unlikely. I'll pull the full assertion output from my log to see exactly where 'GY' turns up.
+  ── Ran L=$(ls -t $TMPDIR/lead-test-008-*.log | head -1); python3 - "$L" <<'EOF' import re,sys t=open(sys.argv[1],encoding='utf-8',errors='replace').read() i=t.find('FAIL: test_staff_group_list_scoped') seg=t[i:i+20000] print(seg[:600]) for m in re.finditer(r'GY', seg):     print('...', seg[max(0,m.start()-80):m.end()+20].replace('\n',' ')) EOF
+    $ L=$(ls -t $TMPDIR/lead-test-008-*.log | head -1); python3 - "$L" <<'EOF'
+  import re,sys
+  t=open(sys.argv[1],encoding='utf-8',errors='replace').read()
+  i=t.find('FAIL: test_staff_group_list_scoped')
+  seg=t[i:i+20000]
+  print(seg[:600])
+  for m in re.finditer(r'GY', seg):
+      print('...', seg[max(0,m.start()-80):m.end()+20].replace('\n',' '))
+  EOF
+    FAIL: test_staff_group_list_scoped (schedule.tests.test_views.ScheduleViewsTests.test_staff_group_list_scoped)
+    ----------------------------------------------------------------------
+    Traceback (most recent call last):
+      File "~/hackatonproject/schedule/tests/test_views.py", line 182, in test_staff_group_list_scoped
+        self.assertNotIn("GY", content)
+    AssertionError: 'GY' unexpectedly found in '<!doctype html>\n<html lang="ru">\n<head>\n  <meta charset="utf-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1">\n  <title>Цифровой деканат будущего</title>\n  
+    ... test_views.py", line 182, in test_staff_group_list_scoped     self.assertNotIn("GY", content) Assertio
+    ... st_staff_group_list_scoped     self.assertNotIn("GY", content) AssertionError: 'GY' unexpectedly found
+    ... middlewaretoken" value="f05CjZT2elPR1sEl3q9f2EuGQjKY7qzFkXdW1bMPsl48aAKSSRRN2F4cGYD6NfvL">\n
+  ── Thought for 630ms
+    I've confirmed the CSRF token contains "GY," so the failure has the same cause. I'll rerun the full suite once more to check that everything else passes, which should take about two minutes. Under the protocol I'd normally report this failure, but since it's pre-existing and explained, I'm leaning toward committing with the flaky test and tracking the fix in TASK-008-FIX. To save time, I'm considering running just the affected tests.
+
+    I'm weighing whether to run only the schedule tests to save time, though a full run would give more confidence before committing.
+  ── Thought for 5ms
+    Тест `test_staff_group_list_scoped` упал так же, как у Ревьюера: «GY» совпало с частью CSRF-токена. Перезапускаю полный прогон.
+  ── Ran source .venv/bin/activate && python manage.py test 2>&1 | tee "$TMPDIR/lead-test-008-rerun-$(date +%Y%m%d-%H%M%S).log" | grep -E "^Ran |^OK|^FAILED|^(ERROR|FAIL):" (2m 5s)
+    $ source .venv/bin/activate && python manage.py test 2>&1 | tee "$TMPDIR/lead-test-008-rerun-$(date +%Y%m%d-%H%M%S).log" | grep -E "^Ran |^OK|^FAILED|^(ERROR|FAIL):"
+    Ran 817 tests in 122.509s
+    OK
+  ── Ran git add README.md config/settings.py config/urls.py core/tests/test_css.py pyproject.toml schedule/demo.py schedule/templates/schedule/includes/lesson_item.html schedule/tests/helpers.py schedule/tests/test_demo.py schedule/tests/test_views.py static/css/base.css static/css/tokens.css templates/base.html university/admin.py university/models.py university/tests/test_models.py campusmap docs/tasks/TASK-008.md university/building.py university/migrations/0003_room_number_format_and_map_cell.py university/tests/test_admin.py university/tests/test_building.py plan.md CHANGELOG.md docs/process && git status --short | grep -v "^[AM] " ; git commit -q -F - <<'EOF' TASK-008: room map with floors, landmarks and schedule links New app `campusmap`: inline SVG plan of the single building (no JS), floor switcher 1-4, landmarks (entrance, stairs, dean's office, library, canteen), list of rooms by floor. A room link in every schedule page opens its floor with the room number highlighted (temporary red); moved lessons link to the new room. Room numbers are NNN with the first digit equal to the floor (validation + DB constraints); map place is set in the admin. Process archive: dialogs refreshed, 4 map screenshots. Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com> EOF git log --oneline -1; git status --short | wc -l (Outside of sandbox)
+    $ git add README.md config/settings.py config/urls.py core/tests/test_css.py pyproject.toml schedule/demo.py schedule/templates/schedule/includes/lesson_item.html schedule/tests/helpers.py schedule/tests/test_demo.py schedule/tests/test_views.py static/css/base.css static/css/tokens.css templates/base.html university/admin.py university/models.py university/tests/test_models.py campusmap docs/tasks/TASK-008.md university/building.py university/migrations/0003_room_number_format_and_map_cell.py university/tests/test_admin.py university/tests/test_building.py plan.md CHANGELOG.md docs/process && git status --short | grep -v "^[AM] " ; git commit -q -F - <<'EOF'
+  TASK-008: room map with floors, landmarks and schedule links
+
+  New app `campusmap`: inline SVG plan of the single building (no JS),
+  floor switcher 1-4, landmarks (entrance, stairs, dean's office, library,
+  canteen), list of rooms by floor. A room link in every schedule page
+  opens its floor with the room number highlighted (temporary red); moved
+  lessons link to the new room. Room numbers are NNN with the first digit
+  equal to the floor (validation + DB constraints); map place is set in
+  the admin.
+
+  Process archive: dialogs refreshed, 4 map screenshots.
+
+  Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+  EOF
+  git log --oneline -1; git status --short | wc -l
+    caf7601 TASK-008: room map with floors, landmarks and schedule links
+           0
+  ── Thought for 8s
+    The tree is clean, and I'm confirming that the committed files cover the campusmap migrations, though campusmap has no models, so that's fine. Next I'm putting together the report and a draft of TASK-008-FIX. The main fix item is the flaky `test_staff_group_list_scoped` test, which fails on a CSRF token match. I'm recommending a fix and a sweep for short-substring assertions on full pages, since this may also explain the 14.11 failure.
+
+    I'm weighing the remaining FIX items: the landmark label crowding cell borders at 360 px looks like a quick fix with smaller font or padding. The room list's small tap targets and the four-line student nav at that width can wait for the interface stage, where the design will be reworked anyway, so I'll track them in plan.md rather than as accepted limitations.
+
+── Assistant ───────────────────────────────────────────────
+Я закрыл TASK-008 «Карта аудиторий»: коммит `caf7601`.
+
+**Проверки:**
+- `check`, `makemigrations --check`, `ruff check` и `ruff format --check` — без замечаний.
+- Тесты: 817. Первый прогон дал 1 падение, повторный — все OK. Падение разобрано ниже.
+- 360 px: карта на всех 4 этажах, переход из расписания, страница сотрудника. Горизонтальной прокрутки нет.
+  - Ссылка на 114 из расписания открывает 1 этаж, ссылка на 402 — сразу 4 этаж.
+  - Номер выбранной аудитории красный.
+  - Ориентиры стоят на своих этажах: вход и столовая на 1-м, деканат на 2-м, библиотека на 3-м.
+- Ревьюер одобрил задачу с первого раунда. Админку он проверил на неверные номера: везде понятная ошибка, ошибки 500 нет.
+- В архив добавлены 4 скриншота карты, диалоги обновлены.
+
+**Падение теста.** Ревьюер нашёл причину загадочного падения 14.11:
+- тест `test_staff_group_list_scoped` проверяет, что на странице нет группы «GY», и ищет эти 2 буквы во всей странице;
+- на странице есть случайный 64-символьный CSRF-токен. Примерно в 1,5% прогонов в нём встречается «GY»;
+- у меня в первом прогоне так и случилось: токен `…F4cGYD6…`;
+- код сайта в порядке, ошибка в самом тесте. Он появился ещё в TASK-003.
+
+---
+
+**Черновик TASK-008-FIX.** Решите по каждому пункту:
+| № | Недочёт | Источник | Рекомендация |
+|---|---|---|---|
+| 1 | Тест иногда падает из-за случайного CSRF-токена | Ревьюер | Исправить: проверять точную разметку, а не 2 буквы. Заодно найти и исправить такие же короткие проверки в других тестах |
+| 2 | Подпись «Лестница» упирается в границы клетки на 360 px. Скриншот: `2026-11-15_23` | Моя проверка | Исправить: уменьшить шрифт подписей ориентиров или добавить отступ |
+| 3 | Список аудиторий под картой: номера мелкие и стоят вплотную. На телефоне легко промахнуться | Моя проверка | Отложить до этапа интерфейса: там весь вид будет переделан |
+| 4 | Меню студента на 360 px занимает 4 строки: 7 пунктов и «Выйти» | Моя проверка | Отложить до этапа интерфейса: меню будет переделано, например в выпадающее |
+
+Пункты 3 и 4 предлагаю записать в `plan.md` в отдельный список «Учесть на этапе интерфейса», чтобы они не потерялись.
+
+После цикла TASK-008-FIX я перезапущу процесс Кодера, чтобы включилась очистка старых результатов. Затем проверю, что она работает, и сожму контекст, если он больше 200 тыс.
+
+Ответьте по пунктам или напишите «согласен с рекомендациями». Чтобы я отправил задачу Планировщику, напишите «Отправляй».
+
+── User ────────────────────────────────────────────────────
+Сложно ли будет сделать функцию приближения в карте?
+
+── Thought for 10s ─────────────────────────────────────────
+  I'm weighing how hard zoom would be on the map. Pinch-zoom on mobile already works since the viewport doesn't block user scaling, and the SVG stays sharp when scaled. I'll check the viewport setting next.
+
+  I can see the viewport meta already allows pinch-zoom, so phones handle that natively. The remaining options are server-side zoom with `?zoom=` links, JS pan/zoom with a library, or a CSS-only scrollable container with an anchor to the highlighted room.
+
+  I'm checking whether fragment links can scroll an overflow container to an SVG element, which I'm not sure works everywhere. Room size is the bigger question: at 360px the rooms are about 60px wide with readable numbers, so zoom matters mainly for larger buildings. I'll also confirm the map CSS doesn't set touch-action to none, which would block pinch-zoom.
+
+  I'm going to give the options with rough effort estimates and a recommendation, and keep the questions to a minimum. I'll call a small task one like a FIX, and a medium one more involved than that, while being upfront that these are approximate.
+
+── Assistant ───────────────────────────────────────────────
+Не сложно. Но базовое приближение уже работает: на телефоне карту можно увеличить двумя пальцами.
+
+**Почему оно уже есть:**
+- сайт не запрещает масштабировать страницу (в `base.html` нет `user-scalable=no`);
+- карта нарисована векторами (SVG), поэтому при увеличении номера и линии остаются чёткими;
+- сейчас схема шириной 328 px на 9 клеток, номера аудиторий крупные (20 px). Они читаются и без увеличения.
+
+**Если нужна своя кнопка приближения, есть 3 варианта:**
+| Вариант | Как работает | Сложность |
+|---|---|---|
+| 1. Кнопки «+» и «−» без JavaScript | Сервер заново рисует карту в 2× масштабе и центрирует её на выбранной аудитории. Как переключатель этажей, только для масштаба | Небольшая: объём примерно как у FIX-задачи. Меняется расчёт видимой области схемы, добавляются параметр и тесты |
+| 2. «Крупная карта» с прокруткой | Карта в 2× масштабе внутри рамки, рамку можно прокручивать пальцем. Сама страница не прокручивается вбок | Небольшая, почти один CSS. Но сразу показать выбранную аудиторию в рамке без JavaScript, скорее всего, не получится |
+| 3. Масштаб жестами внутри карты | Щипок и перетаскивание внутри рамки, как в картографических приложениях | Средняя. Нужен первый в проекте JavaScript или сторонняя библиотека. Жесты нельзя проверить обычными тестами, только вручную на телефоне |
+
+**Моя рекомендация:** сейчас не добавлять. Схема маленькая и читается, а увеличение пальцами уже работает. Если после деплоя захотите своё приближение, лучше вариант 1: он без JavaScript и сразу показывает выбранную аудиторию крупно. Его удобно сделать на этапе интерфейса вместе с новым видом карты.
+
+Если хотите вариант 1 сейчас, я добавлю его пунктом 5 в TASK-008-FIX.
+
+── User ────────────────────────────────────────────────────
+Тогда в fix пункты 1, 2, 4
+
+── Explored 1 search, created 1 file, ran 1 command ────────
+  ── Thought for 8s
+    I'm settling the scope now: items 1, 2, and 4 are in, since the user wants the nav fixed now, and item 3 is left for the UI stage. Next I need to work out how to make the nav compact at 360 px.
+
+    I'm weighing how to keep the nav compact without JavaScript: a `<details>` "Меню" toggle on narrow screens, or a horizontally scrollable single-line nav. The unread counter has to stay visible without opening the menu, so I'll check that constraint too.
+
+    I'm going to propose a nav approach without JavaScript: a "Меню" button on narrow screens with the unread badge kept visible beside it, and the full nav inline on wider screens. Item 3 goes into the plan's list for the UI stage, along with the zoom idea, and then I'll draft TASK-008-FIX.txt.
+  ── Searched for site-nav\|site-header\|@media in static/css/base.css
+  ── Created ~/.bb/thread-storage/thr_4izdzwetb4/TASK-008-FIX.txt +32
+    --- /dev/null
+    +++ b~/.bb/thread-storage/thr_4izdzwetb4/TASK-008-FIX.txt
+    +[TASK-008-FIX] Team lead -> Planner: TASK
+    +Approved by the user. Write the spec `docs/tasks/TASK-008-FIX.md` and hand it to the Coder.
+    +
+    +## Context
+    +Fix task for small defects found in TASK-008 (commit caf7601) by the Reviewer and by the Team lead's 360 px browser check (screenshots: `docs/process/screenshots/2026-11-15_23..26_*.jpg`). No new features. Each fix is minimal and has a regression test that fails without it (except purely visual checks, which the Team lead does at 360 px). Apply your "Feasibility check" and "Test plan" sections.
+    +
+    +## Items to fix
+    +1. Flaky test (Reviewer; also the unidentified one-off failure of 2026-11-14).
+    +   `schedule/tests/test_views.py:182` `test_staff_group_list_scoped` asserts `assertNotIn("GY", content)` on the whole page. The page contains a random 64-character CSRF token, which contains "GY" in about 1.5% of runs (seen twice on 2026-11-15, e.g. token `...F4cGYD6...`).
+    +   - Assert on precise markup or on `response.context` instead (e.g. the group URL `/staff/schedule/<pk>/`, or the group name inside its element), so a random token can never match.
+    +   - Sweep ALL tests for the same pattern: `assertIn`/`assertNotIn`/`assertContains`/`assertNotContains` with a short (<= 4 characters) or token-like needle on a full HTML page. List every hit in the spec with a verdict (safe / fix) and fix the unsafe ones the same way.
+    +   - Test: the fixed assertion must still fail when the group IS listed (mutation check described in the spec). Optionally prove the old flakiness is gone, e.g. a test that forces a CSRF token containing the needle - only if it is simple.
+    +2. Landmark label "Лестница" touches the cell borders at 360 px (screenshot 2026-11-15_23).
+    +   Landmark labels must fit inside their cell with visible padding at 360 px on every floor (the longest labels: "Лестница", "Библиотека", "Столовая", "Деканат"). Fix it in the map geometry/CSS (e.g. a smaller landmark label size, `textLength`/`lengthAdjust`, or padding) - choose and justify. Room numbers keep their current size. Test: whatever can be asserted on the rendered SVG (e.g. the label size attribute/class); the Team lead checks visually.
+    +3. Student navigation takes 4 lines at 360 px (7 links + "Выйти"; staff: 6 + "Выйти").
+    +   Make the header compact on narrow screens WITHOUT JavaScript:
+    +   - Below the existing `48rem` breakpoint the nav collapses into a "Меню" disclosure (`<details>`/`<summary>` or an equivalent no-JS pattern - choose and justify); at `48rem` and wider the full nav stays visible inline as now.
+    +   - The unread counter must stay visible without opening the menu (e.g. "Уведомления (N)" or the count next to "Меню"), because it is the main signal for the student.
+    +   - At 360 px the closed header (site title + menu control) takes at most 2 lines; the open menu lists every item, one per line, with comfortable tap targets; "Выйти" stays a POST form with CSRF.
+    +   - Accessible: the control has a clear name, works with the keyboard, the current page link is marked (`aria-current="page"`) if that is simple.
+    +   - Same behaviour for students, staff and the superuser; anonymous pages unchanged.
+    +   - Tests: markup of the disclosure for each role, the badge outside the collapsed part, the logout form still POST + CSRF, nav items unchanged per role; CSS rule test in `core/tests/test_css.py` style. The Team lead checks 360 px and a wide screen visually.
+    +
+    +## Not in this task (user decision)
+    +- The room list under the map (small, tightly packed numbers): goes to the UI stage after the deploy.
+    +- Map zoom: not now (pinch zoom already works); a possible "+/-" server-side zoom is an idea for the UI stage.
+    +
+    +## Out of scope
+    +New features, the visual pixel-art theme, chat (TASK-009).
+    +
+    +## Verification
+    +All existing verification commands pass (check, deploy check, makemigrations --check, test with the output saved to a file - run the full suite at least 3 times to confirm the flaky test is gone, `scripts/run_tests_at.py` at a Moscow midnight boundary, ruff only on the task files, CI YAML), `seed_demo` twice on a temporary database and temporary PRIVATE_MEDIA_ROOT. The Team lead checks the header (student, staff; menu closed and open) and every map floor at 360 px.
+  ── Ran python3 - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() anchor='## 6b. Обязательно при деплое' add='''## 6c. Учесть на этапе интерфейса - Список аудиторий под картой: номера мелкие и стоят вплотную, на телефоне легко промахнуться (TASK-008). - Подсветка аудитории на карте: сейчас временный красный номер (TASK-008). - Идея: приближение карты кнопками «+» и «−» без JavaScript, с центром на выбранной аудитории. Сейчас работает увеличение пальцами. ''' assert anchor in s s=s.replace(anchor, add+anchor,1) s=s.replace('| TASK-008 | Карта аудиторий: 4 этажа, ориентиры, ссылки из расписания, номера NNN | Готово |\n','| TASK-008 | Карта аудиторий: 4 этажа, ориентиры, ссылки из расписания, номера NNN | Готово |\n| TASK-008-FIX | Недочёты TASK-008: нестабильный тест, подпись «Лестница», компактное меню | Ждёт отправки |\n') open(p,'w',encoding='utf-8').write(s) EOF grep -n "6c\|TASK-008-FIX" plan.md (1s)
+    $ python3 - <<'EOF'
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  anchor='## 6b. Обязательно при деплое'
+  add='''## 6c. Учесть на этапе интерфейса
+  - Список аудиторий под картой: номера мелкие и стоят вплотную, на телефоне легко промахнуться (TASK-008).
+  - Подсветка аудитории на карте: сейчас временный красный номер (TASK-008).
+  - Идея: приближение карты кнопками «+» и «−» без JavaScript, с центром на выбранной аудитории. Сейчас работает увеличение пальцами.
+
+  '''
+  assert anchor in s
+  s=s.replace(anchor, add+anchor,1)
+  s=s.replace('| TASK-008 | Карта аудиторий: 4 этажа, ориентиры, ссылки из расписания, номера NNN | Готово |\n','| TASK-008 | Карта аудиторий: 4 этажа, ориентиры, ссылки из расписания, номера NNN | Готово |\n| TASK-008-FIX | Недочёты TASK-008: нестабильный тест, подпись «Лестница», компактное меню | Ждёт отправки |\n')
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  grep -n "6c\|TASK-008-FIX" plan.md
+    99:| TASK-008-FIX | Недочёты TASK-008: нестабильный тест, подпись «Лестница», компактное меню | Ждёт отправки |
+    104:Сейчас: TASK-008 закрыта 15.11, готовится TASK-008-FIX. Контекст Кодера сжат 15.11 после цикла TASK-007 (было 316 тыс.).
+    113:## 6c. Учесть на этапе интерфейса
+
+── Assistant ───────────────────────────────────────────────
+Черновик TASK-008-FIX готов: [TASK-008-FIX.txt](~/.bb/thread-storage/thr_4izdzwetb4/TASK-008-FIX.txt).
+
+**Что войдёт в задачу:**
+1. **Нестабильный тест.** Проверка будет искать точную разметку, а не 2 буквы. Кодер также просмотрит все тесты на такие же короткие проверки и исправит опасные. Полный набор тестов он прогонит минимум 3 раза.
+2. **Подпись «Лестница».** Все подписи ориентиров будут помещаться в свои клетки с отступом на всех этажах. Размер номеров аудиторий не меняется.
+3. **Компактное меню.** Это пункт 4 из прошлого черновика.
+
+Как будет выглядеть меню:
+- На узком экране (меньше 768 px) пункты меню прячутся под кнопку «Меню». Она открывается без JavaScript, на встроенном элементе HTML.
+- Счётчик уведомлений виден всегда, даже когда меню закрыто. Это главный сигнал для студента.
+- В закрытом виде шапка на 360 px занимает не больше 2 строк. В открытом каждый пункт стоит на своей строке, по нему удобно попасть пальцем.
+- На широком экране меню выглядит как сейчас.
+
+**Что я перенёс в `plan.md`, новый раздел «Учесть на этапе интерфейса»:**
+- мелкий список аудиторий под картой (пункт 3);
+- временная красная подсветка;
+- идея приближения карты кнопками «+» и «−».
+
+Если вариант с кнопкой «Меню» подходит, напишите «Отправляй».
+
+── User ────────────────────────────────────────────────────
+Отправляй
+
+── Ran bb thread tell thr_2imsg4kck2 --message-file - < ~/.bb/thread-storage/thr_4izdzwetb4/TASK-008-FIX.txt && cd ~/hackatonproject && sed -i '' 's/| TASK-008-FIX | Недочёты TASK-008: нестабильный тест, подпись «Лестница», компактное меню | Ждёт отправки |/| TASK-008-FIX | Недочёты TASK-008: нестабильный тест, подпись «Лестница», компактное меню | В работе |/; s/Сейчас: TASK-008 закрыта 15.11, готовится TASK-008-FIX./Сейчас: TASK-008 закрыта 15.11, TASK-008-FIX в работе./' plan.md && grep -n "TASK-008-FIX\|^Сейчас" plan.md (3s)
+  $ bb thread tell thr_2imsg4kck2 --message-file - < ~/.bb/thread-storage/thr_4izdzwetb4/TASK-008-FIX.txt && cd ~/hackatonproject && sed -i '' 's/| TASK-008-FIX | Недочёты TASK-008: нестабильный тест, подпись «Лестница», компактное меню | Ждёт отправки |/| TASK-008-FIX | Недочёты TASK-008: нестабильный тест, подпись «Лестница», компактное меню | В работе |/; s/Сейчас: TASK-008 закрыта 15.11, готовится TASK-008-FIX./Сейчас: TASK-008 закрыта 15.11, TASK-008-FIX в работе./' plan.md && grep -n "TASK-008-FIX\|^Сейчас" plan.md
+  Thread thr_2imsg4kck2 steered
+  99:| TASK-008-FIX | Недочёты TASK-008: нестабильный тест, подпись «Лестница», компактное меню | В работе |
+  104:Сейчас: TASK-008 закрыта 15.11, TASK-008-FIX в работе. Контекст Кодера сжат 15.11 после цикла TASK-007 (было 316 тыс.).
+
+── Assistant ───────────────────────────────────────────────
+Я отправил TASK-008-FIX Планировщику. В `plan.md` задача отмечена как «В работе».
+
+После одобрения Ревьюера сделаю следующее:
+1. Проверю шапку на 360 px у студента и сотрудника, с закрытым и открытым меню. Проверю все этажи карты.
+2. Сделаю коммит и пришлю отчёт.
+3. Перезапущу процесс Кодера, чтобы включилась очистка старых результатов, и проверю, что она работает.
+4. Сожму контекст Кодера, если он больше 200 тыс.
+
+Пока задача в работе, могу подготовить черновик TASK-009 «Чат с деканатом».
+
+── User ────────────────────────────────────────────────────
+Давай
+
+── Explored 1 search, created 1 file ───────────────────────
+  ── Thought for 16s
+    I'm drafting the TASK-009 chat plan: the chat page will poll every few seconds and get HTML fragments from Django, with the staff side kept as simple separate pages. I still need the user to settle two things: whether each student's conversation is with their faculty's dean's office rather than one staff member, and what the polling interval should be, somewhere around 5 to 10 seconds.
+
+    I'm weighing how the page should refresh: a full meta-refresh would wipe whatever the student is typing, so a small vanilla JS poll that fetches only the HTML fragment, with the page still working without JS, looks better. I also need to check whether the project sets any CSP, and I'm leaning toward a static script file rather than inline code.
+
+    Next I'm listing the remaining open points: message length and rate limits as named constants, read status tracked per conversation for both sides, and staff only seeing their own faculty's chats. For polling I'm weighing a 5-second interval against 10, and I'm leaning toward 5 since the load is tiny for a demo. I'm also setting up demo conversations for the seeded students.
+
+    I'm checking the edge cases now: two staff replying at once is fine since messages are only appended, and racing mark-read updates do no harm. The menu is being compacted in a parallel fix, so the new chat item will appear in the nav once that lands. I still need the user to choose between three things: chatting with the faculty's dean's office as a whole, a 5-second poll interval, and whether unread chat messages get a menu badge or also show in the notification feed.
+
+    I'm settling on the notification side now: new replies from the deanery should show up in the "Уведомления" feed and count toward a badge, since that badge stays visible even when the menu is collapsed, while a "Чат (N)" item sits inside the menu. I'm also weighing the remaining defaults: text-only messages with no attachments, students seeing their full history, and staff seeing their faculty's dialogs with unread ones first.
+
+    I'm settling the rest of the plan: a short note that the chat will need a small static script with no libraries, while the page still works without JS through a manual refresh link. I also note that staff conversations stay out of reach of other faculties, and that conversations can't be closed or archived. Last, I'm wrapping up with a draft in English and a summary in Russian listing the decisions for the user to approve.
+  ── Searched for CSP\|Content-Security\|SECURE_\|X_FRAME\|MIDDLEWARE in config/settings.py
+  ── Created ~/.bb/thread-storage/thr_4izdzwetb4/TASK-009.txt +38
+    --- /dev/null
+    +++ b~/.bb/thread-storage/thr_4izdzwetb4/TASK-009.txt
+    +[TASK-009] Team lead -> Planner: TASK
+    +Approved by the user. Write the spec `docs/tasks/TASK-009.md` and hand it to the Coder.
+    +
+    +## Context
+    +Done: TASK-001..008 and their FIX tasks (users and roles, schedule, grades, requests with staff comments, notifications feed with an extensible `FeedSource` list in `notifications/sources.py`, room map, compact header menu). Reuse the access helpers (`students_visible_to`, role mixins), the validation pattern (model/service level, admin form errors never 500), `core/clock.py`, FrozenClockMixin, `scripts/run_tests_at.py`, the CSS layers (layout only; the pixel-art theme comes later). Read `plan.md`, `README.md` "Known limitations" and the previous specs. Apply your "Feasibility check" and "Test plan" sections.
+    +
+    +This is our own extra feature, planned from day one (`plan.md` section 2): "chat with the dean's office; the page itself requests new messages every N seconds (an HTML fragment from Django, no JSON API)". The jury will check it on a phone: log in as a student -> write to the dean's office; log in as staff -> see the dialog, reply; the student sees the reply without reloading the page.
+    +
+    +## Goal
+    +A student writes to the dean's office of their faculty and gets answers in one simple dialog. Staff of the faculty answer from their own page.
+    +
+    +## Requirements
+    +1. New app (e.g. `chat`) - justify the name.
+    +2. Dialogs (user decisions):
+    +   - One dialog per student, with the dean's office of the student's faculty as a whole (not with a named staff member). Any staff member of that faculty can read and answer, as with requests. The dialog is created on the first student message (or lazily on first open - choose, justify).
+    +   - Messages: author, time (`core.clock.now`), plain text only (autoescaped, line breaks kept, no HTML/Markdown, no links rendering beyond plain text), length limit as a named constant. No attachments. No editing, no deletion (append-only). Staff messages show the staff member's short name and the label "Деканат".
+    +   - Concurrent replies by two staff members are both kept (append-only); no lost messages. Explain the ordering rule (time + id).
+    +3. Abuse limits (named constants, service level): a student may send at most N messages per M minutes (e.g. 20 per 10 minutes); empty or whitespace-only messages are rejected; double submit of the same form (browser re-POST) must not create duplicates (Post/Redirect/Get, and a simple guard - justify).
+    +4. Live updates (user decision: polling, N = 5 seconds, named constant):
+    +   - The page works fully WITHOUT JavaScript: messages are server-rendered, sending is a normal POST form with CSRF and redirect, and there is a visible "Обновить" link.
+    +   - A small vanilla JavaScript file in `static/` (the first JS in the project; no libraries, no inline scripts, no `eval`, no `innerHTML` with unescaped user data) polls a Django view every 5 seconds for new messages after the last shown message id and appends the returned server-rendered HTML fragment. Polling pauses while the tab is hidden (`visibilitychange`) and stops after repeated errors (named constants). The fragment view is GET-only, login-protected, applies the same access rules, sets `Cache-Control: no-store`, and returns an empty 204 when there is nothing new.
+    +   - Optional (choose, justify): sending via `fetch` without a reload. If you do it, the no-JS POST path must stay the reference behaviour and both paths must be tested.
+    +5. Unread state and notifications (user decision):
+    +   - Student: replies from the dean's office that the student has not seen appear in the "Уведомления" feed as a new source ("Новое сообщение от деканата", link to the chat) and count in the existing badge, which stays visible when the header menu is collapsed. Opening the chat marks the dialog as read for the student. Also show the count on the "Чат" nav item.
+    +   - Staff: the staff chat list shows dialogs of their faculty, unread first, then by the last message time; each with the student's name, group and the unread count. A dialog is read for staff when any staff member of the faculty opens it (shared dean's-office inbox - justify).
+    +6. Pages (server-rendered, Russian UI, mobile-first, existing CSS layers, no visual theme; 360 px without horizontal scroll; the message input stays usable on a phone):
+    +   - Student "Чат с деканатом": history (oldest first, scrolled to the newest, or newest at the bottom), empty state with a short hint, the send form.
+    +   - Staff "Чаты": the list (5) and a dialog page with the same history, the student's profile summary (name, group, link to the staff student page) and the reply form.
+    +   - Navigation: "Чат" for students, "Чаты" for staff (inside the compact menu from TASK-008-FIX).
+    +7. Access: a student sees only their own dialog; staff only dialogs of students of their own faculty (404 otherwise); a student cannot open staff pages; the fragment view leaks nothing across students or faculties; no access via guessed IDs (use non-sequential public ids in URLs if a dialog id appears in a URL). Superuser: admin only (read-only dialog admin is enough).
+    +8. Queries: the chat list and the dialog page run a small fixed number of queries; the fragment view too; the nav/feed badge cost stays small and fixed; query-count tests.
+    +9. Demo data: extend `seed_demo` (idempotent): a dialog for each demo student with a few messages from both sides (fictional content), at least one unread reply for a student and at least one unread student message for each staff faculty.
+    +
+    +## Out of scope
+    +WebSockets, Server-Sent Events, Django Channels, push or e-mail, attachments, editing/deleting messages, typing indicators, "read by" per message, chat between students, chat for staff-to-staff, a JSON API, the visual theme.
+    +
+    +## Verification
+    +All existing verification commands pass (check, deploy check, makemigrations --check, test with the output saved to a file, `scripts/run_tests_at.py` at a Moscow midnight boundary, ruff only on the task files, CI YAML), `seed_demo` twice on a temporary database and temporary PRIVATE_MEDIA_ROOT. The JavaScript is checked manually by the Team lead in a real browser at 360 px (two sessions: student and staff; a reply appears within about 5 seconds without reload; no errors in the browser console).
+
+── Assistant ───────────────────────────────────────────────
+Черновик TASK-009 «Чат с деканатом» готов: [TASK-009.txt](~/.bb/thread-storage/thr_4izdzwetb4/TASK-009.txt). Задача уйдёт Планировщику только после закрытия TASK-008-FIX и вашего «Отправляй».
+
+**Как это будет работать:**
+- Студент пишет в пункте меню «Чат», сотрудник отвечает в пункте «Чаты».
+- Новые сообщения появляются без перезагрузки: страница раз в 5 секунд спрашивает у сервера, есть ли новые.
+- Без JavaScript чат тоже работает: отправка — обычная форма, есть ссылка «Обновить».
+- Это первый JavaScript в проекте. Маленький файл без библиотек, он делает только опрос. Пока вкладка скрыта, опрос останавливается.
+
+**Мои решения по умолчанию. Подтвердите или измените:**
+1. **С кем диалог.** У каждого студента один диалог с деканатом своего факультета в целом. Ответить может любой сотрудник факультета, как с заявками. В ответе видно имя сотрудника и пометку «Деканат».
+2. **Частота опроса — 5 секунд.** Жюри увидит ответ почти сразу, а нагрузка на сервер для прототипа ничтожна.
+3. **Как студент узнаёт об ответе.**
+   - Новый ответ деканата появляется в «Уведомлениях» и увеличивает их счётчик. Этот счётчик виден всегда, даже при закрытом меню.
+   - Число непрочитанных показано и у пункта «Чат».
+4. **Сообщения только текстовые.** Без вложений, без правки и удаления.
+5. **Защита от спама.** Студент может отправить не больше 20 сообщений за 10 минут. Пустое сообщение не отправится. Повторная отправка той же формы не создаст дубль.
+6. **Список у сотрудника.** Сначала непрочитанные диалоги, потом по времени последнего сообщения. У диалога видны ФИО, группа и число новых сообщений. Входящие общие на факультет: если диалог открыл один сотрудник, он прочитан для всех.
+
+**Не войдёт:** мгновенная доставка через WebSocket, вложения, индикатор «печатает…», отметка «прочитано» у каждого сообщения, чат между студентами.
+
+Если все 6 решений подходят, напишите «согласен». Тогда я отправлю задачу сразу после закрытия цикла TASK-008-FIX.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_cpuae9aqw3]
+
+[TASK-008-FIX] Reviewer -> Team lead: APPROVE
+
+Spec: docs/tasks/TASK-008-FIX.md (base caf7601). Review rounds: 2 (round 1 CHANGES REQUESTED; fixed). Changes are uncommitted; the file list matches §3 (plus your plan.md and the spec).
+
+Round 1 issue (fixed): the new include templates/includes/site_nav_items.html dropped the unread count from the «Уведомления» nav item. At >= 48rem the compact block with site-menu-badge is hidden, so wide screens showed no «Уведомления (N)». This contradicted spec §4.3 ("it uses the badge variable set in base.html") and AC4 ("as now"). No existing test caught it, because NavTests matched the compact badge link. Fix: the item renders `Уведомления{% if badge %} ({{ badge }}){% endif %}`; test_badge_outside_menu now asserts the count inside the wide nav. My mutation check (remove the count) → that test fails.
+
+Verification (my runs, no failed runs in this review):
+- Round 0: $TMPDIR/test-20261115-185326-rev008fix-*.log → 833 OK in all 5 runs (2 plain, 2026-11-17T23:59:59, 2026-11-18T00:00:00, 2027-03-01T12:00:00).
+- Round 1: $TMPDIR/test-20261115-190826-rev008fix-r1-*.log → 833 OK in all 5 runs (same set).
+- check OK; check --deploy: no issues (1 silenced); ruff check and format clean (161 files); yaml ok.
+
+Checked:
+- Item 1: the 5 test rewrites match §4.1.3. test_scope_check_detects_leak and test_scope_check_ignores_csrf_token are present (the token patched to "GY"*32). The README rule is added. The old 1.6% flaky needle is gone.
+- Item 2: integer label geometry. «Лестница» gets textLength="56" lengthAdjust="spacingAndGlyphs"; other landmarks and the rooms are not clamped; tests match §5.3. test_labels_fit was deleted (covered by the new tests, as the spec allows).
+- Item 3: one include for both lists; the badge tag runs once per page (spy test); for staff, superuser and anonymous there is no badge and no extra query; aria-current="page" on the current link in both lists; the logout POST form with CSRF is in both lists; the anonymous header is unchanged. The <details> keeps its class, so the academics <details> count test is unaffected.
+
+Open items for you (visual, per spec): the header at 360 px (closed and open «Меню», the badge next to it) and at >= 48rem (inline nav with «Уведомления (N)»); the «Лестница» label on every map floor in a real browser.
+
+── Ran 4 commands ──────────────────────────────────────────
+  ── Thought for 13ms
+    Next I'm checking the tests, running the full suite once and maybe more, then doing visual checks of the header at 360px closed and open, the wide layout at 768px and up, and the map labels on each floor. After that I'll take screenshots and commit, then restart the Coder thread to check pruning and compaction before reporting back. The user hasn't answered the TASK-009 decisions yet, so that stays open. I'm starting the tests in the background.
+  ── Ran (source .venv/bin/activate && python manage.py check && python manage.py makemigrations --check --dry-run && ruff check . && ruff format --check . && python manage.py test 2>&1 | tee "$TMPDIR/lead-test-008fix-$(date +%Y%m%d-%H%M%S).log" | grep -E "^Ran |^OK|^FAILED|^(ERROR|FAIL):") > "$TMPDIR/lead-verify-008fix.out" 2>&1; echo exit=$?; cat "$TMPDIR/lead-verify-008fix.out" (1s)
+    $ (source .venv/bin/activate && python manage.py check && python manage.py makemigrations --check --dry-run && ruff check . && ruff format --check . && python manage.py test 2>&1 | tee "$TMPDIR/lead-test-008fix-$(date +%Y%m%d-%H%M%S).log" | grep -E "^Ran |^OK|^FAILED|^(ERROR|FAIL):") > "$TMPDIR/lead-verify-008fix.out" 2>&1; echo exit=$?; cat "$TMPDIR/lead-verify-008fix.out"
+    Command running in background with ID: bghhonjeo. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/144a3f75-4ad2-4aa1-80ba-f116a27bcb70/tasks/bghhonjeo.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran git status --short; awk '/^## 3/{f=1} /^## 4/{f=0} f' docs/tasks/TASK-008-FIX.md | head -30 (2s)
+    $ git status --short; awk '/^## 3/{f=1} /^## 4/{f=0} f' docs/tasks/TASK-008-FIX.md | head -30
+    M README.md
+     M accounts/tests/test_views.py
+     M campusmap/layout.py
+     M campusmap/templates/campusmap/map.html
+     M campusmap/tests/test_layout.py
+     M campusmap/tests/test_views.py
+     M core/tests/test_css.py
+     M notifications/tests/test_views.py
+     M petitions/tests/test_views.py
+     M plan.md
+     M schedule/tests/test_views.py
+     M static/css/base.css
+     M templates/base.html
+    ?? core/tests/test_nav.py
+    ?? docs/tasks/TASK-008-FIX.md
+    ?? templates/includes/
+    ## 3. Files
+    Change only:
+    - tests: `schedule/tests/test_views.py`, `accounts/tests/test_views.py`, `petitions/tests/test_views.py`, `notifications/tests/test_views.py`, `campusmap/tests/test_layout.py`, `campusmap/tests/test_views.py`, `core/tests/test_css.py`; new `core/tests/test_nav.py`
+    - `campusmap/layout.py`, `campusmap/templates/campusmap/map.html`
+    - `templates/base.html`, new `templates/includes/site_nav_items.html`, `static/css/base.css`
+    - `README.md` (one line in "Test & lint", see 4.1.4)
+
+    No models, migrations, settings or dependencies.
+
+    ---
+  ── Thought for 5ms
+    I'm checking that the file list matches, then running the visual checks. The local database is already migrated and seeded, and the sessions in sess.json might still be valid, so I'll reuse them. Next I'll start the server and open the browser.
+  ── Ran . .venv/bin/activate && exec python manage.py runserver 127.0.0.1:8765 --noreload (2s)
+    $ . .venv/bin/activate && exec python manage.py runserver 127.0.0.1:8765 --noreload
+    Command running in background with ID: b0mrbvyan. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/144a3f75-4ad2-4aa1-80ba-f116a27bcb70/tasks/b0mrbvyan.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran sleep 3; curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8765/health/; bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -1 (6s)
+    $ sleep 3; curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8765/health/; bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -1
+    200
+    {"id":"8f9a82a7-2f8f-45de-a907-91bbc5cafd5a","threadId":"thr_4izdzwetb4","hostId":"host_cuvmpv75p3","backend":"local","state":"ready","createdAt":1794759555398,"expiresAt":1794761355398,"previewDirective":"::browser-preview{session=\"8f9a82a7-2f8f-45de-a907-91bbc5cafd5a\"}"}
+
+── Assistant ───────────────────────────────────────────────
+::browser-preview{session="8f9a82a7-2f8f-45de-a907-91bbc5cafd5a"}
+
+── Ran 3 commands ──────────────────────────────────────────
+  ── Ran J=$TMPDIR/sess.json && K1=$(python3 -c "import json;print(json.load(open('$J'))['student1'])") && KS=$(python3 -c "import json;print(json.load(open('$J'))['staff1'])") && cat > $TMPDIR/nav360.js <<EOF const p = await browser.getPage('main'); await p.setViewport({width: 360, height: 780, deviceScaleFactor: 1}); await p.goto('http://127.0.0.1:8765/health/'); const res = {}; async function as(k){ await p.deleteCookie({name:'sessionid',domain:'127.0.0.1',path:'/'}); await p.setCookie({name:'sessionid',value:k,domain:'127.0.0.1',path:'/'}); } const hdr = () => p.evaluate(() => { const h=document.querySelector('.site-header'); return {sw: document.documentElement.scrollWidth, headerH: Math.round(h.getBoundingClientRect().height), visibleText: h.innerText.replace(/\s+/g,' ').trim()}; }); await as('$K1'); await p.goto('http://127.0.0.1:8765/schedule/'); res.closed = await hdr(); await p.shot({type:'jpeg', maxEdge: 960, quality: 75}); await p.evaluate(() => { const d=document.querySelector('.site-header details'); if (d) d.open = true; }); res.open = await hdr(); res.tap = await p.evaluate(() => [...document.querySelectorAll('.site-header details a, .site-header details button')].map(e => e.textContent.trim().replace(/\s+/g,' ') + ':' + Math.round(e.getBoundingClientRect().height) + 'px' + (e.getAttribute('aria-current') ? '*' : ''))); await p.shot({type:'jpeg', maxEdge: 960, quality: 75}); await p.setViewport({width: 1024, height: 700, deviceScaleFactor: 1}); await p.goto('http://127.0.0.1:8765/schedule/'); res.wide = await hdr(); await p.shot({type:'jpeg', maxEdge: 1024, quality: 75}); await p.setViewport({width: 360, height: 780, deviceScaleFactor: 1}); await as('$KS'); await p.goto('http://127.0.0.1:8765/map/'); res.staffClosed = await hdr(); await p.shot({type:'jpeg', maxEdge: 960, quality: 75}); for (const f of [1,2,3,4]) { await p.goto('http://127.0.0.1:8765/map/floor/' + f + '/'); res['map'+f] = await p.evaluate(() => [...document.querySelectorAll('svg text')].map(t => t.textContent.trim() + (t.getAttribute('textLength') ? '[tl=' + t.getAttribute('textLength') + ']' : '')).join(', ')); } await p.goto('http://127.0.0.1:8765/map/floor/1/'); await p.evaluate(() => window.scrollTo(0, document.querySelector('svg').getBoundingClientRect().top + window.scrollY - 40)); await p.shot({type:'jpeg', maxEdge: 960, quality: 75}); console.log(JSON.stringify(res)); EOF bb browser-automation run 8f9a82a7-2f8f-45de-a907-91bbc5cafd5a --timeout 120s --json --script "$(cat $TMPDIR/nav360.js)" > $TMPDIR/nav360.out 2>&1; python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d.get("text") or d);[print(i["path"]) for i in d.get("images",[])]' $TMPDIR/nav360.out || head -c 1500 $TMPDIR/nav360.out (4s)
+    $ J=$TMPDIR/sess.json && K1=$(python3 -c "import json;print(json.load(open('$J'))['student1'])") && KS=$(python3 -c "import json;print(json.load(open('$J'))['staff1'])") && cat > $TMPDIR/nav360.js <<EOF
+  const p = await browser.getPage('main');
+  await p.setViewport({width: 360, height: 780, deviceScaleFactor: 1});
+  await p.goto('http://127.0.0.1:8765/health/');
+  const res = {};
+  async function as(k){ await p.deleteCookie({name:'sessionid',domain:'127.0.0.1',path:'/'}); await p.setCookie({name:'sessionid',value:k,domain:'127.0.0.1',path:'/'}); }
+  const hdr = () => p.evaluate(() => { const h=document.querySelector('.site-header'); return {sw: document.documentElement.scrollWidth, headerH: Math.round(h.getBoundingClientRect().height), visibleText: h.innerText.replace(/\s+/g,' ').trim()}; });
+  await as('$K1');
+  await p.goto('http://127.0.0.1:8765/schedule/');
+  res.closed = await hdr();
+  await p.shot({type:'jpeg', maxEdge: 960, quality: 75});
+  await p.evaluate(() => { const d=document.querySelector('.site-header details'); if (d) d.open = true; });
+  res.open = await hdr();
+  res.tap = await p.evaluate(() => [...document.querySelectorAll('.site-header details a, .site-header details button')].map(e => e.textContent.trim().replace(/\s+/g,' ') + ':' + Math.round(e.getBoundingClientRect().height) + 'px' + (e.getAttribute('aria-current') ? '*' : '')));
+  await p.shot({type:'jpeg', maxEdge: 960, quality: 75});
+  await p.setViewport({width: 1024, height: 700, deviceScaleFactor: 1});
+  await p.goto('http://127.0.0.1:8765/schedule/');
+  res.wide = await hdr();
+  await p.shot({type:'jpeg', maxEdge: 1024, quality: 75});
+  await p.setViewport({width: 360, height: 780, deviceScaleFactor: 1});
+  await as('$KS');
+  await p.goto('http://127.0.0.1:8765/map/');
+  res.staffClosed = await hdr();
+  await p.shot({type:'jpeg', maxEdge: 960, quality: 75});
+  for (const f of [1,2,3,4]) { await p.goto('http://127.0.0.1:8765/map/floor/' + f + '/'); res['map'+f] = await p.evaluate(() => [...document.querySelectorAll('svg text')].map(t => t.textContent.trim() + (t.getAttribute('textLength') ? '[tl=' + t.getAttribute('textLength') + ']' : '')).join(', ')); }
+  await p.goto('http://127.0.0.1:8765/map/floor/1/');
+  await p.evaluate(() => window.scrollTo(0, document.querySelector('svg').getBoundingClientRect().top + window.scrollY - 40));
+  await p.shot({type:'jpeg', maxEdge: 960, quality: 75});
+  console.log(JSON.stringify(res));
+  EOF
+  bb browser-automation run 8f9a82a7-2f8f-45de-a907-91bbc5cafd5a --timeout 120s --json --script "$(cat $TMPDIR/nav360.js)" > $TMPDIR/nav360.out 2>&1; python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d.get("text") or d);[print(i["path"]) for i in d.get("images",[])]' $TMPDIR/nav360.out || head -c 1500 $TMPDIR/nav360.out
+    Traceback (most recent call last):
+      File "<string>", line 1, in <module>
+      File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/json/__init__.py", line 293, in load
+        return loads(fp.read(),
+      File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/json/__init__.py", line 346, in loads
+        return _default_decoder.decode(s)
+      File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/json/decoder.py", line 340, in decode
+        raise JSONDecodeError("Extra data", s, end)
+    json.decoder.JSONDecodeError: Extra data: line 9 column 1 (char 212)
+    {
+      "ok": false,
+      "error": {
+        "code": "screenshot_limit",
+        "message": "At most four screenshots may be returned per script",
+        "hint": "Return at most 4 JPEG screenshots per run, 500 KB combined."
+      }
+    }
+    At most four screenshots may be returned per script (Return at most 4 JPEG screenshots per run, 500 KB combined.)
+  ── Thought for 6ms
+    I'm cutting the screenshot set down to four at most, so I'm dropping the staffClosed shot from the five I had.
+  ── Ran python3 - <<'EOF' import os p=os.path.join(os.environ['TMPDIR'],'nav360.js') s=open(p).read() s=s.replace("res.staffClosed = await hdr();\nawait p.shot({type:'jpeg', maxEdge: 960, quality: 75});","res.staffClosed = await hdr();") open(p,'w').write(s) EOF bb browser-automation run 8f9a82a7-2f8f-45de-a907-91bbc5cafd5a --timeout 120s --json --script "$(cat $TMPDIR/nav360.js)" > $TMPDIR/nav360.out 2>&1; python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d.get("text") or d);[print(i["path"]) for i in d.get("images",[])]' $TMPDIR/nav360.out || head -c 1500 $TMPDIR/nav360.out
+    $ python3 - <<'EOF'
+  import os
+  p=os.path.join(os.environ['TMPDIR'],'nav360.js')
+  s=open(p).read()
+  s=s.replace("res.staffClosed = await hdr();\nawait p.shot({type:'jpeg', maxEdge: 960, quality: 75});","res.staffClosed = await hdr();")
+  open(p,'w').write(s)
+  EOF
+  bb browser-automation run 8f9a82a7-2f8f-45de-a907-91bbc5cafd5a --timeout 120s --json --script "$(cat $TMPDIR/nav360.js)" > $TMPDIR/nav360.out 2>&1; python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d.get("text") or d);[print(i["path"]) for i in d.get("images",[])]' $TMPDIR/nav360.out || head -c 1500 $TMPDIR/nav360.out
+    Traceback (most recent call last):
+      File "<string>", line 1, in <module>
+      File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/json/__init__.py", line 293, in load
+        return loads(fp.read(),
+      File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/json/__init__.py", line 346, in loads
+        return _default_decoder.decode(s)
+      File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/json/decoder.py", line 340, in decode
+        raise JSONDecodeError("Extra data", s, end)
+    json.decoder.JSONDecodeError: Extra data: line 9 column 1 (char 250)
+    {
+      "ok": false,
+      "error": {
+        "code": "session_unavailable",
+        "message": "Session stopped or expired; open a new session",
+        "hint": "Open a new session with `bb browser-automation open --backend <desktop|local> --machine <host-id>`."
+      }
+    }
+    Session stopped or expired; open a new session (Open a new session with `bb browser-automation open --backend <desktop|local> --machine <host-id>`.)
+  ── Ran S=$(bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -1 | python3 -c 'import json,sys;print(json.load(sys.stdin)["id"])') && echo "$S" > $TMPDIR/bsess && bb browser-automation run $S --timeout 120s --json --script "$(cat $TMPDIR/nav360.js)" > $TMPDIR/nav360.out 2>&1; python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d.get("text") or d);[print(i["path"]) for i in d.get("images",[])]' $TMPDIR/nav360.out || head -c 800 $TMPDIR/nav360.out; cat $TMPDIR/bsess (3s)
+    $ S=$(bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -1 | python3 -c 'import json,sys;print(json.load(sys.stdin)["id"])') && echo "$S" > $TMPDIR/bsess && bb browser-automation run $S --timeout 120s --json --script "$(cat $TMPDIR/nav360.js)" > $TMPDIR/nav360.out 2>&1; python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d.get("text") or d);[print(i["path"]) for i in d.get("images",[])]' $TMPDIR/nav360.out || head -c 800 $TMPDIR/nav360.out; cat $TMPDIR/bsess
+    {"closed":{"sw":360,"headerH":110,"visibleText":"Цифровой деканат будущего Меню"},"open":{"sw":360,"headerH":432,"visibleText":"Цифровой деканат будущего Меню Профиль Расписание Карта Успеваемость Заявки Уведомления Выйти"},"tap":["Профиль:44px","Расписание:44px*","Карта:44px","Успеваемость:44px","Заявки:44px","Уведомления:44px","Выйти:50px"],"wide":{"sw":1024,"headerH":104,"visibleText":"Цифровой деканат будущего Профиль Расписание Карта Успеваемость Заявки Уведомления Выйти"},"staffClosed":{"sw":360,"headerH":110,"visibleText":"Цифровой деканат будущего Меню"},"map1":"Лестница[tl=56], Вход, Столовая, 101, 114","map2":"Лестница[tl=56], Деканат, 205, 212","map3":"Лестница[tl=56], Библиотека, 308, 315","map4":"Лестница[tl=56], 402"}
+
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-2bPssb/db-Z27MFR/tmp/shot-1794759583745-1.jpg
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-2bPssb/db-Z27MFR/tmp/shot-1794759583819-2.jpg
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-2bPssb/db-Z27MFR/tmp/shot-1794759583924-3.jpg
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-2bPssb/db-Z27MFR/tmp/shot-1794759584172-4.jpg
+    f17ef55b-e265-401b-a7fb-8a8c29a8d74d
+  ── Thought for 4ms
+    The student1 header shows "Уведомления" with no count because that account has no unread items after I opened the feed earlier. The badge only appears near "Меню" when there are unread notifications, so I need an account that has some. Student2 showed "Уведомления (4)", so I'll check its closed header for the badge and look through the screenshots.
+
+── Explored 4 files ────────────────────────────────────────
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-2bPssb/db-Z27MFR/tmp/shot-1794759583745-1.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-2bPssb/db-Z27MFR/tmp/shot-1794759583819-2.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-2bPssb/db-Z27MFR/tmp/shot-1794759583924-3.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-2bPssb/db-Z27MFR/tmp/shot-1794759584172-4.jpg
+  ── Thought for 1s
+    The header looks right now: closed state is two lines, the title and the "Меню" button, and "Лестница" fits with its padding. On wide screens it stays inline. The header is full-width while the main content is indented, which predates this UI stage, so I'll leave it alone for now.
+
+    Next I need to confirm the unread badge shows beside "Меню", since student2 has unread messages. sess.json already includes student2, so I'm checking whether the closed header displays the badge correctly.
+
+    I still need to confirm that the badge appears next to "Меню" and that student2's unread count is visible there. On wide screens I also want to check the "Уведомления (N)" label, so I'll do one more run and take two screenshots.
+
+── Ran S=$(cat $TMPDIR/bsess) && K2=$(python3 -c "import json;print(json.load(open('$TMPDIR/sess.json'))['student2'])") && bb browser-automation run $S --timeout 60s --json --script " const p = await browser.getPage('main'); await p.deleteCookie({name:'sessionid',domain:'127.0.0.1',path:'/'}); await p.setCookie({name:'sessionid',value:'$K2',domain:'127.0.0.1',path:'/'}); await p.setViewport({width: 360, height: 780, deviceScaleFactor: 1}); await p.goto('http://127.0.0.1:8765/map/'); const a = await p.evaluate(() => { const h=document.querySelector('.site-header'); return {h: Math.round(h.getBoundingClientRect().height), text: h.innerText.replace(/\s+/g,' ').trim()}; }); await p.shot({type:'jpeg', maxEdge: 960, quality: 75}); await p.setViewport({width: 1024, height: 500, deviceScaleFactor: 1}); await p.goto('http://127.0.0.1:8765/map/'); const b = await p.evaluate(() => document.querySelector('.site-header').innerText.replace(/\s+/g,' ').trim()); await p.shot({type:'jpeg', maxEdge: 1024, quality: 75}); console.log(JSON.stringify({a,b}));" > $TMPDIR/nav2.out 2>&1; python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d.get("text") or d);[print(i["path"]) for i in d.get("images",[])]' $TMPDIR/nav2.out (1s)
+  $ S=$(cat $TMPDIR/bsess) && K2=$(python3 -c "import json;print(json.load(open('$TMPDIR/sess.json'))['student2'])") && bb browser-automation run $S --timeout 60s --json --script "
+const p = await browser.getPage('main');
+await p.deleteCookie({name:'sessionid',domain:'127.0.0.1',path:'/'}); await p.setCookie({name:'sessionid',value:'$K2',domain:'127.0.0.1',path:'/'});
+await p.setViewport({width: 360, height: 780, deviceScaleFactor: 1});
+await p.goto('http://127.0.0.1:8765/map/');
+const a = await p.evaluate(() => { const h=document.querySelector('.site-header'); return {h: Math.round(h.getBoundingClientRect().height), text: h.innerText.replace(/\s+/g,' ').trim()}; });
+await p.shot({type:'jpeg', maxEdge: 960, quality: 75});
+await p.setViewport({width: 1024, height: 500, deviceScaleFactor: 1});
+await p.goto('http://127.0.0.1:8765/map/');
+const b = await p.evaluate(() => document.querySelector('.site-header').innerText.replace(/\s+/g,' ').trim());
+await p.shot({type:'jpeg', maxEdge: 1024, quality: 75});
+console.log(JSON.stringify({a,b}));" > $TMPDIR/nav2.out 2>&1; python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d.get("text") or d);[print(i["path"]) for i in d.get("images",[])]' $TMPDIR/nav2.out
+  {"a":{"h":110,"text":"Цифровой деканат будущего Меню Уведомления (4)"},"b":"Цифровой деканат будущего Профиль Расписание Карта Успеваемость Заявки Уведомления (4) Выйти"}
+
+  /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-2bPssb/db-Z27MFR/tmp/shot-1794759601464-5.jpg
+  /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-2bPssb/db-Z27MFR/tmp/shot-1794759601566-6.jpg
+
+── Explored 1 file ─────────────────────────────────────────
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-2bPssb/db-Z27MFR/tmp/shot-1794759601464-5.jpg
+  ── Thought for 1s
+    I'm saving the four screenshots under their new names, then I'll close the browser, stop the server, and check the tests.
+  ── Thought for 4ms
+    Шапка и карта на 360 px выглядят верно, и я сохраняю скриншоты, после чего жду тесты.
+
+── Ran B=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-2bPssb/db-Z27MFR/tmp && D=docs/process/screenshots && cp $B/shot-1794759601464-5.jpg $D/2026-11-15_27_header-menu-closed_student2.jpg && cp $B/shot-1794759583819-2.jpg $D/2026-11-15_28_header-menu-open_student1.jpg && cp $B/shot-1794759601566-6.jpg $D/2026-11-15_29_header-wide-1024_student2.jpg && cp $B/shot-1794759584172-4.jpg $D/2026-11-15_30_map-floor-1_staff1_fixed.jpg && bb browser-automation close $(cat $TMPDIR/bsess) --json >/dev/null 2>&1; python3 - <<'EOF' p='docs/process/README.md' s=open(p,encoding='utf-8').read().rstrip('\n')+'\n' s+='''| `2026-11-15_27_header-menu-closed_student2.jpg` | 15.11.2026 | После TASK-008-FIX | Компактная шапка на 360 px: название, кнопка «Меню» и счётчик «Уведомления (4)», который виден без открытия меню | | `2026-11-15_28_header-menu-open_student1.jpg` | 15.11.2026 | После TASK-008-FIX | Открытое меню: каждый пункт на своей строке (высота 44 px), текущая страница отмечена, «Выйти» — отдельная кнопка | | `2026-11-15_29_header-wide-1024_student2.jpg` | 15.11.2026 | После TASK-008-FIX | Экран 1024 px: меню в одну строку, как раньше, с «Уведомления (4)». Снимок шире 360 px | | `2026-11-15_30_map-floor-1_staff1_fixed.jpg` | 15.11.2026 | После TASK-008-FIX | Карта, 1 этаж: подпись «Лестница» помещается в клетку с отступами | ''' open(p,'w',encoding='utf-8').write(s) EOF cat /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/144a3f75-4ad2-4aa1-80ba-f116a27bcb70/tasks/bghhonjeo.output (3s)
+  $ B=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-2bPssb/db-Z27MFR/tmp && D=docs/process/screenshots && cp $B/shot-1794759601464-5.jpg $D/2026-11-15_27_header-menu-closed_student2.jpg && cp $B/shot-1794759583819-2.jpg $D/2026-11-15_28_header-menu-open_student1.jpg && cp $B/shot-1794759601566-6.jpg $D/2026-11-15_29_header-wide-1024_student2.jpg && cp $B/shot-1794759584172-4.jpg $D/2026-11-15_30_map-floor-1_staff1_fixed.jpg && bb browser-automation close $(cat $TMPDIR/bsess) --json >/dev/null 2>&1; python3 - <<'EOF'
+p='docs/process/README.md'
+s=open(p,encoding='utf-8').read().rstrip('\n')+'\n'
+s+='''| `2026-11-15_27_header-menu-closed_student2.jpg` | 15.11.2026 | После TASK-008-FIX | Компактная шапка на 360 px: название, кнопка «Меню» и счётчик «Уведомления (4)», который виден без открытия меню |
+| `2026-11-15_28_header-menu-open_student1.jpg` | 15.11.2026 | После TASK-008-FIX | Открытое меню: каждый пункт на своей строке (высота 44 px), текущая страница отмечена, «Выйти» — отдельная кнопка |
+| `2026-11-15_29_header-wide-1024_student2.jpg` | 15.11.2026 | После TASK-008-FIX | Экран 1024 px: меню в одну строку, как раньше, с «Уведомления (4)». Снимок шире 360 px |
+| `2026-11-15_30_map-floor-1_staff1_fixed.jpg` | 15.11.2026 | После TASK-008-FIX | Карта, 1 этаж: подпись «Лестница» помещается в клетку с отступами |
+'''
+open(p,'w',encoding='utf-8').write(s)
+EOF
+cat /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/144a3f75-4ad2-4aa1-80ba-f116a27bcb70/tasks/bghhonjeo.output
+  exit code 0
+
+── Stopped task (3s) ───────────────────────────────────────
+  {"message":"Successfully stopped task: b0mrbvyan (. .venv/bin/activate && exec python manage.py runserver 127.0.0.1:8765 --noreload)","task_id":"b0mrbvyan","task_type":"local_bash","command":". .venv/bin/activate && exec python manage.py runserver 127.0.0.1:8765 --noreload"}
+
+── Running 2 commands ──────────────────────────────────────
+  ── Ran python3 - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() s=s.replace('| TASK-008-FIX | Недочёты TASK-008: нестабильный тест, подпись «Лестница», компактное меню | В работе |','| TASK-008-FIX | Недочёты TASK-008: нестабильный тест, подпись «Лестница», компактное меню | Готово |') s=s.replace('Сейчас: TASK-008 закрыта 15.11, TASK-008-FIX в работе.','Сейчас: цикл исправлений TASK-008 закрыт 15.11. Следующая задача — TASK-009 (чат).') open(p,'w',encoding='utf-8').write(s) p='CHANGELOG.md' s=open(p,encoding='utf-8').read() entry='''### TASK-008-FIX: нестабильный тест, подпись на карте, компактное меню - Нестабильный тест (≈1,5% прогонов с TASK-003): проверка «нет группы GY» искала 2 буквы во всей странице и иногда находила их в случайном CSRF-токене. Теперь проверяется точная разметка; найдены и исправлены ещё 4 похожие проверки; в `README.md` добавлено правило для тестов. Добавлен тест, который подставляет токен «GYGY…». - Подпись «Лестница» на карте помещается в клетку с отступами на всех этажах. - Компактная шапка на узком экране (меньше 768 px): кнопка «Меню» без JavaScript (`<details>`), счётчик «Уведомления (N)» виден без открытия меню, пункты по одному на строку высотой 44 px, текущая страница отмечена. На широком экране меню как раньше. - Ревью: 2 раунда; в первом — пропал счётчик уведомлений в широком меню, исправлено и покрыто тестом. Всего тестов: 833. ''' s=s.replace('## 2026-11-15\n','## 2026-11-15\n'+entry,1) open(p,'w',encoding='utf-8').write(s) EOF git diff --stat plan.md CHANGELOG.md (1s)
+    $ python3 - <<'EOF'
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  s=s.replace('| TASK-008-FIX | Недочёты TASK-008: нестабильный тест, подпись «Лестница», компактное меню | В работе |','| TASK-008-FIX | Недочёты TASK-008: нестабильный тест, подпись «Лестница», компактное меню | Готово |')
+  s=s.replace('Сейчас: TASK-008 закрыта 15.11, TASK-008-FIX в работе.','Сейчас: цикл исправлений TASK-008 закрыт 15.11. Следующая задача — TASK-009 (чат).')
+  open(p,'w',encoding='utf-8').write(s)
+  p='CHANGELOG.md'
+  s=open(p,encoding='utf-8').read()
+  entry='''### TASK-008-FIX: нестабильный тест, подпись на карте, компактное меню
+  - Нестабильный тест (≈1,5% прогонов с TASK-003): проверка «нет группы GY» искала 2 буквы во всей странице и иногда находила их в случайном CSRF-токене. Теперь проверяется точная разметка; найдены и исправлены ещё 4 похожие проверки; в `README.md` добавлено правило для тестов. Добавлен тест, который подставляет токен «GYGY…».
+  - Подпись «Лестница» на карте помещается в клетку с отступами на всех этажах.
+  - Компактная шапка на узком экране (меньше 768 px): кнопка «Меню» без JavaScript (`<details>`), счётчик «Уведомления (N)» виден без открытия меню, пункты по одному на строку высотой 44 px, текущая страница отмечена. На широком экране меню как раньше.
+  - Ревью: 2 раунда; в первом — пропал счётчик уведомлений в широком меню, исправлено и покрыто тестом. Всего тестов: 833.
+
+  '''
+  s=s.replace('## 2026-11-15\n','## 2026-11-15\n'+entry,1)
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  git diff --stat plan.md CHANGELOG.md
+    CHANGELOG.md | 6 ++++++
+     plan.md      | 8 +++++++-
+     2 files changed, 13 insertions(+), 1 deletion(-)
+  ── Thought for 4ms
+    Ещё четыре похожие проверки нашлись и исправлены — вместе с основной получается пять переписанных тестов, что совпадает с замечанием ревьюера по §4.1.3. Теперь жду результаты тестов через Monitor.
   ── Running O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && python3 -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]     assert not bad,(f,bad)     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF
     $ O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && python3 -I - "$O" <<'EOF'
   import os,re,sys

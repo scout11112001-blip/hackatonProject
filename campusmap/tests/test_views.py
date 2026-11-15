@@ -145,6 +145,19 @@ class MapViewTests(TestCase):
         self.assertIn("map-legend", content)
         self.assertIn("Аудитория", content)
 
+    def test_stairs_label_has_text_length(self):
+        content = self.client.get("/map/floor/1/").content.decode()
+        svg = _svg_part(content)
+        self.assertIn('textLength="56" lengthAdjust="spacingAndGlyphs">Лестница</text>', svg)
+        # The «Вход» landmark label is not clamped.
+        entrance_end = svg.index(">Вход</text>") + len(">Вход</text>")
+        entrance = svg[svg.rindex("<text", 0, entrance_end) : entrance_end]
+        self.assertNotIn("textLength", entrance)
+        # Room labels are never clamped.
+        room_end = svg.index(">101</text>") + len(">101</text>")
+        room = svg[svg.rindex("<text", 0, room_end) : room_end]
+        self.assertNotIn("textLength", room)
+
     def test_room_list_grouped_by_floor(self):
         content = self.client.get("/map/").content.decode()
         for heading in ("<h3>1 этаж</h3>", "<h3>2 этаж</h3>", "<h3>4 этаж</h3>"):

@@ -3,11 +3,13 @@ from django.test import SimpleTestCase
 from campusmap.layout import (
     CELL_WIDTH,
     CORRIDOR,
+    LABEL_PADDING,
     LANDMARK_LABEL_SIZE,
     OUTLINE,
     ROOM_LABEL_SIZE,
     VIEWBOX_WIDTH,
     cell_rect,
+    estimated_label_width,
     floor_plan,
     span_rect,
 )
@@ -64,17 +66,38 @@ class LayoutTests(SimpleTestCase):
             for value in (rect.x, rect.y, rect.width, rect.height, rect.cx, rect.cy):
                 self.assertIsInstance(value, int)
 
-    def test_labels_fit(self):
-        self.assertLessEqual(3 * 0.6 * ROOM_LABEL_SIZE, CELL_WIDTH)
-        for lm in LANDMARKS:
-            width = span_rect(lm.cells).width
-            self.assertLessEqual(
-                len(lm.label) * 0.6 * LANDMARK_LABEL_SIZE, width, f"{lm.key} label too wide"
-            )
-
     def test_label_sizes(self):
         self.assertGreaterEqual(ROOM_LABEL_SIZE * 328 / VIEWBOX_WIDTH, 16)
         self.assertGreaterEqual(LANDMARK_LABEL_SIZE * 328 / VIEWBOX_WIDTH, 12)
+
+    def test_landmark_labels_fit_with_padding(self):
+        for floor in range(1, 10):
+            plan = floor_plan(floor, [], None)
+            for shape in plan.shapes:
+                if shape.kind != "landmark":
+                    continue
+                estimated = estimated_label_width(shape.label, LANDMARK_LABEL_SIZE)
+                used = min(estimated, shape.text_length or 10**6)
+                self.assertLessEqual(
+                    used,
+                    shape.rect.width - 2 * LABEL_PADDING,
+                    f"{shape.label} on floor {floor}",
+                )
+
+    def test_stairs_label_clamped(self):
+        plan = floor_plan(1, [], None)
+        stairs = next(s for s in plan.shapes if s.label == "Лестница")
+        self.assertEqual(stairs.text_length, CELL_WIDTH - 2 * LABEL_PADDING)
+
+    def test_rooms_never_clamped(self):
+        rooms = [_room(1, "101", "N2"), _room(1, "102", "N3")]
+        plan = floor_plan(1, rooms, None)
+        for shape in plan.shapes:
+            if shape.kind == "room":
+                self.assertIsNone(shape.text_length)
+        self.assertLessEqual(
+            estimated_label_width("888", ROOM_LABEL_SIZE), CELL_WIDTH - 2 * LABEL_PADDING
+        )
 
     def test_floor_plan_marks_current(self):
         r1 = _room(1, "101", "N2", pk=1)

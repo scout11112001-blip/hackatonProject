@@ -11,7 +11,7 @@ from core.testing import FrozenClockMixin
 from schedule.converters import IsoDateConverter
 from schedule.models import ChangeKind, LessonChange
 from schedule.mutations import save_lesson_change
-from university.models import Teacher
+from university.models import StudyGroup, Teacher
 
 from .helpers import aware, make_discipline, make_lesson, make_room, make_teacher
 
@@ -176,10 +176,33 @@ class ScheduleViewsTests(FrozenClockMixin, TestCase):
 
     def test_staff_group_list_scoped(self):
         self.client.force_login(self.staff_x)
-        content = self.client.get("/staff/schedule/").content.decode()
-        self.assertIn("GX1", content)
-        self.assertIn("GX2", content)
-        self.assertNotIn("GY", content)
+        response = self.client.get("/staff/schedule/")
+        content = response.content.decode()
+        for group in (self.group_x1, self.group_x2):
+            self.assertIn(f'href="/staff/schedule/{group.pk}/"', content)
+        self.assertNotIn(f'href="/staff/schedule/{self.group_y.pk}/"', content)
+        self.assertEqual(set(response.context["groups"]), {self.group_x1, self.group_x2})
+
+    def test_scope_check_detects_leak(self):
+        self.client.force_login(self.staff_x)
+        with mock.patch(
+            "schedule.views.groups_visible_to",
+            return_value=StudyGroup.objects.select_related("program__faculty").order_by("name"),
+        ):
+            response = self.client.get("/staff/schedule/")
+        content = response.content.decode()
+        self.assertIn(f'href="/staff/schedule/{self.group_y.pk}/"', content)
+
+    def test_scope_check_ignores_csrf_token(self):
+        self.client.force_login(self.staff_x)
+        with mock.patch("django.middleware.csrf._mask_cipher_secret", return_value="GY" * 32):
+            response = self.client.get("/staff/schedule/")
+        content = response.content.decode()
+        self.assertIn("GY" * 32, content)
+        for group in (self.group_x1, self.group_x2):
+            self.assertIn(f'href="/staff/schedule/{group.pk}/"', content)
+        self.assertNotIn(f'href="/staff/schedule/{self.group_y.pk}/"', content)
+        self.assertEqual(set(response.context["groups"]), {self.group_x1, self.group_x2})
 
     def test_staff_group_week_own_faculty(self):
         self.client.force_login(self.staff_x)
@@ -340,8 +363,8 @@ class ChangeRenderingTests(FrozenClockMixin, TestCase):
             self.assertIn(reason, content)
         self.assertIn("<del", content)
         self.assertIn("<ins", content)
-        self.assertIn("205", content)  # new room number
-        self.assertIn("101", content)  # old room number
+        self.assertIn('data-room-code="room-205"', content)  # new room number
+        self.assertIn('<del class="room" data-room-code="room-101">', content)  # old room number
         self.assertIn("Лебедев", content)
         self.assertIn("Воронцова", content)
 

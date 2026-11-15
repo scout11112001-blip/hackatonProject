@@ -315,3 +315,54 @@ a.map-current {
   height: 1rem;
   vertical-align: middle;
 }
+
+.site-nav--wide {
+  display: none;
+}
+
+.site-nav-compact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.site-menu-toggle,
+.site-menu-badge {
+  display: inline-block;
+  min-height: 2.75rem;
+  line-height: 2.75rem;
+}
+
+.site-menu-toggle {
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+}
+
+.site-menu[open] {
+  flex-basis: 100%;
+}
+
+.site-menu .site-nav-list {
+  flex-direction: column;
+  gap: 0;
+}
+
+.site-menu .site-nav-list a,
+.site-menu .site-nav-list button {
+  display: block;
+  min-height: 2.75rem;
+  line-height: 2.75rem;
+}
+
+@media (min-width: 48rem) {
+  .site-nav--wide {
+    display: block;
+  }
+
+  .site-nav-compact {
+    display: none;
+  }
+}

@@ -554,7 +554,7 @@ class StaffAnnouncementsViewTests(FrozenClockMixin, TestCase):
         ):
             response = self._post({"title": "Заголовок", "body": "Текст", "target": "faculty"})
         self.assertEqual(response.status_code, 200)
-        self.assertIn("x", response.content.decode())
+        self.assertEqual(response.context["form"].non_field_errors(), ["x"])
 
     def test_unpublished_shown_with_status_and_no_button(self):
         make_announcement(

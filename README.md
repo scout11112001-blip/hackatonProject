@@ -40,6 +40,10 @@ DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefgh
 python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"
 ```
 
+- Assertions on whole pages: use exact markup (e.g. `href="/staff/schedule/12/"`) or
+  `response.context`; never a short alphanumeric needle — the page contains a
+  random CSRF token.
+
 ## Demo data
 
 ```bash

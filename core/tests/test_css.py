@@ -22,3 +22,12 @@ class BaseCssTests(SimpleTestCase):
         self.assertIn(".map-current .map-room-label", base_css)
         self.assertIn("var(--color-map-highlight)", base_css)
         self.assertIn("--color-map-highlight", tokens)
+
+    def test_compact_nav_rules(self):
+        base_css = (Path(settings.BASE_DIR) / "static/css/base.css").read_text()
+        self.assertRegex(base_css, r"\.site-nav--wide\s*\{\s*display:\s*none;")
+        self.assertRegex(
+            base_css,
+            r"@media \(min-width: 48rem\)\s*\{\s*\.site-nav--wide\s*\{\s*display:\s*block;\s*\}"
+            r"\s*\.site-nav-compact\s*\{\s*display:\s*none;",
+        )

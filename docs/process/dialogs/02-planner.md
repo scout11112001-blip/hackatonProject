@@ -11454,3 +11454,982 @@ EOF
 **Проверки под конкретную задачу.** Иногда я проверяю отдельную идею на временной копии проекта, а не в рабочей папке. Для TASK-008 так проверил новые ограничения номера аудитории в базе и прогнал миграцию на базе с демо-данными. Код в рабочей папке я при этом не меняю.
 
 **Чего я не делаю.** Новые тесты я не пишу. В спецификации я описываю план тестов: какие тесты нужны, где они лежат и что проверяют. Пишет их Кодер, а Ревьюер сверяет с планом.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-008-FIX] Team lead -> Planner: TASK
+Approved by the user. Write the spec `docs/tasks/TASK-008-FIX.md` and hand it to the Coder.
+
+## Context
+Fix task for small defects found in TASK-008 (commit caf7601) by the Reviewer and by the Team lead's 360 px browser check (screenshots: `docs/process/screenshots/2026-11-15_23..26_*.jpg`). No new features. Each fix is minimal and has a regression test that fails without it (except purely visual checks, which the Team lead does at 360 px). Apply your "Feasibility check" and "Test plan" sections.
+
+## Items to fix
+1. Flaky test (Reviewer; also the unidentified one-off failure of 2026-11-14).
+   `schedule/tests/test_views.py:182` `test_staff_group_list_scoped` asserts `assertNotIn("GY", content)` on the whole page. The page contains a random 64-character CSRF token, which contains "GY" in about 1.5% of runs (seen twice on 2026-11-15, e.g. token `...F4cGYD6...`).
+   - Assert on precise markup or on `response.context` instead (e.g. the group URL `/staff/schedule/<pk>/`, or the group name inside its element), so a random token can never match.
+   - Sweep ALL tests for the same pattern: `assertIn`/`assertNotIn`/`assertContains`/`assertNotContains` with a short (<= 4 characters) or token-like needle on a full HTML page. List every hit in the spec with a verdict (safe / fix) and fix the unsafe ones the same way.
+   - Test: the fixed assertion must still fail when the group IS listed (mutation check described in the spec). Optionally prove the old flakiness is gone, e.g. a test that forces a CSRF token containing the needle - only if it is simple.
+2. Landmark label "Лестница" touches the cell borders at 360 px (screenshot 2026-11-15_23).
+   Landmark labels must fit inside their cell with visible padding at 360 px on every floor (the longest labels: "Лестница", "Библиотека", "Столовая", "Деканат"). Fix it in the map geometry/CSS (e.g. a smaller landmark label size, `textLength`/`lengthAdjust`, or padding) - choose and justify. Room numbers keep their current size. Test: whatever can be asserted on the rendered SVG (e.g. the label size attribute/class); the Team lead checks visually.
+3. Student navigation takes 4 lines at 360 px (7 links + "Выйти"; staff: 6 + "Выйти").
+   Make the header compact on narrow screens WITHOUT JavaScript:
+   - Below the existing `48rem` breakpoint the nav collapses into a "Меню" disclosure (`<details>`/`<summary>` or an equivalent no-JS pattern - choose and justify); at `48rem` and wider the full nav stays visible inline as now.
+   - The unread counter must stay visible without opening the menu (e.g. "Уведомления (N)" or the count next to "Меню"), because it is the main signal for the student.
+   - At 360 px the closed header (site title + menu control) takes at most 2 lines; the open menu lists every item, one per line, with comfortable tap targets; "Выйти" stays a POST form with CSRF.
+   - Accessible: the control has a clear name, works with the keyboard, the current page link is marked (`aria-current="page"`) if that is simple.
+   - Same behaviour for students, staff and the superuser; anonymous pages unchanged.
+   - Tests: markup of the disclosure for each role, the badge outside the collapsed part, the logout form still POST + CSRF, nav items unchanged per role; CSS rule test in `core/tests/test_css.py` style. The Team lead checks 360 px and a wide screen visually.
+
+## Not in this task (user decision)
+- The room list under the map (small, tightly packed numbers): goes to the UI stage after the deploy.
+- Map zoom: not now (pinch zoom already works); a possible "+/-" server-side zoom is an idea for the UI stage.
+
+## Out of scope
+New features, the visual pixel-art theme, chat (TASK-009).
+
+## Verification
+All existing verification commands pass (check, deploy check, makemigrations --check, test with the output saved to a file - run the full suite at least 3 times to confirm the flaky test is gone, `scripts/run_tests_at.py` at a Moscow midnight boundary, ruff only on the task files, CI YAML), `seed_demo` twice on a temporary database and temporary PRIVATE_MEDIA_ROOT. The Team lead checks the header (student, staff; menu closed and open) and every map floor at 360 px.
+
+── Ran 4 commands, explored 1 file ─────────────────────────
+  ── Ran git status --short && git log --oneline -3 && sed -n 170,190p schedule/tests/test_views.py && cat templates/base.html | sed -n 1,50p && cat campusmap/layout.py | head -80
+    $ git status --short && git log --oneline -3 && sed -n 170,190p schedule/tests/test_views.py && cat templates/base.html | sed -n 1,50p && cat campusmap/layout.py | head -80
+    M plan.md
+    caf7601 TASK-008: room map with floors, landmarks and schedule links
+    f5fce7f Coder: enable OpenCode pruning of old tool outputs
+    bf09738 TASK-007-FIX: home news without shown deadlines, audience labels, no-break initials, project clock for petitions
+                "/staff/schedule/",
+                f"/staff/schedule/{self.group_x1.pk}/",
+                f"/staff/schedule/{self.group_x1.pk}/2026-11-16/",
+            ]:
+                with self.subTest(url=url):
+                    self.assertEqual(self.client.get(url).status_code, 403)
+
+        def test_staff_group_list_scoped(self):
+            self.client.force_login(self.staff_x)
+            content = self.client.get("/staff/schedule/").content.decode()
+            self.assertIn("GX1", content)
+            self.assertIn("GX2", content)
+            self.assertNotIn("GY", content)
+
+        def test_staff_group_week_own_faculty(self):
+            self.client.force_login(self.staff_x)
+            response = self.client.get(f"/staff/schedule/{self.group_x1.pk}/2026-11-16/")
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(self.d1.name, response.content.decode())
+
+        def test_staff_other_faculty_group_404(self):
+    {% load static notifications_tags %}<!doctype html>
+    <html lang="ru">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>{% block title %}Цифровой деканат будущего{% endblock %}</title>
+      <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+      <link rel="stylesheet" href="{% static 'css/base.css' %}">
+      <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+      {% block extra_head %}{% endblock %}
+    </head>
+    <body>
+      <a class="skip-link" href="#main">Перейти к содержимому</a>
+      <header class="site-header">
+        <a class="site-title" href="{% url 'core:home' %}">Цифровой деканат будущего</a>
+        <nav class="site-nav" aria-label="Основная навигация">
+          {% block nav %}
+          {% if user.is_authenticated %}
+          <ul class="site-nav-list">
+            <li><a href="{% url 'accounts:profile' %}">Профиль</a></li>
+            {% if user.is_student %}
+            <li><a href="{% url 'schedule:today' %}">Расписание</a></li>
+            <li><a href="{% url 'campusmap:map' %}">Карта</a></li>
+            <li><a href="{% url 'academics:my_grades' %}">Успеваемость</a></li>
+            <li><a href="{% url 'petitions:my_list' %}">Заявки</a></li>
+            {% notifications_badge as badge %}
+            <li><a href="{% url 'notifications:feed' %}">Уведомления{% if badge %} ({{ badge }}){% endif %}</a></li>
+            {% elif user.is_deanery_staff %}
+            <li><a href="{% url 'schedule:staff_groups' %}">Расписание</a></li>
+            <li><a href="{% url 'campusmap:map' %}">Карта</a></li>
+            <li><a href="{% url 'petitions:staff_queue' %}">Заявки</a></li>
+            <li><a href="{% url 'notifications:staff_announcements' %}">Объявления</a></li>
+            {% endif %}
+            {% if user.is_deanery_staff %}
+            <li><a href="{% url 'accounts:staff_student_list' %}">Студенты</a></li>
+            {% endif %}
+            <li>
+              <form class="site-nav-logout" method="post" action="{% url 'accounts:logout' %}">
+                {% csrf_token %}
+                <button type="submit">Выйти</button>
+              </form>
+            </li>
+          </ul>
+          {% endif %}
+          {% endblock %}
+        </nav>
+      </header>
+      <main id="main" class="site-main">
+        {% if messages %}
+        <ul class="messages">
+    """Geometry for the schematic building plan. All values are integers."""
+
+    from collections.abc import Sequence
+    from dataclasses import dataclass
+
+    from university.building import blocked_cells, landmarks_on
+    from university.models import Room
+
+    VIEWBOX_WIDTH = 400
+    VIEWBOX_HEIGHT = 240
+    ROOM_LABEL_SIZE = 20  # user units, see D6
+    LANDMARK_LABEL_SIZE = 15
+    CELL_WIDTH = 72
+    CELL_HEIGHT = 80
+    COLUMN_X = {1: 12, 2: 88, 3: 164, 4: 240, 5: 316}
+    ROW_Y = {"N": 12, "S": 148}
+
+
+    @dataclass(frozen=True)
+    class Rect:
+        x: int
+        y: int
+        width: int
+        height: int
+
+        @property
+        def cx(self) -> int:
+            return self.x + self.width // 2
+
+        @property
+        def cy(self) -> int:
+            return self.y + self.height // 2
+
+
+    OUTLINE = Rect(4, 4, 392, 232)
+    CORRIDOR = Rect(12, 96, 376, 48)
+
+
+    @dataclass(frozen=True)
+    class MapShape:
+        kind: str  # "room" | "landmark"
+        label: str  # room number or landmark label
+        rect: Rect
+        is_current: bool = False
+
+
+    @dataclass(frozen=True)
+    class FloorPlan:
+        floor: int
+        width: int
+        height: int
+        outline: Rect
+        corridor: Rect
+        shapes: list[MapShape]
+
+
+    def cell_rect(cell: str) -> Rect:
+        row, col = cell[0], int(cell[1:])
+        return Rect(COLUMN_X[col], ROW_Y[row], CELL_WIDTH, CELL_HEIGHT)
+
+
+    def span_rect(cells: Sequence[str]) -> Rect:
+        rects = [cell_rect(c) for c in cells]
+        x = min(r.x for r in rects)
+        y = rects[0].y
+        width = max(r.x + r.width for r in rects) - x
+        return Rect(x, y, width, CELL_HEIGHT)
+
+
+    def floor_plan(floor: int, rooms: Sequence[Room], current: Room | None) -> FloorPlan:
+        blocked = blocked_cells(floor)
+        landmark_shapes = [
+            MapShape("landmark", lm.label, span_rect(lm.cells)) for lm in landmarks_on(floor)
+        ]
+        room_shapes = [
+            MapShape(
+                "room",
+                room.number,
+                cell_rect(room.map_cell),
+                is_current=current is not None and room.pk == current.pk,
+  ── Thought for 6s
+    I'm going through every test that checks for a short, token-like string in full page content, since Django's CSRF tokens are 64 alphanumeric characters and show up in every form and in the logout form in the nav of each authenticated page.
+
+    I'm now checking whether the 64-character CSRF token in every authenticated page could falsely match short alphanumeric needles in these tests. The odds are roughly 1.6% for two-character needles, about 0.03% for three, and negligible for four or more. I'll write a script to list every assertIn/assertNotIn/assertContains call with a short or alphanumeric literal and then judge each against the page content.
+  ── Ran cat > "$TMPDIR/sweep.py" <<'EOF' import ast, pathlib, re, sys NAMES = {"assertIn", "assertNotIn", "assertContains", "assertNotContains"} TOKENISH = re.compile(r"^[A-Za-z0-9]+$") rows = [] for path in sorted(pathlib.Path(".").glob("*/tests/test_*.py")):     src = path.read_text(encoding="utf-8")     tree = ast.parse(src)     lines = src.splitlines()     for node in ast.walk(tree):         if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr in NAMES and node.args:             name = node.func.attr             needle_node = node.args[1] if name in ("assertContains", "assertNotContains") else node.args[0]             hay = node.args[0] if name in ("assertContains", "assertNotContains") else (node.args[1] if len(node.args) > 1 else None)             if isinstance(needle_node, ast.Constant) and isinstance(needle_node.value, str):                 needle = needle_node.value; kind = "lit"             elif isinstance(needle_node, ast.JoinedStr):                 needle = ast.unparse(needle_node); kind = "fstr"             else:                 continue             literal = needle if kind == "lit" else "".join(v.value for v in needle_node.values if isinstance(v, ast.Constant))             risky = (kind == "lit" and (len(needle) <= 4 or TOKENISH.match(needle))) or (kind == "fstr" and len(literal) <= 4)             if risky:                 rows.append((str(path), node.lineno, name, needle, ast.unparse(hay) if hay is not None else "?")) for r in rows:     print(f"{r[0]}:{r[1]} {r[2]}({r[3]!r}, {r[4]})") print(len(rows), "hits", file=sys.stderr) EOF source .venv/bin/activate && python "$TMPDIR/sweep.py" (2s)
+    $ cat > "$TMPDIR/sweep.py" <<'EOF'
+  import ast, pathlib, re, sys
+  NAMES = {"assertIn", "assertNotIn", "assertContains", "assertNotContains"}
+  TOKENISH = re.compile(r"^[A-Za-z0-9]+$")
+  rows = []
+  for path in sorted(pathlib.Path(".").glob("*/tests/test_*.py")):
+      src = path.read_text(encoding="utf-8")
+      tree = ast.parse(src)
+      lines = src.splitlines()
+      for node in ast.walk(tree):
+          if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr in NAMES and node.args:
+              name = node.func.attr
+              needle_node = node.args[1] if name in ("assertContains", "assertNotContains") else node.args[0]
+              hay = node.args[0] if name in ("assertContains", "assertNotContains") else (node.args[1] if len(node.args) > 1 else None)
+              if isinstance(needle_node, ast.Constant) and isinstance(needle_node.value, str):
+                  needle = needle_node.value; kind = "lit"
+              elif isinstance(needle_node, ast.JoinedStr):
+                  needle = ast.unparse(needle_node); kind = "fstr"
+              else:
+                  continue
+              literal = needle if kind == "lit" else "".join(v.value for v in needle_node.values if isinstance(v, ast.Constant))
+              risky = (kind == "lit" and (len(needle) <= 4 or TOKENISH.match(needle))) or (kind == "fstr" and len(literal) <= 4)
+              if risky:
+                  rows.append((str(path), node.lineno, name, needle, ast.unparse(hay) if hay is not None else "?"))
+  for r in rows:
+      print(f"{r[0]}:{r[1]} {r[2]}({r[3]!r}, {r[4]})")
+  print(len(rows), "hits", file=sys.stderr)
+  EOF
+  source .venv/bin/activate && python "$TMPDIR/sweep.py"
+    28 hits
+    academics/tests/test_models.py:614 assertNotIn('late', AttendanceStatus.values)
+    accounts/tests/test_models.py:54 assertNotIn('  ', self.profile.full_name)
+    accounts/tests/test_views.py:176 assertIn('<li>', full_content)
+    campusmap/tests/test_layout.py:90 assertNotIn('101', [s.label for s in plan.shapes if s.kind == 'room'])
+    campusmap/tests/test_layout.py:95 assertNotIn('101', [s.label for s in plan.shapes if s.kind == 'room'])
+    campusmap/tests/test_layout.py:100 assertNotIn('201', [s.label for s in plan.shapes if s.kind == 'room'])
+    campusmap/tests/test_views.py:181 assertNotIn('personal', content)
+    core/tests/test_views.py:33 assertIn('<nav', content)
+    notifications/tests/test_views.py:49 assertIn('faculty', choices)
+    notifications/tests/test_views.py:115 assertIn('deadline', form.errors)
+    notifications/tests/test_views.py:467 assertIn('<br>', content)
+    notifications/tests/test_views.py:557 assertIn('x', response.content.decode())
+    petitions/tests/test_views.py:199 assertIn('errorlist', resp.content.decode())
+    schedule/tests/test_revalidation.py:117 assertIn('G2', messages)
+    schedule/tests/test_validation.py:35 assertIn('GA', ' '.join(cm.exception.messages))
+    schedule/tests/test_validation.py:41 assertIn('101', ' '.join(cm.exception.messages))
+    schedule/tests/test_validation.py:48 assertIn('GB', messages)
+    schedule/tests/test_validation.py:49 assertNotIn('GA', messages)
+    schedule/tests/test_validation.py:258 assertIn('reason', cm.exception.message_dict)
+    schedule/tests/test_views.py:180 assertIn('GX1', content)
+    schedule/tests/test_views.py:181 assertIn('GX2', content)
+    schedule/tests/test_views.py:182 assertNotIn('GY', content)
+    schedule/tests/test_views.py:341 assertIn('<del', content)
+    schedule/tests/test_views.py:342 assertIn('<ins', content)
+    schedule/tests/test_views.py:343 assertIn('205', content)
+    schedule/tests/test_views.py:344 assertIn('101', content)
+    university/tests/test_models.py:79 assertIn('number', ctx.exception.message_dict)
+    university/tests/test_models.py:91 assertIn('floor', ctx.exception.message_dict)
+  ── Thought for 10s
+    I'm checking whether the sweep misses needles that come in through variables, like group names, primary keys, and usernames. Short alphanumeric usernames such as "bx" could appear as substrings in the content and cause roughly a 1.6% flake rate, so I need to sweep non-literal needles too.
+
+    I'm going to build a runtime check rather than try to evaluate these needles statically. The plan is to patch the assertIn, assertNotIn, assertContains, and assertNotContains methods during a full test run, logging any short alphanumeric needles checked against HTML or CSRF-bearing content, along with the caller's file and line.
+
+    I'm thinking about the UUID case now: a 3-digit needle has about a 0.7% chance of matching inside a 32-character hex UUID, so assertNotIn checks on pages containing UUIDs could flake. I'll extend the instrumentation to also record short hex-like needles on large page-sized haystacks, then judge each hit for whether it could match random page content. assertIn hits are a separate risk, since a chance match there would mask a real failure rather than cause a flaky one.
+  ── Ran cat > "$TMPDIR/hang/run_instrumented.py" <<'EOF' """Run the suite and record page assertions whose needle could match random page content.""" import json, os, re, sys, traceback, unittest sys.path.insert(0, os.getcwd()) os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings") import django from django.conf import settings from django.test import SimpleTestCase from django.test.utils import get_runner RISKY = re.compile(r"^[A-Za-z0-9_-]{1,8}$") RECORDS = [] def where():     for fr in reversed(traceback.extract_stack()[:-2]):         if "/tests/test_" in fr.filename and ".venv" not in fr.filename:             return f"{os.path.relpath(fr.filename)}:{fr.lineno}"     return "?" def record(kind, needle, hay):     if isinstance(hay, bytes):         hay = hay.decode("utf-8", "replace")     if isinstance(needle, str) and isinstance(hay, str) and len(hay) > 300 and RISKY.match(needle):         RECORDS.append({"at": where(), "kind": kind, "needle": needle,                         "csrf": "csrfmiddlewaretoken" in hay,                         "uuid": bool(re.search(r"[0-9a-f]{8}-[0-9a-f]{4}-", hay))}) orig_in, orig_not_in = unittest.TestCase.assertIn, unittest.TestCase.assertNotIn def p_in(self, member, container, msg=None):     record("assertIn", member, container); return orig_in(self, member, container, msg) def p_not_in(self, member, container, msg=None):     record("assertNotIn", member, container); return orig_not_in(self, member, container, msg) unittest.TestCase.assertIn, unittest.TestCase.assertNotIn = p_in, p_not_in orig_c, orig_nc = SimpleTestCase.assertContains, SimpleTestCase.assertNotContains def p_c(self, response, text, *a, **k):     record("assertContains", text, getattr(response, "content", b"")); return orig_c(self, response, text, *a, **k) def p_nc(self, response, text, *a, **k):     record("assertNotContains", text, getattr(response, "content", b"")); return orig_nc(self, response, text, *a, **k) SimpleTestCase.assertContains, SimpleTestCase.assertNotContains = p_c, p_nc django.setup() failures = get_runner(settings)(verbosity=1).run_tests(sys.argv[1:]) uniq = {} for r in RECORDS:     uniq.setdefault((r["at"], r["kind"], r["needle"]), r) with open(os.environ["SWEEP_OUT"], "w") as f:     json.dump(list(uniq.values()), f, ensure_ascii=False, indent=0) sys.exit(1 if failures else 0) EOF source .venv/bin/activate && export DEBUG=true SWEEP_OUT="$TMPDIR/sweep.json" && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "MSK $TS" && python "$TMPDIR/hang/run_instrumented.py" > "$TMPDIR/test-$TS-t008fix-sweep.log" 2>&1; echo "exit $?"; grep -E "^Ran|^OK|^FAILED" "$TMPDIR/test-$TS-t008fix-sweep.log"; python3 -c " import json; rows=json.load(open('$TMPDIR/sweep.json')) rows.sort(key=lambda r:(r['at'])) for r in rows: print(r['at'], r['kind'], repr(r['needle']), 'csrf' if r['csrf'] else '-', 'uuid' if r['uuid'] else '-') print(len(rows))" (2m 6s)
+    $ cat > "$TMPDIR/hang/run_instrumented.py" <<'EOF'
+  """Run the suite and record page assertions whose needle could match random page content."""
+  import json, os, re, sys, traceback, unittest
+  sys.path.insert(0, os.getcwd())
+  os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
+  import django
+  from django.conf import settings
+  from django.test import SimpleTestCase
+  from django.test.utils import get_runner
+
+  RISKY = re.compile(r"^[A-Za-z0-9_-]{1,8}$")
+  RECORDS = []
+
+  def where():
+      for fr in reversed(traceback.extract_stack()[:-2]):
+          if "/tests/test_" in fr.filename and ".venv" not in fr.filename:
+              return f"{os.path.relpath(fr.filename)}:{fr.lineno}"
+      return "?"
+
+  def record(kind, needle, hay):
+      if isinstance(hay, bytes):
+          hay = hay.decode("utf-8", "replace")
+      if isinstance(needle, str) and isinstance(hay, str) and len(hay) > 300 and RISKY.match(needle):
+          RECORDS.append({"at": where(), "kind": kind, "needle": needle,
+                          "csrf": "csrfmiddlewaretoken" in hay,
+                          "uuid": bool(re.search(r"[0-9a-f]{8}-[0-9a-f]{4}-", hay))})
+
+  orig_in, orig_not_in = unittest.TestCase.assertIn, unittest.TestCase.assertNotIn
+  def p_in(self, member, container, msg=None):
+      record("assertIn", member, container); return orig_in(self, member, container, msg)
+  def p_not_in(self, member, container, msg=None):
+      record("assertNotIn", member, container); return orig_not_in(self, member, container, msg)
+  unittest.TestCase.assertIn, unittest.TestCase.assertNotIn = p_in, p_not_in
+  orig_c, orig_nc = SimpleTestCase.assertContains, SimpleTestCase.assertNotContains
+  def p_c(self, response, text, *a, **k):
+      record("assertContains", text, getattr(response, "content", b"")); return orig_c(self, response, text, *a, **k)
+  def p_nc(self, response, text, *a, **k):
+      record("assertNotContains", text, getattr(response, "content", b"")); return orig_nc(self, response, text, *a, **k)
+  SimpleTestCase.assertContains, SimpleTestCase.assertNotContains = p_c, p_nc
+
+  django.setup()
+  failures = get_runner(settings)(verbosity=1).run_tests(sys.argv[1:])
+  uniq = {}
+  for r in RECORDS:
+      uniq.setdefault((r["at"], r["kind"], r["needle"]), r)
+  with open(os.environ["SWEEP_OUT"], "w") as f:
+      json.dump(list(uniq.values()), f, ensure_ascii=False, indent=0)
+  sys.exit(1 if failures else 0)
+  EOF
+  source .venv/bin/activate && export DEBUG=true SWEEP_OUT="$TMPDIR/sweep.json" && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "MSK $TS" && python "$TMPDIR/hang/run_instrumented.py" > "$TMPDIR/test-$TS-t008fix-sweep.log" 2>&1; echo "exit $?"; grep -E "^Ran|^OK|^FAILED" "$TMPDIR/test-$TS-t008fix-sweep.log"; python3 -c "
+  import json; rows=json.load(open('$TMPDIR/sweep.json'))
+  rows.sort(key=lambda r:(r['at']))
+  for r in rows: print(r['at'], r['kind'], repr(r['needle']), 'csrf' if r['csrf'] else '-', 'uuid' if r['uuid'] else '-')
+  print(len(rows))"
+    MSK 20261115-182047
+    exit 0
+    Ran 817 tests in 124.395s
+    OK
+    accounts/tests/test_views.py:115 assertIn 'REC-A' csrf -
+    accounts/tests/test_views.py:87 assertIn 'REC-A' csrf -
+    accounts/tests/test_views.py:89 assertNotIn 'REC-B' csrf -
+    accounts/tests/test_views.py:90 assertNotIn 'REC-C' csrf -
+    campusmap/tests/test_views.py:181 assertNotIn 'personal' csrf -
+    notifications/tests/test_views.py:557 assertIn 'x' csrf -
+    petitions/tests/test_views.py:100 assertNotIn '84468ccb' csrf uuid
+    petitions/tests/test_views.py:103 assertIn '84468ccb' csrf uuid
+    petitions/tests/test_views.py:104 assertNotIn '7cd452b9' csrf uuid
+    petitions/tests/test_views.py:366 assertIn '0b437d1d' csrf uuid
+    petitions/tests/test_views.py:367 assertNotIn '26b2ad0b' csrf uuid
+    petitions/tests/test_views.py:375 assertIn '7f0f9cad' csrf uuid
+    petitions/tests/test_views.py:376 assertIn '59dbb0b4' csrf uuid
+    petitions/tests/test_views.py:385 assertIn '521fdf80' csrf uuid
+    petitions/tests/test_views.py:386 assertNotIn '46075039' csrf uuid
+    petitions/tests/test_views.py:392 assertIn 'd46fb22e' csrf uuid
+    petitions/tests/test_views.py:405 assertIn 'GX' csrf uuid
+    petitions/tests/test_views.py:51 assertIn 'c38fc4c6' csrf uuid
+    petitions/tests/test_views.py:52 assertNotIn '98bc84d0' csrf uuid
+    petitions/tests/test_views.py:53 assertNotIn 'f8bbc3f4' csrf uuid
+    petitions/tests/test_views.py:98 assertIn '7cd452b9' csrf uuid
+    petitions/tests/test_views.py:99 assertIn 'e6ad3f9a' csrf uuid
+    schedule/tests/test_views.py:180 assertIn 'GX1' csrf -
+    schedule/tests/test_views.py:181 assertIn 'GX2' csrf -
+    schedule/tests/test_views.py:182 assertNotIn 'GY' csrf -
+    schedule/tests/test_views.py:343 assertIn '205' csrf -
+    schedule/tests/test_views.py:344 assertIn '101' csrf -
+    27
+  ── Thought for 15s
+    The test count is up to 817 after TASK-008. I'm weighing whether the instrumented needles, which only captured up to 8 alphanumeric or -_ characters, should include longer token-like needles too. An 8-character hex short_id matching a 64-character alphanumeric token is about 2.6e-13 likely, so that's negligible. Matching other UUIDs on the page with an 8-hex needle comes to roughly 6e-9 per UUID.
+
+    The 'x' assertion passes no matter what, since nearly any page contains an x, so this test hides a bug instead of catching it. I'd tighten it to check the errorlist markup or the form's non-field errors directly. The 'personal' needle is a literal word, so I still need to check line 181 to see what it's guarding.
+
+    I'm checking the remaining needles against the rule: assertNotIn is unsafe if a chance match is likely enough to flake the run, and assertIn is unsafe if the needle is short enough to pass silently. The 'GY' assertNotIn has about a 1.6% chance of matching, so it needs a fix. The 'GX1' and 'GX2' assertIns are weak, with roughly a 2.6e-4 chance of a spurious pass, so I'll fix them alongside the others by checking URLs or context instead.
+
+    I'm still checking the petitions assertIn at line 405 and want to see the HTML around it to know whether "GX" sits in a real element or just in a group name. I also need to look at what the 'personal' needle is guarding, since its chance of matching is essentially zero. The UUID short-ID and REC-A needles look safe, and the static-sweep hits that aren't on rendered pages can be skipped. The one remaining question is the `<li>` assertion at line 176, which I think is fine because a '<' can't appear in a token.
+
+    Checking the remaining static hits on rendered pages: the `<li>` assertion near line 176 looks like a markup check, and the `<nav` and `<br>` checks look structural. The petitions `errorlist` and the schedule `<del>`/`<ins>` matches seem specific enough to keep.
+
+    I'm going to look at the surrounding code for the accounts, notifications, petitions, campus map, and schedule assertions, so I can judge the remaining hits in context.
+  ── Ran for spec in accounts/tests/test_views.py:168:178 notifications/tests/test_views.py:458:468 notifications/tests/test_views.py:548:558 petitions/tests/test_views.py:192:200 petitions/tests/test_views.py:396:406 campusmap/tests/test_views.py:172:182 schedule/tests/test_views.py:326:345; do IFS=: read f a b <<< "$spec"; echo "=== $f:$a-$b"; sed -n "${a},${b}p" "$f"; done
+    $ for spec in accounts/tests/test_views.py:168:178 notifications/tests/test_views.py:458:468 notifications/tests/test_views.py:548:558 petitions/tests/test_views.py:192:200 petitions/tests/test_views.py:396:406 campusmap/tests/test_views.py:172:182 schedule/tests/test_views.py:326:345; do IFS=: read f a b <<< "$spec"; echo "=== $f:$a-$b"; sed -n "${a},${b}p" "$f"; done
+    === accounts/tests/test_views.py:168-178
+            self.client.force_login(empty_staff)
+            empty_content = self.client.get(reverse("accounts:staff_student_list")).content.decode()
+            self.assertIn("<p>Студентов нет.</p>", empty_content)
+            self.assertNotIn('class="student-list"', empty_content)
+
+            self.client.force_login(self.staff_x)
+            full_content = self.client.get(reverse("accounts:staff_student_list")).content.decode()
+            self.assertIn('<ul class="student-list">', full_content)
+            self.assertIn("<li>", full_content)
+    === notifications/tests/test_views.py:458-468
+            response = self._get()
+            self.assertIn("Уведомлений за последние 30 дней нет.", response.content.decode())
+
+        def test_body_escaped_and_line_breaks_kept(self):
+            make_announcement(
+                self.w.sx, audience=Audience.UNIVERSITY, body="<b>жирный</b>\nвторая строка"
+            )
+            content = self._get().content.decode()
+            self.assertIn("&lt;b&gt;жирный&lt;/b&gt;", content)
+            self.assertIn("<br>", content)
+            self.assertNotIn("<b>жирный", content)
+    === notifications/tests/test_views.py:548-558
+        def test_service_error_shown_as_form_error(self):
+            with mock.patch(
+                "notifications.views.create_announcement",
+                side_effect=__import__(
+                    "django.core.exceptions", fromlist=["ValidationError"]
+                ).ValidationError("x"),
+            ):
+                response = self._post({"title": "Заголовок", "body": "Текст", "target": "faculty"})
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("x", response.content.decode())
+
+    === petitions/tests/test_views.py:192-200
+            self.assertLessEqual(content.count(hint), 1)
+            self.assertNotIn('class="hint"', content)
+
+        def test_required_comment_missing_shows_error(self):
+            self.client.force_login(self.student.user)
+            resp = self.client.post(self.req_url, {"comment": ""})
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("errorlist", resp.content.decode())
+            self.assertEqual(Petition.objects.count(), 0)
+    === petitions/tests/test_views.py:396-406
+            self.client.force_login(self.staff)
+            resp = self.client.get(reverse("petitions:staff_queue"))
+            self.assertIn("Заявок нет", resp.content.decode())
+
+        def test_detail_shows_student_info_and_actions(self):
+            self.client.force_login(self.staff)
+            resp = self.client.get(reverse("petitions:staff_detail", args=[self.p_old.public_id]))
+            content = resp.content.decode()
+            self.assertIn(self.student.full_name, content)
+            self.assertIn(self.student.group.name, content)
+            self.assertIn("Взять в работу", content)
+    === campusmap/tests/test_views.py:172-182
+                )
+            ]
+            self.assertNotIn(" width=", svg_tag)
+            self.assertNotIn(" height=", svg_tag)
+
+        def test_no_personal_data(self):
+            student = make_student("personal", self.group, "REC-P")
+            self.client.force_login(student)
+            content = self.client.get("/map/").content.decode()
+            self.assertNotIn("personal", content)
+            self.assertNotIn("personal-last", content)
+    === schedule/tests/test_views.py:326-345
+        def test_change_rendering(self):
+            self.client.force_login(self.student)
+            content = self.client.get("/schedule/week/2026-11-16/").content.decode()
+            self.assertIn("Отменено", content)
+            self.assertIn("Перенесено на", content)
+            self.assertIn("Перенесено с", content)
+            self.assertIn("Замена аудитории", content)
+            self.assertIn("Замена преподавателя", content)
+            for reason in (
+                "Преподаватель на конференции",
+                "Перенос по просьбе",
+                "Ремонт в аудитории",
+                "Болезнь преподавателя",
+            ):
+                self.assertIn(reason, content)
+            self.assertIn("<del", content)
+            self.assertIn("<ins", content)
+            self.assertIn("205", content)  # new room number
+            self.assertIn("101", content)  # old room number
+            self.assertIn("Лебедев", content)
+  ── Thought for 1m 28s
+    I'm going through the accounts hit on the '<li>' check. The nav always contains an <li>, so the assertion would pass no matter what, which makes it a weak check, though not a flaky one. I'm weighing whether to tighten it by checking the student list or the response context's student count, but that might be more than this audit needs.
+
+    I'm settling on a fix for the notifications check at line 557: asserting the exact `<li>x</li>` inside Django's non-field errorlist, which won't match by accident.
+
+    I'm checking the remaining hits one by one: the petitions 'errorlist' check is safe because that markup is deterministic and won't appear by chance. The petitions 405 check on the group name 'GX' is weak, since a two-character name could match by accident, so I need to look at the staff detail template to assert the exact group markup. The campusmap 'personal' check looks safe, since nothing else on the page would contain that word. The schedule checks on '205' and '101' also need tightening into exact matches.
+
+    I'm planning to replace the schedule room checks with exact markup matches, using `data-room-code="room-205"` and the full `<del class="room" ...>` tag for room 101. For the group checks at lines 180-182, I'm switching to the group-week URLs, confirming GX1 and GX2 are present and GY1 is absent, and comparing the context's groups list as a set.
+
+    I'm working out how to check that the group list only shows the groups a staff member can see. I'll assert on the `href="/staff/schedule/{pk}/"` links, including the closing quote so pk 1 doesn't match pk 12, and also compare the context's groups as a set. I'm also thinking about a mutation check, so I can confirm the test actually fails if a hidden group leaks into the list.
+
+    I'm thinking about a mutation test: patching the view's group visibility helper to return every group, then checking that the exact group-link needle catches the leak. Patching the CSRF token is a dead end, since the rendered token is masked with a random value and I can't control it.
+
+    I'm considering patching the CSRF masking helper so the rendered token contains "GY", and checking whether that function is what the csrf template tag actually calls in Django 5.2. If the patch holds, the scoped assertions should still pass with "GY" present in the page.
+
+    I'm weighing two ways to keep the landmark labels inside their cells. Shrinking the font to fit would drop it below a readable size, so that option is out. I'm looking at whether `textLength` with `lengthAdjust` could squeeze the label to the available width instead.
+
+    I'm weighing ways to keep the landmark label "Лестница" inside its cell: shrinking the font would push it below a readable size, so I'm looking at `textLength` with `lengthAdjust="spacingAndGlyphs"` to compress it only when it would overflow, or alternatively changing the label or the cell geometry.
+
+    I'm weighing ways to keep the landmark label "Лестница" inside its cell. Shrinking the font much further would hurt readability, so I'm considering `textLength` with `lengthAdjust` to condense only the overflowing text, or shortening the label altogether.
+
+    I'm considering drawing the stairs landmark as a stair-step icon with "Лестница" moved into the legend, since that cell is too narrow for the full label. The other landmark labels already fit their cells with padding, so only this one is a problem.
+
+    I'm settling on `textLength` with `lengthAdjust="spacingAndGlyphs"` for the landmark label, applied only when the estimated width would overflow its cell. That keeps the font at 15 while guaranteeing the label fits whatever font the phone renders with, without any JavaScript.
+
+    I'm going with the fit check: the stair label is only clamped with textLength when its estimated width overflows the cell, so the other landmarks keep their natural spacing.
+
+    I'm going to cap the landmark label's width: a 0.65em-per-character estimate tells me when "Лестница" would overflow its cell's padded width, and only then do I set a textLength so the browser compresses the glyphs to fit.
+
+    I'm planning the layout tests: checking that every landmark label either fits its padded cell or gets the clamp width, that the stairs label carries the 56-unit textLength, that "Вход" and room labels stay unclamped, and that the rendered SVG includes the attribute. I'll also tighten the existing label-fit test to account for that padding.
+
+    I'm working out a no-JavaScript nav for small screens, where a `<details>` menu would collapse the links behind a "Меню" summary. The catch is that closed `<details>` content can't be reliably forced visible from CSS across browsers, so I'm looking at other patterns, starting with two separate navs.
+
+    I'm comparing two ways to make the mobile menu work without JavaScript: a `<details>` menu that hides the links behind a "Меню" summary, or a separate mobile `<details>` menu alongside a full wide-screen list. The `<details>` route is unreliable because closed content can't be forced visible from CSS across browsers. I'm now checking whether duplicating the logout form would also duplicate the CSRF token, since `get_token` may mask the value differently on each call.
+
+    I'm checking the checkbox-based toggle as an alternative: it works with CSS alone, but a screen reader would announce it as a checkbox rather than a menu button, so the accessibility is poor. I'm also weighing a `<details open>` menu that stays expanded everywhere, which avoids the closed-content problem altogether.
+
+    I'm weighing whether `<details>` can work as a mobile-only menu: closed content is hidden by the browser's shadow DOM, so CSS can't simply force it visible on wide screens. Newer `::details-content` support could help, but browser coverage is uneven, so I'm still looking for a more reliable pattern.
+
+    I'm weighing whether `<details>` can be relied on for a mobile-only menu, since its closed content is hidden by the browser and CSS can't always override that. Rather than depend on newer browser support I can't verify here, I'm leaning toward duplicating the nav markup in a shared include, so the mobile and wide-screen versions both render reliably. To avoid doubling the notifications queries, I'd compute the badge once at the top of the header and pass it into both copies.
+
+    I'm weighing a single `<details>` menu against duplicating the nav, since the server can't know the screen width to set `open`. CSS-only tricks that force a closed details' content visible depend on newer browser support, so I'm leaning toward the duplicated-include approach, which works everywhere.
+
+    I'm considering a single `<details>` menu that hides its links behind a "Меню" summary on small screens and shows them everywhere else. Whether that works depends on whether `::details-content` can override the closed state, so I'm checking that before committing.
+
+    I'm weighing a dual-nav approach: one `<details>` menu for small screens and a full list for wide screens, with CSS media queries hiding whichever isn't needed. Duplicating the markup is the most reliable option without JavaScript, though it would double the nav links in the tests and the logout form. I'm considering moving the nav items into a shared include rendered twice, with the notifications badge computed once and passed in.
+
+    I'm going with the duplicated nav, since it renders the same way in every browser, and I'll note that I rejected the `::details-content` route because I can't verify its support on older phone browsers. For the unread count, I'm placing it beside the "Меню" summary so it stays visible while the menu is closed.
+
+    I'm going to put the unread badge in a separate link outside the menu, shown only on small screens, so the count stays visible while the menu is closed.
+
+    Now I'm writing the header markup: the title link, then the wide-screen nav and a compact menu, with the unread badge kept outside the menu so it stays visible.
+
+    Writing header markup and its compact menu...
+
+    Next I'm checking the CSS for the compact menu: the summary needs a tap-friendly height, the links in the open menu should stack as full-width blocks, and the wide-screen nav and compact block should swap at the breakpoint. I still need to read the existing header rules in base.css to see how `.site-nav-list` is laid out.
+
+    I'm laying out the compact header now: the unread badge as a direct link placed before the menu, with the menu itself stacking its links as full-width rows on small screens. Still working out how the open details box interacts with the badge beside it.
+
+    I'm laying out the accessibility side now: the summary works as a native disclosure for keyboard and screen-reader users, and since only one of the two navs is displayed at a time, just one landmark is exposed. I still need to decide how to mark the current page link, probably by comparing the request path inside the include.
+
+    Next I'm checking which links get marked as current: an exact path comparison covers the section roots, and the remaining edge cases are a minor concern.
+
+    I'm writing the test file for the nav: checking the structure for each role, that both nav copies list the same links, and that the logout form carries a CSRF token. I'm also adding badge checks, so the link appears only for students with unread notifications and sits outside the menu block.
+
+    I'm checking the existing tests for anything that counts nav link occurrences, since duplicating the nav could break those counts. The notifications test that looks for "Уведомления (2)" should still pass, but I still need to grep for `.count('href="/` patterns elsewhere.
+
+    I'm going to check the base.css header rules and grep for any overrides of the nav block and for tests that count nav entries, since the CSS test for the wide-screen breakpoint depends on how those rules are written.
+  ── Read static/css/base.css
+  ── Thought for 2s
+    I'm checking the other tests that count nav-like items, like the notifications count on "#news-", which looks fine. I'm also looking at the campusmap test that expects `aria-current="page"` to appear exactly once on the floor page, since adding that attribute to nav links could change that count.
+
+    I'm now considering whether the nav change affects the floor-page test, since the "Карта" link only gets aria-current on the /map/ page and not on /map/floor/2/. I'll also search the tests for any other aria-current counts and check the html files for nav block overrides.
+
+── Assistant ───────────────────────────────────────────────
+Пишу TASK-008-FIX. Сначала проверяю, какие тесты сломаются, если меню будет продублировано и появится `aria-current`.
+
+── Explored 1 search, 3 files, ran 5 commands, created 1 file
+  ── Searched for block nav in */templates
+  ── Thought for 7s
+    I'm checking which existing tests are affected by the duplicate nav. The campusmap test that counts aria-current is unaffected, since the nav link's href doesn't match the path, and the map-current count test is fine because the nav doesn't contain that string. I'm still working through the academics test that counts "<details>", since the new site-menu element has a class attribute and may not match that literal.
+
+    Still checking the remaining tests: the petitions href count is fine since the nav only has "/requests/", and the notification tests should hold because the badge text still matches. I'm also noting that the details element has to keep its class attribute so the academics count stays correct, and I'm reconsidering whether computing the badge in base.html once would avoid duplicating the query.
+
+    I'm checking the CSRF patch idea for the optional test, since the token helper calls a module-level function that can be mocked. Next I'll look at the student_list test setup in accounts and the staff detail markup in petitions to see how the group is rendered.
+  ── Read accounts/tests/test_views.py
+  ── Read accounts/templates/accounts/student_list.html
+  ── Thought for 42s
+    I'm fixing two test assertions: in accounts the check for a bare `<li>` becomes a check for the staff detail link for student_a, since that student is in group_x and staff_x is faculty, so they should be listed. In petitions I'm changing the assertion on the group name paragraph.
+
+    I'm going through the remaining fixes: in the schedule tests I'll switch the room assertions to the `room-205` link and the `room-101` deletion markup, after confirming those room codes in the test setup. I'm also checking the static-only page hits like `<nav`, `<br>`, and `errorlist`, and judging them safe.
+
+    I'm checking the remaining static-only page needles, and the `<del` and `<ins` markers in the schedule page look safe since the nav has none of them. I'm also working out that the CSRF token is the same string within one render, so the masked token is effectively one 64-character random value per page.
+
+    Now I'm working through the stairs label: its estimated width exceeds the available space, so it gets a text length of 56, while the other labels fit without adjustment. That's roughly 85% compression of its natural width, which seems acceptable. Next I want to confirm the feasibility of the remaining check.
+
+    Now I'm checking that the SVG `textLength` and `lengthAdjust` attributes are standard, which they are in SVG 1.1, though I can't render to confirm the result visually. Next is the map template's text element and updating `test_labels_fit`. For the nav, I'm planning to move the menu items into a shared include, `templates/includes/site_nav_items.html`, with the badge passed in from context and `aria-current` set where the request path matches.
+
+    I'm laying out the base header template now, starting with the site title link and a block for the nav. For logged-in users I'm loading the notifications badge for students and including a shared nav items file in both a wide nav and a compact menu.
+
+    Still writing the base header template...
+
+    I'm checking whether anonymous pages should still get an empty nav element, since the old base template rendered one. I need to grep the tests for any assertion on `<nav` on login or other anonymous pages before deciding on the structure.
+
+    I'm settling the anonymous case: the wide nav will always render, with the menu items inside only for logged-in users. The compact menu block will be limited to authenticated users. That keeps the anonymous markup close to what it was before, though I still need to check whether any test asserts on `<nav` for anonymous pages.
+
+    I'm planning the header template: the badge gets looked up first for students, then the wide nav and the compact menu both include a shared nav items file.
+
+    I'm tidying up the header template so the nav include and the notifications badge sit in the right places. The wide nav always renders, with the menu items only for logged-in users, and the compact menu is shown only to authenticated users.
+
+    Still writing the header styles...
+
+    Still writing the header styles...
+
+    Still writing the navigation tests...
+
+    Still writing the navigation tests...
+
+    Still writing the navigation tests...
+
+    Still writing the navigation tests...
+
+    Still writing the schedule test assertions...
+
+    I'm checking the CSRF masking patch, which should leave the scoped assertions intact. The unexplained one-off failure from 2026-11-14 probably has the same cause, so I'll note that. Next I'll look at the setup names in the schedule tests.
+  ── Read schedule/tests/test_views.py
+  ── Thought for 4ms
+    I'm checking which room codes the ChangeRenderingTests class uses for `cls.room` and `cls.room2`, so I'll grep for make_room calls in lines 244 to 300.
+  ── Read schedule/tests/test_views.py
+  ── Thought for 3ms
+    I'm planning the baseline verification now: running the suite a couple of times, starting it in the background with a long timeout, and writing the spec while it runs.
+  ── Ran source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t008fix-feas.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t008fix-feas-at-2359.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t008fix-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t008/fixseed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t008/fixseed-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t008/fixseed.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; echo DONE
+    $ source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t008fix-feas.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t008fix-feas-at-2359.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t008fix-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t008/fixseed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t008/fixseed-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t008/fixseed.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; echo DONE
+    Command running in background with ID: bdcf1zldu. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bdcf1zldu.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Thought
+    Базовые проверки идут в фоне, а я пишу спецификацию TASK-008-FIX для нестабильного теста, подписи на карте и компактного меню.
+  ── Created docs/tasks/TASK-008-FIX.md +291
+    --- /dev/null
+    +++ b~/hackatonproject/docs/tasks/TASK-008-FIX.md
+    +# TASK-008-FIX: random-token-safe page assertions, landmark label fit, compact header menu
+    +
+    +Author: Planner. Status: ready for implementation.
+    +Base commit: `caf7601`. Related specs: `docs/tasks/TASK-008.md` (map geometry D6), `docs/tasks/TASK-007.md` (nav badge). Screenshots: `docs/process/screenshots/2026-11-15_23..26_*.jpg`.
+    +
+    +No new features. Each fix is minimal and has a regression test that fails without it; the visual result (header at 360 px and wide, every map floor) is checked by the Team lead.
+    +
+    +---
+    +
+    +## 1. Acceptance criteria
+    +| ID | Criterion |
+    +|---|---|
+    +| AC1 | No test asserts a needle on a full HTML page that a random part of the page (CSRF token, UUIDs) can contain by chance with a probability above 1e-6 per run. `test_staff_group_list_scoped` asserts on the group URLs and on `response.context`. Every hit of the sweep (section 4.1) has a verdict; the unsafe ones are fixed. |
+    +| AC2 | The fixed scope assertion still detects a leak (automated mutation test) and is not fooled by a CSRF token that contains «GY» (automated test). |
+    +| AC3 | Every landmark label fits inside its shape with at least `LABEL_PADDING` = 8 user units on each side, on every floor, whatever font the phone uses: labels whose estimated width exceeds the available width get `textLength` = available width and `lengthAdjust="spacingAndGlyphs"`. Room numbers and label sizes are unchanged. |
+    +| AC4 | Below `48rem` the nav is a «Меню» disclosure (`<details>`/`<summary>`); at `48rem` and wider the full inline nav is shown as now. No JavaScript. |
+    +| AC5 | A student with unread notifications sees «Уведомления (N)» as a link outside the closed menu. The badge is computed once per page (3 queries, as before). |
+    +| AC6 | The menu lists the same items as the wide nav for each role (student, staff, superuser), one per line, tap targets ≥ 2.75rem; «Выйти» stays a POST form with CSRF. Links to the current page have `aria-current="page"`. Anonymous pages render as before (an empty nav, no menu). |
+    +
+    +## 2. Out of scope
+    +Room list under the map, map zoom, new features, the pixel-art theme, chat (TASK-009).
+    +
+    +## 3. Files
+    +Change only:
+    +- tests: `schedule/tests/test_views.py`, `accounts/tests/test_views.py`, `petitions/tests/test_views.py`, `notifications/tests/test_views.py`, `campusmap/tests/test_layout.py`, `campusmap/tests/test_views.py`, `core/tests/test_css.py`; new `core/tests/test_nav.py`
+    +- `campusmap/layout.py`, `campusmap/templates/campusmap/map.html`
+    +- `templates/base.html`, new `templates/includes/site_nav_items.html`, `static/css/base.css`
+    +- `README.md` (one line in "Test & lint", see 4.1.4)
+    +
+    +No models, migrations, settings or dependencies.
+    +
+    +---
+    +
+    +## 4. Fixes
+    +
+    +### 4.1 Item 1 — page assertions that a random token can match
+    +
+    +#### 4.1.1 Why it fails
+    +Every authenticated page contains the masked CSRF token (64 random characters from `[A-Za-z0-9]`, in the logout form). Probability that a fixed ASCII-alphanumeric needle of length k appears in it: k = 2 → 63/62² ≈ 1.6 %; k = 3 → 2.6e-4; k = 4 → 4.1e-6; k ≥ 5 → < 1e-7. Petition pages also contain UUIDs (hex). A needle that contains any character outside `[A-Za-z0-9]` (markup such as `href="…"`, quotes, `<`, `/`, spaces, Cyrillic) can never match the token. `assertNotIn` with a matching needle fails at random (flaky); `assertIn` passes even when the expected element is missing (hides bugs).
+    +
+    +Rule for this task and for future tests (add it to README "Test & lint", 4.1.4): an assertion on a full page uses a needle with at least one character outside `[A-Za-z0-9]` (preferably exact markup, e.g. `href="/staff/schedule/12/"`) or at least 6 ASCII alphanumerics, or asserts on `response.context`.
+    +
+    +#### 4.1.2 Sweep (done by the Planner on `caf7601`, 817 tests)
+    +Method: (a) static AST scan of all `*/tests/test_*.py` for `assertIn`/`assertNotIn`/`assertContains`/`assertNotContains` with a literal needle of ≤ 4 characters or only `[A-Za-z0-9]`; (b) a full instrumented run that recorded every such assertion with a non-literal needle too, when the needle matches `^[A-Za-z0-9_-]{1,8}$` and the haystack is a page (> 300 characters). Result:
+    +
+    +| # | Location | Assertion (needle) | Haystack | Verdict |
+    +|---|---|---|---|---|
+    +| 1 | `schedule/tests/test_views.py:182` | `assertNotIn("GY", content)` | staff group list page | **fix** (1.6 % flaky) |
+    +| 2 | `schedule/tests/test_views.py:180-181` | `assertIn("GX1"/"GX2", content)` | same page | **fix** (3 alnum; replace together with #1) |
+    +| 3 | `schedule/tests/test_views.py:343-344` | `assertIn("205"/"101", content)` | week page | **fix** (3 digits; also in dates/times) |
+    +| 4 | `notifications/tests/test_views.py:557` | `assertIn("x", content)` | staff announcements page | **fix** (always true) |
+    +| 5 | `petitions/tests/test_views.py:405` | `assertIn(self.student.group.name, content)` = «GX» | staff petition detail | **fix** (2 alnum) |
+    +| 6 | `accounts/tests/test_views.py:176` | `assertIn("<li>", full_content)` | staff student list | **fix** (always true: the nav has `<li>`) |
+    +| 7 | `petitions/tests/test_views.py:51-53, 98-104, 366-392` | short ids (8 hex, e.g. `84468ccb`) | petition pages | safe (8 alnum: < 1e-12 vs the token; < 1e-8 vs a UUID) |
+    +| 8 | `accounts/tests/test_views.py:87-90, 115` | `REC-A`, `REC-B`, `REC-C` | pages | safe (`-` and uppercase `REC` cannot occur in the token or in a hex UUID) |
+    +| 9 | `campusmap/tests/test_views.py:181` | `assertNotIn("personal", content)` | map page | safe (8 letters: < 1e-12) |
+    +| 10 | `core/tests/test_views.py:33` | `"<nav"` | home | safe (markup) |
+    +| 11 | `notifications/tests/test_views.py:467` | `"<br>"` | feed | safe (markup; `base.html` has no `<br>`) |
+    +| 12 | `petitions/tests/test_views.py:199` | `"errorlist"` | form page | safe (9 letters; rendered only with errors) |
+    +| 13 | `schedule/tests/test_views.py:341-342` | `"<del"`, `"<ins"` | week page | safe (markup) |
+    +| 14 | `academics/tests/test_models.py:614`, `accounts/tests/test_models.py:54`, `campusmap/tests/test_layout.py:90,95,100`, `notifications/tests/test_views.py:49,115`, `schedule/tests/test_revalidation.py:117`, `schedule/tests/test_validation.py:35,41,48,49,258`, `university/tests/test_models.py:79,91` | short needles | lists, dicts, error messages — not pages | safe (no random content) |
+    +
+    +#### 4.1.3 Fixes
+    +1. `schedule/tests/test_views.py::ScheduleViewsTests::test_staff_group_list_scoped`:
+    +```python
+    +response = self.client.get("/staff/schedule/")
+    +content = response.content.decode()
+    +for group in (self.group_x1, self.group_x2):
+    +    self.assertIn(f'href="/staff/schedule/{group.pk}/"', content)
+    +self.assertNotIn(f'href="/staff/schedule/{self.group_y.pk}/"', content)
+    +self.assertEqual(set(response.context["groups"]), {self.group_x1, self.group_x2})
+    +```
+    +(`schedule/templates/schedule/staff_group_list.html:7` renders `href="{% url 'schedule:staff_group_week' group.pk %}"` = `/staff/schedule/<pk>/`; the closing quote stops `/1/` from matching `/12/`.)
+    +2. `schedule/tests/test_views.py::ChangeRenderingTests::test_change_rendering`: replace `assertIn("205", content)` with `assertIn('data-room-code="room-205"', content)` and `assertIn("101", content)` with `assertIn('<del class="room" data-room-code="room-101">', content)` (rooms `room-101` / `room-205` from the class setup; markup from `lesson_item.html`). Keep the comments «new room number» / «old room number».
+    +3. `notifications/tests/test_views.py::StaffAnnouncementsViewTests::test_service_error_shown_as_form_error`: replace the last assertion with `self.assertEqual(response.context["form"].non_field_errors(), ["x"])`.
+    +4. `petitions/tests/test_views.py::StaffPagesTests::test_detail_shows_student_info_and_actions`: `assertIn(f"<p>{self.student.group.name}</p>", content)` (`staff_detail.html:6`).
+    +5. `accounts/tests/test_views.py` (the test with `full_content`, line 176): replace `assertIn("<li>", full_content)` with `assertIn(f'href="{reverse("accounts:staff_student_detail", args=[self.student_a.student_profile.pk])}"', full_content)` (`student_a` is in `group_x` of `staff_x`'s faculty).
+    +
+    +#### 4.1.4 README
+    +In "Test & lint" add one bullet: «Assertions on whole pages: use exact markup (e.g. `href="/staff/schedule/12/"`) or `response.context`; never a short alphanumeric needle — the page contains a random CSRF token.»
+    +
+    +### 4.2 Item 2 — landmark labels fit their cells (`campusmap/layout.py`, `map.html`)
+    +Decision: keep `LANDMARK_LABEL_SIZE = 15` (12.3 px at 360 px, TASK-008 D6) and clamp the rendered text length with SVG `textLength` + `lengthAdjust="spacingAndGlyphs"`. Why: the server cannot know the phone's font metrics; `textLength` makes the browser scale the actual glyph run to exactly the given length, so the padding is guaranteed for any font. A smaller font would drop «Лестница» below 10 px (the only single-cell long label: 72 units minus padding leaves 56); abbreviations or icons would change the content. Only labels that need it are clamped; room numbers are never clamped (3 digits ≈ 39 units < 56).
+    +
+    +Add to `layout.py`:
+    +```python
+    +LABEL_PADDING = 8          # user units on each side of a label
+    +LABEL_CHAR_EM_NUM = 13     # estimated glyph width = 0.65 em (generous for Cyrillic)
+    +LABEL_CHAR_EM_DEN = 20
+    +
+    +
+    +def estimated_label_width(label: str, size: int) -> int:
+    +    return (len(label) * LABEL_CHAR_EM_NUM * size + LABEL_CHAR_EM_DEN - 1) // LABEL_CHAR_EM_DEN
+    +
+    +
+    +def label_text_length(label: str, rect: Rect, size: int) -> int | None:
+    +    available = rect.width - 2 * LABEL_PADDING
+    +    return available if estimated_label_width(label, size) > available else None
+    +```
+    +`MapShape` gets `text_length: int | None = None` (last field). In `floor_plan`, landmark shapes: `MapShape("landmark", lm.label, rect, text_length=label_text_length(lm.label, rect, LANDMARK_LABEL_SIZE))` with `rect = span_rect(lm.cells)`. Room shapes unchanged (`text_length=None`).
+    +Results on the current layout: «Лестница» → estimate 78 > 56 → `textLength="56"`; «Вход» 39 ≤ 56 → none; «Столовая» 78, «Библиотека» 98, «Деканат» 69 ≤ 132 (two cells) → none.
+    +`map.html`, the `<text>` element: add `{% if s.text_length %} textLength="{{ s.text_length }}" lengthAdjust="spacingAndGlyphs"{% endif %}` after `dominant-baseline="central"`. All values stay integers.
+    +
+    +### 4.3 Item 3 — compact header menu (`base.html`, include, CSS)
+    +
+    +Decision: two renderings of ONE item list — the existing inline nav for wide screens and a `<details class="site-menu">` disclosure for narrow screens — switched by the existing `48rem` media query with `display: none`. Why: `<details>`/`<summary>` is a native disclosure (keyboard: Enter/Space; announced as expanded/collapsed; named by the summary text) and needs no JavaScript. A single `<details>` that is forced open on wide screens needs `::details-content`, which cannot be verified here without a browser and is missing in older phone browsers (the nav would disappear); the checkbox hack has worse semantics. The duplicated markup comes from one include, so the two lists cannot drift; `display: none` also hides the inactive copy from assistive technology.
+    +
+    +New `templates/includes/site_nav_items.html` = the current `<ul class="site-nav-list">…</ul>` from `base.html` (same items and order per role, same logout form), with two changes:
+    +- no `{% notifications_badge %}` call inside (it uses the `badge` variable set in `base.html`);
+    +- each link marks the current page: `{% url 'accounts:profile' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Профиль</a></li>` (same pattern for every link; `nav_url` is reassigned before each link).
+    +
+    +`templates/base.html`, the header becomes:
+    +```django
+    +<header class="site-header">
+    +  <a class="site-title" href="{% url 'core:home' %}">Цифровой деканат будущего</a>
+    +  {% if user.is_student %}{% notifications_badge as badge %}{% endif %}
+    +  <nav class="site-nav site-nav--wide" aria-label="Основная навигация">
+    +    {% block nav %}{% if user.is_authenticated %}{% include "includes/site_nav_items.html" %}{% endif %}{% endblock %}
+    +  </nav>
+    +  {% if user.is_authenticated %}
+    +  <div class="site-nav-compact">
+    +    <details class="site-menu">
+    +      <summary class="site-menu-toggle">Меню</summary>
+    +      <nav class="site-nav" aria-label="Основная навигация">
+    +        {% include "includes/site_nav_items.html" %}
+    +      </nav>
+    +    </details>
+    +    {% if badge %}<a class="site-menu-badge" href="{% url 'notifications:feed' %}">Уведомления ({{ badge }})</a>{% endif %}
+    +  </div>
+    +  {% endif %}
+    +</header>
+    +```
+    +Notes: the badge tag runs once (before both lists); for staff, superuser and anonymous `badge` is unset → no badge link and no query. Anonymous users get the same empty `<nav>` as today. Keep the `class` attribute on `<details>`: `academics/tests/test_views.py:243` counts bare `<details>` tags.
+    +
+    +`static/css/base.css`: append
+    +```css
+    +.site-nav--wide {
+    +  display: none;
+    +}
+    +
+    +.site-nav-compact {
+    +  display: flex;
+    +  flex-wrap: wrap;
+    +  align-items: center;
+    +  gap: var(--space-2) var(--space-3);
+    +  margin-top: var(--space-2);
+    +}
+    +
+    +.site-menu-toggle,
+    +.site-menu-badge {
+    +  display: inline-block;
+    +  min-height: 2.75rem;
+    +  line-height: 2.75rem;
+    +}
+    +
+    +.site-menu-toggle {
+    +  padding: 0 var(--space-3);
+    +  border: 1px solid var(--color-border);
+    +  cursor: pointer;
+    +}
+    +
+    +.site-menu[open] {
+    +  flex-basis: 100%;
+    +}
+    +
+    +.site-menu .site-nav-list {
+    +  flex-direction: column;
+    +  gap: 0;
+    +}
+    +
+    +.site-menu .site-nav-list a,
+    +.site-menu .site-nav-list button {
+    +  display: block;
+    +  min-height: 2.75rem;
+    +  line-height: 2.75rem;
+    +}
+    +
+    +@media (min-width: 48rem) {
+    +  .site-nav--wide {
+    +    display: block;
+    +  }
+    +
+    +  .site-nav-compact {
+    +    display: none;
+    +  }
+    +}
+    +```
+    +Closed header at 360 px: line 1 = site title, line 2 = «Меню» + «Уведомления (N)». Open menu: one item per line.
+    +
+    +---
+    +
+    +## 5. Test plan
+    +
+    +### 5.1 Rules
+    +- Use existing helpers; `FrozenClockMixin` where the class already uses it. Page assertions follow the rule in 4.1.1.
+    +- Run the full suite at least 3 times (section 7); save every log; report any failure by test name, Moscow time and traceback excerpt.
+    +
+    +### 5.2 Traceability and regression evidence
+    +| AC | Test (file::class::method) | Fails before fix because |
+    +|---|---|---|
+    +| AC1 | fixes 4.1.3 #1–#5 (existing test names) | (#1 flaky; #4, #6 always true — see AC2-style checks below) |
+    +| AC2 | `schedule/tests/test_views.py::ScheduleViewsTests::test_scope_check_detects_leak` | (guard: proves the new needle catches a leak) |
+    +| AC2 | `…::ScheduleViewsTests::test_scope_check_ignores_csrf_token` | old `assertNotIn("GY", content)` fails when the token contains «GY» |
+    +| AC1 | `notifications/tests/test_views.py::StaffAnnouncementsViewTests::test_service_error_shown_as_form_error` (fixed) | old assertion passes without the error |
+    +| AC3 | `campusmap/tests/test_layout.py::LayoutTests::test_landmark_labels_fit_with_padding`, `test_stairs_label_clamped`, `test_rooms_never_clamped` | no `text_length`; «Лестница» estimate 78 > 56 |
+    +| AC3 | `campusmap/tests/test_views.py::MapViewTests::test_stairs_label_has_text_length` | attribute missing |
+    +| AC4 | `core/tests/test_nav.py::NavMarkupTests::test_student_menu`, `test_staff_menu`, `test_superuser_menu` | no `<details class="site-menu">` |
+    +| AC4 | `core/tests/test_css.py::BaseCssTests::test_compact_nav_rules` | rules missing |
+    +| AC5 | `core/tests/test_nav.py::NavBadgeTests::test_badge_outside_menu`, `test_no_badge_without_unread`, `test_no_badge_for_staff`, `test_badge_computed_once` | no badge link outside; tag call inside the list |
+    +| AC6 | `core/tests/test_nav.py::NavMarkupTests::test_logout_form_in_both_lists`, `test_current_page_marked`, `test_anonymous_unchanged` | no second form; no `aria-current` |
+    +
+    +### 5.3 Test details
+    +- `test_scope_check_detects_leak`: `with mock.patch("schedule.views.groups_visible_to", return_value=StudyGroup.objects.select_related("program__faculty").order_by("name")):` GET `/staff/schedule/` as `staff_x` → `assertIn(f'href="/staff/schedule/{self.group_y.pk}/"', content)` (the leaked group IS found by the new needle).
+    +- `test_scope_check_ignores_csrf_token`: `with mock.patch("django.middleware.csrf._mask_cipher_secret", return_value="GY" * 32):` GET `/staff/schedule/` as `staff_x` → `assertIn("GY" * 32, content)` (the token now contains the old needle), and the three new assertions of `test_staff_group_list_scoped` pass. (`_mask_cipher_secret` is the module function `get_token` calls; `django/middleware/csrf.py:59,114`.)
+    +- Mutation check for the `REPORT`: temporarily change `test_staff_group_list_scoped` to log in as `staff_y`; it must fail on the `assertIn` for `group_x1`. Revert. Write the observed failure in the `REPORT`.
+    +- `LayoutTests` (`campusmap/tests/test_layout.py`):
+    +  - `test_landmark_labels_fit_with_padding`: for floors 1–9 and every landmark shape of `floor_plan(floor, [], None)`: `min(estimated_label_width(label, LANDMARK_LABEL_SIZE), shape.text_length or 10**6) <= shape.rect.width - 2 * LABEL_PADDING`.
+    +  - `test_stairs_label_clamped`: the «Лестница» shape has `text_length == CELL_WIDTH - 2 * LABEL_PADDING` (56).
+    +  - `test_rooms_never_clamped`: room shapes have `text_length is None`; `estimated_label_width("888", ROOM_LABEL_SIZE) <= CELL_WIDTH - 2 * LABEL_PADDING`.
+    +  - Keep `test_label_sizes` unchanged (sizes did not change). Update the old `test_labels_fit` to call `estimated_label_width` (or delete it if fully covered by the new test — say which in the `REPORT`).
+    +- `MapViewTests::test_stairs_label_has_text_length` (`campusmap/tests/test_views.py`): GET `/map/floor/1/` → SVG part contains `textLength="56" lengthAdjust="spacingAndGlyphs">Лестница</text>`; `>Вход</text>` element has no `textLength`; no room label has `textLength`.
+    +- `core/tests/test_nav.py` (new). Helpers inside the module: `_wide(content)` = text between `<nav class="site-nav site-nav--wide"` and the next `</nav>`; `_menu(content)` = text between `<details class="site-menu">` and `</details>`; `_hrefs(part)` = `re.findall(r'<a href="([^"]+)"', part)`.
+    +  - `NavMarkupTests(TestCase)` (users from `accounts/tests/helpers.py`; superuser via `create_superuser`):
+    +    - `test_student_menu`: GET `/profile/` as a student → exactly one `<details class="site-menu">`, `<summary class="site-menu-toggle">Меню</summary>`; `_hrefs(_wide) == _hrefs(_menu) == ["/profile/", "/schedule/", "/map/", "/grades/", "/requests/", "/notifications/"]`.
+    +    - `test_staff_menu`: same with `["/profile/", "/staff/schedule/", "/map/", "/staff/requests/", "/staff/announcements/", "/staff/students/"]`.
+    +    - `test_superuser_menu`: `["/profile/"]` in both.
+    +    - `test_logout_form_in_both_lists`: each part contains `<form class="site-nav-logout" method="post" action="/logout/">` and `name="csrfmiddlewaretoken"`; a POST to `/logout/` still logs out (302 to `/login/`).
+    +    - `test_current_page_marked`: on `/profile/` `content.count('href="/profile/" aria-current="page"') == 2` and `content.count('aria-current="page"') == 2`.
+    +    - `test_anonymous_unchanged`: GET `/login/` → no `site-menu`, no `site-menu-badge`; contains `<nav class="site-nav site-nav--wide" aria-label="Основная навигация">`.
+    +  - `NavBadgeTests(FrozenClockMixin, TestCase)` (`frozen_now = "2026-11-11 12:00"`; announcement via `notifications/tests/helpers.py::make_announcement`, university audience):
+    +    - `test_badge_outside_menu`: student with 1 unread → `<a class="site-menu-badge" href="/notifications/">Уведомления (1)</a>` present and its index is after `content.index("</details>")`.
+    +    - `test_no_badge_without_unread`, `test_no_badge_for_staff`: no `site-menu-badge`.
+    +    - `test_badge_computed_once`: `with mock.patch("notifications.templatetags.notifications_tags.badge_for_user", wraps=badge_for_user) as spy:` GET `/profile/` as the student → `spy.call_count == 1`.
+    +- `core/tests/test_css.py::BaseCssTests::test_compact_nav_rules`: `base.css` matches `r"\.site-nav--wide\s*\{\s*display:\s*none;"` (outside the media block, i.e. before the `@media (min-width: 48rem)` that contains `.site-nav-compact`), and the regex `r"@media \(min-width: 48rem\)\s*\{\s*\.site-nav--wide\s*\{\s*display:\s*block;\s*\}\s*\.site-nav-compact\s*\{\s*display:\s*none;"`.
+    +- Existing tests that must keep passing unchanged: `notifications/tests/test_views.py::NavTests::*`, `::QueryCountTests::test_badge_exactly_three_queries`, `test_profile_page_counter_constant`, `campusmap/tests/test_views.py::MapViewTests::test_current_floor_marked` (counts `aria-current="page"` on `/map/floor/2/`; the nav link `/map/` is not the current path there), `campusmap/tests/test_views.py::MapNavTests::*`, `academics/tests/test_views.py:243` (`<details>` count), `core/tests/test_views.py::HomeViewTests::*`, `petitions/tests/test_views.py::NavigationTests::*`.
+    +
+    +### 5.4 Access matrix
+    +No access rules change. The nav items per role are asserted in `NavMarkupTests` (student / staff / superuser / anonymous).
+    +
+    +### 5.5 Settings branches / query count
+    +No settings change. Query count: `test_badge_computed_once` + the existing `test_profile_page_counter_constant` and `test_badge_exactly_three_queries`.
+    +
+    +---
+    +
+    +## 6. Implementation order
+    +1. Item 1: fixes 4.1.3 and the two new schedule tests; run them; do the mutation check; README bullet.
+    +2. Item 2: regression tests (must fail), then `layout.py` + `map.html`.
+    +3. Item 3: `core/tests/test_nav.py` and the CSS test (must fail), then include, `base.html`, CSS.
+    +4. `ruff format` on changed/new Python files only; section 7; `REPORT` to the Reviewer with the regression evidence and the mutation-check output. Do not commit.
+    +
+    +## 7. Verification
+    +```bash
+    +source .venv/bin/activate
+    +export DEBUG=true
+    +TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S)
+    +python manage.py check
+    +python manage.py makemigrations --check --dry-run
+    +for i in 1 2 3; do python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-run$i.log" | grep -E "^Ran|^OK|^FAILED"; done
+    +python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-at-2359.log"
+    +python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-at-0000.log"
+    +DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop \
+    +  ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ \
+    +  python manage.py check --deploy --fail-level WARNING
+    +ruff check . && ruff format --check .
+    +python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"
+    +export DATABASE_URL="sqlite:///$TMPDIR/task008fix.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task008fix-private" DEMO_PASSWORD='Local-Demo-Pass-2026!'
+    +rm -f "$TMPDIR/task008fix.sqlite3"
+    +python manage.py migrate && python manage.py seed_demo && python manage.py seed_demo
+    +git status --short
+    +```
+    +`REPORT`: output tails, test counts of the 3 runs (was 817), log file names, any failed run by test name and Moscow time, mutation-check output, `git status`.
+    +
+    +## 8. Feasibility check (2026-11-15 18:20 MSK on `caf7601`)
+    +1. Clean start — `git status --short` → only ` M plan.md`. OK.
+    +2. Referenced objects — `test_staff_group_list_scoped` (`schedule/tests/test_views.py:177-182`), class attributes `group_x1`, `group_x2`, `group_y`, `staff_x`, `staff_y`; `ChangeRenderingTests` rooms `room-101`, `room-205` (`:250-251`) and assertions `:341-344`; `staff_group_list.html:7` URL markup; `StaffGroupListView` context name `groups` (`schedule/views.py`, `context_object_name = "groups"`); `groups_visible_to` imported into `schedule.views`; `notifications/tests/test_views.py:548-557`; `petitions/tests/test_views.py:400-405` + `staff_detail.html:6`; `accounts/tests/test_views.py:173-176`, `student_a` (`:34`), URL `accounts:staff_student_detail`; `django.middleware.csrf._mask_cipher_secret` (`.venv/…/django/middleware/csrf.py:59`, called by `get_token` at `:114`); `campusmap/layout.py` (`MapShape`, `floor_plan`, `LANDMARK_LABEL_SIZE = 15`, `CELL_WIDTH = 72`), `map.html` `<text>` line 24; `campusmap/tests/test_layout.py::test_labels_fit` (`:67-73`); `templates/base.html:14-45` (nav, `{% block nav %}`, badge tag in the student branch, logout form); no template overrides `{% block nav %}`; `.site-nav-list` and the `48rem` media query in `base.css`; `notifications.templatetags.notifications_tags.badge_for_user`. OK.
+    +3. No collisions — no `templates/includes/`, no `core/tests/test_nav.py`, no CSS classes `site-nav--wide`, `site-nav-compact`, `site-menu*`, no names `LABEL_PADDING`, `estimated_label_width`, `label_text_length`, `text_length`. OK.
+    +4. Migrations — none; `makemigrations --check` clean (8a).
+    +5. Tools — unchanged. OK.
+    +6. Framework — `simple_tag … as var` sets the variable in the current context, `{% if %}` does not push a new context and `{% include %}` sees parent variables, so one badge call serves both lists. `get_token` masks via the module-level `_mask_cipher_secret`, so the patch in 5.3 controls the rendered token. The token alphabet is `CSRF_ALLOWED_CHARS` = ASCII letters + digits (`csrf.py`), length 64. SVG `textLength`/`lengthAdjust="spacingAndGlyphs"` are SVG 1.1 text attributes (no browser available here to render; the Team lead checks visually). OK.
+    +7. Environment — nothing new. OK.
+    +8. Verification runnable — see 8a.
+    +9. Conflicts — none.
+    +10. Assumptions / blockers — none.
+    +
+    +### 8a. Verification results on the current tree
+    +(filled after the runs)
+    +
+    +## 9. Risks
+    +- Duplicate nav markup: tests that count nav links must count within one list (`_wide`/`_menu`); existing tests were checked (5.3, last bullet).
+    +- `textLength` compresses «Лестница» by about 15 % in a typical font; acceptable for the layout stage, the UI stage may replace it with an icon.
+    +- Flaky tests elsewhere that use other random content (e.g. future pages with tokens) are prevented only by the README rule; the Reviewer applies it.
+  ── Thought for 5s
+    I'm checking the claims against the code: the `groups` context name on StaffGroupListView and the `groups_visible_to` import in schedule.views both check out. Next I need to confirm whether the `test_detail_shows_student_info_and_actions` test belongs to StaffPagesTests, since that class starts around line 339 and line 400 may fall under a different class.
+
+    Now I'm checking whether the staff-detail test sits inside StaffPagesTests, which it does since line 421 falls under StaffActionTests and the earlier class covers 339 onward. I still need to confirm that the student fixtures used by the accounts test at lines 165-176 are defined in that same class, and identify which class holds the notifications test near line 548.
+
+    I'm confirming that the navigation links match the expected order for both student and staff views, and that the aria-current attribute doesn't break the href regex. Next I'll check the class names.
+  ── Ran awk 'NR<=176 && /^class /{c=$0; n=NR} END{}; NR==176{print "acc176:", c}' accounts/tests/test_views.py; awk '/^class /{c=$0} NR==557{print "notif557:", c}' notifications/tests/test_views.py; awk '/^class /{c=$0} NR==405{print "pet405:", c}' petitions/tests/test_views.py; awk '/^class /{c=$0} NR==182{print "sch182:", c} NR==344{print "sch344:", c}' schedule/tests/test_views.py; grep -n "cls.student_a\|self.student_a" accounts/tests/test_views.py | head -3; grep -n "^class " accounts/tests/test_views.py
+    $ awk 'NR<=176 && /^class /{c=$0; n=NR} END{}; NR==176{print "acc176:", c}' accounts/tests/test_views.py; awk '/^class /{c=$0} NR==557{print "notif557:", c}' notifications/tests/test_views.py; awk '/^class /{c=$0} NR==405{print "pet405:", c}' petitions/tests/test_views.py; awk '/^class /{c=$0} NR==182{print "sch182:", c} NR==344{print "sch344:", c}' schedule/tests/test_views.py; grep -n "cls.student_a\|self.student_a" accounts/tests/test_views.py | head -3; grep -n "^class " accounts/tests/test_views.py
+    acc176: class AccessViewsTests(TestCase):
+    notif557: class StaffAnnouncementsViewTests(FrozenClockMixin, TestCase):
+    pet405: class StaffPagesTests(FrozenClockMixin, TestCase):
+    sch182: class ScheduleViewsTests(FrozenClockMixin, TestCase):
+    sch344: class ChangeRenderingTests(FrozenClockMixin, TestCase):
+    34:        cls.student_a = make_student("a", cls.group_x, "REC-A")
+    41:        pk_a = self.student_a.student_profile.pk
+    73:        self.client.force_login(self.student_a)
+    27:class AccessViewsTests(TestCase):
+  ── Ran sed -i '' 's|5. `accounts/tests/test_views.py` (the test with `full_content`, line 176)|5. `accounts/tests/test_views.py::AccessViewsTests::test_staff_list_empty_state_markup` (line 176)|' docs/tasks/TASK-008-FIX.md && grep -n "test_staff_list_empty_state_markup" docs/tasks/TASK-008-FIX.md; F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bdcf1zldu.output; grep -v " ready:" $F (1s)
+    $ sed -i '' 's|5. `accounts/tests/test_views.py` (the test with `full_content`, line 176)|5. `accounts/tests/test_views.py::AccessViewsTests::test_staff_list_empty_state_markup` (line 176)|' docs/tasks/TASK-008-FIX.md && grep -n "test_staff_list_empty_state_markup" docs/tasks/TASK-008-FIX.md; F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bdcf1zldu.output; grep -v " ready:" $F
+    77:5. `accounts/tests/test_views.py::AccessViewsTests::test_staff_list_empty_state_markup` (line 176): replace `assertIn("<li>", full_content)` with `assertIn(f'href="{reverse("accounts:staff_student_detail", args=[self.student_a.student_profile.pk])}"', full_content)` (`student_a` is in `group_x` of `staff_x`'s faculty).
+    MSK 20261115-182607
+    System check identified no issues (0 silenced).
+    No changes detected
+    [This command modified 1 file you've previously read: docs/tasks/TASK-008-FIX.md. Call Read before editing.]
+  ── Ran F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bdcf1zldu.output; until grep -q "^DONE" "$F"; do sleep 15; done; grep -v " ready:" "$F"; grep "Notifications ready" "$F" (4m 31s)
+    $ F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bdcf1zldu.output; until grep -q "^DONE" "$F"; do sleep 15; done; grep -v " ready:" "$F"; grep "Notifications ready" "$F"
+    MSK 20261115-182607
+    System check identified no issues (0 silenced).
+    No changes detected
+    Ran 817 tests in 123.229s
+    OK
+    Ran 817 tests in 123.358s
+    OK
+    Ran 817 tests in 122.586s
+    OK
+    System check identified no issues (1 silenced).
+    All checks passed!
+    160 files already formatted
+    yaml ok
+    DONE
+
+    [exited with code 0]
+    Notifications ready: 9 announcements.
+    Notifications ready: 0 announcements.
+  ── Ran python3 - <<'EOF' p="docs/tasks/TASK-008-FIX.md"; s=open(p,encoding="utf-8").read() a="### 8a. Verification results on the current tree\n(filled after the runs)\n" b="""### 8a. Verification results on the current tree Logs `$TMPDIR/test-20261115-182607-t008fix-feas*.log` and the sweep run `$TMPDIR/test-20261115-182047-t008fix-sweep.log`. - `check` → no issues; `makemigrations --check --dry-run` → «No changes detected». - `test` → `Ran 817 tests … OK`; instrumented sweep run (18:20 MSK) → 817 OK; `run_tests_at.py 2026-11-17T23:59:59` → 817 OK; `run_tests_at.py 2026-11-18T00:00:00` → 817 OK. No failed or stalled runs. - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` → all passed; `ruff format --check .` → 160 files already formatted; CI YAML ok. - `seed_demo` twice on a temporary DB and PRIVATE_MEDIA_ROOT → OK (second run «Notifications ready: 0 announcements.»). """ assert s.count(a)==1; s=s.replace(a,b); open(p,"w",encoding="utf-8").write(s) EOF bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF' [TASK-008-FIX] Planner -> Coder: TASK Spec: docs/tasks/TASK-008-FIX.md (base caf7601). Three fixes, regression tests first (5.2 marks which must fail before the fix). - Item 1: a random CSRF token (64 chars [A-Za-z0-9]) makes short page needles flaky. Fix the 6 hits marked "fix" in 4.1.2 exactly as in 4.1.3 (URLs / exact markup / response.context); add 2 schedule tests (leak detection via patched `groups_visible_to`, token containing "GY" via patched `django.middleware.csrf._mask_cipher_secret`); mutation check for the REPORT; one README bullet. - Item 2: `campusmap/layout.py` LABEL_PADDING + `estimated_label_width` + `label_text_length`; `MapShape.text_length`; `textLength` + `lengthAdjust="spacingAndGlyphs"` in map.html (only «Лестница» gets 56). - Item 3: header = wide inline nav + `<details class="site-menu">` for <48rem, both from new `templates/includes/site_nav_items.html`; badge computed once in base.html, shown as a link outside the menu; `aria-current="page"`; CSS in 4.3; tests in new `core/tests/test_nav.py`. - Verification section 7: full suite 3 times + midnight runs, logs with tee (baseline 817). Do not commit. EOF (2s)
+    $ python3 - <<'EOF'
+  p="docs/tasks/TASK-008-FIX.md"; s=open(p,encoding="utf-8").read()
+  a="### 8a. Verification results on the current tree\n(filled after the runs)\n"
+  b="""### 8a. Verification results on the current tree
+  Logs `$TMPDIR/test-20261115-182607-t008fix-feas*.log` and the sweep run `$TMPDIR/test-20261115-182047-t008fix-sweep.log`.
+  - `check` → no issues; `makemigrations --check --dry-run` → «No changes detected».
+  - `test` → `Ran 817 tests … OK`; instrumented sweep run (18:20 MSK) → 817 OK; `run_tests_at.py 2026-11-17T23:59:59` → 817 OK; `run_tests_at.py 2026-11-18T00:00:00` → 817 OK. No failed or stalled runs.
+  - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` → all passed; `ruff format --check .` → 160 files already formatted; CI YAML ok.
+  - `seed_demo` twice on a temporary DB and PRIVATE_MEDIA_ROOT → OK (second run «Notifications ready: 0 announcements.»).
+  """
+  assert s.count(a)==1; s=s.replace(a,b); open(p,"w",encoding="utf-8").write(s)
+  EOF
+  bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF'
+  [TASK-008-FIX] Planner -> Coder: TASK
+  Spec: docs/tasks/TASK-008-FIX.md (base caf7601). Three fixes, regression tests first (5.2 marks which must fail before the fix).
+  - Item 1: a random CSRF token (64 chars [A-Za-z0-9]) makes short page needles flaky. Fix the 6 hits marked "fix" in 4.1.2 exactly as in 4.1.3 (URLs / exact markup / response.context); add 2 schedule tests (leak detection via patched `groups_visible_to`, token containing "GY" via patched `django.middleware.csrf._mask_cipher_secret`); mutation check for the REPORT; one README bullet.
+  - Item 2: `campusmap/layout.py` LABEL_PADDING + `estimated_label_width` + `label_text_length`; `MapShape.text_length`; `textLength` + `lengthAdjust="spacingAndGlyphs"` in map.html (only «Лестница» gets 56).
+  - Item 3: header = wide inline nav + `<details class="site-menu">` for <48rem, both from new `templates/includes/site_nav_items.html`; badge computed once in base.html, shown as a link outside the menu; `aria-current="page"`; CSS in 4.3; tests in new `core/tests/test_nav.py`.
+  - Verification section 7: full suite 3 times + midnight runs, logs with tee (baseline 817). Do not commit.
+  EOF
+    Thread thr_ng6cbgatm6 steered
+    [This command modified 1 file you've previously read: docs/tasks/TASK-008-FIX.md. Call Read before editing.]
+
+── Assistant ───────────────────────────────────────────────
+Спецификация TASK-008-FIX готова и передана Кодеру: [docs/tasks/TASK-008-FIX.md](docs/tasks/TASK-008-FIX.md).
+
+**1. Нестабильный тест.** В каждой странице после входа есть случайный CSRF-токен из 64 латинских букв и цифр. Любые две буквы, например «GY», попадают в него примерно в 1,6 % прогонов. Поэтому `assertNotIn("GY", ...)` иногда падает.
+- Я проверил все тесты двумя способами: разбором кода и прогоном с записью всех проверок. Нашлось 28 мест, у каждого в спецификации стоит вывод.
+- Исправить нужно 6:
+  - нестабильный «GY»;
+  - «GX1»/«GX2»;
+  - «205»/«101» на странице расписания;
+  - проверка `"x"`, которая проходит всегда;
+  - «GX» на странице заявки;
+  - `"<li>"`, который всегда находится в меню.
+- Вместо коротких строк проверяются точные ссылки, разметка или `response.context`.
+- Добавятся 2 теста. Первый показывает, что новая проверка ловит утечку чужой группы. Второй — что токен с «GY» больше не мешает.
+- В README появится правило для будущих тестов.
+
+**2. Подпись «Лестница».** Размер шрифта не меняется, на экране он остаётся около 12 px. Слишком длинная подпись получает `textLength` и `lengthAdjust`: браузер сам сжимает её до ширины ячейки с отступом 8 единиц с каждой стороны. Это работает с любым шрифтом телефона. Сожмётся только «Лестница», остальные подписи и номера аудиторий не изменятся.
+
+**3. Меню в шапке.** Меню строится из одного файла двумя способами:
+- на широком экране — обычная строка ссылок, как сейчас;
+- на узком (меньше `48rem`) — раскрывающийся блок «Меню» на `<details>`, без JavaScript.
+
+Счётчик «Уведомления (N)» стоит отдельной ссылкой рядом с «Меню». Его видно без открытия меню. Считается он один раз за страницу, как и раньше. Ссылка на текущую страницу помечается `aria-current="page"`. У гостя шапка не меняется.
+
+**Проверка на текущем коде:** все 817 тестов прошли в каждом прогоне: обычном, с записью проверок, в 23:59:59 и в 00:00 по Москве. Сбоев и зависаний не было. `check --deploy`, ruff, YAML и двойной запуск `seed_demo` прошли чисто.
+
+**Что не проверено.** Браузера у меня здесь нет, поэтому меню и сжатую подпись я не видел. Их нужно посмотреть на экране 360 px и на широком экране.

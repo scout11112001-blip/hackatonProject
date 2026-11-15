@@ -15,6 +15,14 @@ CELL_HEIGHT = 80
 COLUMN_X = {1: 12, 2: 88, 3: 164, 4: 240, 5: 316}
 ROW_Y = {"N": 12, "S": 148}
 
+LABEL_PADDING = 8  # user units on each side of a label
+LABEL_CHAR_EM_NUM = 13  # estimated glyph width = 0.65 em (generous for Cyrillic)
+LABEL_CHAR_EM_DEN = 20
+
+
+def estimated_label_width(label: str, size: int) -> int:
+    return (len(label) * LABEL_CHAR_EM_NUM * size + LABEL_CHAR_EM_DEN - 1) // LABEL_CHAR_EM_DEN
+
 
 @dataclass(frozen=True)
 class Rect:
@@ -36,12 +44,18 @@ OUTLINE = Rect(4, 4, 392, 232)
 CORRIDOR = Rect(12, 96, 376, 48)
 
 
+def label_text_length(label: str, rect: Rect, size: int) -> int | None:
+    available = rect.width - 2 * LABEL_PADDING
+    return available if estimated_label_width(label, size) > available else None
+
+
 @dataclass(frozen=True)
 class MapShape:
     kind: str  # "room" | "landmark"
     label: str  # room number or landmark label
     rect: Rect
     is_current: bool = False
+    text_length: int | None = None
 
 
 @dataclass(frozen=True)
@@ -70,7 +84,13 @@ def span_rect(cells: Sequence[str]) -> Rect:
 def floor_plan(floor: int, rooms: Sequence[Room], current: Room | None) -> FloorPlan:
     blocked = blocked_cells(floor)
     landmark_shapes = [
-        MapShape("landmark", lm.label, span_rect(lm.cells)) for lm in landmarks_on(floor)
+        MapShape(
+            "landmark",
+            lm.label,
+            (rect := span_rect(lm.cells)),
+            text_length=label_text_length(lm.label, rect, LANDMARK_LABEL_SIZE),
+        )
+        for lm in landmarks_on(floor)
     ]
     room_shapes = [
         MapShape(

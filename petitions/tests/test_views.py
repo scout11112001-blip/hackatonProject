@@ -402,7 +402,7 @@ class StaffPagesTests(FrozenClockMixin, TestCase):
         resp = self.client.get(reverse("petitions:staff_detail", args=[self.p_old.public_id]))
         content = resp.content.decode()
         self.assertIn(self.student.full_name, content)
-        self.assertIn(self.student.group.name, content)
+        self.assertIn(f"<p>{self.student.group.name}</p>", content)
         self.assertIn("Взять в работу", content)
         self.assertIn("Отклонить", content)
 
