@@ -249,7 +249,11 @@ button {
 
 .map-outline,
 .map-room rect,
+.map-room polygon,
 .map-landmark rect,
+.map-landmark polygon,
+.map-service rect,
+.map-service polygon,
 .map-corridor {
   fill: none;
   stroke: var(--color-text);
@@ -260,9 +264,16 @@ button {
   stroke: var(--color-border);
 }
 
-.map-landmark rect {
+.map-landmark rect,
+.map-landmark polygon {
   stroke: var(--color-muted);
   stroke-dasharray: 6 4;
+}
+
+.map-service rect,
+.map-service polygon {
+  stroke: var(--color-muted);
+  stroke-dasharray: 2 3;
 }
 
 .map-room-label {
@@ -271,6 +282,11 @@ button {
 }
 
 .map-landmark-label {
+  font-size: 15px;
+  fill: var(--color-muted);
+}
+
+.map-service-label {
   font-size: 15px;
   fill: var(--color-muted);
 }

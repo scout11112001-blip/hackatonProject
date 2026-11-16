@@ -13676,3 +13676,1035 @@ All existing verification commands pass (check, deploy check, makemigrations --c
 **Проверка на текущем коде.** Все 951 тест прошли в трёх прогонах: обычном, в 23:59:59 и в 00:00 по Москве. Сбоев не было. `check --deploy`, ruff, `node --check`, YAML и двойной запуск `seed_demo` тоже прошли.
 
 **Что посмотреть вручную.** Браузера у меня нет. Работу опроса и выравнивание сообщений на экране 360 px должен проверить тимлид.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-010] Team lead -> Planner: TASK
+Approved by the user. Write the spec `docs/tasks/TASK-010.md` and hand it to the Coder.
+
+## Context
+Done: TASK-001..009 and their FIX tasks. The room map (TASK-008, TASK-008-FIX: `campusmap/layout.py`, `campusmap/templates/campusmap/map.html`, `university/building.py`, `Room.map_cell`) draws each floor as two rows of 5 equal cells with a corridor between them; rooms take one cell; empty cells are blank; landmarks (stairs, entrance, canteen, dean's office, library) are defined in code; the room number of the highlighted room is red; room numbers are NNN with the first digit = floor (validation + DB constraints). Demo rooms: 101, 114, 205, 212, 308, 315, 402. Reuse the existing patterns (integer geometry, label fitting from TASK-008-FIX, no JavaScript, query-count tests). Apply your "Feasibility check" and "Test plan" sections.
+
+## Goal (user request)
+Make the map look like a real floor plan: more rooms, rooms of different shapes, and no free space anywhere except the corridor.
+
+## Requirements
+1. Floor plans (user decisions):
+   - Every floor (1-4) has its own fixed layout defined in code (the building outline, the corridor and the stairs stay in the same place on every floor; the rest differs per floor).
+   - Inside the outline, everything except the corridor is covered by shapes with no gaps and no overlaps: rooms, landmarks and service spaces. A test must prove full coverage and no overlap for every floor (e.g. area sum + pairwise intersection check on integer geometry).
+   - About 8-10 rooms per floor (about 35 in total), of different sizes; rectangles of different widths/depths, plus at least one non-rectangular (L-shaped) space in the building (e.g. a large lecture hall or the canteen) drawn as an SVG polygon.
+   - Room numbers follow the existing rule (NNN, first digit = floor) and are unique; the demo rooms 101, 114, 205, 212, 308, 315, 402 keep their numbers (the schedule uses them).
+   - Non-teaching spaces fill the rest: the existing landmarks plus service spaces (e.g. "Гардероб" on floor 1, "Туалеты" on every floor, a teachers' room "Кафедра" where it fits) - labels in Russian, fictional.
+2. Orientation (user decision): portrait layout for phones - the corridor runs vertically and rooms are on both sides, so at 360 px the room numbers stay readable without zoom (keep the current label size or justify a smaller minimum). The map may become taller; no horizontal scroll at 360 px.
+3. Linking rooms to the plan: choose and justify between (a) plan slots identified by the room number (a room appears on the map when its number is a slot on its floor; `Room.map_cell` is removed with a migration) and (b) keeping an admin-editable slot field with the new slot ids. A room whose number/slot is not on the plan still shows "нет на схеме" in the list and does not break the page. Migrations must work on an existing seeded database.
+4. Every room on the plan exists as a `Room` row: extend `seed_demo` (idempotent) to create all plan rooms; existing rooms keep their codes (`room-<number>`), so schedule links do not change.
+5. Unchanged behaviour: floor switcher, the link from the schedule opens the room's floor with its number in red, the room list grouped by floor, labels fit their shapes (TASK-008-FIX), no JavaScript, access rules, query counts.
+
+## Out of scope
+Zoom, route finding, several buildings, room occupancy, the visual pixel-art theme, chat (TASK-009).
+
+## Verification
+All existing verification commands pass (check, deploy check, makemigrations --check, test with the output saved to a file, `scripts/run_tests_at.py` at a Moscow midnight boundary, ruff only on the task files, CI YAML), `seed_demo` twice on a temporary database and temporary PRIVATE_MEDIA_ROOT, migration on a database seeded before the change. The Team lead checks every floor at 360 px.
+
+── Ran 9 commands, explored 2 files, 1 search, created 1 file
+  ── Thought for 978ms
+    I'm going to define the four floor plans with exact integer geometry and check full coverage with no overlaps, using a script in $TMPDIR so the Coder only has to copy the verified data. First I'll read through the current code: layout.py, building.py, the Room model's map_cell, the views and templates, the tests that touch map_cell, MapCell or cell, the ROOM_SEEDS demo in the schedule, and any other dependencies.
+
+    I'm checking the schedule demo's ROOM_SEEDS and the rest of the code that uses room codes, since the lessons depend on them.
+  ── Ran git status --short && git log --oneline -3 && cat campusmap/layout.py | sed -n 1,200p && cat university/building.py
+    $ git status --short && git log --oneline -3 && cat campusmap/layout.py | sed -n 1,200p && cat university/building.py
+    M plan.md
+    08671f6 TASK-009-FIX: chat context name, viewer-based alignment, single polling loop, safe chat seed
+    bcd1280 TASK-009: chat with the dean's office
+    b3dcb37 TASK-008-FIX: stable scope tests, landmark label fit, compact header menu
+    """Geometry for the schematic building plan. All values are integers."""
+
+    from collections.abc import Sequence
+    from dataclasses import dataclass
+
+    from university.building import blocked_cells, landmarks_on
+    from university.models import Room
+
+    VIEWBOX_WIDTH = 400
+    VIEWBOX_HEIGHT = 240
+    ROOM_LABEL_SIZE = 20  # user units, see D6
+    LANDMARK_LABEL_SIZE = 15
+    CELL_WIDTH = 72
+    CELL_HEIGHT = 80
+    COLUMN_X = {1: 12, 2: 88, 3: 164, 4: 240, 5: 316}
+    ROW_Y = {"N": 12, "S": 148}
+
+    LABEL_PADDING = 8  # user units on each side of a label
+    LABEL_CHAR_EM_NUM = 13  # estimated glyph width = 0.65 em (generous for Cyrillic)
+    LABEL_CHAR_EM_DEN = 20
+
+
+    def estimated_label_width(label: str, size: int) -> int:
+        return (len(label) * LABEL_CHAR_EM_NUM * size + LABEL_CHAR_EM_DEN - 1) // LABEL_CHAR_EM_DEN
+
+
+    @dataclass(frozen=True)
+    class Rect:
+        x: int
+        y: int
+        width: int
+        height: int
+
+        @property
+        def cx(self) -> int:
+            return self.x + self.width // 2
+
+        @property
+        def cy(self) -> int:
+            return self.y + self.height // 2
+
+
+    OUTLINE = Rect(4, 4, 392, 232)
+    CORRIDOR = Rect(12, 96, 376, 48)
+
+
+    def label_text_length(label: str, rect: Rect, size: int) -> int | None:
+        available = rect.width - 2 * LABEL_PADDING
+        return available if estimated_label_width(label, size) > available else None
+
+
+    @dataclass(frozen=True)
+    class MapShape:
+        kind: str  # "room" | "landmark"
+        label: str  # room number or landmark label
+        rect: Rect
+        is_current: bool = False
+        text_length: int | None = None
+
+
+    @dataclass(frozen=True)
+    class FloorPlan:
+        floor: int
+        width: int
+        height: int
+        outline: Rect
+        corridor: Rect
+        shapes: list[MapShape]
+
+
+    def cell_rect(cell: str) -> Rect:
+        row, col = cell[0], int(cell[1:])
+        return Rect(COLUMN_X[col], ROW_Y[row], CELL_WIDTH, CELL_HEIGHT)
+
+
+    def span_rect(cells: Sequence[str]) -> Rect:
+        rects = [cell_rect(c) for c in cells]
+        x = min(r.x for r in rects)
+        y = rects[0].y
+        width = max(r.x + r.width for r in rects) - x
+        return Rect(x, y, width, CELL_HEIGHT)
+
+
+    def floor_plan(floor: int, rooms: Sequence[Room], current: Room | None) -> FloorPlan:
+        blocked = blocked_cells(floor)
+        landmark_shapes = [
+            MapShape(
+                "landmark",
+                lm.label,
+                (rect := span_rect(lm.cells)),
+                text_length=label_text_length(lm.label, rect, LANDMARK_LABEL_SIZE),
+            )
+            for lm in landmarks_on(floor)
+        ]
+        room_shapes = [
+            MapShape(
+                "room",
+                room.number,
+                cell_rect(room.map_cell),
+                is_current=current is not None and room.pk == current.pk,
+            )
+            for room in rooms
+            if room.floor == floor and room.map_cell and room.map_cell not in blocked
+        ]
+        return FloorPlan(
+            floor, VIEWBOX_WIDTH, VIEWBOX_HEIGHT, OUTLINE, CORRIDOR, landmark_shapes + room_shapes
+        )
+    """The fictional building: a fixed grid of map cells and landmarks (one building)."""
+
+    from dataclasses import dataclass
+
+    from django.db import models
+
+    STAIRS_CELL = "N1"
+
+
+    class MapCell(models.TextChoices):
+        N2 = "N2", "Верхний ряд, место 2"
+        N3 = "N3", "Верхний ряд, место 3"
+        N4 = "N4", "Верхний ряд, место 4"
+        N5 = "N5", "Верхний ряд, место 5"
+        S1 = "S1", "Нижний ряд, место 1"
+        S2 = "S2", "Нижний ряд, место 2"
+        S3 = "S3", "Нижний ряд, место 3"
+        S4 = "S4", "Нижний ряд, место 4"
+        S5 = "S5", "Нижний ряд, место 5"
+
+
+    @dataclass(frozen=True)
+    class Landmark:
+        key: str
+        label: str
+        cells: tuple[str, ...]  # adjacent cells of one row
+        floor: int | None  # None = every floor
+
+
+    LANDMARKS: tuple[Landmark, ...] = (
+        Landmark("stairs", "Лестница", (STAIRS_CELL,), None),
+        Landmark("entrance", "Вход", ("S3",), 1),
+        Landmark("canteen", "Столовая", ("S4", "S5"), 1),
+        Landmark("deanery", "Деканат", ("S1", "S2"), 2),
+        Landmark("library", "Библиотека", ("S4", "S5"), 3),
+    )
+
+
+    def landmarks_on(floor: int) -> list[Landmark]:
+        return [lm for lm in LANDMARKS if lm.floor is None or lm.floor == floor]
+
+
+    def blocked_cells(floor: int) -> dict[str, Landmark]:
+        return {cell: lm for lm in landmarks_on(floor) for cell in lm.cells}
+  ── Read campusmap/views.py
+  ── Searched for map_cell\|MapCell\|blocked_cells\|landmarks_on\|cell_rect\|span_rect\|STAIRS_CELL\|LANDMARKS in .
+  ── Thought for 1m 15s
+    I'm settling on approach (a): each plan slot is identified by its room number, so a Room only shows up when its number matches a slot on its floor. That means removing `map_cell` through a migration, which drops the two constraints and then the field. The reason is that each floor's plan has fixed, irregular geometry, and letting the admin pick a slot freely could pair room "205" with the "212" slot and produce a mismatch.
+
+    I'm weighing the plan-labelling question: if the plan draws every room shape regardless, a missing Room row just means no highlight, and rooms not on the plan get shown as "нет на схеме". Since the room list should follow the plan numbers, I can keep the floor plan logic simple and only track the current room.
+
+    Still working out the building model: I'm planning to swap the grid for per-floor plans built from labeled spaces with polygon outlines, and I'm checking how to verify coverage and overlaps on the floors.
+
+    I'm now looking at how to verify the per-floor geometry: each space would carry its rectangle parts, with an optional polygon whose shoelace area must match the parts and whose bounding box must agree. For coverage and overlaps, I'm considering either keeping all coordinates on a multiple-of-4 grid or using exact rectangle arithmetic to check that the areas add up and nothing intersects.
+
+    I'm checking that the parts sit inside the outline minus the corridor, are pairwise disjoint, and add up to the region's area, which together guarantee an exact cover with integer arithmetic. Next I'm sketching the portrait plan: a 400-wide viewBox with a vertical corridor down the middle and rooms on both sides, so the labels still read at phone width.
+
+    I'm working out the layout constants for the portrait plan: an outline rectangle with a vertical corridor in the middle, and I'm wondering whether the corridor should run the full height or stop short so the stairs can sit in a fixed spot on every floor.
+
+    I'm laying out the outline as a 392-unit-wide rectangle with a 64-unit corridor down the middle and two 164-unit blocks on either side, with the stairs and an entrance or restroom space at the bottom of the corridor.
+
+    I'm sketching the portrait floor plan with a 64-unit-wide corridor running down the middle, and putting the stairs at the top of that corridor so they sit in the same spot on every floor. At the bottom of the corridor I'm considering an entrance on the first floor, and I still need to work out where the toilets go there.
+
+    I'm fixing the outline at 392 by 640 with a 64-wide corridor through the middle, so the viewBox ends up 400 by 648. The corridor runs from y 84 to 572, and the bottom strip there is an entrance on the first floor and toilets on the others.
+
+    Weighing the corridor width now: I'm thinking of widening it to 72 units so the "Туалеты" label fits better, and the bottom piece would hold the entrance on the first floor and the toilets on the others.
+
+    I'm sizing the two side blocks at 160 units each, running the full height of the outline, and checking whether a stacked room fits at 56 to 120 units tall with its label. I'm also considering an L-shaped canteen on the first floor, built from two rectangles inside the left block.
+
+    Now I'm sketching the first floor's left block: room 101 across the top, then 102 below it, a pair of 103 and 104 side by side, and room 105 under those.
+
+    I'm laying out the right-hand block of the first floor now: room 106 across the top, then 107 and 108 side by side below it, with a larger room 114 filling the next stretch down.
+
+    I'm now placing the right-hand floor-one spaces: a medical point and a storeroom stacked above the security office near the entrance, with the left side already covering the toilets, canteen and wardrobe.
+
+    Now I'm settling on the floor-one landmarks: the stairs and entrance stay in the centre column, with a canteen, wardrobe, toilets, a staff office, a medical point and a storeroom around them. I'm also wondering whether the department office should go on this floor at all.
+
+    Now I'm sketching the second floor's left block: the deanery office goes at the top near the stairs, then room 201 below it, and I'm about to place 202 beneath that.
+
+    Now I'm sketching the second floor's right block: two small rooms, 207 and 208, side by side at the top.
+
+    Now I'm laying out the right-hand block of the second floor: rooms 207 and 208 sit side by side at the top, and room 209 runs full width beneath them. Next is the L-shaped lecture hall 210, which I'm building from two rectangles.
+
+    I'm laying out the right-hand side of the second floor: lecture hall 210 is the L-shape, with 211 tucked beneath its foot, then room 212 and a staff office at the bottom.
+
+    I'm trimming the second floor down by merging the small rooms: 202 and 203 become one room, and 207 and 208 become one, which brings the count to around ten numbered rooms.
+
+    I'm settling the second floor's left block: the dean's office at the top, then 201 and a full-width 202, with 203 below and 205 after it, and toilets plus 204 at the bottom.
+
+    I'm trimming the second floor's room count by merging 202 and 203 into one, which would leave the floor at about ten rooms.
+
+    Trimming the second floor to ten rooms by dropping 204 and 209 from the numbering and keeping 201, 202, 203, 205, 206 on the left with 207, 208, 210, 211, 212 on the right. Next I'm starting the third floor's left block with room 301 across the top, and then 302 and 303 below it.
+
+    Still laying out the floor-three geometry: the library block on the right is next to sketch, and I'm settling the left-hand room boxes and their heights.
+
+    Still laying out the fourth floor's left block: room 401 sits across the top, with 402 below it, and I'm placing the smaller rooms beneath that.
+
+    Still placing the right-hand rooms on the fourth floor: room 407 at the top, then 408, a large 409 below them, and a staff office, room 410 and a storeroom near the bottom.
+
+    I'm checking the floor-four totals and confirming that the right-hand column adds up to 640. I'm also weighing whether to trim a room or two to reach about 35, and I'm considering a bottom-centre storage piece on floors two to four, possibly renaming the floor-four storeroom to an archive so the "Склад" label isn't repeated.
+
+    I'm now settling the remaining landmarks: the stairs stay at the top centre on every floor, with the entrance on the first floor at the bottom. The service spaces are toilets, a wardrobe, a department office, a medical point, storage and a security office, and I'm weighing whether to keep or rename them, including the floor-four storeroom.
+
+    I'm settling the labels now: the service spaces get a dashed outline and muted text, and room labels fit easily at their size. The narrow 80-unit rooms will need "Гардероб" clamped to fit, while the wider rooms hold their labels comfortably.
+
+    I'm checking the label fits now: the landmark labels sit comfortably within their boxes, and the room heights leave plenty of room for the text. Next I'll verify the geometry with a script to confirm the coverage, that the rooms don't overlap, and that everything sits inside the outline.
+  ── Thought for 4ms
+    Сначала сам нарисую планы четырёх этажей и проверю скриптом, что всё, кроме коридора, покрыто без пробелов и наложений и подписи помещаются; потом пойду к спецификации.
+  ── Ran mkdir -p "$TMPDIR/t010" && cat > "$TMPDIR/t010/plan_check.py" <<'EOF' """Prototype of the TASK-010 floor plans: coverage, overlap, label fit.""" from itertools import combinations W, H = 400, 648 OUTLINE = (4, 4, 392, 640) CORRIDOR = (164, 84, 72, 488) STAIRS = (164, 4, 72, 80) BOTTOM = (164, 572, 72, 72) def R(x, y, w, h): return (x, y, w, h) # (kind, label, parts, points or None) def rooms(*items): return list(items) PLANS = {  1: [   ("landmark","Лестница",[STAIRS],None), ("landmark","Вход",[BOTTOM],None),   ("room","101",[R(4,4,160,120)],None), ("room","102",[R(4,124,160,80)],None),   ("room","103",[R(4,204,80,88)],None), ("room","104",[R(84,204,80,88)],None),   ("room","105",[R(4,292,160,96)],None), ("service","Туалеты",[R(4,388,160,64)],None),   ("landmark","Столовая",[R(4,452,160,104),R(84,556,80,88)],((4,452),(164,452),(164,644),(84,644),(84,556),(4,556))),   ("service","Гардероб",[R(4,556,80,88)],None),   ("room","106",[R(236,4,160,104)],None), ("room","107",[R(236,108,80,88)],None), ("room","108",[R(316,108,80,88)],None),   ("room","114",[R(236,196,160,120)],None), ("service","Кафедра",[R(236,316,160,96)],None),   ("service","Медпункт",[R(236,412,160,96)],None), ("service","Склад",[R(236,508,160,64)],None),   ("service","Охрана",[R(236,572,160,72)],None),  ],  2: [   ("landmark","Лестница",[STAIRS],None), ("service","Склад",[BOTTOM],None),   ("landmark","Деканат",[R(4,4,160,120)],None), ("room","201",[R(4,124,160,88)],None),   ("room","202",[R(4,212,160,88)],None), ("room","203",[R(4,300,160,96)],None),   ("room","205",[R(4,396,160,104)],None), ("service","Туалеты",[R(4,500,160,64)],None),   ("room","206",[R(4,564,160,80)],None),   ("room","207",[R(236,4,160,96)],None), ("room","208",[R(236,100,160,88)],None),   ("room","210",[R(236,188,160,128),R(236,316,80,96)],((236,188),(396,188),(396,316),(316,316),(316,412),(236,412))),   ("room","211",[R(316,316,80,96)],None), ("room","212",[R(236,412,160,120)],None),   ("service","Кафедра",[R(236,532,160,112)],None),  ],  3: [   ("landmark","Лестница",[STAIRS],None), ("service","Склад",[BOTTOM],None),   ("room","301",[R(4,4,160,104)],None), ("room","302",[R(4,108,80,96)],None), ("room","303",[R(84,108,80,96)],None),   ("room","304",[R(4,204,160,112)],None), ("service","Туалеты",[R(4,316,160,64)],None),   ("room","305",[R(4,380,160,88)],None), ("room","306",[R(4,468,160,88)],None), ("room","308",[R(4,556,160,88)],None),   ("landmark","Библиотека",[R(236,4,160,200)],None), ("room","310",[R(236,204,160,104)],None),   ("room","315",[R(236,308,160,120)],None), ("service","Кафедра",[R(236,428,160,104)],None),   ("room","312",[R(236,532,160,112)],None),  ],  4: [   ("landmark","Лестница",[STAIRS],None), ("service","Склад",[BOTTOM],None),   ("room","401",[R(4,4,160,128)],None), ("room","402",[R(4,132,160,96)],None),   ("room","403",[R(4,228,80,96)],None), ("room","404",[R(84,228,80,96)],None),   ("service","Туалеты",[R(4,324,160,64)],None), ("room","405",[R(4,388,160,128)],None),   ("room","406",[R(4,516,160,128)],None),   ("room","407",[R(236,4,160,112)],None), ("room","408",[R(236,116,160,96)],None),   ("room","409",[R(236,212,160,144)],None), ("service","Кафедра",[R(236,356,160,96)],None),   ("room","410",[R(236,452,160,96)],None), ("service","Архив",[R(236,548,160,96)],None),  ], } def area(r): return r[2]*r[3] def inter(a, b):     w = min(a[0]+a[2], b[0]+b[2]) - max(a[0], b[0]); h = min(a[1]+a[3], b[1]+b[3]) - max(a[1], b[1])     return max(w,0)*max(h,0) def inside(a, b): return a[0]>=b[0] and a[1]>=b[1] and a[0]+a[2]<=b[0]+b[2] and a[1]+a[3]<=b[1]+b[3] def shoelace(pts):     s = 0     for (x1,y1),(x2,y2) in zip(pts, pts[1:]+pts[:1]): s += x1*y2-x2*y1     return abs(s)//2 def est(label, size): return (len(label)*13*size + 19)//20 region = area(OUTLINE) - area(CORRIDOR) ok = True total_rooms = 0 for floor, spaces in PLANS.items():     parts = [(lab, p) for _, lab, ps, _ in spaces for p in ps]     for lab, p in parts:         if not inside(p, OUTLINE) or inter(p, CORRIDOR): ok=False; print("OUT/CORR", floor, lab, p)     for (l1,a),(l2,b) in combinations(parts, 2):         if inter(a,b): ok=False; print("OVERLAP", floor, l1, l2)     s = sum(area(p) for _, p in parts)     if s != region: ok=False; print("AREA", floor, s, region)     for kind, lab, ps, pts in spaces:         if pts and shoelace(list(pts)) != sum(area(p) for p in ps): ok=False; print("POLY", floor, lab)         big = max(ps, key=area)         size = 20 if kind=="room" else 15         avail = big[2]-16         if kind=="room" and est(lab,size) > avail: ok=False; print("ROOMFIT", floor, lab)         clamp = est(lab,size) > avail         if clamp: print(f"  clamp floor {floor} {lab!r}: est {est(lab,size)} > {avail}")         if big[3] < 48: ok=False; print("LOW", floor, lab)     nums = [lab for k, lab, _, _ in spaces if k=="room"]     total_rooms += len(nums)     assert all(n[0]==str(floor) and len(n)==3 for n in nums), nums     print(f"floor {floor}: rooms {len(nums)} {nums}; spaces {len(spaces)}") print("total rooms", total_rooms, "OK" if ok else "FAIL") EOF python3 "$TMPDIR/t010/plan_check.py" (1s)
+    $ mkdir -p "$TMPDIR/t010" && cat > "$TMPDIR/t010/plan_check.py" <<'EOF'
+  """Prototype of the TASK-010 floor plans: coverage, overlap, label fit."""
+  from itertools import combinations
+
+  W, H = 400, 648
+  OUTLINE = (4, 4, 392, 640)
+  CORRIDOR = (164, 84, 72, 488)
+  STAIRS = (164, 4, 72, 80)
+  BOTTOM = (164, 572, 72, 72)
+
+  def R(x, y, w, h): return (x, y, w, h)
+
+  # (kind, label, parts, points or None)
+  def rooms(*items): return list(items)
+  PLANS = {
+   1: [
+    ("landmark","Лестница",[STAIRS],None), ("landmark","Вход",[BOTTOM],None),
+    ("room","101",[R(4,4,160,120)],None), ("room","102",[R(4,124,160,80)],None),
+    ("room","103",[R(4,204,80,88)],None), ("room","104",[R(84,204,80,88)],None),
+    ("room","105",[R(4,292,160,96)],None), ("service","Туалеты",[R(4,388,160,64)],None),
+    ("landmark","Столовая",[R(4,452,160,104),R(84,556,80,88)],((4,452),(164,452),(164,644),(84,644),(84,556),(4,556))),
+    ("service","Гардероб",[R(4,556,80,88)],None),
+    ("room","106",[R(236,4,160,104)],None), ("room","107",[R(236,108,80,88)],None), ("room","108",[R(316,108,80,88)],None),
+    ("room","114",[R(236,196,160,120)],None), ("service","Кафедра",[R(236,316,160,96)],None),
+    ("service","Медпункт",[R(236,412,160,96)],None), ("service","Склад",[R(236,508,160,64)],None),
+    ("service","Охрана",[R(236,572,160,72)],None),
+   ],
+   2: [
+    ("landmark","Лестница",[STAIRS],None), ("service","Склад",[BOTTOM],None),
+    ("landmark","Деканат",[R(4,4,160,120)],None), ("room","201",[R(4,124,160,88)],None),
+    ("room","202",[R(4,212,160,88)],None), ("room","203",[R(4,300,160,96)],None),
+    ("room","205",[R(4,396,160,104)],None), ("service","Туалеты",[R(4,500,160,64)],None),
+    ("room","206",[R(4,564,160,80)],None),
+    ("room","207",[R(236,4,160,96)],None), ("room","208",[R(236,100,160,88)],None),
+    ("room","210",[R(236,188,160,128),R(236,316,80,96)],((236,188),(396,188),(396,316),(316,316),(316,412),(236,412))),
+    ("room","211",[R(316,316,80,96)],None), ("room","212",[R(236,412,160,120)],None),
+    ("service","Кафедра",[R(236,532,160,112)],None),
+   ],
+   3: [
+    ("landmark","Лестница",[STAIRS],None), ("service","Склад",[BOTTOM],None),
+    ("room","301",[R(4,4,160,104)],None), ("room","302",[R(4,108,80,96)],None), ("room","303",[R(84,108,80,96)],None),
+    ("room","304",[R(4,204,160,112)],None), ("service","Туалеты",[R(4,316,160,64)],None),
+    ("room","305",[R(4,380,160,88)],None), ("room","306",[R(4,468,160,88)],None), ("room","308",[R(4,556,160,88)],None),
+    ("landmark","Библиотека",[R(236,4,160,200)],None), ("room","310",[R(236,204,160,104)],None),
+    ("room","315",[R(236,308,160,120)],None), ("service","Кафедра",[R(236,428,160,104)],None),
+    ("room","312",[R(236,532,160,112)],None),
+   ],
+   4: [
+    ("landmark","Лестница",[STAIRS],None), ("service","Склад",[BOTTOM],None),
+    ("room","401",[R(4,4,160,128)],None), ("room","402",[R(4,132,160,96)],None),
+    ("room","403",[R(4,228,80,96)],None), ("room","404",[R(84,228,80,96)],None),
+    ("service","Туалеты",[R(4,324,160,64)],None), ("room","405",[R(4,388,160,128)],None),
+    ("room","406",[R(4,516,160,128)],None),
+    ("room","407",[R(236,4,160,112)],None), ("room","408",[R(236,116,160,96)],None),
+    ("room","409",[R(236,212,160,144)],None), ("service","Кафедра",[R(236,356,160,96)],None),
+    ("room","410",[R(236,452,160,96)],None), ("service","Архив",[R(236,548,160,96)],None),
+   ],
+  }
+
+  def area(r): return r[2]*r[3]
+  def inter(a, b):
+      w = min(a[0]+a[2], b[0]+b[2]) - max(a[0], b[0]); h = min(a[1]+a[3], b[1]+b[3]) - max(a[1], b[1])
+      return max(w,0)*max(h,0)
+  def inside(a, b): return a[0]>=b[0] and a[1]>=b[1] and a[0]+a[2]<=b[0]+b[2] and a[1]+a[3]<=b[1]+b[3]
+  def shoelace(pts):
+      s = 0
+      for (x1,y1),(x2,y2) in zip(pts, pts[1:]+pts[:1]): s += x1*y2-x2*y1
+      return abs(s)//2
+  def est(label, size): return (len(label)*13*size + 19)//20
+
+  region = area(OUTLINE) - area(CORRIDOR)
+  ok = True
+  total_rooms = 0
+  for floor, spaces in PLANS.items():
+      parts = [(lab, p) for _, lab, ps, _ in spaces for p in ps]
+      for lab, p in parts:
+          if not inside(p, OUTLINE) or inter(p, CORRIDOR): ok=False; print("OUT/CORR", floor, lab, p)
+      for (l1,a),(l2,b) in combinations(parts, 2):
+          if inter(a,b): ok=False; print("OVERLAP", floor, l1, l2)
+      s = sum(area(p) for _, p in parts)
+      if s != region: ok=False; print("AREA", floor, s, region)
+      for kind, lab, ps, pts in spaces:
+          if pts and shoelace(list(pts)) != sum(area(p) for p in ps): ok=False; print("POLY", floor, lab)
+          big = max(ps, key=area)
+          size = 20 if kind=="room" else 15
+          avail = big[2]-16
+          if kind=="room" and est(lab,size) > avail: ok=False; print("ROOMFIT", floor, lab)
+          clamp = est(lab,size) > avail
+          if clamp: print(f"  clamp floor {floor} {lab!r}: est {est(lab,size)} > {avail}")
+          if big[3] < 48: ok=False; print("LOW", floor, lab)
+      nums = [lab for k, lab, _, _ in spaces if k=="room"]
+      total_rooms += len(nums)
+      assert all(n[0]==str(floor) and len(n)==3 for n in nums), nums
+      print(f"floor {floor}: rooms {len(nums)} {nums}; spaces {len(spaces)}")
+  print("total rooms", total_rooms, "OK" if ok else "FAIL")
+  EOF
+  python3 "$TMPDIR/t010/plan_check.py"
+    clamp floor 1 'Лестница': est 78 > 56
+      clamp floor 1 'Гардероб': est 78 > 64
+    floor 1: rooms 9 ['101', '102', '103', '104', '105', '106', '107', '108', '114']; spaces 18
+      clamp floor 2 'Лестница': est 78 > 56
+    floor 2: rooms 10 ['201', '202', '203', '205', '206', '207', '208', '210', '211', '212']; spaces 15
+      clamp floor 3 'Лестница': est 78 > 56
+    floor 3: rooms 10 ['301', '302', '303', '304', '305', '306', '308', '310', '315', '312']; spaces 15
+      clamp floor 4 'Лестница': est 78 > 56
+    floor 4: rooms 10 ['401', '402', '403', '404', '405', '406', '407', '408', '409', '410']; spaces 15
+    total rooms 39 OK
+  ── Thought for 22s
+    The geometry checks out: the rooms cover the floor without overlapping, and the count is 39. On floor 3 the right-side numbering is out of order (310, 315, the department room, then 312), so I'm considering reordering them to 310, 312, 315 while keeping 315 as the demo room.
+
+    I'm settling on the floor 3 positions: 310 at 204, 312 at 308, the department room at 428, and 315 at 532, keeping the geometry and just relabeling. Next, the migration plan drops the map_cell constraints and field, the Room.clean check goes, and the admin list loses map_cell, with the old MapCell definitions replaced by plan data. I'm weighing whether that plan data belongs in university/building.py or elsewhere, since the seed and the campus map both need to read the room numbers from it.
+
+    I'm defining the shared geometry types in university/building.py: moving Rect there so layout can re-export it and existing imports keep working, then adding a Space dataclass whose first rectangle is the label rectangle.
+
+    I'm working out how to describe the floor plans for floors 5 through 9, which have no plan in the map. Floor 5 rooms would still show in the switcher, so the floor page needs a fallback message and a "not on the plan" note on each room. I'm planning for `floor_plan` to return None for those floors and having the template handle it.
+
+    I'm turning to the map's styling next: the polygon shapes need the same CSS as the rectangles, and the service spaces get a muted dashed outline with their own label class.
+
+    I'm writing the floor plan helper so it returns None for floors that have no plan, and building the shape list from each space's label rectangle and optional polygon points.
+
+    I'm going to rework the floor plan helper so it takes only the floor and the current room, and I'll rewrite the tests that call it with the old three-argument form. Every plan room gets drawn, and the current room is highlighted when its number matches. I'm also keeping the room list and floor switcher driven by actual Room rows, and setting the service and landmark labels to the shared 15px size, with the viewbox at 400 by 648 and the outline at the inset rectangle.
+
+    Next I'm setting the seed data to come from the plan instead of a hand-written list: each plan room gets a code like room-NNN, so the existing seven keep their codes and the seed stays idempotent. I'll also need to check the schedule demo tests, since they probably assert seven rooms rather than the new count of 39.
+
+    I'm checking which test files still reference the old map cells and blocked-cell logic, including the room map-cell tests, the admin map-cell tests, and the grid tests in the building tests, so I can replace them with tests for the plan data.
+  ── Thought
+    Геометрия сходится: 39 аудиторий на 4 этажах, у всех демо-номеров есть место на плане, наложений нет. Теперь проверяю, какие тесты и места кода завязаны на старую сетку.
+  ── Ran for f in campusmap/tests/test_views.py campusmap/tests/test_layout.py schedule/tests/test_demo.py university/tests/test_admin.py university/tests/test_models.py university/tests/test_building.py; do echo "== $f"; grep -n "map_cell\|MapCell\|blocked_cells\|landmarks_on\|cell_rect\|span_rect\|STAIRS_CELL\|LANDMARKS\|floor_plan\|^class \|Room.objects.count\|rooms, 7\|== 7" $f | cut -c1-140; done; grep -n "map-\(room\|landmark\|outline\|corridor\)" static/css/base.css
+    $ for f in campusmap/tests/test_views.py campusmap/tests/test_layout.py schedule/tests/test_demo.py university/tests/test_admin.py university/tests/test_models.py university/tests/test_building.py; do echo "== $f"; grep -n "map_cell\|MapCell\|blocked_cells\|landmarks_on\|cell_rect\|span_rect\|STAIRS_CELL\|LANDMARKS\|floor_plan\|^class \|Room.objects.count\|rooms, 7\|== 7" $f | cut -c1-140; done; grep -n "map-\(room\|landmark\|outline\|corridor\)" static/css/base.css
+    == campusmap/tests/test_views.py
+    16:class MapAccessTests(TestCase):
+    24:        Room.objects.create(code="room-101", floor=1, number="101", map_cell="N2")
+    25:        Room.objects.create(code="room-205", floor=2, number="205", map_cell="N3")
+    64:class MapViewTests(TestCase):
+    70:        Room.objects.create(code="room-101", floor=1, number="101", map_cell="N2")
+    71:        Room.objects.create(code="room-114", floor=1, number="114", map_cell="")
+    72:        Room.objects.create(code="room-205", floor=2, number="205", map_cell="N3")
+    73:        Room.objects.create(code="room-402", floor=4, number="402", map_cell="N3")
+    198:class MapQueryTests(TestCase):
+    204:        Room.objects.create(code="room-101", floor=1, number="101", map_cell="N2")
+    205:        Room.objects.create(code="room-114", floor=1, number="114", map_cell="")
+    206:        Room.objects.create(code="room-205", floor=2, number="205", map_cell="N3")
+    207:        Room.objects.create(code="room-402", floor=4, number="402", map_cell="N3")
+    238:class MapNavTests(TestCase):
+    == campusmap/tests/test_layout.py
+    11:    cell_rect,
+    13:    floor_plan,
+    14:    span_rect,
+    16:from university.building import LANDMARKS, STAIRS_CELL, MapCell
+    39:    room = Room(code=f"room-{number}", floor=floor, number=number, map_cell=cell)
+    45:class LayoutTests(SimpleTestCase):
+    47:        cells = [*MapCell.values, STAIRS_CELL]
+    48:        room_rects = [cell_rect(c) for c in MapCell.values]
+    50:            self.assertTrue(_inside(cell_rect(c), OUTLINE), f"cell {c} outside outline")
+    51:            self.assertFalse(_overlaps(cell_rect(c), CORRIDOR), f"cell {c} overlaps corridor")
+    55:        for lm in LANDMARKS:
+    56:            self.assertTrue(_inside(span_rect(lm.cells), OUTLINE), f"{lm.key} outside outline")
+    58:                _overlaps(span_rect(lm.cells), CORRIDOR), f"{lm.key} overlaps corridor"
+    63:        rects += [cell_rect(c) for c in [*MapCell.values, STAIRS_CELL]]
+    64:        rects += [span_rect(lm.cells) for lm in LANDMARKS]
+    75:            plan = floor_plan(floor, [], None)
+    88:        plan = floor_plan(1, [], None)
+    94:        plan = floor_plan(1, rooms, None)
+    102:    def test_floor_plan_marks_current(self):
+    105:        plan = floor_plan(1, [r1, r2], r2)
+    112:        plan = floor_plan(1, [r], None)
+    116:        r = _room(1, "101", STAIRS_CELL)
+    117:        plan = floor_plan(1, [r], None)
+    122:        plan = floor_plan(1, [r], None)
+    == schedule/tests/test_demo.py
+    15:from university.building import blocked_cells
+    21:class ScheduleDemoTests(FrozenClockMixin, TestCase):
+    28:        self.assertEqual(summary.rooms, 7)
+    33:        self.assertEqual(Room.objects.count(), 7)
+    58:        self.assertEqual(Room.objects.count(), 7)
+    107:            self.assertTrue(room.map_cell)
+    108:            self.assertNotIn(room.map_cell, blocked_cells(room.floor))
+    112:        cells1 = {r.code: r.map_cell for r in Room.objects.all()}
+    114:        cells2 = {r.code: r.map_cell for r in Room.objects.all()}
+    == university/tests/test_admin.py
+    8:class RoomAdminTests(TestCase):
+    20:        response = self._post({"code": "room-201", "floor": "2", "number": "201", "map_cell": "N3"})
+    25:        response = self._post({"code": "room-x", "floor": "1", "number": "15", "map_cell": ""})
+    30:        response = self._post({"code": "room-y", "floor": "3", "number": "205", "map_cell": ""})
+    35:        response = self._post({"code": "room-103", "floor": "1", "number": "103", "map_cell": "S3"})
+    40:        Room.objects.create(code="room-101", floor=1, number="101", map_cell="N2")
+    41:        response = self._post({"code": "room-102", "floor": "1", "number": "102", "map_cell": "N2"})
+    == university/tests/test_models.py
+    8:class UniversityModelTests(TestCase):
+    66:class RoomNumberTests(TestCase):
+    118:class RoomMapCellTests(TestCase):
+    127:                room = Room(code=f"room-{number}", floor=floor, number=number, map_cell=cell)
+    133:        room = Room(code="room-403", floor=4, number="403", map_cell="S3")
+    137:        Room.objects.create(code="room-102", floor=1, number="102", map_cell="N2")
+    138:        room = Room(code="room-103", floor=1, number="103", map_cell="N2")
+    144:                Room.objects.create(code="room-104", floor=1, number="104", map_cell="N2")
+    147:        Room.objects.create(code="room-202", floor=2, number="202", map_cell="N2")
+    148:        Room.objects.create(code="room-302", floor=3, number="302", map_cell="N2")
+    157:                Room.objects.create(code="room-105", floor=1, number="105", map_cell="N1")
+    == university/tests/test_building.py
+    4:    LANDMARKS,
+    5:    STAIRS_CELL,
+    6:    MapCell,
+    7:    blocked_cells,
+    8:    landmarks_on,
+    12:class BuildingTests(SimpleTestCase):
+    16:                labels = [lm.label for lm in landmarks_on(floor)]
+    18:                self.assertIn(STAIRS_CELL, blocked_cells(floor))
+    21:        self.assertEqual({lm.key for lm in landmarks_on(1)}, {"stairs", "entrance", "canteen"})
+    22:        self.assertEqual({lm.key for lm in landmarks_on(2)}, {"stairs", "deanery"})
+    23:        self.assertEqual({lm.key for lm in landmarks_on(3)}, {"stairs", "library"})
+    24:        self.assertEqual({lm.key for lm in landmarks_on(4)}, {"stairs"})
+    26:    def test_blocked_cells(self):
+    27:        self.assertEqual(set(blocked_cells(1)), {"N1", "S3", "S4", "S5"})
+    30:        self.assertNotIn(STAIRS_CELL, MapCell.values)
+    33:        for lm in LANDMARKS:
+    250:.map-outline,
+    251:.map-room rect,
+    252:.map-landmark rect,
+    253:.map-corridor {
+    259:.map-corridor {
+    263:.map-landmark rect {
+    268:.map-room-label {
+    273:.map-landmark-label {
+    279:.map-current .map-room-label {
+    289:.map-room-list {
+  ── Thought for 3s
+    I'm checking which other tests touch the map. The room-402 test still holds because the plan includes 402, but room 114 now appears on the plan, so the "not on the schematic" test needs a different number, like 199 on floor 1. I'll also look at the campusmap view tests.
+
+    I'm also checking the campusmap view tests for per-floor landmark labels, since floor 4 now has services, which should be fine. Next I'll run a baseline verification, then write the spec and a README section. I also want to prototype the migration on a temp copy of the seeded database: drop the map_cell field and its constraints, run makemigrations, then migrate. The seed code still references map_cell, so it will fail, but I only need the migration to apply.
+  ── Ran source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && (echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t010-feas.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t010-feas-at-2359.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t010-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; node --check static/js/chat.js && echo "js syntax ok"; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t010/seed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t010/seed-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t010/seed.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; echo DONE) > "$TMPDIR/t010/baseline.out" 2>&1 & echo started
+    $ source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && (echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t010-feas.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t010-feas-at-2359.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t010-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; node --check static/js/chat.js && echo "js syntax ok"; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t010/seed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t010/seed-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t010/seed.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; echo DONE) > "$TMPDIR/t010/baseline.out" 2>&1 &
+  echo started
+    Command running in background with ID: blv0biso6. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/blv0biso6.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Thought for 4ms
+    I'm running the command in the background with `&` and `run_in_background`, which means it exits right away while the output goes to a file I can poll later. For the migration prototype, the baseline already seeds a shared DB, so I'll use a separate one, mig.sqlite3. I'll seed it with the current code, then run makemigrations and migrate in a temp copy where the model has no map_cell.
+  ── Ran source .venv/bin/activate && export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t010/mig.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t010/mig-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!' && rm -rf "$TMPDIR/t010/mig.sqlite3" "$TMPDIR/t010/copy" && python manage.py migrate -v0 && python manage.py seed_demo | grep -i "schedule" && mkdir -p "$TMPDIR/t010/copy" && git archive HEAD | tar -x -C "$TMPDIR/t010/copy" && cd "$TMPDIR/t010/copy" && python - <<'EOF' import re p = "university/models.py"; s = open(p).read() s = re.sub(r"\n    map_cell = models\.CharField\(.*?\n    \)\n", "\n", s, flags=re.S) s = re.sub(r"\n            models\.CheckConstraint\(\n                condition=models\.Q\(map_cell__in=.*?\n            \),", "", s, flags=re.S) s = re.sub(r"\n            models\.UniqueConstraint\(\n                fields=\[\"floor\", \"map_cell\"\],.*?\n            \),", "", s, flags=re.S) s = re.sub(r"\n        if self\.map_cell and .*?\)\n", "\n", s, flags=re.S) open(p, "w").write(s) EOF grep -n "map_cell" university/models.py; python manage.py makemigrations university --name remove_room_map_cell 2>&1 | tail -5; python manage.py migrate university 2>&1 | tail -1; python manage.py shell -c "from university.models import Room; print(Room.objects.count(), sorted(Room.objects.values_list('number', flat=True)))" 2>&1 | tail -1 (5s)
+    $ source .venv/bin/activate && export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t010/mig.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t010/mig-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!' && rm -rf "$TMPDIR/t010/mig.sqlite3" "$TMPDIR/t010/copy" && python manage.py migrate -v0 && python manage.py seed_demo | grep -i "schedule" && mkdir -p "$TMPDIR/t010/copy" && git archive HEAD | tar -x -C "$TMPDIR/t010/copy" && cd "$TMPDIR/t010/copy" && python - <<'EOF'
+  import re
+  p = "university/models.py"; s = open(p).read()
+  s = re.sub(r"\n    map_cell = models\.CharField\(.*?\n    \)\n", "\n", s, flags=re.S)
+  s = re.sub(r"\n            models\.CheckConstraint\(\n                condition=models\.Q\(map_cell__in=.*?\n            \),", "", s, flags=re.S)
+  s = re.sub(r"\n            models\.UniqueConstraint\(\n                fields=\[\"floor\", \"map_cell\"\],.*?\n            \),", "", s, flags=re.S)
+  s = re.sub(r"\n        if self\.map_cell and .*?\)\n", "\n", s, flags=re.S)
+  open(p, "w").write(s)
+  EOF
+  grep -n "map_cell" university/models.py; python manage.py makemigrations university --name remove_room_map_cell 2>&1 | tail -5; python manage.py migrate university 2>&1 | tail -1; python manage.py shell -c "from university.models import Room; print(Room.objects.count(), sorted(Room.objects.values_list('number', flat=True)))" 2>&1 | tail -1
+    Schedule ready: 7 rooms, 6 teachers, 6 disciplines, 18 weekly lessons, 8 changes.
+      File "<frozen importlib._bootstrap_external>", line 1063, in source_to_code
+      File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+      File "/private/tmp/claude-501/t010/copy/university/models.py", line 133
+        if landmark is not None:
+    IndentationError: unexpected indent
+    IndentationError: unexpected indent
+    IndentationError: unexpected indent
+    Shell cwd was reset to ~/hackatonproject
+  ── Read university/models.py
+  ── Ran cd "$TMPDIR/t010/copy" && source ~/hackatonproject/.venv/bin/activate && python - <<'EOF' p = "university/models.py"; s = open(p).read() s = s.replace("""    def clean(self):         super().clean()             if landmark is not None:                 raise ValidationError(f"Это место на {self.floor} этаже занято: {landmark.label}.") """, "") s = s.replace("from university.building import MapCell, blocked_cells\n", "") open(p, "w").write(s) EOF export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t010/mig.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t010/mig-priv"; python manage.py makemigrations university --name remove_room_map_cell 2>&1 | tail -5; python manage.py migrate university 2>&1 | tail -1; python manage.py shell -c "from university.models import Room; print(Room.objects.count(), sorted(Room.objects.values_list('number', flat=True)))" 2>&1 | tail -1; cat ~/hackatonproject/.venv/../ 2>/dev/null; grep -v " ready:" "$TMPDIR/t010/baseline.out" | head -20 (2s)
+    $ cd "$TMPDIR/t010/copy" && source ~/hackatonproject/.venv/bin/activate && python - <<'EOF'
+  p = "university/models.py"; s = open(p).read()
+  s = s.replace("""    def clean(self):
+          super().clean()
+              if landmark is not None:
+                  raise ValidationError(f"Это место на {self.floor} этаже занято: {landmark.label}.")
+  """, "")
+  s = s.replace("from university.building import MapCell, blocked_cells\n", "")
+  open(p, "w").write(s)
+  EOF
+  export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t010/mig.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t010/mig-priv"; python manage.py makemigrations university --name remove_room_map_cell 2>&1 | tail -5; python manage.py migrate university 2>&1 | tail -1; python manage.py shell -c "from university.models import Room; print(Room.objects.count(), sorted(Room.objects.values_list('number', flat=True)))" 2>&1 | tail -1; cat ~/hackatonproject/.venv/../ 2>/dev/null; grep -v " ready:" "$TMPDIR/t010/baseline.out" | head -20
+    SystemCheckError: System check identified some issues:
+
+    ERRORS:
+    <class 'university.admin.RoomAdmin'>: (admin.E108) The value of 'list_display[3]' refers to 'map_cell', which is not a callable or attribute of 'RoomAdmin', or an attribute, method, or field on 'university.Room'.
+    <class 'university.admin.RoomAdmin'>: (admin.E108) The value of 'list_display[3]' refers to 'map_cell', which is not a callable or attribute of 'RoomAdmin', or an attribute, method, or field on 'university.Room'.
+    7 ['101', '114', '205', '212', '308', '315', '402']
+    MSK 20261116-142330
+    System check identified no issues (0 silenced).
+    No changes detected
+    Shell cwd was reset to ~/hackatonproject
+  ── Ran cd "$TMPDIR/t010/copy" && source ~/hackatonproject/.venv/bin/activate && sed -i '' 's/list_display = ("number", "floor", "code", "map_cell")/list_display = ("number", "floor", "code")/' university/admin.py && export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t010/mig.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t010/mig-priv"; python manage.py makemigrations university --name remove_room_map_cell 2>&1 | tail -5; python manage.py migrate university 2>&1 | tail -1; python manage.py shell -c "from university.models import Room; print(Room.objects.count(), sorted(Room.objects.values_list('number', 'floor')))" 2>&1 | tail -1; python manage.py sqlmigrate university 0004 | head -3 (2s)
+    $ cd "$TMPDIR/t010/copy" && source ~/hackatonproject/.venv/bin/activate && sed -i '' 's/list_display = ("number", "floor", "code", "map_cell")/list_display = ("number", "floor", "code")/' university/admin.py && export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t010/mig.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t010/mig-priv"; python manage.py makemigrations university --name remove_room_map_cell 2>&1 | tail -5; python manage.py migrate university 2>&1 | tail -1; python manage.py shell -c "from university.models import Room; print(Room.objects.count(), sorted(Room.objects.values_list('number', 'floor')))" 2>&1 | tail -1; python manage.py sqlmigrate university 0004 | head -3
+    Migrations for 'university':
+      university/migrations/0004_remove_room_map_cell.py
+        - Remove constraint university_room_map_cell_value from model room
+        - Remove constraint university_room_unique_map_cell from model room
+        - Remove field map_cell from room
+      Applying university.0004_remove_room_map_cell... OK
+    7 [('101', 1), ('114', 1), ('205', 2), ('212', 2), ('308', 3), ('315', 3), ('402', 4)]
+    BEGIN;
+    --
+    -- Remove constraint university_room_map_cell_value from model room
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 556ms
+    Migration is working, so I'm waiting on the baseline and drafting the spec in the meantime. Rechecking the relabel floor positions: 310 spans 204–308, 312 spans 308–428, Кафедра spans 428–532, and 315 sits at y 532 with height 112, so the geometry holds and only the labels changed.
+
+    Now I'm settling on the exact plan definitions to put into the spec.
+  ── Thought for 2ms
+    Миграция, удаляющая `map_cell`, на демо-базе прошла, все 7 аудиторий на месте. Сейчас пишу спецификацию с готовыми данными планов, базовые проверки идут в фоне.
+  ── Created docs/tasks/TASK-010.md +393
+    --- /dev/null
+    +++ b~/hackatonproject/docs/tasks/TASK-010.md
+    +# TASK-010: room map v2 — realistic portrait floor plans
+    +
+    +Author: Planner. Status: ready for implementation.
+    +Base commit: `08671f6`. Related specs: `TASK-008.md` (map, D2 number rule, D6 label size, D7 highlight), `TASK-008-FIX.md` (label fitting, page-assertion rule).
+    +
+    +Each of floors 1–4 gets its own fixed plan in code: a vertical corridor in the middle, rooms of different sizes on both sides, one L-shaped space per floor 1 and 2, service spaces, and no free space except the corridor. A room appears on the plan when its number is a plan slot on its floor. `Room.map_cell` is removed.
+    +
+    +---
+    +
+    +## 1. Acceptance criteria
+    +| ID | Criterion |
+    +|---|---|
+    +| AC1 | `university/building.py` defines `FLOOR_PLANS` for floors 1–4 (data in 4.2). Outline, corridor, stairs (top of the corridor axis) and the bottom-centre space position are the same on every floor; the rest differs per floor. |
+    +| AC2 | On every floor the spaces (all their rectangle parts) lie inside the outline, do not touch the corridor's interior, do not overlap each other, and their total area equals outline area − corridor area. Proven by a test on integer geometry. |
+    +| AC3 | 39 rooms in total (9 / 10 / 10 / 10), numbers NNN with first digit = floor, unique; the demo rooms 101, 114, 205, 212, 308, 315, 402 are on the plan. Two L-shaped spaces (floor 1 «Столовая», floor 2 room 210) are drawn as SVG `<polygon>`; their polygon area equals the sum of their parts. |
+    +| AC4 | Non-teaching spaces: landmarks «Лестница» (every floor), «Вход» (1), «Столовая» (1), «Деканат» (2), «Библиотека» (3); service spaces «Гардероб», «Туалеты» (every floor), «Кафедра», «Медпункт», «Склад», «Охрана», «Архив». Legend explains room / landmark / service. |
+    +| AC5 | Portrait layout: `viewBox` 400 × 648, corridor vertical; room label size stays 20 units (≥ 16 px at 360 px); every label fits its label rectangle with the TASK-008-FIX padding (clamped with `textLength` only where needed). No horizontal scroll at 360 px. |
+    +| AC6 | Linking by number (D1): a room is on the plan when `room.number` is a room slot of `room.floor`'s plan. `Room.map_cell` (field, two constraints, `clean()` check, admin column) is removed by migration `university/0004_remove_room_map_cell`, which applies on a database seeded before the change. Rooms not on the plan (or floors 5–9 without a plan) show «— нет на схеме» and never break the page. |
+    +| AC7 | `seed_demo` (idempotent) creates/updates a `Room` row for every plan room with code `room-<number>`; the 7 demo rooms keep their codes. |
+    +| AC8 | Unchanged: floor switcher (floors that have rooms), highlight URL opens the room's floor with its number in red (`map-current`, `aria-current="location"`), room list grouped by floor, no JavaScript, access rules, the map view runs one rooms query (fixed count). |
+    +
+    +## 2. Out of scope
+    +Zoom, routes, several buildings, occupancy, the pixel-art theme, chat, plans for floors 5–9, clickable shapes.
+    +
+    +## 3. Design decisions
+    +**D1. Plan slots are identified by the room number (option a).** The plans have irregular, hand-made geometry; each room slot already carries its number as the label. With an admin-editable slot field, an admin could put room «205» into the slot drawn for «212» (label and data disagree) and we would need a unique-slot constraint and a landmark check again. Linking by number needs no extra field, no admin placement step and no constraint (the number is already unique and validated NNN = floor). Cost: adding a room to the plan is a code change — acceptable for one fixed fictional building. Plan room shapes are drawn always (they are part of the coverage); a missing `Room` row only means that slot cannot be highlighted (the seed creates all of them).
+    +
+    +**D2. Geometry as rectangle parts.** Every space is a tuple of disjoint integer rectangles (`parts`); `parts[0]` is the largest part and holds the label. Rectangular spaces have one part and are drawn as `<rect>`; L-shaped spaces have two parts plus explicit `points` and are drawn as `<polygon>`. Coverage is then a pure integer check: each part inside the outline, no part overlaps the corridor, parts pairwise disjoint, Σ areas = outline − corridor ⇒ exact cover with no gaps.
+    +
+    +**D3. Portrait sizes.** Outline 392 × 640 units in a 400 × 648 `viewBox`; at 360 px the map is 328 px wide (scale 0.82) and ≈ 531 px tall (vertical scroll only). Side blocks are 160 units wide (131 px), the corridor 72 units. Room numbers stay 20 units (16.4 px); landmark/service labels 15 units (12.3 px), clamped by `textLength` only where the estimate exceeds the label rectangle (computed: «Лестница» 78 > 56 on every floor, «Гардероб» 78 > 64 on floor 1; all others fit).
+    +
+    +---
+    +
+    +## 4. Architecture
+    +
+    +### 4.1 Files
+    +Change:
+    +| File | Change |
+    +|---|---|
+    +| `university/building.py` | rewrite: `Rect`, `Space`, plan constants, `FLOOR_PLANS`, helpers (4.2) |
+    +| `university/models.py` | remove `map_cell`, its two constraints, the `clean()` method (only the map check is in it) and the `building` import |
+    +| `university/migrations/0004_remove_room_map_cell.py` | generated: `makemigrations university --name remove_room_map_cell` |
+    +| `university/admin.py` | `RoomAdmin.list_display = ("number", "floor", "code")` |
+    +| `campusmap/layout.py` | geometry from the plan (4.3); `Rect` re-exported from `university.building` |
+    +| `campusmap/views.py` | `on_map` by number; `floor_plan(floor, current)` (4.4) |
+    +| `campusmap/templates/campusmap/map.html` | polygon shapes, service kind, no plan message, legend (4.5) |
+    +| `static/css/base.css` | polygon and service rules (4.6) |
+    +| `schedule/demo.py` | room seeds from the plan; `RoomSeed` without `map_cell` (4.7) |
+    +| tests | rewrite map/grid tests (6.3); `schedule/tests/test_demo.py` room counts 7 → 39 |
+    +| `README.md` | `## Map` section rewritten; Known limitations bullet updated |
+    +
+    +No new app, dependency, setting or env variable.
+    +
+    +### 4.2 `university/building.py` (full content)
+    +```python
+    +"""The fictional building: fixed portrait floor plans (one building, floors 1-4).
+    +
+    +All geometry is in integer SVG user units. A space is a set of disjoint rectangles;
+    +parts[0] is the largest part and holds the label. Non-rectangular spaces also give
+    +their outline as polygon points.
+    +"""
+    +
+    +from dataclasses import dataclass
+    +
+    +
+    +@dataclass(frozen=True)
+    +class Rect:
+    +    x: int
+    +    y: int
+    +    width: int
+    +    height: int
+    +
+    +    @property
+    +    def cx(self) -> int:
+    +        return self.x + self.width // 2
+    +
+    +    @property
+    +    def cy(self) -> int:
+    +        return self.y + self.height // 2
+    +
+    +    @property
+    +    def area(self) -> int:
+    +        return self.width * self.height
+    +
+    +
+    +ROOM = "room"
+    +LANDMARK = "landmark"
+    +SERVICE = "service"
+    +
+    +
+    +@dataclass(frozen=True)
+    +class Space:
+    +    kind: str                                   # ROOM | LANDMARK | SERVICE
+    +    label: str                                  # room number NNN or a Russian name
+    +    parts: tuple[Rect, ...]                     # disjoint; parts[0] is the label rectangle
+    +    points: tuple[tuple[int, int], ...] = ()    # polygon outline when len(parts) > 1
+    +
+    +
+    +VIEWBOX_WIDTH = 400
+    +VIEWBOX_HEIGHT = 648
+    +OUTLINE = Rect(4, 4, 392, 640)
+    +CORRIDOR = Rect(164, 84, 72, 488)
+    +STAIRS = Rect(164, 4, 72, 80)
+    +BOTTOM_CENTRE = Rect(164, 572, 72, 72)
+    +
+    +
+    +def _r(x: int, y: int, w: int, h: int) -> tuple[Rect, ...]:
+    +    return (Rect(x, y, w, h),)
+    +
+    +
+    +def _room(number: str, x: int, y: int, w: int, h: int) -> Space:
+    +    return Space(ROOM, number, _r(x, y, w, h))
+    +
+    +
+    +def _landmark(label: str, x: int, y: int, w: int, h: int) -> Space:
+    +    return Space(LANDMARK, label, _r(x, y, w, h))
+    +
+    +
+    +def _service(label: str, x: int, y: int, w: int, h: int) -> Space:
+    +    return Space(SERVICE, label, _r(x, y, w, h))
+    +
+    +
+    +_STAIRS = Space(LANDMARK, "Лестница", (STAIRS,))
+    +
+    +FLOOR_PLANS: dict[int, tuple[Space, ...]] = {
+    +    1: (
+    +        _STAIRS,
+    +        Space(LANDMARK, "Вход", (BOTTOM_CENTRE,)),
+    +        _room("101", 4, 4, 160, 120),
+    +        _room("102", 4, 124, 160, 80),
+    +        _room("103", 4, 204, 80, 88),
+    +        _room("104", 84, 204, 80, 88),
+    +        _room("105", 4, 292, 160, 96),
+    +        _service("Туалеты", 4, 388, 160, 64),
+    +        Space(
+    +            LANDMARK,
+    +            "Столовая",
+    +            (Rect(4, 452, 160, 104), Rect(84, 556, 80, 88)),
+    +            ((4, 452), (164, 452), (164, 644), (84, 644), (84, 556), (4, 556)),
+    +        ),
+    +        _service("Гардероб", 4, 556, 80, 88),
+    +        _room("106", 236, 4, 160, 104),
+    +        _room("107", 236, 108, 80, 88),
+    +        _room("108", 316, 108, 80, 88),
+    +        _room("114", 236, 196, 160, 120),
+    +        _service("Кафедра", 236, 316, 160, 96),
+    +        _service("Медпункт", 236, 412, 160, 96),
+    +        _service("Склад", 236, 508, 160, 64),
+    +        _service("Охрана", 236, 572, 160, 72),
+    +    ),
+    +    2: (
+    +        _STAIRS,
+    +        Space(SERVICE, "Склад", (BOTTOM_CENTRE,)),
+    +        _landmark("Деканат", 4, 4, 160, 120),
+    +        _room("201", 4, 124, 160, 88),
+    +        _room("202", 4, 212, 160, 88),
+    +        _room("203", 4, 300, 160, 96),
+    +        _room("205", 4, 396, 160, 104),
+    +        _service("Туалеты", 4, 500, 160, 64),
+    +        _room("206", 4, 564, 160, 80),
+    +        _room("207", 236, 4, 160, 96),
+    +        _room("208", 236, 100, 160, 88),
+    +        Space(
+    +            ROOM,
+    +            "210",
+    +            (Rect(236, 188, 160, 128), Rect(236, 316, 80, 96)),
+    +            ((236, 188), (396, 188), (396, 316), (316, 316), (316, 412), (236, 412)),
+    +        ),
+    +        _room("211", 316, 316, 80, 96),
+    +        _room("212", 236, 412, 160, 120),
+    +        _service("Кафедра", 236, 532, 160, 112),
+    +    ),
+    +    3: (
+    +        _STAIRS,
+    +        Space(SERVICE, "Склад", (BOTTOM_CENTRE,)),
+    +        _room("301", 4, 4, 160, 104),
+    +        _room("302", 4, 108, 80, 96),
+    +        _room("303", 84, 108, 80, 96),
+    +        _room("304", 4, 204, 160, 112),
+    +        _service("Туалеты", 4, 316, 160, 64),
+    +        _room("305", 4, 380, 160, 88),
+    +        _room("306", 4, 468, 160, 88),
+    +        _room("308", 4, 556, 160, 88),
+    +        _landmark("Библиотека", 236, 4, 160, 200),
+    +        _room("310", 236, 204, 160, 104),
+    +        _room("312", 236, 308, 160, 120),
+    +        _service("Кафедра", 236, 428, 160, 104),
+    +        _room("315", 236, 532, 160, 112),
+    +    ),
+    +    4: (
+    +        _STAIRS,
+    +        Space(SERVICE, "Склад", (BOTTOM_CENTRE,)),
+    +        _room("401", 4, 4, 160, 128),
+    +        _room("402", 4, 132, 160, 96),
+    +        _room("403", 4, 228, 80, 96),
+    +        _room("404", 84, 228, 80, 96),
+    +        _service("Туалеты", 4, 324, 160, 64),
+    +        _room("405", 4, 388, 160, 128),
+    +        _room("406", 4, 516, 160, 128),
+    +        _room("407", 236, 4, 160, 112),
+    +        _room("408", 236, 116, 160, 96),
+    +        _room("409", 236, 212, 160, 144),
+    +        _service("Кафедра", 236, 356, 160, 96),
+    +        _room("410", 236, 452, 160, 96),
+    +        _service("Архив", 236, 548, 160, 96),
+    +    ),
+    +}
+    +
+    +
+    +def plan_for(floor: int) -> tuple[Space, ...] | None:
+    +    return FLOOR_PLANS.get(floor)
+    +
+    +
+    +def plan_room_numbers(floor: int) -> frozenset[str]:
+    +    return frozenset(s.label for s in FLOOR_PLANS.get(floor, ()) if s.kind == ROOM)
+    +
+    +
+    +def all_plan_rooms() -> list[tuple[int, str]]:
+    +    """(floor, number) of every room slot, ordered by floor and number."""
+    +    return sorted((floor, s.label) for floor, spaces in FLOOR_PLANS.items() for s in spaces if s.kind == ROOM)
+    +```
+    +(Keep this exact data: the Planner verified coverage, overlaps, polygon areas and label fit for it, 9.6.)
+    +
+    +### 4.3 `campusmap/layout.py`
+    +- Remove `CELL_WIDTH`, `CELL_HEIGHT`, `COLUMN_X`, `ROW_Y`, `cell_rect`, `span_rect`, local `Rect`, `OUTLINE`, `CORRIDOR`, `VIEWBOX_*`; import them from `university.building` (`from university.building import CORRIDOR, LANDMARK, OUTLINE, ROOM, SERVICE, VIEWBOX_HEIGHT, VIEWBOX_WIDTH, Rect, Space, plan_for`). Keep `ROOM_LABEL_SIZE = 20`, `LANDMARK_LABEL_SIZE = 15`, `LABEL_PADDING`, `estimated_label_width`, `label_text_length` unchanged.
+    +- `MapShape`: fields `kind: str`, `label: str`, `rect: Rect` (label rectangle = `parts[0]`; also the drawn rectangle for one-part spaces), `points: str = ""` (SVG `points` attribute for polygons), `is_current: bool = False`, `text_length: int | None = None`.
+    +- `svg_points(points: tuple[tuple[int, int], ...]) -> str` → `" ".join(f"{x},{y}" for x, y in points)` (a Python string, so template localisation never touches the numbers).
+    +- `label_size(kind: str) -> int` → `ROOM_LABEL_SIZE` for rooms, else `LANDMARK_LABEL_SIZE`.
+    +- `floor_plan(floor: int, current: Room | None) -> FloorPlan | None`:
+    +  1. `spaces = plan_for(floor)`; `None` → return `None`.
+    +  2. For each space in order: `rect = space.parts[0]`; `MapShape(kind=space.kind, label=space.label, rect=rect, points=svg_points(space.points), is_current=space.kind == ROOM and current is not None and current.floor == floor and current.number == space.label, text_length=label_text_length(space.label, rect, label_size(space.kind)))`.
+    +  3. Return `FloorPlan(floor, VIEWBOX_WIDTH, VIEWBOX_HEIGHT, OUTLINE, CORRIDOR, shapes)`.
+    +  No queries.
+    +
+    +### 4.4 `campusmap/views.py`
+    +- `from university.building import plan_room_numbers` (instead of `blocked_cells`).
+    +- `plan = floor_plan(floor, current) if floor is not None else None`.
+    +- `RoomEntry.on_map = r.number in plan_room_numbers(f)`.
+    +- Everything else unchanged (one rooms query; floors from `Room` rows; 404 rules).
+    +- Context adds `has_plan = plan is not None` (template).
+    +
+    +### 4.5 `campusmap/templates/campusmap/map.html`
+    +- Inside the floor branch: `{% if plan %}` … SVG … `{% else %}<p>Схемы {{ current_floor }} этажа нет.</p>{% endif %}` — pass `current_floor` (the selected floor number) in the context.
+    +- Shape element: `{% if s.points %}<polygon points="{{ s.points }}"/>{% else %}<rect x="{{ s.rect.x }}" y="{{ s.rect.y }}" width="{{ s.rect.width }}" height="{{ s.rect.height }}"/>{% endif %}`.
+    +- `<title>`: «Аудитория NNN» for rooms, the label otherwise (unchanged rule).
+    +- Text element unchanged (`class="map-{{ s.kind }}-label"`, `textLength` when set).
+    +- Legend: three items (same swatch markup, classes `map-room`, `map-landmark`, `map-service`): «Аудитория», «Вход, лестница, деканат, библиотека, столовая», «Служебные помещения: гардероб, туалеты, кафедра и другие».
+    +
+    +### 4.6 CSS — `static/css/base.css`
+    +Extend the existing selectors so polygons and service spaces are drawn:
+    +- `.map-outline, .map-room rect, .map-room polygon, .map-landmark rect, .map-landmark polygon, .map-service rect, .map-service polygon, .map-corridor { fill: none; stroke: var(--color-text); stroke-width: 2; }` (replace the current group).
+    +- `.map-landmark rect, .map-landmark polygon { stroke: var(--color-muted); stroke-dasharray: 6 4; }`
+    +- New: `.map-service rect, .map-service polygon { stroke: var(--color-muted); stroke-dasharray: 2 3; }` and `.map-service-label { font-size: 15px; fill: var(--color-muted); }`.
+    +- Keep `.map-current .map-room-label` and `a.map-current` unchanged.
+    +
+    +### 4.7 Seed — `schedule/demo.py`
+    +- `RoomSeed` loses `map_cell`. Replace `ROOM_SEEDS` with
+    +  `ROOM_SEEDS = [RoomSeed(code=f"room-{number}", floor=floor, number=number) for floor, number in all_plan_rooms()]` (`from university.building import all_plan_rooms`).
+    +- Room loop: `room = Room.objects.filter(code=seed.code).first() or Room(code=seed.code)`; `room.floor, room.number = seed.floor, seed.number`; `full_clean()`; `save()` (the existing conflict handling stays).
+    +- `ScheduleSeedSummary.rooms = len(ROOM_SEEDS)` → 39. `LESSON_SEEDS` / `CHANGE_SEEDS` keep using `room-101` … `room-402`.
+    +
+    +### 4.8 README
+    +`## Map`: portrait plans for floors 1–4 in `university/building.py`; a room appears when its number is a slot on its floor's plan (no admin placement; to add a room to the plan, change the code); rooms elsewhere show «нет на схеме»; L-shaped spaces; legend; highlight unchanged. Known limitations: replace the 9-cell grid bullet with «Plans exist for floors 1–4 only; a room is drawn only if its number is a slot in `university/building.py`.»
+    +
+    +---
+    +
+    +## 5. Functions and tests (summary)
+    +| Function | Tests |
+    +|---|---|
+    +| `building.FLOOR_PLANS`, `plan_for`, `plan_room_numbers`, `all_plan_rooms` | `university/tests/test_building.py::FloorPlanTests` |
+    +| `layout.svg_points`, `label_size`, `floor_plan` | `campusmap/tests/test_layout.py::LayoutTests` |
+    +| `MapView` (on_map, no plan) | `campusmap/tests/test_views.py` |
+    +| `Room` without `map_cell` | `university/tests/test_models.py`, `test_admin.py` |
+    +| seed | `schedule/tests/test_demo.py` |
+    +
+    +---
+    +
+    +## 6. Test plan
+    +
+    +### 6.0 Rules
+    +Pure geometry tests use `SimpleTestCase`. View tests create `Room` rows directly (no `map_cell`). Page assertions follow the TASK-008-FIX rule (exact markup). Save every test log; report any failed or stalled run by test name and Moscow time.
+    +
+    +### 6.1 Traceability
+    +| AC | Tests |
+    +|---|---|
+    +| AC1 | `FloorPlanTests::test_fixed_elements_same_on_every_floor`, `test_plans_for_floors_1_to_4_only` |
+    +| AC2 | `FloorPlanTests::test_full_coverage_no_overlap` (per floor, subTest) |
+    +| AC3 | `FloorPlanTests::test_room_numbers`, `test_demo_rooms_on_plan`, `test_l_shapes_are_polygons_with_matching_area`, `test_polygon_vertices_are_part_corners` |
+    +| AC4 | `FloorPlanTests::test_landmarks_and_services_per_floor`; `campusmap/tests/test_views.py::MapViewTests::test_legend_has_three_kinds` |
+    +| AC5 | `LayoutTests::test_viewbox_portrait`, `test_labels_fit_with_padding`, `test_clamped_labels_exactly`, `test_room_label_size_unchanged`; `MapViewTests::test_svg_scales` (existing, viewBox `0 0 400 648`) |
+    +| AC6 | `MapViewTests::test_room_on_plan_by_number`, `test_room_not_on_plan_listed`, `test_floor_without_plan`, `test_highlight_polygon_room`; `university/tests/test_models.py::RoomModelTests::test_no_map_cell_field`; migration check (section 8) |
+    +| AC7 | `schedule/tests/test_demo.py::ScheduleDemoTests::test_seed_creates_all_plan_rooms`, `test_seed_twice_same_rooms`, `test_demo_room_codes_kept` |
+    +| AC8 | existing `MapAccessTests`, `MapViewTests` (switcher, highlight, 404s, list), `MapQueryTests`, `MapNavTests`, `schedule` `RoomLinkTests` — kept, adapted only where they used `map_cell` |
+    +
+    +### 6.2 Access matrix
+    +Unchanged from TASK-008 6.2 (`MapAccessTests`): anonymous 302; student, student without profile, staff, superuser 200 on `/map/`, `/map/floor/2/`, `/map/room/room-205/`; POST 405. Keep all cells.
+    +
+    +### 6.3 Test details
+    +`university/tests/test_building.py` — replace `BuildingTests` with `FloorPlanTests(SimpleTestCase)`:
+    +- `test_plans_for_floors_1_to_4_only` (`sorted(FLOOR_PLANS) == [1, 2, 3, 4]`; `plan_for(5) is None`)
+    +- `test_fixed_elements_same_on_every_floor` (each plan has exactly one space whose `parts == (STAIRS,)` labelled «Лестница», and exactly one space whose `parts == (BOTTOM_CENTRE,)`; `CORRIDOR` is not a part of any space)
+    +- `test_full_coverage_no_overlap` (for each floor, `subTest(floor=…)`: all parts inside `OUTLINE`; no part has a positive-area intersection with `CORRIDOR`; parts pairwise without positive-area intersection; `sum(part.area) == OUTLINE.area - CORRIDOR.area`). Helper `_intersection_area(a, b)` with integer arithmetic in the test module.
+    +- `test_room_numbers` (per floor: every room label is 3 digits, first digit = floor; all 39 numbers unique; counts 9, 10, 10, 10)
+    +- `test_demo_rooms_on_plan` ({101, 114, 205, 212, 308, 315, 402} ⊆ numbers on their floors)
+    +- `test_l_shapes_are_polygons_with_matching_area` (exactly the spaces «Столовая» (1) and «210» (2) have 2 parts; shoelace area of `points` == sum of part areas; `parts[0].area > parts[1].area`)
+    +- `test_polygon_vertices_are_part_corners` (each polygon vertex is a corner of one of the space's parts)
+    +- `test_landmarks_and_services_per_floor` (landmark labels: 1 → {Лестница, Вход, Столовая}, 2 → {Лестница, Деканат}, 3 → {Лестница, Библиотека}, 4 → {Лестница}; «Туалеты» on every floor; «Гардероб» on floor 1)
+    +- `test_all_plan_rooms_sorted` (39 tuples; first `(1, "101")`, last `(4, "410")`)
+    +
+    +`campusmap/tests/test_layout.py` — rewrite `LayoutTests(SimpleTestCase)`:
+    +- `test_viewbox_portrait` (`VIEWBOX_WIDTH == 400`, `VIEWBOX_HEIGHT == 648`, height > width)
+    +- `test_room_label_size_unchanged` (`ROOM_LABEL_SIZE == 20`, `LANDMARK_LABEL_SIZE == 15`; `ROOM_LABEL_SIZE * 328 / VIEWBOX_WIDTH >= 16`, `LANDMARK_LABEL_SIZE * 328 / VIEWBOX_WIDTH >= 12`)
+    +- `test_labels_fit_with_padding` (every shape of `floor_plan(f, None)` for f in 1–4: `min(estimated_label_width(label, label_size(kind)), text_length or 10**6) <= rect.width - 2 * LABEL_PADDING`; `rect.height >= 48`)
+    +- `test_clamped_labels_exactly` (the set of `(floor, label)` with `text_length` is `{(1, "Лестница"), (2, "Лестница"), (3, "Лестница"), (4, "Лестница"), (1, "Гардероб")}`; room shapes never clamped)
+    +- `test_polygon_points_string` (`svg_points(((4, 452), (164, 452)))` == `"4,452 164,452"`; «Столовая» shape `points` starts with `"4,452 "`)
+    +- `test_coordinates_are_integers` (all `Rect` fields, `cx`, `cy` are `int`)
+    +- `test_floor_plan_marks_current` (`Room(floor=4, number="402", code="room-402")` unsaved → exactly one shape `is_current`, label «402»)
+    +- `test_current_on_other_floor_not_marked` (current room 101 → no shape current on floor 2)
+    +- `test_no_plan_for_floor_5` (`floor_plan(5, None) is None`)
+    +
+    +`campusmap/tests/test_views.py` — adapt `setUpTestData` (remove `map_cell=`; for the "not on plan" case use a room NOT in the plan, e.g. `Room(code="room-199", floor=1, number="199")` instead of 114 without a cell). Add/adapt in `MapViewTests`:
+    +- `test_room_on_plan_by_number` (room 114 exists → list item has no «нет на схеме»; the SVG contains `<title>Аудитория 114</title>`)
+    +- `test_room_not_on_plan_listed` (`199</a> — нет на схеме`; `/map/room/room-199/` → 200, floor 1, no `map-current` inside the SVG, list link marked)
+    +- `test_floor_without_plan` (create `Room(code="room-501", floor=5, number="501")` → `/map/floor/5/` → 200, «Схемы 5 этажа нет.», no `<svg class="map-svg"`, «501</a> — нет на схеме»)
+    +- `test_highlight_polygon_room` (create room 210 → `/map/room/room-210/` → inside the SVG one `class="map-room map-current"` group containing `<polygon points="236,188 396,188 396,316 316,316 316,412 236,412"/>`)
+    +- `test_legend_has_three_kinds` (three swatches: `class="map-room"`, `class="map-landmark"`, `class="map-service"`; text «Служебные помещения»)
+    +- Adapt `test_landmarks_per_floor` (floor 4 now also has service labels; assert landmark labels via `class="map-landmark-label"` elements only) and `test_svg_scales` (`viewBox="0 0 400 648"`).
+    +- `MapQueryTests`: keep `test_queries_constant` (4 vs 20 rooms; use plan numbers or off-plan numbers, both fine) and `test_highlight_view_same_queries`.
+    +
+    +`university/tests/test_models.py` — delete `RoomMapCellTests`; add `RoomModelTests::test_no_map_cell_field` (`"map_cell" not in [f.name for f in Room._meta.get_fields()]`). Keep `RoomNumberTests` unchanged.
+    +`university/tests/test_admin.py` — remove `map_cell` from all POST data; delete `test_landmark_cell_shows_error` and `test_duplicate_cell_shows_error`; keep `test_valid_room_saved`, `test_bad_number_shows_field_error`, `test_mismatch_shows_error`.
+    +`schedule/tests/test_demo.py` — counts 7 → 39 (`summary.rooms`, `Room.objects.count()`); replace the `map_cell` assertions with `test_seed_creates_all_plan_rooms` (every `(floor, number)` of `all_plan_rooms()` has a `Room` with code `room-<number>` and that floor; every row passes `full_clean()`), `test_seed_twice_same_rooms` (39 after two runs, same pks), `test_demo_room_codes_kept` (the 7 demo codes exist and the seeded weekly lessons still reference them).
+    +
+    +### 6.4 Settings branches / query count
+    +No settings change. Map view query count unchanged (one rooms query; plan data is code).
+    +
+    +---
+    +
+    +## 7. Implementation order
+    +1. `university/building.py` rewrite + `test_building.py` (coverage tests must pass on the given data).
+    +2. Remove `map_cell` (model, admin), generate migration 0004; adapt `university` tests.
+    +3. `campusmap/layout.py`, views, template, CSS; adapt/add campusmap tests.
+    +4. Seed + `schedule/tests/test_demo.py`; README.
+    +5. `ruff format` on changed Python files only (not migrations); section 8; `REPORT` to the Reviewer. Do not commit.
+    +
+    +## 8. Verification
+    +```bash
+    +source .venv/bin/activate
+    +export DEBUG=true
+    +TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S)
+    +python manage.py check
+    +python manage.py makemigrations --check --dry-run
+    +python manage.py test 2>&1 | tee "$TMPDIR/test-$TS.log"
+    +python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-at-2359.log"
+    +python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-at-0000.log"
+    +DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop \
+    +  ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ \
+    +  python manage.py check --deploy --fail-level WARNING
+    +ruff check . && ruff format --check .
+    +node --check static/js/chat.js && echo "js syntax ok"
+    +python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"
+    +export DATABASE_URL="sqlite:///$TMPDIR/task010.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-private" DEMO_PASSWORD='Local-Demo-Pass-2026!'
+    +rm -f "$TMPDIR/task010.sqlite3"
+    +python manage.py migrate && python manage.py seed_demo && python manage.py seed_demo
+    +# Migration on data seeded BEFORE the change (old code from git, temporary copy only)
+    +rm -rf "$TMPDIR/task010-old" "$TMPDIR/task010-old.sqlite3" && mkdir "$TMPDIR/task010-old" && git archive 08671f6 | tar -x -C "$TMPDIR/task010-old"
+    +(cd "$TMPDIR/task010-old" && DATABASE_URL="sqlite:///$TMPDIR/task010-old.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-old-private" python manage.py migrate -v0 && DATABASE_URL="sqlite:///$TMPDIR/task010-old.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-old-private" python manage.py seed_demo)
+    +DATABASE_URL="sqlite:///$TMPDIR/task010-old.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-old-private" python manage.py migrate
+    +DATABASE_URL="sqlite:///$TMPDIR/task010-old.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-old-private" python manage.py seed_demo
+    +git status --short
+    +```
+    +`REPORT`: output tails, test count (was 966), log file names, any failed or stalled run by test name and Moscow time, the old-DB migration output (7 rooms before, 39 after the second seed), `git status`.
+    +
+    +## 9. Feasibility check (2026-11-16 14:23 MSK on `08671f6`)
+    +1. Clean start — `git status --short` → only ` M plan.md`. OK.
+    +2. Referenced objects — `university/building.py` (grid: `MapCell`, `STAIRS_CELL`, `Landmark`, `LANDMARKS`, `landmarks_on`, `blocked_cells`); `Room.map_cell` + constraints `university_room_map_cell_value`, `university_room_unique_map_cell` + `clean()` (only the landmark-cell check) (`university/models.py:6, 102-108, 133-139, 149-153`); migration `0003_room_number_format_and_map_cell`; `RoomAdmin.list_display` with `map_cell` (`university/admin.py:28`); `campusmap/layout.py` (`Rect`, `OUTLINE`, `CORRIDOR`, `cell_rect`, `span_rect`, `floor_plan(floor, rooms, current)`, label helpers); `campusmap/views.py:59` (`on_map` via `blocked_cells`); `map.html` (rect-only shapes, legend 2 items); `schedule/demo.py:32, 75-81, 255` (`RoomSeed.map_cell`, loop); tests using the grid or `map_cell`: `campusmap/tests/test_views.py`, `test_layout.py`, `schedule/tests/test_demo.py` (counts 7, cell checks), `university/tests/test_admin.py`, `test_models.py` (`RoomMapCellTests`), `test_building.py`; README `## Map` (line ~154). No other code uses `map_cell` or the grid. OK.
+    +3. No collisions — no `FLOOR_PLANS`, `Space`, `plan_for`, `plan_room_numbers`, `all_plan_rooms`, `svg_points`, `label_size`, CSS `map-service`; latest university migration is `0003`. OK.
+    +4. Migrations — on a temporary copy of `HEAD` with `map_cell` removed (model, constraints, `clean()`, admin column): `makemigrations university --name remove_room_map_cell` → `0004_remove_room_map_cell.py` (RemoveConstraint × 2, RemoveField); applied on a DB seeded with the CURRENT code → OK, 7 rooms kept (`101/1 … 402/4`). OK.
+    +5. Tools — unchanged. OK.
+    +6. Framework / geometry — the plan data in 4.2 was checked with a script (`$TMPDIR/t010/plan_check.py`): every floor: all parts inside the outline, none overlaps the corridor, no pairwise overlaps, Σ areas = 250 880 − 35 136 = 215 744 = outline − corridor; polygon (shoelace) areas equal the part sums for «Столовая» and «210»; 39 rooms (9/10/10/10), all NNN with first digit = floor, unique; label fit: only «Лестница» (78 > 56, floors 1–4) and «Гардероб» (78 > 64, floor 1) need `textLength`; every label rectangle ≥ 64 units high. SVG `<polygon points>` is standard. OK.
+    +7. Environment — nothing new. OK.
+    +8. Verification runnable — 9a.
+    +9. Conflicts — none.
+    +10. Assumptions / blockers — none.
+    +
+    +### 9a. Verification results on the current tree
+    +(filled after the runs)
+    +
+    +## 10. Risks
+    +- **Plan data typos** break coverage — the coverage test fails immediately; copy the data from 4.2 verbatim.
+    +- **Room rows vs plan**: plan rooms without a `Room` row are drawn but cannot be highlighted; the seed creates all 39.
+    +- **Migration**: removes a column with data (cell positions) — no longer needed by design; the demo positions are now in code. Local and server DBs keep all rooms.
+    +- **Taller page**: the map is ≈ 531 px high at 360 px; the room list follows below (unchanged, UI stage).
+  ── Thought for 3s
+    I'm double-checking the outline and corridor areas, and the floor 3 room geometry, which all hold up. Next I want to confirm whether the clean step only involves the map check for the university layout.
+
+    I'm checking the clean method in the university models file, where the earlier temporary edit left only the super call, and that version worked. I also need to fill in the test count, since the 966 figure was a guess and has to come from the baseline output. The floor 5 room number and the minimum height check both look right, and the migration commands should run against the activated environment, which already has the password and debug settings exported.
+  ── Ran until grep -q "^DONE" "$TMPDIR/t010/baseline.out"; do sleep 15; done; grep -v " ready:" "$TMPDIR/t010/baseline.out"; grep "Chat ready\|Schedule ready" "$TMPDIR/t010/baseline.out"; sed -n '/def clean/,/^class Teacher/p' ~/hackatonproject/university/models.py | head -12 (5m 1s)
+    $ until grep -q "^DONE" "$TMPDIR/t010/baseline.out"; do sleep 15; done; grep -v " ready:" "$TMPDIR/t010/baseline.out"; grep "Chat ready\|Schedule ready" "$TMPDIR/t010/baseline.out"; sed -n '/def clean/,/^class Teacher/p' ~/hackatonproject/university/models.py | head -12
+    MSK 20261116-142330
+    System check identified no issues (0 silenced).
+    No changes detected
+    Ran 963 tests in 142.927s
+    OK
+    Ran 963 tests in 141.360s
+    OK
+    Ran 963 tests in 142.769s
+    OK
+    System check identified no issues (1 silenced).
+    All checks passed!
+    183 files already formatted
+    js syntax ok
+    yaml ok
+    DONE
+    Chat ready: 3 dialogs, 8 messages.
+    Chat ready: 0 dialogs, 0 messages.
+        def clean(self):
+            super().clean()
+            if self.map_cell and isinstance(self.floor, int) and 1 <= self.floor <= MAX_FLOOR:
+                landmark = blocked_cells(self.floor).get(self.map_cell)
+                if landmark is not None:
+                    raise ValidationError(f"Это место на {self.floor} этаже занято: {landmark.label}.")
+
+
+    class Teacher(models.Model):
+  ── Thought for 6ms
+    I'm checking whether removing the `ValidationError` import from the models breaks anything else, and I'm leaning on the linter to flag it if it's unused. `MAX_FLOOR` is still needed by the validators. I'll mention that the import should be removed if it turns out to be unused. Next I'll fill in 9a and correct the test count to 963 before handing off.
+  ── Ran python3 - <<'EOF' p="docs/tasks/TASK-010.md"; s=open(p,encoding="utf-8").read() s=s.replace("test count (was 966)","test count (was 963)") s=s.replace("remove `map_cell`, its two constraints, the `clean()` method (only the map check is in it) and the `building` import","remove `map_cell`, its two constraints, the `clean()` method (it contains only `super().clean()` and the map-cell check) and the `building` import; remove the `ValidationError` import if it becomes unused") a="### 9a. Verification results on the current tree\n(filled after the runs)\n" b="""### 9a. Verification results on the current tree Logs `$TMPDIR/test-20261116-142330-t010-feas*.log`. - `check` → no issues; `makemigrations --check --dry-run` → «No changes detected». - `test` → `Ran 963 tests … OK`; `run_tests_at.py 2026-11-17T23:59:59` → 963 OK; `run_tests_at.py 2026-11-18T00:00:00` → 963 OK. No failed or stalled runs. - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` → all passed; `ruff format --check .` → 183 files already formatted; `node --check static/js/chat.js` → ok; CI YAML ok. - `seed_demo` twice on a temporary DB and PRIVATE_MEDIA_ROOT → OK (second run «Chat ready: 0 dialogs, 0 messages.»). """ assert s.count(a)==1; s=s.replace(a,b); open(p,"w",encoding="utf-8").write(s) EOF bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF' [TASK-010] Planner -> Coder: TASK Spec: docs/tasks/TASK-010.md (base 08671f6). Room map v2: portrait floor plans. - Rewrite `university/building.py` with the EXACT data in 4.2 (Rect, Space, FLOOR_PLANS for floors 1-4, 39 rooms, two L-shapes as polygons; coverage/overlap/label fit already verified by the Planner). - Link by room number (D1): remove `Room.map_cell` (field, 2 constraints, clean(), admin column) → generated migration `university/0004_remove_room_map_cell`. - `campusmap/layout.py`: `floor_plan(floor, current)` from the plan, `MapShape.points` + `<polygon>`, service kind; views `on_map` by number; template: no-plan message, 3-item legend; CSS for polygons and `map-service`. - Seed: ROOM_SEEDS from `all_plan_rooms()` (39 rooms, codes `room-<number>`). - Tests: section 6.3 (coverage test per floor, rewritten grid tests, counts 7 → 39). Verification section 8 incl. the migration on a DB seeded with the old code (git archive 08671f6 in $TMPDIR). Baseline 963 tests. Do not commit. EOF (2s)
+    $ python3 - <<'EOF'
+  p="docs/tasks/TASK-010.md"; s=open(p,encoding="utf-8").read()
+  s=s.replace("test count (was 966)","test count (was 963)")
+  s=s.replace("remove `map_cell`, its two constraints, the `clean()` method (only the map check is in it) and the `building` import","remove `map_cell`, its two constraints, the `clean()` method (it contains only `super().clean()` and the map-cell check) and the `building` import; remove the `ValidationError` import if it becomes unused")
+  a="### 9a. Verification results on the current tree\n(filled after the runs)\n"
+  b="""### 9a. Verification results on the current tree
+  Logs `$TMPDIR/test-20261116-142330-t010-feas*.log`.
+  - `check` → no issues; `makemigrations --check --dry-run` → «No changes detected».
+  - `test` → `Ran 963 tests … OK`; `run_tests_at.py 2026-11-17T23:59:59` → 963 OK; `run_tests_at.py 2026-11-18T00:00:00` → 963 OK. No failed or stalled runs.
+  - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` → all passed; `ruff format --check .` → 183 files already formatted; `node --check static/js/chat.js` → ok; CI YAML ok.
+  - `seed_demo` twice on a temporary DB and PRIVATE_MEDIA_ROOT → OK (second run «Chat ready: 0 dialogs, 0 messages.»).
+  """
+  assert s.count(a)==1; s=s.replace(a,b); open(p,"w",encoding="utf-8").write(s)
+  EOF
+  bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF'
+  [TASK-010] Planner -> Coder: TASK
+  Spec: docs/tasks/TASK-010.md (base 08671f6). Room map v2: portrait floor plans.
+  - Rewrite `university/building.py` with the EXACT data in 4.2 (Rect, Space, FLOOR_PLANS for floors 1-4, 39 rooms, two L-shapes as polygons; coverage/overlap/label fit already verified by the Planner).
+  - Link by room number (D1): remove `Room.map_cell` (field, 2 constraints, clean(), admin column) → generated migration `university/0004_remove_room_map_cell`.
+  - `campusmap/layout.py`: `floor_plan(floor, current)` from the plan, `MapShape.points` + `<polygon>`, service kind; views `on_map` by number; template: no-plan message, 3-item legend; CSS for polygons and `map-service`.
+  - Seed: ROOM_SEEDS from `all_plan_rooms()` (39 rooms, codes `room-<number>`).
+  - Tests: section 6.3 (coverage test per floor, rewritten grid tests, counts 7 → 39). Verification section 8 incl. the migration on a DB seeded with the old code (git archive 08671f6 in $TMPDIR). Baseline 963 tests. Do not commit.
+  EOF
+    Thread thr_ng6cbgatm6 steered
+    [This command modified 1 file you've previously read: docs/tasks/TASK-010.md. Call Read before editing.]
+
+── Assistant ───────────────────────────────────────────────
+Спецификация TASK-010 (карта v2) готова и передана Кодеру: [docs/tasks/TASK-010.md](docs/tasks/TASK-010.md).
+
+**Что будет на карте:**
+- **Вертикальный план под телефон.** Коридор идёт сверху вниз по центру, помещения стоят с двух сторон. Наверху лестница, внизу по центру вход (1 этаж) или склад. Контур здания, коридор и лестница одинаковые на всех этажах, остальное своё на каждом.
+- **39 аудиторий:** 9 на 1 этаже, по 10 на остальных. Размеры разные. Есть два Г-образных помещения: столовая на 1 этаже и большая аудитория 210 на 2 этаже. Они рисуются многоугольником. Все 7 демо-номеров на месте.
+- **Остальные помещения.** Ориентиры остаются прежними: вход, лестница, столовая, деканат, библиотека. Добавлены служебные помещения: гардероб, туалеты на каждом этаже, кафедра, медпункт, склад, охрана, архив. В легенде теперь три вида.
+- **Пустого места нет.** Всё, кроме коридора, занято помещениями без щелей и наложений. Это проверяет тест: площадь всех помещений этажа равна площади здания без коридора, и ни одна пара не пересекается.
+
+**Главное решение.** Аудитория попадает на карту по своему номеру, а поле `map_cell` удаляется. Номер и так уникален и проверен, поэтому не нужны ни ручная расстановка в админке, ни отдельное ограничение. Админ не сможет поставить номер 205 на место, нарисованное для 212. Минус: чтобы добавить аудиторию на план, нужно править код. Для одного вымышленного здания это нормально.
+
+**Что я проверил заранее:**
+- Все данные планов я составил сам и проверил скриптом: покрытие без щелей, нет наложений, площади Г-образных помещений совпадают.
+- Подписи помещаются. Сжимать нужно только «Лестницу» и «Гардероб».
+- Номера аудиторий остаются того же размера, около 16 px на экране шириной 360 px.
+- Миграцию, которая удаляет `map_cell`, я применил на копии базы с демо-данными. Все аудитории сохранились.
+- Базовые проверки прошли: 963 теста в трёх прогонах, включая 23:59:59 и 00:00 по Москве. `check --deploy`, ruff, `node --check`, YAML и двойной запуск `seed_demo` тоже прошли.
+
+Как выглядят этажи на экране 360 px, я не видел: браузера у меня нет. Это нужно проверить вручную.

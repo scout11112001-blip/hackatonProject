@@ -115,43 +115,6 @@ class RoomNumberTests(TestCase):
                 Room.objects.create(code="room-db3", floor=10, number="101")
 
 
-class RoomMapCellTests(TestCase):
-    def test_landmark_cell_rejected(self):
-        for floor, cell, label in (
-            (1, "S3", "Вход"),
-            (2, "S1", "Деканат"),
-            (3, "S5", "Библиотека"),
-        ):
-            with self.subTest(floor=floor, cell=cell):
-                number = f"{floor}0{5 if cell != 'S1' else 1}"
-                room = Room(code=f"room-{number}", floor=floor, number=number, map_cell=cell)
-                with self.assertRaises(ValidationError) as ctx:
-                    room.full_clean()
-                self.assertIn(label, ctx.exception.messages[0])
-
-    def test_same_landmark_cell_free_on_other_floor(self):
-        room = Room(code="room-403", floor=4, number="403", map_cell="S3")
-        room.full_clean()
-
-    def test_same_cell_same_floor_rejected(self):
-        Room.objects.create(code="room-102", floor=1, number="102", map_cell="N2")
-        room = Room(code="room-103", floor=1, number="103", map_cell="N2")
-        with self.assertRaises(ValidationError) as ctx:
-            room.full_clean()
-        self.assertIn("Это место на схеме этажа уже занято", ctx.exception.messages[0])
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                Room.objects.create(code="room-104", floor=1, number="104", map_cell="N2")
-
-    def test_same_cell_other_floor_ok(self):
-        Room.objects.create(code="room-202", floor=2, number="202", map_cell="N2")
-        Room.objects.create(code="room-302", floor=3, number="302", map_cell="N2")
-
-    def test_many_rooms_without_cell_ok(self):
-        for n in (1, 2, 3):
-            Room.objects.create(code=f"room-10{n}", floor=1, number=f"10{n}")
-
-    def test_db_rejects_unknown_cell(self):
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                Room.objects.create(code="room-105", floor=1, number="105", map_cell="N1")
+class RoomModelTests(TestCase):
+    def test_no_map_cell_field(self):
+        self.assertNotIn("map_cell", [f.name for f in Room._meta.get_fields()])

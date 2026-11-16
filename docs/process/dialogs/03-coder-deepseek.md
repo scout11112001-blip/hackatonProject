@@ -75758,3 +75758,4108 @@ TASK-009-FIX реализована и отправлена Reviewer (thr_cpuae9
 - `git status` сверен по §3 — изменены только целевые файлы (плюс `plan.md` и сам spec-файл — не мои).
 
 Отметил для Team lead ручную проверку поллинга (§4.3), так как в проекте нет JS-раннера. Жду вердикт Reviewer.
+
+── User ────────────────────────────────────────────────────
+/compact
+
+── Worked for (31s) ────────────────────────────────────────
+  ── Context compacted
+
+  ── Thought for 18s
+    We need produce the structured summary from the provided conversation. The conversation is very long and involves TASK-008-FIX then TASK-009 then TASK-009-FIX ongoing. We have prior summary focusing TASK-008-FIX but conversation has TASK-009 completed and TASK-009-FIX started. Need combine into current state.
+
+    Let's examine conversation in detail:
+
+    At start of conversation (the visible full conversation) we see:
+    - From prior summary context, TASK-008-FIX was being completed: assistant fixed core/tests/test_css.py E501, ran ruff, full suite 833 OK, sent REPORT. Then reviewer requested changes for Item 3 (notification count in wide nav). Assistant fixed include and test, ran verification, sent report.
+    - Then Planner sent TASK-009 (new app chat). Assistant implemented whole TASK-009: chat app, models, services, selectors, views, templates, JS, feed source, seed, admin, tests. Full suite 951 OK. Sent REPORT to Reviewer.
+    - Then Planner sent TASK-009-FIX (base bcd1280): four fixes. Assistant started reading spec and files, wrote regression tests in test_views, test_static, test_css, test_demo. Currently in process of adding tests and fixes.
+
+    We need produce summary for current state at the very end of conversation, which is midway through TASK-009-FIX. The last lines show assistant reading test_demo.py and planning to add test. We need reconstruct current state accurately.
+
+    Let's carefully track current work.
+
+    TASK-009-FIX details (from spec read):
+    - Four items:
+    1. Rename context key `messages` → `chat_messages` in chat/views.py (lines 40, 55, 93-94, 129, 175-176, 221) and in `_messages.html` / `_history.html`; no other view uses `messages`. Tests incl patched `django.contrib.messages.context_processors.get_messages` and real unpublish flow.
+    2. `chat-message--own` / `chat-message--other` by viewer in `_message.html`; CSS replaces `--staff/--student` margin rules.
+    3. chat.js `inFlight` guard in poll(), schedule(), visibilitychange.
+    4. `seed_chat_demo` skips a student who already has any dialog; `Dialog.objects.create` instead of get_or_create.
+    Verification §7 incl node --check, logs with tee (baseline 951). Do not commit.
+
+    We need know what has been done in current conversation after TASK-009-FIX started:
+
+    Assistant read `docs/tasks/TASK-009-FIX.md` (truncated, but enough). 
+    Then read `chat/views.py` current lines.
+    Started writing regression tests. Specifically:
+    - Added imports to `chat/tests/test_views.py`: uuid, mock, constants, FrameworkMessage, make_staff, Audience, make_announcement.
+    - Added tests in ViewTests: `test_student_page_has_no_messages_block_from_chat`, `test_staff_dialog_has_no_messages_block_from_chat`, `test_framework_message_shown_on_chat_pages`, `test_staff_real_framework_message_after_unpublish`, `test_context_uses_chat_messages`, `test_alignment_student_viewer`, `test_alignment_staff_viewer`.
+    - Added tests in UpdatesViewTests: `test_fragment_markup_unchanged`, `test_fragment_alignment_by_viewer`.
+    - Added CSS test `test_chat_alignment_rules` to `core/tests/test_css.py`.
+    - Added static test `test_single_loop_guard` to `chat/tests/test_static.py`.
+    - Began adding demo test to `chat/tests/test_demo.py`; had read test_demo.py and was about to edit imports to add `from chat.tests.helpers import add_message, make_dialog` and add `test_existing_real_dialog_untouched`. This last step is incomplete? Let's see conversation end.
+
+    The very last displayed tool call in conversation: 
+    ```
+    [Assistant tool call]: read({"filePath":"~/hackatonproject/chat/tests/test_demo.py"})
+    [Tool result]: ... content truncated ...
+    </conversation>
+    ```
+    So after that, no more edits. So demo test NOT yet added to test_demo.py. Important: test in `chat/tests/test_demo.py` still needs to be inserted (import + method).
+
+    Also, the actual fixes (Item 1-4) have NOT been applied yet, based on current progress:
+    - Item 1: `chat/views.py` still uses `messages` key; templates still use `messages`. We have NOT modified chats views/templates in TASK-009-FIX conversation? Let's verify: after reading views.py, assistant went directly to test writing, no edits to views/templates in current conversation. The last edits were test file additions. So yes fixes not applied.
+    - Item 2: `_message.html` still has `chat-message--{{ m.author_role }}` without own/other? Yes no edit yet. CSS still has `.chat-message--staff` and `.chat-message--student` margin rules (from TASK-009). Need replace.
+    - Item 3: `static/js/chat.js` still lacks `inFlight` guard; no edit.
+    - Item 4: `chat/demo.py` still uses `get_or_create` and skip based on Message seed_key; no edit.
+
+    But tests added to files may not yet run. Need apply fixes, finish demo test, then run tests, then ruff, then full verification, report.
+
+    Need also note that prior TASK-008-FIX and TASK-009 are completed and sent reports. TASK-009-FIX is current active.
+
+    Need include relevant files.
+
+    Also note: The conversation at very beginning? The "full conversation" includes TASK-008-FIX second round and TASK-009 implementation and TASK-009-FIX start. Prior summary provides old TASK-008-FIX details; we should not carry old completed details except maybe context no longer needed. We can simplify objective to current TASK-009-FIX. But may need mention previous reports sent? The "Objective" should be current user's overall goal? The user's current task is TASK-009-FIX. We can say current objective is implement TASK-009-FIX, verify §7, report to Reviewer.
+
+    Let's build summary.
+
+    Important Details:
+    - Protocol constraints: save test runs with tee logs, report Moscow time + failing test name + traceback for any failed run; ruff only on task files (not whole project, but for verification can run ruff check . and ruff format --check . per spec? In TASK-009 they did `ruff check .` and `ruff format --check .`). For TASK-009-FIX spec section 7 likely same; but prior protocol said ruff only on task files, not whole project? Need preserve but current conversation used `ruff check .` etc. Actually in TASK-009-FIX spec, verification section 7 includes node --check, logs with tee (baseline 951). Likely includes ruff. We'll carry general protocol.
+    - Do not commit.
+    - Base commits/specs: TASK-009-FIX base bcd1280, related TASK-009.
+    - Baseline test count: 951 (TASK-009 completed), expected after TASK-009-FIX likely still 951? No new tests: 12 new tests? Wait baseline 951; adding 12 regression tests → new total maybe 963? Need compute later. The spec says baseline 951. After adding tests total changes. We'll note.
+    - Current test files not yet run after new test additions/fixes.
+    - The `messages` context key conflict: framework messages storage vs chat messages.
+    - Need exact conditions:
+      - Item 1: rename in views and templates.
+      - Item 2 exact class logic.
+      - Item 3 exact JS strings for test: `var inFlight = false;`, `if (inFlight || stopped)`, `!inFlight`.
+      - Item 4: skip if `Dialog.objects.filter(student=student).exists()`, create via `Dialog.objects.create(student=student)` (not get_or_create), and keep Message.create.
+    - Tests that must fail before fix: provide names.
+    - We need mention incomplete demo test and fixes pending.
+
+    Let's ensure exact current file modifications:
+    - `chat/tests/test_views.py`: added imports and tests as above. Not yet run; may have formatting/lint issues but should be okay.
+    - `core/tests/test_css.py`: added `test_chat_alignment_rules` (edit applied).
+    - `chat/tests/test_static.py`: added `test_single_loop_guard` (edit applied).
+    - `chat/tests/test_demo.py`: no edit yet; needs import + test.
+    - No fixes to `chat/views.py`, `chat/templates/chat/_messages.html`, `chat/templates/chat/_history.html`, `chat/templates/chat/_message.html`, `static/css/base.css`, `static/js/chat.js`, `chat/demo.py`.
+
+    Need mention this explicitly in Active/Next.
+
+    Let's produce summary. Keep terse.
+
+    Structure:
+    ## Objective
+    - Implement `docs/tasks/TASK-009-FIX.md` (base `bcd1280`) for `thr_2imsg4kck2`: four minimal fixes with regression tests first; verify §7 (baseline 951); send REPORT to Reviewer (`thr_cpuae9aqw3`); do not commit.
+
+    Important Details:
+    - Protocol: tee logs, report failing test name+traceback, ruff on task files, don't touch `docs/`, `.bb/`, temp DB/private media for seed. Use `node --check`.
+    - Items:
+      - 1 rename `messages` context key → `chat_messages` in `chat/views.py` lines and `_messages.html`/`_history.html`; framework messages block unaffected.
+      - 2 `_message.html` own/other by viewer, CSS replace student/staff margin rules.
+      - 3 `static/js/chat.js` `inFlight` guard.
+      - 4 `seed_chat_demo` skip existing dialog; `Dialog.objects.create` not get_or_create.
+    - Regression tests must fail before fix; exact tests listed in work state.
+
+    Work State:
+    ### Completed
+    - TASK-008-FIX completed and REPORT sent (833 OK). [Maybe not needed but keep mention? Prior summary explicitly says TASK-008-FIX REPORT sent and TASK-009 completed. We can say previous tasks completed.]
+    - TASK-009 implemented fully and REPORT sent (951 OK).
+    - TASK-009-FIX spec read.
+    - Regression tests added:
+      - `chat/tests/test_views.py`: imports + ViewTests tests, UpdatesViewTests tests.
+      - `core/tests/test_css.py::test_chat_alignment_rules`.
+      - `chat/tests/test_static.py::test_single_loop_guard`.
+
+    ### Active
+    - Writing `chat/tests/test_demo.py`: need add `from chat.tests.helpers import add_message, make_dialog` and `test_existing_real_dialog_untouched`.
+    - Applying fixes (none applied yet):
+      - Item 1: `chat/views.py`, `chat/templates/chat/_messages.html`, `chat/templates/chat/_history.html`.
+      - Item 2: `chat/templates/chat/_message.html`, `static/css/base.css`.
+      - Item 3: `static/js/chat.js`.
+      - Item 4: `chat/demo.py`.
+
+    ### Blocked
+    - None.
+
+    Next Move:
+    1. Finish `chat/tests/test_demo.py`: add import and `test_existing_real_dialog_untouched`.
+    2. Apply Item 1 rename in `chat/views.py` + templates.
+    3. Apply Item 2 class logic + CSS.
+    4. Apply Item 3 inFlight guard.
+    5. Apply Item 4 in `chat/demo.py`.
+    6. Run targeted chat tests and new regression tests; fix failures.
+    7. Run ruff on changed files; `node --check`.
+    8. Full suite + midnight runs with tee; verification; git status; send REPORT.
+
+    Relevant Files:
+    - `docs/tasks/TASK-009-FIX.md`: spec.
+    - `chat/views.py`: still uses `messages`; must rename.
+    - `chat/templates/chat/_messages.html`, `_history.html`: rename.
+    - `chat/templates/chat/_message.html`: own/other class.
+    - `static/css/base.css`: replace margins.
+    - `static/js/chat.js`: inFlight.
+    - `chat/demo.py`: skip existing dialog / create.
+    - `chat/tests/test_views.py`, `_static.py`, `_demo.py`, `core/tests/test_css.py`: updated current/new tests.
+
+    Need ensure no incorrect claim about `chat/tests/test_demo.py` imports. It currently lacks helpers; noted. Good.
+
+    Also mention exact line numbers from spec? Could include but not necessary. Maybe mention `chat/views.py` lines 40,55,93-94,129,175-176,221.
+
+    Let's draft final answer adhering template.
+
+── Assistant ───────────────────────────────────────────────
+## Objective
+- Implement `docs/tasks/TASK-009-FIX.md` (base `bcd1280`) for Planner `thr_2imsg4kck2`: four minimal fixes with regression tests first; verify section 7 (baseline 951); send REPORT to Reviewer `thr_cpuae9aqw3`; do not commit.
+
+## Important Details
+- Protocol: tee every full test run to `$TMPDIR/test-<timestamp>.log`; report Moscow time + failing test name + traceback for failures; ruff on task files only; never touch `docs/`, `.bb/`; use temp DB/private media for seed checks.
+- Previous tasks completed and reported: TASK-008-FIX (`833 OK`) and TASK-009 (`951 OK`).
+- TASK-009-FIX four items:
+  1. Rename context key `messages` → `chat_messages` in `chat/views.py` (spec lines 40, 55, 93-94, 129, 175-176, 221) and in `_messages.html` / `_history.html`; framework `django.contrib.messages` block must still work.
+  2. `_message.html` must render `chat-message--own` or `chat-message--other` by viewer; keep `chat-message--<author_role>`; CSS replaces `.chat-message--student`/`.chat-message--staff` margin rules with `--own`/`--other`.
+  3. `static/js/chat.js` must add `inFlight` guard in `poll()`, `schedule()`, `visibilitychange`; keep all TASK-009 JS rules.
+  4. `seed_chat_demo` must skip a demo student who already has any dialog; use `Dialog.objects.create` instead of `get_or_create`.
+- Regression tests added must fail before fixes; exact checks:
+  - `chat.js` must contain `var inFlight = false;`, `if (inFlight || stopped)`, `!inFlight`.
+  - CSS must contain `.chat-message--own { margin-left:`, `.chat-message--other { margin-right:` and must not contain `.chat-message--student {` / `.chat-message--staff {`.
+- Current baseline after TASK-009: 951 tests OK.
+
+## Work State
+### Completed
+- TASK-009-FIX spec read (`docs/tasks/TASK-009-FIX.md`).
+- Current `chat/views.py` reviewed; still uses `messages` everywhere (fix not yet applied).
+- Added regression tests:
+  - `chat/tests/test_views.py`: new imports (`mock`, `constants`, `FrameworkMessage`, `make_staff`, `Audience`, `make_announcement`); added `ViewTests`:
+    - `test_student_page_has_no_messages_block_from_chat`
+    - `test_staff_dialog_has_no_messages_block_from_chat`
+    - `test_framework_message_shown_on_chat_pages`
+    - `test_staff_real_framework_message_after_unpublish`
+    - `test_context_uses_chat_messages`
+    - `test_alignment_student_viewer`
+    - `test_alignment_staff_viewer`
+  - Added `UpdatesViewTests`:
+    - `test_fragment_markup_unchanged`
+    - `test_fragment_alignment_by_viewer`
+  - `core/tests/test_css.py`: added `test_chat_alignment_rules`.
+  - `chat/tests/test_static.py`: added `test_single_loop_guard`.
+
+### Active
+- `chat/tests/test_demo.py`: still needs import `from chat.tests.helpers import add_message, make_dialog` and `test_existing_real_dialog_untouched` test method.
+- None of the four fixes applied yet:
+  - Item 1: `chat/views.py`, `chat/templates/chat/_messages.html`, `chat/templates/chat/_history.html` still use `messages`.
+  - Item 2: `chat/templates/chat/_message.html` and `static/css/base.css` still use old alignment/margins.
+  - Item 3: `static/js/chat.js` lacks `inFlight`.
+  - Item 4: `chat/demo.py` still uses `get_or_create` and seed-key skip.
+
+### Blocked
+- (none)
+
+## Next Move
+1. Finish `chat/tests/test_demo.py`: add `add_message`/`make_dialog` import and `test_existing_real_dialog_untouched`.
+2. Apply Item 1 rename `messages` → `chat_messages` in `chat/views.py` + `_messages.html`/`_history.html`.
+3. Apply Item 2 viewer-based class logic in `_message.html` and replace CSS margin rules in `static/css/base.css`.
+4. Apply Item 3 `inFlight` guard in `static/js/chat.js` (`poll`, `schedule`, `visibilitychange`).
+5. Apply Item 4 in `chat/demo.py`: skip if `Dialog.objects.filter(student=student).exists()`; use `Dialog.objects.create(student=student)`.
+6. Run targeted chat tests + new regression tests; fix any failures.
+7. Run `ruff format`/`ruff check` on changed files and `node --check static/js/chat.js`.
+8. Full suite + midnight runs (`2026-11-17T23:59:59`, `2026-11-18T00:00:00`) with tee logs; run `check`, `makemigrations --check --dry-run`, `check --deploy`, `ruff check .`, `ruff format --check .`, yaml check, double seed; compare `git status`; send TASK-009-FIX REPORT to Reviewer.
+
+## Relevant Files
+- `docs/tasks/TASK-009-FIX.md`: spec for four fixes.
+- `chat/views.py`: Item 1 rename target.
+- `chat/templates/chat/_messages.html` / `_history.html`: Item 1 rename targets.
+- `chat/templates/chat/_message.html`: Item 2 own/other classes.
+- `static/css/base.css`: Item 2 margin rules.
+- `static/js/chat.js`: Item 3 inFlight guard.
+- `chat/demo.py`: Item 4 seed skip/create.
+- `chat/tests/test_views.py`: new Item 1/2 regression tests.
+- `chat/tests/test_static.py`: new Item 3 regression test.
+- `core/tests/test_css.py`: new Item 2 CSS test.
+- `chat/tests/test_demo.py`: Item 4 regression test still to add.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_2imsg4kck2]
+
+[TASK-010] Planner -> Coder: TASK
+Spec: docs/tasks/TASK-010.md (base 08671f6). Room map v2: portrait floor plans.
+- Rewrite `university/building.py` with the EXACT data in 4.2 (Rect, Space, FLOOR_PLANS for floors 1-4, 39 rooms, two L-shapes as polygons; coverage/overlap/label fit already verified by the Planner).
+- Link by room number (D1): remove `Room.map_cell` (field, 2 constraints, clean(), admin column) → generated migration `university/0004_remove_room_map_cell`.
+- `campusmap/layout.py`: `floor_plan(floor, current)` from the plan, `MapShape.points` + `<polygon>`, service kind; views `on_map` by number; template: no-plan message, 3-item legend; CSS for polygons and `map-service`.
+- Seed: ROOM_SEEDS from `all_plan_rooms()` (39 rooms, codes `room-<number>`).
+- Tests: section 6.3 (coverage test per floor, rewritten grid tests, counts 7 → 39). Verification section 8 incl. the migration on a DB seeded with the old code (git archive 08671f6 in $TMPDIR). Baseline 963 tests. Do not commit.
+
+── Worked for (15m 26s) ────────────────────────────────────
+  ── Ran 21 tools, edited 15 files, ran 17 commands, explored 1 file, 1 list
+    ── Thought for 302ms
+      Let me start by reading the spec.
+    ── Read file read
+      # TASK-010: room map v2 — realistic portrait floor plans
+
+      Author: Planner. Status: ready for implementation.
+      Base commit: `08671f6`. Related specs: `TASK-008.md` (map, D2 number rule, D6 label size, D7 highlight), `TASK-008-FIX.md` (label fitting, page-assertion rule).
+
+      Each of floors 1–4 gets its own fixed plan in code: a vertical corridor in the middle, rooms of different sizes on both sides, one L-shaped space per floor 1 and 2, service spaces, and no free space except the corridor. A room appears on the plan when its number is a plan slot on its floor. `Room.map_cell` is removed.
+
+      ---
+
+      ## 1. Acceptance criteria
+      | ID | Criterion |
+      |---|---|
+      | AC1 | `university/building.py` defines `FLOOR_PLANS` for floors 1–4 (data in 4.2). Outline, corridor, stairs (top of the corridor axis) and the bottom-centre space position are the same on every floor; the rest differs per floor. |
+      | AC2 | On every floor the spaces (all their rectangle parts) lie inside the outline, do not touch the corridor's interior, do not overlap each other, and their total area equals outline area − corridor area. Proven by a test on integer geometry. |
+      | AC3 | 39 rooms in total (9 / 10 / 10 / 10), numbers NNN with first digit = floor, unique; the demo rooms 101, 114, 205, 212, 308, 315, 402 are on the plan. Two L-shaped spaces (floor 1 «Столовая», floor 2 room 210) are drawn as SVG `<polygon>`; their polygon area equals the sum of their parts. |
+      | AC4 | Non-teaching spaces: landmarks «Лестница» (every floor), «Вход» (1), «Столовая» (1), «Деканат» (2), «Библиотека» (3); service spaces «Гардероб», «Туалеты» (every floor), «Кафедра», «Медпункт», «Склад», «Охрана», «Архив». Legend explains room / landmark / service. |
+      | AC5 | Portrait layout: `viewBox` 400 × 648, corridor vertical; room label size stays 20 units (≥ 16 px at 360 px); every label fits its label rectangle with the TASK-008-FIX padding (clamped with `textLength` only where needed). No horizontal scroll at 360 px. |
+      | AC6 | Linking by number (D1): a room is on the plan when `room.number` is a room slot of `room.floor`'s plan. `Room.map_cell` (field, two constraints, `clean()` check, admin column) is removed by migration `university/0004_remove_room_map_cell`, which applies on a database seeded before the change. Rooms not on the plan (or floors 5–9 without a plan) show «— нет на схеме» and never break the page. |
+      | AC7 | `seed_demo` (idempotent) creates/updates a `Room` row for every plan room with code `room-<number>`; the 7 demo rooms keep their codes. |
+      | AC8 | Unchanged: floor switcher (floors that have rooms), highlight URL opens the room's floor with its number in red (`map-current`, `aria-current="location"`), room list grouped by floor, no JavaScript, access rules, the map view runs one rooms query (fixed count). |
+
+      ## 2. Out of scope
+      Zoom, routes, several buildings, occupancy, the pixel-art theme, chat, plans for floors 5–9, clickable shapes.
+
+      ## 3. Design decisions
+      **D1. Plan slots are identified by the room number (option a).** The plans have irregular, hand-made geometry; each room slot already carries its number as the label. With an admin-editable slot field, an admin could put room «205» into the slot drawn for «212» (label and data disagree) and we would need a unique-slot constraint and a landmark check again. Linking by number needs no extra field, no admin placement step and no constraint (the number is already unique and validated NNN = floor). Cost: adding a room to the plan is a code change — acceptable for one fixed fictional building. Plan room shapes are drawn always (they are part of the coverage); a missing `Room` row only means that slot cannot be highlighted (the seed creates all of them).
+
+      **D2. Geometry as rectangle parts.** Every space is a tuple of disjoint integer rectangles (`parts`); `parts[0]` is the largest part and holds the label. Rectangular spaces have one part and are drawn as `<rect>`; L-shaped spaces have two parts plus explicit `points` and are drawn as `<polygon>`. Coverage is then a pure integer check: each part inside the outline, no part overlaps the corridor, parts pairwise disjoint, Σ areas = outline − corridor ⇒ exact cover with no gaps.
+
+      **D3. Portrait sizes.** Outline 392 × 640 units in a 400 × 648 `viewBox`; at 360 px the map is 328 px wide (scale 0.82) and ≈ 531 px tall (vertical scroll only). Side blocks are 160 units wide (131 px), the corridor 72 units. Room numbers stay 20 units (16.4 px); landmark/service labels 15 units (12.3 px), clamped by `textLength` only where the estimate exceeds the label rectangle (computed: «Лестница» 78 > 56 on every floor, «Гардероб» 78 > 64 on floor 1; all others fit).
+
+      ---
+
+      ## 4. Architecture
+
+      ### 4.1 Files
+      Change:
+      | File | Change |
+      |---|---|
+      | `university/building.py` | rewrite: `Rect`, `Space`, plan constants, `FLOOR_PLANS`, helpers (4.2) |
+      | `university/models.py` | remove `map_cell`, its two constraints, the `clean()` method (it contains only `super().clean()` and the map-cell check) and the `building` import; remove the `ValidationError` import if it becomes unused |
+      | `university/migrations/0004_remove_room_map_cell.py` | generated: `makemigrations university --name remove_room_map_cell` |
+      | `university/admin.py` | `RoomAdmin.list_display = ("number", "floor", "code")` |
+      | `campusmap/layout.py` | geometry from the plan (4.3); `Rect` re-exported from `university.building` |
+      | `campusmap/views.py` | `on_map` by number; `floor_plan(floor, current)` (4.4) |
+      | `campusmap/templates/campusmap/map.html` | polygon shapes, service kind, no plan message, legend (4.5) |
+      | `static/css/base.css` | polygon and service rules (4.6) |
+      | `schedule/demo.py` | room seeds from the plan; `RoomSeed` without `map_cell` (4.7) |
+      | tests | rewrite map/grid tests (6.3); `schedule/tests/test_demo.py` room counts 7 → 39 |
+      | `README.md` | `## Map` section rewritten; Known limitations bullet updated |
+
+      No new app, dependency, setting or env variable.
+
+      ### 4.2 `university/building.py` (full content)
+      ```python
+      """The fictional building: fixed portrait floor plans (one building, floors 1-4).
+
+      All geometry is in integer SVG user units. A space is a set of disjoint rectangles;
+      parts[0] is the largest part and holds the label. Non-rectangular spaces also give
+      their outline as polygon points.
+      """
+
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Rect:
+          x: int
+          y: int
+          width: int
+          height: int
+
+          @property
+          def cx(self) -> int:
+              return self.x + self.width // 2
+
+          @property
+          def cy(self) -> int:
+              return self.y + self.height // 2
+
+          @property
+          def area(self) -> int:
+              return self.width * self.height
+
+
+      ROOM = "room"
+      LANDMARK = "landmark"
+      SERVICE = "service"
+
+
+      @dataclass(frozen=True)
+      class Space:
+          kind: str                                   # ROOM | LANDMARK | SERVICE
+          label: str                                  # room number NNN or a Russian name
+          parts: tuple[Rect, ...]                     # disjoint; parts[0] is the label rectangle
+          points: tuple[tuple[int, int], ...] = ()    # polygon outline when len(parts) > 1
+
+
+      VIEWBOX_WIDTH = 400
+      VIEWBOX_HEIGHT = 648
+      OUTLINE = Rect(4, 4, 392, 640)
+      CORRIDOR = Rect(164, 84, 72, 488)
+      STAIRS = Rect(164, 4, 72, 80)
+      BOTTOM_CENTRE = Rect(164, 572, 72, 72)
+
+
+      def _r(x: int, y: int, w: int, h: int) -> tuple[Rect, ...]:
+          return (Rect(x, y, w, h),)
+
+
+      def _room(number: str, x: int, y: int, w: int, h: int) -> Space:
+          return Space(ROOM, number, _r(x, y, w, h))
+
+
+      def _landmark(label: str, x: int, y: int, w: int, h: int) -> Space:
+          return Space(LANDMARK, label, _r(x, y, w, h))
+
+
+      def _service(label: str, x: int, y: int, w: int, h: int) -> Space:
+          return Space(SERVICE, label, _r(x, y, w, h))
+
+
+      _STAIRS = Space(LANDMARK, "Лестница", (STAIRS,))
+
+      FLOOR_PLANS: dict[int, tuple[Space, ...]] = {
+          1: (
+              _STAIRS,
+              Space(LANDMARK, "Вход", (BOTTOM_CENTRE,)),
+              _room("101", 4, 4, 160, 120),
+              _room("102", 4, 124, 160, 80),
+              _room("103", 4, 204, 80, 88),
+              _room("104", 84, 204, 80, 88),
+              _room("105", 4, 292, 160, 96),
+              _service("Туалеты", 4, 388, 160, 64),
+              Space(
+                  LANDMARK,
+                  "Столовая",
+                  (Rect(4, 452, 160, 104), Rect(84, 556, 80, 88)),
+                  ((4, 452), (164, 452), (164, 644), (84, 644), (84, 556), (4, 556)),
+              ),
+              _service("Гардероб", 4, 556, 80, 88),
+              _room("106", 236, 4, 160, 104),
+              _room("107", 236, 108, 80, 88),
+              _room("108", 316, 108, 80, 88),
+              _room("114", 236, 196, 160, 120),
+              _service("Кафедра", 236, 316, 160, 96),
+              _service("Медпункт", 236, 412, 160, 96),
+              _service("Склад", 236, 508, 160, 64),
+              _service("Охрана", 236, 572, 160, 72),
+          ),
+          2: (
+              _STAIRS,
+              Space(SERVICE, "Склад", (BOTTOM_CENTRE,)),
+              _landmark("Деканат", 4, 4, 160, 120),
+              _room("201", 4, 124, 160, 88),
+              _room("202", 4, 212, 160, 88),
+              _room("203", 4, 300, 160, 96),
+              _room("205", 4, 396, 160, 104),
+              _service("Туалеты", 4, 500, 160, 64),
+              _room("206", 4, 564, 160, 80),
+              _room("207", 236, 4, 160, 96),
+              _room("208", 236, 100, 160, 88),
+              Space(
+                  ROOM,
+                  "210",
+                  (Rect(236, 188, 160, 128), Rect(236, 316, 80, 96)),
+                  ((236, 188), (396, 188), (396, 316), (316, 316), (316, 412), (236, 412)),
+              ),
+              _room("211", 316, 316, 80, 96),
+              _room("212", 236, 412, 160, 120),
+              _service("Кафедра", 236, 532, 160, 112),
+          ),
+          3: (
+              _STAIRS,
+              Space(SERVICE, "Склад", (BOTTOM_CENTRE,)),
+              _room("301", 4, 4, 160, 104),
+              _room("302", 4, 108, 80, 96),
+              _room("303", 84, 108, 80, 96),
+              _room("304", 4, 204, 160, 112),
+              _service("Туалеты", 4, 316, 160, 64),
+              _room("305", 4, 380, 160, 88),
+              _room("306", 4, 468, 160, 88),
+              _room("308", 4, 556, 160, 88),
+              _landmark("Библиотека", 236, 4, 160, 200),
+              _room("310", 236, 204, 160, 104),
+              _room("312", 236, 308, 160, 120),
+              _service("Кафедра", 236, 428, 160, 104),
+              _room("315", 236, 532, 160, 112),
+          ),
+          4: (
+              _STAIRS,
+              Space(SERVICE, "Склад", (BOTTOM_CENTRE,)),
+              _room("401", 4, 4, 160, 128),
+              _room("402", 4, 132, 160, 96),
+              _room("403", 4, 228, 80, 96),
+              _room("404", 84, 228, 80, 96),
+              _service("Туалеты", 4, 324, 160, 64),
+              _room("405", 4, 388, 160, 128),
+              _room("406", 4, 516, 160, 128),
+              _room("407", 236, 4, 160, 112),
+              _room("408", 236, 116, 160, 96),
+              _room("409", 236, 212, 160, 144),
+              _service("Кафедра", 236, 356, 160, 96),
+              _room("410", 236, 452, 160, 96),
+              _service("Архив", 236, 548, 160, 96),
+          ),
+      }
+
+
+      def plan_for(floor: int) -> tuple[Space, ...] | None:
+          return FLOOR_PLANS.get(floor)
+
+
+      def plan_room_numbers(floor: int) -> frozenset[str]:
+          return frozenset(s.label for s in FLOOR_PLANS.get(floor, ()) if s.kind == ROOM)
+
+
+      def all_plan_rooms() -> list[tuple[int, str]]:
+          """(floor, number) of every room slot, ordered by floor and number."""
+          return sorted((floor, s.label) for floor, spaces in FLOOR_PLANS.items() for s in spaces if s.kind == ROOM)
+      ```
+      (Keep this exact data: the Planner verified coverage, overlaps, polygon areas and label fit for it, 9.6.)
+
+      ### 4.3 `campusmap/layout.py`
+      - Remove `CELL_WIDTH`, `CELL_HEIGHT`, `COLUMN_X`, `ROW_Y`, `cell_rect`, `span_rect`, local `Rect`, `OUTLINE`, `CORRIDOR`, `VIEWBOX_*`; import them from `university.building` (`from university.building import CORRIDOR, LANDMARK, OUTLINE, ROOM, SERVICE, VIEWBOX_HEIGHT, VIEWBOX_WIDTH, Rect, Space, plan_for`). Keep `ROOM_LABEL_SIZE = 20`, `LANDMARK_LABEL_SIZE = 15`, `LABEL_PADDING`, `estimated_label_width`, `label_text_length` unchanged.
+      - `MapShape`: fields `kind: str`, `label: str`, `rect: Rect` (label rectangle = `parts[0]`; also the drawn rectangle for one-part spaces), `points: str = ""` (SVG `points` attribute for polygons), `is_current: bool = False`, `text_length: int | None = None`.
+      - `svg_points(points: tuple[tuple[int, int], ...]) -> str` → `" ".join(f"{x},{y}" for x, y in points)` (a Python string, so template localisation never touches the numbers).
+      - `label_size(kind: str) -> int` → `ROOM_LABEL_SIZE` for rooms, else `LANDMARK_LABEL_SIZE`.
+      - `floor_plan(floor: int, current: Room | None) -> FloorPlan | None`:
+        1. `spaces = plan_for(floor)`; `None` → return `None`.
+        2. For each space in order: `rect = space.parts[0]`; `MapShape(kind=space.kind, label=space.label, rect=rect, points=svg_points(space.points), is_current=space.kind == ROOM and current is not None and current.floor == floor and current.number == space.label, text_length=label_text_length(space.label, rect, label_size(space.kind)))`.
+        3. Return `FloorPlan(floor, VIEWBOX_WIDTH, VIEWBOX_HEIGHT, OUTLINE, CORRIDOR, shapes)`.
+        No queries.
+
+      ### 4.4 `campusmap/views.py`
+      - `from university.building import plan_room_numbers` (instead of `blocked_cells`).
+      - `plan = floor_plan(floor, current) if floor is not None else None`.
+      - `RoomEntry.on_map = r.number in plan_room_numbers(f)`.
+      - Everything else unchanged (one rooms query; floors from `Room` rows; 404 rules).
+      - Context adds `has_plan = plan is not None` (template).
+
+      ### 4.5 `campusmap/templates/campusmap/map.html`
+      - Inside the floor branch: `{% if plan %}` … SVG … `{% else %}<p>Схемы {{ current_floor }} этажа нет.</p>{% endif %}` — pass `current_floor` (the selected floor number) in the context.
+      - Shape element: `{% if s.points %}<polygon points="{{ s.points }}"/>{% else %}<rect x="{{ s.rect.x }}" y="{{ s.rect.y }}" width="{{ s.rect.width }}" height="{{ s.rect.height }}"/>{% endif %}`.
+      - `<title>`: «Аудитория NNN» for rooms, the label otherwise (unchanged rule).
+      - Text element unchanged (`class="map-{{ s.kind }}-label"`, `textLength` when set).
+      - Legend: three items (same swatch markup, classes `map-room`, `map-landmark`, `map-service`): «Аудитория», «Вход, лестница, деканат, библиотека, столовая», «Служебные помещения: гардероб, туалеты, кафедра и другие».
+
+      ### 4.6 CSS — `static/css/base.css`
+      Extend the existing selectors so polygons and service spaces are drawn:
+      - `.map-outline, .map-room rect, .map-room polygon, .map-landmark rect, .map-landmark polygon, .map-service rect, .map-service polygon, .map-corridor { fill: none; stroke: var(--color-text); stroke-width: 2; }` (replace the current group).
+      - `.map-landmark rect, .map-landmark polygon { stroke: var(--color-muted); stroke-dasharray: 6 4; }`
+      - New: `.map-service rect, .map-service polygon { stroke: var(--color-muted); stroke-dasharray: 2 3; }` and `.map-service-label { font-size: 15px; fill: var(--color-muted); }`.
+      - Keep `.map-current .map-room-label` and `a.map-current` unchanged.
+
+      ### 4.7 Seed — `schedule/demo.py`
+      - `RoomSeed` loses `map_cell`. Replace `ROOM_SEEDS` with
+        `ROOM_SEEDS = [RoomSeed(code=f"room-{number}", floor=floor, number=number) for floor, number in all_plan_rooms()]` (`from university.building import all_plan_rooms`).
+      - Room loop: `room = Room.objects.filter(code=seed.code).first() or Room(code=seed.code)`; `room.floor, room.number = seed.floor, seed.number`; `full_clean()`; `save()` (the existing conflict handling stays).
+      - `ScheduleSeedSummary.rooms = len(ROOM_SEEDS)` → 39. `LESSON_SEEDS` / `CHANGE_SEEDS` keep using `room-101` … `room-402`.
+
+      ### 4.8 README
+      `## Map`: portrait plans for floors 1–4 in `university/building.py`; a room appears when its number is a slot on its floor's plan (no admin placement; to add a room to the plan, change the code); rooms elsewhere show «нет на схеме»; L-shaped spaces; legend; highlight unchanged. Known limitations: replace the 9-cell grid bullet with «Plans exist for floors 1–4 only; a room is drawn only if its number is a slot in `university/building.py`.»
+
+      ---
+
+      ## 5. Functions and tests (summary)
+      | Function | Tests |
+      |---|---|
+      | `building.FLOOR_PLANS`, `plan_for`, `plan_room_numbers`, `all_plan_rooms` | `university/tests/test_building.py::FloorPlanTests` |
+      | `layout.svg_points`, `label_size`, `floor_plan` | `campusmap/tests/test_layout.py::LayoutTests` |
+      | `MapView` (on_map, no plan) | `campusmap/tests/test_views.py` |
+      | `Room` without `map_cell` | `university/tests/test_models.py`, `test_admin.py` |
+      | seed | `schedule/tests/test_demo.py` |
+
+      ---
+
+      ## 6. Test plan
+
+      ### 6.0 Rules
+      Pure geometry tests use `SimpleTestCase`. View tests create `Room` rows directly (no `map_cell`). Page assertions follow the TASK-008-FIX rule (exact markup). Save every test log; report any failed or stalled run by test name and Moscow time.
+
+      ### 6.1 Traceability
+      | AC | Tests |
+      |---|---|
+      | AC1 | `FloorPlanTests::test_fixed_elements_same_on_every_floor`, `test_plans_for_floors_1_to_4_only` |
+      | AC2 | `FloorPlanTests::test_full_coverage_no_overlap` (per floor, subTest) |
+      | AC3 | `FloorPlanTests::test_room_numbers`, `test_demo_rooms_on_plan`, `test_l_shapes_are_polygons_with_matching_area`, `test_polygon_vertices_are_part_corners` |
+      | AC4 | `FloorPlanTests::test_landmarks_and_services_per_floor`; `campusmap/tests/test_views.py::MapViewTests::test_legend_has_three_kinds` |
+      | AC5 | `LayoutTests::test_viewbox_portrait`, `test_labels_fit_with_padding`, `test_clamped_labels_exactly`, `test_room_label_size_unchanged`; `MapViewTests::test_svg_scales` (existing, viewBox `0 0 400 648`) |
+      | AC6 | `MapViewTests::test_room_on_plan_by_number`, `test_room_not_on_plan_listed`, `test_floor_without_plan`, `test_highlight_polygon_room`; `university/tests/test_models.py::RoomModelTests::test_no_map_cell_field`; migration check (section 8) |
+      | AC7 | `schedule/tests/test_demo.py::ScheduleDemoTests::test_seed_creates_all_plan_rooms`, `test_seed_twice_same_rooms`, `test_demo_room_codes_kept` |
+      | AC8 | existing `MapAccessTests`, `MapViewTests` (switcher, highlight, 404s, list), `MapQueryTests`, `MapNavTests`, `schedule` `RoomLinkTests` — kept, adapted only where they used `map_cell` |
+
+      ### 6.2 Access matrix
+      Unchanged from TASK-008 6.2 (`MapAccessTests`): anonymous 302; student, student without profile, staff, superuser 200 on `/map/`, `/map/floor/2/`, `/map/room/room-205/`; POST 405. Keep all cells.
+
+      ### 6.3 Test details
+      `university/tests/test_building.py` — replace `BuildingTests` with `FloorPlanTests(SimpleTestCase)`:
+      - `test_plans_for_floors_1_to_4_only` (`sorted(FLOOR_PLANS) == [1, 2, 3, 4]`; `plan_for(5) is None`)
+      - `test_fixed_elements_same_on_every_floor` (each plan has exactly one space whose `parts == (STAIRS,)` labelled «Лестница», and exactly one space whose `parts == (BOTTOM_CENTRE,)`; `CORRIDOR` is not a part of any space)
+      - `test_full_coverage_no_overlap` (for each floor, `subTest(floor=…)`: all parts inside `OUTLINE`; no part has a positive-area intersection with `CORRIDOR`; parts pairwise without positive-area intersection; `sum(part.area) == OUTLINE.area - CORRIDOR.area`). Helper `_intersection_area(a, b)` with integer arithmetic in the test module.
+      - `test_room_numbers` (per floor: every room label is 3 digits, first digit = floor; all 39 numbers unique; counts 9, 10, 10, 10)
+      - `test_demo_rooms_on_plan` ({101, 114, 205, 212, 308, 315, 402} ⊆ numbers on their floors)
+      - `test_l_shapes_are_polygons_with_matching_area` (exactly the spaces «Столовая» (1) and «210» (2) have 2 parts; shoelace area of `points` == sum of part areas; `parts[0].area > parts[1].area`)
+      - `test_polygon_vertices_are_part_corners` (each polygon vertex is a corner of one of the space's parts)
+      - `test_landmarks_and_services_per_floor` (landmark labels: 1 → {Лестница, Вход, Столовая}, 2 → {Лестница, Деканат}, 3 → {Лестница, Библиотека}, 4 → {Лестница}; «Туалеты» on every floor; «Гардероб» on floor 1)
+      - `test_all_plan_rooms_sorted` (39 tuples; first `(1, "101")`, last `(4, "410")`)
+
+      `campusmap/tests/test_layout.py` — rewrite `LayoutTests(SimpleTestCase)`:
+      - `test_viewbox_portrait` (`VIEWBOX_WIDTH == 400`, `VIEWBOX_HEIGHT == 648`, height > width)
+      - `test_room_label_size_unchanged` (`ROOM_LABEL_SIZE == 20`, `LANDMARK_LABEL_SIZE == 15`; `ROOM_LABEL_SIZE * 328 / VIEWBOX_WIDTH >= 16`, `LANDMARK_LABEL_SIZE * 328 / VIEWBOX_WIDTH >= 12`)
+      - `test_labels_fit_with_padding` (every shape of `floor_plan(f, None)` for f in 1–4: `min(estimated_label_width(label, label_size(kind)), text_length or 10**6) <= rect.width - 2 * LABEL_PADDING`; `rect.height >= 48`)
+      - `test_clamped_labels_exactly` (the set of `(floor, label)` with `text_length` is `{(1, "Лестница"), (2, "Лестница"), (3, "Лестница"), (4, "Лестница"), (1, "Гардероб")}`; room shapes never clamped)
+      - `test_polygon_points_string` (`svg_points(((4, 452), (164, 452)))` == `"4,452 164,452"`; «Столовая» shape `points` starts with `"4,452 "`)
+      - `test_coordinates_are_integers` (all `Rect` fields, `cx`, `cy` are `int`)
+      - `test_floor_plan_marks_current` (`Room(floor=4, number="402", code="room-402")` unsaved → exactly one shape `is_current`, label «402»)
+      - `test_current_on_other_floor_not_marked` (current room 101 → no shape current on floor 2)
+      - `test_no_plan_for_floor_5` (`floor_plan(5, None) is None`)
+
+      `campusmap/tests/test_views.py` — adapt `setUpTestData` (remove `map_cell=`; for the "not on plan" case use a room NOT in the plan, e.g. `Room(code="room-199", floor=1, number="199")` instead of 114 without a cell). Add/adapt in `MapViewTests`:
+      - `test_room_on_plan_by_number` (room 114 exists → list item has no «нет на схеме»; the SVG contains `<title>Аудитория 114</title>`)
+      - `test_room_not_on_plan_listed` (`199</a> — нет на схеме`; `/map/room/room-199/` → 200, floor 1, no `map-current` inside the SVG, list link marked)
+      - `test_floor_without_plan` (create `Room(code="room-501", floor=5, number="501")` → `/map/floor/5/` → 200, «Схемы 5 этажа нет.», no `<svg class="map-svg"`, «501</a> — нет на схеме»)
+      - `test_highlight_polygon_room` (create room 210 → `/map/room/room-210/` → inside the SVG one `class="map-room map-current"` group containing `<polygon points="236,188 396,188 396,316 316,316 316,412 236,412"/>`)
+      - `test_legend_has_three_kinds` (three swatches: `class="map-room"`, `class="map-landmark"`, `class="map-service"`; text «Служебные помещения»)
+      - Adapt `test_landmarks_per_floor` (floor 4 now also has service labels; assert landmark labels via `class="map-landmark-label"` elements only) and `test_svg_scales` (`viewBox="0 0 400 648"`).
+      - `MapQueryTests`: keep `test_queries_constant` (4 vs 20 rooms; use plan numbers or off-plan numbers, both fine) and `test_highlight_view_same_queries`.
+
+      `university/tests/test_models.py` — delete `RoomMapCellTests`; add `RoomModelTests::test_no_map_cell_field` (`"map_cell" not in [f.name for f in Room._meta.get_fields()]`). Keep `RoomNumberTests` unchanged.
+      `university/tests/test_admin.py` — remove `map_cell` from all POST data; delete `test_landmark_cell_shows_error` and `test_duplicate_cell_shows_error`; keep `test_valid_room_saved`, `test_bad_number_shows_field_error`, `test_mismatch_shows_error`.
+      `schedule/tests/test_demo.py` — counts 7 → 39 (`summary.rooms`, `Room.objects.count()`); replace the `map_cell` assertions with `test_seed_creates_all_plan_rooms` (every `(floor, number)` of `all_plan_rooms()` has a `Room` with code `room-<number>` and that floor; every row passes `full_clean()`), `test_seed_twice_same_rooms` (39 after two runs, same pks), `test_demo_room_codes_kept` (the 7 demo codes exist and the seeded weekly lessons still reference them).
+
+      ### 6.4 Settings branches / query count
+      No settings change. Map view query count unchanged (one rooms query; plan data is code).
+
+      ---
+
+      ## 7. Implementation order
+      1. `university/building.py` rewrite + `test_building.py` (coverage tests must pass on the given data).
+      2. Remove `map_cell` (model, admin), generate migration 0004; adapt `university` tests.
+      3. `campusmap/layout.py`, views, template, CSS; adapt/add campusmap tests.
+      4. Seed + `schedule/tests/test_demo.py`; README.
+      5. `ruff format` on changed Python files only (not migrations); section 8; `REPORT` to the Reviewer. Do not commit.
+
+      ## 8. Verification
+      ```bash
+      source .venv/bin/activate
+      export DEBUG=true
+      TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S)
+      python manage.py check
+      python manage.py makemigrations --check --dry-run
+      python manage.py test 2>&1 | tee "$TMPDIR/test-$TS.log"
+      python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-at-2359.log"
+      python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-at-0000.log"
+      DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop \
+        ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ \
+        python manage.py check --deploy --fail-level WARNING
+      ruff check . && ruff format --check .
+      node --check static/js/chat.js && echo "js syntax ok"
+      python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"
+      export DATABASE_URL="sqlite:///$TMPDIR/task010.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-private" DEMO_PASSWORD='Local-Demo-Pass-2026!'
+      rm -f "$TMPDIR/task010.sqlite3"
+      python manage.py migrate && python manage.py seed_demo && python manage.py seed_demo
+      # Migration on data seeded BEFORE the change (old code from git, temporary copy only)
+      rm -rf "$TMPDIR/task010-old" "$TMPDIR/task010-old.sqlite3" && mkdir "$TMPDIR/task010-old" && git archive 08671f6 | tar -x -C "$TMPDIR/task010-old"
+      (cd "$TMPDIR/task010-old" && DATABASE_URL="sqlite:///$TMPDIR/task010-old.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-old-private" python manage.py migrate -v0 && DATABASE_URL="sqlite:///$TMPDIR/task010-old.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-old-private" python manage.py seed_demo)
+      DATABASE_URL="sqlite:///$TMPDIR/task010-old.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-old-private" python manage.py migrate
+      DATABASE_URL="sqlite:///$TMPDIR/task010-old.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-old-private" python manage.py seed_demo
+      git status --short
+      ```
+      `REPORT`: output tails, test count (was 963), log file names, any failed or stalled run by test name and Moscow time, the old-DB migration output (7 rooms before, 39 after the second seed), `git status`.
+
+      ## 9. Feasibility check (2026-11-16 14:23 MSK on `08671f6`)
+      1. Clean start — `git status --short` → only ` M plan.md`. OK.
+      2. Referenced objects — `university/building.py` (grid: `MapCell`, `STAIRS_CELL`, `Landmark`, `LANDMARKS`, `landmarks_on`, `blocked_cells`); `Room.map_cell` + constraints `university_room_map_cell_value`, `university_room_unique_map_cell` + `clean()` (only the landmark-cell check) (`university/models.py:6, 102-108, 133-139, 149-153`); migration `0003_room_number_format_and_map_cell`; `RoomAdmin.list_display` with `map_cell` (`university/admin.py:28`); `campusmap/layout.py` (`Rect`, `OUTLINE`, `CORRIDOR`, `cell_rect`, `span_rect`, `floor_plan(floor, rooms, current)`, label helpers); `campusmap/views.py:59` (`on_map` via `blocked_cells`); `map.html` (rect-only shapes, legend 2 items); `schedule/demo.py:32, 75-81, 255` (`RoomSeed.map_cell`, loop); tests using the grid or `map_cell`: `campusmap/tests/test_views.py`, `test_layout.py`, `schedule/tests/test_demo.py` (counts 7, cell checks), `university/tests/test_admin.py`, `test_models.py` (`RoomMapCellTests`), `test_building.py`; README `## Map` (line ~154). No other code uses `map_cell` or the grid. OK.
+      3. No collisions — no `FLOOR_PLANS`, `Space`, `plan_for`, `plan_room_numbers`, `all_plan_rooms`, `svg_points`, `label_size`, CSS `map-service`; latest university migration is `0003`. OK.
+      4. Migrations — on a temporary copy of `HEAD` with `map_cell` removed (model, constraints, `clean()`, admin column): `makemigrations university --name remove_room_map_cell` → `0004_remove_room_map_cell.py` (RemoveConstraint × 2, RemoveField); applied on a DB seeded with the CURRENT code → OK, 7 rooms kept (`101/1 … 402/4`). OK.
+      5. Tools — unchanged. OK.
+      6. Framework / geometry — the plan data in 4.2 was checked with a script (`$TMPDIR/t010/plan_check.py`): every floor: all parts inside the outline, none overlaps the corridor, no pairwise overlaps, Σ areas = 250 880 − 35 136 = 215 744 = outline − corridor; polygon (shoelace) areas equal the part sums for «Столовая» and «210»; 39 rooms (9/10/10/10), all NNN with first digit = floor, unique; label fit: only «Лестница» (78 > 56, floors 1–4) and «Гардероб» (78 > 64, floor 1) need `textLength`; every label rectangle ≥ 64 units high. SVG `<polygon points>` is standard. OK.
+      7. Environment — nothing new. OK.
+      8. Verification runnable — 9a.
+      9. Conflicts — none.
+      10. Assumptions / blockers — none.
+
+      ### 9a. Verification results on the current tree
+      Logs `$TMPDIR/test-20261116-142330-t010-feas*.log`.
+      - `check` → no issues; `makemigrations --check --dry-run` → «No changes detected».
+      - `test` → `Ran 963 tests … OK`; `run_tests_at.py 2026-11-17T23:59:59` → 963 OK; `run_tests_at.py 2026-11-18T00:00:00` → 963 OK. No failed or stalled runs.
+      - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` → all passed; `ruff format --check .` → 183 files already formatted; `node --check static/js/chat.js` → ok; CI YAML ok.
+      - `seed_demo` twice on a temporary DB and PRIVATE_MEDIA_ROOT → OK (second run «Chat ready: 0 dialogs, 0 messages.»).
+
+      ## 10. Risks
+      - **Plan data typos** break coverage — the coverage test fails immediately; copy the data from 4.2 verbatim.
+      - **Room rows vs plan**: plan rooms without a `Room` row are drawn but cannot be highlighted; the seed creates all 39.
+      - **Migration**: removes a column with data (cell positions) — no longer needed by design; the demo positions are now in code. Local and server DBs keep all rooms.
+      - **Taller page**: the map is ≈ 531 px high at 360 px; the room list follows below (unchanged, UI stage).
+    ── Thought for 1s
+      This is a large task. Let me set up a todo list and start by exploring the current state of the relevant files.
+
+      Let me read the current files I need to modify:
+      - university/building.py
+      - university/models.py
+      - university/admin.py
+      - campusmap/layout.py
+      - campusmap/views.py
+      - campusmap/templates/campusmap/map.html
+      - static/css/base.css (map section)
+      - schedule/demo.py
+      - tests: university/tests/test_building.py, test_models.py, test_admin.py; campusmap/tests/test_layout.py, test_views.py; schedule/tests/test_demo.py
+      - README.md
+
+      Let me read them all in parallel.
+    ── Ran tool 5 todos (1s)
+      {"output":"[\n  {\n    \"content\": \"Rewrite university/building.py with 4.2 data + test_building.py\",\n    \"status\": \"in_progress\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Remove map_cell (model, admin), generate migration 0004, adapt university tests\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Rewrite campusmap layout/views/template/CSS + adapt tests\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Seed + schedule/tests/test_demo.py + README\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Run full verification section 8 + REPORT\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  }\n]","metadata":{"todos":[{"content":"Rewrite university/building.py with 4.2 data + test_building.py","status":"in_progress","priority":"high"},{"content":"Remove map_cell (model, admin), generate migration 0004, adapt university tests","status":"pending","priority":"high"},{"content":"Rewrite campusmap layout/views/template/CSS + adapt tests","status":"pending","priority":"high"},{"content":"Seed + schedule/tests/test_demo.py + README","status":"pending","priority":"high"},{"content":"Run full verification section 8 + REPORT","status":"pending","priority":"high"}],"truncated":false}}
+    ── Read file read
+      """The fictional building: a fixed grid of map cells and landmarks (one building)."""
+
+      from dataclasses import dataclass
+
+      from django.db import models
+
+      STAIRS_CELL = "N1"
+
+
+      class MapCell(models.TextChoices):
+          N2 = "N2", "Верхний ряд, место 2"
+          N3 = "N3", "Верхний ряд, место 3"
+          N4 = "N4", "Верхний ряд, место 4"
+          N5 = "N5", "Верхний ряд, место 5"
+          S1 = "S1", "Нижний ряд, место 1"
+          S2 = "S2", "Нижний ряд, место 2"
+          S3 = "S3", "Нижний ряд, место 3"
+          S4 = "S4", "Нижний ряд, место 4"
+          S5 = "S5", "Нижний ряд, место 5"
+
+
+      @dataclass(frozen=True)
+      class Landmark:
+          key: str
+          label: str
+          cells: tuple[str, ...]  # adjacent cells of one row
+          floor: int | None  # None = every floor
+
+
+      LANDMARKS: tuple[Landmark, ...] = (
+          Landmark("stairs", "Лестница", (STAIRS_CELL,), None),
+          Landmark("entrance", "Вход", ("S3",), 1),
+          Landmark("canteen", "Столовая", ("S4", "S5"), 1),
+          Landmark("deanery", "Деканат", ("S1", "S2"), 2),
+          Landmark("library", "Библиотека", ("S4", "S5"), 3),
+      )
+
+
+      def landmarks_on(floor: int) -> list[Landmark]:
+          return [lm for lm in LANDMARKS if lm.floor is None or lm.floor == floor]
+
+
+      def blocked_cells(floor: int) -> dict[str, Landmark]:
+          return {cell: lm for lm in landmarks_on(floor) for cell in lm.cells}
+    ── Read file read
+      from django.core.exceptions import ValidationError
+      from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
+      from django.db import models
+      from django.db.models.functions import Cast
+
+      from university.building import MapCell, blocked_cells
+
+      NBSP = "\u00a0"
+
+      ROOM_NUMBER_RE = r"^[1-9][0-9]{2}$"
+      MAX_FLOOR = 9
+
+
+      class Faculty(models.Model):
+          code = models.CharField("код", max_length=20, unique=True)
+          name = models.CharField("название", max_length=200, unique=True)
+
+          class Meta:
+              ordering = ["name"]
+              verbose_name = "факультет"
+              verbose_name_plural = "факультеты"
+
+          def __str__(self) -> str:
+              return self.name
+
+
+      class Program(models.Model):
+          faculty = models.ForeignKey(
+              Faculty, on_delete=models.PROTECT, related_name="programs", verbose_name="факультет"
+          )
+          code = models.CharField("код", max_length=20)
+          name = models.CharField("название", max_length=200)
+
+          class Meta:
+              ordering = ["faculty__name", "name"]
+              constraints = [
+                  models.UniqueConstraint(
+                      fields=["faculty", "code"], name="university_program_unique_faculty_code"
+                  )
+              ]
+              verbose_name = "направление подготовки"
+              verbose_name_plural = "направления подготовки"
+
+          def __str__(self) -> str:
+              return f"{self.code} {self.name}"
+
+
+      class StudyGroup(models.Model):
+          program = models.ForeignKey(
+              Program, on_delete=models.PROTECT, related_name="groups", verbose_name="направление"
+          )
+          name = models.CharField("название", max_length=20, unique=True)
+          course = models.PositiveSmallIntegerField(
+              "курс", validators=[MinValueValidator(1), MaxValueValidator(6)]
+          )
+
+          class Meta:
+              ordering = ["name"]
+              constraints = [
+                  models.CheckConstraint(
+                      condition=models.Q(course__gte=1) & models.Q(course__lte=6),
+                      name="university_studygroup_course_1_6",
+                  )
+              ]
+              verbose_name = "учебная группа"
+              verbose_name_plural = "учебные группы"
+
+          def __str__(self) -> str:
+              return self.name
+
+          @property
+          def faculty(self) -> Faculty:
+              return self.program.faculty
+
+
+      class Room(models.Model):
+          code = models.CharField(
+              "код",
+              max_length=32,
+              unique=True,
+              validators=[
+                  RegexValidator(
+                      r"^[a-z][a-z0-9-]*$",
+                      "Код: латинские строчные буквы, цифры и дефис; начинается с буквы.",
+                  )
+              ],
+          )
+          floor = models.PositiveSmallIntegerField(
+              "этаж", validators=[MinValueValidator(1), MaxValueValidator(MAX_FLOOR)]
+          )
+          number = models.CharField(
+              "номер",
+              max_length=10,
+              unique=True,
+              validators=[
+                  RegexValidator(
+                      ROOM_NUMBER_RE, "Номер аудитории: ровно три цифры, первая цифра — этаж (1–9)."
+                  )
+              ],
+              help_text="Три цифры, первая — этаж: 205 — аудитория на 2 этаже.",
+          )
+          map_cell = models.CharField(
+              "место на схеме",
+              max_length=2,
+              blank=True,
+              default="",
+              choices=MapCell.choices,
+              help_text="Пусто — аудитории нет на схеме.",
+          )
+
+          class Meta:
+              ordering = ["floor", "number"]
+              constraints = [
+                  models.CheckConstraint(
+                      condition=models.Q(floor__gte=1) & models.Q(floor__lte=MAX_FLOOR),
+                      name="university_room_floor_1_9",
+                  ),
+                  models.CheckConstraint(
+                      condition=models.Q(number__regex=ROOM_NUMBER_RE),
+                      name="university_room_number_nnn",
+                      violation_error_message=(
+                          "Номер аудитории: ровно три цифры, первая цифра — этаж (1–9)."
+                      ),
+                  ),
+                  models.CheckConstraint(
+                      condition=models.Q(
+                          number__startswith=Cast("floor", output_field=models.CharField())
+                      ),
+                      name="university_room_floor_matches_number",
+                      violation_error_message="Этаж должен совпадать с первой цифрой номера аудитории.",
+                  ),
+                  models.CheckConstraint(
+                      condition=models.Q(map_cell__in=["", *MapCell.values]),
+                      name="university_room_map_cell_value",
+                  ),
+                  models.UniqueConstraint(
+                      fields=["floor", "map_cell"],
+                      condition=~models.Q(map_cell=""),
+                      name="university_room_unique_map_cell",
+                      violation_error_message="Это место на схеме этажа уже занято другой аудиторией.",
+                  ),
+              ]
+              verbose_name = "аудитория"
+              verbose_name_plural = "аудитории"
+
+          def __str__(self) -> str:
+              return f"ауд. {self.number}"
+
+          def clean(self):
+              super().clean()
+              if self.map_cell and isinstance(self.floor, int) and 1 <= self.floor <= MAX_FLOOR:
+                  landmark = blocked_cells(self.floor).get(self.map_cell)
+                  if landmark is not None:
+                      raise ValidationError(f"Это место на {self.floor} этаже занято: {landmark.label}.")
+
+
+      class Teacher(models.Model):
+          last_name = models.CharField("фамилия", max_length=100)
+          first_name = models.CharField("имя", max_length=100)
+          middle_name = models.CharField("отчество", max_length=100, blank=True, default="")
+          title = models.CharField("учёная степень, звание", max_length=100, blank=True, default="")
+
+          class Meta:
+              ordering = ["last_name", "first_name"]
+              constraints = [
+                  models.UniqueConstraint(
+                      fields=["last_name", "first_name", "middle_name"],
+                      name="university_teacher_unique_name",
+                  )
+              ]
+              verbose_name = "преподаватель"
+              verbose_name_plural = "преподаватели"
+
+          def __str__(self) -> str:
+              return self.full_name
+
+          @property
+          def full_name(self) -> str:
+              return " ".join(
+                  part for part in (self.last_name, self.first_name, self.middle_name) if part
+              )
+
+          @property
+          def short_name(self) -> str:
+              middle = f"{NBSP}{self.middle_name[0]}." if self.middle_name else ""
+              return f"{self.last_name}{NBSP}{self.first_name[0]}.{middle}"
+
+
+      class Discipline(models.Model):
+          name = models.CharField("название", max_length=200, unique=True)
+          short_name = models.CharField("краткое название", max_length=50)
+
+          class Meta:
+              ordering = ["name"]
+              verbose_name = "дисциплина"
+              verbose_name_plural = "дисциплины"
+
+          def __str__(self) -> str:
+              return self.name
+    ── Read file read
+      from django.contrib import admin
+
+      from .models import Discipline, Faculty, Program, Room, StudyGroup, Teacher
+
+
+      @admin.register(Faculty)
+      class FacultyAdmin(admin.ModelAdmin):
+          list_display = ("code", "name")
+          search_fields = ("code", "name")
+
+
+      @admin.register(Program)
+      class ProgramAdmin(admin.ModelAdmin):
+          list_display = ("code", "name", "faculty")
+          list_filter = ("faculty",)
+          search_fields = ("code", "name")
+
+
+      @admin.register(StudyGroup)
+      class StudyGroupAdmin(admin.ModelAdmin):
+          list_display = ("name", "program", "course")
+          list_filter = ("course", "program__faculty")
+          search_fields = ("name",)
+
+
+      @admin.register(Room)
+      class RoomAdmin(admin.ModelAdmin):
+          list_display = ("number", "floor", "code", "map_cell")
+          list_filter = ("floor",)
+          search_fields = ("number", "code")
+
+
+      @admin.register(Teacher)
+      class TeacherAdmin(admin.ModelAdmin):
+          list_display = ("full_name", "title")
+          search_fields = ("last_name", "first_name")
+
+
+      @admin.register(Discipline)
+      class DisciplineAdmin(admin.ModelAdmin):
+          list_display = ("name", "short_name")
+          search_fields = ("name", "short_name")
+    ── Read file read
+      """Geometry for the schematic building plan. All values are integers."""
+
+      from collections.abc import Sequence
+      from dataclasses import dataclass
+
+      from university.building import blocked_cells, landmarks_on
+      from university.models import Room
+
+      VIEWBOX_WIDTH = 400
+      VIEWBOX_HEIGHT = 240
+      ROOM_LABEL_SIZE = 20  # user units, see D6
+      LANDMARK_LABEL_SIZE = 15
+      CELL_WIDTH = 72
+      CELL_HEIGHT = 80
+      COLUMN_X = {1: 12, 2: 88, 3: 164, 4: 240, 5: 316}
+      ROW_Y = {"N": 12, "S": 148}
+
+      LABEL_PADDING = 8  # user units on each side of a label
+      LABEL_CHAR_EM_NUM = 13  # estimated glyph width = 0.65 em (generous for Cyrillic)
+      LABEL_CHAR_EM_DEN = 20
+
+
+      def estimated_label_width(label: str, size: int) -> int:
+          return (len(label) * LABEL_CHAR_EM_NUM * size + LABEL_CHAR_EM_DEN - 1) // LABEL_CHAR_EM_DEN
+
+
+      @dataclass(frozen=True)
+      class Rect:
+          x: int
+          y: int
+          width: int
+          height: int
+
+          @property
+          def cx(self) -> int:
+              return self.x + self.width // 2
+
+          @property
+          def cy(self) -> int:
+              return self.y + self.height // 2
+
+
+      OUTLINE = Rect(4, 4, 392, 232)
+      CORRIDOR = Rect(12, 96, 376, 48)
+
+
+      def label_text_length(label: str, rect: Rect, size: int) -> int | None:
+          available = rect.width - 2 * LABEL_PADDING
+          return available if estimated_label_width(label, size) > available else None
+
+
+      @dataclass(frozen=True)
+      class MapShape:
+          kind: str  # "room" | "landmark"
+          label: str  # room number or landmark label
+          rect: Rect
+          is_current: bool = False
+          text_length: int | None = None
+
+
+      @dataclass(frozen=True)
+      class FloorPlan:
+          floor: int
+          width: int
+          height: int
+          outline: Rect
+          corridor: Rect
+          shapes: list[MapShape]
+
+
+      def cell_rect(cell: str) -> Rect:
+          row, col = cell[0], int(cell[1:])
+          return Rect(COLUMN_X[col], ROW_Y[row], CELL_WIDTH, CELL_HEIGHT)
+
+
+      def span_rect(cells: Sequence[str]) -> Rect:
+          rects = [cell_rect(c) for c in cells]
+          x = min(r.x for r in rects)
+          y = rects[0].y
+          width = max(r.x + r.width for r in rects) - x
+          return Rect(x, y, width, CELL_HEIGHT)
+
+
+      def floor_plan(floor: int, rooms: Sequence[Room], current: Room | None) -> FloorPlan:
+          blocked = blocked_cells(floor)
+          landmark_shapes = [
+              MapShape(
+                  "landmark",
+                  lm.label,
+                  (rect := span_rect(lm.cells)),
+                  text_length=label_text_length(lm.label, rect, LANDMARK_LABEL_SIZE),
+              )
+              for lm in landmarks_on(floor)
+          ]
+          room_shapes = [
+              MapShape(
+                  "room",
+                  room.number,
+                  cell_rect(room.map_cell),
+                  is_current=current is not None and room.pk == current.pk,
+              )
+              for room in rooms
+              if room.floor == floor and room.map_cell and room.map_cell not in blocked
+          ]
+          return FloorPlan(
+              floor, VIEWBOX_WIDTH, VIEWBOX_HEIGHT, OUTLINE, CORRIDOR, landmark_shapes + room_shapes
+          )
+    ── Read file read
+      from dataclasses import dataclass
+
+      from django.http import Http404
+      from django.urls import reverse
+      from django.views.generic import TemplateView
+
+      from campusmap.layout import floor_plan
+      from university.building import blocked_cells
+      from university.models import Room
+
+
+      @dataclass(frozen=True)
+      class RoomEntry:
+          number: str
+          url: str
+          on_map: bool
+          is_current: bool
+
+
+      @dataclass(frozen=True)
+      class FloorEntry:
+          number: int
+          url: str
+          is_current: bool
+          rooms: list[RoomEntry]
+
+
+      class MapView(TemplateView):
+          template_name = "campusmap/map.html"
+          http_method_names = ["get"]
+
+          def get_context_data(self, **kwargs):
+              context = super().get_context_data(**kwargs)
+              rooms = list(Room.objects.order_by("floor", "number"))
+              floors = sorted({r.floor for r in rooms})
+              code = self.kwargs.get("code")
+              floor = self.kwargs.get("floor")
+              current = None
+              if code is not None:
+                  current = next((r for r in rooms if r.code == code), None)
+                  if current is None:
+                      raise Http404
+                  floor = current.floor
+              elif floor is not None:
+                  if floor not in floors:
+                      raise Http404
+              else:
+                  floor = floors[0] if floors else None
+              plan = floor_plan(floor, rooms, current) if floor is not None else None
+              floor_entries = [
+                  FloorEntry(
+                      f,
+                      reverse("campusmap:floor", args=[f]),
+                      f == floor,
+                      [
+                          RoomEntry(
+                              r.number,
+                              reverse("campusmap:room", args=[r.code]),
+                              bool(r.map_cell) and r.map_cell not in blocked_cells(f),
+                              current is not None and r.pk == current.pk,
+                          )
+                          for r in rooms
+                          if r.floor == f
+                      ],
+                  )
+                  for f in floors
+              ]
+              context["plan"] = plan
+              context["floors"] = floor_entries
+              context["current"] = current
+              return context
+    ── Read file read
+      {% extends "base.html" %}
+      {% block title %}Карта{% endblock %}
+      {% block content %}
+      <h1>Карта</h1>
+      {% if not floors %}
+        <p>Аудиторий пока нет.</p>
+      {% else %}
+        <nav class="floor-switcher" aria-label="Этажи">
+          <span>Этаж:</span>
+          <ul>
+            {% for f in floors %}
+            <li><a href="{{ f.url }}"{% if f.is_current %} class="floor-current" aria-current="page"{% endif %}>{{ f.number }}</a></li>
+            {% endfor %}
+          </ul>
+        </nav>
+        <svg class="map-svg" viewBox="0 0 {{ plan.width }} {{ plan.height }}" role="img" aria-labelledby="map-title">
+          <title id="map-title">Схема, {{ plan.floor }} этаж</title>
+          <rect class="map-outline" x="{{ plan.outline.x }}" y="{{ plan.outline.y }}" width="{{ plan.outline.width }}" height="{{ plan.outline.height }}"/>
+          <rect class="map-corridor" x="{{ plan.corridor.x }}" y="{{ plan.corridor.y }}" width="{{ plan.corridor.width }}" height="{{ plan.corridor.height }}"/>
+          {% for s in plan.shapes %}
+          <g class="map-{{ s.kind }}{% if s.is_current %} map-current{% endif %}"{% if s.is_current %} aria-current="location"{% endif %}>
+            <title>{% if s.kind == "room" %}Аудитория {{ s.label }}{% else %}{{ s.label }}{% endif %}</title>
+            <rect x="{{ s.rect.x }}" y="{{ s.rect.y }}" width="{{ s.rect.width }}" height="{{ s.rect.height }}"/>
+            <text class="map-{{ s.kind }}-label" x="{{ s.rect.cx }}" y="{{ s.rect.cy }}" text-anchor="middle" dominant-baseline="central"{% if s.text_length %} textLength="{{ s.text_length }}" lengthAdjust="spacingAndGlyphs"{% endif %}>{{ s.label }}</text>
+          </g>
+          {% endfor %}
+        </svg>
+        <ul class="map-legend">
+          <li><svg class="map-legend-swatch" viewBox="0 0 24 16" aria-hidden="true"><g class="map-room"><rect x="1" y="1" width="22" height="14"/></g></svg> Аудитория</li>
+          <li><svg class="map-legend-swatch" viewBox="0 0 24 16" aria-hidden="true"><g class="map-landmark"><rect x="1" y="1" width="22" height="14"/></g></svg> Вход, лестница, деканат, библиотека, столовая</li>
+        </ul>
+        <h2>Все аудитории</h2>
+        {% for f in floors %}
+        <h3>{{ f.number }} этаж</h3>
+        <ul class="map-room-list">
+          {% for r in f.rooms %}
+          <li><a href="{{ r.url }}"{% if r.is_current %} class="map-current" aria-current="location"{% endif %}>{{ r.number }}</a>{% if not r.on_map %} — нет на схеме{% endif %}</li>
+          {% endfor %}
+        </ul>
+        {% endfor %}
+      {% endif %}
+      {% endblock %}
+    ── Read file read
+      """Fictional schedule demo data.
+
+      Re-running replaces the demo changes (of the 18 demo lessons) with fresh ones
+      for the current and next week relative to the run date.
+      """
+
+      from dataclasses import dataclass
+      from datetime import date, timedelta
+
+      from django.db import transaction
+
+      from schedule.models import LessonChange, WeeklyLesson
+      from schedule.mutations import save_lesson_change, save_weekly_lesson
+      from schedule.services import week_start
+      from university.models import Discipline, Room, StudyGroup, Teacher
+
+
+      @dataclass(frozen=True)
+      class ScheduleSeedSummary:
+          rooms: int
+          teachers: int
+          disciplines: int
+          weekly_lessons: int
+          changes: int
+
+
+      @dataclass(frozen=True)
+      class RoomSeed:
+          code: str
+          floor: int
+          number: str
+          map_cell: str
+
+
+      @dataclass(frozen=True)
+      class TeacherSeed:
+          last_name: str
+          first_name: str
+          middle_name: str
+          title: str
+
+
+      @dataclass(frozen=True)
+      class DisciplineSeed:
+          name: str
+          short_name: str
+
+
+      @dataclass(frozen=True)
+      class LessonSeed:
+          key: str
+          weekday: int
+          slot: int
+          discipline: str
+          lesson_type: str
+          teacher: str
+          room: str
+          groups: tuple[str, ...]
+
+
+      @dataclass(frozen=True)
+      class ChangeSeed:
+          key: str
+          lesson_index: int
+          week: int
+          kind: str
+          new_date_offset: int | None = None
+          new_slot: int | None = None
+          new_room: str | None = None
+          new_teacher: str | None = None
+          reason: str = ""
+
+
+      ROOM_SEEDS = [
+          RoomSeed(code="room-101", floor=1, number="101", map_cell="N2"),
+          RoomSeed(code="room-114", floor=1, number="114", map_cell="N4"),
+          RoomSeed(code="room-205", floor=2, number="205", map_cell="N3"),
+          RoomSeed(code="room-212", floor=2, number="212", map_cell="S4"),
+          RoomSeed(code="room-308", floor=3, number="308", map_cell="N2"),
+          RoomSeed(code="room-315", floor=3, number="315", map_cell="N5"),
+          RoomSeed(code="room-402", floor=4, number="402", map_cell="N3"),
+      ]
+
+      TEACHER_SEEDS = [
+          TeacherSeed(
+              last_name="Лебедев", first_name="Аркадий", middle_name="Семёнович", title="профессор"
+          ),
+          TeacherSeed(last_name="Воронцова", first_name="Ирина", middle_name="Олеговна", title="доцент"),
+          TeacherSeed(
+              last_name="Глебов",
+              first_name="Тимур",
+              middle_name="Русланович",
+              title="старший преподаватель",
+          ),
+          TeacherSeed(last_name="Назарова", first_name="Вера", middle_name="Ильинична", title="доцент"),
+          TeacherSeed(last_name="Фомин", first_name="Павел", middle_name="Андреевич", title=""),
+          TeacherSeed(
+              last_name="Шестакова", first_name="Лидия", middle_name="Петровна", title="ассистент"
+          ),
+      ]
+
+      DISCIPLINE_SEEDS = [
+          DisciplineSeed(name="Введение в цифровую дипломатию", short_name="Цифр. дипломатия"),
+          DisciplineSeed(name="Английский язык", short_name="Англ. яз."),
+          DisciplineSeed(name="Теория международных отношений", short_name="ТМО"),
+          DisciplineSeed(name="Анализ данных на Python", short_name="Анализ данных"),
+          DisciplineSeed(name="Микроэкономика", short_name="Микроэк."),
+          DisciplineSeed(name="Философия", short_name="Философия"),
+      ]
+
+      LESSON_SEEDS = [
+          LessonSeed(
+              "lesson-01",
+              0,
+              1,
+              "Введение в цифровую дипломатию",
+              "lecture",
+              "Лебедев",
+              "room-101",
+              ("ЦД-101",),
+          ),
+          LessonSeed(
+              "lesson-02", 0, 2, "Английский язык", "seminar", "Назарова", "room-308", ("ЦД-101",)
+          ),
+          LessonSeed(
+              "lesson-03", 0, 2, "Микроэкономика", "lecture", "Воронцова", "room-114", ("ЭД-201",)
+          ),
+          LessonSeed(
+              "lesson-04", 0, 3, "Анализ данных на Python", "lab", "Глебов", "room-205", ("ЭД-201",)
+          ),
+          LessonSeed(
+              "lesson-05", 1, 1, "Английский язык", "seminar", "Назарова", "room-315", ("ЭД-201",)
+          ),
+          LessonSeed(
+              "lesson-06",
+              1,
+              2,
+              "Теория международных отношений",
+              "lecture",
+              "Лебедев",
+              "room-101",
+              ("ЦД-101",),
+          ),
+          LessonSeed(
+              "lesson-07", 1, 2, "Микроэкономика", "seminar", "Воронцова", "room-402", ("ЭД-201",)
+          ),
+          LessonSeed(
+              "lesson-08", 1, 3, "Анализ данных на Python", "lab", "Глебов", "room-205", ("ЦД-101",)
+          ),
+          LessonSeed(
+              "lesson-09", 2, 1, "Философия", "lecture", "Фомин", "room-101", ("ЦД-101", "ЭД-201")
+          ),
+          LessonSeed(
+              "lesson-10",
+              2,
+              2,
+              "Введение в цифровую дипломатию",
+              "seminar",
+              "Лебедев",
+              "room-212",
+              ("ЦД-101",),
+          ),
+          LessonSeed(
+              "lesson-11", 2, 3, "Микроэкономика", "seminar", "Воронцова", "room-402", ("ЭД-201",)
+          ),
+          LessonSeed(
+              "lesson-12", 3, 2, "Анализ данных на Python", "lab", "Глебов", "room-205", ("ЭД-201",)
+          ),
+          LessonSeed(
+              "lesson-13", 3, 3, "Английский язык", "seminar", "Назарова", "room-308", ("ЦД-101",)
+          ),
+          LessonSeed(
+              "lesson-14",
+              3,
+              4,
+              "Теория международных отношений",
+              "seminar",
+              "Лебедев",
+              "room-212",
+              ("ЦД-101",),
+          ),
+          LessonSeed(
+              "lesson-15", 3, 4, "Английский язык", "seminar", "Назарова", "room-315", ("ЭД-201",)
+          ),
+          LessonSeed(
+              "lesson-16", 4, 1, "Микроэкономика", "lecture", "Воронцова", "room-114", ("ЭД-201",)
+          ),
+          LessonSeed(
+              "lesson-17", 4, 2, "Анализ данных на Python", "lab", "Глебов", "room-205", ("ЦД-101",)
+          ),
+          LessonSeed("lesson-18", 4, 3, "Философия", "seminar", "Фомин", "room-212", ("ЭД-201",)),
+      ]
+
+      CHANGE_SEEDS = [
+          ChangeSeed("change-1", 0, 0, "cancelled", reason="Преподаватель на конференции"),
+          ChangeSeed("change-2", 15, 1, "cancelled", reason="Мероприятие факультета"),
+          ChangeSeed(
+              "change-3",
+              7,
+              0,
+              "moved",
+              new_date_offset=3,
+              new_slot=5,
+              reason="Перенос по просьбе преподавателя",
+          ),
+          ChangeSeed(
+              "change-4",
+              17,
+              0,
+              "moved",
+              new_date_offset=7,
+              new_slot=4,
+              reason="Перенос из-за олимпиады",
+          ),
+          ChangeSeed(
+              "change-5",
+              12,
+              0,
+              "room_changed",
+              new_room="room-402",
+              reason="Ремонт в аудитории 308",
+          ),
+          ChangeSeed(
+              "change-6",
+              6,
+              1,
+              "room_changed",
+              new_room="room-114",
+              reason="Аудитория занята мероприятием",
+          ),
+          ChangeSeed(
+              "change-7",
+              9,
+              0,
+              "teacher_replaced",
+              new_teacher="Шестакова",
+              reason="Болезнь преподавателя",
+          ),
+          ChangeSeed(
+              "change-8",
+              11,
+              1,
+              "teacher_replaced",
+              new_teacher="Шестакова",
+              reason="Командировка преподавателя",
+          ),
+      ]
+
+
+      def seed_schedule_demo(today: date) -> ScheduleSeedSummary:
+          with transaction.atomic():
+              rooms = {}
+              for seed in ROOM_SEEDS:
+                  room = Room.objects.filter(code=seed.code).first() or Room(code=seed.code)
+                  room.floor, room.number, room.map_cell = seed.floor, seed.number, seed.map_cell
+                  room.full_clean()
+                  room.save()
+                  rooms[seed.code] = room
+
+              teachers = {}
+              for seed in TEACHER_SEEDS:
+                  teacher, _ = Teacher.objects.update_or_create(
+                      last_name=seed.last_name,
+                      first_name=seed.first_name,
+                      middle_name=seed.middle_name,
+                      defaults={"title": seed.title},
+                  )
+                  teachers[seed.last_name] = teacher
+
+              disciplines = {}
+              for seed in DISCIPLINE_SEEDS:
+                  discipline, _ = Discipline.objects.update_or_create(
+                      name=seed.name, defaults={"short_name": seed.short_name}
+                  )
+                  disciplines[seed.name] = discipline
+
+              groups = {name: StudyGroup.objects.get(name=name) for name in ("ЦД-101", "ЭД-201")}
+
+              monday = week_start(today)
+              valid_from = monday - timedelta(weeks=8)
+              valid_until = monday + timedelta(weeks=12) - timedelta(days=1)
+
+              lessons: list[WeeklyLesson] = []
+              for seed in LESSON_SEEDS:
+                  discipline = disciplines[seed.discipline]
+                  lesson = WeeklyLesson.objects.filter(seed_key=seed.key).first()
+                  if lesson is None:
+                      lesson = WeeklyLesson(
+                          seed_key=seed.key,
+                          weekday=seed.weekday,
+                          slot=seed.slot,
+                          discipline=discipline,
+                          lesson_type=seed.lesson_type,
+                      )
+                  lesson.teacher = teachers[seed.teacher]
+                  lesson.room = rooms[seed.room]
+                  lesson.valid_from = valid_from
+                  lesson.valid_until = valid_until
+                  lessons.append(lesson)
+
+              # Refresh demo changes (spec 6.9 step 6) BEFORE saving lessons (step 7), so that
+              # save_weekly_lesson -> validate_weekly_lesson(exclude_pk) does not see stale changes.
+              LessonChange.objects.exclude(seed_key="").delete()
+
+              for seed, lesson in zip(LESSON_SEEDS, lessons, strict=True):
+                  save_weekly_lesson(lesson, [groups[name] for name in seed.groups])
+
+              for seed in CHANGE_SEEDS:
+                  lesson = lessons[seed.lesson_index]
+                  original_date = monday + timedelta(days=7 * seed.week + lesson.weekday)
+                  kwargs = {
+                      "weekly_lesson": lesson,
+                      "original_date": original_date,
+                      "kind": seed.kind,
+                      "reason": seed.reason,
+                      "seed_key": seed.key,
+                  }
+                  if seed.new_date_offset is not None:
+                      kwargs["new_date"] = monday + timedelta(days=seed.new_date_offset)
+                  if seed.new_slot is not None:
+                      kwargs["new_slot"] = seed.new_slot
+                  if seed.new_room is not None:
+                      kwargs["new_room"] = rooms[seed.new_room]
+                  if seed.new_teacher is not None:
+                      kwargs["new_teacher"] = teachers[seed.new_teacher]
+                  save_lesson_change(LessonChange(**kwargs))
+
+          return ScheduleSeedSummary(
+              rooms=len(ROOM_SEEDS),
+              teachers=len(TEACHER_SEEDS),
+              disciplines=len(DISCIPLINE_SEEDS),
+              weekly_lessons=len(LESSON_SEEDS),
+              changes=len(CHANGE_SEEDS),
+          )
+    ── Read file read
+      from django.test import SimpleTestCase
+
+      from university.building import (
+          LANDMARKS,
+          STAIRS_CELL,
+          MapCell,
+          blocked_cells,
+          landmarks_on,
+      )
+
+
+      class BuildingTests(SimpleTestCase):
+          def test_stairs_on_every_floor(self):
+              for floor in range(1, 10):
+                  with self.subTest(floor=floor):
+                      labels = [lm.label for lm in landmarks_on(floor)]
+                      self.assertIn("Лестница", labels)
+                      self.assertIn(STAIRS_CELL, blocked_cells(floor))
+
+          def test_floor_landmarks(self):
+              self.assertEqual({lm.key for lm in landmarks_on(1)}, {"stairs", "entrance", "canteen"})
+              self.assertEqual({lm.key for lm in landmarks_on(2)}, {"stairs", "deanery"})
+              self.assertEqual({lm.key for lm in landmarks_on(3)}, {"stairs", "library"})
+              self.assertEqual({lm.key for lm in landmarks_on(4)}, {"stairs"})
+
+          def test_blocked_cells(self):
+              self.assertEqual(set(blocked_cells(1)), {"N1", "S3", "S4", "S5"})
+
+          def test_choices_exclude_stairs(self):
+              self.assertNotIn(STAIRS_CELL, MapCell.values)
+
+          def test_landmark_cells_adjacent_same_row(self):
+              for lm in LANDMARKS:
+                  rows = {cell[0] for cell in lm.cells}
+                  self.assertEqual(len(rows), 1, f"{lm.key} spans more than one row")
+                  cols = sorted(int(cell[1:]) for cell in lm.cells)
+                  self.assertEqual(
+                      cols, list(range(cols[0], cols[0] + len(cols))), f"{lm.key} not adjacent"
+                  )
+    ── Read file read
+      from django.test import SimpleTestCase
+
+      from campusmap.layout import (
+          CELL_WIDTH,
+          CORRIDOR,
+          LABEL_PADDING,
+          LANDMARK_LABEL_SIZE,
+          OUTLINE,
+          ROOM_LABEL_SIZE,
+          VIEWBOX_WIDTH,
+          cell_rect,
+          estimated_label_width,
+          floor_plan,
+          span_rect,
+      )
+      from university.building import LANDMARKS, STAIRS_CELL, MapCell
+      from university.models import Room
+
+
+      def _inside(rect, box):
+          return (
+              rect.x >= box.x
+              and rect.y >= box.y
+              and rect.x + rect.width <= box.x + box.width
+              and rect.y + rect.height <= box.y + box.height
+          )
+
+
+      def _overlaps(a, b):
+          return not (
+              a.x + a.width <= b.x
+              or b.x + b.width <= a.x
+              or a.y + a.height <= b.y
+              or b.y + b.height <= a.y
+          )
+
+
+      def _room(floor, number, cell, pk=None):
+          room = Room(code=f"room-{number}", floor=floor, number=number, map_cell=cell)
+          if pk is not None:
+              room.pk = pk
+          return room
+
+
+      class LayoutTests(SimpleTestCase):
+          def test_cells_inside_viewbox_and_disjoint(self):
+              cells = [*MapCell.values, STAIRS_CELL]
+              room_rects = [cell_rect(c) for c in MapCell.values]
+              for c in cells:
+                  self.assertTrue(_inside(cell_rect(c), OUTLINE), f"cell {c} outside outline")
+                  self.assertFalse(_overlaps(cell_rect(c), CORRIDOR), f"cell {c} overlaps corridor")
+              for i, a in enumerate(room_rects):
+                  for b in room_rects[i + 1 :]:
+                      self.assertFalse(_overlaps(a, b))
+              for lm in LANDMARKS:
+                  self.assertTrue(_inside(span_rect(lm.cells), OUTLINE), f"{lm.key} outside outline")
+                  self.assertFalse(
+                      _overlaps(span_rect(lm.cells), CORRIDOR), f"{lm.key} overlaps corridor"
+                  )
+
+          def test_coordinates_are_integers(self):
+              rects = [OUTLINE, CORRIDOR]
+              rects += [cell_rect(c) for c in [*MapCell.values, STAIRS_CELL]]
+              rects += [span_rect(lm.cells) for lm in LANDMARKS]
+              for rect in rects:
+                  for value in (rect.x, rect.y, rect.width, rect.height, rect.cx, rect.cy):
+                      self.assertIsInstance(value, int)
+
+          def test_label_sizes(self):
+              self.assertGreaterEqual(ROOM_LABEL_SIZE * 328 / VIEWBOX_WIDTH, 16)
+              self.assertGreaterEqual(LANDMARK_LABEL_SIZE * 328 / VIEWBOX_WIDTH, 12)
+
+          def test_landmark_labels_fit_with_padding(self):
+              for floor in range(1, 10):
+                  plan = floor_plan(floor, [], None)
+                  for shape in plan.shapes:
+                      if shape.kind != "landmark":
+                          continue
+                      estimated = estimated_label_width(shape.label, LANDMARK_LABEL_SIZE)
+                      used = min(estimated, shape.text_length or 10**6)
+                      self.assertLessEqual(
+                          used,
+                          shape.rect.width - 2 * LABEL_PADDING,
+                          f"{shape.label} on floor {floor}",
+                      )
+
+          def test_stairs_label_clamped(self):
+              plan = floor_plan(1, [], None)
+              stairs = next(s for s in plan.shapes if s.label == "Лестница")
+              self.assertEqual(stairs.text_length, CELL_WIDTH - 2 * LABEL_PADDING)
+
+          def test_rooms_never_clamped(self):
+              rooms = [_room(1, "101", "N2"), _room(1, "102", "N3")]
+              plan = floor_plan(1, rooms, None)
+              for shape in plan.shapes:
+                  if shape.kind == "room":
+                      self.assertIsNone(shape.text_length)
+              self.assertLessEqual(
+                  estimated_label_width("888", ROOM_LABEL_SIZE), CELL_WIDTH - 2 * LABEL_PADDING
+              )
+
+          def test_floor_plan_marks_current(self):
+              r1 = _room(1, "101", "N2", pk=1)
+              r2 = _room(1, "102", "N3", pk=2)
+              plan = floor_plan(1, [r1, r2], r2)
+              current = [s for s in plan.shapes if s.is_current]
+              self.assertEqual(len(current), 1)
+              self.assertEqual(current[0].label, "102")
+
+          def test_room_without_cell_not_drawn(self):
+              r = _room(1, "101", "")
+              plan = floor_plan(1, [r], None)
+              self.assertNotIn("101", [s.label for s in plan.shapes if s.kind == "room"])
+
+          def test_room_on_blocked_cell_not_drawn(self):
+              r = _room(1, "101", STAIRS_CELL)
+              plan = floor_plan(1, [r], None)
+              self.assertNotIn("101", [s.label for s in plan.shapes if s.kind == "room"])
+
+          def test_other_floor_rooms_not_drawn(self):
+              r = _room(2, "201", "N2", pk=1)
+              plan = floor_plan(1, [r], None)
+              self.assertNotIn("201", [s.label for s in plan.shapes if s.kind == "room"])
+    ── Thought for 427ms
+      Now let me read the remaining test files and the CSS map section and README.
+    ── Read file read
+      from django.db import connection
+      from django.test import TestCase
+      from django.test.utils import CaptureQueriesContext
+
+      from accounts.models import User
+      from accounts.tests.helpers import make_faculty, make_group, make_staff, make_student
+      from university.models import Room
+
+
+      def _svg_part(content: str) -> str:
+          start = content.index('<svg class="map-svg"')
+          end = content.index("</svg>", start)
+          return content[start:end]
+
+
+      class MapAccessTests(TestCase):
+          @classmethod
+          def setUpTestData(cls):
+              cls.faculty = make_faculty("FX")
+              cls.group = make_group(cls.faculty, "GX")
+              cls.student = make_student("stu", cls.group, "REC-1")
+              cls.staff = make_staff("stf", cls.faculty)
+              cls.superuser = User.objects.create_superuser("root", password="Super-Pass-2026!")
+              Room.objects.create(code="room-101", floor=1, number="101", map_cell="N2")
+              Room.objects.create(code="room-205", floor=2, number="205", map_cell="N3")
+
+          def test_anonymous_redirected(self):
+              for url in ("/map/", "/map/floor/2/", "/map/room/room-205/"):
+                  with self.subTest(url=url):
+                      response = self.client.get(url)
+                      self.assertEqual(response.status_code, 302)
+                      self.assertTrue(response["Location"].startswith("/login/?next="))
+
+          def test_student_ok(self):
+              self.client.force_login(self.student)
+              for url in ("/map/", "/map/floor/2/", "/map/room/room-205/"):
+                  with self.subTest(url=url):
+                      self.assertEqual(self.client.get(url).status_code, 200)
+
+          def test_student_without_profile_ok(self):
+              user = User.objects.create_user("noprof", role=User.Role.STUDENT)
+              self.client.force_login(user)
+              for url in ("/map/", "/map/floor/2/", "/map/room/room-205/"):
+                  with self.subTest(url=url):
+                      self.assertEqual(self.client.get(url).status_code, 200)
+
+          def test_staff_ok(self):
+              self.client.force_login(self.staff)
+              for url in ("/map/", "/map/floor/2/", "/map/room/room-205/"):
+                  with self.subTest(url=url):
+                      self.assertEqual(self.client.get(url).status_code, 200)
+
+          def test_superuser_ok(self):
+              self.client.force_login(self.superuser)
+              for url in ("/map/", "/map/floor/2/", "/map/room/room-205/"):
+                  with self.subTest(url=url):
+                      self.assertEqual(self.client.get(url).status_code, 200)
+
+          def test_post_not_allowed(self):
+              self.client.force_login(self.student)
+              self.assertEqual(self.client.post("/map/").status_code, 405)
+
+
+      class MapViewTests(TestCase):
+          @classmethod
+          def setUpTestData(cls):
+              cls.faculty = make_faculty("FX")
+              cls.group = make_group(cls.faculty, "GX")
+              cls.student = make_student("stu", cls.group, "REC-1")
+              Room.objects.create(code="room-101", floor=1, number="101", map_cell="N2")
+              Room.objects.create(code="room-114", floor=1, number="114", map_cell="")
+              Room.objects.create(code="room-205", floor=2, number="205", map_cell="N3")
+              Room.objects.create(code="room-402", floor=4, number="402", map_cell="N3")
+
+          def setUp(self):
+              self.client.force_login(self.student)
+
+          def test_default_floor_is_lowest(self):
+              content = self.client.get("/map/").content.decode()
+              self.assertIn('<title id="map-title">Схема, 1 этаж</title>', content)
+
+          def test_switcher_lists_only_floors_with_rooms(self):
+              content = self.client.get("/map/").content.decode()
+              self.assertIn('href="/map/floor/1/"', content)
+              self.assertIn('href="/map/floor/2/"', content)
+              self.assertIn('href="/map/floor/4/"', content)
+              self.assertNotIn('href="/map/floor/3/"', content)
+
+          def test_current_floor_marked(self):
+              content = self.client.get("/map/floor/2/").content.decode()
+              self.assertEqual(content.count('aria-current="page"'), 1)
+              self.assertIn('href="/map/floor/2/" class="floor-current" aria-current="page"', content)
+
+          def test_floor_without_rooms_404(self):
+              for url in ("/map/floor/3/", "/map/floor/0/", "/map/floor/10/"):
+                  with self.subTest(url=url):
+                      self.assertEqual(self.client.get(url).status_code, 404)
+
+          def test_non_numeric_floor_404(self):
+              for url in ("/map/floor/abc/", "/map/floor/-1/"):
+                  with self.subTest(url=url):
+                      self.assertEqual(self.client.get(url).status_code, 404)
+
+          def test_room_opens_its_floor_and_is_highlighted(self):
+              content = self.client.get("/map/room/room-402/").content.decode()
+              self.assertIn('<title id="map-title">Схема, 4 этаж</title>', content)
+              self.assertEqual(_svg_part(content).count("map-current"), 1)
+              self.assertIn('href="/map/room/room-402/" class="map-current"', content)
+              self.assertEqual(content.count("map-current"), 2)
+
+          def test_highlight_has_accessible_name(self):
+              content = self.client.get("/map/room/room-402/").content.decode()
+              self.assertIn('aria-current="location"', _svg_part(content))
+              self.assertIn("<title>Аудитория 402</title>", content)
+
+          def test_unknown_room_404(self):
+              for url in ("/map/room/room-404/", "/map/room/ROOM-101/"):
+                  with self.subTest(url=url):
+                      self.assertEqual(self.client.get(url).status_code, 404)
+
+          def test_room_without_cell_listed_and_floor_opens(self):
+              content = self.client.get("/map/room/room-114/").content.decode()
+              self.assertIn("114</a> — нет на схеме", content)
+              self.assertIn('<title id="map-title">Схема, 1 этаж</title>', content)
+              self.assertNotIn("map-current", _svg_part(content))
+              self.assertIn('href="/map/room/room-114/" class="map-current"', content)
+
+          def test_landmarks_per_floor(self):
+              f1 = _svg_part(self.client.get("/map/floor/1/").content.decode())
+              for label in ("Вход", "Столовая", "Лестница"):
+                  self.assertIn(label, f1)
+              for label in ("Деканат", "Библиотека"):
+                  self.assertNotIn(label, f1)
+              f2 = _svg_part(self.client.get("/map/floor/2/").content.decode())
+              self.assertIn("Деканат", f2)
+              for label in ("Вход", "Столовая", "Библиотека"):
+                  self.assertNotIn(label, f2)
+              f4 = _svg_part(self.client.get("/map/floor/4/").content.decode())
+              self.assertIn("Лестница", f4)
+              for label in ("Вход", "Столовая", "Деканат", "Библиотека"):
+                  self.assertNotIn(label, f4)
+
+          def test_legend_present(self):
+              content = self.client.get("/map/").content.decode()
+              self.assertIn("map-legend", content)
+              self.assertIn("Аудитория", content)
+
+          def test_stairs_label_has_text_length(self):
+              content = self.client.get("/map/floor/1/").content.decode()
+              svg = _svg_part(content)
+              self.assertIn('textLength="56" lengthAdjust="spacingAndGlyphs">Лестница</text>', svg)
+              # The «Вход» landmark label is not clamped.
+              entrance_end = svg.index(">Вход</text>") + len(">Вход</text>")
+              entrance = svg[svg.rindex("<text", 0, entrance_end) : entrance_end]
+              self.assertNotIn("textLength", entrance)
+              # Room labels are never clamped.
+              room_end = svg.index(">101</text>") + len(">101</text>")
+              room = svg[svg.rindex("<text", 0, room_end) : room_end]
+              self.assertNotIn("textLength", room)
+
+          def test_room_list_grouped_by_floor(self):
+              content = self.client.get("/map/").content.decode()
+              for heading in ("<h3>1 этаж</h3>", "<h3>2 этаж</h3>", "<h3>4 этаж</h3>"):
+                  self.assertIn(heading, content)
+              for code in ("room-101", "room-114", "room-205", "room-402"):
+                  self.assertIn(f'href="/map/room/{code}/"', content)
+
+          def test_no_rooms_empty_state(self):
+              Room.objects.all().delete()
+              content = self.client.get("/map/").content.decode()
+              self.assertIn("Аудиторий пока нет.", content)
+
+          def test_query_string_not_rendered(self):
+              content = self.client.get("/map/?floor=<script>x</script>&room=room-205").content.decode()
+              self.assertIn('<title id="map-title">Схема, 1 этаж</title>', content)
+              self.assertNotIn("<script>x</script>", content)
+              self.assertNotIn('aria-current="location"', content)
+
+          def test_svg_scales(self):
+              content = self.client.get("/map/").content.decode()
+              self.assertIn('viewBox="0 0 400 240"', content)
+              svg_tag = content[
+                  content.index('<svg class="map-svg"') : content.index(
+                      ">", content.index('<svg class="map-svg"')
+                  )
+              ]
+              self.assertNotIn(" width=", svg_tag)
+              self.assertNotIn(" height=", svg_tag)
+
+          def test_no_personal_data(self):
+              student = make_student("personal", self.group, "REC-P")
+              self.client.force_login(student)
+              content = self.client.get("/map/").content.decode()
+              self.assertNotIn("personal", content)
+              self.assertNotIn("personal-last", content)
+
+
+      class MapQueryTests(TestCase):
+          @classmethod
+          def setUpTestData(cls):
+              cls.faculty = make_faculty("FX")
+              cls.group = make_group(cls.faculty, "GX")
+              cls.staff = make_staff("stf", cls.faculty)
+              Room.objects.create(code="room-101", floor=1, number="101", map_cell="N2")
+              Room.objects.create(code="room-114", floor=1, number="114", map_cell="")
+              Room.objects.create(code="room-205", floor=2, number="205", map_cell="N3")
+              Room.objects.create(code="room-402", floor=4, number="402", map_cell="N3")
+
+          def _add_many_rooms(self):
+              used = {r.number for r in Room.objects.all()}
+              for floor in range(1, 10):
+                  for n in range(0, 10):
+                      number = f"{floor}0{n}"
+                      if number not in used:
+                          used.add(number)
+                          Room.objects.create(code=f"room-{number}", floor=floor, number=number)
+                          if len(used) >= 20:
+                              return
+
+          def _count(self, url):
+              with CaptureQueriesContext(connection) as ctx:
+                  self.client.get(url)
+              return len(ctx.captured_queries)
+
+          def test_queries_constant(self):
+              self.client.force_login(self.staff)
+              count4 = self._count("/map/")
+              self._add_many_rooms()
+              count20 = self._count("/map/")
+              self.assertEqual(count4, count20)
+              self.assertLessEqual(count4, 4)
+
+          def test_highlight_view_same_queries(self):
+              self.client.force_login(self.staff)
+              self.assertEqual(self._count("/map/room/room-205/"), self._count("/map/"))
+
+
+      class MapNavTests(TestCase):
+          @classmethod
+          def setUpTestData(cls):
+              cls.faculty = make_faculty("FX")
+              cls.group = make_group(cls.faculty, "GX")
+              cls.student = make_student("stu", cls.group, "REC-1")
+              cls.staff = make_staff("stf", cls.faculty)
+              cls.superuser = User.objects.create_superuser("root", password="Super-Pass-2026!")
+
+          def test_student_nav_has_map(self):
+              self.client.force_login(self.student)
+              content = self.client.get("/profile/").content.decode()
+              self.assertIn('href="/map/"', content)
+
+          def test_staff_nav_has_map(self):
+              self.client.force_login(self.staff)
+              content = self.client.get("/profile/").content.decode()
+              self.assertIn('href="/map/"', content)
+
+          def test_superuser_nav_has_no_map(self):
+              self.client.force_login(self.superuser)
+              content = self.client.get("/profile/").content.decode()
+              self.assertNotIn('href="/map/"', content)
+    ── Read file read
+      from django.core.exceptions import ValidationError
+      from django.db import IntegrityError, transaction
+      from django.test import TestCase
+
+      from university.models import Faculty, Program, Room, StudyGroup, Teacher
+
+
+      class UniversityModelTests(TestCase):
+          @classmethod
+          def setUpTestData(cls):
+              cls.faculty = Faculty.objects.create(code="FX", name="Факультет X")
+              cls.program = Program.objects.create(faculty=cls.faculty, code="41.03.05", name="Программа")
+
+          def test_course_out_of_range_rejected(self):
+              for course in (0, 7):
+                  with self.subTest(course=course):
+                      with self.assertRaises(IntegrityError):
+                          with transaction.atomic():
+                              StudyGroup.objects.create(
+                                  program=self.program, name=f"G{course}", course=course
+                              )
+              group = StudyGroup(program=self.program, name="GX", course=7)
+              with self.assertRaises(ValidationError):
+                  group.full_clean()
+
+          def test_program_unique_per_faculty(self):
+              with self.assertRaises(IntegrityError):
+                  with transaction.atomic():
+                      Program.objects.create(faculty=self.faculty, code="41.03.05", name="Дубль")
+              other = Faculty.objects.create(code="FY", name="Факультет Y")
+              Program.objects.create(faculty=other, code="41.03.05", name="Тот же код")
+
+          def test_group_faculty_property(self):
+              group = StudyGroup.objects.create(program=self.program, name="ЦД-101", course=1)
+              self.assertEqual(group.faculty, self.faculty)
+
+          def test_room_code_validator(self):
+              for bad in ("Room-1", "1room"):
+                  with self.subTest(code=bad):
+                      room = Room(code=bad, floor=1, number="199")
+                      with self.assertRaises(ValidationError):
+                          room.full_clean()
+              good = Room(code="room-1", floor=1, number="198")
+              good.full_clean()
+
+          def test_room_floor_out_of_range_rejected(self):
+              with self.assertRaises(IntegrityError):
+                  with transaction.atomic():
+                      Room.objects.create(code="room-0", floor=0, number="000")
+
+          def test_teacher_short_name(self):
+              with_middle = Teacher(last_name="Лебедев", first_name="Аркадий", middle_name="Семёнович")
+              self.assertEqual(with_middle.short_name, "Лебедев\u00a0А.\u00a0С.")
+              without_middle = Teacher(last_name="Фомин", first_name="Павел")
+              self.assertEqual(without_middle.short_name, "Фомин\u00a0П.")
+
+          def test_duplicate_teacher_name_rejected(self):
+              Teacher.objects.create(last_name="Иванов", first_name="Иван", middle_name="Иванович")
+              with self.assertRaises(IntegrityError):
+                  with transaction.atomic():
+                      Teacher.objects.create(
+                          last_name="Иванов", first_name="Иван", middle_name="Иванович"
+                      )
+
+
+      class RoomNumberTests(TestCase):
+          def test_valid_numbers(self):
+              for number, floor in (("101", 1), ("999", 9)):
+                  with self.subTest(number=number, floor=floor):
+                      room = Room(code=f"room-{number}", floor=floor, number=number)
+                      room.full_clean()
+
+          def test_bad_number_is_field_error(self):
+              for number in ("15", "1015", "a05", "012", "2a5", "20 5"):
+                  with self.subTest(number=number):
+                      room = Room(code=f"room-{number.replace(' ', '')}", floor=1, number=number)
+                      with self.assertRaises(ValidationError) as ctx:
+                          room.full_clean()
+                      self.assertIn("number", ctx.exception.message_dict)
+                      self.assertNotIn(
+                          "Этаж должен совпадать с первой цифрой номера аудитории.",
+                          ctx.exception.message_dict.get("__all__", []),
+                      )
+
+          def test_floor_out_of_range_is_field_error(self):
+              for floor in (0, 10):
+                  with self.subTest(floor=floor):
+                      room = Room(code=f"room-f{floor}", floor=floor, number="101")
+                      with self.assertRaises(ValidationError) as ctx:
+                          room.full_clean()
+                      self.assertIn("floor", ctx.exception.message_dict)
+
+          def test_floor_must_match_first_digit(self):
+              room = Room(code="room-205x", floor=3, number="205")
+              with self.assertRaises(ValidationError) as ctx:
+                  room.full_clean()
+              self.assertEqual(
+                  ctx.exception.message_dict["__all__"],
+                  ["Этаж должен совпадать с первой цифрой номера аудитории."],
+              )
+
+          def test_db_rejects_bad_number(self):
+              with self.assertRaises(IntegrityError):
+                  with transaction.atomic():
+                      Room.objects.create(code="room-db1", floor=1, number="15")
+
+          def test_db_rejects_mismatch(self):
+              with self.assertRaises(IntegrityError):
+                  with transaction.atomic():
+                      Room.objects.create(code="room-db2", floor=3, number="205")
+
+          def test_db_rejects_floor_10(self):
+              with self.assertRaises(IntegrityError):
+                  with transaction.atomic():
+                      Room.objects.create(code="room-db3", floor=10, number="101")
+
+
+      class RoomMapCellTests(TestCase):
+          def test_landmark_cell_rejected(self):
+              for floor, cell, label in (
+                  (1, "S3", "Вход"),
+                  (2, "S1", "Деканат"),
+                  (3, "S5", "Библиотека"),
+              ):
+                  with self.subTest(floor=floor, cell=cell):
+                      number = f"{floor}0{5 if cell != 'S1' else 1}"
+                      room = Room(code=f"room-{number}", floor=floor, number=number, map_cell=cell)
+                      with self.assertRaises(ValidationError) as ctx:
+                          room.full_clean()
+                      self.assertIn(label, ctx.exception.messages[0])
+
+          def test_same_landmark_cell_free_on_other_floor(self):
+              room = Room(code="room-403", floor=4, number="403", map_cell="S3")
+              room.full_clean()
+
+          def test_same_cell_same_floor_rejected(self):
+              Room.objects.create(code="room-102", floor=1, number="102", map_cell="N2")
+              room = Room(code="room-103", floor=1, number="103", map_cell="N2")
+              with self.assertRaises(ValidationError) as ctx:
+                  room.full_clean()
+              self.assertIn("Это место на схеме этажа уже занято", ctx.exception.messages[0])
+              with self.assertRaises(IntegrityError):
+                  with transaction.atomic():
+                      Room.objects.create(code="room-104", floor=1, number="104", map_cell="N2")
+
+          def test_same_cell_other_floor_ok(self):
+              Room.objects.create(code="room-202", floor=2, number="202", map_cell="N2")
+              Room.objects.create(code="room-302", floor=3, number="302", map_cell="N2")
+
+          def test_many_rooms_without_cell_ok(self):
+              for n in (1, 2, 3):
+                  Room.objects.create(code=f"room-10{n}", floor=1, number=f"10{n}")
+
+          def test_db_rejects_unknown_cell(self):
+              with self.assertRaises(IntegrityError):
+                  with transaction.atomic():
+                      Room.objects.create(code="room-105", floor=1, number="105", map_cell="N1")
+    ── Read file read
+      from django.test import TestCase
+      from django.urls import reverse
+
+      from accounts.models import User
+      from university.models import Room
+
+
+      class RoomAdminTests(TestCase):
+          @classmethod
+          def setUpTestData(cls):
+              cls.superuser = User.objects.create_superuser("root", password="Super-Pass-2026!")
+
+          def setUp(self):
+              self.client.force_login(self.superuser)
+
+          def _post(self, data):
+              return self.client.post(reverse("admin:university_room_add"), data)
+
+          def test_valid_room_saved(self):
+              response = self._post({"code": "room-201", "floor": "2", "number": "201", "map_cell": "N3"})
+              self.assertEqual(response.status_code, 302)
+              self.assertTrue(Room.objects.filter(code="room-201").exists())
+
+          def test_bad_number_shows_field_error(self):
+              response = self._post({"code": "room-x", "floor": "1", "number": "15", "map_cell": ""})
+              self.assertEqual(response.status_code, 200)
+              self.assertIn("Номер аудитории", response.content.decode())
+
+          def test_mismatch_shows_error(self):
+              response = self._post({"code": "room-y", "floor": "3", "number": "205", "map_cell": ""})
+              self.assertEqual(response.status_code, 200)
+              self.assertIn("Этаж должен совпадать", response.content.decode())
+
+          def test_landmark_cell_shows_error(self):
+              response = self._post({"code": "room-103", "floor": "1", "number": "103", "map_cell": "S3"})
+              self.assertEqual(response.status_code, 200)
+              self.assertIn("занято: Вход", response.content.decode())
+
+          def test_duplicate_cell_shows_error(self):
+              Room.objects.create(code="room-101", floor=1, number="101", map_cell="N2")
+              response = self._post({"code": "room-102", "floor": "1", "number": "102", "map_cell": "N2"})
+              self.assertEqual(response.status_code, 200)
+              self.assertIn("Это место на схеме этажа уже занято", response.content.decode())
+    ── Thought for 470ms
+      Now let me read the CSS map section and README, and schedule/tests/test_demo.py.
+    ── Searched grep
+      Found 17 matches
+      ~/hackatonproject/static/css/base.css:
+        Line 243: .map-svg {
+
+        Line 250: .map-outline,
+
+        Line 251: .map-room rect,
+
+        Line 252: .map-landmark rect,
+
+        Line 253: .map-corridor {
+
+        Line 259: .map-corridor {
+
+        Line 263: .map-landmark rect {
+
+        Line 268: .map-room-label {
+
+        Line 273: .map-landmark-label {
+
+        Line 279: .map-current .map-room-label {
+
+        Line 280:   fill: var(--color-map-highlight);
+
+        Line 283: a.map-current {
+
+        Line 284:   color: var(--color-map-highlight);
+
+        Line 288: .map-legend,
+
+        Line 289: .map-room-list {
+
+        Line 313: .map-legend-swatch {
+
+
+      ~/hackatonproject/static/css/tokens.css:
+        Line 20:   --color-map-highlight: #c00000;
+    ── Read file read
+      import os
+      from datetime import date
+      from io import StringIO
+      from unittest import mock
+
+      from django.core.management import call_command
+      from django.test import TestCase
+
+      from accounts.demo import seed_demo_data
+      from core.testing import FrozenClockMixin
+      from schedule.demo import seed_schedule_demo
+      from schedule.models import ChangeKind, LessonChange, WeeklyLesson
+      from schedule.services import week_schedule
+      from schedule.validation import validate_weekly_lesson
+      from university.building import blocked_cells
+      from university.models import Discipline, Room, StudyGroup, Teacher
+
+      from .helpers import aware
+
+
+      class ScheduleDemoTests(FrozenClockMixin, TestCase):
+          def _seed(self, today: date):
+              seed_demo_data("Demo-Pass-2026-test!")
+              return seed_schedule_demo(today)
+
+          def test_counts(self):
+              summary = self._seed(date(2026, 11, 18))
+              self.assertEqual(summary.rooms, 7)
+              self.assertEqual(summary.teachers, 6)
+              self.assertEqual(summary.disciplines, 6)
+              self.assertEqual(summary.weekly_lessons, 18)
+              self.assertEqual(summary.changes, 8)
+              self.assertEqual(Room.objects.count(), 7)
+              self.assertEqual(Teacher.objects.count(), 6)
+              self.assertEqual(Discipline.objects.count(), 6)
+              self.assertEqual(WeeklyLesson.objects.count(), 18)
+              self.assertEqual(LessonChange.objects.count(), 8)
+              for kind in (
+                  ChangeKind.CANCELLED,
+                  ChangeKind.MOVED,
+                  ChangeKind.ROOM_CHANGED,
+                  ChangeKind.TEACHER_REPLACED,
+              ):
+                  self.assertEqual(LessonChange.objects.filter(kind=kind).count(), 2)
+              self.assertGreaterEqual(Room.objects.values_list("floor", flat=True).distinct().count(), 3)
+
+          def test_change_dates_in_current_and_next_week(self):
+              self._seed(date(2026, 11, 18))
+              for change in LessonChange.objects.all():
+                  self.assertGreaterEqual(change.original_date, date(2026, 11, 16))
+                  self.assertLessEqual(change.original_date, date(2026, 11, 29))
+
+          def test_idempotent(self):
+              self._seed(date(2026, 11, 18))
+              self._seed(date(2026, 11, 18))
+              self.assertEqual(WeeklyLesson.objects.count(), 18)
+              self.assertEqual(LessonChange.objects.count(), 8)
+              self.assertEqual(Room.objects.count(), 7)
+
+          def test_rerun_later_refreshes_changes(self):
+              self._seed(date(2026, 11, 18))
+              self._seed(date(2026, 12, 2))
+              self.assertEqual(WeeklyLesson.objects.count(), 18)
+              self.assertEqual(LessonChange.objects.count(), 8)
+              for change in LessonChange.objects.all():
+                  self.assertGreaterEqual(change.original_date, date(2026, 11, 30))
+                  self.assertLessEqual(change.original_date, date(2026, 12, 13))
+
+          def test_rerun_months_later_refreshes_changes(self):
+              self._seed(date(2026, 11, 18))
+              self._seed(date(2027, 3, 1))
+              self.assertEqual(WeeklyLesson.objects.count(), 18)
+              self.assertEqual(LessonChange.objects.count(), 8)
+              for change in LessonChange.objects.all():
+                  self.assertGreaterEqual(change.original_date, date(2027, 3, 1))
+                  self.assertLessEqual(change.original_date, date(2027, 3, 14))
+
+          def test_far_date_renders_without_reseed(self):
+              self._seed(date(2026, 11, 18))
+              group = StudyGroup.objects.get(name="ЦД-101")
+              week = week_schedule(date(2026, 12, 2), [group.pk], today=date(2026, 12, 2))
+              for day in week.days[:5]:  # Monday..Friday
+                  self.assertTrue(day.items, f"no items on {day.date}")
+              week2 = week_schedule(date(2026, 11, 28), [group.pk], today=date(2026, 11, 28))
+              self.assertEqual(len(week2.days), 7)
+
+          def test_seeded_schedule_has_no_conflicts(self):
+              self._seed(date(2026, 11, 18))
+              for lesson in WeeklyLesson.objects.all():
+                  errors = validate_weekly_lesson(
+                      weekday=lesson.weekday,
+                      slot=lesson.slot,
+                      valid_from=lesson.valid_from,
+                      valid_until=lesson.valid_until,
+                      room_id=lesson.room_id,
+                      group_ids=list(lesson.groups.values_list("id", flat=True)),
+                      exclude_pk=lesson.pk,
+                  )
+                  self.assertEqual(errors, [], f"conflicts for lesson {lesson}")
+
+          def test_demo_rooms_valid_and_placed(self):
+              self._seed(date(2026, 11, 18))
+              rooms = list(Room.objects.all())
+              self.assertEqual(len(rooms), 7)
+              for room in rooms:
+                  room.full_clean()
+                  self.assertTrue(room.map_cell)
+                  self.assertNotIn(room.map_cell, blocked_cells(room.floor))
+
+          def test_seed_twice_keeps_cells(self):
+              self._seed(date(2026, 11, 18))
+              cells1 = {r.code: r.map_cell for r in Room.objects.all()}
+              self._seed(date(2026, 11, 18))
+              cells2 = {r.code: r.map_cell for r in Room.objects.all()}
+              self.assertEqual(cells1, cells2)
+
+          def test_command_output_and_idempotency(self):
+              with (
+                  mock.patch.dict(os.environ, {"DEMO_PASSWORD": "Demo-Pass-2026-test!"}),
+                  mock.patch("django.utils.timezone.now", return_value=aware("2026-11-18 10:00")),
+              ):
+                  out = StringIO()
+                  call_command("seed_demo", stdout=out)
+                  self.assertIn("Schedule ready", out.getvalue())
+                  lessons = WeeklyLesson.objects.count()
+                  changes = LessonChange.objects.count()
+                  out2 = StringIO()
+                  call_command("seed_demo", stdout=out2)
+                  self.assertIn("Schedule ready", out2.getvalue())
+                  self.assertEqual(WeeklyLesson.objects.count(), lessons)
+                  self.assertEqual(LessonChange.objects.count(), changes)
+    ── Read file read
+      # Digital Dean's Office of the Future
+
+      A minimal Django skeleton for the "Digital Dean's Office of the Future" prototype.
+
+      > Concept for the MGIMO AI Challenge contest. This is not an official university
+      > service. All data is fictional.
+
+      ## Requirements
+
+      - Python 3.12
+
+      ## Setup
+
+      ```bash
+      /opt/homebrew/bin/python3.12 -m venv .venv
+      source .venv/bin/activate
+      pip install -r requirements-dev.txt
+      cp .env.example .env   # then edit as needed
+      ```
+
+      ## Run
+
+      ```bash
+      python manage.py migrate
+      python manage.py runserver
+      ```
+
+      ## Test & lint
+
+      ```bash
+      ruff check .
+      ruff format --check .
+      python manage.py check
+      python manage.py makemigrations --check --dry-run
+      python manage.py test
+      python scripts/run_tests_at.py 2027-03-01T12:00:00   # tests must not depend on the real date
+      DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop \
+        ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ \
+        python manage.py check --deploy --fail-level WARNING
+      python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"
+      ```
+
+      - Assertions on whole pages: use exact markup (e.g. `href="/staff/schedule/12/"`) or
+        `response.context`; never a short alphanumeric needle — the page contains a
+        random CSRF token.
+
+      ## Demo data
+
+      ```bash
+      python manage.py migrate
+      python manage.py seed_demo   # needs DEMO_PASSWORD in .env or the environment
+      ```
+
+      All demo data is fictional. Logins (password: the value of `DEMO_PASSWORD`):
+
+      | Login | Faculty | Group |
+      |---|---|---|
+      | `student1` | FDD | ЦД-101 |
+      | `student2` | FAE | ЭД-201 |
+      | `student3` | FDD | ЦД-101 |
+      | `staff1` | FDD | — |
+      | `staff2` | FAE | — |
+
+      Superuser (Django admin only): `python manage.py createsuperuser`.
+
+      The demo schedule covers 8 weeks before and 12 weeks after the run date.
+      Re-running `seed_demo` replaces the demo schedule changes with fresh ones for
+      the current and next week. Demo schedule rows carry a `seed_key`; rows created
+      by a person in Django admin are never touched by `seed_demo`.
+
+      Demo academics: `student1` is strong (average 5.00, no debts); `student3` has a
+      retake and an open debt («Основы права») and low attendance; `student2` is from
+      the other faculty (average 4.50). The seed only creates missing academic rows.
+
+      Demo requests: `student1` has a submitted certificate and issued/processing
+      requests; `student3` has a ready and a rejected request; `student2` has a
+      submitted and an in-progress request. Each staff faculty has at least one
+      request waiting in its queue.
+
+      ## Schedule
+
+      Students: `/schedule/` (today) and `/schedule/week/` (week view). Staff:
+      `/staff/schedule/` (group list). Schedule editing happens in Django admin.
+
+      ## Grades
+
+      Students: `/grades/` and `/grades/<term_code>/`. Staff open a student's report
+      from the student card (`/staff/students/<pk>/grades/`). Definitions: the
+      average is the arithmetic mean of numeric effective results (2–5, including 2),
+      rounded to 2 decimals half-up; a debt is a finished-session curriculum item
+      with a missing or failing effective result; attendance percent is
+      present/(present+absent), rounded half-up, with excused absences excluded and
+      shown as «не отмечено» when a past occurrence has no record.
+
+      ## Requests
+
+      Students: `/requests/` (my requests), `/requests/new/` (catalog) and a
+      per-request detail with history and downloads. Staff: `/staff/requests/` (queue,
+      own faculty, filtered by status/type, open oldest first) and per-request actions
+      (take in progress, mark ready, mark issued, reject) and staff comments.
+
+      Status workflow:
+
+      | Status | Allowed transitions |
+      |---|---|
+      | Подана (submitted) | В работе, Отклонена |
+      | В работе (in_progress) | Готова, Отклонена |
+      | Готова (ready) | Выдана |
+      | Выдана (issued) | — |
+      | Отклонена (rejected) | — |
+
+      Limits: at most 3 open requests of the same type per student; up to 3
+      attachments, each ≤ 5 MB, PDF only (extension, content type and `%PDF-`
+      signature are all checked). Attachments are stored in `PRIVATE_MEDIA_ROOT`,
+      which must **never** be served by nginx or live inside `static/`; downloads go
+      through Django access checks only. nginx should allow larger request bodies for
+      multipart uploads:
+
+      ```nginx
+      client_max_body_size 20m;
+      ```
+
+      ## Notifications
+
+      Students: `/notifications/` shows a «Ближайшие дедлайны» block (deadlines
+      today or later, nearest first, labelled «сегодня» / «завтра» / «через N
+      дней») and one feed of dean's-office news and personal changes (request status
+      changes and staff comments, schedule changes for lessons in the next 14 days,
+      new current marks and final results). The feed is computed from existing rows,
+      covers the last 30 days, and is capped at 50 items.
+
+      Unread state is one «seen until» timestamp per account (no per-item flags):
+      the nav shows «Уведомления (N)» for students, and opening `/notifications/`
+      marks everything as read.
+
+      Staff: `/staff/announcements/` lists and creates announcements for the staff
+      member's own faculty or one of its groups (no edit, no hard delete; an
+      announcement can be unpublished). University-wide announcements are created
+      only in the Django admin.
+
+      Demo data: `seed_demo` creates 9 announcements (2 university-wide, 5 faculty, 2
+      group; 2 unpublished); published deadlines fall on run day +1…+5.
+
+      ## Map
+
+      Students and staff: `/map/` (lowest floor with rooms), `/map/floor/<n>/`
+      (a specific floor, 404 when no room is on it) and `/map/room/<code>/` (a room's
+      floor with that room highlighted). The map is one fictional building drawn as an
+      inline SVG: two rows of five cells along a central corridor — top row `N1…N5`,
+      bottom row `S1…S5`. Landmarks are defined in code (`university/building.py`):
+      «Лестница» on `N1` of every floor, «Вход» (`S3`) and «Столовая» (`S4`+`S5`) on
+      floor 1, «Деканат» (`S1`+`S2`) on floor 2, «Библиотека» (`S4`+`S5`) on floor 3.
+
+      A room's position is the `Room.map_cell` field, editable in Django admin as
+      «Место на схеме» (blank = not on the map). One room per cell per floor; cells
+      taken by a landmark are rejected. A room number is exactly three digits (`NNN`)
+      and its first digit must equal the floor (1–9). The highlighted room uses the
+      single CSS class `map-current` (colour token `--color-map-highlight`).
+
+      ## Chat
+
+      Students write to the dean's office of their faculty in one dialog (`/chat/`),
+      created on their first message. Any staff member of that faculty reads and
+      answers from «Чаты» (`/staff/chats/`). Messages are append-only plain text
+      (autoescaped, `linebreaksbr`), ordered by message id. Without JavaScript the
+      pages work with a plain POST form and an «Обновить» link; with JavaScript
+      (`static/js/chat.js`, deferred, no inline script) the page polls the fragment
+      view every 5 seconds and appends server-rendered new messages, pausing while the
+      tab is hidden. Sending is a normal POST (PRG, no `fetch`). Student rate limit:
+      `RATE_LIMIT_MESSAGES` (20) per `RATE_LIMIT_MINUTES` (10). A hidden `client_token`
+      guards against double submit. New staff replies appear in «Уведомления»
+      (source `chat_reply`) and in the badge; the nav item shows «Чат (N)». Read
+      markers are message ids on the dialog (student marker, shared staff marker);
+      both only move forward.
+
+      ## Login protection
+
+      Failed login attempts are throttled per (username, client IP) and stored in
+      the database (`LOGIN_FAILURE_LIMIT` failures → lockout for
+      `LOGIN_LOCKOUT_SECONDS` seconds). Behind a reverse proxy, set
+      `CLIENT_IP_HEADER=X-Real-IP` **only** if nginx overwrites the header, e.g.:
+
+      ```nginx
+      proxy_set_header X-Real-IP $remote_addr;
+      ```
+
+      ## Deployment notes
+
+      - Run `python manage.py seed_demo` once on the server on 2026-11-22 (submission
+        day), after `migrate`. It needs `DEMO_PASSWORD` in the environment.
+      - Back up `PRIVATE_MEDIA_ROOT` together with the database: attachments are
+        referenced by database rows, so restoring one without the other breaks
+        downloads.
+      - nginx must not serve `PRIVATE_MEDIA_ROOT`; set `client_max_body_size 20m;`
+        (see the «Requests» section).
+
+      ## Known limitations
+
+      - After a student moves to another group, attendance for the former group's
+        lessons is not shown (group transfers are out of scope for the prototype).
+      - `seed_demo` never updates existing academic rows, so data edited in the admin
+        is never overwritten. Re-running it only adds missing rows (new past
+        occurrences). On the server it is run once, on 2026-11-22 (submission day);
+        there is no scheduled re-run.
+      - The unread counter is per account: after one person opens «Уведомления» as
+        `student1`, others logged in as `student1` see no new items.
+      - Grades and lesson changes appear in the feed by the time they were recorded;
+        a grade entered later for an old date still shows as new.
+      - The map has one building and a fixed grid of 9 room places per floor;
+        landmarks are defined in code (`university/building.py`).
+      - Chat uses polling (5-second requests, paused on a hidden tab), not WebSockets,
+        so delivery is not instantaneous; the last five consecutive poll errors stop
+        auto-refresh with a text notice.
+
+      ## Environment variables
+
+      | Name | Default | Purpose |
+      |---|---|---|
+      | `DEBUG` | `false` | Enable debug mode in development. |
+      | `SECRET_KEY` | (dev key in debug) | Django secret key; required when `DEBUG=false`. |
+      | `ALLOWED_HOSTS` | `localhost,127.0.0.1` (debug) | Comma-separated allowed hostnames. |
+      | `CSRF_TRUSTED_ORIGINS` | (empty) | Comma-separated trusted origins. |
+      | `DATABASE_URL` | `sqlite:///db.sqlite3` | Database URL (SQLite or PostgreSQL). |
+      | `ADMIN_URL` | `admin/` (debug) | Admin path prefix; required when `DEBUG=false`. |
+      | `SECURE_SSL_REDIRECT` | `true` | Redirect HTTP to HTTPS (production only). |
+      | `SECURE_HSTS_SECONDS` | `3600` | HSTS max-age (production only). |
+      | `SECURE_HSTS_INCLUDE_SUBDOMAINS` | `true` | Apply HSTS to subdomains (production only). |
+      | `SECURE_HSTS_PRELOAD` | `false` | Opt in to HSTS preload (production only). |
+      | `LOG_LEVEL` | `INFO` | Logging level. |
+      | `DEMO_PASSWORD` | (none) | Password for demo accounts; required by `seed_demo`. |
+      | `LOGIN_FAILURE_LIMIT` | `5` | Failures per (username, IP) before login lockout. |
+      | `LOGIN_LOCKOUT_SECONDS` | `900` | Login lockout duration in seconds. |
+      | `CLIENT_IP_HEADER` | (empty) | Proxy header for the client IP (`X-Real-IP` or `X-Forwarded-For`). |
+      | `PRIVATE_MEDIA_ROOT` | `<repo>/private_media` | Private uploads (request attachments); never served by nginx. |
+    ── Thought for 320ms
+      Now let me read the CSS map section in full.
+    ── Read file read
+      font-size: 0.875rem;
+      }
+
+      .map-svg {
+        display: block;
+        width: 100%;
+        height: auto;
+        margin: var(--space-2) 0;
+      }
+
+      .map-outline,
+      .map-room rect,
+      .map-landmark rect,
+      .map-corridor {
+        fill: none;
+        stroke: var(--color-text);
+        stroke-width: 2;
+      }
+
+      .map-corridor {
+        stroke: var(--color-border);
+      }
+
+      .map-landmark rect {
+        stroke: var(--color-muted);
+        stroke-dasharray: 6 4;
+      }
+
+      .map-room-label {
+        font-size: 20px;
+        fill: var(--color-text);
+      }
+
+      .map-landmark-label {
+        font-size: 15px;
+        fill: var(--color-muted);
+      }
+
+      /* Highlighted room: one class, restyle in the UI stage. */
+      .map-current .map-room-label {
+        fill: var(--color-map-highlight);
+      }
+
+      a.map-current {
+        color: var(--color-map-highlight);
+      }
+
+      .floor-switcher ul,
+      .map-legend,
+      .map-room-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .floor-switcher ul {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+      }
+
+      .floor-switcher a {
+        display: inline-block;
+        min-width: 2.75rem;
+        min-height: 2.75rem;
+        line-height: 2.75rem;
+        text-align: center;
+      }
+
+      .floor-current {
+        font-weight: bold;
+      }
+
+      .map-legend-swatch {
+        width: 1.5rem;
+        height: 1rem;
+        vertical-align: middle;
+      }
+
+      .site-nav--wide {
+    ── Thought for 641ms
+      Now I have a full picture. Let me start implementing.
+
+      ### Step 1: Rewrite university/building.py
+
+      I'll write the exact content from 4.2.
+    ── Edited university/building.py
+    ── Thought for 6s
+      Now rewrite test_building.py with FloorPlanTests. Let me write it according to 6.3.
+
+      Test details:
+      - `test_plans_for_floors_1_to_4_only` (`sorted(FLOOR_PLANS) == [1, 2, 3, 4]`; `plan_for(5) is None`)
+      - `test_fixed_elements_same_on_every_floor` (each plan has exactly one space whose `parts == (STAIRS,)` labelled «Лестница», and exactly one space whose `parts == (BOTTOM_CENTRE,)`; `CORRIDOR` is not a part of any space)
+      - `test_full_coverage_no_overlap` (for each floor, subTest: all parts inside OUTLINE; no part has positive-area intersection with CORRIDOR; parts pairwise without positive-area intersection; `sum(part.area) == OUTLINE.area - CORRIDOR.area`). Helper `_intersection_area(a, b)`.
+      - `test_room_numbers` (per floor: every room label 3 digits, first digit = floor; all 39 numbers unique; counts 9, 10, 10, 10)
+      - `test_demo_rooms_on_plan` ({101, 114, 205, 212, 308, 315, 402} ⊆ numbers on their floors)
+      - `test_l_shapes_are_polygons_with_matching_area` (exactly spaces «Столовая» (1) and «210» (2) have 2 parts; shoelace area of points == sum of part areas; `parts[0].area > parts[1].area`)
+      - `test_polygon_vertices_are_part_corners` (each polygon vertex is a corner of one of the space's parts)
+      - `test_landmarks_and_services_per_floor` (landmark labels: 1 → {Лестница, Вход, Столовая}, 2 → {Лестница, Деканат}, 3 → {Лестница, Библиотека}, 4 → {Лестница}; «Туалеты» on every floor; «Гардероб» on floor 1)
+      - `test_all_plan_rooms_sorted` (39 tuples; first `(1, "101")`, last `(4, "410")`)
+
+      Let me write helpers for the intersection area, shoelace, polygon vertices corners.
+
+      For `_intersection_area(a, b)`: 
+      ```
+      def _intersection_area(a, b):
+          w = min(a.x + a.width, b.x + b.width) - max(a.x, b.x)
+          h = min(a.y + a.height, b.y + b.height) - max(a.y, b.y)
+          return w * h if w > 0 and h > 0 else 0
+      ```
+
+      For shoelace area:
+      ```
+      def _polygon_area(points):
+          area = 0
+          n = len(points)
+          for i in range(n):
+              x1, y1 = points[i]
+              x2, y2 = points[(i + 1) % n]
+              area += x1 * y2 - x2 * y1
+          return abs(area) // 2
+      ```
+
+      For part corners: a Rect has 4 corners: (x,y), (x+w,y), (x+w,y+h), (x,y+h).
+
+      Let me write test_building.py.
+    ── Edited university/tests/test_building.py
+    ── Thought for 583ms
+      Now run the building tests to verify coverage passes before proceeding.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test university.tests.test_building 2>&1 | tail -20
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test university.tests.test_building 2>&1 | tail -20
+      django.setup()
+        File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/__init__.py", line 24, in setup
+          apps.populate(settings.INSTALLED_APPS)
+        File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/apps/registry.py", line 116, in populate
+          app_config.import_models()
+        File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/apps/config.py", line 269, in import_models
+          self.models_module = import_module(models_module_name)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "/opt/homebrew/Cellar/python@3.12/3.12.16/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py", line 90, in import_module
+          return _bootstrap._gcd_import(name[level:], package, level)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+        File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+        File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+        File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+        File "<frozen importlib._bootstrap_external>", line 999, in exec_module
+        File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+        File "~/hackatonproject/university/models.py", line 6, in <module>
+          from university.building import MapCell, blocked_cells
+      ImportError: cannot import name 'MapCell' from 'university.building' (~/hackatonproject/university/building.py)
+    ── Thought for 3s
+      As expected, models.py still imports MapCell. I need to remove map_cell from models first (step 2). Let me do that now.
+
+      Edit models.py:
+      1. Remove `from university.building import MapCell, blocked_cells` import (line 6).
+      2. Remove the `map_cell` field (lines 102-109).
+      3. Remove the two map_cell constraints (lines 132-141).
+      4. Remove the `clean()` method (lines 149-154).
+      5. Remove `ValidationError` import if unused. It's used in `clean()` only? Let me check: `ValidationError` is imported at line 1. It's used in `clean()` at line 154. After removing clean(), is ValidationError used elsewhere in models.py? Let me check. The regex validators use `RegexValidator`, and CheckConstraint uses `violation_error_message`. ValidationError not used elsewhere. So remove the import.
+
+      Actually wait, let me check - `from django.core.exceptions import ValidationError`. Used only in clean(). So remove.
+
+      Also the `Cast` import (line 4) — used in the `floor_matches_number` constraint via `Cast("floor", ...)`. That stays.
+
+      Let me make the edits.
+    ── Edited university/models.py -3
+      --- a~/hackatonproject/university/models.py
+      +++ b~/hackatonproject/university/models.py
+      -from django.core.exceptions import ValidationError
+      -
+      -from university.building import MapCell, blocked_cells
+    ── Edited university/models.py -25
+      --- a~/hackatonproject/university/models.py
+      +++ b~/hackatonproject/university/models.py
+      -    map_cell = models.CharField(
+      -        "место на схеме",
+      -        max_length=2,
+      -        blank=True,
+      -        default="",
+      -        choices=MapCell.choices,
+      -        help_text="Пусто — аудитории нет на схеме.",
+      -    )
+      -            models.CheckConstraint(
+      -                condition=models.Q(map_cell__in=["", *MapCell.values]),
+      -                name="university_room_map_cell_value",
+      -            ),
+      -            models.UniqueConstraint(
+      -                fields=["floor", "map_cell"],
+      -                condition=~models.Q(map_cell=""),
+      -                name="university_room_unique_map_cell",
+      -                violation_error_message="Это место на схеме этажа уже занято другой аудиторией.",
+      -            ),
+      -
+      -    def clean(self):
+      -        super().clean()
+      -        if self.map_cell and isinstance(self.floor, int) and 1 <= self.floor <= MAX_FLOOR:
+      -            landmark = blocked_cells(self.floor).get(self.map_cell)
+      -            if landmark is not None:
+      -                raise ValidationError(f"Это место на {self.floor} этаже занято: {landmark.label}.")
+    ── Edited university/admin.py +1 -1
+      --- a~/hackatonproject/university/admin.py
+      +++ b~/hackatonproject/university/admin.py
+      -    list_display = ("number", "floor", "code", "map_cell")
+      +    list_display = ("number", "floor", "code")
+    ── Thought for 468ms
+      Now generate the migration.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py makemigrations university --name remove_room_map_cell 2>&1 | tail -20
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py makemigrations university --name remove_room_map_cell 2>&1 | tail -20
+      ^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/urls/conf.py", line 39, in include
+          urlconf_module = import_module(urlconf_module)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "/opt/homebrew/Cellar/python@3.12/3.12.16/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py", line 90, in import_module
+          return _bootstrap._gcd_import(name[level:], package, level)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+        File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+        File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+        File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+        File "<frozen importlib._bootstrap_external>", line 999, in exec_module
+        File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+        File "~/hackatonproject/campusmap/urls.py", line 3, in <module>
+          from . import views
+        File "~/hackatonproject/campusmap/views.py", line 7, in <module>
+          from campusmap.layout import floor_plan
+        File "~/hackatonproject/campusmap/layout.py", line 6, in <module>
+          from university.building import blocked_cells, landmarks_on
+      ImportError: cannot import name 'blocked_cells' from 'university.building' (~/hackatonproject/university/building.py)
+    ── Thought for 23s
+      The layout.py still imports blocked_cells, landmarks_on. I need to rewrite layout.py, views.py, template, and CSS before generating migration (or I could rewrite layout first). Let me proceed with step 3 (layout/views/template/CSS) now, then generate the migration. Actually the migration generation doesn't require importing campusmap... but it does, because `makemigrations` runs Django setup which loads URLconf which imports campusmap. So I need to fix layout.py first.
+
+      Let me rewrite layout.py now (step 3).
+
+      ### campusmap/layout.py
+
+      New content per 4.3:
+      - Import from university.building: CORRIDOR, LANDMARK, OUTLINE, ROOM, SERVICE, VIEWBOX_HEIGHT, VIEWBOX_WIDTH, Rect, Space, plan_for
+      - Keep ROOM_LABEL_SIZE = 20, LANDMARK_LABEL_SIZE = 15, LABEL_PADDING, estimated_label_width, label_text_length.
+      - MapShape: kind, label, rect, points="", is_current=False, text_length=None
+      - svg_points
+      - label_size
+      - floor_plan(floor, current)
+
+      Let me write it.
+
+      ```python
+      """Geometry for the schematic building plan. All values are integers."""
+
+      from dataclasses import dataclass
+
+      from university.building import (
+          CORRIDOR,
+          LANDMARK,
+          OUTLINE,
+          ROOM,
+          SERVICE,
+          VIEWBOX_HEIGHT,
+          VIEWBOX_WIDTH,
+          Rect,
+          Space,
+          plan_for,
+      )
+      from university.models import Room
+
+      ROOM_LABEL_SIZE = 20  # user units, see D6
+      LANDMARK_LABEL_SIZE = 15
+
+      LABEL_PADDING = 8  # user units on each side of a label
+      LABEL_CHAR_EM_NUM = 13  # estimated glyph width = 0.65 em (generous for Cyrillic)
+      LABEL_CHAR_EM_DEN = 20
+
+
+      def estimated_label_width(label: str, size: int) -> int:
+          return (len(label) * LABEL_CHAR_EM_NUM * size + LABEL_CHAR_EM_DEN - 1) // LABEL_CHAR_EM_DEN
+
+
+      def label_text_length(label: str, rect: Rect, size: int) -> int | None:
+          available = rect.width - 2 * LABEL_PADDING
+          return available if estimated_label_width(label, size) > available else None
+
+
+      @dataclass(frozen=True)
+      class MapShape:
+          kind: str  # "room" | "landmark" | "service"
+          label: str  # room number or landmark/service label
+          rect: Rect  # label rectangle (parts[0]); also the drawn rectangle for one-part spaces
+          points: str = ""  # SVG points attribute for polygons
+          is_current: bool = False
+          text_length: int | None = None
+
+
+      @dataclass(frozen=True)
+      class FloorPlan:
+          floor: int
+          width: int
+          height: int
+          outline: Rect
+          corridor: Rect
+          shapes: list[MapShape]
+
+
+      def svg_points(points: tuple[tuple[int, int], ...]) -> str:
+          return " ".join(f"{x},{y}" for x, y in points)
+
+
+      def label_size(kind: str) -> int:
+          return ROOM_LABEL_SIZE if kind == ROOM else LANDMARK_LABEL_SIZE
+
+
+      def floor_plan(floor: int, current: Room | None) -> FloorPlan | None:
+          spaces = plan_for(floor)
+          if spaces is None:
+              return None
+          shapes = []
+          for space in spaces:
+              rect = space.parts[0]
+              shapes.append(
+                  MapShape(
+                      kind=space.kind,
+                      label=space.label,
+                      rect=rect,
+                      points=svg_points(space.points),
+                      is_current=(
+                          space.kind == ROOM
+                          and current is not None
+                          and current.floor == floor
+                          and current.number == space.label
+                      ),
+                      text_length=label_text_length(space.label, rect, label_size(space.kind)),
+                  )
+              )
+          return FloorPlan(floor, VIEWBOX_WIDTH, VIEWBOX_HEIGHT, OUTLINE, CORRIDOR, shapes)
+      ```
+
+      Wait, the spec 4.3 import says: `from university.building import CORRIDOR, LANDMARK, OUTLINE, ROOM, SERVICE, VIEWBOX_HEIGHT, VIEWBOX_WIDTH, Rect, Space, plan_for`. But do I use LANDMARK and SERVICE in layout.py? `label_size` uses ROOM only. Actually label_size uses `kind == ROOM`. LANDMARK and SERVICE aren't needed. But the spec says import them. However, if I import them but don't use them, ruff will flag unused import (F401). 
+
+      Hmm. Let me check: does ruff config flag unused imports? The spec 4.3 explicitly lists them in the import. But if unused, `ruff check .` would fail F401. Let me think.
+
+      Actually, `label_size(kind)` returns ROOM_LABEL_SIZE for rooms, else LANDMARK_LABEL_SIZE. So it only references ROOM. LANDMARK and SERVICE are not used in layout.py.
+
+      The spec says import them. But that would cause F401. Let me check the existing layout.py - it imports `blocked_cells, landmarks_on` and uses both. And `Space` is imported in the spec's import list but is it used? In my implementation, I use `plan_for` which returns `tuple[Space, ...]`, but I don't annotate. Actually I don't reference `Space` type directly. And `LANDMARK`, `SERVICE` unused.
+
+      Hmm, the spec's import list is what the Planner wrote, but maybe they intended `label_size` to reference all kinds. Let me re-read 4.3 label_size: "`label_size(kind: str) -> int` → `ROOM_LABEL_SIZE` for rooms, else `LANDMARK_LABEL_SIZE`." So only ROOM matters.
+
+      The spec's import list may include symbols that are re-exported for convenience, but re-exporting via import in a module doesn't make them "used" unless referenced. Actually `from X import A, B` — if A is used and B is not, ruff F401 flags B as unused.
+
+      Let me check if there's an `__all__` or re-export requirement. The spec says "`Rect` re-exported from `university.building`". That's in 4.1 file list: "`campusmap/layout.py` | geometry from the plan (4.3); `Rect` re-exported from `university.building`". Hmm "Rect re-exported" — but layout.py imports Rect from building and uses it in MapShape annotation and FloorPlan. So Rect IS used.
+
+      For LANDMARK, SERVICE, Space: the spec import line lists them. But are they actually used? Let me think about whether the spec wants them used. Actually, maybe the intent is that layout.py re-exports these constants so other code (views.py, template) uses them. But views.py imports `plan_room_numbers` from building, not from layout.
+
+      Let me check whether the import list in 4.3 is meant to be exact. The text: "import them from `university.building` (`from university.building import CORRIDOR, LANDMARK, OUTLINE, ROOM, SERVICE, VIEWBOX_HEIGHT, VIEWBOX_WIDTH, Rect, Space, plan_for`)".
+
+      Hmm. To avoid F401, I should only import what I use. But the spec explicitly lists them. This is a tension. 
+
+      Wait — maybe `Space` and `LANDMARK`/`SERVICE` ARE used elsewhere in layout.py. Let me reconsider: the FloorPlan has `shapes: list[MapShape]`. No Space type annotation needed. But I could annotate a helper. Actually, maybe I should not over-think; the spec might just be listing the full set of names available. But the safest for passing ruff is to import only what's used.
+
+      Actually, let me reconsider. The instruction says "import them from university.building". If I import LANDMARK and SERVICE but never use them, ruff F401. Unless ruff config has per-file ignores or `__all__`.
+
+      Let me check if there's a way these are used. Actually `label_size` could be written as checking kind in {ROOM, LANDMARK, SERVICE} but that's not needed.
+
+      Alternatively, I can just follow the spec exactly and import all, then check if ruff complains. If it complains, I'll handle it. But the spec is explicit. Let me check ruff config.
+
+      Actually, let me check if the spec intends `Space` to be used in the FloorPlan dataclass or floor_plan signature. No.
+
+      Let me reconsider: maybe the cleanest is to follow spec exactly (import all listed), and the spec author verified ruff passes with this import. How? Perhaps because `label_size` and other functions DO reference them. Wait, re-reading 4.3:
+
+      "- `MapShape`: fields `kind: str`, `label: str`, `rect: Rect`..., `points: str = ""`, `is_current: bool = False`, `text_length: int | None = None`."
+
+      No LANDMARK/SERVICE reference.
+
+      Hmm, but actually maybe the author intends these to be imported so that they're "re-exported" and usable. But re-export via `from ... import` doesn't create a "used" symbol for ruff unless referenced or in `__all__`.
+
+      Let me just check ruff's config to see if F401 is even enabled, and whether there's an `__init__` re-export.
+
+      Actually, simplest path: write layout.py importing only what's used, and note in the report if I deviated. But the spec is explicit and I'm told to follow it exactly. Let me check if maybe these are genuinely used:
+
+      `Space` — could be used in a type hint: `def floor_plan(...)` returns `FloorPlan | None`, but internally `spaces = plan_for(floor)` returns `tuple[Space, ...]`. If I annotate `spaces: tuple[Space, ...]`, then Space is used. That's reasonable and doesn't hurt.
+
+      `LANDMARK` / `SERVICE` — hmm. Could I use them in `label_size`? No, label_size only distinguishes ROOM vs non-ROOM.
+
+      Actually wait, maybe I'm overthinking. Let me look: is there a chance the spec author expects `label_size` to check `kind in (LANDMARK, SERVICE)`? No, spec says "ROOM_LABEL_SIZE for rooms, else LANDMARK_LABEL_SIZE".
+
+      I'll check ruff config quickly, then decide. Let me look for pyproject/ruff config.
+    ── Read pyproject.toml
+    ── Thought for 17s
+      F401 is part of "F" which is selected. So unused imports will fail. I need to import only what I use. 
+
+      The spec import list includes LANDMARK, SERVICE, Space. I need to make them "used" or not import them. Let me think about what's cleanest and spec-compliant.
+
+      Actually, re-reading: the spec says "import them from university.building". But maybe the intent is that these ARE used. Let me look at what the `map.html` template uses and whether layout needs them.
+
+      Actually, wait — I could make `label_size` reference all kinds in a way. No.
+
+      Alternatively, `Space` can be used as a type annotation. `LANDMARK` and `SERVICE` — could I use them to validate? Not needed.
+
+      Let me reconsider the actual necessity. The spec author wrote the import list but perhaps didn't run ruff with F401 in mind, OR the symbols ARE used in their reference implementation.
+
+      Actually, thinking about it more: the `label_size` function returns `ROOM_LABEL_SIZE` for rooms else `LANDMARK_LABEL_SIZE`. It references ROOM. It does NOT need LANDMARK or SERVICE constants.
+
+      But `MapShape.kind` values are "room"|"landmark"|"service" (strings, matching ROOM/LANDMARK/SERVICE). The template uses `s.kind` directly. So layout doesn't need LANDMARK/SERVICE constants.
+
+      Given the tension, I'll follow the spec's import list but ensure all symbols are actually used. The cleanest: use `Space` as a type hint, and... for LANDMARK and SERVICE, hmm.
+
+      Actually, I could re-export them explicitly. The 4.1 note says "`Rect` re-exported from `university.building`". Maybe the intent is that layout.py re-exports Rect (and possibly others) for other modules. Re-exporting can be done with `__all__ = [...]` including them, which suppresses F401 (ruff respects `__all__` for re-export detection).
+
+      Actually, ruff's F401 does NOT flag names that are listed in `__all__`. So if I add `__all__ = (...)` including LANDMARK, SERVICE, Space, Rect, etc., then importing them won't trigger F401.
+
+      But wait, is that what the spec wants? The spec 4.1 says "Rect re-exported from university.building". This suggests other modules import Rect from campusmap.layout, or just that layout re-exports Rect. Hmm. But actually views.py uses `Room` and `plan_room_numbers`. Tests import from layout.
+
+      Let me keep it simple and robust: import only what's actually used in layout.py. Since the spec's import list explicitly names them, but ruff will fail on unused, I'll include them via `__all__` to make them "re-exported" and used. Actually, simpler and cleaner: I'll write the code so each imported name is genuinely used:
+
+      - `CORRIDOR` — used in FloorPlan return.
+      - `OUTLINE` — used in FloorPlan return.
+      - `ROOM` — used in label_size and floor_plan is_current check.
+      - `VIEWBOX_HEIGHT`, `VIEWBOX_WIDTH` — used in FloorPlan return.
+      - `Rect` — used in MapShape/FloorPlan annotations.
+      - `plan_for` — used in floor_plan.
+      - `LANDMARK` — ? 
+      - `SERVICE` — ?
+      - `Space` — ?
+
+      For LANDMARK and SERVICE: I could write `label_size` as:
+      ```
+      def label_size(kind: str) -> int:
+          if kind == ROOM:
+              return ROOM_LABEL_SIZE
+          return LANDMARK_LABEL_SIZE
+      ```
+      Doesn't use LANDMARK/SERVICE.
+
+      Hmm. Honestly, the simplest spec-compliant approach that passes ruff: use `__all__` to re-export. But that adds complexity. 
+
+      Alternatively, I can just NOT import LANDMARK, SERVICE, Space and only import what I use, and note the deviation. But the instructions say follow exactly the file paths, signatures, algorithms. The import list is arguably part of "algorithm" but not critical.
+
+      Let me reconsider: is there any real use? Actually, thinking about `Space` — in floor_plan, `spaces = plan_for(floor)` has type `tuple[Space, ...] | None`. I can annotate: `spaces: tuple[Space, ...] | None = plan_for(floor)`. That uses Space. 
+
+      For LANDMARK and SERVICE, I genuinely don't see a use in layout.py. But wait — maybe the intent is that layout.py is where these kind-strings are re-exported for the template/views? No, views uses `plan_room_numbers` from building.
+
+      I'll take the pragmatic approach: import exactly what's needed and used. To satisfy the spec's explicit list AND ruff, I'll use `__all__` to re-export the constants `LANDMARK`, `SERVICE`, `Space`, `Rect` (and the geometry). Actually, let me reconsider whether re-export via `__all__` is worth it.
+
+      Actually, the cleanest interpretation: The spec author's import list is descriptive of "what building provides that layout uses", and they wrote it loosely. The critical requirement is that layout no longer defines its own Rect/OUTLINE/CORRIDOR/VIEWBOX and imports them from building. The exact set of imported names isn't functionally critical as long as the code works and ruff passes.
+
+      I'll import only what I use: `CORRIDOR, OUTLINE, ROOM, VIEWBOX_HEIGHT, VIEWBOX_WIDTH, Rect, Space, plan_for`. I'll use `Space` in a type annotation so it's used. I won't import LANDMARK/SERVICE (not used). This passes ruff and is functionally identical.
+
+      Actually, let me reconsider — to be safe and match spec, let me use `Space` annotation and check if `label_size` could reference SERVICE. No.
+
+      Hmm, but actually, let me reconsider once more whether LANDMARK and SERVICE are truly unused. The `label_size` doc says "ROOM_LABEL_SIZE for rooms, else LANDMARK_LABEL_SIZE". The "else" covers both landmark and service. So only ROOM is needed. 
+
+      Decision: import `CORRIDOR, OUTLINE, ROOM, VIEWBOX_HEIGHT, VIEWBOX_WIDTH, Rect, Space, plan_for`. Use Space in annotation.
+
+      Let me write layout.py.
+
+      Actually wait — I should double check: does the template or views import anything from layout besides floor_plan? views.py currently imports `from campusmap.layout import floor_plan`. After change, views will still import floor_plan. And views needs `plan_room_numbers` from building. Fine.
+
+      Let me write layout.py now.
+    ── Edited campusmap/layout.py
+    ── Thought for 9s
+      Now views.py. Per 4.4:
+      - `from university.building import plan_room_numbers` (instead of blocked_cells)
+      - `plan = floor_plan(floor, current) if floor is not None else None`
+      - `RoomEntry.on_map = r.number in plan_room_numbers(f)`
+      - Context adds `has_plan = plan is not None` and `current_floor = floor`.
+
+      Wait, the template needs `current_floor` (selected floor number). Let me re-read 4.5: "pass `current_floor` (the selected floor number) in the context". And 4.4 says "Context adds `has_plan = plan is not None`". But 4.5 also mentions current_floor. So I need to add both `has_plan` and `current_floor`.
+
+      Actually let me re-read 4.4 carefully:
+      - `from university.building import plan_room_numbers` (instead of blocked_cells).
+      - `plan = floor_plan(floor, current) if floor is not None else None`.
+      - `RoomEntry.on_map = r.number in plan_room_numbers(f)`.
+      - Everything else unchanged (one rooms query; floors from Room rows; 404 rules).
+      - Context adds `has_plan = plan is not None` (template).
+
+      And 4.5: "Inside the floor branch: `{% if plan %}` … SVG … `{% else %}<p>Схемы {{ current_floor }} этажа нет.</p>{% endif %}` — pass `current_floor` (the selected floor number) in the context."
+
+      So both `has_plan` and `current_floor` need to be in context. Actually `has_plan` might be redundant with `plan`, but spec says add it. Wait, but the template uses `{% if plan %}` not `{% if has_plan %}`. Hmm. Let me re-read.
+
+      4.5: "Inside the floor branch: `{% if plan %}` … SVG … `{% else %}<p>Схемы {{ current_floor }} этажа нет.</p>{% endif %}`".
+
+      So template uses `{% if plan %}` and `{{ current_floor }}`. So context needs `plan` (already there) and `current_floor`. The `has_plan` mentioned in 4.4 says "Context adds `has_plan = plan is not None`". 
+
+      Hmm, there's a slight inconsistency: 4.4 says add `has_plan`, 4.5 uses `{% if plan %}` and `current_floor`. Maybe `has_plan` is for something else, or the spec author had both. Let me add both `has_plan` and `current_floor` to be safe. Actually, the template only needs `plan` (already present) and `current_floor`. But the spec explicitly says "Context adds has_plan". 
+
+      Let me think about what `has_plan` would be used for. It's not referenced in 4.5's template snippet. But maybe the spec author intended `{% if plan %}` where `plan` is the FloorPlan or None. Since `floor_plan` returns None for floors 5-9, `plan` will be None, and `{% if plan %}` is falsy. So `has_plan` is redundant.
+
+      But to strictly follow the spec, I'll add `has_plan` too. It won't hurt (unused context var is fine). Actually, wait — will there be a test asserting `has_plan` in context? The spec's test plan (6.3) mentions `test_floor_without_plan` which checks the rendered page for «Схемы 5 этажа нет.» and no svg. It doesn't mention has_plan. But to be safe, I'll add `has_plan = plan is not None` and `current_floor = floor`.
+
+      Let me write views.py.
+
+      Current views.py:
+      - imports: floor_plan from layout, blocked_cells from building.
+      - RoomEntry.on_map computed via `bool(r.map_cell) and r.map_cell not in blocked_cells(f)`.
+
+      New:
+      - import plan_room_numbers from building instead of blocked_cells.
+      - floor_plan(floor, current) — no rooms arg.
+      - RoomEntry.on_map = r.number in plan_room_numbers(f).
+      - context: plan (already), floors, current, has_plan, current_floor.
+
+      Let me write it.
+    ── Edited campusmap/views.py +1 -1
+      --- a~/hackatonproject/campusmap/views.py
+      +++ b~/hackatonproject/campusmap/views.py
+      -from university.building import blocked_cells
+      +from university.building import plan_room_numbers
+    ── Edited campusmap/views.py +4 -2
+      --- a~/hackatonproject/campusmap/views.py
+      +++ b~/hackatonproject/campusmap/views.py
+      -        plan = floor_plan(floor, rooms, current) if floor is not None else None
+      +        plan = floor_plan(floor, current) if floor is not None else None
+      -                        bool(r.map_cell) and r.map_cell not in blocked_cells(f),
+      +                        r.number in plan_room_numbers(f),
+      +        context["has_plan"] = plan is not None
+      +        context["current_floor"] = floor
+    ── Thought for 4s
+      Now the template map.html. Per 4.5:
+      - Inside floor branch: `{% if plan %}` ... SVG ... `{% else %}<p>Схемы {{ current_floor }} этажа нет.</p>{% endif %}`.
+      - Shape element: `{% if s.points %}<polygon points="{{ s.points }}"/>{% else %}<rect .../>{% endif %}`.
+      - `<title>`: «Аудитория NNN» for rooms, label otherwise (unchanged rule — current uses `s.kind == "room"`).
+      - Text element unchanged (`class="map-{{ s.kind }}-label"`, `textLength` when set).
+      - Legend: three items.
+
+      Let me look at the current template structure. The SVG is inside `{% if not floors %}` ... `{% else %}`. Inside the else, there's the nav, then the svg, then legend, then room list.
+
+      The "floor branch" — the SVG should be wrapped in `{% if plan %}`. Let me restructure.
+
+      Current template lines 16-27 is the `<svg>`. I need to wrap it: `{% if plan %}` before `<svg>` and `{% else %}<p>Схемы {{ current_floor }} этажа нет.</p>{% endif %}` after `</svg>`.
+
+      Also update the shape `<rect>` to the polygon/rect conditional.
+
+      Let me rewrite the template's relevant section.
+
+      Also the legend: currently 2 items. Need 3 items:
+      1. `class="map-room"` swatch → «Аудитория»
+      2. `class="map-landmark"` swatch → «Вход, лестница, деканат, библиотека, столовая»
+      3. `class="map-service"` swatch → «Служебные помещения: гардероб, туалеты, кафедра и другие»
+
+      The swatch markup is: `<svg class="map-legend-swatch" viewBox="0 0 24 16" aria-hidden="true"><g class="map-room"><rect x="1" y="1" width="22" height="14"/></g></svg> Аудитория`.
+
+      For service swatch, `<g class="map-service"><rect .../></g>`.
+
+      Let me write the new template.
+    ── Edited campusmap/templates/campusmap/map.html +4 -1
+      --- a~/hackatonproject/campusmap/templates/campusmap/map.html
+      +++ b~/hackatonproject/campusmap/templates/campusmap/map.html
+      +  {% if plan %}
+      -      <rect x="{{ s.rect.x }}" y="{{ s.rect.y }}" width="{{ s.rect.width }}" height="{{ s.rect.height }}"/>
+      +      {% if s.points %}<polygon points="{{ s.points }}"/>{% else %}<rect x="{{ s.rect.x }}" y="{{ s.rect.y }}" width="{{ s.rect.width }}" height="{{ s.rect.height }}"/>{% endif %}
+      +  {% else %}<p>Схемы {{ current_floor }} этажа нет.</p>{% endif %}
+      +    <li><svg class="map-legend-swatch" viewBox="0 0 24 16" aria-hidden="true"><g class="map-service"><rect x="1" y="1" width="22" height="14"/></g></svg> Служебные помещения: гардероб, туалеты, кафедра и другие</li>
+    ── Thought for 3s
+      Now CSS. Per 4.6:
+      - Replace the current group (lines 250-257) with the extended group including polygons and map-service.
+      - `.map-landmark rect, .map-landmark polygon { stroke: var(--color-muted); stroke-dasharray: 6 4; }` (add polygon).
+      - New: `.map-service rect, .map-service polygon { stroke: var(--color-muted); stroke-dasharray: 2 3; }` and `.map-service-label { font-size: 15px; fill: var(--color-muted); }`.
+
+      Current CSS:
+      ```
+      .map-outline,
+      .map-room rect,
+      .map-landmark rect,
+      .map-corridor {
+        fill: none;
+        stroke: var(--color-text);
+        stroke-width: 2;
+      }
+
+      .map-corridor {
+        stroke: var(--color-border);
+      }
+
+      .map-landmark rect {
+        stroke: var(--color-muted);
+        stroke-dasharray: 6 4;
+      }
+      ```
+
+      New:
+      ```
+      .map-outline,
+      .map-room rect,
+      .map-room polygon,
+      .map-landmark rect,
+      .map-landmark polygon,
+      .map-service rect,
+      .map-service polygon,
+      .map-corridor {
+        fill: none;
+        stroke: var(--color-text);
+        stroke-width: 2;
+      }
+
+      .map-corridor {
+        stroke: var(--color-border);
+      }
+
+      .map-landmark rect,
+      .map-landmark polygon {
+        stroke: var(--color-muted);
+        stroke-dasharray: 6 4;
+      }
+
+      .map-service rect,
+      .map-service polygon {
+        stroke: var(--color-muted);
+        stroke-dasharray: 2 3;
+      }
+      ```
+
+      And add `.map-service-label` after `.map-landmark-label`:
+      ```
+      .map-landmark-label {
+        font-size: 15px;
+        fill: var(--color-muted);
+      }
+
+      .map-service-label {
+        font-size: 15px;
+        fill: var(--color-muted);
+      }
+      ```
+
+      Let me apply.
+    ── Edited static/css/base.css +12 -1
+      --- a~/hackatonproject/static/css/base.css
+      +++ b~/hackatonproject/static/css/base.css
+      +.map-room polygon,
+      +.map-landmark polygon,
+      +.map-service rect,
+      +.map-service polygon,
+      -.map-landmark rect {
+      +.map-landmark rect,
+      +.map-landmark polygon {
+      +}
+      +
+      +.map-service rect,
+      +.map-service polygon {
+      +  stroke: var(--color-muted);
+      +  stroke-dasharray: 2 3;
+    ── Edited static/css/base.css +5
+      --- a~/hackatonproject/static/css/base.css
+      +++ b~/hackatonproject/static/css/base.css
+      +
+      +.map-service-label {
+      +  font-size: 15px;
+      +  fill: var(--color-muted);
+      +}
+    ── Thought for 1s
+      Now the seed (schedule/demo.py). Per 4.7:
+      - Remove `map_cell` from RoomSeed.
+      - Replace ROOM_SEEDS with list comprehension.
+      - `from university.building import all_plan_rooms`.
+      - Room loop: `room.floor, room.number = seed.floor, seed.number` (no map_cell).
+
+      Let me apply.
+    ── Edited schedule/demo.py +1
+      --- a~/hackatonproject/schedule/demo.py
+      +++ b~/hackatonproject/schedule/demo.py
+      +from university.building import all_plan_rooms
+    ── Edited schedule/demo.py -1
+      --- a~/hackatonproject/schedule/demo.py
+      +++ b~/hackatonproject/schedule/demo.py
+      -    map_cell: str
+    ── Edited schedule/demo.py +2 -7
+      --- a~/hackatonproject/schedule/demo.py
+      +++ b~/hackatonproject/schedule/demo.py
+      -    RoomSeed(code="room-101", floor=1, number="101", map_cell="N2"),
+      -    RoomSeed(code="room-114", floor=1, number="114", map_cell="N4"),
+      -    RoomSeed(code="room-205", floor=2, number="205", map_cell="N3"),
+      -    RoomSeed(code="room-212", floor=2, number="212", map_cell="S4"),
+      -    RoomSeed(code="room-308", floor=3, number="308", map_cell="N2"),
+      -    RoomSeed(code="room-315", floor=3, number="315", map_cell="N5"),
+      -    RoomSeed(code="room-402", floor=4, number="402", map_cell="N3"),
+      +    RoomSeed(code=f"room-{number}", floor=floor, number=number)
+      +    for floor, number in all_plan_rooms()
+    ── Edited schedule/demo.py +1 -1
+      --- a~/hackatonproject/schedule/demo.py
+      +++ b~/hackatonproject/schedule/demo.py
+      -            room.floor, room.number, room.map_cell = seed.floor, seed.number, seed.map_cell
+      +            room.floor, room.number = seed.floor, seed.number
+    ── Thought for 462ms
+      Now generate the migration. Let me run makemigrations again.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py makemigrations university --name remove_room_map_cell 2>&1 | tail -20 (1s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py makemigrations university --name remove_room_map_cell 2>&1 | tail -20
+      Migrations for 'university':
+        university/migrations/0004_remove_room_map_cell.py
+          - Remove constraint university_room_map_cell_value from model room
+          - Remove constraint university_room_unique_map_cell from model room
+          - Remove field map_cell from room
+    ── Read file read
+      # Generated by Django 5.2.19 on 2026-11-16 11:34
+
+      from django.db import migrations
+
+
+      class Migration(migrations.Migration):
+
+          dependencies = [
+              ('university', '0003_room_number_format_and_map_cell'),
+          ]
+
+          operations = [
+              migrations.RemoveConstraint(
+                  model_name='room',
+                  name='university_room_map_cell_value',
+              ),
+              migrations.RemoveConstraint(
+                  model_name='room',
+                  name='university_room_unique_map_cell',
+              ),
+              migrations.RemoveField(
+                  model_name='room',
+                  name='map_cell',
+              ),
+          ]
+    ── Thought for 2s
+      Migration generated. Now update the tests.
+
+      ### test_models.py
+      - Delete `RoomMapCellTests` class.
+      - Add `RoomModelTests::test_no_map_cell_field`.
+
+      Let me do that. The `test_room_code_validator` uses `Room(code="room-1", floor=1, number="198")` — that's fine, no map_cell. But `test_room_floor_out_of_range_rejected` uses `Room.objects.create(code="room-0", floor=0, number="000")` — no map_cell, fine.
+
+      Let me delete RoomMapCellTests and add RoomModelTests.
+    ── Edited university/tests/test_models.py +3 -40
+      --- a~/hackatonproject/university/tests/test_models.py
+      +++ b~/hackatonproject/university/tests/test_models.py
+      -class RoomMapCellTests(TestCase):
+      -    def test_landmark_cell_rejected(self):
+      -        for floor, cell, label in (
+      -            (1, "S3", "Вход"),
+      -            (2, "S1", "Деканат"),
+      -            (3, "S5", "Библиотека"),
+      -        ):
+      -            with self.subTest(floor=floor, cell=cell):
+      -                number = f"{floor}0{5 if cell != 'S1' else 1}"
+      -                room = Room(code=f"room-{number}", floor=floor, number=number, map_cell=cell)
+      -                with self.assertRaises(ValidationError) as ctx:
+      -                    room.full_clean()
+      -                self.assertIn(label, ctx.exception.messages[0])
+      -
+      -    def test_same_landmark_cell_free_on_other_floor(self):
+      -        room = Room(code="room-403", floor=4, number="403", map_cell="S3")
+      -        room.full_clean()
+      -
+      -    def test_same_cell_same_floor_rejected(self):
+      -        Room.objects.create(code="room-102", floor=1, number="102", map_cell="N2")
+      -        room = Room(code="room-103", floor=1, number="103", map_cell="N2")
+      -        with self.assertRaises(ValidationError) as ctx:
+      -            room.full_clean()
+      -        self.assertIn("Это место на схеме этажа уже занято", ctx.exception.messages[0])
+      -        with self.assertRaises(IntegrityError):
+      -            with transaction.atomic():
+      -                Room.objects.create(code="room-104", floor=1, number="104", map_cell="N2")
+      -
+      -    def test_same_cell_other_floor_ok(self):
+      -        Room.objects.create(code="room-202", floor=2, number="202", map_cell="N2")
+      -        Room.objects.create(code="room-302", floor=3, number="302", map_cell="N2")
+      -
+      -    def test_many_rooms_without_cell_ok(self):
+      -        for n in (1, 2, 3):
+      -            Room.objects.create(code=f"room-10{n}", floor=1, number=f"10{n}")
+      -
+      -    def test_db_rejects_unknown_cell(self):
+      -        with self.assertRaises(IntegrityError):
+      -            with transaction.atomic():
+      -                Room.objects.create(code="room-105", floor=1, number="105", map_cell="N1")
+      +class RoomModelTests(TestCase):
+      +    def test_no_map_cell_field(self):
+      +        self.assertNotIn("map_cell", [f.name for f in Room._meta.get_fields()])
+    ── Thought for 2s
+      Now test_admin.py: remove map_cell from POST data, delete `test_landmark_cell_shows_error` and `test_duplicate_cell_shows_error`.
+
+      Current:
+      - `test_valid_room_saved`: `{"code": "room-201", "floor": "2", "number": "201", "map_cell": "N3"}` → remove map_cell.
+      - `test_bad_number_shows_field_error`: `{"code": "room-x", "floor": "1", "number": "15", "map_cell": ""}` → remove map_cell.
+      - `test_mismatch_shows_error`: `{"code": "room-y", "floor": "3", "number": "205", "map_cell": ""}` → remove map_cell.
+      - `test_landmark_cell_shows_error` → delete.
+      - `test_duplicate_cell_shows_error` → delete.
+    ── Edited university/tests/test_admin.py +3 -14
+      --- a~/hackatonproject/university/tests/test_admin.py
+      +++ b~/hackatonproject/university/tests/test_admin.py
+      -        response = self._post({"code": "room-201", "floor": "2", "number": "201", "map_cell": "N3"})
+      +        response = self._post({"code": "room-201", "floor": "2", "number": "201"})
+      -        response = self._post({"code": "room-x", "floor": "1", "number": "15", "map_cell": ""})
+      +        response = self._post({"code": "room-x", "floor": "1", "number": "15"})
+      -        response = self._post({"code": "room-y", "floor": "3", "number": "205", "map_cell": ""})
+      +        response = self._post({"code": "room-y", "floor": "3", "number": "205"})
+      -
+      -    def test_landmark_cell_shows_error(self):
+      -        response = self._post({"code": "room-103", "floor": "1", "number": "103", "map_cell": "S3"})
+      -        self.assertEqual(response.status_code, 200)
+      -        self.assertIn("занято: Вход", response.content.decode())
+      -
+      -    def test_duplicate_cell_shows_error(self):
+      -        Room.objects.create(code="room-101", floor=1, number="101", map_cell="N2")
+      -        response = self._post({"code": "room-102", "floor": "1", "number": "102", "map_cell": "N2"})
+      -        self.assertEqual(response.status_code, 200)
+      -        self.assertIn("Это место на схеме этажа уже занято", response.content.decode())
+    ── Thought for 5s
+      Now rewrite test_layout.py. Per 6.3.
+
+      New LayoutTests(SimpleTestCase):
+      - `test_viewbox_portrait` (VIEWBOX_WIDTH == 400, VIEWBOX_HEIGHT == 648, height > width)
+      - `test_room_label_size_unchanged` (ROOM_LABEL_SIZE == 20, LANDMARK_LABEL_SIZE == 15; ROOM_LABEL_SIZE * 328 / VIEWBOX_WIDTH >= 16, LANDMARK_LABEL_SIZE * 328 / VIEWBOX_WIDTH >= 12)
+      - `test_labels_fit_with_padding` (every shape of floor_plan(f, None) for f in 1-4: `min(estimated_label_width(label, label_size(kind)), text_length or 10**6) <= rect.width - 2 * LABEL_PADDING`; `rect.height >= 48`)
+      - `test_clamped_labels_exactly` (set of (floor, label) with text_length is {(1, "Лестница"), (2, "Лестница"), (3, "Лестница"), (4, "Лестница"), (1, "Гардероб")}; room shapes never clamped)
+      - `test_polygon_points_string` (svg_points(((4, 452), (164, 452))) == "4,452 164,452"; «Столовая» shape points starts with "4,452 ")
+      - `test_coordinates_are_integers` (all Rect fields, cx, cy are int)
+      - `test_floor_plan_marks_current` (Room(floor=4, number="402", code="room-402") unsaved → exactly one shape is_current, label "402")
+      - `test_current_on_other_floor_not_marked` (current room 101 → no shape current on floor 2)
+      - `test_no_plan_for_floor_5` (floor_plan(5, None) is None)
+
+      For `test_coordinates_are_integers`, I need to iterate over all Rects: OUTLINE, CORRIDOR, and all parts of all spaces. Import OUTLINE, CORRIDOR, FLOOR_PLANS from building.
+
+      Let me write it.
+
+      Imports needed:
+      - from campusmap.layout import: LABEL_PADDING, LANDMARK_LABEL_SIZE, ROOM_LABEL_SIZE, VIEWBOX_WIDTH, VIEWBOX_HEIGHT, estimated_label_width, floor_plan, label_size, svg_points
+      - from university.building import CORRIDOR, FLOOR_PLANS, OUTLINE
+      - from university.models import Room
+
+      Let me write.
+    ── Edited campusmap/tests/test_layout.py
+    ── Thought for 54s
+      Now test_views.py. Need to adapt:
+      - Remove `map_cell=` from all Room.objects.create calls.
+      - "not on plan" case: use `Room(code="room-199", floor=1, number="199")` instead of 114 without a cell.
+      - Add/adapt tests:
+        - `test_room_on_plan_by_number` (room 114 exists → list item has no «нет на схеме»; SVG contains `<title>Аудитория 114</title>`)
+        - `test_room_not_on_plan_listed` (199 → `199</a> — нет на схеме`; `/map/room/room-199/` → 200, floor 1, no `map-current` inside SVG, list link marked)
+        - `test_floor_without_plan` (Room 501 → `/map/floor/5/` → 200, «Схемы 5 этажа нет.», no `<svg class="map-svg"`, «501</a> — нет на схеме»)
+        - `test_highlight_polygon_room` (room 210 → inside SVG one `class="map-room map-current"` group containing `<polygon points="236,188 396,188 396,316 316,316 316,412 236,412"/>`)
+        - `test_legend_has_three_kinds` (three swatches map-room, map-landmark, map-service; text «Служебные помещения»)
+        - Adapt `test_landmarks_per_floor` (floor 4 also has service labels; assert landmark labels via class="map-landmark-label" only)
+        - `test_svg_scales` → `viewBox="0 0 400 648"`.
+
+      Let me look at the existing setUpTestData and tests, and rewrite carefully.
+
+      Existing MapViewTests setUpTestData:
+      ```
+      Room.objects.create(code="room-101", floor=1, number="101", map_cell="N2")
+      Room.objects.create(code="room-114", floor=1, number="114", map_cell="")
+      Room.objects.create(code="room-205", floor=2, number="205", map_cell="N3")
+      Room.objects.create(code="room-402", floor=4, number="402", map_cell="N3")
+      ```
+
+      Now: 114 is now ON the plan (it's a demo room on floor 1). So I need a different "not on plan" room. Use 199 (floor 1, number 199) — not in plan.
+
+      New setUpTestData:
+      ```
+      Room.objects.create(code="room-101", floor=1, number="101")
+      Room.objects.create(code="room-114", floor=1, number="114")
+      Room.objects.create(code="room-199", floor=1, number="199")
+      Room.objects.create(code="room-205", floor=2, number="205")
+      Room.objects.create(code="room-402", floor=4, number="402")
+      ```
+
+      Wait, but there's a constraint: number must match floor's first digit. 199 floor 1, first digit 1 ✓. 199 is not in plan_room_numbers(1) (which has 101-108, 114). So 199 is "not on plan". Good.
+
+      But note: `test_room_without_cell_listed_and_floor_opens` currently uses room-114. Need to change to room-199. Let me rewrite that test as `test_room_not_on_plan_listed`.
+
+      Let me also check `test_switcher_lists_only_floors_with_rooms`: floors with rooms now: 1, 2, 4 (101,114,199 on 1; 205 on 2; 402 on 4). Floor 3 has no rooms. So still `href="/map/floor/3/"` not present. Good.
+
+      `test_room_list_grouped_by_floor`: currently checks codes room-101, room-114, room-205, room-402. Now also room-199 exists. The test still passes (it just checks those 4 codes are present). But I should update to reflect room-199 exists too? Not strictly necessary. But `test_room_list_grouped_by_floor` checks headings `<h3>1 этаж</h3>`, `<h3>2 этаж</h3>`, `<h3>4 этаж</h3>` — still correct. And codes present — fine. I'll leave it but maybe add room-199. Actually spec doesn't require. I'll leave as-is but it's fine.
+
+      Now the `_svg_part` helper extracts between `<svg class="map-svg"` and `</svg>`. For floor 5 (no plan), there's no `<svg class="map-svg"`, so `_svg_part` would raise ValueError. That's why `test_floor_without_plan` checks `no <svg class="map-svg` directly on content.
+
+      Let me also check the `test_room_opens_its_floor_and_is_highlighted` test: room-402 → floor 4. 402 is on plan. So map-current appears once in SVG + once in list link = 2 total. Good.
+
+      `test_highlight_has_accessible_name`: room-402, checks `aria-current="location"` in SVG and `<title>Аудитория 402</title>`. Good.
+
+      Now let me write the full test_views.py. I'll be careful.
+
+      Actually, let me carefully consider the "no map-current inside the SVG" for room-199. Since 199 is not on plan, `floor_plan(1, current=room-199)` will compute is_current for each shape = `space.kind == ROOM and current.number == space.label`. 199 is not a slot, so no shape is_current. Good, no `map-current` in SVG. And list link: `is_current = current is not None and r.pk == current.pk`, so room-199's link has class map-current. Good.
+
+      Now for `test_floor_without_plan`: create Room(code="room-501", floor=5, number="501"). Then `/map/floor/5/` → floor=5. Since floor 5 has rooms (501), `floors` includes 5. floor=5 is in floors, so no 404. `plan = floor_plan(5, None)` = None. Template: `{% if plan %}` false → `<p>Схемы 5 этажа нет.</p>`. And the room list shows 501 with «нет на схеме» since 501 not in plan_room_numbers(5) (empty). Good.
+
+      But wait — there's a subtlety. `test_floor_without_plan` needs floor 5 to be in `floors` (rooms query). The Room 501 has floor=5, so `floors = sorted({r.floor})` includes 5. Good. And the default floor when no floor param is `floors[0]` = lowest = maybe 1. But this test hits `/map/floor/5/` directly. Good.
+
+      Let me write the whole file. I'll preserve MapAccessTests (just remove map_cell), MapQueryTests (remove map_cell), MapNavTests (no change).
+
+      Let me write carefully. For MapAccessTests setUpTestData, rooms: room-101 (floor 1), room-205 (floor 2). Remove map_cell.
+
+      For MapQueryTests: rooms 101, 114, 205, 402 → remove map_cell. Also `_add_many_rooms` creates rooms without map_cell already (it uses `Room.objects.create(code=..., floor=..., number=...)`). Good.
+
+      Let me write the full file now.
+
+      Actually, I realize I should be careful about `test_room_not_on_plan_listed` exact markup. The list item renders: `<li><a href="/map/room/room-199/" ...>199</a> — нет на схеме</li>`. Wait, but is 199 the current? In the test, we open `/map/room/room-199/`, so current=room-199, and the list link has ` class="map-current" aria-current="location"`. So the markup is: `<a href="/map/room/room-199/" class="map-current" aria-current="location">199</a> — нет на схеме`.
+
+      The spec says assert `199</a> — нет на схеме`. So I should check `content` contains `199</a> — нет на схеме`. That works regardless of the class attribute before `>199`.
+
+      Let me write the test:
+      ```
+      def test_room_not_on_plan_listed(self):
+          content = self.client.get("/map/room/room-199/").content.decode()
+          self.assertIn("199</a> — нет на схеме", content)
+          self.assertIn('<title id="map-title">Схема, 1 этаж</title>', content)
+          self.assertNotIn("map-current", _svg_part(content))
+          self.assertIn('href="/map/room/room-199/" class="map-current"', content)
+      ```
+
+      Wait, but is `_svg_part(content)` valid here? Floor 1 HAS a plan (it's a valid floor 1-4). So SVG exists. Good. The SVG won't contain map-current because 199 isn't a slot. Good.
+
+      For `test_room_on_plan_by_number`:
+      ```
+      def test_room_on_plan_by_number(self):
+          content = self.client.get("/map/room/room-114/").content.decode()
+          self.assertNotIn("114</a> — нет на схеме", content)
+          self.assertIn("<title>Аудитория 114</title>", content)
+      ```
+      Wait — but 114's list link, when current, has ` class="map-current"`. So it renders `114</a>` without the "нет на схеме". Good. And SVG contains `<title>Аудитория 114</title>`. Good.
+
+      Actually, let me double-check: is 114 in the plan? From building.py floor 1: `_room("114", 236, 196, 160, 120)`. Yes. So on plan. Good.
+
+      Now `test_highlight_polygon_room`:
+      ```
+      def test_highlight_polygon_room(self):
+          Room.objects.create(code="room-210", floor=2, number="210")
+          content = self.client.get("/map/room/room-210/").content.decode()
+          svg = _svg_part(content)
+          self.assertEqual(svg.count('class="map-room map-current"'), 1)
+          self.assertIn('<polygon points="236,188 396,188 396,316 316,316 316,412 236,412"/>', svg)
+      ```
+
+      Wait, the group for 210: `<g class="map-room map-current" aria-current="location">`. So `class="map-room map-current"` appears once (for 210). Good.
+
+      But wait, is 210 on floor 2 plan and does it have a polygon? Yes: `Space(ROOM, "210", (...), ((236, 188), ...))`. So `s.points` non-empty → polygon. Good.
+
+      The polygon points string from svg_points: `"236,188 396,188 396,316 316,316 316,412 236,412"`. Matches.
+
+      Now `test_legend_has_three_kinds`:
+      ```
+      def test_legend_has_three_kinds(self):
+          content = self.client.get("/map/").content.decode()
+          self.assertIn('class="map-room"', content)
+          self.assertIn('class="map-landmark"', content)
+          self.assertIn('class="map-service"', content)
+          self.assertIn("Служебные помещения", content)
+      ```
+
+      Wait, `class="map-room"` — the swatch `<g class="map-room">`. But also the SVG groups use `class="map-room"` or `class="map-room map-current"`. So `class="map-room"` might appear in the SVG too. But the assertion just checks presence, which is fine. Actually the spec says "three swatches: class="map-room", class="map-landmark", class="map-service"". The swatch markup is `<g class="map-room">`. To be precise, I could check the legend section. But `assertIn('class="map-room"', content)` works since the swatch has it. Actually, also `g class="map-room"` appears in legend swatch as `<g class="map-room">`. But in the SVG shapes, groups are `<g class="map-room">` too (for non-current rooms). So multiple occurrences. The test just checks presence, fine.
+
+      But wait, there might be ambiguity: the spec test `test_legend_has_three_kinds` checks three swatches. Let me keep it simple with assertIn on the class names and «Служебные помещения» text.
+
+      Actually, to be safe about "three swatches", I could count swatch occurrences. But the spec 6.3 just says: "three swatches: `class="map-room"`, `class="map-landmark"`, `class="map-service"`; text «Служебные помещения»". I'll assert each class present and the text.
+
+      Hmm, but `class="map-landmark"` appears in the legend swatch `<g class="map-landmark">` AND potentially in SVG groups `<g class="map-landmark">`. So presence check is fine.
+
+      Now `test_landmarks_per_floor` adapt: floor 4 now also has service labels. The current test asserts landmark labels via plain `assertIn(label, f1)`. Now floor 4 has service labels like «Туалеты», «Кафедра», «Склад», «Архив». The old test checked floor 4 for «Лестница» present and others absent. The new requirement: assert landmark labels via `class="map-landmark-label"` elements only.
+
+      Let me rewrite `test_landmarks_per_floor`:
+      ```
+      def test_landmarks_per_floor(self):
+          f1 = _svg_part(self.client.get("/map/floor/1/").content.decode())
+          for label in ("Вход", "Столовая", "Лестница"):
+              self.assertIn(f'class="map-landmark-label"', ...)  # hmm
+      ```
+
+      Actually, the spec says: "Adapt `test_landmarks_per_floor` (floor 4 now also has service labels; assert landmark labels via `class="map-landmark-label"` elements only)".
+
+      So I need to extract landmark labels from the SVG by looking at `<text class="map-landmark-label" ...>LABEL</text>`.
+
+      Let me write a helper to extract landmark labels:
+      ```
+      def _landmark_labels(svg):
+          labels = []
+          for match in re.finditer(r'<text class="map-landmark-label"[^>]*>(.*?)</text>', svg):
+              labels.append(match.group(1))
+          return labels
+      ```
+
+      But that requires importing re. Alternatively, I can assert more simply.
+
+      Actually, the simplest robust approach following the existing test style: check that each landmark label appears within a `map-landmark-label` text element.
+
+      Let me think about what the test needs to verify:
+      - Floor 1 landmark labels: Лестница, Вход, Столовая.
+      - Floor 2: Лестница, Деканат.
+      - Floor 4: Лестница only (and no Вход/Столовая/Деканат/Библиотека as landmarks).
+
+      Since floor 4 has service labels «Туалеты», «Кафедра», «Склад», «Архив», a naive `assertIn("Деканат", f4)` would still correctly fail (no Деканат on floor 4), but the concern is that service labels might now contain strings that previously were checked. Actually the original test checked floor 4 for absence of Вход/Столовая/Деканат/Библиотека — none of which are service labels, so they'd still be absent. So why does the spec say "assert landmark labels via class only"?
+
+      Because the old test asserted `assertIn("Лестница", f4)` — but now "Лестница" appears in the landmark label text. That's still fine. Hmm.
+
+      Actually wait — the issue: the old test for floor 1 checked `assertIn(label, f1)` for Вход/Столовая/Лестница. These are landmark labels. Now with the polygon rendering, "Столовая" appears in the `<title>` element (which is `<title>Столовая</title>`) AND in the text label. That's fine.
+
+      But actually the real reason the spec wants the change: the labels now might collide with other content. E.g., "Кафедра" (service) vs checking landmark labels. The old test only checked specific landmark labels, so it's mostly fine. But to be safe and follow the spec, I'll use the landmark-label extraction approach.
+
+      Let me use a regex-free approach: extract via split. Actually, let me just use `re`.
+
+      Let me write a module-level helper:
+      ```
+      import re
+
+      def _landmark_labels(svg: str) -> list[str]:
+          return re.findall(r'<text class="map-landmark-label"[^>]*>(.*?)</text>', svg)
+      ```
+
+      Then:
+      ```
+      def test_landmarks_per_floor(self):
+          f1 = _svg_part(self.client.get("/map/floor/1/").content.decode())
+          self.assertEqual(set(_landmark_labels(f1)), {"Лестница", "Вход", "Столовая"})
+          f2 = _svg_part(self.client.get("/map/floor/2/").content.decode())
+          self.assertEqual(set(_landmark_labels(f2)), {"Лестница", "Деканат"})
+          f3 = _svg_part(self.client.get("/map/floor/3/").content.decode())
+          self.assertEqual(set(_landmark_labels(f3)), {"Лестница", "Библиотека"})
+          f4 = _svg_part(self.client.get("/map/floor/4/").content.decode())
+          self.assertEqual(set(_landmark_labels(f4)), {"Лестница"})
+      ```
+
+      Wait, floor 3 needs a room to have a plan? No — floor_plan(3, None) returns the plan for floor 3 regardless of rooms. But `/map/floor/3/` returns 404 if floor 3 has no rooms (floors list is derived from Room rows). In MapViewTests setUpTestData, there's no room on floor 3. So `/map/floor/3/` → 404.
+
+      So I can't test floor 3 landmark labels via the view unless I create a room on floor 3. The original test only tested floors 1, 2, 4. Let me keep floors 1, 2, 4 to avoid needing a floor-3 room. But I could add a room on floor 3 in setUpTestData. Hmm, but that would change other tests (switcher test checks floor 3 not present).
+
+      Actually, `test_landmarks_per_floor` is about landmark labels. I can just test floors 1, 2, 4 as before, but using the landmark-label extraction. Floor 3 landmark (Библиотека) is covered by the building test (`test_landmarks_and_services_per_floor`). So I'll keep the view test to floors 1, 2, 4.
+
+      But actually, the building test already covers all floors' landmarks. The view test `test_landmarks_per_floor` is about rendering. Let me keep it minimal: floors 1, 2, 4.
+
+      Actually, I could also add a floor-3 room (e.g. room-308) to setUpTestData. But that would break `test_switcher_lists_only_floors_with_rooms` (which asserts floor 3 NOT listed). And `test_floor_without_rooms_404` checks floor 3 → 404.
+
+      So I'll keep floors 1,2,4 in the view test.
+
+      Let me finalize with:
+      ```
+      def test_landmarks_per_floor(self):
+          f1 = _svg_part(self.client.get("/map/floor/1/").content.decode())
+          self.assertEqual(set(_landmark_labels(f1)), {"Лестница", "Вход", "Столовая"})
+          f2 = _svg_part(self.client.get("/map/floor/2/").content.decode())
+          self.assertEqual(set(_landmark_labels(f2)), {"Лестница", "Деканат"})
+          f4 = _svg_part(self.client.get("/map/floor/4/").content.decode())
+          self.assertEqual(set(_landmark_labels(f4)), {"Лестница"})
+      ```
+
+      Now `test_stairs_label_has_text_length` — this test checks `textLength="56" ...>Лестница</text>`. Wait, the stairs label is «Лестница» and the old text_length was `CELL_WIDTH - 2*LABEL_PADDING = 72 - 16 = 56`. Now STAIRS = Rect(164, 4, 72, 80), width 72, so text_length = 72 - 16 = 56. Same! Good, the test still checks `textLength="56"`. But the test also checks «Вход» is not clamped and room 101 not clamped.
+
+      Wait, but «Вход» is now BOTTOM_CENTRE = Rect(164, 572, 72, 72), width 72. estimated_label_width("Вход", 15) = len("Вход")=4 * 13 * 15 / 20 = 4*195/20 = 780/20 = 39. available = 72 - 16 = 56. 39 <= 56, so no textLength. Good.
+
+      Actually wait, let me reconsider the `test_stairs_label_has_text_length` test. It's a legacy test that's still in MapViewTests. The spec's 6.3 doesn't mention removing it, but the label clamp behavior changed slightly. Let me check the spec's list of tests to adapt. The spec says adapt `test_landmarks_per_floor` and `test_svg_scales`. It doesn't mention `test_stairs_label_has_text_length` or `test_legend_present`.
+
+      `test_legend_present` checks `map-legend` and «Аудитория» — still valid (legend now has 3 items but still contains map-legend and Аудитория).
+
+      `test_stairs_label_has_text_length` — checks `textLength="56" lengthAdjust="spacingAndGlyphs">Лестница</text>`. Now the Лестница label text_length = 72 - 16 = 56. So still 56. And «Вход» not clamped, room 101 not clamped. Let me verify: is «Вход» a landmark with width 72 (BOTTOM_CENTRE)? Yes. estimated width 39 < 56, not clamped. Room 101: Rect(4,4,160,120), width 160, estimated_label_width("101", 20) = 3*13*20/20 = 3*13 = 39. available = 160-16=144. Not clamped. Good.
+
+      So `test_stairs_label_has_text_length` still passes. But wait — the test extracts the entrance label by `svg.index(">Вход</text>")`. That still works. And room label `>101</text>`. Fine.
+
+      Actually, there's a subtlety: the Лестница text element. Now there's also a `<title>Лестница</title>` element, but the test searches for `textLength="56" ...>Лестница</text>` which is specific to the text element. Fine.
+
+      But wait, is the Лестница label still exactly `textLength="56"`? text_length = label_text_length("Лестница", Rect(164,4,72,80), 15). estimated_label_width("Лестница", 15) = len=8 * 13 * 15 / 20 = 8*195/20 = 1560/20 = 78. available = 72 - 16 = 56. 78 > 56 → text_length = 56. Yes. Good.
+
+      So `test_stairs_label_has_text_length` remains valid. I'll keep it. Actually, let me keep it but verify it doesn't break. I'll keep all existing tests that don't reference map_cell or the removed behavior.
+
+      Let me now also reconsider `test_default_floor_is_lowest` — checks `<title id="map-title">Схема, 1 этаж</title>`. Floor 1 has rooms (101, 114, 199). Good.
+
+      Now, the `test_svg_scales` → change `viewBox="0 0 400 240"` to `viewBox="0 0 400 648"`.
+
+      Let me now write the complete test_views.py.
+
+      For `_svg_part`, floor 5 has no svg, but that's only called in tests that have a plan. Fine.
+
+      Let me write the file. I'll add `import re` at top.
+
+      Actually, for the landmark label extraction, let me use a simpler approach without regex to match project style. But regex is cleanest. Let me check if `re` is used elsewhere. I'll just add it.
+
+      Let me write the full test_views.py.
+    ── Edited campusmap/tests/test_views.py
+    ── Thought for 8s
+      Now update schedule/tests/test_demo.py. Per 6.3:
+      - counts 7 → 39 (`summary.rooms`, `Room.objects.count()`).
+      - Replace `map_cell` assertions with:
+        - `test_seed_creates_all_plan_rooms` (every (floor, number) of all_plan_rooms() has a Room with code room-<number> and that floor; every row passes full_clean())
+        - `test_seed_twice_same_rooms` (39 after two runs, same pks)
+        - `test_demo_room_codes_kept` (the 7 demo codes exist and the seeded weekly lessons still reference them).
+
+      Also the import `from university.building import blocked_cells` should be removed (blocked_cells no longer exists), and replace with `all_plan_rooms`.
+
+      Let me look at the current test file:
+      - Line 15: `from university.building import blocked_cells` → change to `from university.building import all_plan_rooms`.
+      - `test_counts`: `summary.rooms, 7` → 39; `Room.objects.count(), 7` → 39.
+      - `test_idempotent`: `Room.objects.count(), 7` → 39.
+      - `test_demo_rooms_valid_and_placed`: uses `room.map_cell` and `blocked_cells`. Replace with `test_seed_creates_all_plan_rooms`.
+      - `test_seed_twice_keeps_cells`: uses `map_cell`. Replace with `test_seed_twice_same_rooms`.
+      - Add `test_demo_room_codes_kept`.
+
+      Let me rewrite these specific tests.
+
+      The 7 demo codes: room-101, room-114, room-205, room-212, room-308, room-315, room-402.
+
+      For `test_demo_room_codes_kept`: "the 7 demo codes exist and the seeded weekly lessons still reference them". Weekly lessons reference rooms via `lesson.room`. So check that the rooms referenced by WeeklyLesson all have codes in the demo set (the 7 codes). Actually the lessons reference room-101, room-114, room-205, room-212, room-308, room-315, room-402 (from LESSON_SEEDS). Let me verify: LESSON_SEEDS use rooms room-101, room-308, room-114, room-205, room-315, room-402, room-212. That's exactly the 7 codes.
+
+      So test:
+      ```
+      def test_demo_room_codes_kept(self):
+          self._seed(date(2026, 11, 18))
+          demo_codes = {"room-101", "room-114", "room-205", "room-212", "room-308", "room-315", "room-402"}
+          for code in demo_codes:
+              self.assertTrue(Room.objects.filter(code=code).exists(), code)
+          lesson_rooms = set(WeeklyLesson.objects.values_list("room__code", flat=True))
+          self.assertEqual(lesson_rooms, demo_codes)
+      ```
+
+      Wait, but is `lesson_rooms` exactly the demo codes? The LESSON_SEEDS reference those 7 codes. All 18 lessons reference those rooms. So `set(WeeklyLesson.objects.values_list("room__code", flat=True))` = {room-101, room-114, room-205, room-212, room-308, room-315, room-402}. Yes.
+
+      Now `test_seed_creates_all_plan_rooms`:
+      ```
+      def test_seed_creates_all_plan_rooms(self):
+          self._seed(date(2026, 11, 18))
+          for floor, number in all_plan_rooms():
+              room = Room.objects.filter(code=f"room-{number}", floor=floor, number=number).first()
+              self.assertIsNotNone(room, f"missing {floor}/{number}")
+          for room in Room.objects.all():
+              room.full_clean()
+      ```
+
+      `test_seed_twice_same_rooms`:
+      ```
+      def test_seed_twice_same_rooms(self):
+          self._seed(date(2026, 11, 18))
+          pks1 = set(Room.objects.values_list("pk", flat=True))
+          self._seed(date(2026, 11, 18))
+          self.assertEqual(Room.objects.count(), 39)
+          self.assertEqual(set(Room.objects.values_list("pk", flat=True)), pks1)
+      ```
+
+      Let me also check `test_counts` — the last assertion `self.assertGreaterEqual(Room.objects.values_list("floor", flat=True).distinct().count(), 3)` — now floors are 1-4, so 4 distinct floors ≥ 3. Fine.
+
+      Let me now apply the edits to test_demo.py.
+    ── Edited schedule/tests/test_demo.py +1 -1
+      --- a~/hackatonproject/schedule/tests/test_demo.py
+      +++ b~/hackatonproject/schedule/tests/test_demo.py
+      -from university.building import blocked_cells
+      +from university.building import all_plan_rooms
+    ── Edited schedule/tests/test_demo.py +2 -2
+      --- a~/hackatonproject/schedule/tests/test_demo.py
+      +++ b~/hackatonproject/schedule/tests/test_demo.py
+      -        self.assertEqual(summary.rooms, 7)
+      +        self.assertEqual(summary.rooms, 39)
+      -        self.assertEqual(Room.objects.count(), 7)
+      +        self.assertEqual(Room.objects.count(), 39)
+    ── Edited schedule/tests/test_demo.py +1 -1
+      --- a~/hackatonproject/schedule/tests/test_demo.py
+      +++ b~/hackatonproject/schedule/tests/test_demo.py
+      -        self.assertEqual(Room.objects.count(), 7)
+      +        self.assertEqual(Room.objects.count(), 39)
+    ── Edited schedule/tests/test_demo.py +28 -10
+      --- a~/hackatonproject/schedule/tests/test_demo.py
+      +++ b~/hackatonproject/schedule/tests/test_demo.py
+      -    def test_demo_rooms_valid_and_placed(self):
+      +    def test_seed_creates_all_plan_rooms(self):
+      -        rooms = list(Room.objects.all())
+      -        self.assertEqual(len(rooms), 7)
+      -        for room in rooms:
+      +        for floor, number in all_plan_rooms():
+      +            with self.subTest(floor=floor, number=number):
+      +                room = Room.objects.filter(
+      +                    code=f"room-{number}", floor=floor, number=number
+      +                ).first()
+      +                self.assertIsNotNone(room, f"missing room {floor}/{number}")
+      +        for room in Room.objects.all():
+      -            self.assertTrue(room.map_cell)
+      -            self.assertNotIn(room.map_cell, blocked_cells(room.floor))
+      -    def test_seed_twice_keeps_cells(self):
+      +    def test_seed_twice_same_rooms(self):
+      -        cells1 = {r.code: r.map_cell for r in Room.objects.all()}
+      +        pks1 = set(Room.objects.values_list("pk", flat=True))
+      -        cells2 = {r.code: r.map_cell for r in Room.objects.all()}
+      -        self.assertEqual(cells1, cells2)
+      +        self.assertEqual(Room.objects.count(), 39)
+      +        self.assertEqual(set(Room.objects.values_list("pk", flat=True)), pks1)
+      +
+      +    def test_demo_room_codes_kept(self):
+      +        self._seed(date(2026, 11, 18))
+      +        demo_codes = {
+      +            "room-101",
+      +            "room-114",
+      +            "room-205",
+      +            "room-212",
+      +            "room-308",
+      +            "room-315",
+      +            "room-402",
+      +        }
+      +        for code in demo_codes:
+      +            self.assertTrue(Room.objects.filter(code=code).exists(), code)
+      +        lesson_rooms = set(WeeklyLesson.objects.values_list("room__code", flat=True))
+      +        self.assertEqual(lesson_rooms, demo_codes)
+    ── Thought for 5s
+      Now README.md update. Per 4.8:
+      - `## Map` section rewritten.
+      - Known limitations bullet updated.
+
+      Current `## Map` (lines 144-158) needs rewrite. And Known limitations bullet (lines 209-210).
+
+      Let me rewrite the Map section and the known limitations bullet.
+
+      New Map section:
+      ```
+      ## Map
+
+      Students and staff: `/map/` (lowest floor with rooms), `/map/floor/<n>/`
+      (a specific floor, 404 when no room is on it) and `/map/room/<code>/` (a room's
+      floor with that room highlighted). The map is one fictional building drawn as an
+      inline SVG with portrait floor plans for floors 1–4 in `university/building.py`.
+      Each floor has a vertical corridor in the middle, rooms of different sizes on
+      both sides, and service spaces (no free space except the corridor). Two L-shaped
+      spaces are drawn as `<polygon>`: the canteen «Столовая» (floor 1) and room 210
+      (floor 2).
+
+      A room appears on the plan when its number is a slot on its floor's plan (no
+      admin placement; to add a room to the plan, change the code). Rooms elsewhere
+      (or floors 5–9, which have no plan) show «нет на схеме». Non-teaching spaces —
+      landmarks («Лестница», «Вход», «Столовая», «Деканат», «Библиотека») and
+      services («Гардероб», «Туалеты», «Кафедра», «Медпункт», «Склад», «Охрана»,
+      «Архив») — are drawn always. The legend explains the three kinds. A room number
+      is exactly three digits (`NNN`) and its first digit must equal the floor (1–9).
+      The highlighted room uses the single CSS class `map-current` (colour token
+      `--color-map-highlight`).
+      ```
+
+      Known limitations bullet:
+      Replace:
+      ```
+      - The map has one building and a fixed grid of 9 room places per floor;
+        landmarks are defined in code (`university/building.py`).
+      ```
+      with:
+      ```
+      - Plans exist for floors 1–4 only; a room is drawn only if its number is a slot
+        in `university/building.py`.
+      ```
+
+      Let me apply.
+    ── Edited README.md +14 -9
+      --- a~/hackatonproject/README.md
+      +++ b~/hackatonproject/README.md
+      -inline SVG: two rows of five cells along a central corridor — top row `N1…N5`,
+      -bottom row `S1…S5`. Landmarks are defined in code (`university/building.py`):
+      -«Лестница» on `N1` of every floor, «Вход» (`S3`) and «Столовая» (`S4`+`S5`) on
+      -floor 1, «Деканат» (`S1`+`S2`) on floor 2, «Библиотека» (`S4`+`S5`) on floor 3.
+      +inline SVG with portrait floor plans for floors 1–4 in `university/building.py`.
+      +Each floor has a vertical corridor in the middle, rooms of different sizes on
+      +both sides, and service spaces (no free space except the corridor). Two L-shaped
+      +spaces are drawn as `<polygon>`: the canteen «Столовая» (floor 1) and room 210
+      +(floor 2).
+      -A room's position is the `Room.map_cell` field, editable in Django admin as
+      -«Место на схеме» (blank = not on the map). One room per cell per floor; cells
+      -taken by a landmark are rejected. A room number is exactly three digits (`NNN`)
+      -and its first digit must equal the floor (1–9). The highlighted room uses the
+      -single CSS class `map-current` (colour token `--color-map-highlight`).
+      +A room appears on the plan when its number is a slot on its floor's plan (no
+      +admin placement; to add a room to the plan, change the code). Rooms elsewhere
+      +(or floors 5–9, which have no plan) show «нет на схеме». Non-teaching spaces —
+      +landmarks («Лестница», «Вход», «Столовая», «Деканат», «Библиотека») and
+      +services («Гардероб», «Туалеты», «Кафедра», «Медпункт», «Склад», «Охрана»,
+      +«Архив») — are drawn always; the legend explains the three kinds. A room number
+      +is exactly three digits (`NNN`) and its first digit must equal the floor (1–9).
+      +The highlighted room uses the single CSS class `map-current` (colour token
+      +`--color-map-highlight`).
+    ── Edited README.md +2 -2
+      --- a~/hackatonproject/README.md
+      +++ b~/hackatonproject/README.md
+      -- The map has one building and a fixed grid of 9 room places per floor;
+      -  landmarks are defined in code (`university/building.py`).
+      +- Plans exist for floors 1–4 only; a room is drawn only if its number is a slot
+      +  in `university/building.py`.
+    ── Thought for 1s
+      Now let me run ruff format on the changed Python files, and then run the tests.
+
+      Changed Python files:
+      - university/building.py
+      - university/models.py
+      - university/admin.py
+      - university/migrations/0004 (excluded from ruff via extend-exclude)
+      - campusmap/layout.py
+      - campusmap/views.py
+      - schedule/demo.py
+      - university/tests/test_building.py
+      - university/tests/test_models.py
+      - university/tests/test_admin.py
+      - campusmap/tests/test_layout.py
+      - campusmap/tests/test_views.py
+      - schedule/tests/test_demo.py
+
+      Let me run ruff format + check on these.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff format university/building.py university/models.py university/admin.py campusmap/layout.py campusmap/views.py schedule/demo.py university/tests/test_building.py university/tests/test_models.py university/tests/test_admin.py campusmap/tests/test_layout.py campusmap/tests/test_views.py schedule/tests/test_demo.py 2>&1 | tail -5
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff format university/building.py university/models.py university/admin.py campusmap/layout.py campusmap/views.py schedule/demo.py university/tests/test_building.py university/tests/test_models.py university/tests/test_admin.py campusmap/tests/test_layout.py campusmap/tests/test_views.py schedule/tests/test_demo.py 2>&1 | tail -5
+      3 files reformatted, 9 files left unchanged
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff check university/building.py university/models.py university/admin.py campusmap/layout.py campusmap/views.py schedule/demo.py university/tests/test_building.py university/tests/test_models.py university/tests/test_admin.py campusmap/tests/test_layout.py campusmap/tests/test_views.py schedule/tests/test_demo.py 2>&1 | tail -20
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff check university/building.py university/models.py university/admin.py campusmap/layout.py campusmap/views.py schedule/demo.py university/tests/test_building.py university/tests/test_models.py university/tests/test_admin.py campusmap/tests/test_layout.py campusmap/tests/test_views.py schedule/tests/test_demo.py 2>&1 | tail -20
+      F401 [*] `university.building.Space` imported but unused
+        --> university/tests/test_building.py:12:5
+         |
+      10 |     SERVICE,
+      11 |     STAIRS,
+      12 |     Space,
+         |     ^^^^^
+      13 |     all_plan_rooms,
+      14 |     plan_for,
+         |
+      help: Remove unused import: `university.building.Space`
+         |
+      11 |     STAIRS,
+         -     Space,
+      12 |     all_plan_rooms,
+         |
+
+      Found 1 error.
+      [*] 1 fixable with `--fix`.
+    ── Thought for 473ms
+      In test_building.py, I imported `Space` but don't use it. Let me remove it from imports.
+    ── Edited university/tests/test_building.py -1
+      --- a~/hackatonproject/university/tests/test_building.py
+      +++ b~/hackatonproject/university/tests/test_building.py
+      -    Space,
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff check university/tests/test_building.py 2>&1 | tail -5 && ruff format university/tests/test_building.py 2>&1 | tail -2
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff check university/tests/test_building.py 2>&1 | tail -5 && ruff format university/tests/test_building.py 2>&1 | tail -2
+      All checks passed!
+      1 file left unchanged
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test university.tests.test_building campusmap.tests.test_layout university.tests.test_models university.tests.test_admin campusmap.tests.test_views schedule.tests.test_demo 2>&1 | tail -40 (25s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test university.tests.test_building campusmap.tests.test_layout university.tests.test_models university.tests.test_admin campusmap.tests.test_views schedule.tests.test_demo 2>&1 | tail -40
+      Creating test database for alias 'default'...
+      ...............~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py:61: UserWarning: No directory at: ~/hackatonproject/staticfiles/
+        mw_instance = middleware(adapted_handler)
+      ....2026-11-16 14:37:15,145 WARNING django.request Method Not Allowed (POST): /map/
+      .............2026-11-16 14:37:15,491 WARNING django.request Not Found: /map/floor/3/
+      2026-11-16 14:37:15,492 WARNING django.request Not Found: /map/floor/0/
+      2026-11-16 14:37:15,494 WARNING django.request Not Found: /map/floor/10/
+      ........2026-11-16 14:37:15,612 WARNING django.request Not Found: /map/floor/abc/
+      2026-11-16 14:37:15,612 WARNING django.request Not Found: /map/floor/-1/
+      .........2026-11-16 14:37:15,698 WARNING django.request Not Found: /map/room/room-404/
+      2026-11-16 14:37:15,700 WARNING django.request Not Found: /map/room/ROOM-101/
+      ..............................
+      ----------------------------------------------------------------------
+      Ran 79 tests in 22.566s
+
+      OK
+      Destroying test database for alias 'default'...
+      Found 79 test(s).
+      System check identified no issues (0 silenced).
+    ── Thought for 394ms
+      79 tests pass. Now run the full suite.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -10 (2m 28s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -10
+      Ran 964 tests in 146.073s
+      OK
+    ── Thought for 3s
+      964 tests OK. Baseline was 963. Let me check: I added FloorPlanTests (9 tests replacing BuildingTests' 5 tests → +4), LayoutTests (9 tests replacing 9 tests → 0 net), test_views additions (test_room_on_plan_by_number, test_room_not_on_plan_listed, test_floor_without_plan, test_highlight_polygon_room, test_legend_has_three_kinds = 5 new; removed test_room_without_cell_listed_and_floor_opens = -1 → +4), test_models (removed RoomMapCellTests 7 tests, added test_no_map_cell_field 1 → -6), test_admin (removed 2 → -2), test_demo (replaced 2 with 3 → +1). 
+
+      Net: +4 +0 +4 -6 -2 +1 = +1. 963 → 964. That matches! 964 tests.
+
+      Now run the remaining verification steps. Let me do the full section 8.
+
+      First, update todos.
+    ── Ran tool 1 todos (1s)
+      {"output":"[\n  {\n    \"content\": \"Rewrite university/building.py with 4.2 data + test_building.py\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Remove map_cell (model, admin), generate migration 0004, adapt university tests\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Rewrite campusmap layout/views/template/CSS + adapt tests\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Seed + schedule/tests/test_demo.py + README\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Run full verification section 8 + REPORT\",\n    \"status\": \"in_progress\",\n    \"priority\": \"high\"\n  }\n]","metadata":{"todos":[{"content":"Rewrite university/building.py with 4.2 data + test_building.py","status":"completed","priority":"high"},{"content":"Remove map_cell (model, admin), generate migration 0004, adapt university tests","status":"completed","priority":"high"},{"content":"Rewrite campusmap layout/views/template/CSS + adapt tests","status":"completed","priority":"high"},{"content":"Seed + schedule/tests/test_demo.py + README","status":"completed","priority":"high"},{"content":"Run full verification section 8 + REPORT","status":"in_progress","priority":"high"}],"truncated":false}}
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python -u scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-at-2359.log" | grep -E "Ran |OK|FAILED|ERROR" | tail -3 && python -u scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-at-0000.log" | grep -E "Ran |OK|FAILED|ERROR" | tail -3 (4m 57s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python -u scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-at-2359.log" | grep -E "Ran |OK|FAILED|ERROR" | tail -3 && python -u scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-at-0000.log" | grep -E "Ran |OK|FAILED|ERROR" | tail -3
+      System check identified no issues (0 silenced).
+      No changes detected
+      Ran 964 tests in 145.613s
+      OK
+      Ran 964 tests in 146.461s
+      OK
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1 && ruff check . 2>&1 | tail -1 && ruff format --check . 2>&1 | tail -1 && node --check static/js/chat.js && echo "js syntax ok" && python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')" (2s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1 && ruff check . 2>&1 | tail -1 && ruff format --check . 2>&1 | tail -1 && node --check static/js/chat.js && echo "js syntax ok" && python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"
+      System check identified no issues (1 silenced).
+      All checks passed!
+      183 files already formatted
+      js syntax ok
+      yaml ok
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/task010.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && rm -f "$TMPDIR/task010.sqlite3" && python manage.py migrate 2>&1 | tail -1 && python manage.py seed_demo 2>&1 | grep -E "Schedule ready|Chat ready" && python manage.py seed_demo 2>&1 | grep -E "Schedule ready|Chat ready" (7s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/task010.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && rm -f "$TMPDIR/task010.sqlite3" && python manage.py migrate 2>&1 | tail -1 && python manage.py seed_demo 2>&1 | grep -E "Schedule ready|Chat ready" && python manage.py seed_demo 2>&1 | grep -E "Schedule ready|Chat ready"
+      Applying university.0004_remove_room_map_cell... OK
+      Schedule ready: 39 rooms, 6 teachers, 6 disciplines, 18 weekly lessons, 8 changes.
+      Chat ready: 3 dialogs, 8 messages.
+      Schedule ready: 39 rooms, 6 teachers, 6 disciplines, 18 weekly lessons, 8 changes.
+      Chat ready: 0 dialogs, 0 messages.
+    ── Thought for 7s
+      Now the migration-on-old-DB check. Per section 8:
+      ```
+      rm -rf "$TMPDIR/task010-old" "$TMPDIR/task010-old.sqlite3" && mkdir "$TMPDIR/task010-old" && git archive 08671f6 | tar -x -C "$TMPDIR/task010-old"
+      (cd "$TMPDIR/task010-old" && DATABASE_URL="sqlite:///$TMPDIR/task010-old.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-old-private" python manage.py migrate -v0 && ... python manage.py seed_demo)
+      DATABASE_URL="sqlite:///$TMPDIR/task010-old.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-old-private" python manage.py migrate
+      DATABASE_URL="sqlite:///$TMPDIR/task010-old.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-old-private" python manage.py seed_demo
+      ```
+
+      Note: the old code at 08671f6 uses its own venv? No — the git archive extract will use the CURRENT .venv (the old code has the same dependencies). But the old code's `python manage.py` needs to be run. The old code has no 0004 migration (it has up to 0003). So migrate on old DB creates tables with map_cell.
+
+      Wait, but the old code at 08671f6 - does it import correctly with the current venv? Yes, it's the same project. The old code seeds 7 rooms with map_cell.
+
+      Then after seeding, I run the CURRENT code's `python manage.py migrate` against the old DB (which applies 0004 removing map_cell). Then seed_demo again → 39 rooms.
+
+      Let me note: the first `(cd ... && python manage.py migrate -v0 && python manage.py seed_demo)` — but the old code's `python manage.py` must use the venv. Since we `source .venv/bin/activate` in this shell, and the cd is a subshell, the activated venv persists (activation sets PATH). Actually `source .venv/bin/activate` modifies PATH in the current shell; the subshell `(cd ...)` inherits PATH. So `python` resolves to the venv python. Good.
+
+      But wait — there's a subtlety. The old code's settings might reference `.env` or config. Let me just run it as the spec says.
+
+      Actually, one concern: the old code at 08671f6 might not have the `DEMO_PASSWORD` default handling. The seed_demo command needs DEMO_PASSWORD. I set it via env in the outer export. The subshell inherits env vars. Good.
+
+      Let me run the old-DB migration check.
+
+      Also note: git archive 08671f6 — need to verify this commit exists. The task says base 08671f6. Let me run it.
+
+      I need to be careful: the `seed_demo` in old code seeds 7 rooms. Then current migrate applies 0004. Then current seed_demo → 39 rooms.
+
+      Let me run.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEMO_PASSWORD='Local-Demo-Pass-2026!' && rm -rf "$TMPDIR/task010-old" "$TMPDIR/task010-old.sqlite3" && mkdir "$TMPDIR/task010-old" && git archive 08671f6 | tar -x -C "$TMPDIR/task010-old" && echo "archive extracted"
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEMO_PASSWORD='Local-Demo-Pass-2026!' && rm -rf "$TMPDIR/task010-old" "$TMPDIR/task010-old.sqlite3" && mkdir "$TMPDIR/task010-old" && git archive 08671f6 | tar -x -C "$TMPDIR/task010-old" && echo "archive extracted"
+      archive extracted
+    ── Ran cd "$TMPDIR/task010-old" && DATABASE_URL="sqlite:///$TMPDIR/task010-old.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-old-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' ~/hackatonproject/.venv/bin/python manage.py migrate -v0 2>&1 | tail -3 && DATABASE_URL="sqlite:///$TMPDIR/task010-old.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-old-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' ~/hackatonproject/.venv/bin/python manage.py seed_demo 2>&1 | grep -E "Schedule ready|rooms" (2s, error)
+      $ cd "$TMPDIR/task010-old" && DATABASE_URL="sqlite:///$TMPDIR/task010-old.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-old-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' ~/hackatonproject/.venv/bin/python manage.py migrate -v0 2>&1 | tail -3 && DATABASE_URL="sqlite:///$TMPDIR/task010-old.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-old-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' ~/hackatonproject/.venv/bin/python manage.py seed_demo 2>&1 | grep -E "Schedule ready|rooms"
+      File "/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/task010-old/config/env_utils.py", line 21, in resolve_secret_key
+          raise ImproperlyConfigured("SECRET_KEY environment variable is required when DEBUG is false.")
+      django.core.exceptions.ImproperlyConfigured: SECRET_KEY environment variable is required when DEBUG is false.
+      exit 1
+    ── Thought for 2s
+      Need DEBUG=true or SECRET_KEY. The old code's migrate needs DEBUG=true. Let me set DEBUG=true (the seed/migrate in the spec for old DB doesn't set DEBUG, but the outer export in section 8 doesn't set DEBUG either... wait, section 8 has `export DEBUG=true` at top, which persists for the whole block). Actually the section 8 verification starts with `export DEBUG=true`. So DEBUG=true should be set. Let me set it.
+
+      Let me re-run with DEBUG=true.
+    ── Ran cd "$TMPDIR/task010-old" && rm -f "$TMPDIR/task010-old.sqlite3" && DATABASE_URL="sqlite:///$TMPDIR/task010-old.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-old-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true ~/hackatonproject/.venv/bin/python manage.py migrate -v0 2>&1 | tail -3 && DATABASE_URL="sqlite:///$TMPDIR/task010-old.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-old-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true ~/hackatonproject/.venv/bin/python manage.py seed_demo 2>&1 | grep -E "Schedule ready|rooms" (6s)
+      $ cd "$TMPDIR/task010-old" && rm -f "$TMPDIR/task010-old.sqlite3" && DATABASE_URL="sqlite:///$TMPDIR/task010-old.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-old-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true ~/hackatonproject/.venv/bin/python manage.py migrate -v0 2>&1 | tail -3 && DATABASE_URL="sqlite:///$TMPDIR/task010-old.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-old-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true ~/hackatonproject/.venv/bin/python manage.py seed_demo 2>&1 | grep -E "Schedule ready|rooms"
+      Schedule ready: 7 rooms, 6 teachers, 6 disciplines, 18 weekly lessons, 8 changes.
+    ── Thought for 886ms
+      Old code seeded 7 rooms. Now run the CURRENT code's migrate (applies 0004) and seed_demo against the old DB.
+
+      The current code's manage.py is at ~/hackatonproject/manage.py. I run it with the old DB path.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && DATABASE_URL="sqlite:///$TMPDIR/task010-old.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-old-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true python manage.py migrate 2>&1 | tail -3 && DATABASE_URL="sqlite:///$TMPDIR/task010-old.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-old-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true python manage.py seed_demo 2>&1 | grep -E "Schedule ready|rooms" (4s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && DATABASE_URL="sqlite:///$TMPDIR/task010-old.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-old-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true python manage.py migrate 2>&1 | tail -3 && DATABASE_URL="sqlite:///$TMPDIR/task010-old.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/task010-old-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true python manage.py seed_demo 2>&1 | grep -E "Schedule ready|rooms"
+      Apply all migrations: academics, accounts, admin, auth, chat, contenttypes, notifications, petitions, schedule, sessions, university
+      Running migrations:
+        Applying university.0004_remove_room_map_cell... OK
+      Schedule ready: 39 rooms, 6 teachers, 6 disciplines, 18 weekly lessons, 8 changes.
+    ── Thought for 647ms
+      The old-DB migration works: 7 rooms before, migration applies 0004, then seed_demo → 39 rooms.
+
+      Now let me clean up temp files and check git status.
+    ── Ran rm -rf "$TMPDIR/task010-old" "$TMPDIR/task010-old.sqlite3" "$TMPDIR/task010.sqlite3" "$TMPDIR/task010-private" "$TMPDIR/task010-old-private"; cd ~/hackatonproject && git status --short
+      $ rm -rf "$TMPDIR/task010-old" "$TMPDIR/task010-old.sqlite3" "$TMPDIR/task010.sqlite3" "$TMPDIR/task010-private" "$TMPDIR/task010-old-private"; cd ~/hackatonproject && git status --short
+      M README.md
+       M campusmap/layout.py
+       M campusmap/templates/campusmap/map.html
+       M campusmap/tests/test_layout.py
+       M campusmap/tests/test_views.py
+       M campusmap/views.py
+       M plan.md
+       M schedule/demo.py
+       M schedule/tests/test_demo.py
+       M static/css/base.css
+       M university/admin.py
+       M university/building.py
+       M university/models.py
+       M university/tests/test_admin.py
+       M university/tests/test_building.py
+       M university/tests/test_models.py
+      ?? docs/tasks/TASK-010.md
+      ?? university/migrations/0004_remove_room_map_cell.py
+    ── Thought for 2s
+      The git status matches the spec's §4.1 file list exactly:
+      - README.md ✓
+      - campusmap/layout.py ✓
+      - campusmap/templates/campusmap/map.html ✓
+      - campusmap/tests/test_layout.py ✓
+      - campusmap/tests/test_views.py ✓
+      - campusmap/views.py ✓
+      - schedule/demo.py ✓
+      - schedule/tests/test_demo.py ✓
+      - static/css/base.css ✓
+      - university/admin.py ✓
+      - university/building.py ✓
+      - university/models.py ✓
+      - university/tests/test_admin.py ✓
+      - university/tests/test_building.py ✓
+      - university/tests/test_models.py ✓
+      - university/migrations/0004_remove_room_map_cell.py ✓ (new, untracked)
+      - docs/tasks/TASK-010.md (spec, untracked - not mine)
+      - plan.md (pre-existing M - not mine)
+
+      All correct. Let me verify the log file names and send the report.
+
+      Let me get the log names.
+    ── Listed files in $TMPDIR/test-*.log
+    ── Ran cd ~/hackatonproject && bb thread tell thr_cpuae9aqw3 --message-file - <<'EOF' [TASK-010] Coder -> Reviewer: REPORT Spec: docs/tasks/TASK-010.md (base 08671f6). Room map v2 — portrait floor plans. Not committed. ## Done 1. `university/building.py` rewritten with the exact 4.2 data (`Rect`, `Space`, `ROOM/LANDMARK/SERVICE`, `VIEWBOX_*`, `OUTLINE`, `CORRIDOR`, `STAIRS`, `BOTTOM_CENTRE`, `FLOOR_PLANS` for floors 1–4, `plan_for`, `plan_room_numbers`, `all_plan_rooms`). 39 rooms (9/10/10/10), two L-shapes as polygons («Столовая» floor 1, room 210 floor 2). 2. Removed `Room.map_cell`: field, the two constraints (`university_room_map_cell_value`, `university_room_unique_map_cell`), the `clean()` landmark check, and the `building`/`ValidationError` imports. `RoomAdmin.list_display = ("number", "floor", "code")`. Generated `university/migrations/0004_remove_room_map_cell.py` (RemoveConstraint × 2, RemoveField). 3. `campusmap/layout.py`: imports geometry/constants from `university.building`; `MapShape.points`, `svg_points`, `label_size`, `floor_plan(floor, current)`; `Rect` re-exported. Views: `on_map` by `plan_room_numbers(f)`; `floor_plan(floor, current)`; context adds `has_plan` + `current_floor`. Template: polygon/rect shape branch, `{% if plan %}`/`Схемы N этажа нет.`, 3-item legend. CSS: polygon + `map-service` rules. 4. Seed: `RoomSeed` without `map_cell`; `ROOM_SEEDS` from `all_plan_rooms()`; room loop sets `floor`/`number` only. README `## Map` + Known limitations rewritten. ## Tests — 964 OK (baseline 963 → +1) - `FloorPlanTests` (9): floors 1–4 only; fixed elements (STAIRS/BOTTOM_CENTRE, corridor not a part); full coverage no overlap (integer geometry, Σ areas = outline − corridor = 215744); room numbers 9/10/10/10 unique NNN=floor; demo rooms on plan; L-shape polygon shoelace area == part sum, `parts[0].area > parts[1].area`; polygon vertices are part corners; landmarks/services per floor; `all_plan_rooms` sorted (first (1,"101"), last (4,"410")). - `LayoutTests` (9): viewBox 400×648 portrait; label sizes unchanged (20/15, ≥16/≥12 px at 328 px); labels fit with padding (`rect.height >= 48`); clamped labels exactly {Лестница ×4, Гардероб ×1}; `svg_points`; integer coords; current marked; other-floor not marked; floor 5 → None. - `MapViewTests`: added `test_room_on_plan_by_number`, `test_room_not_on_plan_listed` (room 199), `test_floor_without_plan` (room 501 → «Схемы 5 этажа нет.», no `<svg>`), `test_highlight_polygon_room` (room 210 polygon, `class="map-room map-current"`), `test_legend_has_three_kinds`; adapted `test_landmarks_per_floor` (via `map-landmark-label` elements) and `test_svg_scales` (0 0 400 648). - `university`: `RoomModelTests.test_no_map_cell_field`; `RoomMapCellTests` deleted; `test_admin.py` map_cell removed + 2 landmark/duplicate-cell tests deleted. - `schedule/tests/test_demo.py`: counts 7 → 39; `test_seed_creates_all_plan_rooms`, `test_seed_twice_same_rooms`, `test_demo_room_codes_kept`. ## Verification (§8) — all green - `check` no issues; `makemigrations --check --dry-run` → No changes. - `test` → 964 OK; `run_tests_at.py` 23:59:59 and 00:00:00 → 964 OK each (no stalls). - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` clean; `ruff format --check .` → 183 files; `node --check static/js/chat.js` ok; yaml ok. - `seed_demo` × 2 on temp DB → «Schedule ready: 39 rooms …» (idempotent). - **Migration on old data**: `git archive 08671f6` → old code `migrate` + `seed_demo` → «Schedule ready: 7 rooms …»; then current `migrate` applied `university.0004_remove_room_map_cell` OK; then `seed_demo` → «Schedule ready: 39 rooms …» (7 → 39 preserved). Logs: `$TMPDIR/test-20261116-143740.log`, `-144018-at-2359.log`, `-144018-at-0000.log`. No failed or stalled runs. ## git status (matches §4.1) ```  M README.md  M campusmap/layout.py  M campusmap/templates/campusmap/map.html  M campusmap/tests/test_layout.py  M campusmap/tests/test_views.py  M campusmap/views.py  M plan.md  M schedule/demo.py  M schedule/tests/test_demo.py  M static/css/base.css  M university/admin.py  M university/building.py  M university/models.py  M university/tests/test_admin.py  M university/tests/test_building.py  M university/tests/test_models.py ?? docs/tasks/TASK-010.md ?? university/migrations/0004_remove_room_map_cell.py ``` Not mine: `plan.md` (pre-existing `M`) and `docs/tasks/TASK-010.md` (the spec). No `db.sqlite3`/`private_media` changes. EOF (13s)
+      $ cd ~/hackatonproject && bb thread tell thr_cpuae9aqw3 --message-file - <<'EOF'
+    [TASK-010] Coder -> Reviewer: REPORT
+
+    Spec: docs/tasks/TASK-010.md (base 08671f6). Room map v2 — portrait floor plans. Not committed.
+
+    ## Done
+    1. `university/building.py` rewritten with the exact 4.2 data (`Rect`, `Space`, `ROOM/LANDMARK/SERVICE`, `VIEWBOX_*`, `OUTLINE`, `CORRIDOR`, `STAIRS`, `BOTTOM_CENTRE`, `FLOOR_PLANS` for floors 1–4, `plan_for`, `plan_room_numbers`, `all_plan_rooms`). 39 rooms (9/10/10/10), two L-shapes as polygons («Столовая» floor 1, room 210 floor 2).
+    2. Removed `Room.map_cell`: field, the two constraints (`university_room_map_cell_value`, `university_room_unique_map_cell`), the `clean()` landmark check, and the `building`/`ValidationError` imports. `RoomAdmin.list_display = ("number", "floor", "code")`. Generated `university/migrations/0004_remove_room_map_cell.py` (RemoveConstraint × 2, RemoveField).
+    3. `campusmap/layout.py`: imports geometry/constants from `university.building`; `MapShape.points`, `svg_points`, `label_size`, `floor_plan(floor, current)`; `Rect` re-exported. Views: `on_map` by `plan_room_numbers(f)`; `floor_plan(floor, current)`; context adds `has_plan` + `current_floor`. Template: polygon/rect shape branch, `{% if plan %}`/`Схемы N этажа нет.`, 3-item legend. CSS: polygon + `map-service` rules.
+    4. Seed: `RoomSeed` without `map_cell`; `ROOM_SEEDS` from `all_plan_rooms()`; room loop sets `floor`/`number` only. README `## Map` + Known limitations rewritten.
+
+    ## Tests — 964 OK (baseline 963 → +1)
+    - `FloorPlanTests` (9): floors 1–4 only; fixed elements (STAIRS/BOTTOM_CENTRE, corridor not a part); full coverage no overlap (integer geometry, Σ areas = outline − corridor = 215744); room numbers 9/10/10/10 unique NNN=floor; demo rooms on plan; L-shape polygon shoelace area == part sum, `parts[0].area > parts[1].area`; polygon vertices are part corners; landmarks/services per floor; `all_plan_rooms` sorted (first (1,"101"), last (4,"410")).
+    - `LayoutTests` (9): viewBox 400×648 portrait; label sizes unchanged (20/15, ≥16/≥12 px at 328 px); labels fit with padding (`rect.height >= 48`); clamped labels exactly {Лестница ×4, Гардероб ×1}; `svg_points`; integer coords; current marked; other-floor not marked; floor 5 → None.
+    - `MapViewTests`: added `test_room_on_plan_by_number`, `test_room_not_on_plan_listed` (room 199), `test_floor_without_plan` (room 501 → «Схемы 5 этажа нет.», no `<svg>`), `test_highlight_polygon_room` (room 210 polygon, `class="map-room map-current"`), `test_legend_has_three_kinds`; adapted `test_landmarks_per_floor` (via `map-landmark-label` elements) and `test_svg_scales` (0 0 400 648).
+    - `university`: `RoomModelTests.test_no_map_cell_field`; `RoomMapCellTests` deleted; `test_admin.py` map_cell removed + 2 landmark/duplicate-cell tests deleted.
+    - `schedule/tests/test_demo.py`: counts 7 → 39; `test_seed_creates_all_plan_rooms`, `test_seed_twice_same_rooms`, `test_demo_room_codes_kept`.
+
+    ## Verification (§8) — all green
+    - `check` no issues; `makemigrations --check --dry-run` → No changes.
+    - `test` → 964 OK; `run_tests_at.py` 23:59:59 and 00:00:00 → 964 OK each (no stalls).
+    - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` clean; `ruff format --check .` → 183 files; `node --check static/js/chat.js` ok; yaml ok.
+    - `seed_demo` × 2 on temp DB → «Schedule ready: 39 rooms …» (idempotent).
+    - **Migration on old data**: `git archive 08671f6` → old code `migrate` + `seed_demo` → «Schedule ready: 7 rooms …»; then current `migrate` applied `university.0004_remove_room_map_cell` OK; then `seed_demo` → «Schedule ready: 39 rooms …» (7 → 39 preserved).
+
+    Logs: `$TMPDIR/test-20261116-143740.log`, `-144018-at-2359.log`, `-144018-at-0000.log`. No failed or stalled runs.
+
+    ## git status (matches §4.1)
+    ```
+     M README.md
+     M campusmap/layout.py
+     M campusmap/templates/campusmap/map.html
+     M campusmap/tests/test_layout.py
+     M campusmap/tests/test_views.py
+     M campusmap/views.py
+     M plan.md
+     M schedule/demo.py
+     M schedule/tests/test_demo.py
+     M static/css/base.css
+     M university/admin.py
+     M university/building.py
+     M university/models.py
+     M university/tests/test_admin.py
+     M university/tests/test_building.py
+     M university/tests/test_models.py
+    ?? docs/tasks/TASK-010.md
+    ?? university/migrations/0004_remove_room_map_cell.py
+    ```
+    Not mine: `plan.md` (pre-existing `M`) and `docs/tasks/TASK-010.md` (the spec). No `db.sqlite3`/`private_media` changes.
+    EOF
+      Thread thr_cpuae9aqw3 steered
+    ── Ran tool 0 todos (1s)
+      {"output":"[\n  {\n    \"content\": \"Rewrite university/building.py with 4.2 data + test_building.py\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Remove map_cell (model, admin), generate migration 0004, adapt university tests\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Rewrite campusmap layout/views/template/CSS + adapt tests\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Seed + schedule/tests/test_demo.py + README\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Run full verification section 8 + REPORT\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  }\n]","metadata":{"todos":[{"content":"Rewrite university/building.py with 4.2 data + test_building.py","status":"completed","priority":"high"},{"content":"Remove map_cell (model, admin), generate migration 0004, adapt university tests","status":"completed","priority":"high"},{"content":"Rewrite campusmap layout/views/template/CSS + adapt tests","status":"completed","priority":"high"},{"content":"Seed + schedule/tests/test_demo.py + README","status":"completed","priority":"high"},{"content":"Run full verification section 8 + REPORT","status":"completed","priority":"high"}],"truncated":false}}
+
+── Assistant ───────────────────────────────────────────────
+TASK-010 реализована и отправлена Reviewer (thr_cpuae9aqw3).
+
+## Что сделано
+
+1. **`university/building.py`** — переписан с точными данными из §4.2: `FLOOR_PLANS` для этажей 1–4, 39 аудиторий (9/10/10/10), две L-образные фигуры как полигоны («Столовая» на 1 этаже, аудитория 210 на 2), `plan_for`/`plan_room_numbers`/`all_plan_rooms`.
+
+2. **Удалён `Room.map_cell`** — поле, две констрейнта, `clean()` с проверкой достопримечательностей, импорты; сгенерирована миграция `0004_remove_room_map_cell` (RemoveConstraint × 2, RemoveField).
+
+3. **`campusmap`** — `layout.py` берёт геометрию из `building`, `MapShape.points` + `<polygon>`, `svg_points`, `label_size`, `floor_plan(floor, current)`; views связывают аудиторию по номеру; шаблон с веткой полигона, сообщением «Схемы N этажа нет.» и легендой из 3 пунктов; CSS для полигонов и служебных помещений.
+
+4. **Seed** — `ROOM_SEEDS` из `all_plan_rooms()`, без `map_cell`; README обновлён.
+
+## Результаты
+- **964 теста OK** (было 963 → +1), без падений и зависаний.
+- Вся верификация §8 зелёная, включая **миграцию на старой БД**: `git archive 08671f6` → сид 7 аудиторий → текущая миграция применила 0004 → сид 39 аудиторий.
+- `git status` сверен по §4.1 — только целевые файлы (плюс `plan.md` и сам spec, не мои).
+
+Жду вердикт Reviewer.
+
+── Exploring 10 files ──────────────────────────────────────
+  ── Read ~/hackatonproject/notifications/feed.py
+  ── Read ~/hackatonproject/templates/base.html
+  ── Read ~/hackatonproject/core/clock.py
+  ── Read ~/hackatonproject/university/models.py
+  ── Read ~/hackatonproject/notifications/templatetags/notifications_tags.py
+  ── Read ~/hackatonproject/notifications/sources.py
+  ── Read ~/hackatonproject/university/models.py
+  ── Read ~/hackatonproject/accounts/access.py
+  ── Read ~/hackatonproject/accounts/selectors.py
+  ── Read ~/hackatonproject/accounts/models.py
+  ── Read ~/hackatonproject/docs/tasks/TASK-009.md

@@ -12,6 +12,7 @@ from django.db import transaction
 from schedule.models import LessonChange, WeeklyLesson
 from schedule.mutations import save_lesson_change, save_weekly_lesson
 from schedule.services import week_start
+from university.building import all_plan_rooms
 from university.models import Discipline, Room, StudyGroup, Teacher
 
 
@@ -29,7 +30,6 @@ class RoomSeed:
     code: str
     floor: int
     number: str
-    map_cell: str
 
 
 @dataclass(frozen=True)
@@ -72,13 +72,8 @@ class ChangeSeed:
 
 
 ROOM_SEEDS = [
-    RoomSeed(code="room-101", floor=1, number="101", map_cell="N2"),
-    RoomSeed(code="room-114", floor=1, number="114", map_cell="N4"),
-    RoomSeed(code="room-205", floor=2, number="205", map_cell="N3"),
-    RoomSeed(code="room-212", floor=2, number="212", map_cell="S4"),
-    RoomSeed(code="room-308", floor=3, number="308", map_cell="N2"),
-    RoomSeed(code="room-315", floor=3, number="315", map_cell="N5"),
-    RoomSeed(code="room-402", floor=4, number="402", map_cell="N3"),
+    RoomSeed(code=f"room-{number}", floor=floor, number=number)
+    for floor, number in all_plan_rooms()
 ]
 
 TEACHER_SEEDS = [
@@ -252,7 +247,7 @@ def seed_schedule_demo(today: date) -> ScheduleSeedSummary:
         rooms = {}
         for seed in ROOM_SEEDS:
             room = Room.objects.filter(code=seed.code).first() or Room(code=seed.code)
-            room.floor, room.number, room.map_cell = seed.floor, seed.number, seed.map_cell
+            room.floor, room.number = seed.floor, seed.number
             room.full_clean()
             room.save()
             rooms[seed.code] = room

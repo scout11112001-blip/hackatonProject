@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.views.generic import TemplateView
 
 from campusmap.layout import floor_plan
-from university.building import blocked_cells
+from university.building import plan_room_numbers
 from university.models import Room
 
 
@@ -46,7 +46,7 @@ class MapView(TemplateView):
                 raise Http404
         else:
             floor = floors[0] if floors else None
-        plan = floor_plan(floor, rooms, current) if floor is not None else None
+        plan = floor_plan(floor, current) if floor is not None else None
         floor_entries = [
             FloorEntry(
                 f,
@@ -56,7 +56,7 @@ class MapView(TemplateView):
                     RoomEntry(
                         r.number,
                         reverse("campusmap:room", args=[r.code]),
-                        bool(r.map_cell) and r.map_cell not in blocked_cells(f),
+                        r.number in plan_room_numbers(f),
                         current is not None and r.pk == current.pk,
                     )
                     for r in rooms
@@ -66,6 +66,8 @@ class MapView(TemplateView):
             for f in floors
         ]
         context["plan"] = plan
+        context["has_plan"] = plan is not None
+        context["current_floor"] = floor
         context["floors"] = floor_entries
         context["current"] = current
         return context

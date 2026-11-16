@@ -1,9 +1,6 @@
-from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models
 from django.db.models.functions import Cast
-
-from university.building import MapCell, blocked_cells
 
 NBSP = "\u00a0"
 
@@ -99,14 +96,6 @@ class Room(models.Model):
         ],
         help_text="Три цифры, первая — этаж: 205 — аудитория на 2 этаже.",
     )
-    map_cell = models.CharField(
-        "место на схеме",
-        max_length=2,
-        blank=True,
-        default="",
-        choices=MapCell.choices,
-        help_text="Пусто — аудитории нет на схеме.",
-    )
 
     class Meta:
         ordering = ["floor", "number"]
@@ -129,29 +118,12 @@ class Room(models.Model):
                 name="university_room_floor_matches_number",
                 violation_error_message="Этаж должен совпадать с первой цифрой номера аудитории.",
             ),
-            models.CheckConstraint(
-                condition=models.Q(map_cell__in=["", *MapCell.values]),
-                name="university_room_map_cell_value",
-            ),
-            models.UniqueConstraint(
-                fields=["floor", "map_cell"],
-                condition=~models.Q(map_cell=""),
-                name="university_room_unique_map_cell",
-                violation_error_message="Это место на схеме этажа уже занято другой аудиторией.",
-            ),
         ]
         verbose_name = "аудитория"
         verbose_name_plural = "аудитории"
 
     def __str__(self) -> str:
         return f"ауд. {self.number}"
-
-    def clean(self):
-        super().clean()
-        if self.map_cell and isinstance(self.floor, int) and 1 <= self.floor <= MAX_FLOOR:
-            landmark = blocked_cells(self.floor).get(self.map_cell)
-            if landmark is not None:
-                raise ValidationError(f"Это место на {self.floor} этаже занято: {landmark.label}.")
 
 
 class Teacher(models.Model):

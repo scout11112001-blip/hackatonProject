@@ -13,6 +13,7 @@
       {% endfor %}
     </ul>
   </nav>
+  {% if plan %}
   <svg class="map-svg" viewBox="0 0 {{ plan.width }} {{ plan.height }}" role="img" aria-labelledby="map-title">
     <title id="map-title">Схема, {{ plan.floor }} этаж</title>
     <rect class="map-outline" x="{{ plan.outline.x }}" y="{{ plan.outline.y }}" width="{{ plan.outline.width }}" height="{{ plan.outline.height }}"/>
@@ -20,14 +21,16 @@
     {% for s in plan.shapes %}
     <g class="map-{{ s.kind }}{% if s.is_current %} map-current{% endif %}"{% if s.is_current %} aria-current="location"{% endif %}>
       <title>{% if s.kind == "room" %}Аудитория {{ s.label }}{% else %}{{ s.label }}{% endif %}</title>
-      <rect x="{{ s.rect.x }}" y="{{ s.rect.y }}" width="{{ s.rect.width }}" height="{{ s.rect.height }}"/>
+      {% if s.points %}<polygon points="{{ s.points }}"/>{% else %}<rect x="{{ s.rect.x }}" y="{{ s.rect.y }}" width="{{ s.rect.width }}" height="{{ s.rect.height }}"/>{% endif %}
       <text class="map-{{ s.kind }}-label" x="{{ s.rect.cx }}" y="{{ s.rect.cy }}" text-anchor="middle" dominant-baseline="central"{% if s.text_length %} textLength="{{ s.text_length }}" lengthAdjust="spacingAndGlyphs"{% endif %}>{{ s.label }}</text>
     </g>
     {% endfor %}
   </svg>
+  {% else %}<p>Схемы {{ current_floor }} этажа нет.</p>{% endif %}
   <ul class="map-legend">
     <li><svg class="map-legend-swatch" viewBox="0 0 24 16" aria-hidden="true"><g class="map-room"><rect x="1" y="1" width="22" height="14"/></g></svg> Аудитория</li>
     <li><svg class="map-legend-swatch" viewBox="0 0 24 16" aria-hidden="true"><g class="map-landmark"><rect x="1" y="1" width="22" height="14"/></g></svg> Вход, лестница, деканат, библиотека, столовая</li>
+    <li><svg class="map-legend-swatch" viewBox="0 0 24 16" aria-hidden="true"><g class="map-service"><rect x="1" y="1" width="22" height="14"/></g></svg> Служебные помещения: гардероб, туалеты, кафедра и другие</li>
   </ul>
   <h2>Все аудитории</h2>
   {% for f in floors %}

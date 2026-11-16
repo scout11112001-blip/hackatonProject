@@ -146,16 +146,21 @@ group; 2 unpublished); published deadlines fall on run day +1…+5.
 Students and staff: `/map/` (lowest floor with rooms), `/map/floor/<n>/`
 (a specific floor, 404 when no room is on it) and `/map/room/<code>/` (a room's
 floor with that room highlighted). The map is one fictional building drawn as an
-inline SVG: two rows of five cells along a central corridor — top row `N1…N5`,
-bottom row `S1…S5`. Landmarks are defined in code (`university/building.py`):
-«Лестница» on `N1` of every floor, «Вход» (`S3`) and «Столовая» (`S4`+`S5`) on
-floor 1, «Деканат» (`S1`+`S2`) on floor 2, «Библиотека» (`S4`+`S5`) on floor 3.
+inline SVG with portrait floor plans for floors 1–4 in `university/building.py`.
+Each floor has a vertical corridor in the middle, rooms of different sizes on
+both sides, and service spaces (no free space except the corridor). Two L-shaped
+spaces are drawn as `<polygon>`: the canteen «Столовая» (floor 1) and room 210
+(floor 2).
 
-A room's position is the `Room.map_cell` field, editable in Django admin as
-«Место на схеме» (blank = not on the map). One room per cell per floor; cells
-taken by a landmark are rejected. A room number is exactly three digits (`NNN`)
-and its first digit must equal the floor (1–9). The highlighted room uses the
-single CSS class `map-current` (colour token `--color-map-highlight`).
+A room appears on the plan when its number is a slot on its floor's plan (no
+admin placement; to add a room to the plan, change the code). Rooms elsewhere
+(or floors 5–9, which have no plan) show «нет на схеме». Non-teaching spaces —
+landmarks («Лестница», «Вход», «Столовая», «Деканат», «Библиотека») and
+services («Гардероб», «Туалеты», «Кафедра», «Медпункт», «Склад», «Охрана»,
+«Архив») — are drawn always; the legend explains the three kinds. A room number
+is exactly three digits (`NNN`) and its first digit must equal the floor (1–9).
+The highlighted room uses the single CSS class `map-current` (colour token
+`--color-map-highlight`).
 
 ## Chat
 
@@ -206,8 +211,8 @@ proxy_set_header X-Real-IP $remote_addr;
   `student1`, others logged in as `student1` see no new items.
 - Grades and lesson changes appear in the feed by the time they were recorded;
   a grade entered later for an old date still shows as new.
-- The map has one building and a fixed grid of 9 room places per floor;
-  landmarks are defined in code (`university/building.py`).
+- Plans exist for floors 1–4 only; a room is drawn only if its number is a slot
+  in `university/building.py`.
 - Chat uses polling (5-second requests, paused on a hidden tab), not WebSockets,
   so delivery is not instantaneous; the last five consecutive poll errors stop
   auto-refresh with a text notice.

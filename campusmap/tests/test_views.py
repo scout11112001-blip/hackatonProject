@@ -1,3 +1,5 @@
+import re
+
 from django.db import connection
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
@@ -13,6 +15,10 @@ def _svg_part(content: str) -> str:
     return content[start:end]
 
 
+def _landmark_labels(svg: str) -> list[str]:
+    return re.findall(r'<text class="map-landmark-label"[^>]*>(.*?)</text>', svg)
+
+
 class MapAccessTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -21,8 +27,8 @@ class MapAccessTests(TestCase):
         cls.student = make_student("stu", cls.group, "REC-1")
         cls.staff = make_staff("stf", cls.faculty)
         cls.superuser = User.objects.create_superuser("root", password="Super-Pass-2026!")
-        Room.objects.create(code="room-101", floor=1, number="101", map_cell="N2")
-        Room.objects.create(code="room-205", floor=2, number="205", map_cell="N3")
+        Room.objects.create(code="room-101", floor=1, number="101")
+        Room.objects.create(code="room-205", floor=2, number="205")
 
     def test_anonymous_redirected(self):
         for url in ("/map/", "/map/floor/2/", "/map/room/room-205/"):
@@ -67,10 +73,11 @@ class MapViewTests(TestCase):
         cls.faculty = make_faculty("FX")
         cls.group = make_group(cls.faculty, "GX")
         cls.student = make_student("stu", cls.group, "REC-1")
-        Room.objects.create(code="room-101", floor=1, number="101", map_cell="N2")
-        Room.objects.create(code="room-114", floor=1, number="114", map_cell="")
-        Room.objects.create(code="room-205", floor=2, number="205", map_cell="N3")
-        Room.objects.create(code="room-402", floor=4, number="402", map_cell="N3")
+        Room.objects.create(code="room-101", floor=1, number="101")
+        Room.objects.create(code="room-114", floor=1, number="114")
+        Room.objects.create(code="room-199", floor=1, number="199")
+        Room.objects.create(code="room-205", floor=2, number="205")
+        Room.objects.create(code="room-402", floor=4, number="402")
 
     def setUp(self):
         self.client.force_login(self.student)
@@ -118,27 +125,45 @@ class MapViewTests(TestCase):
             with self.subTest(url=url):
                 self.assertEqual(self.client.get(url).status_code, 404)
 
-    def test_room_without_cell_listed_and_floor_opens(self):
+    def test_room_on_plan_by_number(self):
         content = self.client.get("/map/room/room-114/").content.decode()
-        self.assertIn("114</a> — нет на схеме", content)
+        self.assertNotIn("114</a> — нет на схеме", content)
+        self.assertIn("<title>Аудитория 114</title>", content)
+
+    def test_room_not_on_plan_listed(self):
+        content = self.client.get("/map/room/room-199/").content.decode()
+        self.assertIn("199</a> — нет на схеме", content)
         self.assertIn('<title id="map-title">Схема, 1 этаж</title>', content)
         self.assertNotIn("map-current", _svg_part(content))
-        self.assertIn('href="/map/room/room-114/" class="map-current"', content)
+        self.assertIn('href="/map/room/room-199/" class="map-current"', content)
+
+    def test_floor_without_plan(self):
+        Room.objects.create(code="room-501", floor=5, number="501")
+        content = self.client.get("/map/floor/5/").content.decode()
+        self.assertIn("Схемы 5 этажа нет.", content)
+        self.assertNotIn('<svg class="map-svg"', content)
+        self.assertIn("501</a> — нет на схеме", content)
+
+    def test_highlight_polygon_room(self):
+        Room.objects.create(code="room-210", floor=2, number="210")
+        svg = _svg_part(self.client.get("/map/room/room-210/").content.decode())
+        self.assertEqual(svg.count('class="map-room map-current"'), 1)
+        self.assertIn('<polygon points="236,188 396,188 396,316 316,316 316,412 236,412"/>', svg)
+
+    def test_legend_has_three_kinds(self):
+        content = self.client.get("/map/").content.decode()
+        self.assertIn('class="map-room"', content)
+        self.assertIn('class="map-landmark"', content)
+        self.assertIn('class="map-service"', content)
+        self.assertIn("Служебные помещения", content)
 
     def test_landmarks_per_floor(self):
         f1 = _svg_part(self.client.get("/map/floor/1/").content.decode())
-        for label in ("Вход", "Столовая", "Лестница"):
-            self.assertIn(label, f1)
-        for label in ("Деканат", "Библиотека"):
-            self.assertNotIn(label, f1)
+        self.assertEqual(set(_landmark_labels(f1)), {"Лестница", "Вход", "Столовая"})
         f2 = _svg_part(self.client.get("/map/floor/2/").content.decode())
-        self.assertIn("Деканат", f2)
-        for label in ("Вход", "Столовая", "Библиотека"):
-            self.assertNotIn(label, f2)
+        self.assertEqual(set(_landmark_labels(f2)), {"Лестница", "Деканат"})
         f4 = _svg_part(self.client.get("/map/floor/4/").content.decode())
-        self.assertIn("Лестница", f4)
-        for label in ("Вход", "Столовая", "Деканат", "Библиотека"):
-            self.assertNotIn(label, f4)
+        self.assertEqual(set(_landmark_labels(f4)), {"Лестница"})
 
     def test_legend_present(self):
         content = self.client.get("/map/").content.decode()
@@ -162,7 +187,7 @@ class MapViewTests(TestCase):
         content = self.client.get("/map/").content.decode()
         for heading in ("<h3>1 этаж</h3>", "<h3>2 этаж</h3>", "<h3>4 этаж</h3>"):
             self.assertIn(heading, content)
-        for code in ("room-101", "room-114", "room-205", "room-402"):
+        for code in ("room-101", "room-114", "room-199", "room-205", "room-402"):
             self.assertIn(f'href="/map/room/{code}/"', content)
 
     def test_no_rooms_empty_state(self):
@@ -178,7 +203,7 @@ class MapViewTests(TestCase):
 
     def test_svg_scales(self):
         content = self.client.get("/map/").content.decode()
-        self.assertIn('viewBox="0 0 400 240"', content)
+        self.assertIn('viewBox="0 0 400 648"', content)
         svg_tag = content[
             content.index('<svg class="map-svg"') : content.index(
                 ">", content.index('<svg class="map-svg"')
@@ -201,10 +226,10 @@ class MapQueryTests(TestCase):
         cls.faculty = make_faculty("FX")
         cls.group = make_group(cls.faculty, "GX")
         cls.staff = make_staff("stf", cls.faculty)
-        Room.objects.create(code="room-101", floor=1, number="101", map_cell="N2")
-        Room.objects.create(code="room-114", floor=1, number="114", map_cell="")
-        Room.objects.create(code="room-205", floor=2, number="205", map_cell="N3")
-        Room.objects.create(code="room-402", floor=4, number="402", map_cell="N3")
+        Room.objects.create(code="room-101", floor=1, number="101")
+        Room.objects.create(code="room-114", floor=1, number="114")
+        Room.objects.create(code="room-205", floor=2, number="205")
+        Room.objects.create(code="room-402", floor=4, number="402")
 
     def _add_many_rooms(self):
         used = {r.number for r in Room.objects.all()}
