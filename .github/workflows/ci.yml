@@ -24,6 +24,10 @@ jobs:
             requirements-dev.txt
       - name: Install dependencies
         run: python -m pip install -r requirements-dev.txt
+      - name: Shell syntax
+        run: bash -n deploy/backup.sh deploy/manage.sh
+      - name: gunicorn config
+        run: gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application
       - name: Ruff lint
         run: ruff check .
       - name: Ruff format
@@ -49,3 +53,50 @@ jobs:
           ALLOWED_HOSTS: "example.com"
           ADMIN_URL: "ci-staff-panel/"
         run: python manage.py check --deploy --fail-level WARNING
+
+  test-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: deanery
+          POSTGRES_PASSWORD: ci-only-postgres-password
+          POSTGRES_DB: deanery
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U deanery"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DEBUG: "true"
+      SECRET_KEY: "ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop"
+      DATABASE_URL: "postgres://deanery:ci-only-postgres-password@localhost:5432/deanery"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+      - name: Install dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Django check
+        run: python manage.py check --database default
+      - name: Missing migrations
+        run: python manage.py makemigrations --check --dry-run
+      - name: Tests (PostgreSQL)
+        run: python manage.py test
+      - name: Tests with a frozen Moscow midnight clock (PostgreSQL)
+        run: python scripts/run_tests_at.py 2026-11-18T00:00:00
+      - name: Migrate and seed demo data twice (PostgreSQL)
+        env:
+          DEMO_PASSWORD: "ci-dummy-demo-password-2026"
+        run: |
+          python manage.py migrate --noinput
+          python manage.py seed_demo
+          python manage.py seed_demo

@@ -14708,3 +14708,1111 @@ All existing verification commands pass (check, deploy check, makemigrations --c
 - Базовые проверки прошли: 963 теста в трёх прогонах, включая 23:59:59 и 00:00 по Москве. `check --deploy`, ruff, `node --check`, YAML и двойной запуск `seed_demo` тоже прошли.
 
 Как выглядят этажи на экране 360 px, я не видел: браузера у меня нет. Это нужно проверить вручную.
+
+── User ────────────────────────────────────────────────────
+Ты тут?
+
+── Assistant ───────────────────────────────────────────────
+Да, я тут. Новых задач у меня нет. Последней была TASK-010 (карта v2): спецификацию я написал и передал Кодеру. Вопросов от Кодера по ней пока не приходило. Жду следующую задачу или вопрос.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-011] Team lead -> Planner: TASK
+Approved by the user. Write the spec `docs/tasks/TASK-011.md` and hand it to the Coder.
+
+## Context
+Done: TASK-001..010 and their FIX tasks. Next stage: the trial deploy to a rented VPS in Russia (Ubuntu 24.04, 2 vCPU, 2 GB RAM), a domain with HTTPS. The site must work until 2026-11-28 and open from Russia without a VPN. The agents have NO access to the server: this task only prepares the repository; the Team lead and the user run the deployment by hand following the runbook. Settings already read env variables (`config/settings.py`: DEBUG, SECRET_KEY, ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS, ADMIN_URL, DATABASE_URL, PRIVATE_MEDIA_ROOT, CLIENT_IP_HEADER, SECURE_* , LOG_LEVEL, DEMO_PASSWORD, login throttle); WhiteNoise serves static files; `/health/` exists; `.env.example` exists. Read `plan.md` section "6b. Обязательно при деплое" and `README.md` "Deployment notes". Apply your "Feasibility check" and "Test plan" sections.
+
+## Goal
+Everything needed to run the project in production is in the repository, documented step by step, and checked by tests where possible.
+
+## Requirements
+1. Application server: add `gunicorn` (pinned) to `requirements.txt` (allowed new dependency). A `gunicorn` config file in the repo (bind to a local Unix socket or 127.0.0.1 only, 3 workers for 2 vCPU, timeouts, access/error logs to stdout/journal).
+2. `deploy/` directory with templates (no real domain, IPs, passwords or keys; placeholders like `example.com`, `<APP_USER>`):
+   - `nginx` site config: HTTP -> HTTPS redirect; proxy to gunicorn with `X-Forwarded-For`, `X-Forwarded-Proto`, `Host`; `client_max_body_size 20m`; `/static/` served by nginx or left to WhiteNoise (choose, justify); NO location that serves `PRIVATE_MEDIA_ROOT`; the ACME challenge path for certificates; sensible security headers that do not conflict with Django's.
+   - `systemd` unit for gunicorn (non-root user, restart on failure, `EnvironmentFile` outside the repo with mode 600).
+   - `.env.production.example`: every variable for production with a comment; `DEBUG=false`; `CLIENT_IP_HEADER` matching the nginx header; `DATABASE_URL` for PostgreSQL; `CSRF_TRUSTED_ORIGINS` with https; no real secrets.
+3. PostgreSQL: the project must run and pass the full test suite on PostgreSQL (row locks work only there - `plan.md` 6b). Add a CI job (GitHub Actions service container `postgres:16`) that runs the tests on PostgreSQL in addition to SQLite. Fix any PostgreSQL-only failures that appear (report them in the spec / REPORT). Local developers keep SQLite.
+4. Runbook `docs/DEPLOY.md` (English, numbered commands an operator can paste): create the user, install packages (python3.12-venv, nginx, postgresql, certbot), create the DB and role with a generated password, clone the repo, venv + requirements, `.env` (mode 600) with `SECRET_KEY` generated on the server, `migrate`, `collectstatic`, `check --deploy`, create the superuser, gunicorn + systemd, nginx, certbot (Let's Encrypt) with auto-renewal, firewall (ufw: 22, 80, 443 only), `PRIVATE_MEDIA_ROOT` outside the web root with correct permissions, daily backup of PostgreSQL + `PRIVATE_MEDIA_ROOT` (a simple cron + `pg_dump` script in `deploy/`), update procedure (`git pull`, migrate, collectstatic, restart), smoke check (`/health/`, login, one page per role), and the one-time `seed_demo` run on 2026-11-22 (no daily cron). SSH: key-based login only, password login disabled - the user creates the key themselves.
+5. Settings check: `python manage.py check --deploy --fail-level WARNING` passes with the production example values; HSTS starts with a small value (as now) - document how to raise it after the site works.
+6. Tests: a test that the nginx template contains no `PRIVATE_MEDIA_ROOT` location and has `client_max_body_size 20m`; a test that `.env.production.example` lists every env variable that `config/settings.py` reads (parse the settings source or keep one list - choose, justify); a test that no file in `deploy/` contains anything that looks like a real secret.
+
+## Out of scope
+Actually logging in to or changing the server, Docker, Kubernetes, a CDN, monitoring services, e-mail, the visual theme.
+
+## Verification
+All existing verification commands pass (check, deploy check, makemigrations --check, test with the output saved to a file on SQLite AND on a local or CI PostgreSQL if available, `scripts/run_tests_at.py` at a Moscow midnight boundary, ruff only on the task files, CI YAML), `seed_demo` twice on a temporary database. `nginx -t` on the template is optional (only if nginx is installed locally; otherwise say so).
+
+── Ran 4 commands ──────────────────────────────────────────
+  ── Thought for 11ms
+    I'm gathering the facts first: git status, the full list of settings env vars, the .env.example contents (not .env), requirements, the CI config, the README deploy notes, plan 6b, and env_utils. Then I'll check what's available locally: postgres, nginx, and the gunicorn version, with the network possibly blocked.
+  ── Ran git status --short && git log --oneline -3 && cat requirements.txt requirements-dev.txt && cat .env.example && cat .github/workflows/ci.yml && grep -nE "env\.(str|bool|int|list|db)\(|os\.environ" config/settings.py config/env_utils.py */management/commands/*.py scripts/*.py 2>/dev/null
+    $ git status --short && git log --oneline -3 && cat requirements.txt requirements-dev.txt && cat .env.example && cat .github/workflows/ci.yml && grep -nE "env\.(str|bool|int|list|db)\(|os\.environ" config/settings.py config/env_utils.py */management/commands/*.py scripts/*.py 2>/dev/null
+    M plan.md
+    d9d8e55 Plan: TASK-010 closed without a fix task; map notes moved to the UI stage
+    3c526f0 TASK-010: portrait floor plans without gaps, 39 rooms of different shapes
+    08671f6 TASK-009-FIX: chat context name, viewer-based alignment, single polling loop, safe chat seed
+    Django==5.2.19
+    django-environ==0.14.0
+    whitenoise==6.12.0
+    psycopg[binary]==3.3.8
+    -r requirements.txt
+    ruff==0.17.4
+    PyYAML==6.0.3
+    # Copy to .env and edit. Never commit .env.
+    # Development defaults. For production set DEBUG=false and real values.
+    DEBUG=true
+    SECRET_KEY=change-me-to-a-long-random-string-of-at-least-50-characters
+    ALLOWED_HOSTS=localhost,127.0.0.1
+    CSRF_TRUSTED_ORIGINS=
+    # SQLite (default if unset). PostgreSQL example:
+    # DATABASE_URL=postgres://deanery:change-me@localhost:5432/deanery
+    DATABASE_URL=sqlite:///db.sqlite3
+    # Required when DEBUG=false. Use a non-obvious path, must end with "/".
+    ADMIN_URL=admin/
+    # Production only (ignored when DEBUG=true)
+    SECURE_SSL_REDIRECT=true
+    SECURE_HSTS_SECONDS=3600
+    SECURE_HSTS_INCLUDE_SUBDOMAINS=true
+    SECURE_HSTS_PRELOAD=false
+    LOG_LEVEL=INFO
+    # Password for all demo accounts created by `python manage.py seed_demo`.
+    # Must pass Django password validators.
+    DEMO_PASSWORD=change-me-demo-password-2026
+    # Login brute-force protection: failures per (username, IP) before lockout, lockout length.
+    LOGIN_FAILURE_LIMIT=5
+    LOGIN_LOCKOUT_SECONDS=900
+    # Client IP header set by YOUR reverse proxy. Leave empty unless nginx overwrites it.
+    # Values: X-Real-IP (recommended with `proxy_set_header X-Real-IP $remote_addr;`) or X-Forwarded-For.
+    CLIENT_IP_HEADER=
+    # Private uploads (request attachments). Must NOT be served by nginx or be inside static/.
+    PRIVATE_MEDIA_ROOT=
+    name: CI
+
+    on:
+      push:
+      pull_request:
+
+    permissions:
+      contents: read
+
+    jobs:
+      test:
+        runs-on: ubuntu-latest
+        env:
+          DEBUG: "true"
+          SECRET_KEY: "ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop"
+        steps:
+          - uses: actions/checkout@v4
+          - uses: actions/setup-python@v5
+            with:
+              python-version: "3.12"
+              cache: pip
+              cache-dependency-path: |
+                requirements.txt
+                requirements-dev.txt
+          - name: Install dependencies
+            run: python -m pip install -r requirements-dev.txt
+          - name: Ruff lint
+            run: ruff check .
+          - name: Ruff format
+            run: ruff format --check .
+          - name: Django check
+            run: python manage.py check
+          - name: Missing migrations
+            run: python manage.py makemigrations --check --dry-run
+          - name: Tests
+            run: python manage.py test
+          - name: Tests with a frozen far-future clock
+            run: python scripts/run_tests_at.py 2027-03-01T12:00:00
+          - name: Migrate and seed demo data twice
+            env:
+              DEMO_PASSWORD: "ci-dummy-demo-password-2026"
+            run: |
+              python manage.py migrate --noinput
+              python manage.py seed_demo
+              python manage.py seed_demo
+          - name: Deploy check (production-like env)
+            env:
+              DEBUG: "false"
+              ALLOWED_HOSTS: "example.com"
+              ADMIN_URL: "ci-staff-panel/"
+            run: python manage.py check --deploy --fail-level WARNING
+    config/settings.py:17:DEBUG = env.bool("DEBUG", default=False)
+    config/settings.py:18:SECRET_KEY = resolve_secret_key(env.str("SECRET_KEY", default=""), DEBUG)
+    config/settings.py:19:ALLOWED_HOSTS = env.list(
+    config/settings.py:23:CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+    config/settings.py:24:ADMIN_URL = resolve_admin_url(env.str("ADMIN_URL", default=""), DEBUG)
+    config/settings.py:26:LOGIN_FAILURE_LIMIT = env.int("LOGIN_FAILURE_LIMIT", default=5)
+    config/settings.py:27:LOGIN_LOCKOUT_SECONDS = env.int("LOGIN_LOCKOUT_SECONDS", default=900)
+    config/settings.py:30:CLIENT_IP_HEADER = resolve_client_ip_header(env.str("CLIENT_IP_HEADER", default=""))
+    config/settings.py:89:DATABASES = {"default": env.db("DATABASE_URL", default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}")}
+    config/settings.py:127:    env.str("PRIVATE_MEDIA_ROOT", default="") or str(BASE_DIR / "private_media")
+    config/settings.py:144:    SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
+    config/settings.py:146:    SECURE_HSTS_SECONDS = env.int("SECURE_HSTS_SECONDS", default=3600)
+    config/settings.py:147:    SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True)
+    config/settings.py:148:    SECURE_HSTS_PRELOAD = env.bool("SECURE_HSTS_PRELOAD", default=False)
+    config/settings.py:154:LOG_LEVEL = env.str("LOG_LEVEL", default="INFO").upper()
+    accounts/management/commands/seed_demo.py:20:        password = os.environ.get("DEMO_PASSWORD", "")
+    scripts/run_tests_at.py:19:os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
+  ── Thought for 5s
+    I'm checking which environment variables the settings module reads, covering debug mode, the secret key, allowed hosts, CSRF origins, the admin URL, login lockout limits, the client IP header, the database URL, the private media path, and SSL.
+
+    I'm going through the rest of the environment variables the settings module reads, including the HSTS options, log level, and demo password. My plan is to parse the settings source with a regex to collect every variable name automatically and check that each one appears in the production example env file. Next I'll verify how env_utils validates the client IP header, admin URL, and secret key, and how throttling picks an address from X-Forwarded-For. I also need to see whether PostgreSQL, nginx, or gunicorn are available locally.
+  ── Ran which psql pg_ctl postgres initdb docker nginx gunicorn 2>&1; ls /opt/homebrew/opt 2>/dev/null | grep -i -E "postgres|nginx"; cat config/env_utils.py; grep -n "CLIENT_IP_HEADER\|def client_ip\|META\|split" accounts/throttling.py | head -20
+    $ which psql pg_ctl postgres initdb docker nginx gunicorn 2>&1; ls /opt/homebrew/opt 2>/dev/null | grep -i -E "postgres|nginx"; cat config/env_utils.py; grep -n "CLIENT_IP_HEADER\|def client_ip\|META\|split" accounts/throttling.py | head -20
+    psql not found
+    pg_ctl not found
+    postgres not found
+    initdb not found
+    ~/.docker/bin/docker
+    nginx not found
+    gunicorn not found
+    """Environment helpers for the deanery project settings.
+
+    Pure functions only. This module must not import ``django.conf.settings``,
+    so that it can be unit-tested without a configured Django environment.
+    """
+
+    import re
+
+    from django.core.exceptions import ImproperlyConfigured
+
+    DEV_SECRET_KEY = "django-insecure-dev-only-key-do-not-use-in-production"
+
+
+    def resolve_secret_key(raw: str, debug: bool) -> str:
+        """Return the secret key, failing fast in production when it is missing."""
+        value = raw.strip()
+        if value:
+            return value
+        if debug:
+            return DEV_SECRET_KEY
+        raise ImproperlyConfigured("SECRET_KEY environment variable is required when DEBUG is false.")
+
+
+    def resolve_admin_url(raw: str, debug: bool) -> str:
+        """Return a validated URL prefix for Django admin, e.g. ``"staff-panel/"``."""
+        value = raw.strip().strip("/")
+        if value == "":
+            if debug:
+                return "admin/"
+            raise ImproperlyConfigured(
+                "ADMIN_URL environment variable is required when DEBUG is false."
+            )
+        if not re.fullmatch(r"[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*", value):
+            raise ImproperlyConfigured("ADMIN_URL may contain only letters, digits, '-', '_' and '/'.")
+        return value + "/"
+
+
+    def resolve_client_ip_header(raw: str) -> str:
+        """Map the CLIENT_IP_HEADER env value to a request.META key; empty = trust no proxy header."""
+        value = raw.strip().lower()
+        if value == "":
+            return ""
+        if value == "x-real-ip":
+            return "HTTP_X_REAL_IP"
+        if value == "x-forwarded-for":
+            return "HTTP_X_FORWARDED_FOR"
+        raise ImproperlyConfigured("CLIENT_IP_HEADER must be empty, 'X-Real-IP' or 'X-Forwarded-For'.")
+    23:    header = settings.CLIENT_IP_HEADER
+    26:        candidate = request.META.get(header, "").strip()
+    28:        raw = request.META.get(header, "")
+    30:            candidate = raw.split(",")[-1].strip()
+    37:    remote = request.META.get("REMOTE_ADDR", "")
+  ── Thought for 2s
+    I'm checking how the rate limiter reads the client IP: X-Forwarded-For's last entry is the one nginx appended, and X-Real-IP carries the address directly. I'll go with X-Real-IP, which nginx sets from $remote_addr, so I'm setting CLIENT_IP_HEADER to X-Real-IP.
+
+    I'm wondering whether gunicorn on a unix socket leaves REMOTE_ADDR empty, which would push the throttler onto its fallback path. With the header set, that should be fine. Docker is also available, so I could run postgres:16 locally to test feasibility, though the sandbox might block the socket, so I'll check whether the daemon responds first.
+  ── Ran docker info --format '{{.ServerVersion}}' 2>&1 | head -3; docker images postgres 2>&1 | head -5 (5s)
+    $ docker info --format '{{.ServerVersion}}' 2>&1 | head -3; docker images postgres 2>&1 | head -5
+    failed to connect to the docker API at unix://~/.docker/run/docker.sock; check if the path is correct and if the daemon is running: dial unix ~/.docker/run/docker.sock: connect: no such file or directory
+    failed to connect to the docker API at unix://~/.docker/run/docker.sock; check if the path is correct and if the daemon is running: dial unix ~/.docker/run/docker.sock: connect: no such file or directory
+  ── Thought for 1s
+    I'm checking whether the Docker daemon is running, and there's no local PostgreSQL either. Next I'm weighing a portable Postgres from pip, like `pgserver`, as a temporary install in a scratch venv rather than in the repo, and I want to see whether pip can reach PyPI from this sandbox.
+
+    I'm also going to check the latest gunicorn release and whether pip can reach PyPI at all, using a throwaway download into a temp directory. The version I remember is 23.0.0, but there may be a newer one, so I'll query the index for the current list.
+  ── Ran source .venv/bin/activate && pip index versions gunicorn 2>&1 | head -3; pip index versions pgserver 2>&1 | head -2; pip index versions postgresql-wheel 2>&1 | head -2 (2m 2s)
+    $ source .venv/bin/activate && pip index versions gunicorn 2>&1 | head -3; pip index versions pgserver 2>&1 | head -2; pip index versions postgresql-wheel 2>&1 | head -2
+    WARNING: The directory '~/Library/Caches/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.
+    WARNING: Retrying (Retry(total=4, connect=None, read=None, redirect=None, status=None)) after connection broken by 'ReadTimeoutError("HTTPSConnectionPool(host='pypi.org', port=443): Read timed out. (read timeout=15)")': /simple/gunicorn/
+    WARNING: Retrying (Retry(total=3, connect=None, read=None, redirect=None, status=None)) after connection broken by 'ReadTimeoutError("HTTPSConnectionPool(host='pypi.org', port=443): Read timed out. (read timeout=15)")': /simple/gunicorn/
+    WARNING: The directory '~/Library/Caches/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.
+    Could not fetch URL https://pypi.org/simple/pip/: There was a problem confirming the ssl certificate: ('OSStatus -26276',) - skipping
+    WARNING: The directory '~/Library/Caches/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.
+    Could not fetch URL https://pypi.org/simple/pip/: There was a problem confirming the ssl certificate: ('OSStatus -26276',) - skipping
+    Command did not complete within its 120s timeout and was moved to the background (ID: bo3hbw6uc). Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bo3hbw6uc.output. You will be notified when it completes. If it is still running after 30m in the background, it will be stopped and you will be notified. It is running now: do not start a second copy while it runs. If it is no longer needed, stop it with TaskStop. To check interim output, use Read on that file path.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-011] Team lead -> Planner: TASK
+Spec amendment (approved by the user): the rented server is smaller than stated. Actual server: 1 vCPU, 1 GB RAM, 10 GB disk, Ubuntu 24.04. Apply to docs/tasks/TASK-011.md (if you already handed the spec to the Coder, send the amendment to the Coder as well):
+1. gunicorn: 2 workers (not 3); keep the config simple (e.g. workers from an env variable with default 2), timeouts unchanged. Document the formula for a bigger server.
+2. Runbook `docs/DEPLOY.md`: right after the first login, create a 1 GB swap file (`fallocate`/`mkswap`/`swapon`, entry in /etc/fstab, `vm.swappiness=10`), BEFORE installing packages and running pip.
+3. Disk (10 GB): limit systemd-journald (e.g. `SystemMaxUse=200M` via a drop-in in `deploy/`), keep backups for 7 days only (the backup script deletes older files), gzip the pg_dump output; nginx logs rotate with the stock logrotate config (say so).
+4. PostgreSQL on 1 GB: stock settings are fine; note in the runbook not to raise shared_buffers; optional `max_connections` stays default.
+5. Add a short "Resources" section to the runbook: expected memory use, how to check it (`free -h`, `df -h`, `journalctl --disk-usage`), and that the hosting tariff can be upgraded if the site is slow.
+Everything else in TASK-011 is unchanged.
+steer
+
+── Ran 1 tool, ran 10 commands ─────────────────────────────
+  ── Thought for 8s
+    The PyPI connection is failing with SSL and timeout errors, so I'm stopping the background pip install. There's no local PostgreSQL, which means I can't run the PG tests here and the CI job will have to serve as the real check. I'll say that plainly to the user, and in the meantime I can statically review the PostgreSQL-specific risks: the `select_for_update(of=...)` usage, union ordering, the regex constraint, the Cast to CharField with startswith, UUID fields, and any raw SQL in `extra` or `raw`.
+
+    I'm checking the remaining PostgreSQL-only failure modes by reading the code, since I can't run them here. The likely ones are unordered querysets, where PostgreSQL returns rows in arbitrary order while SQLite returns insertion order, and `LIKE` matching, which is case-sensitive on PostgreSQL but not on SQLite. I'll also look at exact `assertNumQueries` counts and tests that expect SQLite-specific IntegrityError messages.
+
+    I'm planning to check the gunicorn config without importing gunicorn itself, since the network may be down here. The config can be a plain Python module that a test loads and checks directly, and I'll ask for a `pip install -r requirements.txt` attempt with CI verifying if it fails. Next I want to see whether PyPI is reachable at all by curling it through the allowed domains, given the SSL error looks like a TLS interception problem.
+  ── Stopped task
+    {"message":"Successfully stopped task: bo3hbw6uc (source .venv/bin/activate && pip index versions gunicorn 2>&1 | head -3; pip index versions pgserver 2>&1 | head -2; pip index versions postgresql-wheel 2>&1 | head -2)","task_id":"bo3hbw6uc","task_type":"local_bash","command":"source .venv/bin/activate && pip index versions gunicorn 2>&1 | head -3; pip index versions pgserver 2>&1 | head -2; pip index versions postgresql-wheel 2>&1 | head -2"}
+  ── Ran curl -s --max-time 20 https://pypi.org/pypi/gunicorn/json 2>&1 | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['info']['version'], d['info']['requires_python']); print(sorted(d['releases'])[-6:])" 2>&1 | tail -3 (2s)
+    $ curl -s --max-time 20 https://pypi.org/pypi/gunicorn/json 2>&1 | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['info']['version'], d['info']['requires_python']); print(sorted(d['releases'])[-6:])" 2>&1 | tail -3
+    27.0.1 >=3.10
+    ['25.3.0', '26.0.0', '26.1.0', '26.2.0', '27.0.0', '27.0.1']
+  ── Thought for 2s
+    I've confirmed curl works, and the latest gunicorn is 27.0.1, which needs Python 3.10 or newer. I still need to check its release date and stability, along with the config option names: workers, bind, timeout, graceful_timeout, accesslog, errorlog, and capture_output. pip is giving SSL trouble, so I'm considering downloading the wheel with curl and installing it from that local file into a temporary venv to test the config loading.
+
+    I'm going to check the gunicorn wheel's JSON for its download URL, so I can fetch it with curl and test the config loading in a temporary venv.
+  ── Thought for 4ms
+    Готовлю деплой TASK-011 с учётом требования тимлида (1 vCPU, 1 ГБ), сейчас проверяю версию gunicorn и его конфиг. Локального PostgreSQL нет, так что прогон на нём пойдёт в CI.
+  ── Ran cd "$TMPDIR" && mkdir -p t011 && cd t011 && curl -s --max-time 30 https://pypi.org/pypi/gunicorn/27.0.1/json | python3 -c " import sys,json; d=json.load(sys.stdin) for f in d['urls']: print(f['packagetype'], f['filename'], f['upload_time'], f['url']) print('deps', d['info']['requires_dist'])" (30s, error)
+    $ cd "$TMPDIR" && mkdir -p t011 && cd t011 && curl -s --max-time 30 https://pypi.org/pypi/gunicorn/27.0.1/json | python3 -c "
+  import sys,json; d=json.load(sys.stdin)
+  for f in d['urls']: print(f['packagetype'], f['filename'], f['upload_time'], f['url'])
+  print('deps', d['info']['requires_dist'])"
+    Exit code 1
+    Traceback (most recent call last):
+      File "<string>", line 2, in <module>
+      File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/json/__init__.py", line 293, in load
+        return loads(fp.read(),
+      File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/json/__init__.py", line 346, in loads
+        return _default_decoder.decode(s)
+      File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/json/decoder.py", line 337, in decode
+        obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+      File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/json/decoder.py", line 355, in raw_decode
+        raise JSONDecodeError("Expecting value", s, err.value) from None
+    json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+    exit 1
+  ── Ran cd "$TMPDIR/t011" && for i in 1 2 3; do curl -s --max-time 40 -o g.json https://pypi.org/pypi/gunicorn/json && python3 -c " import json; d=json.load(open('g.json')) v=d['info']['version']; print(v, d['info']['requires_python'], d['info']['requires_dist']) for f in d['releases'][v]: print(f['packagetype'], f['filename'], f['upload_time'], f['url']) for k in ['23.0.0','25.3.0','26.2.0']: print(k, [f['upload_time'] for f in d['releases'].get(k,[])][:1])" && break; sleep 3; done (1m 17s)
+    $ cd "$TMPDIR/t011" && for i in 1 2 3; do curl -s --max-time 40 -o g.json https://pypi.org/pypi/gunicorn/json && python3 -c "
+  import json; d=json.load(open('g.json'))
+  v=d['info']['version']; print(v, d['info']['requires_python'], d['info']['requires_dist'])
+  for f in d['releases'][v]: print(f['packagetype'], f['filename'], f['upload_time'], f['url'])
+  for k in ['23.0.0','25.3.0','26.2.0']: print(k, [f['upload_time'] for f in d['releases'].get(k,[])][:1])" && break; sleep 3; done
+    27.0.1 >=3.10 ['gevent>=24.10.1; extra == "gevent"', 'packaging; extra == "gevent"', 'tornado>=6.5.7; extra == "tornado"', 'setproctitle; extra == "setproctitle"', 'h2>=4.4.1; extra == "http2"', 'gunicorn_h1c>=0.6.14; extra == "fast"', 'gevent>=24.10.1; extra == "testing"', 'h2>=4.4.1; extra == "testing"', 'coverage; extra == "testing"', 'packaging; extra == "testing"', 'pytest>=9.0.3; extra == "testing"', 'pytest-cov; extra == "testing"', 'pytest-asyncio; extra == "testing"', 'uvloop>=0.19.0; platform_python_implementation != "PyPy" and extra == "testing"', 'httpx[http2]>=0.23.0; extra == "testing"', 'inotify>=0.2.10; sys_platform == "linux" and extra == "testing"']
+    bdist_wheel gunicorn-27.0.1-py3-none-any.whl 2026-11-12T22:41:09 https://files.pythonhosted.org/packages/f7/46/19ce73424bc4bcac3f0c104950fa776abdfa4515f25104916a62b63b672a/gunicorn-27.0.1-py3-none-any.whl
+    sdist gunicorn-27.0.1.tar.gz 2026-11-12T22:41:11 https://files.pythonhosted.org/packages/0e/fc/7fd4bbebc1d17394a5c98f0ef565da3341dbb664748d1bebedefead356ee/gunicorn-27.0.1.tar.gz
+    23.0.0 ['2024-08-10T20:25:24']
+    25.3.0 ['2026-03-27T00:00:27']
+    26.2.0 ['2026-08-24T15:05:57']
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 1s
+    I'm weighing whether to pin the freshly released 27.0.1, which is only about five days old, or the more mature 26.2.0 from August, since a deploy on 17.11 shouldn't take on that kind of risk. Since 27.0.1 is a patch on 27.0.0, I want to check when 27.0.0 came out, and I'll download the 26.2.0 wheel and install it into a temporary python3.12 venv to test.
+
+    I'm checking the dependencies for 26.2.0, which I think are probably just `packaging`, and then I'll fetch its metadata and wheel.
+  ── Ran cd "$TMPDIR/t011" && python3 -c " import json; d=json.load(open('g.json')) for k in ['26.2.0','27.0.0','27.0.1']: print(k, [f['upload_time'] for f in d['releases'].get(k,[])][:1], [f['url'] for f in d['releases'][k] if f['packagetype']=='bdist_wheel'])" ; curl -s --max-time 40 https://pypi.org/pypi/gunicorn/26.2.0/json -o g26.json && python3 -c "import json; d=json.load(open('g26.json')); print([r for r in (d['info']['requires_dist'] or []) if 'extra' not in r], d['info']['requires_python'])" (17s)
+    $ cd "$TMPDIR/t011" && python3 -c "
+  import json; d=json.load(open('g.json'))
+  for k in ['26.2.0','27.0.0','27.0.1']: print(k, [f['upload_time'] for f in d['releases'].get(k,[])][:1], [f['url'] for f in d['releases'][k] if f['packagetype']=='bdist_wheel'])" ; curl -s --max-time 40 https://pypi.org/pypi/gunicorn/26.2.0/json -o g26.json && python3 -c "import json; d=json.load(open('g26.json')); print([r for r in (d['info']['requires_dist'] or []) if 'extra' not in r], d['info']['requires_python'])"
+    26.2.0 ['2026-08-24T15:05:57'] ['https://files.pythonhosted.org/packages/fe/85/7522a52e5e2f42faf1a129113ab63e548c42e103e9af395b7bfe65e403e2/gunicorn-26.2.0-py3-none-any.whl']
+    27.0.0 ['2026-11-10T11:20:57'] ['https://files.pythonhosted.org/packages/85/2b/367de7fc2fd4cfd1814b0a31da023195eb4037c1fddc4d9e11cc965e1c00/gunicorn-27.0.0-py3-none-any.whl']
+    27.0.1 ['2026-11-12T22:41:09'] ['https://files.pythonhosted.org/packages/f7/46/19ce73424bc4bcac3f0c104950fa776abdfa4515f25104916a62b63b672a/gunicorn-27.0.1-py3-none-any.whl']
+    [] >=3.10
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 6ms
+    I'm going with gunicorn 26.2.0, since it's been out about three months and 27.x is still a week-old major release. It has no runtime dependencies. To verify it, I'll install the wheel into a temporary venv without an index, run the config check against the prototype deploy config, and briefly serve the app on a unix socket in TMPDIR to hit /health/.
+
+    I'm treating this as a feasibility check rather than a full evaluation.
+  ── Ran cd "$TMPDIR/t011" && curl -s --max-time 60 -o gunicorn-26.2.0-py3-none-any.whl https://files.pythonhosted.org/packages/fe/85/7522a52e5e2f42faf1a129113ab63e548c42e103e9af395b7bfe65e403e2/gunicorn-26.2.0-py3-none-any.whl && shasum -a 256 gunicorn-26.2.0-py3-none-any.whl && rm -rf venv && /opt/homebrew/bin/python3.12 -m venv venv && ./venv/bin/pip install -q --no-index --no-deps ~/hackatonproject/../hackatonproject/.venv/lib/python3.12/site-packages/../../../../.venv 2>/dev/null; ./venv/bin/pip install -q --no-index ./gunicorn-26.2.0-py3-none-any.whl && ./venv/bin/gunicorn --version (58s)
+    $ cd "$TMPDIR/t011" && curl -s --max-time 60 -o gunicorn-26.2.0-py3-none-any.whl https://files.pythonhosted.org/packages/fe/85/7522a52e5e2f42faf1a129113ab63e548c42e103e9af395b7bfe65e403e2/gunicorn-26.2.0-py3-none-any.whl && shasum -a 256 gunicorn-26.2.0-py3-none-any.whl && rm -rf venv && /opt/homebrew/bin/python3.12 -m venv venv && ./venv/bin/pip install -q --no-index --no-deps ~/hackatonproject/../hackatonproject/.venv/lib/python3.12/site-packages/../../../../.venv 2>/dev/null; ./venv/bin/pip install -q --no-index ./gunicorn-26.2.0-py3-none-any.whl && ./venv/bin/gunicorn --version
+    bd249d0b3f7972f7432f0a6b6ff3b3ee2d129f70cd1ff6c09a9dd9e29a2b88e3  gunicorn-26.2.0-py3-none-any.whl
+    WARNING: The directory '~/Library/Caches/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.
+    gunicorn (version 26.2.0)
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 10s
+    I'm weighing whether to set up a gunicorn prototype in TMPDIR using the project's site-packages, or to install gunicorn straight into the project's .venv. I'm leaning toward the .venv install, since the environment isn't part of the repo and the Coder will need gunicorn there anyway.
+
+    Still sorting out the gunicorn config, and the Django side of the proxy setup is separate from gunicorn's own forwarded-header handling.
+
+    Gunicorn's handling of forwarded headers doesn't really matter here, since Django reads X-Forwarded-Proto through its own SECURE_PROXY_SSL_HEADER setting. The bind target is a unix socket in /run/deanery, which systemd's RuntimeDirectory will create, and nginx running as www-data will need permission on that socket.
+
+    I'm going with 127.0.0.1:8000 over the unix socket, since it avoids socket permission problems for anyone operating this by hand, and loopback binding plus the firewall keeps the port closed to outside traffic. Next I'll run gunicorn on a temporary loopback port and curl the health endpoint to check the config.
+  ── Ran cat > "$TMPDIR/t011/gunicorn.conf.py" <<'EOF' import os bind = os.environ.get("GUNICORN_BIND", "127.0.0.1:8000") workers = int(os.environ.get("GUNICORN_WORKERS", "2")) timeout = 30 graceful_timeout = 30 keepalive = 5 max_requests = 1000 max_requests_jitter = 100 accesslog = "-" errorlog = "-" loglevel = "info" capture_output = True EOF export PYTHONPATH="$PWD:$PWD/.venv/lib/python3.12/site-packages" DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t011/g.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t011/priv" GUNICORN_BIND=127.0.0.1:8765 .venv/bin/python manage.py migrate -v0 "$TMPDIR/t011/venv/bin/gunicorn" --check-config -c "$TMPDIR/t011/gunicorn.conf.py" config.wsgi:application && echo "check-config ok" "$TMPDIR/t011/venv/bin/gunicorn" -c "$TMPDIR/t011/gunicorn.conf.py" config.wsgi:application > "$TMPDIR/t011/gunicorn.log" 2>&1 & GP=$!; sleep 4; curl -s -i http://127.0.0.1:8765/health/ | head -12; kill $GP; sleep 1; head -8 "$TMPDIR/t011/gunicorn.log" (7s)
+    $ cat > "$TMPDIR/t011/gunicorn.conf.py" <<'EOF'
+  import os
+  bind = os.environ.get("GUNICORN_BIND", "127.0.0.1:8000")
+  workers = int(os.environ.get("GUNICORN_WORKERS", "2"))
+  timeout = 30
+  graceful_timeout = 30
+  keepalive = 5
+  max_requests = 1000
+  max_requests_jitter = 100
+  accesslog = "-"
+  errorlog = "-"
+  loglevel = "info"
+  capture_output = True
+  EOF
+  export PYTHONPATH="$PWD:$PWD/.venv/lib/python3.12/site-packages" DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t011/g.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t011/priv" GUNICORN_BIND=127.0.0.1:8765
+  .venv/bin/python manage.py migrate -v0
+  "$TMPDIR/t011/venv/bin/gunicorn" --check-config -c "$TMPDIR/t011/gunicorn.conf.py" config.wsgi:application && echo "check-config ok"
+  "$TMPDIR/t011/venv/bin/gunicorn" -c "$TMPDIR/t011/gunicorn.conf.py" config.wsgi:application > "$TMPDIR/t011/gunicorn.log" 2>&1 &
+  GP=$!; sleep 4; curl -s -i http://127.0.0.1:8765/health/ | head -12; kill $GP; sleep 1; head -8 "$TMPDIR/t011/gunicorn.log"
+    check-config ok
+    (eval):18: nice(5) failed: operation not permitted
+    HTTP/1.1 200 OK
+    Server: gunicorn
+    Date: Tue, 17 Nov 2026 10:09:11 GMT
+    Connection: close
+    Content-Type: application/json
+    Expires: Tue, 17 Nov 2026 10:09:11 GMT
+    Cache-Control: max-age=0, no-cache, no-store, must-revalidate, private
+    X-Frame-Options: DENY
+    Content-Length: 16
+    Vary: Cookie
+    X-Content-Type-Options: nosniff
+    Referrer-Policy: same-origin
+    [2026-11-17 02:09:07 -0800] [77600] [INFO] Starting gunicorn 26.2.0
+    [2026-11-17 02:09:07 -0800] [77600] [INFO] Listening at: http://127.0.0.1:8765 (77600)
+    [2026-11-17 02:09:07 -0800] [77600] [INFO] Using worker: sync
+    [2026-11-17 02:09:07 -0800] [77602] [INFO] Booting worker with pid: 77602
+    [2026-11-17 02:09:07 -0800] [77603] [INFO] Booting worker with pid: 77603
+    [2026-11-17 02:09:07 -0800] [77600] [ERROR] Control server error: [Errno 1] Operation not permitted: '~/.gunicorn'
+    127.0.0.1 - - [17/Nov/2026:13:09:11 +0300] "GET /health/ HTTP/1.1" 200 16 "-" "curl/8.7.1"
+    [2026-11-17 02:09:11 -0800] [77600] [INFO] Handling signal: term
+  ── Thought for 6ms
+    I'm noticing gunicorn 26 includes a control server that tries to create a ~/.gunicorn directory. That fails in the sandbox but the server's home directory exists, so it may be a new feature I could turn off. It errors and carries on anyway, so I'll grep the wheel's config for "control" to find the relevant settings.
+  ── Ran cd "$TMPDIR/t011" && SP=$(./venv/bin/python -c "import gunicorn,os;print(os.path.dirname(gunicorn.__file__))") && grep -n "class Control\|name = \"control\|\.gunicorn\|control_socket\|def control" -r $SP/config.py | head -20 (1s)
+    $ cd "$TMPDIR/t011" && SP=$(./venv/bin/python -c "import gunicorn,os;print(os.path.dirname(gunicorn.__file__))") && grep -n "class Control\|name = \"control\|\.gunicorn\|control_socket\|def control" -r $SP/config.py | head -20
+    /private/tmp/claude-501/t011/venv/lib/python3.12/site-packages/gunicorn/config.py:3229:def _get_default_control_socket():
+    /private/tmp/claude-501/t011/venv/lib/python3.12/site-packages/gunicorn/config.py:3233:    falls back to $HOME/.gunicorn/ directory.
+    /private/tmp/claude-501/t011/venv/lib/python3.12/site-packages/gunicorn/config.py:3240:    # Fall back to $HOME/.gunicorn/
+    /private/tmp/claude-501/t011/venv/lib/python3.12/site-packages/gunicorn/config.py:3242:    gunicorn_dir = os.path.join(home, '.gunicorn')
+    /private/tmp/claude-501/t011/venv/lib/python3.12/site-packages/gunicorn/config.py:3246:class ControlSocket(Setting):
+    /private/tmp/claude-501/t011/venv/lib/python3.12/site-packages/gunicorn/config.py:3247:    name = "control_socket"
+    /private/tmp/claude-501/t011/venv/lib/python3.12/site-packages/gunicorn/config.py:3252:    default = _get_default_control_socket()
+    /private/tmp/claude-501/t011/venv/lib/python3.12/site-packages/gunicorn/config.py:3253:    default_doc = "$XDG_RUNTIME_DIR/gunicorn.ctl or $HOME/.gunicorn/gunicorn.ctl"
+    /private/tmp/claude-501/t011/venv/lib/python3.12/site-packages/gunicorn/config.py:3262:        otherwise ``$HOME/.gunicorn/gunicorn.ctl``. The parent directory is
+    /private/tmp/claude-501/t011/venv/lib/python3.12/site-packages/gunicorn/config.py:3271:class ControlSocketMode(Setting):
+    /private/tmp/claude-501/t011/venv/lib/python3.12/site-packages/gunicorn/config.py:3272:    name = "control_socket_mode"
+    /private/tmp/claude-501/t011/venv/lib/python3.12/site-packages/gunicorn/config.py:3289:class ControlSocketDisable(Setting):
+    /private/tmp/claude-501/t011/venv/lib/python3.12/site-packages/gunicorn/config.py:3290:    name = "control_socket_disable"
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 1s
+    I'm setting `control_socket_disable = True` in the config, since it isn't strictly needed but keeps it from writing to the home directory under the ProtectHome hardening. Next I'll quickly confirm there's no error with that setting, then start the baseline in the background and write the spec.
+  ── Thought for 5ms
+    gunicorn 26.2.0 запустился на копии проекта с черновым конфигом, и `/health/` отвечает 200. В версии 26 есть управляющий сокет в `~/.gunicorn`, который нужно отключить в конфиге; сейчас проверяю это и запускаю базовые проверки.
+  ── Ran echo "control_socket_disable = True" >> "$TMPDIR/t011/gunicorn.conf.py" && export PYTHONPATH="$PWD:$PWD/.venv/lib/python3.12/site-packages" DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t011/g.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t011/priv" GUNICORN_BIND=127.0.0.1:8765 GUNICORN_WORKERS=2 && ("$TMPDIR/t011/venv/bin/gunicorn" -c "$TMPDIR/t011/gunicorn.conf.py" config.wsgi:application > "$TMPDIR/t011/gunicorn2.log" 2>&1 &) ; sleep 4; curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8765/health/; pkill -f "t011/venv/bin/gunicorn"; sleep 1; grep -c "Control server" "$TMPDIR/t011/gunicorn2.log"; grep -c "Booting worker" "$TMPDIR/t011/gunicorn2.log" (11s)
+    $ echo "control_socket_disable = True" >> "$TMPDIR/t011/gunicorn.conf.py" && export PYTHONPATH="$PWD:$PWD/.venv/lib/python3.12/site-packages" DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t011/g.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t011/priv" GUNICORN_BIND=127.0.0.1:8765 GUNICORN_WORKERS=2 && ("$TMPDIR/t011/venv/bin/gunicorn" -c "$TMPDIR/t011/gunicorn.conf.py" config.wsgi:application > "$TMPDIR/t011/gunicorn2.log" 2>&1 &) ; sleep 4; curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8765/health/; pkill -f "t011/venv/bin/gunicorn"; sleep 1; grep -c "Control server" "$TMPDIR/t011/gunicorn2.log"; grep -c "Booting worker" "$TMPDIR/t011/gunicorn2.log"
+    (eval):1: nice(5) failed: operation not permitted
+    200
+    sysmon request failed with error: sysmond service not found
+    pkill: Cannot get process list
+    0
+    2
+  ── Ran source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && (echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t011-feas.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t011-feas-at-2359.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t011-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; node --check static/js/chat.js && echo "js syntax ok"; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t011/seed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t011/seed-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t011/seed.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; echo DONE) > "$TMPDIR/t011/baseline.out" 2>&1; echo finished (6s)
+    $ source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && (echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t011-feas.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t011-feas-at-2359.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t011-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; node --check static/js/chat.js && echo "js syntax ok"; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t011/seed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t011/seed-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t011/seed.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; echo DONE) > "$TMPDIR/t011/baseline.out" 2>&1; echo finished
+    Command running in background with ID: bq6hk0czl. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bq6hk0czl.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Thought for 958ms
+    I've got a stray gunicorn process still running on port 8765, started from that earlier command, and pkill can't see it from here. The sandbox only lets me signal processes I started in the same command, so I'll try to find its PID in the log file instead.
+
+    I'm going to try the kill from inside the sandbox first, and only reach for dangerouslyDisableSandbox if that fails.
+  ── Ran P=$(grep -o "\[[0-9]*\] \[INFO\] Starting gunicorn" "$TMPDIR/t011/gunicorn2.log" | grep -o "[0-9]*" | head -1); echo "master pid $P"; kill -TERM "$P" 2>&1; sleep 2; curl -s -o /dev/null -w "%{http_code}\n" --max-time 3 http://127.0.0.1:8765/health/ || echo "port closed" (3s)
+    $ P=$(grep -o "\[[0-9]*\] \[INFO\] Starting gunicorn" "$TMPDIR/t011/gunicorn2.log" | grep -o "[0-9]*" | head -1); echo "master pid $P"; kill -TERM "$P" 2>&1; sleep 2; curl -s -o /dev/null -w "%{http_code}\n" --max-time 3 http://127.0.0.1:8765/health/ || echo "port closed"
+    master pid 77629
+    (eval):kill:1: kill 77629 failed: operation not permitted
+    200
+
+── Assistant ───────────────────────────────────────────────
+The sandbox hides processes started by earlier commands, so stopping the leftover test gunicorn (port 8765, my own test process) needs a run without the sandbox.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran kill -TERM 77629; sleep 2; curl -s -o /dev/null -w "%{http_code}\n" --max-time 3 http://127.0.0.1:8765/health/ || echo "port closed" (Outside of sandbox) (4s)
+    $ kill -TERM 77629; sleep 2; curl -s -o /dev/null -w "%{http_code}\n" --max-time 3 http://127.0.0.1:8765/health/ || echo "port closed"
+    000
+    port closed
+  ── Thought for 11s
+    Next I'm working out the PostgreSQL setup for CI. It'll be a GitHub Actions job called `test-postgres` running a postgres:16 service, with DATABASE_URL pointing at the deanery database, and it runs the migration check, the tests, and run_tests_at. Django will create a `test_deanery` database, so the role needs CREATEDB, which the postgres image's POSTGRES_USER superuser already has.
+
+    I'm weighing how to handle PostgreSQL-only failures, since I can't run the database locally. I'll do a static review for likely issues: unordered querysets compared to lists, exact `assertNumQueries` counts, and Cyrillic collation differences between SQLite and PostgreSQL in `order_by("name")`. Fixing anything that only shows up in CI will have to wait until after the lead pushes, so the Coder adds the job and the Reviewer approves.
+
+    I'm weighing whether a local PostgreSQL run is possible, since Docker is installed but not currently running. If the user starts Docker Desktop, I could run postgres:16 locally, but CI remains the primary check, which means any PostgreSQL-only failures would only surface after the lead pushes and would need a follow-up fix task.
+
+    I'm going to grep the codebase for PostgreSQL-sensitive patterns, like raw SQL, `.extra()`, `connection.vendor` checks, and `DISTINCT` combined with ordering, so I can list them as review points in the spec.
+  ── Thought for 4ms
+    Тестовый gunicorn на порту 8765 остановлен, хотя песочница блокирует kill для прошлых процессов, поэтому эту команду я выполнил вне неё. Теперь проверяю код на места, где PostgreSQL может вести себя не так, как SQLite.
+
+── Explored 3 searches ─────────────────────────────────────
+  ── Searched for \.extra\(|\.raw\(|RawSQL|connection\.vendor|sqlite|\.distinct\(|__regex|__iregex|Collate|db_collation in scripts
+  ── Searched for \.extra\(|\.raw\(|RawSQL|connection\.vendor|sqlite|\.distinct\(|__regex|Collate|db_collation|select_for_update in scripts
+  ── Thought for 9s
+    I'm reviewing two Postgres pitfalls in the petitions code. The first is the `select_for_update` with `select_related` at line 51, which takes locks on the joined student, group, and program rows. That's allowed on Postgres and only locks more rows, so it's fine. The second is a `.distinct()` combined with an `order_by` on fields missing from the select list, which Postgres rejects with an error.
+
+    Now I'm checking the remaining Postgres concerns: whether Django adds the ordering columns to the SELECT for distinct queries, and how `select_for_update` behaves with `.first()` and the locking tests.
+
+    Now I'm checking whether hardcoded primary-key values in the tests could break on Postgres, since TestCase doesn't reset sequences there, and grepping for `pk=1`, `id=1`, and `/1/`. I'm also looking at case sensitivity: SQLite's `contains` and `startswith` are case-insensitive for ASCII while Postgres's are case-sensitive, so I'll grep for those lookups in the code and tests.
+
+    Now I'm weighing whether Cyrillic sort order could change results, since SQLite's binary ordering puts "Ё" before "А" while Postgres's locale-based collation may place it differently, which matters only for tests asserting order with ё names. I'm also going to grep for hardcoded primary keys.
+  ── Searched for pk=1\b|id=1\b|args=\[1\]|/1/"|__contains|__startswith|__endswith|__exact in university
+  ── Thought for 1m 37s
+    I'm going over the remaining design now, starting with the pinned gunicorn version in requirements.txt and why 26.2.0 is the safer pick over the newest major release.
+
+    Now I'm laying out the gunicorn config file: worker count set by an env var with a minimum of one, and the bind address defaulting to loopback on port 8000 rather than a unix socket.
+
+    I'm working out the nginx setup next: an HTTP server block that serves the ACME challenge path and redirects everything else to HTTPS, followed by a TLS server block pointing at the Let's Encrypt certificate files.
+
+    I'm setting up the nginx side as two templates: a bootstrap HTTP-only config to get the certificate issued, then the full config with TLS, with renewal handled by certbot's timer and a reload hook.
+
+    I'm covering the nginx TLS details now: the protocol versions, the cipher preference setting, and the session cache sizing, all following the Mozilla intermediate baseline since there's no certbot options file in this setup. I'm also settling on WhiteNoise for static files, so nginx doesn't need a `/static/` location or extra filesystem access for www-data, with its hashed filenames and far-future cache headers doing the job.
+
+    I'm setting the proxy headers for the app location: forwarding the host, client IP, and protocol, with proxy redirects turned off.
+
+    I'm settling the proxy headers and timeouts, and I'm deciding that X-Real-IP is the client-IP header because nginx sets it itself and the client can't spoof it.
+
+    I'm writing up the remaining nginx and proxy details now: leaving out a Django-duplicated security header set, adding a Permissions-Policy header and `server_tokens off`, and noting that the health endpoint is exempt from the HTTPS redirect.
+
+    I'm writing the systemd unit file now, with its After and Wants lines on postgresql, a plain simple service type, and the app user, working directory and environment file all set to point at the deployment layout.
+
+    I'm writing out the systemd unit's restart policy, timeouts, and sandboxing options, and limiting writes to the private media directory.
+
+    I'm writing the helper script next, which loads the environment file and then runs the Django management command.
+
+    I'm checking the helper script's sourcing step, since values with shell-special characters like `$`, `#` or quotes would break it, and systemd parses the env file differently. So I'll generate the SECRET_KEY from URL-safe characters only, and I'm starting to think through how the Postgres password gets generated too.
+
+    I'm settling the password rules for the DEMO_PASSWORD and the Postgres connection string: letters, digits, dashes, underscores and dots only, so the sourced env file doesn't break. I'm also making sure no `.env` file gets created inside the app directory, since production reads from the EnvironmentFile instead. Next up is the journald drop-in config.
+
+    Still writing the backup script...
+
+    Still writing the backup script...
+
+    Still writing the backup script...
+
+    I'm adding the swap setup, journald config, ufw firewall rules, and SSH hardening as a drop-in under sshd_config.d, with a reminder to keep the current session open until a new one works. I also need to check whether the cloud image's existing SSH config turns password login back on.
+
+    I'm adding the sshd drop-in as `10-deanery-hardening.conf` so it sorts ahead of the cloud-init file, since the first value sshd reads wins, and I'll verify the result with `sshd -T`. Next I'm listing the base packages for Ubuntu 24.04: the Python venv, nginx, PostgreSQL, certbot, git and ufw.
+
+    I'm checking the nginx version, since the `http2` directive in its own line form only arrived in 1.25.1 and Ubuntu 24.04 ships 1.24, so I'll keep the older `listen 443 ssl http2;` syntax. Next I'm setting up the database role and database with a randomly generated password.
+
+    I'm deciding how to keep the database password out of the process list and shell history, so it goes straight into the env file and never gets echoed. I'm also settling the timezone: setting the server to Europe/Moscow so cron times and logs line up with local time. Last, I'm planning a one-time demo seed on the trial deploy.
+
+    I'm weighing whether to seed the demo data on the trial deploy, since the seed's create-only notifications would lock their deadlines to the trial date and miss the jury window. I'm leaning toward giving the trial its own throwaway database so the production one stays clean until 22.11.
+
+    I'm now weighing two ways to handle the trial: seeding the trial deploy and then recreating the database cleanly on 22.11, or keeping the trial on a separate throwaway database and switching to a fresh one at go-live. The second avoids any destructive reset, and I'm leaning toward it so the attachments stay separate per database too.
+
+    I'm now drafting the environment template, listing each setting with a comment, starting with DEBUG off, the secret key generated on the server, and the allowed hosts and CSRF origins for the domain.
+
+    I'm settling the production environment template's HSTS and host settings now, deciding whether HSTS should cover subdomains given that a purchased contest domain may not have every subdomain on HTTPS.
+
+    I'm deciding the HSTS subdomain setting: keeping it on, since the deploy check flags it as a warning if it's off, and the domain's other subdomains would need to be HTTPS anyway. I'm also filling in the remaining production settings: preload off, log level at INFO, the demo password, the login failure limit and lockout window, two gunicorn workers bound to loopback on port 8000, and placeholders for the rest.
+
+    I'm checking how the deploy check treats SECRET_KEY, since a placeholder value needs to be at least 50 characters to pass, and I'm thinking about how to write the database URL placeholder in the example file.
+
+    I'm checking whether the `check --deploy` test passes with the example values, since the settings code may also read a stray `.env` file from the repo directory and pick up values I didn't intend.
+
+    I'm checking the subprocess approach for the deploy test, since the settings module might pick up a stray `.env` from the repo directory, though that's harmless because the example file supplies every variable and existing environment values take precedence.
+
+    I'm checking that the deploy test runs `manage.py check --deploy` as a subprocess with the example env vars and the repo directory as cwd, which works since read_env never overrides values already provided. I'm also confirming nothing at import time creates the media directories under /srv, and that the whitenoise storage won't need a built manifest with DEBUG off.
+
+    I'm writing the environment coverage test now: it will scan the settings module for every variable read through the env helpers, and also pick up the extra variables read elsewhere, like the demo password and the gunicorn settings, so that new variables get caught automatically.
+
+    I'm checking which environment variables the project reads, scanning the settings module along with the management commands and the gunicorn config, and ignoring DJANGO_SETTINGS_MODULE. I'm also adding a secret scan over the deploy directory.
+
+    I'm deciding the secret scan's patterns now: private key headers, AWS access keys, and SSH public keys, plus a check for long high-entropy tokens, and I'm leaving dashes out of the token character class so placeholder words don't trip it.
+
+    I'm settling the secret scan's patterns now: dropping slashes and dashes from the long-token class so file paths and placeholder words don't trip it, and flagging assignments like PASSWORD or TOKEN unless the value is empty or a clear placeholder. I'm also checking for real IP addresses, while leaving out loopback and the all-zeros address.
+
+    I'm checking that the IP scan only rejects addresses other than the loopback ones, and I'm leaving the domain check out since the example domains are already covered. I'll also include the deploy doc in the scan, since it might hold example commands. Next is the CI job for the Postgres tests, which I'm starting to set up with a postgres:16 service.
+
+    I'm setting up the Postgres CI job now, with a postgres:16 service using the CI-only credentials and a health check, and pointing DATABASE_URL at it. The job will run the checks, migration check, and tests, and then a time-travel run at the 2027-03-01 date to match the SQLite job.
+
+    I'm wrapping up the CI changes: the Postgres job is set to run migrations and seed twice, and the gunicorn config gets checked in CI along with the shell scripts. Next I'm planning the deploy test file in core/tests, starting with a class that checks the nginx template doesn't expose private media.
+
+    I'm now writing the nginx tests: checking that no root or alias directive points at private media apart from the ACME webroot, that the 443 server allows 20m bodies, and that HTTP redirects to HTTPS. I'm also covering the ACME location and the proxy headers, plus proxying to loopback.
+
+    I'm writing the remaining test classes now: the environment example tests, which check that every variable is listed and that the production values are right, and a subprocess run of the deploy check. I'm also setting up the gunicorn config tests, loading the file with patched environment variables to confirm the default worker count.
+
+    I'm mapping out the systemd unit tests next: checking that the service doesn't run as root, restarts on failure, and reads its environment from a file kept outside the repo, with ExecStart pointing at the gunicorn config. After that, the secret scan patterns, the shell script checks for the backup script's pg_dump, gzip, retention, and default seven-day window, and a journald limit of 200M.
+
+    I'm settling the remaining documentation details: the deploy doc gets the full command list so the implementation has little left to decide. I'm also confirming the production settings pass `check --deploy` with the example values, since HSTS, SSL redirect, and secure cookies all line up. Last, I'm making sure the proxied Host header matches ALLOWED_HOSTS.
+
+    I'm going through the resource estimates now: each Django worker uses roughly 60 to 90 MB, so two workers plus the master come to about 200 to 250 MB, and with PostgreSQL, nginx, and the OS the box lands near 600 MB of its 1 GB, leaving swap for pip and peak loads. I'm also confirming that the psycopg binary wheel installs without compiling, which matters on a 1 GB machine.
+
+    I'm estimating disk use next: the venv will be around 150 MB, logs are capped, and the database backups stay small since the data is only a few MB. After that I'll check the baseline results and then write the spec.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran until grep -q "^DONE" "$TMPDIR/t011/baseline.out"; do sleep 15; done; grep -v " ready:" "$TMPDIR/t011/baseline.out"; grep "Chat ready" "$TMPDIR/t011/baseline.out"; cd ~/hackatonproject && sed -n '/## Deployment notes/,/## Known limitations/p' README.md | head -30; sed -n '/## 6b/,/## 7/p' plan.md (5m 1s)
+    $ until grep -q "^DONE" "$TMPDIR/t011/baseline.out"; do sleep 15; done; grep -v " ready:" "$TMPDIR/t011/baseline.out"; grep "Chat ready" "$TMPDIR/t011/baseline.out"; cd ~/hackatonproject && sed -n '/## Deployment notes/,/## Known limitations/p' README.md | head -30; sed -n '/## 6b/,/## 7/p' plan.md
+    MSK 20261117-130935
+    System check identified no issues (0 silenced).
+    No changes detected
+    Ran 964 tests in 144.843s
+    OK
+    Ran 964 tests in 144.460s
+    OK
+    Ran 964 tests in 146.262s
+    OK
+    System check identified no issues (1 silenced).
+    All checks passed!
+    183 files already formatted
+    js syntax ok
+    yaml ok
+    DONE
+    Chat ready: 3 dialogs, 8 messages.
+    Chat ready: 0 dialogs, 0 messages.
+    ## Deployment notes
+
+    - Run `python manage.py seed_demo` once on the server on 2026-11-22 (submission
+      day), after `migrate`. It needs `DEMO_PASSWORD` in the environment.
+    - Back up `PRIVATE_MEDIA_ROOT` together with the database: attachments are
+      referenced by database rows, so restoring one without the other breaks
+      downloads.
+    - nginx must not serve `PRIVATE_MEDIA_ROOT`; set `client_max_body_size 20m;`
+      (see the «Requests» section).
+
+    ## Known limitations
+    ## 6b. Обязательно при деплое
+    - За nginx задать `CLIENT_IP_HEADER`. Иначе все клиенты получают IP прокси, и блокировка по «логин + IP» превращается в блокировку по логину: любой сможет заблокировать вход жюри.
+    - Блокировки при одновременном редактировании работают только на PostgreSQL (SQLite их игнорирует).
+    - nginx НЕ отдаёт папку `PRIVATE_MEDIA_ROOT` (вложения к заявкам). Файлы скачиваются только через Django с проверкой доступа (TASK-006).
+    - Сервер маленький (1 ядро, 1 ГБ): сначала swap 1 ГБ, потом установка пакетов.
+    - Резервная копия: папку `PRIVATE_MEDIA_ROOT` копировать вместе с базой. Иначе скачивание вложений после восстановления базы даст ошибку.
+    - nginx: `client_max_body_size 20m` — иначе загрузка PDF к заявкам (до 3 файлов по 5 МБ) упадёт с ошибкой 413 (TASK-006).
+    - Запустить `seed_demo` на сервере 22.11 (в день сдачи). Изменения расписания попадут на недели 16–22.11 и 23–29.11, то есть на весь период проверки жюри (23–28.11). Ежедневный cron не нужен.
+
+    ## 7. Открытые вопросы
+  ── Thought for 1s
+    I'm checking that django-environ's read_env in version 0.14 won't overwrite variables already set in the environment, since the subprocess deploy check test depends on that. I also want to confirm `check --deploy` runs in a subprocess with the example values, and I'm weighing whether the subprocess will pick up the repo's .env file.
+
+    I'm now weighing whether keys that exist in the repo's .env but not in my example could leak into the subprocess, and I'll set every variable explicitly in my prototype so that doesn't matter.
+
+── Explored 1 search ───────────────────────────────────────
+  ── Searched for def read_env in .venv/lib/python3.12/site-packages/environ/environ.py
+  ── Thought for 4s
+    I'm moving on to writing the spec now. It needs to be large but still efficient, including an outline of DEPLOY.md with commands, the /srv/deanery directory layout, and the env file location. I'm also weighing how to handle the app user, whether to use a placeholder like `<APP_USER>` or set `APP_USER=deanery` at the top of the runbook and reference it as a shell variable.
+
+    Next I'm settling how the templates handle the app user and domain: they'll carry `<APP_USER>` and `example.com` placeholders, and the runbook will `sed` in the real values when copying them over to /etc/nginx/sites-available.
+  ── Thought for 4ms
+    Базовые тесты (964 в трёх прогонах) и `check --deploy` с заглушками проходят без сбоев. Теперь пишу спецификацию с учётом поправки про сервер 1 vCPU и 1 ГБ.
+
+── Created 1 file ──────────────────────────────────────────
+  ── Created docs/tasks/TASK-011.md +475
+    --- /dev/null
+    +++ b~/hackatonproject/docs/tasks/TASK-011.md
+    +# TASK-011: production readiness — gunicorn, nginx, systemd, PostgreSQL CI, deploy runbook
+    +
+    +Author: Planner. Status: ready for implementation (includes the Team lead's amendment: 1 vCPU / 1 GB RAM / 10 GB disk).
+    +Base commit: `d9d8e55`. Related: `plan.md` 6b, `README.md` "Deployment notes", `config/settings.py`, `config/env_utils.py`, `accounts/throttling.py`.
+    +
+    +The agents have no server access. This task only adds files to the repository and documents the manual deployment. Target: Ubuntu 24.04, 1 vCPU, 1 GB RAM, 10 GB disk, one domain with HTTPS, until 2026-11-28.
+    +
+    +---
+    +
+    +## 1. Acceptance criteria
+    +| ID | Criterion |
+    +|---|---|
+    +| AC1 | `gunicorn==26.2.0` in `requirements.txt`; `deploy/gunicorn.conf.py`: bind `127.0.0.1:8000` (env `GUNICORN_BIND`), workers from env `GUNICORN_WORKERS` (default 2), timeout 30, graceful timeout 30, access/error log to stdout/stderr (journal), control socket disabled. |
+    +| AC2 | `deploy/nginx/deanery-bootstrap.conf` (HTTP only, for the first certificate) and `deploy/nginx/deanery.conf` (HTTP → HTTPS redirect, ACME path, TLS, proxy to `127.0.0.1:8000` with `Host`, `X-Real-IP`, `X-Forwarded-For`, `X-Forwarded-Proto`, `client_max_body_size 20m`, no `root`/`alias` except the ACME webroot, no static or private-media location, no headers that Django already sets). |
+    +| AC3 | `deploy/systemd/deanery.service` (non-root `<APP_USER>`, `EnvironmentFile=/etc/deanery/deanery.env`, `Restart=on-failure`, hardening options); `deploy/journald/50-deanery.conf` (`SystemMaxUse=200M`); `deploy/backup.sh` (gzip `pg_dump` + tar of `PRIVATE_MEDIA_ROOT`, keeps 7 days); `deploy/cron/deanery-backup`; `deploy/manage.sh` (runs `manage.py` with the env file); `deploy/ssh/10-deanery-hardening.conf`. |
+    +| AC4 | `.env.production.example` lists every env variable the project reads (settings, management commands, gunicorn config) with a comment; `DEBUG=false`; `CLIENT_IP_HEADER=X-Real-IP` (matches nginx); PostgreSQL `DATABASE_URL`; `CSRF_TRUSTED_ORIGINS=https://example.com`; only placeholders. `check --deploy --fail-level WARNING` passes with exactly these values (test). |
+    +| AC5 | CI job `test-postgres` with service `postgres:16` runs check, makemigrations check, the full suite, `run_tests_at.py`, migrate + seed twice on PostgreSQL; the SQLite job stays. CI also runs `gunicorn --check-config` and `bash -n deploy/*.sh`. |
+    +| AC6 | `docs/DEPLOY.md` runbook (English, numbered, copy-paste commands) covering every step in section 4.9, including swap first, journald limit, resources section, trial vs final database, one-time `seed_demo` on 2026-11-22, HSTS raise procedure. `README.md` "Deployment notes" points to it. |
+    +| AC7 | Tests (section 6): nginx template rules, env coverage, deploy check with example values, gunicorn config values, systemd unit rules, no secrets / real IPs in `deploy/`, `.env.production.example`, `docs/DEPLOY.md`, shell syntax. |
+    +| AC8 | Any PostgreSQL-only failure found by the PostgreSQL run is fixed minimally and listed in the `REPORT`. |
+    +
+    +## 2. Out of scope
+    +Logging in to the server, Docker/Kubernetes, CDN, monitoring, e-mail, the visual theme, changing Django security settings (only documentation of how to raise HSTS).
+    +
+    +## 3. Design decisions
+    +**D1. gunicorn 26.2.0.** Released 2026-08-24, no runtime dependencies, Python ≥ 3.10. The newer 27.x line is one week old (27.0.0 on 2026-11-10, 27.0.1 on 2026-11-12) — too fresh for a deploy this week. Verified locally (9.6): `--check-config` passes, 2 workers boot, `/health/` → 200. Version 26 starts a "control server" in `$HOME/.gunicorn`; the config disables it (`control_socket_disable = True`), which also suits `ProtectHome=` in systemd.
+    +
+    +**D2. Workers.** Default 2 for 1 vCPU / 1 GB (each Django worker ≈ 60–90 MB RSS). Formula for a bigger server, documented in the config and the runbook: `workers = min(2 × vCPU + 1, (free RAM in MB − 300) / 90)`; set `GUNICORN_WORKERS` in the env file.
+    +
+    +**D3. Loopback TCP, not a Unix socket.** `127.0.0.1:8000` needs no shared group or socket permissions between `www-data` and the app user, which removes a common manual-setup error. The port is not reachable from outside (loopback only; ufw allows only 22/80/443). Because only nginx can reach gunicorn, Django may trust `X-Forwarded-Proto` (`SECURE_PROXY_SSL_HEADER`) and `X-Real-IP` (`CLIENT_IP_HEADER`).
+    +
+    +**D4. Static files stay with WhiteNoise.** WhiteNoise already serves hashed, compressed files with far-future cache headers (`CompressedManifestStaticFilesStorage` when `DEBUG=false`). nginx then needs no `root` for the app at all, so it cannot serve any file of the project directory — in particular not `PRIVATE_MEDIA_ROOT`. Cost on 1 vCPU is small for a prototype (static files are cached by browsers).
+    +
+    +**D5. Client IP header = `X-Real-IP`.** nginx sets `proxy_set_header X-Real-IP $remote_addr;` (overwrites any client value). `accounts/throttling.py` reads it directly. `X-Forwarded-For` is also passed (standard), but not used for throttling.
+    +
+    +**D6. Certificates: certbot webroot.** First a HTTP-only bootstrap config serves `/.well-known/acme-challenge/` from `/var/www/letsencrypt`; `certbot certonly --webroot` gets the certificate; then the full config is installed. Renewal uses the same webroot location (kept in the port-80 server) and the `certbot.timer` that the Ubuntu package installs; `--deploy-hook "systemctl reload nginx"` reloads nginx after renewal. The nginx config stays a tested file in the repo (the `--nginx` plugin would rewrite it).
+    +
+    +**D7. nginx version.** Ubuntu 24.04 ships nginx 1.24: HTTP/2 is enabled with `listen 443 ssl http2;` (the separate `http2 on;` directive exists only since 1.25.1).
+    +
+    +**D8. Env file.** `/etc/deanery/deanery.env`, owner `<APP_USER>`, mode 600 (systemd reads it as root; operators run `deploy/manage.sh` as the app user). Values must not need shell quoting: secrets are generated with `secrets.token_urlsafe` / `openssl rand -hex` (letters, digits, `-`, `_`); `DEMO_PASSWORD` uses only letters, digits, `-`, `_`, `.`. No `.env` file in the app directory.
+    +
+    +**D9. Env coverage test parses the sources.** Parsing `config/settings.py` (`env.<type>("NAME"…)`), `os.environ.get("NAME"…)` in management commands and `deploy/gunicorn.conf.py` finds new variables automatically; a separate fixed list would silently go stale. A guard assertion requires the parser to find the 18 variables known today.
+    +
+    +**D10. Trial database vs final database.** `seed_demo` creates announcements and chats only once, with dates relative to its first run. The trial deploy (now) therefore uses a throw-away database `deanery_trial` (and `/srv/deanery/private_media_trial`); on 2026-11-22 the runbook creates the final database `deanery` (and `/srv/deanery/private_media`), switches the env file, migrates, runs `seed_demo` once and restarts. No database is dropped during the jury period.
+    +
+    +**D11. Resources (amendment).** Swap 1 GB before any `apt`/`pip`; journald capped at 200 MB; backups gzip-compressed and kept 7 days; nginx logs rotated by the stock `/etc/logrotate.d/nginx`; PostgreSQL stock settings (do not raise `shared_buffers`; default `max_connections`).
+    +
+    +---
+    +
+    +## 4. Files
+    +
+    +### 4.1 List
+    +Create: `deploy/gunicorn.conf.py`, `deploy/nginx/deanery-bootstrap.conf`, `deploy/nginx/deanery.conf`, `deploy/systemd/deanery.service`, `deploy/journald/50-deanery.conf`, `deploy/ssh/10-deanery-hardening.conf`, `deploy/cron/deanery-backup`, `deploy/backup.sh` (mode 755), `deploy/manage.sh` (mode 755), `.env.production.example`, `docs/DEPLOY.md`, `core/tests/test_deploy.py`.
+    +Change: `requirements.txt` (+ `gunicorn==26.2.0`), `.github/workflows/ci.yml`, `README.md` ("Deployment notes": first bullet «Follow `docs/DEPLOY.md`.»; keep the other bullets).
+    +Placeholders in all templates: `example.com` (domain) and `<APP_USER>` (Linux user, the runbook uses `deanery`). Fixed paths: app `/srv/deanery/app`, venv `/srv/deanery/venv`, media `/srv/deanery/private_media`, backups `/srv/deanery/backups`, env file `/etc/deanery/deanery.env`, ACME webroot `/var/www/letsencrypt`.
+    +Note: `docs/` is excluded from ruff (TASK-006); `deploy/gunicorn.conf.py` is NOT excluded and must pass ruff.
+    +
+    +### 4.2 `deploy/gunicorn.conf.py`
+    +```python
+    +"""gunicorn settings for the deanery prototype (loaded with -c deploy/gunicorn.conf.py).
+    +
+    +Workers: 2 for 1 vCPU / 1 GB RAM. Bigger server: min(2 * vCPU + 1, (free RAM MB - 300) // 90),
+    +set GUNICORN_WORKERS in /etc/deanery/deanery.env.
+    +"""
+    +
+    +import os
+    +
+    +bind = os.environ.get("GUNICORN_BIND", "127.0.0.1:8000")
+    +workers = max(1, int(os.environ.get("GUNICORN_WORKERS", "2")))
+    +timeout = 30
+    +graceful_timeout = 30
+    +keepalive = 5
+    +max_requests = 1000
+    +max_requests_jitter = 100
+    +accesslog = "-"
+    +errorlog = "-"
+    +loglevel = "info"
+    +capture_output = True
+    +control_socket_disable = True
+    +```
+    +
+    +### 4.3 `deploy/nginx/deanery-bootstrap.conf`
+    +```nginx
+    +# Temporary HTTP-only site used once to obtain the first certificate (docs/DEPLOY.md step 13).
+    +server {
+    +    listen 80;
+    +    listen [::]:80;
+    +    server_name example.com;
+    +    server_tokens off;
+    +
+    +    location ^~ /.well-known/acme-challenge/ {
+    +        root /var/www/letsencrypt;
+    +        default_type "text/plain";
+    +    }
+    +
+    +    location / {
+    +        return 503;
+    +    }
+    +}
+    +```
+    +
+    +### 4.4 `deploy/nginx/deanery.conf`
+    +```nginx
+    +# Deanery prototype. Static files are served by Django/WhiteNoise; nginx serves no project files.
+    +# PRIVATE_MEDIA_ROOT must never get a location here (attachments go through Django access checks).
+    +server {
+    +    listen 80;
+    +    listen [::]:80;
+    +    server_name example.com;
+    +    server_tokens off;
+    +
+    +    location ^~ /.well-known/acme-challenge/ {
+    +        root /var/www/letsencrypt;
+    +        default_type "text/plain";
+    +    }
+    +
+    +    location / {
+    +        return 301 https://$host$request_uri;
+    +    }
+    +}
+    +
+    +server {
+    +    listen 443 ssl http2;
+    +    listen [::]:443 ssl http2;
+    +    server_name example.com;
+    +    server_tokens off;
+    +
+    +    ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;
+    +    ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
+    +    ssl_protocols TLSv1.2 TLSv1.3;
+    +    ssl_prefer_server_ciphers off;
+    +    ssl_session_cache shared:SSL:10m;
+    +    ssl_session_timeout 1d;
+    +    ssl_session_tickets off;
+    +
+    +    client_max_body_size 20m;
+    +
+    +    # Not set by Django; X-Frame-Options, nosniff, Referrer-Policy and HSTS come from Django.
+    +    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    +
+    +    location / {
+    +        proxy_pass http://127.0.0.1:8000;
+    +        proxy_set_header Host $host;
+    +        proxy_set_header X-Real-IP $remote_addr;
+    +        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    +        proxy_set_header X-Forwarded-Proto $scheme;
+    +        proxy_redirect off;
+    +        proxy_connect_timeout 5s;
+    +        proxy_read_timeout 60s;
+    +    }
+    +}
+    +```
+    +
+    +### 4.5 `deploy/systemd/deanery.service`
+    +```ini
+    +[Unit]
+    +Description=Deanery prototype (gunicorn)
+    +After=network.target postgresql.service
+    +Wants=postgresql.service
+    +
+    +[Service]
+    +Type=simple
+    +User=<APP_USER>
+    +Group=<APP_USER>
+    +WorkingDirectory=/srv/deanery/app
+    +EnvironmentFile=/etc/deanery/deanery.env
+    +ExecStart=/srv/deanery/venv/bin/gunicorn -c deploy/gunicorn.conf.py config.wsgi:application
+    +Restart=on-failure
+    +RestartSec=5
+    +KillMode=mixed
+    +TimeoutStopSec=35
+    +NoNewPrivileges=true
+    +PrivateTmp=true
+    +ProtectSystem=full
+    +ProtectHome=true
+    +ReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial
+    +
+    +[Install]
+    +WantedBy=multi-user.target
+    +```
+    +(`ReadWritePaths` entries must exist before start; the runbook creates both directories. After the switch on 2026-11-22 the trial path stays harmlessly listed.)
+    +
+    +### 4.6 Small files
+    +- `deploy/journald/50-deanery.conf`:
+    +```ini
+    +[Journal]
+    +SystemMaxUse=200M
+    +SystemKeepFree=1G
+    +MaxRetentionSec=14day
+    +```
+    +- `deploy/ssh/10-deanery-hardening.conf` (the name sorts before Ubuntu's `50-cloud-init.conf`; sshd uses the first value it reads):
+    +```text
+    +PasswordAuthentication no
+    +KbdInteractiveAuthentication no
+    +PermitRootLogin prohibit-password
+    +PubkeyAuthentication yes
+    +```
+    +- `deploy/cron/deanery-backup` (installed to `/etc/cron.d/deanery-backup`; server time zone is Europe/Moscow, step 2):
+    +```text
+    +# Daily backup of PostgreSQL and PRIVATE_MEDIA_ROOT at 04:30 Moscow time.
+    +30 4 * * * <APP_USER> /srv/deanery/app/deploy/backup.sh 2>&1 | logger -t deanery-backup
+    +```
+    +- `deploy/manage.sh`:
+    +```bash
+    +#!/usr/bin/env bash
+    +# Run a Django management command with the production environment.
+    +# Usage: sudo -u <APP_USER> /srv/deanery/app/deploy/manage.sh <command> [args]
+    +set -euo pipefail
+    +set -a
+    +. /etc/deanery/deanery.env
+    +set +a
+    +cd /srv/deanery/app
+    +exec /srv/deanery/venv/bin/python manage.py "$@"
+    +```
+    +- `deploy/backup.sh`:
+    +```bash
+    +#!/usr/bin/env bash
+    +# Daily backup: gzip-compressed pg_dump + tar.gz of PRIVATE_MEDIA_ROOT; keeps KEEP_DAYS days.
+    +set -euo pipefail
+    +umask 077
+    +BACKUP_DIR="${BACKUP_DIR:-/srv/deanery/backups}"
+    +KEEP_DAYS="${KEEP_DAYS:-7}"
+    +set -a
+    +. /etc/deanery/deanery.env
+    +set +a
+    +STAMP="$(date +%Y%m%d-%H%M%S)"
+    +mkdir -p "$BACKUP_DIR"
+    +pg_dump --no-owner --no-privileges "$DATABASE_URL" | gzip -9 > "$BACKUP_DIR/db-$STAMP.sql.gz"
+    +tar -czf "$BACKUP_DIR/media-$STAMP.tar.gz" -C "$(dirname "$PRIVATE_MEDIA_ROOT")" "$(basename "$PRIVATE_MEDIA_ROOT")"
+    +find "$BACKUP_DIR" -maxdepth 1 -type f \( -name 'db-*.sql.gz' -o -name 'media-*.tar.gz' \) -mtime +"$((KEEP_DAYS - 1))" -delete
+    +echo "backup ok: $STAMP"
+    +```
+    +
+    +### 4.7 `.env.production.example`
+    +One block per variable: a `#` comment line(s), then `NAME=value`. Values (placeholders only):
+    +```text
+    +# Production. Copy to /etc/deanery/deanery.env (owner <APP_USER>, mode 600). Never commit real values.
+    +# Values must not need shell quoting: letters, digits, '-', '_', '.', ':', '/', ',', '@' only.
+    +
+    +# Must be false in production.
+    +DEBUG=false
+    +# Generate on the server: python3 -c "import secrets; print(secrets.token_urlsafe(50))"
+    +SECRET_KEY=replace-me-with-secrets-token-urlsafe-50-generated-on-the-server
+    +# The domain without scheme; comma-separated if several.
+    +ALLOWED_HOSTS=example.com
+    +# Full origin with https://
+    +CSRF_TRUSTED_ORIGINS=https://example.com
+    +# Non-obvious admin path, letters/digits/-/_ only, must end with "/".
+    +ADMIN_URL=staff-panel-change-me/
+    +# PostgreSQL. The runbook generates the password: openssl rand -hex 24
+    +DATABASE_URL=postgres://deanery:REPLACE_ME_DB_PASSWORD@localhost:5432/deanery
+    +# Outside the web root and outside the repository; nginx never serves it.
+    +PRIVATE_MEDIA_ROOT=/srv/deanery/private_media
+    +# nginx sets "proxy_set_header X-Real-IP $remote_addr;" (deploy/nginx/deanery.conf).
+    +CLIENT_IP_HEADER=X-Real-IP
+    +# HTTPS redirect in Django (nginx redirects too).
+    +SECURE_SSL_REDIRECT=true
+    +# Start small; raise to 31536000 after the site works over HTTPS (docs/DEPLOY.md, HSTS).
+    +SECURE_HSTS_SECONDS=3600
+    +# true is required by "check --deploy"; every subdomain of the domain must use HTTPS.
+    +SECURE_HSTS_INCLUDE_SUBDOMAINS=true
+    +# Never true for this prototype (irreversible browser preload list).
+    +SECURE_HSTS_PRELOAD=false
+    +LOG_LEVEL=INFO
+    +# Password of all demo accounts (seed_demo); letters, digits, '-', '_', '.' only; passes Django validators.
+    +DEMO_PASSWORD=REPLACE_ME_DEMO_PASSWORD
+    +# Login lockout per (username, IP).
+    +LOGIN_FAILURE_LIMIT=5
+    +LOGIN_LOCKOUT_SECONDS=900
+    +# gunicorn (deploy/gunicorn.conf.py): 2 workers for 1 vCPU / 1 GB RAM.
+    +GUNICORN_WORKERS=2
+    +GUNICORN_BIND=127.0.0.1:8000
+    +```
+    +
+    +### 4.8 CI — `.github/workflows/ci.yml`
+    +- Existing job `test`: add, after "Install dependencies": `- name: Shell syntax` → `run: bash -n deploy/backup.sh deploy/manage.sh`; `- name: gunicorn config` → `run: gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application`.
+    +- New job `test-postgres` (same `runs-on`, `permissions` inherited):
+    +```yaml
+    +  test-postgres:
+    +    runs-on: ubuntu-latest
+    +    services:
+    +      postgres:
+    +        image: postgres:16
+    +        env:
+    +          POSTGRES_USER: deanery
+    +          POSTGRES_PASSWORD: ci-only-postgres-password
+    +          POSTGRES_DB: deanery
+    +        ports:
+    +          - 5432:5432
+    +        options: >-
+    +          --health-cmd "pg_isready -U deanery"
+    +          --health-interval 5s
+    +          --health-timeout 5s
+    +          --health-retries 10
+    +    env:
+    +      DEBUG: "true"
+    +      SECRET_KEY: "ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop"
+    +      DATABASE_URL: "postgres://deanery:ci-only-postgres-password@localhost:5432/deanery"
+    +    steps:
+    +      - uses: actions/checkout@v4
+    +      - uses: actions/setup-python@v5
+    +        with:
+    +          python-version: "3.12"
+    +          cache: pip
+    +          cache-dependency-path: |
+    +            requirements.txt
+    +            requirements-dev.txt
+    +      - name: Install dependencies
+    +        run: python -m pip install -r requirements-dev.txt
+    +      - name: Django check
+    +        run: python manage.py check --database default
+    +      - name: Missing migrations
+    +        run: python manage.py makemigrations --check --dry-run
+    +      - name: Tests (PostgreSQL)
+    +        run: python manage.py test
+    +      - name: Tests with a frozen Moscow midnight clock (PostgreSQL)
+    +        run: python scripts/run_tests_at.py 2026-11-18T00:00:00
+    +      - name: Migrate and seed demo data twice (PostgreSQL)
+    +        env:
+    +          DEMO_PASSWORD: "ci-dummy-demo-password-2026"
+    +        run: |
+    +          python manage.py migrate --noinput
+    +          python manage.py seed_demo
+    +          python manage.py seed_demo
+    +```
+    +(The test runner creates `test_deanery`; the image's `POSTGRES_USER` is a superuser, so it may.)
+    +
+    +### 4.9 `docs/DEPLOY.md` — required content and order
+    +English, numbered steps; every step shows the exact commands in a `bash` block, run as the sudo user unless stated. Use shell variables set once in step 0: `DOMAIN=example.com`, `APP_USER=deanery`, `REPO_URL=<your repository URL>`. Sections:
+    +0. **Before you start** — what you need (domain A record → server IP, SSH key created by the user: `ssh-keygen -t ed25519`, `ssh-copy-id`), the variables above, and a warning: keep one SSH session open until step 4 is verified.
+    +1. **Swap first (1 GB RAM)** — `sudo fallocate -l 1G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile`; `echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab`; `echo 'vm.swappiness=10' | sudo tee /etc/sysctl.d/99-deanery-swap.conf && sudo sysctl --system`; check `free -h`. Must come before any `apt`/`pip` step.
+    +2. **Time zone** — `sudo timedatectl set-timezone Europe/Moscow` (cron and logs in Moscow time).
+    +3. **Packages** — `sudo apt update && sudo apt -y upgrade`; `sudo apt -y install python3.12-venv nginx postgresql certbot git ufw`.
+    +4. **SSH: keys only** — copy `deploy/ssh/10-deanery-hardening.conf` (from the repo after step 7, or paste its 4 lines) to `/etc/ssh/sshd_config.d/`; `sudo sshd -t && sudo systemctl reload ssh`; verify `sudo sshd -T | grep -Ei 'passwordauthentication|permitrootlogin'`; open a NEW session with the key before closing the old one. (May be done right after step 7.)
+    +5. **Firewall** — `sudo ufw allow OpenSSH && sudo ufw allow 80/tcp && sudo ufw allow 443/tcp && sudo ufw --force enable && sudo ufw status` (only 22, 80, 443).
+    +6. **journald limit** — install `deploy/journald/50-deanery.conf` to `/etc/systemd/journald.conf.d/` (`sudo mkdir -p …`), `sudo systemctl restart systemd-journald`, check `journalctl --disk-usage`. nginx logs: rotated by the stock `/etc/logrotate.d/nginx` (no action).
+    +7. **App user, directories, code** — `sudo adduser --system --group --home /srv/deanery --shell /bin/bash "$APP_USER"`; `sudo -u "$APP_USER" git clone "$REPO_URL" /srv/deanery/app`; `sudo -u "$APP_USER" mkdir -p /srv/deanery/private_media /srv/deanery/private_media_trial /srv/deanery/backups`; `sudo chmod 750 /srv/deanery/private_media /srv/deanery/private_media_trial && sudo chmod 700 /srv/deanery/backups`; `sudo mkdir -p /var/www/letsencrypt`.
+    +8. **Python venv** — `sudo -u "$APP_USER" python3.12 -m venv /srv/deanery/venv`; `sudo -u "$APP_USER" /srv/deanery/venv/bin/pip install --upgrade pip`; `sudo -u "$APP_USER" /srv/deanery/venv/bin/pip install -r /srv/deanery/app/requirements.txt` (production requirements only).
+    +9. **PostgreSQL (trial database)** — stock settings: do NOT raise `shared_buffers`, keep `max_connections`. `DB_PASS=$(openssl rand -hex 24)`; `sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE ROLE deanery LOGIN PASSWORD '$DB_PASS';" -c "CREATE DATABASE deanery_trial OWNER deanery ENCODING 'UTF8' TEMPLATE template0;"`.
+    +10. **Environment file** — `sudo mkdir -p /etc/deanery`; build it from `.env.production.example` with `sed` replacing: `example.com` → `$DOMAIN`; `SECRET_KEY` → `$(python3 -c "import secrets; print(secrets.token_urlsafe(50))")`; `REPLACE_ME_DB_PASSWORD` → `$DB_PASS`; database name `/deanery` → `/deanery_trial` and `PRIVATE_MEDIA_ROOT` → `/srv/deanery/private_media_trial` (trial, D10); `ADMIN_URL` → `staff-$(openssl rand -hex 6)/`; `DEMO_PASSWORD` → a password the user chooses (allowed characters, D8); write to `/etc/deanery/deanery.env`; `sudo chown "$APP_USER:$APP_USER" /etc/deanery/deanery.env && sudo chmod 600 /etc/deanery/deanery.env`; `unset DB_PASS`. Show the final file with `sudo -u "$APP_USER" grep -v -E 'SECRET_KEY|PASSWORD' /etc/deanery/deanery.env` (never print secrets).
+    +11. **Django** — `M="sudo -u $APP_USER /srv/deanery/app/deploy/manage.sh"`; `$M migrate`; `$M collectstatic --noinput`; `$M check --deploy --fail-level WARNING`; `$M createsuperuser` (role must stay empty — Django superuser for the admin only).
+    +12. **gunicorn + systemd** — copy `deploy/systemd/deanery.service` with `sed "s/<APP_USER>/$APP_USER/g"` to `/etc/systemd/system/deanery.service`; `sudo systemctl daemon-reload && sudo systemctl enable --now deanery`; check `systemctl status deanery`, `curl -s http://127.0.0.1:8000/health/` → `{"status": "ok"}` (Host header: `curl -s -H "Host: $DOMAIN" …`), `journalctl -u deanery -n 50`.
+    +13. **nginx bootstrap + certificate** — install `deploy/nginx/deanery-bootstrap.conf` (with `sed "s/example.com/$DOMAIN/g"`) to `/etc/nginx/sites-available/deanery`, link to `sites-enabled`, remove `sites-enabled/default`, `sudo nginx -t && sudo systemctl reload nginx`; `sudo certbot certonly --webroot -w /var/www/letsencrypt -d "$DOMAIN" --email <your e-mail> --agree-tos --no-eff-email --deploy-hook "systemctl reload nginx"`.
+    +14. **nginx full site** — replace with `deploy/nginx/deanery.conf` (same `sed`), `sudo nginx -t && sudo systemctl reload nginx`; auto-renewal: `systemctl list-timers certbot.timer` and `sudo certbot renew --dry-run`.
+    +15. **Backups** — install `deploy/cron/deanery-backup` with `sed "s/<APP_USER>/$APP_USER/g"` to `/etc/cron.d/deanery-backup` (mode 644, root-owned); run once by hand `sudo -u "$APP_USER" /srv/deanery/app/deploy/backup.sh` and list `/srv/deanery/backups`; files older than 7 days are deleted by the script. Restore (short): `gunzip -c db-….sql.gz | psql "$DATABASE_URL"` into an empty database + `tar -xzf media-….tar.gz -C /srv/deanery` — always restore BOTH (README «Deployment notes»).
+    +16. **Smoke check** — `curl -sI http://$DOMAIN/` → 301 to https; `curl -s https://$DOMAIN/health/` → ok; browser: login page, admin at `https://$DOMAIN/<ADMIN_URL>`; on the trial database run `$M seed_demo` (trial only) and open one page per role (student: Расписание, Заявки, Чат; staff: Заявки, Чаты); upload a PDF to a request (checks `client_max_body_size`); download it; `curl -s -o /dev/null -w '%{http_code}' https://$DOMAIN/private_media/` → 404 (no static route to private files).
+    +17. **Final database on 2026-11-22 (once)** — create `deanery` DB owned by `deanery` (same role); edit the env file: database name `deanery_trial` → `deanery`, `PRIVATE_MEDIA_ROOT=/srv/deanery/private_media`; `$M migrate`; `$M seed_demo` (ONCE, no cron, needs `DEMO_PASSWORD`); `sudo systemctl restart deanery`; repeat step 16 (without seeding). Optionally drop `deanery_trial` and empty `private_media_trial` after 2026-11-28.
+    +18. **Update procedure** — `sudo -u "$APP_USER" git -C /srv/deanery/app pull --ff-only`; `sudo -u "$APP_USER" /srv/deanery/venv/bin/pip install -r /srv/deanery/app/requirements.txt`; `$M migrate`; `$M collectstatic --noinput`; `$M check --deploy --fail-level WARNING`; `sudo systemctl restart deanery`; smoke check.
+    +19. **HSTS** — after the site works over HTTPS for a day: set `SECURE_HSTS_SECONDS=31536000` in the env file, restart; never enable `SECURE_HSTS_PRELOAD`. Explain that a large value cannot be undone for visitors before it expires, so raise it only after HTTPS is confirmed.
+    +20. **Resources** — expected memory: gunicorn master + 2 workers ≈ 200–250 MB, PostgreSQL ≈ 100–150 MB, nginx ≈ 10 MB, system ≈ 200 MB → ≈ 600 MB of 1 GB, swap covers peaks (pip install, migrations); disk: venv ≈ 150 MB, journal ≤ 200 MB, backups (7 days, gzip) small. Check: `free -h`, `df -h`, `journalctl --disk-usage`, `systemctl status deanery`. If pages are slow or memory is full, upgrade the hosting tariff and raise `GUNICORN_WORKERS` by the formula (D2).
+    +21. **Troubleshooting** — 502 → `journalctl -u deanery`; 400 Bad Request → `ALLOWED_HOSTS`; CSRF failure → `CSRF_TRUSTED_ORIGINS` with https; 413 → `client_max_body_size`; locked logins → `CLIENT_IP_HEADER` and the `X-Real-IP` header.
+    +
+    +---
+    +
+    +## 5. Functions
+    +No application code changes, except minimal PostgreSQL fixes if CI finds failures (AC8; each fix with a regression test that runs on both databases). `deploy/gunicorn.conf.py` is a settings module (4.2). Shell scripts: 4.6.
+    +
+    +## 6. Test plan
+    +
+    +### 6.0 Rules
+    +All tests in new `core/tests/test_deploy.py`, `SimpleTestCase` unless stated; read files relative to `settings.BASE_DIR`; never read `.env`. Save every test log; report any failed or stalled run by test name and Moscow time.
+    +
+    +### 6.1 Traceability
+    +| AC | Tests |
+    +|---|---|
+    +| AC1 | `GunicornConfigTests::*`; CI `gunicorn --check-config` |
+    +| AC2 | `NginxTemplateTests::*` |
+    +| AC3 | `SystemdUnitTests::*`, `SmallFilesTests::*`, `ShellScriptTests::*` |
+    +| AC4 | `EnvExampleTests::*` |
+    +| AC5 | CI job `test-postgres` (runs on push; the Team lead reports its result) |
+    +| AC6 | `RunbookTests::*` + Reviewer reading |
+    +| AC7 | `SecretScanTests::*` |
+    +| AC8 | `REPORT` + regression tests if any fix |
+    +
+    +### 6.2 Test details
+    +- `NginxTemplateTests`:
+    +  - `test_full_config_body_size` (`client_max_body_size 20m;` occurs exactly once, inside the `listen 443` server block)
+    +  - `test_no_project_files_served` (in both nginx files every `root`/`alias` directive equals `root /var/www/letsencrypt;`; no `alias` at all; no `private_media`, `PRIVATE_MEDIA`, `/srv/deanery`, `location /static`, `location /media` substrings)
+    +  - `test_http_redirects_to_https` (`return 301 https://$host$request_uri;` in the port-80 server of `deanery.conf`)
+    +  - `test_acme_location_in_both` (`location ^~ /.well-known/acme-challenge/` in both files)
+    +  - `test_proxy_headers` (the four `proxy_set_header` lines from 4.4 and `proxy_pass http://127.0.0.1:8000;`)
+    +  - `test_no_headers_owned_by_django` (no `add_header` with `X-Frame-Options`, `Strict-Transport-Security`, `X-Content-Type-Options`, `Referrer-Policy`)
+    +  - `test_http2_syntax_for_nginx_1_24` (`listen 443 ssl http2;`; no `http2 on;`)
+    +  - `test_bootstrap_has_no_tls_server` (no `listen 443` in `deanery-bootstrap.conf`)
+    +- `EnvExampleTests`:
+    +  - `test_parser_finds_known_variables` (the parser over the three sources returns a superset of {DEBUG, SECRET_KEY, ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS, ADMIN_URL, LOGIN_FAILURE_LIMIT, LOGIN_LOCKOUT_SECONDS, CLIENT_IP_HEADER, DATABASE_URL, PRIVATE_MEDIA_ROOT, SECURE_SSL_REDIRECT, SECURE_HSTS_SECONDS, SECURE_HSTS_INCLUDE_SUBDOMAINS, SECURE_HSTS_PRELOAD, LOG_LEVEL, DEMO_PASSWORD, GUNICORN_WORKERS, GUNICORN_BIND}). Parser: regex `env\.(?:str|bool|int|list|db)\(\s*"([A-Z][A-Z0-9_]*)"` over `config/settings.py`; regex `os\.environ(?:\.get\(|\[)\s*"([A-Z][A-Z0-9_]*)"` over `*/management/commands/*.py` and `deploy/gunicorn.conf.py`; ignore `DJANGO_SETTINGS_MODULE`.
+    +  - `test_lists_every_env_variable` (parsed set ⊆ keys of `.env.production.example`; keys = lines matching `^([A-Z][A-Z0-9_]*)=`)
+    +  - `test_every_variable_has_comment` (the line before each `NAME=` line is a `#` comment, or the variable belongs to a block that starts with a comment — simplest: each key line is preceded within 3 lines by a `#` line)
+    +  - `test_production_values` (DEBUG=false; CLIENT_IP_HEADER=X-Real-IP and `proxy_set_header X-Real-IP` present in nginx; DATABASE_URL starts with `postgres://`; every CSRF_TRUSTED_ORIGINS item starts with `https://`; SECURE_HSTS_PRELOAD=false; GUNICORN_WORKERS=2)
+    +  - `test_deploy_check_passes_with_example_values`: build `env = {"PATH": os.environ["PATH"], **example_values}` (no other variables); `subprocess.run([sys.executable, "manage.py", "check", "--deploy", "--fail-level", "WARNING"], cwd=BASE_DIR, env=env, capture_output=True, text=True, timeout=120)` → return code 0 and «System check identified no issues» in stdout. (`environ.Env.read_env` never overrides variables that are already set, so a developer `.env` cannot change the result — django-environ 0.14 `read_env(overwrite=False)` uses `setdefault`.)
+    +- `GunicornConfigTests` (load with `runpy.run_path(path)` inside `mock.patch.dict(os.environ, {...}, clear=False)` after removing `GUNICORN_*` keys): `test_defaults` (bind `127.0.0.1:8000`, workers 2, timeout 30, graceful_timeout 30, accesslog `-`, errorlog `-`, `control_socket_disable` True), `test_env_override` (`GUNICORN_WORKERS=3` → 3; `GUNICORN_BIND=127.0.0.1:9000`), `test_workers_at_least_one` (`"0"` → 1), `test_bind_is_loopback_by_default`.
+    +- `SystemdUnitTests`: `test_runs_as_app_user` (`User=<APP_USER>`; no `User=root`), `test_restart_on_failure`, `test_environment_file_outside_repo` (`EnvironmentFile=/etc/deanery/deanery.env`), `test_exec_uses_repo_config` (`-c deploy/gunicorn.conf.py config.wsgi:application`), `test_hardening` (`NoNewPrivileges=true`, `ProtectSystem=full`, `PrivateTmp=true`).
+    +- `SmallFilesTests`: `test_journald_limit` (`SystemMaxUse=200M`), `test_ssh_hardening` (`PasswordAuthentication no`; file name starts with `10-`), `test_cron_daily_backup` (one line, runs `deploy/backup.sh` as `<APP_USER>`, logs via `logger`).
+    +- `ShellScriptTests`: `test_bash_syntax` (`bash -n` on `deploy/backup.sh` and `deploy/manage.sh`; skip if `shutil.which("bash")` is None), `test_scripts_executable` (`os.access(path, os.X_OK)`), `test_backup_rules` (`pg_dump`, `| gzip`, `KEEP_DAYS:-7`, `-mtime`, `-delete`, `tar -czf`, `PRIVATE_MEDIA_ROOT`), `test_manage_uses_env_file` (`. /etc/deanery/deanery.env`, `set -euo pipefail`).
+    +- `SecretScanTests` over every file in `deploy/` (recursive) + `.env.production.example` + `docs/DEPLOY.md`:
+    +  - `test_no_private_keys_or_known_tokens` (none of: `-----BEGIN` … `PRIVATE KEY-----`, `ssh-(rsa|ed25519|ecdsa)[^\n]* AAAA`, `AKIA[0-9A-Z]{16}`, `ghp_[A-Za-z0-9]{20,}`, `xox[baprs]-`)
+    +  - `test_no_long_random_strings` (no run `[A-Za-z0-9+=]{32,}` — 32+ characters without `-`, `_`, `/`, `.`)
+    +  - `test_secret_like_assignments_are_placeholders` (for `NAME=value` lines where NAME contains `SECRET`, `PASSWORD`, `TOKEN` or `KEY`: value is empty, or contains `REPLACE` / `replace-me` / `change-me` / `<`, or is a `$(...)` / `$VAR` shell expression; `DATABASE_URL` password part contains `REPLACE` or `$`)
+    +  - `test_no_real_ip_addresses` (IPv4 pattern matches only `127.0.0.1` or `0.0.0.0`)
+    +- `RunbookTests` (`docs/DEPLOY.md`): `test_swap_before_packages` (index of `fallocate` < index of `apt -y install`), `test_required_topics` (contains `vm.swappiness=10`, `SystemMaxUse`, `ufw`, `certbot certonly --webroot`, `certbot renew --dry-run`, `chmod 600`, `token_urlsafe`, `openssl rand -hex 24`, `check --deploy`, `collectstatic`, `seed_demo`, `2026-11-22`, `deanery_trial`, `shared_b
+    …[7,890 more characters truncated]
+  ── Thought for 6s
+    I'm checking my own example against the secret-scan rules: the SECRET_KEY placeholder contains "replace-me", and DEMO_PASSWORD uses the REPLACE_ME placeholder, so both pass. The only variable with KEY in its name is SECRET_KEY, and I'm moving on to the remaining settings.
+
+    I'm checking the remaining patterns against the template and docs: the ssh pattern won't match "ssh-keygen", the IPv4 and version strings are fine, and the runbook topics line up with step 3.
+
+    I'm going to confirm the env-file comments are close enough to their variables, and note that LOG_LEVEL's comment sits a bit far up, though it still counts. GUNICORN_BIND falls under the GUNICORN_WORKERS comment, which is fine. Next I'll hand the work off to the Coder, and I'll flag the D10 runbook detail in my summary to the user rather than escalating it to the lead.
+
+── Ran bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF' [TASK-011] Planner -> Coder: TASK Spec: docs/tasks/TASK-011.md (base d9d8e55; includes the Team lead's amendment: 1 vCPU / 1 GB / 10 GB). Production readiness, no server access. - `gunicorn==26.2.0` (27.x is one week old) + `deploy/gunicorn.conf.py` (exact content 4.2: 127.0.0.1:8000, GUNICORN_WORKERS default 2, control_socket_disable). Planner verified it serves /health/ with this project. - `deploy/`: nginx bootstrap + full config (4.3/4.4, WhiteNoise serves static, no root/alias except ACME webroot, `listen 443 ssl http2;` for nginx 1.24), systemd unit, journald 200M, ssh hardening, cron, `backup.sh` (gzip, 7 days), `manage.sh` — exact contents in 4.5-4.6; `.env.production.example` (4.7). - CI: new `test-postgres` job with `postgres:16` + gunicorn --check-config + bash -n (4.8). No local PostgreSQL/Docker daemon here: CI is the PG check (6.6). - `docs/DEPLOY.md`: steps 0-21 in 4.9 (swap first, trial DB `deanery_trial`, final DB + one-time seed on 2026-11-22, HSTS raise, Resources). README bullet. - Tests: `core/tests/test_deploy.py` (6.2), incl. subprocess `check --deploy` with the example values. If pip cannot reach PyPI, say so in the REPORT. Logs with tee (baseline 964). Do not commit. EOF (1s)
+  $ bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF'
+[TASK-011] Planner -> Coder: TASK
+Spec: docs/tasks/TASK-011.md (base d9d8e55; includes the Team lead's amendment: 1 vCPU / 1 GB / 10 GB). Production readiness, no server access.
+- `gunicorn==26.2.0` (27.x is one week old) + `deploy/gunicorn.conf.py` (exact content 4.2: 127.0.0.1:8000, GUNICORN_WORKERS default 2, control_socket_disable). Planner verified it serves /health/ with this project.
+- `deploy/`: nginx bootstrap + full config (4.3/4.4, WhiteNoise serves static, no root/alias except ACME webroot, `listen 443 ssl http2;` for nginx 1.24), systemd unit, journald 200M, ssh hardening, cron, `backup.sh` (gzip, 7 days), `manage.sh` — exact contents in 4.5-4.6; `.env.production.example` (4.7).
+- CI: new `test-postgres` job with `postgres:16` + gunicorn --check-config + bash -n (4.8). No local PostgreSQL/Docker daemon here: CI is the PG check (6.6).
+- `docs/DEPLOY.md`: steps 0-21 in 4.9 (swap first, trial DB `deanery_trial`, final DB + one-time seed on 2026-11-22, HSTS raise, Resources). README bullet.
+- Tests: `core/tests/test_deploy.py` (6.2), incl. subprocess `check --deploy` with the example values. If pip cannot reach PyPI, say so in the REPORT. Logs with tee (baseline 964). Do not commit.
+EOF
+  Thread thr_ng6cbgatm6 steered
+
+── Assistant ───────────────────────────────────────────────
+Спецификация TASK-011 готова и передана Кодеру: [docs/tasks/TASK-011.md](docs/tasks/TASK-011.md). Поправку про сервер (1 vCPU, 1 ГБ, 10 ГБ) я учёл.
+
+**Главные решения:**
+- **gunicorn 26.2.0.** Ветке 27.x всего неделя, ставить её перед деплоем рискованно. Я запустил 26.2.0 с нашим конфигом на копии проекта: 2 процесса стартовали, `/health/` ответил 200. В версии 26 есть «управляющий сокет» в домашней папке, в конфиге он выключен.
+- **2 процесса gunicorn по умолчанию.** Число задаётся переменной `GUNICORN_WORKERS`. Формула для сервера побольше записана в конфиге и в инструкции.
+- **gunicorn слушает только 127.0.0.1:8000.** Это проще unix-сокета, потому что не нужно настраивать права между nginx и пользователем приложения. Снаружи порт закрыт.
+- **Статику отдаёт WhiteNoise, а не nginx.** Так у nginx нет ни одной папки с файлами проекта, и он физически не может отдать `PRIVATE_MEDIA_ROOT`.
+- **Сертификат через certbot по webroot.** Сначала ставится временный конфиг только с HTTP, потом основной. Автопродление делает стандартный таймер certbot. Сам конфиг nginx лежит в репозитории и проверяется тестами.
+- **IP клиента берётся из заголовка `X-Real-IP`.** nginx его перезаписывает, поэтому подменить его снаружи нельзя.
+- **Ресурсы.** Сначала создаётся swap 1 ГБ, потом ставятся пакеты. Журнал systemd ограничен 200 МБ. Резервные копии сжимаются и хранятся 7 дней. Настройки PostgreSQL остаются стандартными. В инструкции есть раздел «Resources» с расходом памяти и командами проверки.
+
+**Что важно решить тебе и тимлиду:**
+- **Пробная и итоговая база.** `seed_demo` создаёт объявления и чаты только при первом запуске, и их даты отсчитываются от дня запуска. Если запустить его сейчас, сроки объявлений придутся на 18–22.11, а не на неделю жюри. Поэтому в инструкции так:
+  - пробный деплой идёт на отдельной базе `deanery_trial`;
+  - 22.11 создаётся итоговая база `deanery`, и на ней один раз запускается `seed_demo`;
+  - удалять данные во время проверки жюри не нужно.
+- **PostgreSQL проверит только CI.** Локально у меня нет ни PostgreSQL, ни nginx, а Docker не запущен. Поэтому полный прогон тестов на PostgreSQL сделает новая задача в CI после того, как тимлид отправит коммит. Если там что-то упадёт, понадобится быстрый круг исправлений. Если запустить Docker Desktop, Кодер сможет проверить PostgreSQL заранее.
+- **`nginx -t` здесь не запустить.** Его нужно выполнить на сервере, в инструкции это шаги 13–14.
+
+**Проверка на текущем коде:**
+- Тесты прошли: 964 в трёх прогонах, в том числе в 23:59:59 и 00:00 по Москве. Сбоев не было.
+- `check --deploy` проходит с боевыми значениями-заглушками.
+- ruff, `node --check`, проверка YAML и двойной запуск `seed_demo` прошли.
+
+Для проверки я запускал тестовый gunicorn на порту 8765. Песочница не давала его остановить, поэтому одну команду `kill` я выполнил вне песочницы. Процесс остановлен.
+
+── User ────────────────────────────────────────────────────
+Отправь нужную информацию тимлиду; заново отправь запрос кодеру, он упал с ошибкой
+
+── Thought for 11ms ────────────────────────────────────────
+  I'm going to send the lead a report covering the D10 decision, the CI-only PG setup, the nginx -t check, and the gunicorn version choice. After that I'll resend the task to the Coder, and I'm wondering whether to check the coder thread status with `bb thread` first.
+
+── Ran bb thread tell thr_4izdzwetb4 --message-file - <<'EOF' [TASK-011] Planner -> Team lead: REPORT Spec docs/tasks/TASK-011.md written (amendment 1 vCPU / 1 GB / 10 GB applied) and handed to the Coder. Points for you: 1. Trial vs final database (D10, runbook steps 9-10, 17): seed_demo creates announcements and chats only once, with dates relative to the first run. Seeding the production DB now would put the deadlines on 18-22.11, outside the jury window. The runbook therefore deploys the trial on a separate DB `deanery_trial` (+ /srv/deanery/private_media_trial); on 2026-11-22 it creates the final DB `deanery`, switches the env file, migrates, runs seed_demo once, restarts. No drop during the jury period. No code change. Please confirm or change. 2. PostgreSQL: no local PostgreSQL server; Docker CLI exists but the daemon is not running. The new CI job `test-postgres` (postgres:16) is the PG check, so PG-only failures appear only after your push; plan a quick fix round. If the user starts Docker Desktop, the Coder can run the suite on postgres:16 locally (spec 6.6). 3. gunicorn pinned to 26.2.0 (2026-08-24), not 27.x (27.0.0 released 2026-11-10). Verified locally with the spec config: --check-config ok, 2 workers, /health/ 200. gunicorn 26 creates a control socket in $HOME/.gunicorn; the config disables it. 4. nginx is not installed locally: `nginx -t` must be run on the server (runbook steps 13-14). Ubuntu 24.04 ships nginx 1.24, so the template uses `listen 443 ssl http2;`. 5. pip cannot reach PyPI from this machine (TLS error); curl can. The Coder may not be able to install gunicorn locally; tests do not import gunicorn; CI installs it. 6. Feasibility run on d9d8e55: 964 tests OK (normal, 23:59:59, 00:00:00 MSK), no failures; check --deploy passes with the .env.production.example values. EOF bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF' [TASK-011] Planner -> Coder: TASK (Resent: the previous delivery failed.) Spec: docs/tasks/TASK-011.md (base d9d8e55; includes the Team lead's amendment: 1 vCPU / 1 GB / 10 GB). Production readiness, no server access. - `gunicorn==26.2.0` in requirements.txt + `deploy/gunicorn.conf.py` (exact content 4.2: 127.0.0.1:8000, GUNICORN_WORKERS default 2, control_socket_disable = True). - `deploy/`: nginx bootstrap + full config (4.3/4.4: WhiteNoise serves static, no root/alias except the ACME webroot, `listen 443 ssl http2;` for nginx 1.24), systemd unit, journald 200M, ssh hardening, cron, `backup.sh` (gzip, 7 days), `manage.sh` - exact contents in 4.5-4.6; `.env.production.example` (4.7). - CI: new `test-postgres` job with `postgres:16`, plus gunicorn --check-config and bash -n in the SQLite job (4.8). No local PostgreSQL/Docker daemon: CI is the PG check (6.6). - `docs/DEPLOY.md`: steps 0-21 in 4.9 (swap first, trial DB `deanery_trial`, final DB + one-time seed_demo on 2026-11-22, HSTS raise, Resources); README bullet. - Tests: `core/tests/test_deploy.py` (6.2), incl. a subprocess `check --deploy` with the example values. If pip cannot reach PyPI, say so in the REPORT. Logs with tee (baseline 964). Do not commit. EOF (2s)
+  $ bb thread tell thr_4izdzwetb4 --message-file - <<'EOF'
+[TASK-011] Planner -> Team lead: REPORT
+Spec docs/tasks/TASK-011.md written (amendment 1 vCPU / 1 GB / 10 GB applied) and handed to the Coder. Points for you:
+1. Trial vs final database (D10, runbook steps 9-10, 17): seed_demo creates announcements and chats only once, with dates relative to the first run. Seeding the production DB now would put the deadlines on 18-22.11, outside the jury window. The runbook therefore deploys the trial on a separate DB `deanery_trial` (+ /srv/deanery/private_media_trial); on 2026-11-22 it creates the final DB `deanery`, switches the env file, migrates, runs seed_demo once, restarts. No drop during the jury period. No code change. Please confirm or change.
+2. PostgreSQL: no local PostgreSQL server; Docker CLI exists but the daemon is not running. The new CI job `test-postgres` (postgres:16) is the PG check, so PG-only failures appear only after your push; plan a quick fix round. If the user starts Docker Desktop, the Coder can run the suite on postgres:16 locally (spec 6.6).
+3. gunicorn pinned to 26.2.0 (2026-08-24), not 27.x (27.0.0 released 2026-11-10). Verified locally with the spec config: --check-config ok, 2 workers, /health/ 200. gunicorn 26 creates a control socket in $HOME/.gunicorn; the config disables it.
+4. nginx is not installed locally: `nginx -t` must be run on the server (runbook steps 13-14). Ubuntu 24.04 ships nginx 1.24, so the template uses `listen 443 ssl http2;`.
+5. pip cannot reach PyPI from this machine (TLS error); curl can. The Coder may not be able to install gunicorn locally; tests do not import gunicorn; CI installs it.
+6. Feasibility run on d9d8e55: 964 tests OK (normal, 23:59:59, 00:00:00 MSK), no failures; check --deploy passes with the .env.production.example values.
+EOF
+bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF'
+[TASK-011] Planner -> Coder: TASK
+(Resent: the previous delivery failed.) Spec: docs/tasks/TASK-011.md (base d9d8e55; includes the Team lead's amendment: 1 vCPU / 1 GB / 10 GB). Production readiness, no server access.
+- `gunicorn==26.2.0` in requirements.txt + `deploy/gunicorn.conf.py` (exact content 4.2: 127.0.0.1:8000, GUNICORN_WORKERS default 2, control_socket_disable = True).
+- `deploy/`: nginx bootstrap + full config (4.3/4.4: WhiteNoise serves static, no root/alias except the ACME webroot, `listen 443 ssl http2;` for nginx 1.24), systemd unit, journald 200M, ssh hardening, cron, `backup.sh` (gzip, 7 days), `manage.sh` - exact contents in 4.5-4.6; `.env.production.example` (4.7).
+- CI: new `test-postgres` job with `postgres:16`, plus gunicorn --check-config and bash -n in the SQLite job (4.8). No local PostgreSQL/Docker daemon: CI is the PG check (6.6).
+- `docs/DEPLOY.md`: steps 0-21 in 4.9 (swap first, trial DB `deanery_trial`, final DB + one-time seed_demo on 2026-11-22, HSTS raise, Resources); README bullet.
+- Tests: `core/tests/test_deploy.py` (6.2), incl. a subprocess `check --deploy` with the example values. If pip cannot reach PyPI, say so in the REPORT. Logs with tee (baseline 964). Do not commit.
+EOF
+  Thread thr_4izdzwetb4 steered
+  Thread thr_ng6cbgatm6 steered
+
+── Assistant ───────────────────────────────────────────────
+Оба сообщения отправлены, bb принял их без ошибок.
+
+**Тимлиду ушёл отчёт по TASK-011:**
+1. Пробный деплой идёт на отдельной базе `deanery_trial`. 22.11 создаётся итоговая база `deanery`, и `seed_demo` запускается на ней один раз. Я попросил тимлида подтвердить это или изменить.
+2. PostgreSQL проверит только новая задача в CI, после того как тимлид отправит коммит. Ошибки, которые бывают только на PostgreSQL, всплывут уже после этого. Если запустить Docker Desktop, Кодер сможет проверить заранее.
+3. Выбран gunicorn 26.2.0, а не 27.x. Я проверил его локально, и управляющий сокет в конфиге выключен.
+4. `nginx -t` нужно запустить на сервере.
+5. Через pip отсюда PyPI недоступен. Кодер может не суметь поставить gunicorn локально, тогда его установит CI.
+6. Базовые проверки прошли: 964 теста, сбоев нет.
+
+**Кодеру задача отправлена заново** с той же сводкой и пометкой, что первая отправка не дошла. Получил ли он её, я не проверял: подтверждение bb означает только, что сообщение принято в его тред.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-011] Team lead -> Planner: ANSWER
+Point 1 (trial DB `deanery_trial` now, final DB `deanery` + one-time seed_demo on 2026-11-22): confirmed by the user. The GitHub remote now exists (private repo); the user pushes, so the `test-postgres` CI job will run after the TASK-011 commit is pushed. The Coder's turn was interrupted by a bb daemon disconnect; I asked it to resume from the current tree. No action needed from you.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Thought for 9ms
+    I'm recording the confirmation in the spec: D10 is marked as confirmed. I'll update the feasibility note 9 line to cite the confirmation from the team lead on 2026-11-17, as a minimal edit. I also need to note that CI runs after the push, and no message is needed.
+  ── Ran python3 - <<'EOF' p="docs/tasks/TASK-011.md"; s=open(p,encoding="utf-8").read() a="9. Conflicts — none. Note for the Team lead: D10 (trial database `deanery_trial`, final database on 2026-11-22) follows from the create-only seeds; it changes no code." b="9. Conflicts — none. D10 (trial database `deanery_trial`, final database `deanery` + one-time `seed_demo` on 2026-11-22) confirmed by the user via the Team lead on 2026-11-17. The GitHub remote exists; the user pushes, so the `test-postgres` CI job runs after the TASK-011 commit is pushed." assert s.count(a)==1; s=s.replace(a,b); open(p,"w",encoding="utf-8").write(s) EOF grep -n "confirmed by the user" docs/tasks/TASK-011.md (2s)
+    $ python3 - <<'EOF'
+  p="docs/tasks/TASK-011.md"; s=open(p,encoding="utf-8").read()
+  a="9. Conflicts — none. Note for the Team lead: D10 (trial database `deanery_trial`, final database on 2026-11-22) follows from the create-only seeds; it changes no code."
+  b="9. Conflicts — none. D10 (trial database `deanery_trial`, final database `deanery` + one-time `seed_demo` on 2026-11-22) confirmed by the user via the Team lead on 2026-11-17. The GitHub remote exists; the user pushes, so the `test-postgres` CI job runs after the TASK-011 commit is pushed."
+  assert s.count(a)==1; s=s.replace(a,b); open(p,"w",encoding="utf-8").write(s)
+  EOF
+  grep -n "confirmed by the user" docs/tasks/TASK-011.md
+    459:9. Conflicts — none. D10 (trial database `deanery_trial`, final database `deanery` + one-time `seed_demo` on 2026-11-22) confirmed by the user via the Team lead on 2026-11-17. The GitHub remote exists; the user pushes, so the `test-postgres` CI job runs after the TASK-011 commit is pushed.
+  ── Thought for 2s
+    I'm going to write the final reply to the user in Russian, keeping it brief, and I don't need to respond to the lead.
+
+── Assistant ───────────────────────────────────────────────
+Пользователь через тимлида подтвердил: пробный деплой идёт на базе `deanery_trial`, итоговая база `deanery` создаётся 22.11, и тогда же один раз запускается `seed_demo`. Я записал это решение в раздел проверки выполнимости [TASK-011](docs/tasks/TASK-011.md).
+
+Ещё тимлид сообщил:
+- репозиторий на GitHub уже есть, и пушит пользователь, поэтому проверка на PostgreSQL в CI запустится после пуша коммита TASK-011;
+- ход Кодера прервался из-за обрыва связи с bb, и тимлид попросил его продолжить с текущего состояния кода.
+
+От меня ничего не требуется. Тимлиду я не отвечал, он просил не отвечать. Жду вопросов Кодера или следующую задачу.

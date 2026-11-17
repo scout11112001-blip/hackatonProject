@@ -1,0 +1,2 @@
+# Daily backup of PostgreSQL and PRIVATE_MEDIA_ROOT at 04:30 Moscow time.
+30 4 * * * <APP_USER> /srv/deanery/app/deploy/backup.sh 2>&1 | logger -t deanery-backup

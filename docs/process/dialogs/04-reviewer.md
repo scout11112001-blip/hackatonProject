@@ -11684,3 +11684,995 @@ TASK-010 одобрен с первого раунда, вердикт APPROVE �
 - **Мутационные пробы:** 7 из 8 пойманы тестами: наложения и щели в плане, заход помещения в коридор, ошибки отображения и неполный seed. Восьмая равносильна исходному коду и не влияет на поведение, поэтому её можно не учитывать.
 
 Тимлиду осталось проверить глазами вертикальную карту на 360 px: пунктирные служебные помещения, Г-образные «Столовая» и 210, сжатые подписи «Лестница» и «Гардероб».
+
+── User ────────────────────────────────────────────────────
+Ты тут?
+
+── Assistant ───────────────────────────────────────────────
+Да, я здесь. Последняя проверка — TASK-010 (новая карта этажей): я её одобрил и отправил APPROVE Тимлиду. Новых задач на проверку нет, жду следующий отчёт Кодера.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_ng6cbgatm6]
+
+[TASK-011] Coder -> Reviewer: REPORT
+
+Spec: docs/tasks/TASK-011.md (base d9d8e55, Team lead's amendment 1 vCPU / 1 GB / 10 GB). Production readiness, no server access. Not committed.
+
+## Done
+- `requirements.txt`: + `gunicorn==26.2.0`.
+- `deploy/gunicorn.conf.py` (exact 4.2): bind `127.0.0.1:8000` (`GUNICORN_BIND`), `workers = max(1, int(GUNICORN_WORKERS, default 2))`, timeout/graceful 30, keepalive 5, max_requests 1000/100, access/error to `-`, `capture_output`, `control_socket_disable = True`. Passes ruff (deploy/ is not excluded).
+- `deploy/nginx/deanery-bootstrap.conf` (4.3) and `deploy/nginx/deanery.conf` (4.4): WhiteNoise serves static, no `root`/`alias` except the ACME webroot, `listen 443 ssl http2;` (nginx 1.24), proxy headers (Host/X-Real-IP/X-Forwarded-For/X-Forwarded-Proto), `client_max_body_size 20m`, only a `Permissions-Policy` add_header (Django sets the rest), HTTP→HTTPS redirect.
+- `deploy/systemd/deanery.service` (4.5), `deploy/journald/50-deanery.conf` (SystemMaxUse=200M), `deploy/ssh/10-deanery-hardening.conf`, `deploy/cron/deanery-backup`, `deploy/backup.sh` + `deploy/manage.sh` (both mode 755, 4.6).
+- `.env.production.example` (4.7): all 18 variables with comments, placeholders only.
+- CI (4.8): SQLite job gains `bash -n deploy/*.sh` + `gunicorn --check-config`; new `test-postgres` job with `postgres:16` service.
+- `docs/DEPLOY.md` (4.9): steps 0–21, swap first, trial DB `deanery_trial`, final DB + one-time seed on 2026-11-22, HSTS raise, Resources.
+- `core/tests/test_deploy.py` (6.2): all classes — GunicornConfigTests, NginxTemplateTests, EnvExampleTests, SystemdUnitTests, SmallFilesTests, ShellScriptTests, SecretScanTests, RunbookTests (36 tests).
+
+## Tests — 1000 OK (baseline 964 → +36)
+`core.tests.test_deploy.py` 36 tests all green, incl. subprocess `manage.py check --deploy --fail-level WARNING` with the example values (return code 0, «System check identified no issues»).
+
+## Verification (§8) — all green
+- `check` no issues; `makemigrations --check --dry-run` → No changes.
+- `test` → 1000 OK; `run_tests_at.py` 23:59:59 and 00:00:00 → 1000 OK each (no stalls).
+- `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` clean; `ruff format --check .` → 185 files; `bash -n deploy/backup.sh deploy/manage.sh` ok; `node --check static/js/chat.js` ok; yaml ok.
+- `gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application` → OK (exit 0). **gunicorn 26.2.0 was installed locally** (pip reached PyPI after retries).
+- `seed_demo` × 2 on temp DB → «Schedule ready: 39 rooms …» idempotent.
+- **PostgreSQL (6.6)**: no local PostgreSQL server and no Docker daemon on this machine, so the PostgreSQL suite was not run locally; CI `test-postgres` is the PG check (the Team lead reports its result after push).
+
+Logs: `$TMPDIR/test-20261117-134408.log`, `-135040-at-2359.log`, `-135313-at-0000.log`. No failed or stalled runs.
+
+## Interpretation note (for your review)
+§6.2 `test_no_project_files_served` says "no `PRIVATE_MEDIA` substring", but the mandated config 4.4 contains the comment `# PRIVATE_MEDIA_ROOT must never get a location here…`. I implemented the check against **directives only** (comment lines stripped), which satisfies AC2 (no static/private-media *location*) while keeping the mandated comment. Flagging in case you want the literal-substring version instead.
+
+## git status
+```
+ M .github/workflows/ci.yml
+ M README.md
+ M plan.md
+ M requirements.txt
+?? core/tests/test_deploy.py
+?? deploy/
+?? docs/DEPLOY.md
+?? docs/tasks/TASK-011.md
+```
+Not shown by git (matched by `.env.*` in .gitignore, not changed per the Team lead's note): **`.env.production.example`** (created). Not mine: `plan.md` (pre-existing `M`) and `docs/tasks/TASK-011.md` (the spec). No `db.sqlite3`/`private_media` changes.
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Thought for 2s
+    I'm reviewing TASK-011, and I need to keep secrets out of view. The example file `.env.production.example` should only hold placeholders, so reading it to confirm that seems acceptable. Still, it matches the `.env.*` gitignore pattern, so I want to handle it carefully.
+
+    The gitignore pattern means the example file won't be committed, which conflicts with the spec requiring it in the repo. Since the Team lead said not to change `.gitignore`, the file would need a forced add, and I'll flag that. Next I'm starting the background runs and reading the spec.
+  ── Ran source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "TS=$TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && for i in 1 2; do python manage.py test > "$TMPDIR/test-$TS-rev011-full$i.log" 2>&1; echo "--- plain $i"; grep -E "^(FAIL|ERROR):|^Ran |^OK|^FAILED" "$TMPDIR/test-$TS-rev011-full$i.log"; done; for at in 2026-11-17T23:59:59 2026-11-18T00:00:00 2027-03-01T12:00:00; do echo "--- $at"; python scripts/run_tests_at.py $at > "$TMPDIR/test-$TS-rev011-at-$at.log" 2>&1; grep -E "^(FAIL|ERROR):|^Ran |^OK|^FAILED" "$TMPDIR/test-$TS-rev011-at-$at.log"; done; ruff check . && ruff format --check . | tail -1; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; bash -n deploy/*.sh && echo "bash ok"; gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application && echo "gunicorn ok"; echo DONE (2s)
+    $ source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "TS=$TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && for i in 1 2; do python manage.py test > "$TMPDIR/test-$TS-rev011-full$i.log" 2>&1; echo "--- plain $i"; grep -E "^(FAIL|ERROR):|^Ran |^OK|^FAILED" "$TMPDIR/test-$TS-rev011-full$i.log"; done; for at in 2026-11-17T23:59:59 2026-11-18T00:00:00 2027-03-01T12:00:00; do echo "--- $at"; python scripts/run_tests_at.py $at > "$TMPDIR/test-$TS-rev011-at-$at.log" 2>&1; grep -E "^(FAIL|ERROR):|^Ran |^OK|^FAILED" "$TMPDIR/test-$TS-rev011-at-$at.log"; done; ruff check . && ruff format --check . | tail -1; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; bash -n deploy/*.sh && echo "bash ok"; gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application && echo "gunicorn ok"; echo DONE
+    Command running in background with ID: bew6m3kbg. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bew6m3kbg.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran git log --oneline -1 && wc -l docs/tasks/TASK-011.md && sed -n 1,220p docs/tasks/TASK-011.md
+    $ git log --oneline -1 && wc -l docs/tasks/TASK-011.md && sed -n 1,220p docs/tasks/TASK-011.md
+    d9d8e55 Plan: TASK-010 closed without a fix task; map notes moved to the UI stage
+         475 docs/tasks/TASK-011.md
+    # TASK-011: production readiness — gunicorn, nginx, systemd, PostgreSQL CI, deploy runbook
+
+    Author: Planner. Status: ready for implementation (includes the Team lead's amendment: 1 vCPU / 1 GB RAM / 10 GB disk).
+    Base commit: `d9d8e55`. Related: `plan.md` 6b, `README.md` "Deployment notes", `config/settings.py`, `config/env_utils.py`, `accounts/throttling.py`.
+
+    The agents have no server access. This task only adds files to the repository and documents the manual deployment. Target: Ubuntu 24.04, 1 vCPU, 1 GB RAM, 10 GB disk, one domain with HTTPS, until 2026-11-28.
+
+    ---
+
+    ## 1. Acceptance criteria
+    | ID | Criterion |
+    |---|---|
+    | AC1 | `gunicorn==26.2.0` in `requirements.txt`; `deploy/gunicorn.conf.py`: bind `127.0.0.1:8000` (env `GUNICORN_BIND`), workers from env `GUNICORN_WORKERS` (default 2), timeout 30, graceful timeout 30, access/error log to stdout/stderr (journal), control socket disabled. |
+    | AC2 | `deploy/nginx/deanery-bootstrap.conf` (HTTP only, for the first certificate) and `deploy/nginx/deanery.conf` (HTTP → HTTPS redirect, ACME path, TLS, proxy to `127.0.0.1:8000` with `Host`, `X-Real-IP`, `X-Forwarded-For`, `X-Forwarded-Proto`, `client_max_body_size 20m`, no `root`/`alias` except the ACME webroot, no static or private-media location, no headers that Django already sets). |
+    | AC3 | `deploy/systemd/deanery.service` (non-root `<APP_USER>`, `EnvironmentFile=/etc/deanery/deanery.env`, `Restart=on-failure`, hardening options); `deploy/journald/50-deanery.conf` (`SystemMaxUse=200M`); `deploy/backup.sh` (gzip `pg_dump` + tar of `PRIVATE_MEDIA_ROOT`, keeps 7 days); `deploy/cron/deanery-backup`; `deploy/manage.sh` (runs `manage.py` with the env file); `deploy/ssh/10-deanery-hardening.conf`. |
+    | AC4 | `.env.production.example` lists every env variable the project reads (settings, management commands, gunicorn config) with a comment; `DEBUG=false`; `CLIENT_IP_HEADER=X-Real-IP` (matches nginx); PostgreSQL `DATABASE_URL`; `CSRF_TRUSTED_ORIGINS=https://example.com`; only placeholders. `check --deploy --fail-level WARNING` passes with exactly these values (test). |
+    | AC5 | CI job `test-postgres` with service `postgres:16` runs check, makemigrations check, the full suite, `run_tests_at.py`, migrate + seed twice on PostgreSQL; the SQLite job stays. CI also runs `gunicorn --check-config` and `bash -n deploy/*.sh`. |
+    | AC6 | `docs/DEPLOY.md` runbook (English, numbered, copy-paste commands) covering every step in section 4.9, including swap first, journald limit, resources section, trial vs final database, one-time `seed_demo` on 2026-11-22, HSTS raise procedure. `README.md` "Deployment notes" points to it. |
+    | AC7 | Tests (section 6): nginx template rules, env coverage, deploy check with example values, gunicorn config values, systemd unit rules, no secrets / real IPs in `deploy/`, `.env.production.example`, `docs/DEPLOY.md`, shell syntax. |
+    | AC8 | Any PostgreSQL-only failure found by the PostgreSQL run is fixed minimally and listed in the `REPORT`. |
+
+    ## 2. Out of scope
+    Logging in to the server, Docker/Kubernetes, CDN, monitoring, e-mail, the visual theme, changing Django security settings (only documentation of how to raise HSTS).
+
+    ## 3. Design decisions
+    **D1. gunicorn 26.2.0.** Released 2026-08-24, no runtime dependencies, Python ≥ 3.10. The newer 27.x line is one week old (27.0.0 on 2026-11-10, 27.0.1 on 2026-11-12) — too fresh for a deploy this week. Verified locally (9.6): `--check-config` passes, 2 workers boot, `/health/` → 200. Version 26 starts a "control server" in `$HOME/.gunicorn`; the config disables it (`control_socket_disable = True`), which also suits `ProtectHome=` in systemd.
+
+    **D2. Workers.** Default 2 for 1 vCPU / 1 GB (each Django worker ≈ 60–90 MB RSS). Formula for a bigger server, documented in the config and the runbook: `workers = min(2 × vCPU + 1, (free RAM in MB − 300) / 90)`; set `GUNICORN_WORKERS` in the env file.
+
+    **D3. Loopback TCP, not a Unix socket.** `127.0.0.1:8000` needs no shared group or socket permissions between `www-data` and the app user, which removes a common manual-setup error. The port is not reachable from outside (loopback only; ufw allows only 22/80/443). Because only nginx can reach gunicorn, Django may trust `X-Forwarded-Proto` (`SECURE_PROXY_SSL_HEADER`) and `X-Real-IP` (`CLIENT_IP_HEADER`).
+
+    **D4. Static files stay with WhiteNoise.** WhiteNoise already serves hashed, compressed files with far-future cache headers (`CompressedManifestStaticFilesStorage` when `DEBUG=false`). nginx then needs no `root` for the app at all, so it cannot serve any file of the project directory — in particular not `PRIVATE_MEDIA_ROOT`. Cost on 1 vCPU is small for a prototype (static files are cached by browsers).
+
+    **D5. Client IP header = `X-Real-IP`.** nginx sets `proxy_set_header X-Real-IP $remote_addr;` (overwrites any client value). `accounts/throttling.py` reads it directly. `X-Forwarded-For` is also passed (standard), but not used for throttling.
+
+    **D6. Certificates: certbot webroot.** First a HTTP-only bootstrap config serves `/.well-known/acme-challenge/` from `/var/www/letsencrypt`; `certbot certonly --webroot` gets the certificate; then the full config is installed. Renewal uses the same webroot location (kept in the port-80 server) and the `certbot.timer` that the Ubuntu package installs; `--deploy-hook "systemctl reload nginx"` reloads nginx after renewal. The nginx config stays a tested file in the repo (the `--nginx` plugin would rewrite it).
+
+    **D7. nginx version.** Ubuntu 24.04 ships nginx 1.24: HTTP/2 is enabled with `listen 443 ssl http2;` (the separate `http2 on;` directive exists only since 1.25.1).
+
+    **D8. Env file.** `/etc/deanery/deanery.env`, owner `<APP_USER>`, mode 600 (systemd reads it as root; operators run `deploy/manage.sh` as the app user). Values must not need shell quoting: secrets are generated with `secrets.token_urlsafe` / `openssl rand -hex` (letters, digits, `-`, `_`); `DEMO_PASSWORD` uses only letters, digits, `-`, `_`, `.`. No `.env` file in the app directory.
+
+    **D9. Env coverage test parses the sources.** Parsing `config/settings.py` (`env.<type>("NAME"…)`), `os.environ.get("NAME"…)` in management commands and `deploy/gunicorn.conf.py` finds new variables automatically; a separate fixed list would silently go stale. A guard assertion requires the parser to find the 18 variables known today.
+
+    **D10. Trial database vs final database.** `seed_demo` creates announcements and chats only once, with dates relative to its first run. The trial deploy (now) therefore uses a throw-away database `deanery_trial` (and `/srv/deanery/private_media_trial`); on 2026-11-22 the runbook creates the final database `deanery` (and `/srv/deanery/private_media`), switches the env file, migrates, runs `seed_demo` once and restarts. No database is dropped during the jury period.
+
+    **D11. Resources (amendment).** Swap 1 GB before any `apt`/`pip`; journald capped at 200 MB; backups gzip-compressed and kept 7 days; nginx logs rotated by the stock `/etc/logrotate.d/nginx`; PostgreSQL stock settings (do not raise `shared_buffers`; default `max_connections`).
+
+    ---
+
+    ## 4. Files
+
+    ### 4.1 List
+    Create: `deploy/gunicorn.conf.py`, `deploy/nginx/deanery-bootstrap.conf`, `deploy/nginx/deanery.conf`, `deploy/systemd/deanery.service`, `deploy/journald/50-deanery.conf`, `deploy/ssh/10-deanery-hardening.conf`, `deploy/cron/deanery-backup`, `deploy/backup.sh` (mode 755), `deploy/manage.sh` (mode 755), `.env.production.example`, `docs/DEPLOY.md`, `core/tests/test_deploy.py`.
+    Change: `requirements.txt` (+ `gunicorn==26.2.0`), `.github/workflows/ci.yml`, `README.md` ("Deployment notes": first bullet «Follow `docs/DEPLOY.md`.»; keep the other bullets).
+    Placeholders in all templates: `example.com` (domain) and `<APP_USER>` (Linux user, the runbook uses `deanery`). Fixed paths: app `/srv/deanery/app`, venv `/srv/deanery/venv`, media `/srv/deanery/private_media`, backups `/srv/deanery/backups`, env file `/etc/deanery/deanery.env`, ACME webroot `/var/www/letsencrypt`.
+    Note: `docs/` is excluded from ruff (TASK-006); `deploy/gunicorn.conf.py` is NOT excluded and must pass ruff.
+
+    ### 4.2 `deploy/gunicorn.conf.py`
+    ```python
+    """gunicorn settings for the deanery prototype (loaded with -c deploy/gunicorn.conf.py).
+
+    Workers: 2 for 1 vCPU / 1 GB RAM. Bigger server: min(2 * vCPU + 1, (free RAM MB - 300) // 90),
+    set GUNICORN_WORKERS in /etc/deanery/deanery.env.
+    """
+
+    import os
+
+    bind = os.environ.get("GUNICORN_BIND", "127.0.0.1:8000")
+    workers = max(1, int(os.environ.get("GUNICORN_WORKERS", "2")))
+    timeout = 30
+    graceful_timeout = 30
+    keepalive = 5
+    max_requests = 1000
+    max_requests_jitter = 100
+    accesslog = "-"
+    errorlog = "-"
+    loglevel = "info"
+    capture_output = True
+    control_socket_disable = True
+    ```
+
+    ### 4.3 `deploy/nginx/deanery-bootstrap.conf`
+    ```nginx
+    # Temporary HTTP-only site used once to obtain the first certificate (docs/DEPLOY.md step 13).
+    server {
+        listen 80;
+        listen [::]:80;
+        server_name example.com;
+        server_tokens off;
+
+        location ^~ /.well-known/acme-challenge/ {
+            root /var/www/letsencrypt;
+            default_type "text/plain";
+        }
+
+        location / {
+            return 503;
+        }
+    }
+    ```
+
+    ### 4.4 `deploy/nginx/deanery.conf`
+    ```nginx
+    # Deanery prototype. Static files are served by Django/WhiteNoise; nginx serves no project files.
+    # PRIVATE_MEDIA_ROOT must never get a location here (attachments go through Django access checks).
+    server {
+        listen 80;
+        listen [::]:80;
+        server_name example.com;
+        server_tokens off;
+
+        location ^~ /.well-known/acme-challenge/ {
+            root /var/www/letsencrypt;
+            default_type "text/plain";
+        }
+
+        location / {
+            return 301 https://$host$request_uri;
+        }
+    }
+
+    server {
+        listen 443 ssl http2;
+        listen [::]:443 ssl http2;
+        server_name example.com;
+        server_tokens off;
+
+        ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_prefer_server_ciphers off;
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_timeout 1d;
+        ssl_session_tickets off;
+
+        client_max_body_size 20m;
+
+        # Not set by Django; X-Frame-Options, nosniff, Referrer-Policy and HSTS come from Django.
+        add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+
+        location / {
+            proxy_pass http://127.0.0.1:8000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_redirect off;
+            proxy_connect_timeout 5s;
+            proxy_read_timeout 60s;
+        }
+    }
+    ```
+
+    ### 4.5 `deploy/systemd/deanery.service`
+    ```ini
+    [Unit]
+    Description=Deanery prototype (gunicorn)
+    After=network.target postgresql.service
+    Wants=postgresql.service
+
+    [Service]
+    Type=simple
+    User=<APP_USER>
+    Group=<APP_USER>
+    WorkingDirectory=/srv/deanery/app
+    EnvironmentFile=/etc/deanery/deanery.env
+    ExecStart=/srv/deanery/venv/bin/gunicorn -c deploy/gunicorn.conf.py config.wsgi:application
+    Restart=on-failure
+    RestartSec=5
+    KillMode=mixed
+    TimeoutStopSec=35
+    NoNewPrivileges=true
+    PrivateTmp=true
+    ProtectSystem=full
+    ProtectHome=true
+    ReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial
+
+    [Install]
+    WantedBy=multi-user.target
+    ```
+    (`ReadWritePaths` entries must exist before start; the runbook creates both directories. After the switch on 2026-11-22 the trial path stays harmlessly listed.)
+
+    ### 4.6 Small files
+    - `deploy/journald/50-deanery.conf`:
+    ```ini
+    [Journal]
+    SystemMaxUse=200M
+    SystemKeepFree=1G
+    MaxRetentionSec=14day
+    ```
+    - `deploy/ssh/10-deanery-hardening.conf` (the name sorts before Ubuntu's `50-cloud-init.conf`; sshd uses the first value it reads):
+    ```text
+    PasswordAuthentication no
+    KbdInteractiveAuthentication no
+    PermitRootLogin prohibit-password
+    PubkeyAuthentication yes
+    ```
+    - `deploy/cron/deanery-backup` (installed to `/etc/cron.d/deanery-backup`; server time zone is Europe/Moscow, step 2):
+    ```text
+    # Daily backup of PostgreSQL and PRIVATE_MEDIA_ROOT at 04:30 Moscow time.
+    30 4 * * * <APP_USER> /srv/deanery/app/deploy/backup.sh 2>&1 | logger -t deanery-backup
+    ```
+    - `deploy/manage.sh`:
+    ```bash
+    #!/usr/bin/env bash
+    # Run a Django management command with the production environment.
+    # Usage: sudo -u <APP_USER> /srv/deanery/app/deploy/manage.sh <command> [args]
+    set -euo pipefail
+    set -a
+    . /etc/deanery/deanery.env
+    set +a
+    cd /srv/deanery/app
+    exec /srv/deanery/venv/bin/python manage.py "$@"
+    ```
+    - `deploy/backup.sh`:
+    ```bash
+    #!/usr/bin/env bash
+    # Daily backup: gzip-compressed pg_dump + tar.gz of PRIVATE_MEDIA_ROOT; keeps KEEP_DAYS days.
+    set -euo pipefail
+    umask 077
+
+── Explored 1 file ─────────────────────────────────────────
+  ── Read docs/tasks/TASK-011.md
+  ── Thought for 763ms
+    I'm going through the deploy files and checking them against the spec blocks word for word. The env template is just placeholders, so I can read it to verify, and I'll keep its contents out of my output.
+
+    I'm now running the diffs: pulling the spec code blocks out and comparing them against the deploy files.
+
+── Ran 3 commands ──────────────────────────────────────────
+  ── Ran python3 - <<'EOF' import re,subprocess,pathlib spec=pathlib.Path("docs/tasks/TASK-011.md").read_text() blocks=re.findall(r"```(\w*)\n(.*?)```", spec, re.S) def find(start):     for lang,b in blocks:         if b.lstrip().startswith(start): return b targets={  "deploy/gunicorn.conf.py":'"""gunicorn settings',  "deploy/nginx/deanery-bootstrap.conf":"# Temporary HTTP-only",  "deploy/nginx/deanery.conf":"# Deanery prototype.",  "deploy/systemd/deanery.service":"[Unit]",  "deploy/journald/50-deanery.conf":"[Journal]",  "deploy/ssh/10-deanery-hardening.conf":"PasswordAuthentication no",  "deploy/cron/deanery-backup":"# Daily backup of PostgreSQL",  "deploy/manage.sh":"#!/usr/bin/env bash\n# Run a Django",  "deploy/backup.sh":"#!/usr/bin/env bash\n# Daily backup",  ".env.production.example":"# Production. Copy", } for f,s in targets.items():     b=find(s); a=pathlib.Path(f).read_text()     print(f, "IDENTICAL" if a.strip()==b.strip() else "DIFF")     if a.strip()!=b.strip():         import difflib; print("".join(difflib.unified_diff(b.strip().splitlines(1),a.strip().splitlines(1),"spec",f))) EOF ls -l deploy/*.sh; git check-ignore -v .env.production.example; git diff requirements.txt README.md .github/workflows/ci.yml (2s)
+    $ python3 - <<'EOF'
+  import re,subprocess,pathlib
+  spec=pathlib.Path("docs/tasks/TASK-011.md").read_text()
+  blocks=re.findall(r"```(\w*)\n(.*?)```", spec, re.S)
+  def find(start):
+      for lang,b in blocks:
+          if b.lstrip().startswith(start): return b
+  targets={
+   "deploy/gunicorn.conf.py":'"""gunicorn settings',
+   "deploy/nginx/deanery-bootstrap.conf":"# Temporary HTTP-only",
+   "deploy/nginx/deanery.conf":"# Deanery prototype.",
+   "deploy/systemd/deanery.service":"[Unit]",
+   "deploy/journald/50-deanery.conf":"[Journal]",
+   "deploy/ssh/10-deanery-hardening.conf":"PasswordAuthentication no",
+   "deploy/cron/deanery-backup":"# Daily backup of PostgreSQL",
+   "deploy/manage.sh":"#!/usr/bin/env bash\n# Run a Django",
+   "deploy/backup.sh":"#!/usr/bin/env bash\n# Daily backup",
+   ".env.production.example":"# Production. Copy",
+  }
+  for f,s in targets.items():
+      b=find(s); a=pathlib.Path(f).read_text()
+      print(f, "IDENTICAL" if a.strip()==b.strip() else "DIFF")
+      if a.strip()!=b.strip():
+          import difflib; print("".join(difflib.unified_diff(b.strip().splitlines(1),a.strip().splitlines(1),"spec",f)))
+  EOF
+  ls -l deploy/*.sh; git check-ignore -v .env.production.example; git diff requirements.txt README.md .github/workflows/ci.yml
+    deploy/gunicorn.conf.py IDENTICAL
+    deploy/nginx/deanery-bootstrap.conf IDENTICAL
+    deploy/nginx/deanery.conf IDENTICAL
+    deploy/systemd/deanery.service IDENTICAL
+    deploy/journald/50-deanery.conf IDENTICAL
+    deploy/ssh/10-deanery-hardening.conf IDENTICAL
+    deploy/cron/deanery-backup IDENTICAL
+    deploy/manage.sh IDENTICAL
+    deploy/backup.sh IDENTICAL
+    .env.production.example IDENTICAL
+    -rwxr-xr-x@ 1 andreyorlov  staff  678 Nov 17 02:32 deploy/backup.sh
+    -rwxr-xr-x@ 1 andreyorlov  staff  294 Nov 17 02:32 deploy/manage.sh
+    .gitignore:3:.env.*	.env.production.example
+    diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+    index 37888ee..a1fa786 100644
+    --- a/.github/workflows/ci.yml
+    +++ b/.github/workflows/ci.yml
+    @@ -24,6 +24,10 @@ jobs:
+                 requirements-dev.txt
+           - name: Install dependencies
+             run: python -m pip install -r requirements-dev.txt
+    +      - name: Shell syntax
+    +        run: bash -n deploy/backup.sh deploy/manage.sh
+    +      - name: gunicorn config
+    +        run: gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application
+           - name: Ruff lint
+             run: ruff check .
+           - name: Ruff format
+    @@ -49,3 +53,50 @@ jobs:
+               ALLOWED_HOSTS: "example.com"
+               ADMIN_URL: "ci-staff-panel/"
+             run: python manage.py check --deploy --fail-level WARNING
+    +
+    +  test-postgres:
+    +    runs-on: ubuntu-latest
+    +    services:
+    +      postgres:
+    +        image: postgres:16
+    +        env:
+    +          POSTGRES_USER: deanery
+    +          POSTGRES_PASSWORD: ci-only-postgres-password
+    +          POSTGRES_DB: deanery
+    +        ports:
+    +          - 5432:5432
+    +        options: >-
+    +          --health-cmd "pg_isready -U deanery"
+    +          --health-interval 5s
+    +          --health-timeout 5s
+    +          --health-retries 10
+    +    env:
+    +      DEBUG: "true"
+    +      SECRET_KEY: "ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop"
+    +      DATABASE_URL: "postgres://deanery:ci-only-postgres-password@localhost:5432/deanery"
+    +    steps:
+    +      - uses: actions/checkout@v4
+    +      - uses: actions/setup-python@v5
+    +        with:
+    +          python-version: "3.12"
+    +          cache: pip
+    +          cache-dependency-path: |
+    +            requirements.txt
+    +            requirements-dev.txt
+    +      - name: Install dependencies
+    +        run: python -m pip install -r requirements-dev.txt
+    +      - name: Django check
+    +        run: python manage.py check --database default
+    +      - name: Missing migrations
+    +        run: python manage.py makemigrations --check --dry-run
+    +      - name: Tests (PostgreSQL)
+    +        run: python manage.py test
+    +      - name: Tests with a frozen Moscow midnight clock (PostgreSQL)
+    +        run: python scripts/run_tests_at.py 2026-11-18T00:00:00
+    +      - name: Migrate and seed demo data twice (PostgreSQL)
+    +        env:
+    +          DEMO_PASSWORD: "ci-dummy-demo-password-2026"
+    +        run: |
+    +          python manage.py migrate --noinput
+    +          python manage.py seed_demo
+    +          python manage.py seed_demo
+    diff --git a/README.md b/README.md
+    index ced530f..88173b9 100644
+    --- a/README.md
+    +++ b/README.md
+    @@ -191,6 +191,7 @@ proxy_set_header X-Real-IP $remote_addr;
+     
+     ## Deployment notes
+     
+    +- Follow `docs/DEPLOY.md`.
+     - Run `python manage.py seed_demo` once on the server on 2026-11-22 (submission
+       day), after `migrate`. It needs `DEMO_PASSWORD` in the environment.
+     - Back up `PRIVATE_MEDIA_ROOT` together with the database: attachments are
+    diff --git a/requirements.txt b/requirements.txt
+    index 897e832..cbd2ca4 100644
+    --- a/requirements.txt
+    +++ b/requirements.txt
+    @@ -2,3 +2,4 @@ Django==5.2.19
+     django-environ==0.14.0
+     whitenoise==6.12.0
+     psycopg[binary]==3.3.8
+    +gunicorn==26.2.0
+  ── Thought for 14s
+    I've spotted a critical problem: `.env.production.example` is matched by the `.env.*` git-ignore rule, so it never gets committed. That means the deploy step that builds the env file from it on the server would fail, and the tests that read it would fail in CI too.
+
+    I'm weighing whether this is a blocking issue or something the Team lead can handle at commit time, since the Team lead is the one who actually commits. Either way the Team lead needs to know that the file must be force-added or excepted in .gitignore, or CI and the server-side deploy step will both break.
+
+    I'm checking whether the CI test job has gunicorn available, since the requirements-dev file may or may not pull in requirements.txt. On the PRIVATE_MEDIA check, the spec says no substring at all, yet its own mandated section 4.4 contains that string in a comment, so the spec contradicts itself; the Coder's choice to strip comments looks reasonable and I'll note it. Next I'm looking at backup.sh: pg_dump should accept the postgres:// URL, the env file permissions and backup directory mode are fine, and the seven-day retention via -mtime +6 works out.
+
+    Next I'm looking at the systemd unit's sandboxing: ProtectSystem=full leaves /srv writable, ProtectHome=true is fine since the app lives under /srv/deanery, and the ReadWritePaths directories are created by the runbook so the service won't fail to start. Last I'm checking manage.sh, where sourcing the env file with set -a and unquoted values is the part I want to confirm.
+
+    Next I'm checking the runbook's step 10, since a sed that rewrites "/deanery" to "/deanery_trial" would also catch "/srv/deanery/private_media" and corrupt that path. I'm also reviewing the nginx listen line and the certbot deploy hook, which both look fine, and then I'll look at the CI configuration.
+
+    I'm checking the CI test job next, starting with whether `gunicorn --check-config` can load the settings with the job's environment. I'm also confirming that the test suite and seed command don't need a media path on the runner. After that I'll read DEPLOY.md and test_deploy.
+  ── Ran wc -l docs/DEPLOY.md && cat docs/DEPLOY.md
+    $ wc -l docs/DEPLOY.md && cat docs/DEPLOY.md
+    299 docs/DEPLOY.md
+    # Deployment runbook
+
+    Production deployment of the Deanery prototype on Ubuntu 24.04 (1 vCPU, 1 GB
+    RAM, 10 GB disk), one domain with HTTPS, serving until 2026-11-28.
+
+    The agents have no server access; this runbook documents the manual steps. Run
+    every command as the sudo user unless a step says otherwise. Keep one SSH
+    session open until step 4 is verified, so you do not lock yourself out.
+
+    Set the shell variables once, then reuse them in every step:
+
+    ```bash
+    DOMAIN=example.com
+    APP_USER=deanery
+    REPO_URL=<your repository URL>
+    ```
+
+    ## 0. Before you start
+
+    You need:
+
+    - a domain whose `A` record already points at the server IP;
+    - an SSH key you created and installed on the server:
+
+    ```bash
+    ssh-keygen -t ed25519
+    ssh-copy-id "$APP_USER"@<server-ip>
+    ```
+
+    Keep one SSH session open until step 4 (SSH hardening) is verified.
+
+    ## 1. Swap first (1 GB RAM)
+
+    Do this before any `apt` or `pip` step, so installs and migrations have room.
+
+    ```bash
+    sudo fallocate -l 1G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+    echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+    echo 'vm.swappiness=10' | sudo tee /etc/sysctl.d/99-deanery-swap.conf && sudo sysctl --system
+    free -h
+    ```
+
+    ## 2. Time zone
+
+    Cron and logs use Moscow time.
+
+    ```bash
+    sudo timedatectl set-timezone Europe/Moscow
+    ```
+
+    ## 3. Packages
+
+    ```bash
+    sudo apt update && sudo apt -y upgrade
+    sudo apt -y install python3.12-venv nginx postgresql certbot git ufw
+    ```
+
+    ## 4. SSH: keys only
+
+    Copy `deploy/ssh/10-deanery-hardening.conf` (from the repo after step 7, or
+    paste its 4 lines) to `/etc/ssh/sshd_config.d/`; the `10-` name sorts before
+    Ubuntu's `50-cloud-init.conf`, so it wins. The file sets
+    `PasswordAuthentication no`, `PermitRootLogin prohibit-password` and
+    `PubkeyAuthentication yes`. This step may be done right after step 7, once the
+    repo is cloned.
+
+    ```bash
+    sudo install -m 644 deploy/ssh/10-deanery-hardening.conf /etc/ssh/sshd_config.d/
+    sudo sshd -t && sudo systemctl reload ssh
+    sudo sshd -T | grep -Ei 'passwordauthentication|permitrootlogin'
+    ```
+
+    Open a **new** SSH session with your key and verify it logs in before closing
+    the old one.
+
+    ## 5. Firewall
+
+    Only SSH, HTTP and HTTPS.
+
+    ```bash
+    sudo ufw allow OpenSSH && sudo ufw allow 80/tcp && sudo ufw allow 443/tcp && sudo ufw --force enable && sudo ufw status
+    ```
+
+    ## 6. journald limit
+
+    Cap journald so logs cannot fill the 10 GB disk. The file sets
+    `SystemMaxUse=200M` (and keeps 1 GB free).
+
+    ```bash
+    sudo mkdir -p /etc/systemd/journald.conf.d
+    sudo install -m 644 deploy/journald/50-deanery.conf /etc/systemd/journald.conf.d/
+    sudo systemctl restart systemd-journald
+    journalctl --disk-usage
+    ```
+
+    nginx logs are rotated by the stock `/etc/logrotate.d/nginx` — no action.
+
+    ## 7. App user, directories, code
+
+    ```bash
+    sudo adduser --system --group --home /srv/deanery --shell /bin/bash "$APP_USER"
+    sudo -u "$APP_USER" git clone "$REPO_URL" /srv/deanery/app
+    sudo -u "$APP_USER" mkdir -p /srv/deanery/private_media /srv/deanery/private_media_trial /srv/deanery/backups
+    sudo chmod 750 /srv/deanery/private_media /srv/deanery/private_media_trial && sudo chmod 700 /srv/deanery/backups
+    sudo mkdir -p /var/www/letsencrypt
+    ```
+
+    ## 8. Python venv
+
+    ```bash
+    sudo -u "$APP_USER" python3.12 -m venv /srv/deanery/venv
+    sudo -u "$APP_USER" /srv/deanery/venv/bin/pip install --upgrade pip
+    sudo -u "$APP_USER" /srv/deanery/venv/bin/pip install -r /srv/deanery/app/requirements.txt
+    ```
+
+    ## 9. PostgreSQL (trial database)
+
+    Keep PostgreSQL stock settings: do **not** raise `shared_buffers`, keep
+    `max_connections`.
+
+    ```bash
+    DB_PASS=$(openssl rand -hex 24)
+    sudo -u postgres psql -v ON_ERROR_STOP=1 \
+      -c "CREATE ROLE deanery LOGIN PASSWORD '$DB_PASS';" \
+      -c "CREATE DATABASE deanery_trial OWNER deanery ENCODING 'UTF8' TEMPLATE template0;"
+    ```
+
+    ## 10. Environment file
+
+    Build `/etc/deanery/deanery.env` from `.env.production.example`, replacing the
+    placeholders. Values must not need shell quoting.
+
+    ```bash
+    sudo mkdir -p /etc/deanery
+    SECRET=$(python3 -c "import secrets; print(secrets.token_urlsafe(50))")
+    ADMIN_PATH="staff-$(openssl rand -hex 6)/"
+    DEMO_PW=<a password you choose, letters/digits/-/_/. only>
+    sed -e "s/example\.com/$DOMAIN/g" \
+        -e "s|replace-me-with-secrets-token-urlsafe-50-generated-on-the-server|$SECRET|" \
+        -e "s|REPLACE_ME_DB_PASSWORD|$DB_PASS|" \
+        -e "s|/deanery|/deanery_trial|" \
+        -e "s|/srv/deanery/private_media|/srv/deanery/private_media_trial|" \
+        -e "s|staff-panel-change-me/|$ADMIN_PATH|" \
+        -e "s|REPLACE_ME_DEMO_PASSWORD|$DEMO_PW|" \
+        .env.production.example | sudo tee /etc/deanery/deanery.env > /dev/null
+    sudo chown "$APP_USER:$APP_USER" /etc/deanery/deanery.env && sudo chmod 600 /etc/deanery/deanery.env
+    unset DB_PASS SECRET DEMO_PW
+    ```
+
+    Show the final file without printing secrets:
+
+    ```bash
+    sudo -u "$APP_USER" grep -v -E 'SECRET_KEY|PASSWORD' /etc/deanery/deanery.env
+    ```
+
+    ## 11. Django
+
+    ```bash
+    M="sudo -u $APP_USER /srv/deanery/app/deploy/manage.sh"
+    $M migrate
+    $M collectstatic --noinput
+    $M check --deploy --fail-level WARNING
+    $M createsuperuser
+    ```
+
+    Leave the superuser role empty — a Django superuser is for the admin only.
+
+    ## 12. gunicorn + systemd
+
+    ```bash
+    sed "s/<APP_USER>/$APP_USER/g" deploy/systemd/deanery.service | sudo tee /etc/systemd/system/deanery.service > /dev/null
+    sudo systemctl daemon-reload && sudo systemctl enable --now deanery
+    systemctl status deanery
+    curl -s -H "Host: $DOMAIN" http://127.0.0.1:8000/health/
+    journalctl -u deanery -n 50
+    ```
+
+    `/health/` should return `{"status": "ok"}`.
+
+    ## 13. nginx bootstrap + certificate
+
+    ```bash
+    sed "s/example.com/$DOMAIN/g" deploy/nginx/deanery-bootstrap.conf | sudo tee /etc/nginx/sites-available/deanery > /dev/null
+    sudo ln -sf /etc/nginx/sites-available/deanery /etc/nginx/sites-enabled/deanery
+    sudo rm -f /etc/nginx/sites-enabled/default
+    sudo nginx -t && sudo systemctl reload nginx
+    sudo certbot certonly --webroot -w /var/www/letsencrypt -d "$DOMAIN" --email <your e-mail> --agree-tos --no-eff-email --deploy-hook "systemctl reload nginx"
+    ```
+
+    ## 14. nginx full site
+
+    ```bash
+    sed "s/example.com/$DOMAIN/g" deploy/nginx/deanery.conf | sudo tee /etc/nginx/sites-available/deanery > /dev/null
+    sudo nginx -t && sudo systemctl reload nginx
+    systemctl list-timers certbot.timer
+    sudo certbot renew --dry-run
+    ```
+
+    ## 15. Backups
+
+    ```bash
+    sed "s/<APP_USER>/$APP_USER/g" deploy/cron/deanery-backup | sudo tee /etc/cron.d/deanery-backup > /dev/null
+    sudo chmod 644 /etc/cron.d/deanery-backup
+    sudo -u "$APP_USER" /srv/deanery/app/deploy/backup.sh
+    ls -l /srv/deanery/backups
+    ```
+
+    Files older than 7 days are deleted by the script. Restore (always restore both
+    the database and the media): `gunzip -c db-….sql.gz | psql "$DATABASE_URL"`
+    into an empty database, plus `tar -xzf media-….tar.gz -C /srv/deanery`.
+
+    ## 16. Smoke check
+
+    ```bash
+    curl -sI http://$DOMAIN/ | head -1
+    curl -s https://$DOMAIN/health/
+    curl -s -o /dev/null -w '%{http_code}' https://$DOMAIN/private_media/
+    ```
+
+    Expected: `http://` → 301 to https; `/health/` → ok; `/private_media/` → 404.
+    In the browser: the login page, the admin at `https://$DOMAIN/<ADMIN_URL>`.
+    On the **trial** database run `$M seed_demo` once, then open one page per role
+    (student: Расписание, Заявки, Чат; staff: Заявки, Чаты); upload a PDF to a
+    request (checks `client_max_body_size`) and download it.
+
+    ## 17. Final database on 2026-11-22 (once)
+
+    ```bash
+    DB_PASS=$(openssl rand -hex 24)
+    sudo -u postgres psql -v ON_ERROR_STOP=1 \
+      -c "CREATE ROLE deanery LOGIN PASSWORD '$DB_PASS';" \
+      -c "CREATE DATABASE deanery OWNER deanery ENCODING 'UTF8' TEMPLATE template0;"
+    ```
+
+    Edit the env file: database name `deanery_trial` → `deanery`, and
+    `PRIVATE_MEDIA_ROOT=/srv/deanery/private_media`. Then:
+
+    ```bash
+    $M migrate
+    $M seed_demo
+    sudo systemctl restart deanery
+    ```
+
+    Run `seed_demo` exactly once; do not schedule it as a recurring job. Repeat
+    step 16 (without seeding). Optionally drop `deanery_trial` and empty
+    `private_media_trial` after 2026-11-28.
+
+    ## 18. Update procedure
+
+    ```bash
+    sudo -u "$APP_USER" git -C /srv/deanery/app pull --ff-only
+    sudo -u "$APP_USER" /srv/deanery/venv/bin/pip install -r /srv/deanery/app/requirements.txt
+    $M migrate
+    $M collectstatic --noinput
+    $M check --deploy --fail-level WARNING
+    sudo systemctl restart deanery
+    ```
+
+    Then repeat the smoke check (step 16).
+
+    ## 19. HSTS
+
+    After the site works over HTTPS for a day, raise the HSTS max-age in the env
+    file and restart:
+
+    ```bash
+    SECURE_HSTS_SECONDS=31536000
+    sudo systemctl restart deanery
+    ```
+
+    A large value cannot be undone for visitors before it expires, so raise it only
+    after HTTPS is confirmed. Never enable `SECURE_HSTS_PRELOAD` (it is an
+    irreversible browser-list commitment for this prototype).
+
+    ## 20. Resources
+
+    Expected memory: gunicorn master + 2 workers ≈ 200–250 MB, PostgreSQL ≈
+    100–150 MB, nginx ≈ 10 MB, system ≈ 200 MB → ≈ 600 MB of 1 GB; swap covers
+    peaks (pip install, migrations). Disk: venv ≈ 150 MB, journal ≤ 200 MB,
+    backups (7 days, gzip) small.
+
+    ```bash
+    free -h
+    df -h
+    journalctl --disk-usage
+    systemctl status deanery
+    ```
+
+    If pages are slow or memory is full, upgrade the hosting tariff and raise
+    `GUNICORN_WORKERS` by the formula `min(2 × vCPU + 1, (free RAM MB − 300) / 90)`.
+
+    ## 21. Troubleshooting
+
+    - 502 Bad Gateway → `journalctl -u deanery`.
+    - 400 Bad Request → check `ALLOWED_HOSTS`.
+    - CSRF failure → `CSRF_TRUSTED_ORIGINS` must use `https://`.
+    - 413 Request Entity Too Large → `client_max_body_size` (20m).
+    - Locked logins / wrong client IP → `CLIENT_IP_HEADER` and the `X-Real-IP`
+      header set by nginx.
+  ── Thought for 21s
+    I'm checking the runbook's sed step for the deanery path replacement. Without the `g` flag, it only swaps the first `/deanery` on each line, so I'm looking at which lines that affects.
+
+    I'm working through how the sed replacement hits the DATABASE_URL: the first `/deanery` match is the second slash in `postgres://`, not the database name, so the user part becomes `deanery_trial` while the database stays `deanery`. That would break the migration's authentication.
+
+    I'm checking the PRIVATE_MEDIA_ROOT line too, since the same unguarded first-match sed turns `/srv/deanery/private_media` into `/srv/deanery_trial/private_media`, a directory that doesn't exist and isn't in ReadWritePaths. I want to confirm the sed behavior by running it on a sample file with dummy values, and I'm treating this as a Coder implementation defect rather than a spec issue, so changes are needed.
+
+    I'm moving on to the second runbook defect, where step 17 runs `CREATE ROLE deanery` again even though that role already exists. With ON_ERROR_STOP set, that error would stop the run before the `CREATE DATABASE` step ever executes.
+
+    I'm moving on to the HSTS step, where the bash line only sets a shell variable and never touches the env file, so it needs a sed edit of `/etc/deanery/deanery.env` instead. I'm also starting on R4, the relative `deploy/...` paths in steps 4, 6, and 12–15, and checking which directory those commands assume they run from.
+
+    I'm checking whether the runbook's relative `deploy/...` paths in steps 4, 6, and 12–15 resolve correctly, since the sudo user's working directory is their home rather than the app checkout. I'm also noting that step 6 installs the journald config from the repo before step 7 has cloned it, so that ordering would fail.
+
+    I'm going through the remaining runbook issues: steps 4 and 6 run before the repo is cloned in step 7, so the journald config and other deploy paths need either inline content or a reorder. I'm planning to switch the deploy paths to absolute `/srv/deanery/app/...` and check the restore step, where `$DATABASE_URL` won't be set in the operator's shell unless the env file is sourced first. I'm also looking at step 11's `manage.sh` invocation, which needs the same absolute-path treatment.
+
+    I'm going through the remaining runbook items: step 16's `$M seed_demo` looks fine, but step 17's `$M` relies on a variable set earlier, so it would need re-setting in a new shell. I'm also checking the `.env.production.example` file, which is git-ignored, so the server-side step 10 would not find it in the clone and the env tests would fail.
+
+    I'm looking at the gitignore issue now: the runbook's server-side step depends on `.env.production.example`, which is git-ignored, so I'm weighing whether to fix it with a force-add or an ignore exception, and checking whether the tests break when that file is missing.
+  ── Ran DOMAIN=deanery.test; SECRET=SEKRET; DB_PASS=DBPASS; ADMIN_PATH="staff-abc123/"; DEMO_PW=demo; sed -e "s/example\.com/$DOMAIN/g" \     -e "s|replace-me-with-secrets-token-urlsafe-50-generated-on-the-server|$SECRET|" \     -e "s|REPLACE_ME_DB_PASSWORD|$DB_PASS|" \     -e "s|/deanery|/deanery_trial|" \     -e "s|/srv/deanery/private_media|/srv/deanery/private_media_trial|" \     -e "s|staff-panel-change-me/|$ADMIN_PATH|" \     -e "s|REPLACE_ME_DEMO_PASSWORD|$DEMO_PW|" \     .env.production.example | grep -E "^(DATABASE_URL|PRIVATE_MEDIA_ROOT|ADMIN_URL|ALLOWED_HOSTS)="; grep -n "env.production.example\|ENV_EXAMPLE\|\.env" core/tests/test_deploy.py | head
+    $ DOMAIN=deanery.test; SECRET=SEKRET; DB_PASS=DBPASS; ADMIN_PATH="staff-abc123/"; DEMO_PW=demo; sed -e "s/example\.com/$DOMAIN/g" \
+      -e "s|replace-me-with-secrets-token-urlsafe-50-generated-on-the-server|$SECRET|" \
+      -e "s|REPLACE_ME_DB_PASSWORD|$DB_PASS|" \
+      -e "s|/deanery|/deanery_trial|" \
+      -e "s|/srv/deanery/private_media|/srv/deanery/private_media_trial|" \
+      -e "s|staff-panel-change-me/|$ADMIN_PATH|" \
+      -e "s|REPLACE_ME_DEMO_PASSWORD|$DEMO_PW|" \
+      .env.production.example | grep -E "^(DATABASE_URL|PRIVATE_MEDIA_ROOT|ADMIN_URL|ALLOWED_HOSTS)="; grep -n "env.production.example\|ENV_EXAMPLE\|\.env" core/tests/test_deploy.py | head
+    ALLOWED_HOSTS=deanery.test
+    ADMIN_URL=staff-abc123/
+    DATABASE_URL=postgres://deanery_trial:DBPASS@localhost:5432/deanery
+    PRIVATE_MEDIA_ROOT=/srv/deanery_trial/private_media
+    4:read a developer ``.env``. They are safe to run on any machine (no server,
+    33:ENV_EXAMPLE = BASE_DIR / ".env.production.example"
+    43:        base = {k: v for k, v in os.environ.items() if not k.startswith("GUNICORN_")}
+    45:        with mock.patch.dict(os.environ, base, clear=True):
+    141:    os_env = re.compile(r'os\.environ(?:\.get\(|\[)\s*"([A-Z][A-Z0-9_]*)"')
+    153:    for line in _read(ENV_EXAMPLE).splitlines():
+    189:        lines = _read(ENV_EXAMPLE).splitlines()
+    209:        env = {"PATH": os.environ["PATH"], **_example_values()}
+    232:        self.assertIn("EnvironmentFile=/etc/deanery/deanery.env", _read(SYSTEMD_UNIT))
+    293:        self.assertIn(". /etc/deanery/deanery.env", manage)
+  ── Thought for 2s
+    I've confirmed R1. Next I'm checking R8: the tests read ENV_EXAMPLE, which would fail with FileNotFoundError on a clean CI checkout if it's missing. Since I can't stash changes here, I'll use `git ls-files` to see whether the file is tracked or ignored, and once that's clear I'll check the background run and send the messages.
+  ── Thought for 4ms
+    Нашёл ошибки в `docs/DEPLOY.md`: sed в шаге 10 портит адрес БД и путь к файлам, а `.env.production.example` попадает под `.gitignore`. Сейчас готовлю вердикт.
+
+── Explored 1 file ─────────────────────────────────────────
+  ── Read /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bew6m3kbg.output
+  ── Thought for 2ms
+    I'm sending CHANGES REQUESTED now for the runbook issues, and escalating the gitignore problem to the team lead. The tests are still running, so I'll report those results later.
+
+── Ran bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF' [TASK-011] Reviewer -> Coder: CHANGES REQUESTED Round 1 of 3. All deploy files (gunicorn, nginx x2, systemd, journald, ssh, cron, manage.sh, backup.sh, .env.production.example) are identical to the spec blocks; CI, requirements and README are correct. Your comment-stripping interpretation of test_no_project_files_served is accepted (the spec contradicts itself). The defects are in the runbook commands: as written, the trial deploy breaks. 1. docs/DEPLOY.md step 10, `-e "s|/deanery|/deanery_trial|"` — problem: without anchors, it replaces the FIRST "/deanery" on each line. I ran the exact sed on .env.production.example with dummy values:    `DATABASE_URL=postgres://deanery_trial:DBPASS@localhost:5432/deanery` (wrong user, unchanged database name) and `PRIVATE_MEDIA_ROOT=/srv/deanery_trial/private_media` (the next -e no longer matches; this directory does not exist and is not in ReadWritePaths). migrate then fails, and uploads would fail.    How to fix: replace that line and the PRIVATE_MEDIA_ROOT line with anchored rules, e.g. `-e "s|@localhost:5432/deanery$|@localhost:5432/deanery_trial|"` and `-e "s|^PRIVATE_MEDIA_ROOT=.*|PRIVATE_MEDIA_ROOT=/srv/deanery/private_media_trial|"`.    Add a test in RunbookTests: extract the step-10 sed command from DEPLOY.md, or keep the same -e rules in one place the test can read; run it with bash on .env.production.example with dummy SECRET/DB_PASS/ADMIN_PATH/DEMO_PW/DOMAIN values; assert DATABASE_URL == "postgres://deanery:<dummy>@localhost:5432/deanery_trial", PRIVATE_MEDIA_ROOT == "/srv/deanery/private_media_trial", ALLOWED_HOSTS == the dummy domain, and no "REPLACE"/"replace-me"/"change-me" left in any value. 2. docs/DEPLOY.md step 17 — problem: it runs `CREATE ROLE deanery …` again. The role exists since step 9, so psql stops with ON_ERROR_STOP before CREATE DATABASE. It also generates a new DB_PASS that never reaches the env file. Spec §4.9 step 17: "create deanery DB owned by deanery (same role)". How to fix: only `sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE deanery OWNER deanery ENCODING 'UTF8' TEMPLATE template0;"`. Give the env edits as exact commands: `sudo sed -i -e 's|@localhost:5432/deanery_trial$|@localhost:5432/deanery|' -e 's|^PRIVATE_MEDIA_ROOT=.*|PRIVATE_MEDIA_ROOT=/srv/deanery/private_media|' /etc/deanery/deanery.env`. Re-define `M=...` in this step, because it runs days later in a new shell. 3. docs/DEPLOY.md step 19 — problem: the block `SECURE_HSTS_SECONDS=31536000` only sets a shell variable; the env file is unchanged. How to fix: `sudo sed -i 's/^SECURE_HSTS_SECONDS=.*/SECURE_HSTS_SECONDS=31536000/' /etc/deanery/deanery.env`, then restart, then check with `curl -sI https://$DOMAIN/ | grep -i strict-transport`. 4. docs/DEPLOY.md steps 4, 6, 10, 12, 13, 14, 15 — problem: they use relative paths (`deploy/...`, `.env.production.example`), but the operator's shell is in their home directory, not in /srv/deanery/app. Step 6 also runs before the clone (step 7), so the file does not exist yet. How to fix: use absolute paths `/srv/deanery/app/deploy/...` and `/srv/deanery/app/.env.production.example` everywhere. For step 6 (and step 4 if done early), write the file content inline with `sudo tee <path> > /dev/null <<'EOF' … EOF` (the same lines as the repo file), or move the step after step 7 and say so. RunbookTests: assert no line starting with `sudo install -m 644 deploy/` or `sed … deploy/` (relative path). 5. docs/DEPLOY.md step 15 restore line — problem: `psql "$DATABASE_URL"` uses a variable that is not set in the operator's shell. How to fix: show it with the env file loaded, e.g. `sudo -u "$APP_USER" bash -c 'set -a; . /etc/deanery/deanery.env; gunzip -c /srv/deanery/backups/db-<STAMP>.sql.gz | psql "$DATABASE_URL"'`, with a note that this is an empty target database. Change only docs/DEPLOY.md and core/tests/test_deploy.py. Re-run §8 with logs and send a REPORT. (The .gitignore issue with .env.production.example is outside your file list; I am raising it with the Team lead.) EOF (8s)
+  $ bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF'
+[TASK-011] Reviewer -> Coder: CHANGES REQUESTED
+
+Round 1 of 3. All deploy files (gunicorn, nginx x2, systemd, journald, ssh, cron, manage.sh, backup.sh, .env.production.example) are identical to the spec blocks; CI, requirements and README are correct. Your comment-stripping interpretation of test_no_project_files_served is accepted (the spec contradicts itself). The defects are in the runbook commands: as written, the trial deploy breaks.
+
+1. docs/DEPLOY.md step 10, `-e "s|/deanery|/deanery_trial|"` — problem: without anchors, it replaces the FIRST "/deanery" on each line. I ran the exact sed on .env.production.example with dummy values:
+   `DATABASE_URL=postgres://deanery_trial:DBPASS@localhost:5432/deanery` (wrong user, unchanged database name) and `PRIVATE_MEDIA_ROOT=/srv/deanery_trial/private_media` (the next -e no longer matches; this directory does not exist and is not in ReadWritePaths). migrate then fails, and uploads would fail.
+   How to fix: replace that line and the PRIVATE_MEDIA_ROOT line with anchored rules, e.g. `-e "s|@localhost:5432/deanery$|@localhost:5432/deanery_trial|"` and `-e "s|^PRIVATE_MEDIA_ROOT=.*|PRIVATE_MEDIA_ROOT=/srv/deanery/private_media_trial|"`.
+   Add a test in RunbookTests: extract the step-10 sed command from DEPLOY.md, or keep the same -e rules in one place the test can read; run it with bash on .env.production.example with dummy SECRET/DB_PASS/ADMIN_PATH/DEMO_PW/DOMAIN values; assert DATABASE_URL == "postgres://deanery:<dummy>@localhost:5432/deanery_trial", PRIVATE_MEDIA_ROOT == "/srv/deanery/private_media_trial", ALLOWED_HOSTS == the dummy domain, and no "REPLACE"/"replace-me"/"change-me" left in any value.
+
+2. docs/DEPLOY.md step 17 — problem: it runs `CREATE ROLE deanery …` again. The role exists since step 9, so psql stops with ON_ERROR_STOP before CREATE DATABASE. It also generates a new DB_PASS that never reaches the env file. Spec §4.9 step 17: "create deanery DB owned by deanery (same role)". How to fix: only `sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE deanery OWNER deanery ENCODING 'UTF8' TEMPLATE template0;"`. Give the env edits as exact commands: `sudo sed -i -e 's|@localhost:5432/deanery_trial$|@localhost:5432/deanery|' -e 's|^PRIVATE_MEDIA_ROOT=.*|PRIVATE_MEDIA_ROOT=/srv/deanery/private_media|' /etc/deanery/deanery.env`. Re-define `M=...` in this step, because it runs days later in a new shell.
+
+3. docs/DEPLOY.md step 19 — problem: the block `SECURE_HSTS_SECONDS=31536000` only sets a shell variable; the env file is unchanged. How to fix: `sudo sed -i 's/^SECURE_HSTS_SECONDS=.*/SECURE_HSTS_SECONDS=31536000/' /etc/deanery/deanery.env`, then restart, then check with `curl -sI https://$DOMAIN/ | grep -i strict-transport`.
+
+4. docs/DEPLOY.md steps 4, 6, 10, 12, 13, 14, 15 — problem: they use relative paths (`deploy/...`, `.env.production.example`), but the operator's shell is in their home directory, not in /srv/deanery/app. Step 6 also runs before the clone (step 7), so the file does not exist yet. How to fix: use absolute paths `/srv/deanery/app/deploy/...` and `/srv/deanery/app/.env.production.example` everywhere. For step 6 (and step 4 if done early), write the file content inline with `sudo tee <path> > /dev/null <<'EOF' … EOF` (the same lines as the repo file), or move the step after step 7 and say so. RunbookTests: assert no line starting with `sudo install -m 644 deploy/` or `sed … deploy/` (relative path).
+
+5. docs/DEPLOY.md step 15 restore line — problem: `psql "$DATABASE_URL"` uses a variable that is not set in the operator's shell. How to fix: show it with the env file loaded, e.g. `sudo -u "$APP_USER" bash -c 'set -a; . /etc/deanery/deanery.env; gunzip -c /srv/deanery/backups/db-<STAMP>.sql.gz | psql "$DATABASE_URL"'`, with a note that this is an empty target database.
+
+Change only docs/DEPLOY.md and core/tests/test_deploy.py. Re-run §8 with logs and send a REPORT.
+(The .gitignore issue with .env.production.example is outside your file list; I am raising it with the Team lead.)
+EOF
+  Thread thr_ng6cbgatm6 steered
+
+── Ran bb thread tell thr_4izdzwetb4 --message-file - <<'EOF' [TASK-011] Reviewer -> Team lead: ESCALATION Blocking for the commit, and it is your decision: `.env.production.example` is ignored by `.gitignore:3` (`.env.*`). `git check-ignore -v .env.production.example` → `.gitignore:3:.env.*`. A normal `git add` will not include it. Consequences if it is not committed: - CI: core/tests/test_deploy.py reads it (ENV_EXAMPLE) in EnvExampleTests (5 tests, including the deploy-check subprocess) and SecretScanTests. A clean checkout has no file → errors in both CI jobs. - Server: runbook step 10 builds /etc/deanery/deanery.env from /srv/deanery/app/.env.production.example. It is missing in a fresh clone, so the deploy stops. Options: (a) add the exception line `!.env.production.example` to .gitignore after `.env.*` (robust: future `git add -A` keeps it; `.env` and other `.env.*` stay ignored); or (b) `git add -f .env.production.example` at commit time (works once; easy to miss on later edits). I recommend (a). .gitignore is not in the spec's change list, so the Coder did not touch it, per your note. Status: I sent CHANGES REQUESTED (round 1) to the Coder for runbook defects found by running the commands. The worst one: step 10 sed `s|/deanery|/deanery_trial|` turns DATABASE_URL into `postgres://deanery_trial:…@localhost:5432/deanery` and PRIVATE_MEDIA_ROOT into `/srv/deanery_trial/private_media`. Also: step 17 re-creates an existing role, step 19 does not edit the env file, and relative `deploy/...` paths fail outside the repo directory (step 6 even runs before the clone). All deploy files themselves match the spec exactly. My full test runs are in progress; I will report them with the final verdict. EOF (2s)
+  $ bb thread tell thr_4izdzwetb4 --message-file - <<'EOF'
+[TASK-011] Reviewer -> Team lead: ESCALATION
+
+Blocking for the commit, and it is your decision: `.env.production.example` is ignored by `.gitignore:3` (`.env.*`). `git check-ignore -v .env.production.example` → `.gitignore:3:.env.*`. A normal `git add` will not include it. Consequences if it is not committed:
+- CI: core/tests/test_deploy.py reads it (ENV_EXAMPLE) in EnvExampleTests (5 tests, including the deploy-check subprocess) and SecretScanTests. A clean checkout has no file → errors in both CI jobs.
+- Server: runbook step 10 builds /etc/deanery/deanery.env from /srv/deanery/app/.env.production.example. It is missing in a fresh clone, so the deploy stops.
+Options: (a) add the exception line `!.env.production.example` to .gitignore after `.env.*` (robust: future `git add -A` keeps it; `.env` and other `.env.*` stay ignored); or (b) `git add -f .env.production.example` at commit time (works once; easy to miss on later edits). I recommend (a). .gitignore is not in the spec's change list, so the Coder did not touch it, per your note.
+
+Status: I sent CHANGES REQUESTED (round 1) to the Coder for runbook defects found by running the commands. The worst one: step 10 sed `s|/deanery|/deanery_trial|` turns DATABASE_URL into `postgres://deanery_trial:…@localhost:5432/deanery` and PRIVATE_MEDIA_ROOT into `/srv/deanery_trial/private_media`. Also: step 17 re-creates an existing role, step 19 does not edit the env file, and relative `deploy/...` paths fail outside the repo directory (step 6 even runs before the clone). All deploy files themselves match the spec exactly. My full test runs are in progress; I will report them with the final verdict.
+EOF
+  Thread thr_4izdzwetb4 steered
+
+── Assistant ───────────────────────────────────────────────
+По TASK-011 (подготовка к развёртыванию) отправил два сообщения.
+
+**Кодеру — CHANGES REQUESTED, раунд 1 из 3.** Все файлы конфигурации (gunicorn, nginx, systemd, скрипты, пример env-файла) точно совпадают со спецификацией. Ошибки нашлись в командах инструкции `docs/DEPLOY.md`. Если выполнять её как написано, пробное развёртывание сломается.
+1. Шаг 10: команда `sed` портит адрес БД и путь к файлам. Я проверил это прогоном на копии.
+2. Шаг 17: инструкция повторно создаёт уже существующую роль БД, и команда останавливается до создания базы.
+3. Шаг 19 (HSTS): команда меняет переменную в оболочке, а не значение в env-файле.
+4. Пути `deploy/...` указаны относительно, а команды запускаются не из папки проекта. Шаг 6 вообще идёт до клонирования репозитория.
+5. Команда восстановления из бэкапа ссылается на переменную, которой нет в оболочке.
+
+**Тимлиду — ESCALATION.** Файл `.env.production.example` попадает под правило `.env.*` в `.gitignore` и не войдёт в коммит. Тогда тесты в CI упадут, а на сервере шаг 10 не найдёт файл. Я рекомендовал добавить в `.gitignore` исключение `!.env.production.example`.
+
+Полные прогоны тестов ещё идут. Результат приложу к итоговому вердикту.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-011] Team lead -> Reviewer: ANSWER
+Decision on .env.production.example: option (a). I add `!.env.production.example` right after `.env.*` in .gitignore in the TASK-011 commit (already agreed with the user). Treat it as resolved for your verdict; the Coder must not touch .gitignore. Continue the review of the runbook fixes as planned.
+
+── Assistant ───────────────────────────────────────────────
+Тимлид решил вопрос с `.env.production.example`. В коммите TASK-011 он сам добавит в `.gitignore` исключение `!.env.production.example`. В вердикте я считаю этот вопрос закрытым. Тимлиду не отвечаю: ответ он не запрашивал. Жду исправлений инструкции от Кодера и окончания прогонов тестов.
+
+── Thought for 8ms ─────────────────────────────────────────
+  The 2027 run came back with 1002 tests, and the coder is adding to test_deploy.py at the same time, so the count is expected to differ. The results still look fine, so I'll report the difference and wait for the coder's report.
+
+── Assistant ───────────────────────────────────────────────
+Все 5 прогонов TASK-011 прошли без падений: 2 обычных и 3 с замороженными часами. ruff, `check --deploy`, yaml, синтаксис bash-скриптов и `gunicorn --check-config` тоже в порядке.
+
+Последний прогон (01.03.2027) показал 1002 теста вместо 1000. Скорее всего, Кодер уже добавляет тесты для исправлений по моему замечанию. Дождусь его отчёта и проверю всё заново.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_ng6cbgatm6]
+
+[TASK-011] Coder -> Reviewer: REPORT (Round 1 fixes)
+
+Changed only docs/DEPLOY.md and core/tests/test_deploy.py, as requested.
+
+## Fixes (mapped to your 5 issues)
+1. Step 10 sed — replaced the two ambiguous rules with anchored rules:
+   `s|@localhost:5432/deanery$|@localhost:5432/deanery_trial|` and
+   `s|^PRIVATE_MEDIA_ROOT=.*|PRIVATE_MEDIA_ROOT=/srv/deanery/private_media_trial|`
+   (and absolute `/srv/deanery/app/.env.production.example`). Added
+   `RunbookTests.test_step10_sed_produces_trial_env`: asserts every `-e` rule is
+   in DEPLOY.md, runs the sed via `bash` on `.env.production.example` with dummy
+   SECRET/DB_PASS/ADMIN_PATH/DEMO_PW/DOMAIN, and asserts `DATABASE_URL ==
+   postgres://deanery:dummy-db-pass@localhost:5432/deanery_trial`,
+   `PRIVATE_MEDIA_ROOT == /srv/deanery/private_media_trial`,
+   `ALLOWED_HOSTS == deanery.example.org`, and no REPLACE/replace-me/change-me
+   left in any value.
+2. Step 17 — removed the duplicate `CREATE ROLE` and the orphaned `DB_PASS`; now
+   only `CREATE DATABASE deanery OWNER deanery … TEMPLATE template0`. Env edit is
+   exact `sudo sed -i -e 's|@localhost:5432/deanery_trial$|…deanery|' -e
+   's|^PRIVATE_MEDIA_ROOT=.*|…/srv/deanery/private_media|' /etc/deanery/deanery.env`,
+   and `M=…` is re-defined in this step (runs days later in a new shell).
+3. Step 19 — now `sudo sed -i 's/^SECURE_HSTS_SECONDS=.*/SECURE_HSTS_SECONDS=31536000/'
+   /etc/deanery/deanery.env`, then restart, then `curl -sI https://$DOMAIN/ | grep -i strict-transport`.
+4. Steps 4, 6, 10, 12, 13, 14, 15 — all `deploy/...` and `.env.production.example`
+   paths are now absolute (`/srv/deanery/app/...`). Step 6 (runs before the clone)
+   writes the journald config inline via `sudo tee … <<'EOF'`. Added
+   `RunbookTests.test_no_relative_deploy_paths` (no `sudo install -m 644 deploy/`
+   and no `sed … deploy/` relative paths).
+5. Step 15 restore — `sudo -u "$APP_USER" bash -c 'set -a; . /etc/deanery/deanery.env;
+   gunzip -c /srv/deanery/backups/db-<STAMP>.sql.gz | psql "$DATABASE_URL"'`, with the
+   note that this targets an empty database; media tar restore kept alongside.
+
+## Tests — 1002 OK (was 1000; +2 runbook tests)
+`core.tests.test_deploy.py` now 38 tests, all green.
+
+## Verification (§8) — all green
+- `check` no issues; `makemigrations --check --dry-run` → No changes.
+- `test` → 1002 OK; `run_tests_at.py` 23:59:59 and 00:00:00 → 1002 OK each (no stalls).
+- `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` clean;
+  `ruff format --check .` → 185 files; `bash -n deploy/backup.sh deploy/manage.sh` ok;
+  `node --check static/js/chat.js` ok; yaml ok.
+
+Logs: `$TMPDIR/test-20261117-142222.log`, `-142457-at-2359.log`, `-142457-at-0000.log`.
+No failed or stalled runs.
+
+## git status (unchanged file set)
+```
+ M .github/workflows/ci.yml
+ M README.md
+ M plan.md
+ M requirements.txt
+?? core/tests/test_deploy.py
+?? deploy/
+?? docs/DEPLOY.md
+?? docs/tasks/TASK-011.md
+```
+Still not shown (gitignored via `.env.*`): `.env.production.example` (unchanged this round).
+Not mine: `plan.md` (pre-existing `M`), `docs/tasks/TASK-011.md` (spec).
+
+── Explored 1 file, ran 2 commands ─────────────────────────
+  ── Read docs/DEPLOY.md
+  ── Thought for 2s
+    I'm checking the media restore step: the archive goes into /srv/deanery as the app user, which owns that directory, so the extraction is fine, and it overwrites either private_media or private_media_trial depending on the archive's name. Step 17's demo seeding reads DEMO_PASSWORD from the env file, which also looks fine. The one subtle point is that the running service keeps using the trial setting after the env file changes until it is restarted, which is acceptable.
+
+    I'm going through the remaining checks: step 16's seed on the trial copy is fine, and the env file from step 10 points at private_media_trial while systemd's ReadWritePaths covers both directories, so that's good. Next I want to confirm the new test actually catches the problem by reverting the sed rule in DEPLOY.md and seeing it fail, then running the test file and the full verification.
+  ── Ran M=$TMPDIR/rev011; mkdir -p $M && rsync -a --delete --exclude .venv --exclude .git --exclude db.sqlite3 --exclude private_media --exclude .env --exclude '__pycache__' ~/hackatonproject/ $M/ && ls $M/.env.production.example && sed "s#rev010#rev011#g" $TMPDIR/rev010_mut.sh > $TMPDIR/rev011_mut.sh && chmod +x $TMPDIR/rev011_mut.sh; S=$TMPDIR/rev011_mut.sh; export TESTS="core.tests.test_deploy" echo "--- base"; (cd $M && source ~/hackatonproject/.venv/bin/activate && DEBUG=true python manage.py test ${=TESTS} 2>&1 | grep -E "^(FAIL|ERROR):|^Ran|^OK|^FAILED") echo "--- d1 old sed rule"; $S d1 docs/DEPLOY.md '    -e "s|@localhost:5432/deanery$|@localhost:5432/deanery_trial|" \     -e "s|^PRIVATE_MEDIA_ROOT=.*|PRIVATE_MEDIA_ROOT=/srv/deanery/private_media_trial|" \' '    -e "s|/deanery|/deanery_trial|" \     -e "s|/srv/deanery/private_media|/srv/deanery/private_media_trial|" \' echo "--- d2 relative path"; $S d2 docs/DEPLOY.md 'sudo install -m 644 /srv/deanery/app/deploy/ssh/' 'sudo install -m 644 deploy/ssh/' (6s)
+    $ M=$TMPDIR/rev011; mkdir -p $M && rsync -a --delete --exclude .venv --exclude .git --exclude db.sqlite3 --exclude private_media --exclude .env --exclude '__pycache__' ~/hackatonproject/ $M/ && ls $M/.env.production.example && sed "s#rev010#rev011#g" $TMPDIR/rev010_mut.sh > $TMPDIR/rev011_mut.sh && chmod +x $TMPDIR/rev011_mut.sh; S=$TMPDIR/rev011_mut.sh; export TESTS="core.tests.test_deploy"
+  echo "--- base"; (cd $M && source ~/hackatonproject/.venv/bin/activate && DEBUG=true python manage.py test ${=TESTS} 2>&1 | grep -E "^(FAIL|ERROR):|^Ran|^OK|^FAILED")
+  echo "--- d1 old sed rule"; $S d1 docs/DEPLOY.md '    -e "s|@localhost:5432/deanery$|@localhost:5432/deanery_trial|" \
+      -e "s|^PRIVATE_MEDIA_ROOT=.*|PRIVATE_MEDIA_ROOT=/srv/deanery/private_media_trial|" \' '    -e "s|/deanery|/deanery_trial|" \
+      -e "s|/srv/deanery/private_media|/srv/deanery/private_media_trial|" \'
+  echo "--- d2 relative path"; $S d2 docs/DEPLOY.md 'sudo install -m 644 /srv/deanery/app/deploy/ssh/' 'sudo install -m 644 deploy/ssh/'
+    /tmp/claude-501/rev011/.env.production.example
+    --- base
+    Ran 38 tests in 0.460s
+    OK
+    --- d1 old sed rule
+    FAIL: test_step10_sed_produces_trial_env (core.tests.test_deploy.RunbookTests.test_step10_sed_produces_trial_env)
+    Ran 38 tests in 0.480s
+    FAILED (failures=1)
+    --- d2 relative path
+    FAIL: test_no_relative_deploy_paths (core.tests.test_deploy.RunbookTests.test_no_relative_deploy_paths)
+    Ran 38 tests in 0.473s
+    FAILED (failures=1)
+  ── Thought for 3ms
+    The base timing came in at 0.46 seconds, which suggests the deploy-check subprocess ran, and that's acceptable. Next I'll start the first full verification round.
+  ── Ran source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "TS=$TS" && python manage.py check 2>&1 | tail -1 && for i in 1 2; do python manage.py test > "$TMPDIR/test-$TS-rev011-r1-full$i.log" 2>&1; echo "--- plain $i"; grep -E "^(FAIL|ERROR):|^Ran |^OK|^FAILED" "$TMPDIR/test-$TS-rev011-r1-full$i.log"; done; for at in 2026-11-17T23:59:59 2026-11-18T00:00:00 2027-03-01T12:00:00; do echo "--- $at"; python scripts/run_tests_at.py $at > "$TMPDIR/test-$TS-rev011-r1-at-$at.log" 2>&1; grep -E "^(FAIL|ERROR):|^Ran |^OK|^FAILED" "$TMPDIR/test-$TS-rev011-r1-at-$at.log"; done; ruff check . && ruff format --check . | tail -1; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; bash -n deploy/*.sh && echo "bash ok"; gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application && echo "gunicorn ok"; echo DONE
+    $ source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "TS=$TS" && python manage.py check 2>&1 | tail -1 && for i in 1 2; do python manage.py test > "$TMPDIR/test-$TS-rev011-r1-full$i.log" 2>&1; echo "--- plain $i"; grep -E "^(FAIL|ERROR):|^Ran |^OK|^FAILED" "$TMPDIR/test-$TS-rev011-r1-full$i.log"; done; for at in 2026-11-17T23:59:59 2026-11-18T00:00:00 2027-03-01T12:00:00; do echo "--- $at"; python scripts/run_tests_at.py $at > "$TMPDIR/test-$TS-rev011-r1-at-$at.log" 2>&1; grep -E "^(FAIL|ERROR):|^Ran |^OK|^FAILED" "$TMPDIR/test-$TS-rev011-r1-at-$at.log"; done; ruff check . && ruff format --check . | tail -1; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; bash -n deploy/*.sh && echo "bash ok"; gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application && echo "gunicorn ok"; echo DONE
+    Command running in background with ID: byfmuc96a. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/byfmuc96a.output. You will be notified when it completes. To check interim output, use Read on that file path.
+
+── Assistant ───────────────────────────────────────────────
+Кодер исправил все 5 пунктов в инструкции по развёртыванию. Я проверил исправления мутациями. Если вернуть старую команду `sed` или относительный путь, новые тесты падают. Сейчас идут полный прогон и прогоны с замороженными часами. По результату отправлю вердикт.
+
+── Read /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/byfmuc96a.output
+  $ cat /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/byfmuc96a.output
+
+── Ran bb thread tell thr_4izdzwetb4 --message-file - <<'EOF' [TASK-011] Reviewer -> Team lead: APPROVE Spec: docs/tasks/TASK-011.md (base d9d8e55). Review rounds: 2 (round 1 CHANGES REQUESTED for runbook commands; fixed). Changes are uncommitted; the file list matches §4.1 (plus your plan.md and the spec). Condition from your decision: add `!.env.production.example` right after `.env.*` in .gitignore in the TASK-011 commit. Without it, CI EnvExampleTests/SecretScanTests error out and runbook step 10 has no source file. Verification (my runs, no failed or stalled runs): - Round 0 (TS=20261117-135645, $TMPDIR/test-20261117-135645-rev011-*.log): 1000 OK x4; the 2027 run showed 1002, because the Coder was already adding the round-1 tests during my run. OK. - Round 1 (TS=20261117-143219, $TMPDIR/test-20261117-143219-rev011-r1-*.log): 1002 OK in all 5 runs (2 plain, 2026-11-17T23:59:59, 2026-11-18T00:00:00, 2027-03-01T12:00:00). - check OK; makemigrations --check: No changes; check --deploy: no issues (1 silenced); ruff check and format clean (185 files); yaml ok; bash -n deploy/*.sh ok; `gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application` ok (gunicorn 26.2.0 in the local venv). Checked: - deploy/gunicorn.conf.py, both nginx files, the systemd unit, journald, ssh, cron, manage.sh, backup.sh (both mode 755) and .env.production.example are identical to the spec blocks (programmatic comparison). The CI changes match §4.8 (SQLite job + test-postgres with postgres:16). requirements.txt has gunicorn==26.2.0. The README bullet is added. - test_deploy.py covers §6.2. The Coder's comment-stripping reading of test_no_project_files_served is accepted: the spec's own 4.4 comment contains "PRIVATE_MEDIA_ROOT", so the literal check would contradict it. - Round 1 (found by running the runbook commands on a copy):   - step 10 sed broke DATABASE_URL (user deanery_trial, database deanery) and PRIVATE_MEDIA_ROOT (/srv/deanery_trial/…) → anchored rules plus a test that runs the sed;   - step 17 re-created an existing role → only CREATE DATABASE, plus exact sed edits of the env file;   - step 19 did not edit the env file → sed -i plus a curl check;   - relative deploy/ paths outside the repo dir (step 6 ran before the clone) → absolute paths, the journald config inline, and a test;   - the restore used an unset $DATABASE_URL → it now loads the env file.   Mutation checks: the old sed rule → test_step10_sed_produces_trial_env fails; a relative install path → test_no_relative_deploy_paths fails. Not verifiable here (for you): the PostgreSQL CI job (test-postgres) after push; `nginx -t`, certbot, systemd and the whole runbook on the server. PostgreSQL-sensitive spots are listed in spec §6.6. EOF
+  $ bb thread tell thr_4izdzwetb4 --message-file - <<'EOF'
+[TASK-011] Reviewer -> Team lead: APPROVE
+
+Spec: docs/tasks/TASK-011.md (base d9d8e55). Review rounds: 2 (round 1 CHANGES REQUESTED for runbook commands; fixed). Changes are uncommitted; the file list matches §4.1 (plus your plan.md and the spec). Condition from your decision: add `!.env.production.example` right after `.env.*` in .gitignore in the TASK-011 commit. Without it, CI EnvExampleTests/SecretScanTests error out and runbook step 10 has no source file.
+
+Verification (my runs, no failed or stalled runs):
+- Round 0 (TS=20261117-135645, $TMPDIR/test-20261117-135645-rev011-*.log): 1000 OK x4; the 2027 run showed 1002, because the Coder was already adding the round-1 tests during my run. OK.
+- Round 1 (TS=20261117-143219, $TMPDIR/test-20261117-143219-rev011-r1-*.log): 1002 OK in all 5 runs (2 plain, 2026-11-17T23:59:59, 2026-11-18T00:00:00, 2027-03-01T12:00:00).
+- check OK; makemigrations --check: No changes; check --deploy: no issues (1 silenced); ruff check and format clean (185 files); yaml ok; bash -n deploy/*.sh ok; `gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application` ok (gunicorn 26.2.0 in the local venv).
+
+Checked:
+- deploy/gunicorn.conf.py, both nginx files, the systemd unit, journald, ssh, cron, manage.sh, backup.sh (both mode 755) and .env.production.example are identical to the spec blocks (programmatic comparison). The CI changes match §4.8 (SQLite job + test-postgres with postgres:16). requirements.txt has gunicorn==26.2.0. The README bullet is added.
+- test_deploy.py covers §6.2. The Coder's comment-stripping reading of test_no_project_files_served is accepted: the spec's own 4.4 comment contains "PRIVATE_MEDIA_ROOT", so the literal check would contradict it.
+- Round 1 (found by running the runbook commands on a copy):
+  - step 10 sed broke DATABASE_URL (user deanery_trial, database deanery) and PRIVATE_MEDIA_ROOT (/srv/deanery_trial/…) → anchored rules plus a test that runs the sed;
+  - step 17 re-created an existing role → only CREATE DATABASE, plus exact sed edits of the env file;
+  - step 19 did not edit the env file → sed -i plus a curl check;
+  - relative deploy/ paths outside the repo dir (step 6 ran before the clone) → absolute paths, the journald config inline, and a test;
+  - the restore used an unset $DATABASE_URL → it now loads the env file.
+  Mutation checks: the old sed rule → test_step10_sed_produces_trial_env fails; a relative install path → test_no_relative_deploy_paths fails.
+
+Not verifiable here (for you): the PostgreSQL CI job (test-postgres) after push; `nginx -t`, certbot, systemd and the whole runbook on the server. PostgreSQL-sensitive spots are listed in spec §6.6.
+EOF
+  Thread thr_4izdzwetb4 steered
+
+── Assistant ───────────────────────────────────────────────
+TASK-011 одобрен, вердикт APPROVE отправлен Тимлиду. Проверка заняла 2 раунда.
+
+- **Тесты:** после исправлений все 5 прогонов дали по 1002 OK, падений не было. ruff, `check --deploy`, yaml, синтаксис bash-скриптов и `gunicorn --check-config` в порядке.
+- **Файлы развёртывания** совпадают со спецификацией: конфиги gunicorn, nginx, systemd, journald, ssh и cron, скрипты и пример env-файла. Изменения CI тоже совпадают.
+- **Раунд 1.** Пять ошибок в инструкции `docs/DEPLOY.md` исправлены, на два главных исправления добавлены тесты. Мутации подтвердили, что тесты их ловят.
+- **Условие для коммита.** Тимлид добавляет исключение `!.env.production.example` в `.gitignore`, как и решил. Без него тесты в CI упадут.
+
+Проверить здесь я не мог:
+- прогон тестов на PostgreSQL в CI — он запустится после push;
+- `nginx -t`, certbot, systemd и всю инструкцию на настоящем сервере.
+
+Эти проверки остаются за Тимлидом.

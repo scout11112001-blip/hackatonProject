@@ -191,6 +191,7 @@ proxy_set_header X-Real-IP $remote_addr;
 
 ## Deployment notes
 
+- Follow `docs/DEPLOY.md`.
 - Run `python manage.py seed_demo` once on the server on 2026-11-22 (submission
   day), after `migrate`. It needs `DEMO_PASSWORD` in the environment.
 - Back up `PRIVATE_MEDIA_ROOT` together with the database: attachments are

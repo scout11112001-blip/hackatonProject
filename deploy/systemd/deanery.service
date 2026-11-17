@@ -1,0 +1,24 @@
+[Unit]
+Description=Deanery prototype (gunicorn)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=<APP_USER>
+Group=<APP_USER>
+WorkingDirectory=/srv/deanery/app
+EnvironmentFile=/etc/deanery/deanery.env
+ExecStart=/srv/deanery/venv/bin/gunicorn -c deploy/gunicorn.conf.py config.wsgi:application
+Restart=on-failure
+RestartSec=5
+KillMode=mixed
+TimeoutStopSec=35
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial
+
+[Install]
+WantedBy=multi-user.target
