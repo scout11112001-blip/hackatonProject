@@ -17,15 +17,16 @@
 | Planner | thr_2imsg4kck2 | Claude Code | `.claude/agents/planner.md` |
 | Coder | thr_ng6cbgatm6 | opencode (DeepSeek) | `.opencode/agent/coder.md` |
 | Reviewer | thr_cpuae9aqw3 | Claude Code | `.claude/agents/reviewer.md` |
+| UI coder | thr_pgcwc2dwnn | Claude Code (Opus) | `.claude/agents/ui-coder.md` |
 
 ## Workflow
 ```
-user <-> Team lead -> Planner -> Coder <-> Reviewer -> Team lead -> user
+user <-> Team lead -> Planner -> Coder / UI coder <-> Reviewer -> Team lead -> user
 ```
 1. The Team lead sends a request to the Planner ONLY after explicit user approval. Each request has an ID `TASK-NNN`. A fix task for the small defects of a finished task has the ID `TASK-NNN-FIX` (then `TASK-NNN-FIX2`, ...) and its spec is `docs/tasks/TASK-NNN-FIX.md`.
-2. The Planner writes `docs/tasks/TASK-NNN.md` and hands it to the Coder.
+2. The Planner writes `docs/tasks/TASK-NNN.md` and hands it to the assignee named in the request: the Coder (default: logic, models, views, tests) or the UI coder (request line "Assignee: UI coder": visual design, templates, CSS, static assets). Below, "the Coder" means the assignee of the task.
 3. The Coder implements the spec and sends a report to the Reviewer.
-4. The Reviewer returns `CHANGES REQUESTED` to the Coder, or sends `APPROVE` to the Team lead.
+4. The Reviewer returns `CHANGES REQUESTED` to the coder who sent the report, or sends `APPROVE` to the Team lead.
 5. The Coder may ask the Planner to clarify the spec. The Coder never changes the architecture on its own.
 6. The Reviewer NEVER messages the Planner and never tells the Planner what to do. If a problem is in the spec or the architecture, the Reviewer reports it to the Team lead. The Team lead decides.
 7. If the spec lacks necessary tests, the Reviewer sends a `TEST PROPOSAL` to the Team lead. If the Team lead accepts it, the Team lead sends a spec amendment to the Planner, and the task goes through the Coder and the Reviewer again.
@@ -34,7 +35,7 @@ user <-> Team lead -> Planner -> Coder <-> Reviewer -> Team lead -> user
 10. If the user writes to you directly, answer in Russian and follow the user's instructions.
 
 ## Git and commits
-- Only the Team lead commits. The Planner, the Coder and the Reviewer NEVER run `git commit`, `git push`, `git stash`, `git checkout`, `git reset` or any other command that changes git history or the index.
+- Only the Team lead commits. The Planner, the Coder, the UI coder and the Reviewer NEVER run `git commit`, `git push`, `git stash`, `git checkout`, `git reset` or any other command that changes git history or the index.
 - The Coder leaves all changes uncommitted. The Reviewer reviews the uncommitted changes (`git status`, `git diff`, and untracked files).
 - After `APPROVE`, the Team lead commits the task as one commit `TASK-NNN: <summary>` and updates `CHANGELOG.md`.
 

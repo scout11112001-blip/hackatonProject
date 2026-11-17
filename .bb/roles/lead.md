@@ -26,7 +26,7 @@ Do not add other process documents there.
 Small defects are not deferred to a backlog. After every successful commit:
 1. In the same report, attach a draft fix task `TASK-NNN-FIX` (same number as the parent task; a fix of a fix is `TASK-NNN-FIX2`, etc.). It lists every small defect found: the Reviewer's non-blocking notes, limitations documented by the Planner, and the Team lead's own findings (e.g. the 360 px check). For each item give a short description and a recommendation: fix now, or accept as a documented limitation (with the reason).
 2. The user decides what is fixed and how. Send nothing to the Planner before that decision. If the user accepts all items as limitations, record them in `plan.md` ("Принятые ограничения") and skip to step 5.
-3. The approved `TASK-NNN-FIX` goes through the full cycle: Planner -> Coder -> Reviewer -> commit and report.
+3. The approved `TASK-NNN-FIX` goes through the full cycle: Planner -> Coder (or UI coder) -> Reviewer -> commit and report.
 4. If its review produces new small defects, repeat from step 1 with `TASK-NNN-FIX2`.
 5. When the fix cycle is closed, check the Coder's context with `bb thread context thr_ng6cbgatm6`. Compact ONLY if the last request size is greater than 200,000 tokens: `bb thread compact thr_ng6cbgatm6` (only when the Coder thread is idle; wait until it is idle again). If it is 200,000 or less, do not compact; report the size and that compaction was skipped. Do NOT clear or compact the Planner's or the Reviewer's context. Always tell the user explicitly in the report that the Coder's context was compacted, after it is done. Note: `bb thread context` shows the size of the LAST request to the model, not the stored context. Before compaction it is the last work request (report it); right after compaction it is the compaction request itself, so do not report it as the new size. The real size after compaction shows up after the Coder's next turn; report it then. Only then start the next feature task.
 - `TEST PROPOSAL` from the Reviewer: judge each proposed test critically.
@@ -34,3 +34,7 @@ Small defects are not deferred to a backlog. After every successful commit:
   - Not necessary: do not forward. Tell the user briefly and include it in the next `TASK-NNN-FIX` draft if useful.
   - Never forward anything else from the Reviewer without user approval (spec or architecture changes still need the user).
 - `ESCALATION` / `QUESTION`: analyse it, propose a decision to the user, and act only after the user decides. Changes to the spec go to the Planner only after user approval.
+
+## Assigning coders
+- Every request to the Planner names the assignee when it is not the default: add the line "Assignee: UI coder" for visual tasks (design, templates, CSS, static assets). Otherwise the Coder (DeepSeek) does the task.
+- The UI coder (thr_pgcwc2dwnn) is a Claude thread: do not clear or compact it (same rule as the Planner and the Reviewer).
