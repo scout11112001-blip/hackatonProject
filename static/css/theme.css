@@ -1,1 +1,600 @@
-/* Visual theme layer. The pixel-art skin replaces this file and tokens.css. */
+/* Visual theme layer: "night pixel" (TASK-012). Colours come only from tokens.css. */
+
+@font-face {
+  font-family: "Press Start 2P";
+  src: url("../fonts/PressStart2P-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Page: night sky gradient. Native widgets (date picker, select arrow) use their dark look. */
+html {
+  background: var(--color-bg);
+  color-scheme: dark;
+}
+
+body {
+  position: relative;
+  min-height: 100vh;
+  background: linear-gradient(
+    180deg,
+    var(--color-sky-1) 0%,
+    var(--color-sky-2) 40%,
+    var(--color-sky-3) 75%,
+    var(--color-sky-4) 100%
+  );
+  color: var(--color-text);
+}
+
+/* Stars (D13): pixels in the side margins and in the header, never over content. */
+body::before,
+body::after,
+.site-header::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 3px;
+  height: 3px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::before {
+  left: 4px;
+  box-shadow:
+    0 140px 0 0 var(--color-star-lilac),
+    2px 330px 0 0 var(--color-star-yellow),
+    0 520px 0 0 var(--color-star-lilac),
+    3px 700px 0 0 var(--color-star-yellow),
+    1px 910px 0 0 var(--color-star-lilac),
+    0 1130px 0 0 var(--color-star-yellow),
+    2px 1360px 0 0 var(--color-star-lilac),
+    0 1600px 0 0 var(--color-star-yellow);
+}
+
+body::after {
+  right: 5px;
+  box-shadow:
+    0 210px 0 0 var(--color-star-yellow),
+    -1px 420px 0 0 var(--color-star-lilac),
+    0 640px 0 0 var(--color-star-yellow),
+    -2px 820px 0 0 var(--color-star-lilac),
+    0 1040px 0 0 var(--color-star-yellow),
+    -1px 1250px 0 0 var(--color-star-lilac),
+    0 1480px 0 0 var(--color-star-yellow);
+}
+
+.site-header::after {
+  right: 14px;
+  box-shadow:
+    0 10px 0 0 var(--color-star-yellow),
+    -28px 30px 0 0 var(--color-star-lilac),
+    -70px 12px 0 0 var(--color-star-yellow),
+    -112px 34px 0 0 var(--color-star-lilac),
+    -150px 16px 0 0 var(--color-star-yellow);
+}
+
+.site-header,
+.site-main,
+.site-footer {
+  position: relative;
+  z-index: 1;
+}
+
+.site-header {
+  z-index: 2;
+  border-bottom: 4px solid var(--color-frame);
+}
+
+/* The wide header has no free space for header stars: keep only the side stars. */
+@media (min-width: 48rem) {
+  .site-header::after {
+    display: none;
+  }
+}
+
+/* Links and focus. */
+a {
+  color: var(--color-link);
+}
+
+a:hover {
+  text-decoration-thickness: 3px;
+}
+
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.btn:focus-visible,
+.site-menu-toggle:focus-visible,
+.form button:focus-visible,
+.action-form button:focus-visible {
+  outline-offset: 8px;
+}
+
+input[type="file"]:focus-visible::file-selector-button {
+  outline: 3px solid var(--color-focus);
+}
+
+.skip-link:focus {
+  z-index: 20;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-frame-gap);
+  color: var(--color-link);
+}
+
+/* Headings (D8). */
+h1,
+h2,
+.site-title,
+.card-title {
+  font-family: var(--font-pixel);
+  font-weight: 400;
+  line-height: var(--line-height-pixel);
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  color: var(--color-text);
+  text-shadow: 3px 3px 0 var(--color-frame);
+}
+
+h2,
+.card-title {
+  font-size: var(--font-size-h2);
+  color: var(--color-heading);
+}
+
+h3 {
+  font-family: var(--font-body);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+@media (min-width: 48rem) {
+  h1 {
+    font-size: var(--font-size-h1-wide);
+  }
+}
+
+/* Header (D10). */
+.site-brand {
+  color: var(--color-orange);
+  text-decoration: none;
+}
+
+.site-title {
+  font-size: var(--font-size-title);
+  color: var(--color-text);
+  text-transform: uppercase;
+}
+
+.site-brand:hover .site-title {
+  text-decoration: underline;
+}
+
+.site-nav-list a {
+  font-family: var(--font-body);
+  color: var(--color-link);
+}
+
+.site-nav-list a[aria-current="page"] {
+  color: var(--color-text);
+  font-weight: 700;
+  text-decoration-thickness: 3px;
+}
+
+/* Logout looks like a nav link (D6). */
+.site-nav-logout button {
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  font-family: var(--font-body);
+  font-size: inherit;
+  color: var(--color-link);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Panel button (D6). */
+.btn,
+.site-menu-toggle,
+input[type="file"]::file-selector-button {
+  border: var(--frame-width) solid var(--color-frame);
+  border-radius: 0;
+  background: var(--color-panel);
+  box-shadow:
+    0 0 0 var(--frame-width) var(--color-frame-gap),
+    0 0 0 calc(2 * var(--frame-width)) var(--color-frame);
+  font-family: var(--font-pixel);
+  font-size: var(--font-size-button);
+  line-height: var(--line-height-pixel);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.btn:hover,
+.site-menu-toggle:hover {
+  border-color: var(--color-field-border);
+}
+
+input[type="file"]::file-selector-button {
+  cursor: pointer;
+}
+
+/* Primary button (D6). */
+.form button,
+.action-form button,
+.chat-form button,
+.btn--primary {
+  border: var(--frame-width) solid var(--color-orange-edge);
+  border-radius: 0;
+  background: linear-gradient(
+    180deg,
+    var(--color-orange-light) 0%,
+    var(--color-orange) 55%,
+    var(--color-orange-dark) 100%
+  );
+  box-shadow:
+    0 0 0 var(--frame-width) var(--color-frame-gap),
+    0 0 0 calc(2 * var(--frame-width)) var(--color-frame);
+  font-family: var(--font-pixel);
+  font-size: var(--font-size-button);
+  line-height: var(--line-height-pixel);
+  color: var(--color-on-accent);
+  cursor: pointer;
+}
+
+.form button:hover,
+.action-form button:hover,
+.chat-form button:hover,
+.btn--primary:hover {
+  border-color: var(--color-text);
+}
+
+/* Menu toggle: "≡" drawn as three bars (the font has no such glyph). */
+.site-menu-toggle::before {
+  background:
+    linear-gradient(currentColor, currentColor) top / 100% 2px no-repeat,
+    linear-gradient(currentColor, currentColor) center / 100% 2px no-repeat,
+    linear-gradient(currentColor, currentColor) bottom / 100% 2px no-repeat;
+}
+
+.site-menu[open] .site-menu-toggle {
+  border-color: var(--color-field-border);
+}
+
+.site-menu .site-nav {
+  border: var(--frame-width) solid var(--color-frame);
+  background: var(--color-frame-gap);
+  box-shadow:
+    0 0 0 var(--frame-width) var(--color-frame-gap),
+    0 0 0 calc(2 * var(--frame-width)) var(--color-frame);
+}
+
+.site-menu .site-nav-list li + li {
+  border-top: 2px dashed var(--color-border);
+}
+
+/* Notifications button and count chip. */
+.site-notif .icon-bell {
+  color: var(--color-heading);
+}
+
+.site-notif[aria-current="page"] {
+  border-color: var(--color-heading);
+}
+
+.site-notif-count {
+  padding: 3px 5px;
+  background: var(--color-warn);
+  box-shadow: 0 0 0 2px var(--color-frame-gap);
+  font-family: var(--font-pixel);
+  font-size: var(--font-size-tag);
+  line-height: 1;
+  color: var(--color-on-accent);
+}
+
+/* Panels with the double pixel frame. */
+.card,
+.form,
+.fields,
+.petition,
+.feed-item,
+.discipline,
+.day,
+.chat-message,
+.chat-dialogs li,
+.message {
+  border: var(--frame-width) solid var(--color-frame);
+  background: var(--color-panel);
+  box-shadow:
+    0 0 0 var(--frame-width) var(--color-frame-gap),
+    0 0 0 calc(2 * var(--frame-width)) var(--color-frame);
+}
+
+/* Cards on the home page (F6). */
+.card-title-link {
+  color: var(--color-heading);
+  text-decoration: none;
+}
+
+.card-title-link:hover {
+  text-decoration: underline;
+}
+
+.card-row + .card-row {
+  border-top: 2px dashed var(--color-border);
+}
+
+.card-row-title {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.card-row-title:hover {
+  color: var(--color-link);
+  text-decoration: underline;
+}
+
+.card-row-label {
+  color: var(--color-muted);
+}
+
+.card-row-label--deadline {
+  color: var(--color-warn-text);
+  font-weight: 700;
+}
+
+.page-sub,
+.card-empty {
+  color: var(--color-muted);
+}
+
+/* Tags (D7). */
+.tag,
+.lesson-badge {
+  background: var(--color-orange);
+  font-family: var(--font-pixel);
+  font-size: var(--font-size-tag);
+  font-weight: 400;
+  line-height: var(--line-height-pixel);
+  color: var(--color-on-accent);
+  text-transform: uppercase;
+}
+
+/* Lessons. */
+.lesson {
+  border-top: 2px dashed var(--color-border);
+}
+
+.lesson:first-child {
+  border-top: 0;
+}
+
+.lesson--now {
+  background: var(--color-now-bg);
+}
+
+.lesson-time,
+.lesson-type,
+.lesson-groups {
+  color: var(--color-muted);
+}
+
+.lesson-list--compact .lesson-time,
+.lesson-list--compact .lesson-meta {
+  font-size: 0.875rem;
+}
+
+.lesson-title {
+  font-weight: 700;
+}
+
+.lesson .room {
+  font-weight: 700;
+}
+
+.lesson-change {
+  color: var(--color-warn-text);
+  font-weight: 700;
+}
+
+.lesson-list:not(.lesson-list--compact) {
+  border: var(--frame-width) solid var(--color-frame);
+  background: var(--color-panel);
+  box-shadow:
+    0 0 0 var(--frame-width) var(--color-frame-gap),
+    0 0 0 calc(2 * var(--frame-width)) var(--color-frame);
+  margin: 6px 6px var(--space-4);
+}
+
+.day .lesson-list:not(.lesson-list--compact) {
+  border: 0;
+  box-shadow: none;
+  background: none;
+  margin: 0;
+}
+
+.day .lesson {
+  padding-inline: 0;
+}
+
+.lesson-list:empty {
+  display: none;
+}
+
+del {
+  color: var(--color-muted);
+}
+
+ins {
+  text-decoration: none;
+}
+
+/* Grades. */
+.discipline summary {
+  color: var(--color-text);
+}
+
+.discipline--debt summary,
+.status--debt {
+  color: var(--color-warn-text);
+}
+
+/* Forms (D16). */
+input,
+select,
+textarea {
+  border: var(--frame-width) solid var(--color-field-border);
+  border-radius: 0;
+  background: var(--color-field-bg);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: var(--color-text);
+}
+
+input[type="file"] {
+  background: var(--color-field-bg);
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--color-orange);
+}
+
+label {
+  font-weight: 700;
+}
+
+.helptext {
+  color: var(--color-muted);
+}
+
+.errorlist,
+.message--error {
+  color: var(--color-warn-text);
+  font-weight: 700;
+}
+
+.message--error {
+  border-color: var(--color-warn-text);
+}
+
+/* Notifications feed and announcements. */
+.feed-meta,
+.chat-meta,
+.chat-note,
+.chat-status,
+.site-footer {
+  color: var(--color-muted);
+}
+
+.feed-meta strong {
+  color: var(--color-heading);
+}
+
+/* Chat (D17): own messages differ by side, frame and tint, not only colour. */
+.chat-message--own {
+  border-color: var(--color-field-border);
+  background:
+    linear-gradient(var(--color-own-bg), var(--color-own-bg)),
+    var(--color-panel);
+}
+
+.chat-message--other {
+  border-style: dashed;
+}
+
+.chat-meta strong {
+  color: var(--color-text);
+}
+
+/* Tables (none today; themed for completeness). */
+table {
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border: 1px solid var(--color-border);
+  padding: var(--space-2);
+}
+
+/* Map (AC15): readable on the dark sky; the current room is marked by stroke, fill and label. */
+.map-outline {
+  stroke: var(--color-field-border);
+}
+
+.map-corridor {
+  fill: var(--color-map-corridor-fill);
+  stroke: var(--color-border);
+}
+
+.map-room rect,
+.map-room polygon {
+  fill: var(--color-map-room-fill);
+  stroke: var(--color-text);
+}
+
+.map-landmark rect,
+.map-landmark polygon,
+.map-service rect,
+.map-service polygon {
+  fill: var(--color-map-room-fill);
+  stroke: var(--color-muted);
+}
+
+.map-room-label {
+  fill: var(--color-text);
+}
+
+.map-landmark-label,
+.map-service-label {
+  fill: var(--color-muted);
+}
+
+.map-current rect,
+.map-current polygon {
+  fill: var(--color-map-highlight-fill);
+  stroke: var(--color-map-highlight);
+  stroke-width: 6;
+}
+
+.map-current .map-room-label {
+  fill: var(--color-map-highlight);
+  font-weight: 700;
+}
+
+a.map-current {
+  font-weight: 700;
+  text-decoration-thickness: 3px;
+}
+
+.floor-current {
+  color: var(--color-text);
+  border: var(--frame-width) solid var(--color-heading);
+}
+
+.map-legend-swatch {
+  background: var(--color-frame-gap);
+}
+
+/* Footer. */
+.site-footer {
+  border-top: 2px dashed var(--color-border);
+}
+
+.day--today {
+  border-color: var(--color-heading);
+}

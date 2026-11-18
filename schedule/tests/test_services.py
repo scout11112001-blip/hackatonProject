@@ -1,11 +1,11 @@
-from datetime import date, time
+from datetime import UTC, date, datetime, time
 
 from django.db import connection
 from django.test import SimpleTestCase, TestCase
 from django.test.utils import CaptureQueriesContext
 
 from accounts.tests.helpers import make_faculty, make_group
-from core.testing import FrozenClockMixin
+from core.testing import FrozenClockMixin, moscow
 from schedule.models import ChangeKind, LessonChange
 from schedule.mutations import save_lesson_change
 from schedule.services import (
@@ -14,6 +14,7 @@ from schedule.services import (
     changes_for_groups_between,
     day_schedule,
     occurrences_between,
+    today_schedule,
     week_schedule,
     week_start,
 )
@@ -329,3 +330,26 @@ class AnnotateTodayTests(FrozenClockMixin, TestCase):
         self.assertIsNone(a.next_item)
         self.assertFalse(a.day_finished)
         self.assertEqual(a.rows, [])
+
+
+class TodayScheduleTests(FrozenClockMixin, TestCase):
+    frozen_now = "2026-11-11 11:00"
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.faculty = make_faculty("FT")
+        cls.group = make_group(cls.faculty, "GT")
+        cls.room = make_room("room-101")
+        for slot in (1, 2, 3):
+            make_lesson([cls.group], weekday=2, slot=slot, room=cls.room)
+
+    def test_matches_today_view_logic(self):
+        day, annotation = today_schedule(self.group.pk, moscow("2026-11-11 11:00"))
+        self.assertEqual(day.date, date(2026, 11, 11))
+        self.assertTrue(day.is_today)
+        self.assertEqual(annotation.in_progress.slot.number, 2)
+        self.assertEqual(len(annotation.rows), 3)
+
+    def test_uses_moscow_local_date(self):
+        day, _ = today_schedule(self.group.pk, datetime(2026, 11, 17, 21, 0, tzinfo=UTC))
+        self.assertEqual(day.date, date(2026, 11, 18))

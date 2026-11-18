@@ -636,8 +636,11 @@ class NavTests(FrozenClockMixin, TestCase):
         add_message(dialog, self.w.sx, AuthorRole.STAFF)
         self.client.force_login(self.w.ax)
         content = self.client.get("/profile/").content.decode()
+        # TASK-012: the badge is now the count chip of the header button (AC5).
         self.assertIn(
-            '<a class="site-menu-badge" href="/notifications/">Уведомления (1)</a>', content
+            '<span class="site-notif-count"><span class="visually-hidden">, непрочитанных: '
+            "</span>1</span>",
+            content,
         )
 
 

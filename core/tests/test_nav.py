@@ -48,8 +48,8 @@ class NavMarkupTests(TestCase):
                 "/map/",
                 "/grades/",
                 "/requests/",
+                # TASK-012: the "Уведомления" item moved to the header button (D11).
                 "/chat/",
-                "/notifications/",
             ],
         )
 
@@ -110,26 +110,59 @@ class NavBadgeTests(FrozenClockMixin, TestCase):
         cls.student = make_student("stu", cls.group, "REC-1")
         cls.staff = make_staff("stf", cls.faculty)
 
-    def test_badge_outside_menu(self):
+    # TASK-012: the "Уведомления (N)" link became the header button with a count chip (AC5, D11).
+    def test_notifications_button_with_count(self):
         make_announcement(self.staff, audience=Audience.UNIVERSITY)
         self.client.force_login(self.student)
         content = self.client.get("/profile/").content.decode()
         self.assertIn(
-            '<a class="site-menu-badge" href="/notifications/">Уведомления (1)</a>', content
+            '<span class="site-notif-count"><span class="visually-hidden">, непрочитанных: '
+            "</span>1</span>",
+            content,
         )
-        self.assertGreater(content.index("site-menu-badge"), content.index("</details>"))
-        self.assertIn(">Уведомления (1)</a>", _wide(content))
+        button = '<a class="btn site-notif" href="/notifications/">'
+        self.assertIn(button, content)
+        self.assertGreater(content.index(button), content.index("</details>"))
+        self.assertNotIn("site-notif", _wide(content))
+        self.assertNotIn("/notifications/", _hrefs(_wide(content)))
+        self.assertNotIn("/notifications/", _hrefs(_menu(content)))
 
+    # TASK-012: the button is always shown to students; only the chip depends on the badge.
     def test_no_badge_without_unread(self):
         self.client.force_login(self.student)
         content = self.client.get("/profile/").content.decode()
-        self.assertNotIn("site-menu-badge", content)
+        self.assertIn('class="btn site-notif"', content)
+        self.assertNotIn("site-notif-count", content)
 
+    # TASK-012: staff have no notifications button (AC6).
     def test_no_badge_for_staff(self):
         make_announcement(self.staff, audience=Audience.UNIVERSITY)
         self.client.force_login(self.staff)
         content = self.client.get("/profile/").content.decode()
-        self.assertNotIn("site-menu-badge", content)
+        self.assertNotIn("site-notif", content)
+
+    def test_no_button_for_superuser_and_anonymous(self):
+        superuser = User.objects.create_superuser("root", password="Super-Pass-2026!")
+        self.client.force_login(superuser)
+        self.assertNotIn("site-notif", self.client.get("/profile/").content.decode())
+        self.client.logout()
+        self.assertNotIn("site-notif", self.client.get("/login/").content.decode())
+
+    def test_button_current_on_feed(self):
+        self.client.force_login(self.student)
+        content = self.client.get("/notifications/").content.decode()
+        self.assertIn(
+            '<a class="btn site-notif" href="/notifications/" aria-current="page">', content
+        )
+        self.assertEqual(content.count('aria-current="page"'), 1)
+
+    def test_badge_cap_label(self):
+        self.client.force_login(self.student)
+        with mock.patch(
+            "notifications.templatetags.notifications_tags.badge_for_user", return_value="50+"
+        ):
+            content = self.client.get("/profile/").content.decode()
+        self.assertIn('<span class="visually-hidden">, непрочитанных: </span>50+</span>', content)
 
     def test_badge_computed_once(self):
         make_announcement(self.staff, audience=Audience.UNIVERSITY)

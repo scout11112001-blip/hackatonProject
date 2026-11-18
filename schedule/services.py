@@ -2,10 +2,11 @@
 
 from collections.abc import Collection
 from dataclasses import dataclass
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta
 from enum import StrEnum
 
 from django.db.models import Q, QuerySet
+from django.utils import timezone
 
 from university.models import Room, Teacher
 
@@ -264,3 +265,9 @@ def annotate_today(items: list[ScheduleItem], now: time) -> TodayAnnotation:
         next_item=next_item,
         day_finished=day_finished,
     )
+
+
+def today_schedule(group_id: int, now: datetime) -> tuple[DaySchedule, TodayAnnotation]:
+    local = timezone.localtime(now)
+    day = day_schedule(local.date(), [group_id], today=local.date())
+    return day, annotate_today(day.items, local.time())

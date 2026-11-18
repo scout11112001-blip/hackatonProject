@@ -11,8 +11,7 @@ from accounts.access import StaffRequiredMixin, StudentRequiredMixin
 from accounts.selectors import groups_visible_to
 from schedule.services import (
     WeekSchedule,
-    annotate_today,
-    day_schedule,
+    today_schedule,
     week_schedule,
     week_start,
 )
@@ -24,9 +23,7 @@ class TodayView(StudentRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
-        now = timezone.localtime()
-        day = day_schedule(now.date(), [self.profile.group_id], today=now.date())
-        annotation = annotate_today(day.items, now.time())
+        day, annotation = today_schedule(self.profile.group_id, timezone.now())
         context["day"] = day
         context["annotation"] = annotation
         context["group"] = self.profile.group

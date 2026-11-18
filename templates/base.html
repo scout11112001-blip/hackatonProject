@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Цифровой деканат будущего{% endblock %}</title>
+  <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
   <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
   <link rel="stylesheet" href="{% static 'css/base.css' %}">
   <link rel="stylesheet" href="{% static 'css/theme.css' %}">
@@ -12,20 +13,22 @@
 <body>
   <a class="skip-link" href="#main">Перейти к содержимому</a>
   <header class="site-header">
-    <a class="site-title" href="{% url 'core:home' %}">Цифровой деканат будущего</a>
+    <a class="site-brand" href="{% url 'core:home' %}">{% include "includes/icon_cap.html" %}<span class="site-title"><span class="site-title-line">Цифровой</span> <span class="site-title-line">деканат</span></span></a>
     {% if user.is_student %}{% notifications_badge as badge %}{% chat_unread_badge as chat_badge %}{% endif %}
     <nav class="site-nav site-nav--wide" aria-label="Основная навигация">
       {% block nav %}{% if user.is_authenticated %}{% include "includes/site_nav_items.html" %}{% endif %}{% endblock %}
     </nav>
     {% if user.is_authenticated %}
-    <div class="site-nav-compact">
-      <details class="site-menu">
-        <summary class="site-menu-toggle">Меню</summary>
-        <nav class="site-nav" aria-label="Основная навигация">
-          {% include "includes/site_nav_items.html" %}
-        </nav>
-      </details>
-      {% if badge %}<a class="site-menu-badge" href="{% url 'notifications:feed' %}">Уведомления ({{ badge }})</a>{% endif %}
+    <div class="site-header-actions">
+      <div class="site-nav-compact">
+        <details class="site-menu">
+          <summary class="site-menu-toggle">Меню</summary>
+          <nav class="site-nav" aria-label="Основная навигация">
+            {% include "includes/site_nav_items.html" %}
+          </nav>
+        </details>
+      </div>
+      {% if user.is_student %}{% url 'notifications:feed' as notif_url %}<a class="btn site-notif" href="{{ notif_url }}"{% if request.path == notif_url %} aria-current="page"{% endif %}>{% include "includes/icon_bell.html" %}Уведомления{% if badge %}<span class="site-notif-count"><span class="visually-hidden">, непрочитанных: </span>{{ badge }}</span>{% endif %}</a>{% endif %}
     </div>
     {% endif %}
   </header>

@@ -168,7 +168,7 @@ details summary {
 
 .messages {
   list-style: none;
-  margin: 0 0 var(--space-3);
+  margin: 0 0 var(--space-4);
   padding: 0;
 }
 
@@ -341,29 +341,38 @@ a.map-current {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2) var(--space-3);
-  margin-top: var(--space-2);
-}
-
-.site-menu-toggle,
-.site-menu-badge {
-  display: inline-block;
-  min-height: 2.75rem;
-  line-height: 2.75rem;
 }
 
 .site-menu-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 2.75rem;
   padding: 0 var(--space-3);
-  border: 1px solid var(--color-border);
   cursor: pointer;
+  list-style: none;
 }
 
-.site-menu[open] {
-  flex-basis: 100%;
+.site-menu-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.site-menu-toggle::before {
+  content: "";
+  display: block;
+  flex: none;
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.site-menu .site-nav {
+  padding: var(--space-2) var(--space-3);
 }
 
 .site-menu .site-nav-list {
   flex-direction: column;
   gap: 0;
+  margin: 0;
 }
 
 .site-menu .site-nav-list a,
@@ -383,6 +392,229 @@ a.map-current {
   }
 }
 
+/* Header (TASK-012, D10). */
+.site-header {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+}
+
+.site-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 2.75rem;
+  flex: 0 1 auto;
+}
+
+.site-brand svg {
+  flex: none;
+  width: 36px;
+  height: 30px;
+}
+
+.site-title-line {
+  display: block;
+}
+
+.site-header-actions {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: var(--space-3) 0.625rem;
+  flex: 1 1 100%;
+  padding-block: 6px;
+}
+
+.site-header-actions .site-nav-compact {
+  flex: 0 1 auto;
+}
+
+.site-header-actions .site-menu {
+  display: flex;
+}
+
+/* The open menu drops down over the page, so the notifications button stays in place. */
+.site-header-actions .site-menu .site-nav {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 10;
+  margin: 0;
+}
+
+.site-header .site-notif {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-inline: 0.625rem;
+}
+
+.site-notif svg {
+  flex: none;
+  width: 14px;
+  height: 16px;
+}
+
+.site-nav-list a,
+.site-nav-logout button {
+  display: inline-block;
+  min-height: 2.75rem;
+  line-height: 2.75rem;
+}
+
+@media (min-width: 48rem) {
+  .site-header {
+    flex-wrap: nowrap;
+  }
+
+  .site-brand {
+    flex: none;
+  }
+
+  .site-title-line {
+    display: inline;
+  }
+
+  .site-nav--wide {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .site-nav--wide .site-nav-list {
+    margin: 0;
+    gap: 0 var(--space-3);
+  }
+
+  .site-header-actions {
+    flex: none;
+  }
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Buttons and cards (TASK-012, D6). 6 px margins keep the box-shadow frames apart. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.625rem 0.875rem;
+  text-align: center;
+  text-decoration: none;
+}
+
+.card {
+  margin: 6px 6px var(--space-4);
+  padding: 0.25rem 0.75rem 0.75rem;
+}
+
+.card-title {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  margin: 0 0 var(--space-1);
+}
+
+.card-title-link {
+  display: inline-block;
+  line-height: 2.75rem;
+}
+
+.lesson-meta .room {
+  white-space: nowrap;
+}
+
+.card-empty {
+  margin: 0;
+  padding: var(--space-2) 0;
+}
+
+.page-sub {
+  margin: 0 0 var(--space-4);
+}
+
+.lesson-list--compact .lesson {
+  padding: var(--space-2) 0;
+}
+
+.lesson-list--compact .lesson:first-child {
+  border-top: 0;
+}
+
+.tag {
+  display: inline-block;
+  padding: 0.125rem 0.375rem;
+}
+
+/* Card rows: one line each, title cut with an ellipsis (TASK-012, AC8). */
+.card-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.card-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.card-row-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 2.75rem;
+}
+
+.card-row-label {
+  flex: none;
+  white-space: nowrap;
+}
+
+.home-actions {
+  display: grid;
+  gap: var(--space-4);
+  margin: 6px 6px var(--space-4);
+}
+
+.home-actions--two {
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.home-actions .btn {
+  padding-inline: 0.375rem;
+}
+
+.home-actions--three {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 48rem) {
+  .home-actions--three {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 .chat-messages,
 .chat-dialogs {
   list-style: none;
@@ -399,10 +631,12 @@ a.map-current {
 
 .chat-message--own {
   margin-left: var(--space-4);
+  margin-right: 6px;
 }
 
 .chat-message--other {
   margin-right: var(--space-4);
+  margin-left: 6px;
 }
 
 .chat-meta,
@@ -419,4 +653,203 @@ a.map-current {
 .chat-dialogs li {
   margin-bottom: var(--space-3);
   overflow-wrap: anywhere;
+}
+
+/* Page layout of the themed site (TASK-012). */
+.site-main {
+  position: relative;
+}
+
+.form,
+.fields,
+.petition,
+.feed-item,
+.discipline,
+.day,
+.chat-dialogs li,
+.message {
+  margin-inline: 6px;
+}
+
+.form {
+  margin-top: 6px;
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+}
+
+.form p,
+.form > div {
+  margin: 0 0 var(--space-3);
+}
+
+.form label {
+  display: block;
+  margin-bottom: var(--space-1);
+}
+
+.form input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+.form select,
+.form textarea,
+.action-form textarea {
+  display: block;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: var(--space-2);
+}
+
+.form input[type="checkbox"],
+.form input[type="radio"] {
+  width: 1.5rem;
+  height: 1.5rem;
+  vertical-align: middle;
+}
+
+.form input[type="file"] {
+  padding: 6px;
+}
+
+input[type="file"]::file-selector-button {
+  min-height: 2.75rem;
+  margin-right: var(--space-3);
+  padding: 0 var(--space-3);
+}
+
+.form button,
+.action-form button {
+  min-height: 2.75rem;
+  margin: 6px;
+  padding: 0.625rem 1rem;
+}
+
+.form .helptext {
+  display: block;
+  font-size: 0.875rem;
+}
+
+.errorlist {
+  list-style: none;
+  margin: 0 0 var(--space-2);
+  padding: 0;
+}
+
+.fields {
+  padding: var(--space-3);
+  margin-top: 6px;
+  margin-bottom: var(--space-4);
+}
+
+.fields dt:first-child {
+  margin-top: 0;
+}
+
+.petition,
+.feed-item,
+.discipline,
+.chat-dialogs li {
+  border-top: 0;
+  margin-top: 6px;
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+}
+
+.petition > a,
+.chat-dialogs li > a,
+.student-list a,
+.group-list a,
+.map-room-list a {
+  display: inline-block;
+  min-height: 2.75rem;
+  padding-block: 0.625rem;
+}
+
+.discipline summary {
+  min-height: 2.75rem;
+  padding: var(--space-1) 0;
+}
+
+.lesson {
+  padding: var(--space-2) var(--space-3);
+}
+
+.lesson-list--compact .lesson {
+  padding-inline: 0;
+}
+
+.lesson-list--compact .lesson--now {
+  margin-inline: calc(-1 * var(--space-2));
+  padding-inline: var(--space-2);
+}
+
+.day {
+  margin-top: 6px;
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+}
+
+.day h2 {
+  margin-top: 0;
+}
+
+.week-nav,
+.term-nav ul {
+  align-items: center;
+}
+
+.week-nav a,
+.term-nav a,
+.page-actions a,
+.site-main > p > a:only-child {
+  display: inline-block;
+  min-height: 2.75rem;
+  padding-block: 0.625rem;
+}
+
+.week-nav p {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.lesson-badge {
+  display: inline-block;
+  padding: 0.125rem 0.375rem;
+}
+
+.message {
+  padding: var(--space-2) var(--space-3);
+  margin-top: 6px;
+  margin-bottom: var(--space-3);
+}
+
+.chat-message {
+  padding: var(--space-2) var(--space-3);
+}
+
+.map-room-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-3);
+}
+
+.map-legend li {
+  margin-bottom: var(--space-2);
+}
+
+.site-footer {
+  font-size: 0.875rem;
+}
+
+h1 {
+  margin: var(--space-3) 0 var(--space-3);
+}
+
+h2 {
+  margin: var(--space-4) 0 var(--space-3);
+}
+
+section[id] {
+  scroll-margin-top: var(--space-3);
+}
+
+p > .btn {
+  margin-inline: 6px;
 }

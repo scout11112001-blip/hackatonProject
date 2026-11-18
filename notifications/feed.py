@@ -102,16 +102,19 @@ def upcoming_deadlines(ctx: FeedContext, limit: int) -> list[DeadlineItem]:
 
 @dataclass(frozen=True)
 class HomeSummary:
+    student: StudentProfile
     deadlines: list[DeadlineItem]
     news: list[FeedItem]
 
 
-def home_summary(user: AbstractBaseUser | AnonymousUser) -> HomeSummary | None:
-    ctx = student_context(user)
+def home_summary(
+    user: AbstractBaseUser | AnonymousUser, now: datetime | None = None
+) -> HomeSummary | None:
+    ctx = student_context(user, now)
     if ctx is None:
         return None
     deadlines = upcoming_deadlines(ctx, HOME_ITEMS)
     shown = {f"news-{d.public_id}" for d in deadlines}
     candidates = NewsSource().latest(ctx, HOME_ITEMS + len(shown))
     news = [item for item in candidates if item.key not in shown][:HOME_ITEMS]
-    return HomeSummary(deadlines=deadlines, news=news)
+    return HomeSummary(student=ctx.student, deadlines=deadlines, news=news)

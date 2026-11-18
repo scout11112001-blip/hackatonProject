@@ -12,6 +12,7 @@ from notifications.feed import (
     badge_for_user,
     badge_label,
     build_feed,
+    home_summary,
     student_context,
     unread_count,
     upcoming_deadlines,
@@ -657,3 +658,23 @@ class SourceRegistryTests(FrozenClockMixin, TestCase):
             self.assertTrue(items)
             self.assertTrue(all(i.kind == "news" for i in items))
             self.assertEqual(unread_count(ctx), len(items))
+
+
+class HomeSummaryStudentTests(FrozenClockMixin, TestCase):
+    frozen_now = NOW
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.w = make_world()
+
+    def test_summary_has_student(self):
+        summary = home_summary(self.w.ax)
+        self.assertEqual(summary.student.pk, self.w.ax.student_profile.pk)
+        with self.assertNumQueries(0):
+            self.assertEqual(summary.student.group.name, "GX1")
+
+    def test_summary_uses_given_now(self):
+        make_announcement(self.w.sx, audience=Audience.UNIVERSITY, deadline=D, title="Сегодня")
+        self.assertEqual(len(home_summary(self.w.ax).deadlines), 1)
+        summary = home_summary(self.w.ax, moscow("2026-11-12 10:00"))
+        self.assertEqual(summary.deadlines, [])

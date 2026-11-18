@@ -1,21 +1,38 @@
 {% extends "base.html" %}
 {% block content %}
+{% if summary %}
+  <h1>Сегодня</h1>
+  <p class="page-sub">{{ day.date|date:"l, j E" }} · {{ summary.student.group.name }}</p>
+  <section class="card" aria-labelledby="home-lessons">
+    <h2 class="card-title" id="home-lessons">Занятия</h2>
+    {% if day.items %}<ol class="lesson-list lesson-list--compact">{% for row in annotation.rows %}{% include "schedule/includes/lesson_compact.html" with item=row.item row=row %}{% endfor %}</ol>
+    {% else %}<p class="card-empty">Сегодня занятий нет.</p>{% endif %}
+  </section>
+  <section class="card" aria-labelledby="home-deadlines">
+    <h2 class="card-title" id="home-deadlines"><a class="card-title-link" href="{% url 'notifications:feed' %}#deadlines">Дедлайны<span aria-hidden="true"> →</span></a></h2>
+    {% if summary.deadlines %}<ul class="card-rows">{% for d in summary.deadlines %}
+      <li class="card-row"><a class="card-row-title" href="{% url 'notifications:feed' %}#deadline-{{ d.public_id }}" title="{{ d.title }}">{{ d.title }}</a><time class="card-row-label card-row-label--deadline" datetime="{{ d.deadline|date:'Y-m-d' }}">{{ d.label }}</time></li>
+    {% endfor %}</ul>{% else %}<p class="card-empty">Ближайших дедлайнов нет.</p>{% endif %}
+  </section>
+  <section class="card" aria-labelledby="home-news">
+    <h2 class="card-title" id="home-news"><a class="card-title-link" href="{% url 'notifications:feed' %}#feed">Новости<span aria-hidden="true"> →</span></a></h2>
+    {% if summary.news %}<ul class="card-rows">{% for item in summary.news %}
+      <li class="card-row"><a class="card-row-title" href="{% url 'notifications:feed' %}#{{ item.key }}" title="{{ item.title }}">{{ item.title }}</a><time class="card-row-label" datetime="{{ item.timestamp|date:'c' }}">{{ item.timestamp|date:"d.m" }}</time></li>
+    {% endfor %}</ul>{% else %}<p class="card-empty">Новостей пока нет.</p>{% endif %}
+  </section>
+  <div class="home-actions home-actions--two">
+    <a class="btn" href="{% url 'petitions:my_list' %}">Документы</a>
+    <a class="btn" href="{% url 'chat:student' %}">Чат</a>
+  </div>
+{% elif user.is_deanery_staff %}
+  <h1>Деканат</h1>
+  <div class="home-actions home-actions--three">
+    <a class="btn" href="{% url 'petitions:staff_queue' %}">Заявки</a>
+    <a class="btn" href="{% url 'chat:staff_list' %}">Чаты</a>
+    <a class="btn" href="{% url 'notifications:staff_announcements' %}">Объявления</a>
+  </div>
+{% else %}
   <h1>Цифровой деканат будущего</h1>
-  {% if summary %}
-    <section aria-labelledby="home-deadlines">
-      <h2 id="home-deadlines">Ближайшие дедлайны</h2>
-      {% if summary.deadlines %}<ul class="deadline-list">{% for d in summary.deadlines %}
-        <li><a href="{% url 'notifications:feed' %}#deadline-{{ d.public_id }}">{{ d.title }}</a> — до {{ d.deadline|date:"d.m" }}, {{ d.label }}</li>
-      {% endfor %}</ul>{% else %}<p>Ближайших дедлайнов нет.</p>{% endif %}
-    </section>
-    <section aria-labelledby="home-news">
-      <h2 id="home-news">Новости</h2>
-      {% if summary.news %}<ul class="deadline-list">{% for item in summary.news %}
-        <li><a href="{% url 'notifications:feed' %}#{{ item.key }}">{{ item.title }}</a> <span class="feed-meta">{{ item.timestamp|date:"d.m" }}</span></li>
-      {% endfor %}</ul>{% else %}<p>Новостей пока нет.</p>{% endif %}
-    </section>
-    <p class="page-actions"><a href="{% url 'notifications:feed' %}">Все уведомления</a></p>
-  {% else %}
-    <p>Прототип личного кабинета студента. Раздел в разработке.</p>
-  {% endif %}
+  <p>Прототип личного кабинета студента. Раздел в разработке.</p>
+{% endif %}
 {% endblock %}

@@ -15816,3 +15816,1444 @@ Point 1 (trial DB `deanery_trial` now, final DB `deanery` + one-time seed_demo o
 - ход Кодера прервался из-за обрыва связи с bb, и тимлид попросил его продолжить с текущего состояния кода.
 
 От меня ничего не требуется. Тимлиду я не отвечал, он просил не отвечать. Жду вопросов Кодера или следующую задачу.
+
+── User ────────────────────────────────────────────────────
+/compact
+
+── Context compacted ───────────────────────────────────────
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TEAM] Team lead -> all: protocol update (commit 9fe9da5)
+A fifth agent joined: UI coder (Claude Opus), thread thr_pgcwc2dwnn, role `.claude/agents/ui-coder.md`. It does visual tasks (design, templates, CSS, static assets) and checks every changed page in a browser at 360 and 1024 px before its REPORT.
+- Planner: hand a spec to the assignee named in the request. "Assignee: UI coder" -> thr_pgcwc2dwnn; otherwise the Coder thr_ng6cbgatm6.
+- Reviewer: send CHANGES REQUESTED to the coder who sent the REPORT.
+- Coder: you keep all non-visual tasks.
+Re-read `.bb/AGENTS.md` and your role file. No reply needed.
+
+── Explored 2 files ────────────────────────────────────────
+  ── Thought for 4ms
+    I'm re-reading AGENTS.md and the planner role file, since the lead asked for that. No reply is needed, so I'll just go read them.
+  ── Read .bb/AGENTS.md
+  ── Thought for 2ms
+    I'm considering whether to also read ui-coder.md. It isn't strictly necessary, but it could help with the specs, so I'll take a quick look.
+  ── Read .claude/agents/ui-coder.md
+  ── Thought for 2s
+    No reply is needed here. I'm wondering whether to save a memory, but that's already covered in AGENTS.md, so I don't need to. I'm done.
+
+── Assistant ───────────────────────────────────────────────
+Я прочитал новые правила команды. Теперь в команде пятый агент — UI-кодер (тред thr_pgcwc2dwnn). Ему достаются визуальные задачи: дизайн, шаблоны, CSS и статические файлы.
+
+Что меняется для меня:
+- Если в запросе тимлида стоит «Assignee: UI coder», я отправляю спецификацию UI-кодеру. Все остальные задачи по-прежнему идут Кодеру (thr_ng6cbgatm6).
+- В спецификации для UI-кодера я указываю визуальные критерии приёмки: ширину экрана (360 и 1024 px), роли и страницы. Ещё я называю образцы дизайна.
+- Мелкие визуальные детали, которых нет в спецификации, UI-кодер решает сам. Архитектуру он не меняет.
+
+Тимлид просил не отвечать, поэтому я ему не писал. Жду следующую задачу.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-012] Team lead -> Planner: TASK
+Approved by the user. Write the spec `docs/tasks/TASK-012.md` and hand it to the UI coder.
+Assignee: UI coder (thr_pgcwc2dwnn)
+
+## Context
+Done: TASK-001..011. All features exist with a neutral layout; the CSS is already split into layers: `static/css/tokens.css` (design tokens), `static/css/base.css` (layout), `static/css/theme.css` (empty visual theme layer, "the pixel-art skin replaces this file and tokens.css"). This task is the visual design stage (plan.md stage 4, "Интерфейс (пиксель-арт)"). The user approved a mockup of the student home page (360 px):
+- `docs/design/home-mockup.html` (open it in a browser; it is the reference for colours, borders, buttons, header) and `docs/design/home-mockup.jpg`.
+- Font: `static/fonts/PressStart2P-Regular.ttf` + `static/fonts/OFL.txt` (SIL OFL 1.1, Reserved Font Name "Press Start 2P"). Use the file as is: do NOT subset, convert or rename it (the Reserved Font Name forbids modified copies under that name). Self-hosted only, no Google Fonts or any CDN.
+Apply your "Feasibility check" and "Test plan" sections.
+
+## Goal
+The whole site gets the approved "night pixel" look, readable and usable on a 360 px phone and on a desktop, without JavaScript.
+
+## Requirements (user decisions)
+1. Theme (from the mockup):
+   - Background: vertical night-sky gradient (#120a2a -> #221449 -> #3a2272 -> #4b2a86), full page height.
+   - Decorative pixel stars (small yellow #ffe9a8 and lilac #d9c8ff squares) only in the header area and the side margins; never over text or controls; pure CSS, `aria-hidden`, no images.
+   - Panels/cards: dark violet (about rgba(36,22,78,.88)), pixel double frame (3px border #5a3fa3 + 3px gap + 3px outer line, square corners, no border-radius).
+   - Text #f3ecff, muted #b8a6e8, card headings yellow #ffd25e, links amber #ffc46b (underlined), warnings/changes coral #ff6f7d, the "идёт" tag and the unread count orange/coral as in the mockup. Headings have a 3px violet pixel text-shadow.
+   - Put all colours into `tokens.css` as named tokens; the theme rules into `theme.css`; layout stays in `base.css`.
+2. Fonts (user decision): Press Start 2P ONLY for the site title, headings, card titles, buttons and tags; all body text, form inputs, tables and messages use the existing system font for readability. Define sizes so long Russian words do not overflow at 360 px (check the longest headings and button labels).
+3. Logo (user decision): the pixel academic cap from the mockup (inline SVG of rects, `shape-rendering: crispEdges`, our own drawing) next to the site title "ЦИФРОВОЙ ДЕКАНАТ" (two lines on narrow screens). Also use it as the favicon (SVG favicon).
+4. Header (user decisions):
+   - Narrow screens: logo + title; below them two buttons on one line: "≡ Меню" (the existing no-JS `<details>` menu from TASK-008-FIX) and, for students, a "Уведомления" BUTTON (not a text link) with a yellow pixel bell icon and a coral count chip; the chip is hidden when there are no unread items. Both buttons have the same height and the pixel button style.
+   - Wide screens (>= 48rem): the inline nav as now, styled; the notifications button stays visible.
+   - Staff and superuser: the same header without the notifications button.
+5. Student home page (`core:home`), as in the mockup: heading "Сегодня" with the date and group; a card "Занятия" with today's lessons (reuse the schedule service of the "Сегодня" page: time, pair, discipline, type, teacher, room link to the map, change marks, "идёт" tag for the current lesson; empty state "Сегодня занятий нет"); a card "Дедлайны" (existing home summary, 3 items); a card "Новости" (existing, 3 items). The card titles "Дедлайны" and "Новости" are links (user decision): "Дедлайны" -> the notifications page scrolled to its "Ближайшие дедлайны" block (add a stable anchor id there, e.g. `#deadlines`), "Новости" -> the notifications page scrolled to the feed (e.g. `#feed`); the link look must make it clear they are clickable (e.g. an arrow "→" after the title) while keeping the card-title style; keep or drop the existing "Все уведомления" link - choose and justify. The "Новости" card has exactly the same look as the "Дедлайны" card (same card, title style, row layout and separators; for news the right-hand part is the date instead of the relative deadline label). In both cards every row is ONE line at any screen width: the title is truncated with an ellipsis ("Текст текст текст…", CSS `white-space: nowrap; overflow: hidden; text-overflow: ellipsis` on the title part, `min-width: 0` in the flex row) while the right-hand label (deadline label or date) is never truncated or wrapped; the full title stays available (link text unchanged for screen readers, and a `title` attribute with the full text). Test the markup/classes; the Team lead checks 320, 360 and 1024 px visually; then two buttons of the SAME style and size side by side on one line: "Документы" (-> the student's requests list) and "Чат" (-> the student chat). Query count of the home page must stay small and fixed (test).
+6. Staff home page: heading and three buttons of the same style: "Заявки", "Чаты", "Объявления".
+7. Every other page gets the theme without changing its behaviour: login, profile, schedule (today/week/staff), grades report (including `<details>`), requests (catalog, form with file input, list, detail, staff queue/detail), notifications feed and staff announcements, chat (student/staff; own vs other messages clearly different), map page (the map must stay readable on the dark background: room and landmark colours adapted to the theme; the current highlight colour must remain clearly visible - the map redesign itself is the NEXT task), Django messages block, empty states, error pages 403/404/500 (add simple themed templates if missing), the footer disclaimer.
+8. Forms: inputs, selects, textareas and the file input themed and readable (light text on dark field or dark on light - choose for contrast), visible focus outline (pixel style), error messages in coral, buttons as in the mockup. Tap targets at least 44 px.
+9. Accessibility: WCAG AA contrast for text (4.5:1, 3:1 for large text and UI borders) - list the checked pairs in the spec; `:focus-visible` on every interactive element; no information by colour only; `prefers-reduced-motion` respected if any transition is added; zoom works.
+10. No JavaScript added; chat polling JS unchanged. No new Python dependencies. Admin site unchanged.
+11. README: a short "Design" section (palette, font and its licence, logo is our own drawing) - required by the contest rules on licences.
+
+## Out of scope
+Map improvements (larger room list, final highlight design, landmark vs service frames, corridor label, zoom) - next task TASK-013. New features, behaviour changes, light theme / theme switcher.
+
+## Verification
+All existing verification commands pass (check, deploy check, makemigrations --check, test with the output saved to a file, `scripts/run_tests_at.py` at a Moscow midnight boundary, ruff only on the task files, CI YAML). Tests updated only where markup changes require it, with the reason. New tests: the font is served from static with the licence file present, no external font/CDN URLs in templates/CSS, tokens exist, home page cards and buttons for both roles, notifications button and hidden chip, query count of the home page. The Team lead checks every page at 360 px and at 1024 px for students and staff (screenshots).
+
+── Ran 1 command, explored 5 files, 1 list ─────────────────
+  ── Thought for 5ms
+    I'm going to study the project first, starting with the mockup, the CSS files, the templates, the home view, and the notification templates. Then I'll check git status and look through the docs/design folder.
+  ── Ran git status --short && git log --oneline -3 && ls docs/design static static/css static/fonts static/js templates templates/* && wc -l static/css/*.css && ls -la static/fonts (1s)
+    $ git status --short && git log --oneline -3 && ls docs/design static static/css static/fonts static/js templates templates/* && wc -l static/css/*.css && ls -la static/fonts
+    59481cf Design: approved mockup and Press Start 2P font (OFL) for TASK-012
+    9fe9da5 Team: add the UI coder agent (Claude Opus) for visual tasks
+    7fbeaa5 Plan: code on GitHub, CI green on SQLite and PostgreSQL
+    templates/base.html
+
+    docs/design:
+    home-mockup.html
+    home-mockup.jpg
+
+    static:
+    css
+    fonts
+    js
+
+    static/css:
+    base.css
+    theme.css
+    tokens.css
+
+    static/fonts:
+    OFL.txt
+    PressStart2P-Regular.ttf
+
+    static/js:
+    chat.js
+
+    templates:
+    base.html
+    includes
+
+    templates/includes:
+    site_nav_items.html
+         422 static/css/base.css
+           1 static/css/theme.css
+          21 static/css/tokens.css
+         444 total
+    total 248
+    drwxr-xr-x@ 4 andreyorlov  staff     128 Nov 17 12:24 .
+    drwxr-xr-x@ 5 andreyorlov  staff     160 Nov 17 12:24 ..
+    -rw-r--r--@ 1 andreyorlov  staff    4413 Nov 17 12:24 OFL.txt
+    -rw-r--r--@ 1 andreyorlov  staff  118204 Nov 17 12:24 PressStart2P-Regular.ttf
+  ── Read docs/design/home-mockup.html
+  ── Thought for 5ms
+    I'm going to look at the JPG mockup first, then go through the current CSS files, base.html, the nav items, the core home view and template, and the notifications template.
+  ── Read ~/hackatonproject/docs/design/home-mockup.jpg
+  ── Read static/css/tokens.css
+  ── Thought for 5ms
+    I'm checking whether the nav for superusers depends on the is_deanery_staff flag, so I'll look at the properties in the accounts models. I also need to look at base.css.
+  ── Read static/css/base.css
+  ── Thought for 9ms
+    Next I'll look at the core home view and its template, then go through the other templates. I'll start by listing every template in the project.
+  ── Listed files in .
+  ── Read core/templates/core/home.html
+  ── Thought for 40ms
+    I'll give the user a short update in Russian, then carry on with the work.
+
+── Assistant ───────────────────────────────────────────────
+Начал TASK-012 (пиксельный дизайн). Изучаю макет, шаблоны и CSS, потом напишу спецификацию для UI-кодера.
+
+── Read notifications/feed.py ──────────────────────────────
+  $ cat notifications/feed.py notifications/constants.py && cat notifications/templatetags/*.py chat/templatetags/*.py 2>/dev/null | head -120
+
+── Assistant ───────────────────────────────────────────────
+Now the schedule "today" service and template.
+
+── Explored 3 files, 3 searches ────────────────────────────
+  ── Read schedule/views.py
+  ── Thought for 8ms
+    I'm checking the home page requirement: the "Занятия" card should reuse the schedule service, which means adding day_schedule/annotate_today to the student context in core/views.py. Since that's a small context change, it's in scope, but I still need to verify the query count. I'll look at schedule/services.py for N+1 risk from `item.lesson.groups.all|length` and find any existing query count tests for the today view.
+  ── Searched for def \|prefetch\|select_related\|class \|is_happening in schedule/services.py
+  ── Searched for assertNumQueries in .
+  ── Thought for 8ms
+    I'm going through the existing tests in core/tests (test_views, test_css, test_nav) to see how they're structured. I also want to check the query count test around line 688 in the notifications tests, plus any home page tests that assert on the "Ближайшие дедлайны" heading or the "Все уведомления" link.
+  ── Read core/tests/test_css.py
+  ── Thought for 10ms
+    I'm going to look through the tests for anything that depends on markup likely to change, like the home page notifications summary, the site menu badge, the "Все уведомления" link, the home page heading and deadlines section, and the "Меню" summary. I'll grep the test files for those strings.
+  ── Searched for reverse("core:home") in .
+  ── Read notifications/tests/test_views.py
+  ── Thought for 9ms
+    I'm checking what the superuser should see on the home page, since it currently shows only the "Раздел в разработке" placeholder. Their nav has only the profile item, and the requirement about the header without a notifications button covers staff and superuser alike, so I need to decide whether the superuser gets the placeholder or nothing at all.
+
+    I'm checking whether a superuser counts as deanery staff, since that decides what their home page shows, and I'll look at the User properties in accounts to settle it.
+
+── Assistant ───────────────────────────────────────────────
+Изучаю тесты главной и шапки: какие из них затронет новая разметка.
+
+── Explored 3 searches, 1 file, ran 2 commands ─────────────
+  ── Searched for def is_\|property\|class Role\|STUDENT\|STAFF in accounts/models.py
+  ── Thought for 10s
+    I'm checking which error templates exist, and there are no 403, 404, or 500 pages. Django will fall back to its defaults: the 404 page would get the request and user context, but the 500 page renders with an empty context, so extending base.html there needs care, since the user lookup and the notifications badge would have no request to work from.
+
+    I'm working out the 500 page now: it should stand alone rather than extend base.html, and link its CSS through `{% static %}`. I'm also checking whether the static storage setting could break that in production.
+
+    I'm checking whether the 403 and 404 pages would render a working nav, since the existing views raise PermissionDenied and should hit the 403 template. I also want to see if any tests depend on the default "Forbidden" text, and whether the test runner's DEBUG=False will make 404 pages use the new templates.
+
+    I'm confirming the 404 renders fine for anonymous users, since base.html just shows an empty nav there, and that the notifications badge will run queries for authenticated students without issue. Next I'm checking the STORAGES and static settings, and whether the test runner uses manifest storage.
+  ── Searched for STORAGES\|STATIC\|whitenoise\|DEBUG\|TEMPLATES\|context_processors in config/settings.py
+  ── Thought for 5ms
+    I'm checking how the tests handle static files when DEBUG is off and manifest storage is in use, since `{% static %}` would fail without a collected manifest. The existing pages render fine in tests, so I suspect CI sets DEBUG to true somehow, and I'll look at the env in ci.yml.
+  ── Read .github/workflows/ci.yml
+  ── Thought for 3s
+    I'm confirming the font file is reachable through Django's static finders, and I'm also checking the production path: the manifest storage rewrites the font url() in the CSS, so the file has to exist or collectstatic will fail. I'm also looking at the favicon SVG next.
+
+    I'm checking where the favicon SVG lives and noting that the mockup in docs points outside the static directory, which is fine. For the font-face rule, I'm leaning toward putting it in theme.css with a relative url to the fonts folder, and I'm wondering whether an existing test already covers collectstatic so I can grep for it.
+  ── Searched for collectstatic\|def test in core/tests/test_deploy.py
+  ── Thought for 3ms
+    I'm adding a test that runs collectstatic with manifest storage into a temp STATIC_ROOT, to confirm the font gets a hashed name in the processed CSS, since manifest storage fails on missing url() targets. Next I'll list the templates' contents to pick up their class names.
+
+    I'm checking how big the remaining templates are with a word count before I read them in full.
+  ── Ran wc -l $(find . -path ./.venv -prune -o -name "*.html" -print | grep -v docs/) | tail -1; for f in campusmap/templates/campusmap/map.html chat/templates/chat/student.html chat/templates/chat/_message.html chat/templates/chat/_form.html petitions/templates/petitions/form.html petitions/templates/petitions/catalog.html academics/templates/academics/report.html; do echo "=== $f"; cat $f; done (1s)
+    $ wc -l $(find . -path ./.venv -prune -o -name "*.html" -print | grep -v docs/) | tail -1; for f in campusmap/templates/campusmap/map.html chat/templates/chat/student.html chat/templates/chat/_message.html chat/templates/chat/_form.html petitions/templates/petitions/form.html petitions/templates/petitions/catalog.html academics/templates/academics/report.html; do echo "=== $f"; cat $f; done
+    635 total
+    === campusmap/templates/campusmap/map.html
+    {% extends "base.html" %}
+    {% block title %}Карта{% endblock %}
+    {% block content %}
+    <h1>Карта</h1>
+    {% if not floors %}
+      <p>Аудиторий пока нет.</p>
+    {% else %}
+      <nav class="floor-switcher" aria-label="Этажи">
+        <span>Этаж:</span>
+        <ul>
+          {% for f in floors %}
+          <li><a href="{{ f.url }}"{% if f.is_current %} class="floor-current" aria-current="page"{% endif %}>{{ f.number }}</a></li>
+          {% endfor %}
+        </ul>
+      </nav>
+      {% if plan %}
+      <svg class="map-svg" viewBox="0 0 {{ plan.width }} {{ plan.height }}" role="img" aria-labelledby="map-title">
+        <title id="map-title">Схема, {{ plan.floor }} этаж</title>
+        <rect class="map-outline" x="{{ plan.outline.x }}" y="{{ plan.outline.y }}" width="{{ plan.outline.width }}" height="{{ plan.outline.height }}"/>
+        <rect class="map-corridor" x="{{ plan.corridor.x }}" y="{{ plan.corridor.y }}" width="{{ plan.corridor.width }}" height="{{ plan.corridor.height }}"/>
+        {% for s in plan.shapes %}
+        <g class="map-{{ s.kind }}{% if s.is_current %} map-current{% endif %}"{% if s.is_current %} aria-current="location"{% endif %}>
+          <title>{% if s.kind == "room" %}Аудитория {{ s.label }}{% else %}{{ s.label }}{% endif %}</title>
+          {% if s.points %}<polygon points="{{ s.points }}"/>{% else %}<rect x="{{ s.rect.x }}" y="{{ s.rect.y }}" width="{{ s.rect.width }}" height="{{ s.rect.height }}"/>{% endif %}
+          <text class="map-{{ s.kind }}-label" x="{{ s.rect.cx }}" y="{{ s.rect.cy }}" text-anchor="middle" dominant-baseline="central"{% if s.text_length %} textLength="{{ s.text_length }}" lengthAdjust="spacingAndGlyphs"{% endif %}>{{ s.label }}</text>
+        </g>
+        {% endfor %}
+      </svg>
+      {% else %}<p>Схемы {{ current_floor }} этажа нет.</p>{% endif %}
+      <ul class="map-legend">
+        <li><svg class="map-legend-swatch" viewBox="0 0 24 16" aria-hidden="true"><g class="map-room"><rect x="1" y="1" width="22" height="14"/></g></svg> Аудитория</li>
+        <li><svg class="map-legend-swatch" viewBox="0 0 24 16" aria-hidden="true"><g class="map-landmark"><rect x="1" y="1" width="22" height="14"/></g></svg> Вход, лестница, деканат, библиотека, столовая</li>
+        <li><svg class="map-legend-swatch" viewBox="0 0 24 16" aria-hidden="true"><g class="map-service"><rect x="1" y="1" width="22" height="14"/></g></svg> Служебные помещения: гардероб, туалеты, кафедра и другие</li>
+      </ul>
+      <h2>Все аудитории</h2>
+      {% for f in floors %}
+      <h3>{{ f.number }} этаж</h3>
+      <ul class="map-room-list">
+        {% for r in f.rooms %}
+        <li><a href="{{ r.url }}"{% if r.is_current %} class="map-current" aria-current="location"{% endif %}>{{ r.number }}</a>{% if not r.on_map %} — нет на схеме{% endif %}</li>
+        {% endfor %}
+      </ul>
+      {% endfor %}
+    {% endif %}
+    {% endblock %}
+    === chat/templates/chat/student.html
+    {% extends "base.html" %}
+    {% load static %}
+    {% block title %}Чат с деканатом{% endblock %}
+    {% block extra_head %}<script src="{% static 'js/chat.js' %}" defer></script>{% endblock %}
+    {% block content %}
+    <h1>Чат с деканатом</h1>
+    <p>{{ faculty_name }}</p>
+    {% include "chat/_history.html" %}
+    {% include "chat/_form.html" %}
+    {% endblock %}
+    === chat/templates/chat/_message.html
+    <li class="chat-message chat-message--{{ m.author_role }} {% if m.author_role == 'student' and viewer_is_student or m.author_role == 'staff' and not viewer_is_student %}chat-message--own{% else %}chat-message--other{% endif %}" id="m-{{ m.pk }}" data-message-id="{{ m.pk }}">
+      <p class="chat-meta"><strong>{% if m.author_role == "staff" %}Деканат · {{ m.author.staff_profile.short_name }}{% elif viewer_is_student %}Вы{% else %}{{ student_name }}{% endif %}</strong> · <time datetime="{{ m.created_at|date:'c' }}">{{ m.created_at|date:"d.m.Y H:i" }}</time></p>
+      <p class="chat-text">{{ m.text|linebreaksbr }}</p>
+    </li>
+    === chat/templates/chat/_form.html
+    <form method="post" class="form chat-form" id="chat-form" action="{{ form_action }}">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <input type="hidden" name="client_token" value="{{ form.client_token.value|default:client_token }}">
+      <p><label for="id_text">{{ form_label }}</label>{{ form.text.errors }}{{ form.text }}</p>
+      <button type="submit">Отправить</button>
+    </form>
+    === petitions/templates/petitions/form.html
+    {% extends "base.html" %}
+    {% block content %}
+      <h1>{{ request_type.name }}</h1>
+      {% if request_type.description %}<p>{{ request_type.description }}</p>{% endif %}
+      <form method="post" enctype="multipart/form-data" class="form">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        {{ form.as_p }}
+        <button type="submit">Отправить заявку</button>
+      </form>
+    {% endblock %}
+    === petitions/templates/petitions/catalog.html
+    {% extends "base.html" %}
+    {% block content %}
+      <h1>Подать заявку</h1>
+      <h2>Справки</h2>
+      {% for type in certificates %}
+        <p>
+          <a href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>
+          {% if type.description %} — {{ type.description }}{% endif %}
+          · Срок: {{ type.processing_days }} раб. дн.
+        </p>
+      {% empty %}
+        <p>Справок пока нет.</p>
+      {% endfor %}
+      <h2>Заявления</h2>
+      {% for type in applications %}
+        <p>
+          <a href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>
+          {% if type.description %} — {{ type.description }}{% endif %}
+          · Срок: {{ type.processing_days }} раб. дн.
+        </p>
+      {% empty %}
+        <p>Заявлений пока нет.</p>
+      {% endfor %}
+    {% endblock %}
+    === academics/templates/academics/report.html
+    {% extends "base.html" %}
+    {% block content %}
+      <h1>{% if is_staff_view %}Успеваемость: {{ student.full_name }}{% else %}Моя успеваемость{% endif %}</h1>
+      {% if is_staff_view %}<p><a href="{{ back_url }}">← К карточке студента</a></p>{% endif %}
+      <p class="status {% if overview.debts %}status--debt{% else %}status--ok{% endif %}"><strong>{{ overview.status_text }}</strong></p>
+      {% if overview.debts %}<ul class="debt-list">{% for item in overview.debts %}<li>{{ item.discipline.name }} — {{ item.term.name }}</li>{% endfor %}</ul>{% endif %}
+      <p>Средний балл за всё время: {{ overview.overall_average|default:"—" }}</p>
+      {% if term_links %}<nav class="term-nav" aria-label="Семестры"><ul>{% for link in term_links %}<li>{% if link.is_selected %}<strong>{{ link.term.name }}</strong>{% else %}<a href="{{ link.url }}">{{ link.term.name }}</a>{% endif %}</li>{% endfor %}</ul></nav>{% endif %}
+      {% if not term %}<p>Семестров пока нет.</p>
+      {% else %}
+        <h2>{{ term.name }}</h2>
+        <p>Сессия: {{ term.session_start|date:"j E" }} — {{ term.session_end|date:"j E Y" }}{% if report.session_finished %} (завершена){% endif %}</p>
+        <p>Средний балл за семестр: {{ report.average|default:"—" }}</p>
+        {% if report.disciplines %}<ul class="discipline-list">{% for d in report.disciplines %}{% include "academics/includes/discipline.html" %}{% endfor %}</ul>
+        {% else %}<p>За этот семестр данных нет.</p>{% endif %}
+      {% endif %}
+    {% endblock %}
+  ── Thought for 3s
+    I'm working through the remaining templates (petitions, chat, accounts, notifications, and schedule) and noting that the UI coder will take these on, since the spec names them. I also want to flag which tests check markup so the UI coder knows what might need updating. My leaning is to keep template changes minimal on the non-home pages and handle the theming mostly through CSS.
+
+    I'm thinking about how to style the non-home pages with minimal template churn, leaning toward CSS on existing classes like `.lesson`, `.petition`, `.feed-item`, and `.chat-message`. I might add a wrapper class like "card" where needed, but only if no tested text or structure changes, and I'll need to run the full test suite afterward.
+  ── Ran for f in petitions/templates/petitions/my_list.html petitions/templates/petitions/detail.html petitions/templates/petitions/staff_queue.html petitions/templates/petitions/staff_detail.html petitions/templates/petitions/submitted.html chat/templates/chat/staff_list.html chat/templates/chat/staff_dialog.html chat/templates/chat/_history.html notifications/templates/notifications/staff_list.html accounts/templates/accounts/profile.html schedule/templates/schedule/week.html schedule/templates/schedule/includes/week_nav.html schedule/templates/schedule/staff_group_list.html academics/templates/academics/includes/discipline.html; do echo "=== $f"; cat $f; done
+    $ for f in petitions/templates/petitions/my_list.html petitions/templates/petitions/detail.html petitions/templates/petitions/staff_queue.html petitions/templates/petitions/staff_detail.html petitions/templates/petitions/submitted.html chat/templates/chat/staff_list.html chat/templates/chat/staff_dialog.html chat/templates/chat/_history.html notifications/templates/notifications/staff_list.html accounts/templates/accounts/profile.html schedule/templates/schedule/week.html schedule/templates/schedule/includes/week_nav.html schedule/templates/schedule/staff_group_list.html academics/templates/academics/includes/discipline.html; do echo "=== $f"; cat $f; done
+    === petitions/templates/petitions/my_list.html
+    {% extends "base.html" %}
+    {% block content %}
+      <h1>Мои заявки</h1>
+      <p class="page-actions"><a href="{% url 'petitions:catalog' %}">Подать заявку</a></p>
+      {% if petitions %}
+        <ul class="petition-list">
+          {% for petition in petitions %}
+            <li class="petition">
+              <a href="{% url 'petitions:detail' petition.public_id %}">{{ petition.request_type.name }}</a>
+              · № {{ petition.short_id }}
+              · {{ petition.created_at|date:"j E Y" }}
+              · <span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>
+              · готовность: {{ petition.expected_ready_date|date:"j E Y" }}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>Заявок пока нет.</p>
+      {% endif %}
+    {% endblock %}
+    === petitions/templates/petitions/detail.html
+    {% extends "base.html" %}
+    {% block content %}
+      <h1>{{ petition.request_type.name }}</h1>
+      <p class="status status--{{ petition.status }}">{{ petition.get_status_display }}</p>
+      <p>№ {{ petition.short_id }}</p>
+      <p>Подана: {{ petition.created_at|date:"j E Y H:i" }}</p>
+      <p>Ожидаемая дата готовности: {{ petition.expected_ready_date|date:"j E Y" }}</p>
+      {% if petition.comment %}<p>{{ petition.comment }}</p>{% endif %}
+      {% include "petitions/includes/attachments.html" %}
+      {% include "petitions/includes/history.html" %}
+      {% include "petitions/includes/comments.html" %}
+    {% endblock %}
+    === petitions/templates/petitions/staff_queue.html
+    {% extends "base.html" %}
+    {% block content %}
+      <h1>Заявки</h1>
+      <form method="get" class="form">
+        <p>
+          <label for="status">Статус</label>
+          <select name="status" id="status">
+            {% for value, label in status_choices %}
+              <option value="{{ value }}"{% if value == selected_status %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </p>
+        <p>
+          <label for="type">Вид заявки</label>
+          <select name="type" id="type">
+            <option value="">Все</option>
+            {% for t in types %}
+              <option value="{{ t.pk }}"{% if t.pk|stringformat:"s" == selected_type %} selected{% endif %}>{{ t.name }}</option>
+            {% endfor %}
+          </select>
+        </p>
+        <button type="submit">Показать</button>
+      </form>
+      {% if petitions %}
+        <ul class="petition-list">
+          {% for petition in petitions %}
+            <li class="petition">
+              <a href="{% url 'petitions:staff_detail' petition.public_id %}">{{ petition.student.full_name }}</a>
+              · {{ petition.student.group.name }}
+              · {{ petition.request_type.name }}
+              · {{ petition.created_at|date:"j E Y" }}
+              · <span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>
+              · файлов: {{ petition.attachment_count }}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>Заявок нет.</p>
+      {% endif %}
+    {% endblock %}
+    === petitions/templates/petitions/staff_detail.html
+    {% extends "base.html" %}
+    {% block content %}
+      <h1>Заявка № {{ petition.short_id }}</h1>
+      <h2>Студент</h2>
+      <p>{{ petition.student.full_name }}</p>
+      <p>{{ petition.student.group.name }}</p>
+      <p>№ зачётной книжки: {{ petition.student.record_number }}</p>
+      <h2>Заявка</h2>
+      <p>{{ petition.request_type.name }}</p>
+      <p class="status status--{{ petition.status }}">{{ petition.get_status_display }}</p>
+      <p>Подана: {{ petition.created_at|date:"j E Y H:i" }}</p>
+      <p>Ожидаемая дата готовности: {{ petition.expected_ready_date|date:"j E Y" }}</p>
+      {% if petition.comment %}<p>{{ petition.comment }}</p>{% endif %}
+      {% include "petitions/includes/attachments.html" %}
+      {% include "petitions/includes/history.html" %}
+      {% include "petitions/includes/comments.html" %}
+      {% if actions %}
+        <h2>Действия</h2>
+        {% for status, label in actions %}
+          <form method="post" action="{% url 'petitions:staff_transition' petition.public_id %}" class="action-form">
+            {% csrf_token %}
+            <input type="hidden" name="expected_status" value="{{ petition.status }}">
+            <input type="hidden" name="new_status" value="{{ status }}">
+            {% if status == "rejected" %}
+              <p><label for="comment-{{ status }}">Причина отклонения</label></p>
+              <textarea name="comment" id="comment-{{ status }}" rows="3" required></textarea>
+            {% endif %}
+            <button type="submit">{{ label }}</button>
+          </form>
+        {% endfor %}
+      {% endif %}
+      <h2>Комментарий</h2>
+      <form method="post" action="{% url 'petitions:staff_comment' petition.public_id %}" class="action-form">
+        {% csrf_token %}
+        {{ comment_form.as_p }}
+        <button type="submit">Добавить комментарий</button>
+      </form>
+    {% endblock %}
+    === petitions/templates/petitions/submitted.html
+    {% extends "base.html" %}
+    {% block content %}
+      <h1>Заявка подана</h1>
+      <p>{{ petition.request_type.name }}</p>
+      <p>№ {{ petition.short_id }}</p>
+      <p>Ожидаемая дата готовности: {{ petition.expected_ready_date|date:"j E Y" }}</p>
+      <p><a href="{% url 'petitions:detail' petition.public_id %}">К заявке</a></p>
+      <p><a href="{% url 'petitions:my_list' %}">Мои заявки</a></p>
+    {% endblock %}
+    === chat/templates/chat/staff_list.html
+    {% extends "base.html" %}
+    {% block title %}Чаты{% endblock %}
+    {% block content %}
+    <h1>Чаты</h1>
+    {% if dialogs %}
+    <ul class="chat-dialogs">
+      {% for d in dialogs %}
+      <li><a href="{% url 'chat:staff_dialog' d.public_id %}">{{ d.student.full_name }}</a> · {{ d.student.group.name }} · {{ d.last_message_at|date:"d.m.Y H:i" }}{% if d.unread %} · <strong>новых: {{ d.unread }}</strong>{% endif %}</li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>Сообщений от студентов пока нет.</p>
+    {% endif %}
+    {% endblock %}
+    === chat/templates/chat/staff_dialog.html
+    {% extends "base.html" %}
+    {% load static %}
+    {% block title %}Чат: {{ dialog.student.full_name }}{% endblock %}
+    {% block extra_head %}<script src="{% static 'js/chat.js' %}" defer></script>{% endblock %}
+    {% block content %}
+    <h1>Чат со студентом</h1>
+    <p><a href="{% url 'accounts:staff_student_detail' dialog.student.pk %}">{{ dialog.student.full_name }}</a> · {{ dialog.student.group.name }}</p>
+    <p class="page-actions"><a href="{% url 'chat:staff_list' %}">Все чаты</a></p>
+    {% include "chat/_history.html" %}
+    {% include "chat/_form.html" %}
+    {% endblock %}
+    === chat/templates/chat/_history.html
+    <section class="chat" data-chat-poll-url="{{ poll_url }}" data-chat-poll-ms="{{ poll_ms }}" data-chat-max-errors="{{ poll_max_errors }}">
+      {% if truncated %}<p class="chat-note">Показаны последние {{ history_limit }} сообщений.</p>{% endif %}
+      <ol class="chat-messages" id="chat-messages">
+        {% for m in chat_messages %}{% include "chat/_message.html" %}{% endfor %}
+      </ol>
+      {% if not chat_messages %}<p class="chat-empty" id="chat-empty">{{ empty_text }}</p>{% endif %}
+      <p class="chat-status" data-chat-status role="status" aria-live="polite"></p>
+      <p class="page-actions"><a href="{{ refresh_url }}">Обновить</a></p>
+    </section>
+    === notifications/templates/notifications/staff_list.html
+    {% extends "base.html" %}
+    {% block title %}Объявления{% endblock %}
+    {% block content %}
+    <h1>Объявления</h1>
+    <section aria-labelledby="new-title">
+      <h2 id="new-title">Новое объявление</h2>
+      <form method="post" class="form">{% csrf_token %}{{ form.as_p }}<button type="submit">Опубликовать</button></form>
+    </section>
+    <section aria-labelledby="list-title">
+      <h2 id="list-title">Объявления факультета</h2>
+      {% if announcements %}
+      <ul class="feed">
+        {% for a in announcements %}
+        <li class="feed-item" id="announcement-{{ a.public_id }}">
+          <p class="feed-meta">{{ a.audience_label }} · {{ a.published_at|date:"d.m.Y H:i" }} · {% if a.is_published %}Опубликовано{% else %}Снято с публикации {{ a.unpublished_at|date:"d.m.Y H:i" }}{% endif %}</p>
+          <h3>{{ a.title }}</h3>
+          {% if a.deadline %}<p>Срок: до {{ a.deadline|date:"d.m.Y" }}</p>{% endif %}
+          <p>{{ a.body|linebreaksbr }}</p>
+          {% if a.is_published %}
+          <form method="post" action="{% url 'notifications:staff_unpublish' a.public_id %}" class="action-form">{% csrf_token %}<button type="submit">Снять с публикации</button></form>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p>Объявлений пока нет.</p>
+      {% endif %}
+    </section>
+    {% endblock %}
+    === accounts/templates/accounts/profile.html
+    {% extends "base.html" %}
+    {% block content %}
+      <h1>Мой профиль</h1>
+      <p>Роль: {{ user.get_role_display|default:"Администратор системы" }}</p>
+      {% if student_profile %}
+        {% include "accounts/includes/student_fields.html" with profile=student_profile %}
+      {% elif staff_profile %}
+        {% include "accounts/includes/staff_fields.html" with profile=staff_profile %}
+      {% else %}
+        <p>Профиль не заполнен.</p>
+      {% endif %}
+    {% endblock %}
+    === schedule/templates/schedule/week.html
+    {% extends "base.html" %}
+    {% block content %}
+      <h1>{{ title }}</h1>
+      {% if group %}
+        <p>{{ group.program }}, {{ group.course }} курс</p>
+        {% if back_url %}<p><a href="{{ back_url }}">← К списку групп</a></p>{% endif %}
+      {% endif %}
+      {% include "schedule/includes/week_nav.html" %}
+      {% include "schedule/includes/week_days.html" %}
+    {% endblock %}
+    === schedule/templates/schedule/includes/week_nav.html
+    <nav class="week-nav" aria-label="Недели">
+      <a href="{{ prev_url }}">← Предыдущая</a>
+      {% if not is_current_week %}<a href="{{ current_url }}">Текущая</a>{% endif %}
+      <a href="{{ next_url }}">Следующая →</a>
+      <p>{{ week.start|date:"j E" }} — {{ week.end|date:"j E Y" }}</p>
+    </nav>
+    === schedule/templates/schedule/staff_group_list.html
+    {% extends "base.html" %}
+    {% block content %}
+      <h1>Расписание групп</h1>
+      <ul>
+        {% for group in groups %}
+          <li>
+            <a href="{% url 'schedule:staff_group_week' group.pk %}">{{ group.name }}</a>
+            · {{ group.program.name }}, {{ group.course }} курс
+          </li>
+        {% empty %}
+          <li>Групп нет.</li>
+        {% endfor %}
+      </ul>
+    {% endblock %}
+    === academics/templates/academics/includes/discipline.html
+    <li class="discipline{% if d.is_debt %} discipline--debt{% endif %}">
+      <details>
+        <summary>
+          <strong>{{ d.item.discipline.name }}</strong> · {{ d.item.get_assessment_form_display }}
+          · Итог: {% if d.effective %}{{ d.effective.get_result_display }}{% else %}нет{% endif %}
+          {% if d.is_debt %}· <strong>Задолженность</strong>{% endif %}
+          · Посещаемость: {% if d.attendance.percent is not None %}{{ d.attendance.percent }}%{% else %}—{% endif %}
+        </summary>
+        <h3>Текущие оценки</h3>
+        {% if d.marks %}<ul>{% for m in d.marks %}<li>{{ m.date|date:"j E" }} — {{ m.kind }}: {{ m.value }}</li>{% endfor %}</ul>{% else %}<p>Оценок нет.</p>{% endif %}
+        <h3>Итоговый результат</h3>
+        {% if d.attempts %}<ul>{% for r in d.attempts %}<li>Попытка {{ r.attempt }}, {{ r.date|date:"j E Y" }}: {{ r.get_result_display }}{% if r == d.effective %} (действующий){% endif %}</li>{% endfor %}</ul>{% else %}<p>Результата пока нет.</p>{% endif %}
+        <h3>Посещаемость</h3>
+        <p>Присутствовал: {{ d.attendance.present }}, отсутствовал: {{ d.attendance.absent }}, по уважительной причине: {{ d.attendance.excused }}, не отмечено: {{ d.attendance.unmarked }}.</p>
+        {% if d.attendance_entries %}<ul>{% for e in d.attendance_entries %}<li>{{ e.date|date:"j E" }} ({{ e.lesson_type }}) — {{ e.status_label }}</li>{% endfor %}</ul>{% endif %}
+      </details>
+    </li>
+  ── Thought for 2m 7s
+    I'm planning a quick status update, then moving on to baseline checks and the main design choices. The first design question is how to restructure the student home page: HomeView would add a summary, today's schedule with its annotation, and the group, and I'm wondering whether to pull the day-schedule logic that TodayView already uses into a shared helper.
+
+    I'm weighing whether HomeView should compute today's schedule and annotation itself, using the same logic TodayView uses. Getting the student's group means either adding a second query or exposing the student on HomeSummary, which looks like the cleaner option.
+
+    I'm checking how the Russian weekday and month names come out of Django's date filter, and whether the card should match the mockup's compact layout or the full lesson include with teacher and room lines.
+
+    I'm laying out the lesson card for the home page as a compact include in the schedule app: a time line with the pair count and an "идёт" tag when the lesson is in progress, then the discipline name, with cancelled or moved lessons struck through.
+
+    Now I'm specifying the compact lesson card as its own include, with the time and pair count, an "идёт" tag for the lesson in progress, the discipline name struck through when cancelled or moved, and a meta line for type, teacher, room and the change note.
+
+    I'm going to count the queries the home page runs today, covering the session, the user, the badge and chat lookups, the student context, deadlines and news, and then the schedule lessons query, so I can compare the baseline with the prototype.
+
+    I'm going to measure the home page's query count before and after the change, using a throwaway SQLite database seeded with demo data and a test client logged in as a student, so the baseline can be compared with the prototype.
+
+    Now I'm moving on to the "Дедлайны" and "Новости" card titles, which will link to the notifications page.
+
+    I'm checking whether `id="feed"` or the `deadline-`/`news-` item ids clash with the new anchors, then deciding to drop the "Все уведомления" link since the header already has a notifications button and both card titles will link to the feed.
+
+    Dropping the "Все уведомления" link, since the header's notifications button is always there for students and both card titles already go to the feed. That means updating `test_student_summary`, which still looks for the old "Ближайшие дедлайны" heading, and `test_news_heading`, whose expected `<h2 id="home-news">` markup changes. I'll keep the `id="home-deadlines"` and `id="home-news"` attributes on the headings so the tests can still find those sections.
+
+    I'm working out the row layout for the deadline and news lists: each row gets a linked title and a right-aligned label, with news dated by day and month.
+
+    I'm checking how the relative deadline labels are produced and whether any of them could run long enough to need truncating in the row, since the date itself will move into a title attribute on the time element.
+
+    I'm settling the row styling for the deadline and news lists: the title link should truncate with an ellipsis on one line, while the label on the right stays unshrunk, and the rows still need to meet the 44px tap target.
+
+    I'm settling the staff home page next: a heading with the faculty name, and three buttons of the same style for requests, chats and announcements, with no extra count on the student side.
+
+    I'm settling the staff home page: a "Деканат" heading, then three same-style buttons for requests, chats and announcements, kept without a subline so it needs no extra query.
+
+    I'm settling the superuser home as well: the "Раздел в разработке" placeholder stays for it, and I need to check how the existing tests assert that for staff and superuser.
+
+    I'm leaving the staff home page as it is, since `user.is_deanery_staff` decides whether its buttons appear and that check doesn't need a staff profile. Then I'm moving on to the new header markup, with the site brand linking to home and the logo beside the title.
+
+    I'm settling the header brand: the title will be "Цифровой деканат" with CSS uppercase rather than literal capitals, split across two lines on narrow screens, and the link's accessible name should match the visible text.
+
+    Now I'm writing the compact nav row: a details-based menu toggle beside a notifications button for students, with the bell and badge chip inside.
+
+    I'm restructuring the header so the notifications button stays visible on wide screens, sitting outside the compact menu. That raises whether the "Уведомления" entry should still appear in the wide nav for students, since it would duplicate the button.
+
+    I'm deciding to drop the "Уведомления" entry from the shared nav list, since the notifications button already covers students at both widths. That means updating the student menu test, the badge-outside-menu test, the nav count test, and the chat test that checks the old badge markup, each because its expected link or chip moves.
+
+    I'm writing the notifications button's markup now: a link to the notifications page with a bell icon, the label, and a visually hidden "непрочитанных" count chip when there are unread items.
+
+    I'm checking whether the wide nav's `display:none` rule and the existing CSS regex test still hold if the `.site-menu` toggle moves, since that would change which element gets hidden at 48rem. To keep the change small, I'm leaning toward keeping `.site-nav-compact` as the wrapper for the compact menu.
+
+    I'm keeping the `.site-nav-compact` wrapper around just the `<details>` menu and placing the notifications button outside it, in a header actions row next to the wide nav. On wide screens the compact menu hides and the wide nav shows, so the existing CSS rule checks should still hold. Next I'm working out the toggle's summary markup, since the test expects the plain "Меню" text.
+
+    I'm keeping the `<summary>` markup as it is and adding the "≡" through a CSS `::before` pseudo-element, so the existing tests still match. I'll also hide the default disclosure triangle with `list-style: none` and the webkit marker rule.
+
+    I'm deciding how the shared button look applies across the site: links styled as `.btn`, plain `button` elements, the menu toggle, and the logout button would all share one panel-style treatment. I'm also weighing whether form submit buttons should get a separate primary style.
+
+    I'm settling the nav styling now: the wide nav links will use the system font, while the menu toggle and the notifications button keep the Press Start 2P panel look. I'm also leaving the logout entry styled like the other nav links rather than as a large button.
+
+    I'm choosing the font setup now: a Press Start 2P `@font-face` in the theme file, with a pixel font token that falls back to a monospace stack. I'm also checking that the font covers Cyrillic, since the interface text is in Russian.
+
+    Now I'm checking the font's Cyrillic coverage, though the mockup already renders the Russian headings and labels in the pixel font, so that's likely enough. Next I'm working out the font sizing, since each glyph in this font advances by one em and that drives how much text fits in a 360px-wide card.
+
+    I'm checking how long the heading words can get before they overflow the narrow card width, since the pixel font advances a full em per glyph.
+
+    I'm checking whether the wide header can fit the menu toggle and the notifications button on one row at 320px. At that width the space is tight, so I'm allowing the buttons to wrap onto a second line instead of forcing them into one.
+
+    I'm sizing the font tokens next: a title around 11px, h1 around 20px, h2 around 12px, with button and tag sizes on the same scale, all in rem so zoom still works. I'll let the UI coder decide whether desktop gets larger headings.
+
+    I'm going to check the contrast ratios for the text colors against the panel and the bare gradient, starting with the light text and the muted lilac on both backgrounds.
+
+    I'm going to check the contrast ratios next, starting with the chip text on the coral background, since that's the pairing I'm least sure passes. If it falls short I'll switch the chip text to the dark brown or darken the coral. I'll also look at whether the panel borders need 3:1 against the page, or whether the button text alone is enough to identify them.
+
+    I'm checking the contrast of the border color against the dark page and panel backgrounds, plus the focus outline and the form input colors, and I'm thinking about the error text and the success message too.
+
+    I'm turning to the favicon next, planning an SVG version of the icon in `static/img/`. The star and background layout is already settled, so I'll keep the stars outside the text and controls, hidden from assistive tech, and avoid transitions.
+
+    I'm putting the favicon in as an SVG file in the static image folder, linked from the base template, with the cap filled in the same orange as the header logo. Next I'm moving on to the error pages, where the 403 and 404 templates will extend the base layout.
+
+    I'm settling the error pages: 403 and 404 will extend the base layout, while 500 stays standalone so it doesn't depend on the database or request-bound tags. I'm also checking how the staff-only mixin denies access, since the 403 test needs to hit that path.
+
+    I'm planning the 500 page test: it should call the server error handler and check for the status, heading, stylesheet link, and zero database queries. Then I'll check whether any existing tests assert on the 403 or 404 body text before I change those templates. Next is the map, where I'm making sure the stroke colors pick up the new light-on-dark tokens and choosing a highlight color for the current room.
+
+    I'm settling the map highlight now: the current room will get a yellow `--color-map-highlight` on its label and outline, plus a faint fill on the room shape so it stands out on the dark background. The existing highlight rule and token checks should still hold since the selectors and token names stay the same.
+
+    I'm settling the design token names now so they stay the same for base.css, with new values for the background, text, muted, accent, border, and changed colors. The map highlight token keeps its name too, and I'm still deciding the gradient stops.
+
+    I'm listing the token names that tokens.css needs to define, including the panel, frame, heading, link, warning, and font tokens. Then I'm planning a test that checks those names exist and that the theme and base stylesheets use no hardcoded hex colors, so every color comes from a token.
+
+    I'm checking whether base.css uses any hex or rgb literals, since every colour should come from a token. Inline style attributes don't look necessary here. Next I'm setting the body font to the existing system stack, and working out the form fields: a dark field background with light text and a border that needs to stand out from the page.
+
+    I'm laying out the form styling next: inputs get a dark field with light text, error lists show in coral, and checkboxes pick up the existing full-width input rule. Then I'm sorting out how the chat bubbles differ, using a warm tint and right alignment for my own messages, with the sender label carrying the distinction as well as colour.
+
+    I'm checking the README for a Design section, since it's in scope for this task. Then I'll make sure no external font or CDN URLs end up in the templates or CSS, which means scanning for http links and @import rules, with the inline SVG namespace needing a careful look.
+
+    I'm checking whether the templates or CSS pull in any external fonts or CDN links, so I'll grep the templates for http references and confirm the SVG namespace is the only exception.
+
+    I'm going to check the font file's checksum so I know it's the original, unmodified file, and confirm the font and license are found by the static finders. Then I'll check that the theme stylesheet points its font-face rule at the right path and that a manifest collectstatic run hashes both the font and the CSS correctly.
+
+    I'm checking whether the frozen-clock helper patches `timezone.now` globally, since the home view's "today" lookup has to read from the same `now` as the test. I'll also make sure the midnight boundary stays consistent by computing "today" from one timestamp.
+
+    I'm deciding to compute "now" once in HomeView and pass it into home_summary, so the date used for the schedule and the summary come from the same timestamp and can't disagree across midnight.
+
+    Now I'm checking whether to move the day-schedule logic into a shared helper, so the home page and the Today page draw from the same service. I'm also deciding that HomeSummary should carry the student profile, since it's already loaded with the group and program.
+
+    I'm checking whether the "Уведомления" nav item and its count tests still hold once the count moves into a chip, and confirming the 403 and 404 handling paths in the access and error tests.
+
+── Assistant ───────────────────────────────────────────────
+Пишу спецификацию TASK-012. Сейчас проверяю контраст цветов, число запросов главной и сборку статики со шрифтом.
+
+── Explored 1 file, 1 search, ran 3 commands ───────────────
+  ── Read core/testing.py
+  ── Thought for 4ms
+    I'm moving on to the contrast computations, and I'll write a Python script for them in $TMPDIR.
+  ── Ran mkdir -p "$TMPDIR/t012" && cat > "$TMPDIR/t012/contrast.py" <<'EOF' def lin(c):     c/=255     return c/12.92 if c<=0.03928 else ((c+0.055)/1.055)**2.4 def lum(rgb): r,g,b=rgb; return .2126*lin(r)+.7152*lin(g)+.0722*lin(b) def hx(h): h=h.lstrip('#'); return tuple(int(h[i:i+2],16) for i in (0,2,4)) def mix(fg,a,bg): return tuple(a*f+(1-a)*b for f,b in zip(fg,bg)) def cr(a,b):     la,lb=lum(a),lum(b); hi,lo=max(la,lb),min(la,lb); return (hi+.05)/(lo+.05) sky=['#120a2a','#221449','#3a2272','#4b2a86'] panel_on={s:mix((36,22,78),.88,hx(s)) for s in sky} worst_panel=panel_on['#4b2a86'] print('panel over lightest sky', tuple(round(x) for x in worst_panel)) fgs={'text':'#f3ecff','muted':'#b8a6e8','heading':'#ffd25e','link':'#ffc46b','coral':'#ff6f7d','orange':'#ff9f2e','frame':'#5a3fa3','focus-yellow':'#ffd25e'} for n,f in fgs.items():     print(f"{n:12} {f}: on sky lightest {cr(hx(f),hx('#4b2a86')):.2f}  sky darkest {cr(hx(f),hx('#120a2a')):.2f}  on panel(worst) {cr(hx(f),worst_panel):.2f}") pairs=[('#2b1300','#ff9f2e','tag text on orange'),('#2b1300','#ffc04d','on primary grad top'),('#2b1300','#f07a1a','on primary grad bottom'),('#ffffff','#ff6f7d','chip white on coral'),('#2b1300','#ff6f7d','chip dark on coral'),('#1a0710','#ff6f7d','chip near-black on coral'),('#f3ecff','#170d33','text on field #170d33'),('#b8a6e8','#170d33','muted on field'),('#8f74d9','#170d33','field border #8f74d9 vs field'),('#8f74d9','#4b2a86','field border vs lightest sky'),('#5a3fa3','#120a2a','frame vs darkest sky')] for f,b,n in pairs: print(f"{n:34} {cr(hx(f),hx(b)):.2f}") print('frame vs panel worst', round(cr(hx('#5a3fa3'),worst_panel),2)) for c in ['#8f74d9','#9b82e0','#a58cf0']:     print(c,'vs panel worst',round(cr(hx(c),worst_panel),2),'vs sky light',round(cr(hx(c),hx('#4b2a86')),2),'vs field',round(cr(hx(c),hx('#170d33')),2)) EOF python3 "$TMPDIR/t012/contrast.py"
+    $ mkdir -p "$TMPDIR/t012" && cat > "$TMPDIR/t012/contrast.py" <<'EOF'
+  def lin(c):
+      c/=255
+      return c/12.92 if c<=0.03928 else ((c+0.055)/1.055)**2.4
+  def lum(rgb): r,g,b=rgb; return .2126*lin(r)+.7152*lin(g)+.0722*lin(b)
+  def hx(h): h=h.lstrip('#'); return tuple(int(h[i:i+2],16) for i in (0,2,4))
+  def mix(fg,a,bg): return tuple(a*f+(1-a)*b for f,b in zip(fg,bg))
+  def cr(a,b):
+      la,lb=lum(a),lum(b); hi,lo=max(la,lb),min(la,lb); return (hi+.05)/(lo+.05)
+  sky=['#120a2a','#221449','#3a2272','#4b2a86']
+  panel_on={s:mix((36,22,78),.88,hx(s)) for s in sky}
+  worst_panel=panel_on['#4b2a86']
+  print('panel over lightest sky', tuple(round(x) for x in worst_panel))
+  fgs={'text':'#f3ecff','muted':'#b8a6e8','heading':'#ffd25e','link':'#ffc46b','coral':'#ff6f7d','orange':'#ff9f2e','frame':'#5a3fa3','focus-yellow':'#ffd25e'}
+  for n,f in fgs.items():
+      print(f"{n:12} {f}: on sky lightest {cr(hx(f),hx('#4b2a86')):.2f}  sky darkest {cr(hx(f),hx('#120a2a')):.2f}  on panel(worst) {cr(hx(f),worst_panel):.2f}")
+  pairs=[('#2b1300','#ff9f2e','tag text on orange'),('#2b1300','#ffc04d','on primary grad top'),('#2b1300','#f07a1a','on primary grad bottom'),('#ffffff','#ff6f7d','chip white on coral'),('#2b1300','#ff6f7d','chip dark on coral'),('#1a0710','#ff6f7d','chip near-black on coral'),('#f3ecff','#170d33','text on field #170d33'),('#b8a6e8','#170d33','muted on field'),('#8f74d9','#170d33','field border #8f74d9 vs field'),('#8f74d9','#4b2a86','field border vs lightest sky'),('#5a3fa3','#120a2a','frame vs darkest sky')]
+  for f,b,n in pairs: print(f"{n:34} {cr(hx(f),hx(b)):.2f}")
+  print('frame vs panel worst', round(cr(hx('#5a3fa3'),worst_panel),2))
+  for c in ['#8f74d9','#9b82e0','#a58cf0']:
+      print(c,'vs panel worst',round(cr(hx(c),worst_panel),2),'vs sky light',round(cr(hx(c),hx('#4b2a86')),2),'vs field',round(cr(hx(c),hx('#170d33')),2))
+  EOF
+  python3 "$TMPDIR/t012/contrast.py"
+    panel over lightest sky (41, 24, 85)
+    text         #f3ecff: on sky lightest 9.24  sky darkest 16.56  on panel(worst) 13.45
+    muted        #b8a6e8: on sky lightest 4.89  sky darkest 8.76  on panel(worst) 7.12
+    heading      #ffd25e: on sky lightest 7.41  sky darkest 13.27  on panel(worst) 10.78
+    link         #ffc46b: on sky lightest 6.77  sky darkest 12.12  on panel(worst) 9.84
+    coral        #ff6f7d: on sky lightest 3.96  sky darkest 7.09  on panel(worst) 5.76
+    orange       #ff9f2e: on sky lightest 5.19  sky darkest 9.30  on panel(worst) 7.55
+    frame        #5a3fa3: on sky lightest 1.35  sky darkest 2.43  on panel(worst) 1.97
+    focus-yellow #ffd25e: on sky lightest 7.41  sky darkest 13.27  on panel(worst) 10.78
+    tag text on orange                 8.57
+    on primary grad top                10.79
+    on primary grad bottom             6.27
+    chip white on coral                2.68
+    chip dark on coral                 6.54
+    chip near-black on coral           7.23
+    text on field #170d33              15.99
+    muted on field                     8.46
+    field border #8f74d9 vs field      4.96
+    field border vs lightest sky       2.87
+    frame vs darkest sky               2.43
+    frame vs panel worst 1.97
+    #8f74d9 vs panel worst 4.18 vs sky light 2.87 vs field 4.96
+    #9b82e0 vs panel worst 4.91 vs sky light 3.37 vs field 5.84
+    #a58cf0 vs panel worst 5.61 vs sky light 3.85 vs field 6.66
+  ── Thought for 16s
+    I'm checking whether the coral text color has enough contrast on the bare sky, since it falls short of 4.5 at the lightest point, so I'm planning to keep coral text inside panels or on darker areas, with Django messages sitting in panels.
+
+    I'm weighing whether the lighter coral can stay on the bare background, and I'm looking at making the form a panel so its error text sits on a darker surface. Lessons on schedule pages might also need panel styling, since the coral there falls short at the bottom of long pages.
+
+    I'm settling on dark text on the coral chip rather than white, since white on that coral fails AA, and I'll note it as a deliberate departure from the mockup. Then I'm checking the frame colour, which falls short of 3:1 against the backgrounds: it's fine for decorative card borders, but form inputs need a visible boundary.
+
+    I'm settling the field border at a lighter lavender, #a58cf0, since it clears 3:1 against both the sky and the panels. Cards and buttons can keep the darker frame as decoration, because their text labels carry the identification, and I'll make the focus ring a high-contrast yellow so keyboard users can always see where they are.
+
+    I'm checking the focus outline, a 3px yellow ring offset from the element, which clears contrast on both the panel and the sky. Then I'm confirming the muted text and the coral on panels pass, and I'm moving on to the map, where room strokes and labels will use the light text colour, with the highlight in yellow and landmarks in muted lavender. I'll also try putting the map SVG on a panel background, and I still need a coral that works on the bare sky.
+  ── Ran cat >> "$TMPDIR/t012/contrast.py" <<'EOF' print('---') for c in ['#ff7f8b','#ff8591','#ff8a95','#ff8f99','#ff949e']:     print(c,'vs sky light',round(cr(hx(c),hx('#4b2a86')),2),'vs panel worst',round(cr(hx(c),worst_panel),2),'dark text on it',round(cr(hx('#2b1300'),hx(c)),2)) nowbg=mix(hx('#ff9f2e'),.14,worst_panel); print('now-bg tint on panel',tuple(round(x) for x in nowbg),'text on it',round(cr(hx('#f3ecff'),nowbg),2),'muted',round(cr(hx('#b8a6e8'),nowbg),2),'coral',round(cr(hx('#ff6f7d'),nowbg),2),'link',round(cr(hx('#ffc46b'),nowbg),2)) own=mix(hx('#ffc46b'),.12,worst_panel); print('own msg tint',tuple(round(x) for x in own),'text',round(cr(hx('#f3ecff'),own),2),'muted',round(cr(hx('#b8a6e8'),own),2)) EOF python3 "$TMPDIR/t012/contrast.py" | sed -n '/---/,$p'
+    $ cat >> "$TMPDIR/t012/contrast.py" <<'EOF'
+  print('---')
+  for c in ['#ff7f8b','#ff8591','#ff8a95','#ff8f99','#ff949e']:
+      print(c,'vs sky light',round(cr(hx(c),hx('#4b2a86')),2),'vs panel worst',round(cr(hx(c),worst_panel),2),'dark text on it',round(cr(hx('#2b1300'),hx(c)),2))
+  nowbg=mix(hx('#ff9f2e'),.14,worst_panel); print('now-bg tint on panel',tuple(round(x) for x in nowbg),'text on it',round(cr(hx('#f3ecff'),nowbg),2),'muted',round(cr(hx('#b8a6e8'),nowbg),2),'coral',round(cr(hx('#ff6f7d'),nowbg),2),'link',round(cr(hx('#ffc46b'),nowbg),2))
+  own=mix(hx('#ffc46b'),.12,worst_panel); print('own msg tint',tuple(round(x) for x in own),'text',round(cr(hx('#f3ecff'),own),2),'muted',round(cr(hx('#b8a6e8'),own),2))
+  EOF
+  python3 "$TMPDIR/t012/contrast.py" | sed -n '/---/,$p'
+    ---
+    #ff7f8b vs sky light 4.39 vs panel worst 6.38 dark text on it 7.24
+    #ff8591 vs sky light 4.57 vs panel worst 6.64 dark text on it 7.54
+    #ff8a95 vs sky light 4.72 vs panel worst 6.87 dark text on it 7.79
+    #ff8f99 vs sky light 4.88 vs panel worst 7.1 dark text on it 8.06
+    #ff949e vs sky light 5.06 vs panel worst 7.35 dark text on it 8.35
+    now-bg tint on panel (71, 43, 79) text on it 10.56 muted 5.59 coral 4.53 link 7.73
+    own msg tint (66, 45, 87) text 10.44 muted 5.52
+  ── Thought for 2s
+    I'm settling on two coral tokens: a warn background for panels and fields, and a lighter warn text color for text that might sit on bare sky. Then I'm weighing whether to drop the second one and use the lighter coral for all text, since the darker mockup coral already passes on panels, and I'm leaning toward making coral text always use the lighter token to keep things simpler.
+
+    I'm going with the lighter coral, `#ff8a95`, for all coral text so it passes on any background, and keeping the mockup coral `#ff6f7d` for chip backgrounds with dark text. The tint with coral text only clears 4.53 at the darker shade, so the lighter one gives more margin. Next I'm running the full test suite as a baseline before I prototype the query count.
+  ── Ran source .venv/bin/activate && python manage.py check 2>&1 | tail -2 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && ruff check . 2>&1 | tail -1 && ruff format --check . 2>&1 | tail -1 && LOG="$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log" && python manage.py test --parallel 1 2>&1 | tee "$LOG" | tail -4; echo "$LOG"; TZ=Europe/Moscow date (2m 32s)
+    $ source .venv/bin/activate && python manage.py check 2>&1 | tail -2 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && ruff check . 2>&1 | tail -1 && ruff format --check . 2>&1 | tail -1 && LOG="$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log" && python manage.py test --parallel 1 2>&1 | tee "$LOG" | tail -4; echo "$LOG"; TZ=Europe/Moscow date
+    System check identified no issues (0 silenced).
+    No changes detected
+    All checks passed!
+    186 files already formatted
+    Academics ready: 2 terms, 17 curriculum items, 13 final results, 70 marks, 232 attendance records.
+    Requests ready: 4 types, 7 requests, 3 attachments.
+    Notifications ready: 9 announcements.
+    Chat ready: 3 dialogs, 8 messages.
+    /tmp/claude-501/test-20261117-122840.log
+    Tue Nov 17 23:31:11 MSK 2026
+  ── Searched for ^Ran |^OK|FAILED|^ERROR|^FAIL in /tmp/claude-501/test-20261117-122840.log
+  ── Thought for 1s
+    I'm checking the timezone mismatch: `date` reports 23:31 in Moscow, while the log file is named 122840 and shows 12:28. That's an 11-hour gap, so the shell's local timezone is probably something like UTC-8. That accounts for it, so I'm treating the timestamps as consistent.
+
+    The 1002 tests passed, so now I'm moving on to the prototype. I'll measure the home page's query count and how long collectstatic takes, using a temporary database seeded with test data.
+
+── Assistant ───────────────────────────────────────────────
+Базовый прогон: 1002 теста, все прошли. Теперь меряю запросы главной на временной базе.
+
+── Ran 5 commands, explored 2 searches, 3 files, 2 lists ───
+  ── Ran source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/t012/db.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t012/private" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true && python manage.py migrate -v0 && python manage.py seed_demo >/dev/null && cat > "$TMPDIR/t012/q.py" <<'EOF' from django.test.utils import CaptureQueriesContext, setup_test_environment from django.db import connection from django.test import Client from django.utils import timezone from accounts.models import User from notifications.feed import home_summary from schedule.services import day_schedule, annotate_today setup_test_environment() from django.conf import settings; settings.ALLOWED_HOSTS=['testserver'] u=User.objects.get(username='student1') c=Client(); c.force_login(u) with CaptureQueriesContext(connection) as q: r=c.get('/') print('home now', r.status_code, len(q)) for x in q: print('  ', x['sql'][:110]) with CaptureQueriesContext(connection) as q:     s=home_summary(u)     now=timezone.localtime()     day=day_schedule(now.date(),[s and u.student_profile.group_id],today=now.date()); a=annotate_today(day.items, now.time())     for row in a.rows:         it=row.item; (it.lesson.discipline.name, it.teacher.short_name, it.room.number, it.room.code, it.lesson.get_lesson_type_display(), it.change and it.change.reason) print('summary+schedule', len(q), 'lessons', len(day.items)) for x in q: print('  ', x['sql'][:110]) EOF python manage.py shell < "$TMPDIR/t012/q.py" (5s)
+    $ source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/t012/db.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t012/private" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true && python manage.py migrate -v0 && python manage.py seed_demo >/dev/null && cat > "$TMPDIR/t012/q.py" <<'EOF'
+  from django.test.utils import CaptureQueriesContext, setup_test_environment
+  from django.db import connection
+  from django.test import Client
+  from django.utils import timezone
+  from accounts.models import User
+  from notifications.feed import home_summary
+  from schedule.services import day_schedule, annotate_today
+  setup_test_environment()
+  from django.conf import settings; settings.ALLOWED_HOSTS=['testserver']
+  u=User.objects.get(username='student1')
+  c=Client(); c.force_login(u)
+  with CaptureQueriesContext(connection) as q: r=c.get('/')
+  print('home now', r.status_code, len(q))
+  for x in q: print('  ', x['sql'][:110])
+  with CaptureQueriesContext(connection) as q:
+      s=home_summary(u)
+      now=timezone.localtime()
+      day=day_schedule(now.date(),[s and u.student_profile.group_id],today=now.date()); a=annotate_today(day.items, now.time())
+      for row in a.rows:
+          it=row.item; (it.lesson.discipline.name, it.teacher.short_name, it.room.number, it.room.code, it.lesson.get_lesson_type_display(), it.change and it.change.reason)
+  print('summary+schedule', len(q), 'lessons', len(day.items))
+  for x in q: print('  ', x['sql'][:110])
+  EOF
+  python manage.py shell < "$TMPDIR/t012/q.py"
+    31 objects imported automatically (use -v 2 for details).
+
+    home now 200 10
+       SELECT "django_session"."session_key", "django_session"."session_data", "django_session"."expire_date" FROM "d
+       SELECT "accounts_user"."id", "accounts_user"."password", "accounts_user"."last_login", "accounts_user"."is_sup
+       SELECT "accounts_studentprofile"."id", "accounts_studentprofile"."user_id", "accounts_studentprofile"."last_na
+       SELECT "notifications_notificationstate"."seen_until" AS "seen_until" FROM "notifications_notificationstate" W
+       SELECT "notifications_announcement"."id", "notifications_announcement"."public_id", "notifications_announcemen
+       SELECT "notifications_announcement"."id", "notifications_announcement"."public_id", "notifications_announcemen
+       SELECT "accounts_studentprofile"."id", "accounts_studentprofile"."user_id", "accounts_studentprofile"."last_na
+       SELECT "notifications_notificationstate"."seen_until" AS "seen_until" FROM "notifications_notificationstate" W
+       SELECT COUNT(*) FROM (SELECT "notifications_announcement"."published_at" AS "published_at" FROM "notifications
+       SELECT COUNT(*) AS "__count" FROM "chat_message" INNER JOIN "chat_dialog" ON ("chat_message"."dialog_id" = "ch
+    summary+schedule 9 lessons 2
+       SELECT "accounts_studentprofile"."id", "accounts_studentprofile"."user_id", "accounts_studentprofile"."last_na
+       SELECT "notifications_notificationstate"."seen_until" AS "seen_until" FROM "notifications_notificationstate" W
+       SELECT "notifications_announcement"."id", "notifications_announcement"."public_id", "notifications_announcemen
+       SELECT "notifications_announcement"."id", "notifications_announcement"."public_id", "notifications_announcemen
+       SELECT "accounts_studentprofile"."id", "accounts_studentprofile"."user_id", "accounts_studentprofile"."last_na
+       SELECT DISTINCT "schedule_weeklylesson"."id", "schedule_weeklylesson"."weekday", "schedule_weeklylesson"."slot
+       SELECT ("schedule_weeklylesson_groups"."weeklylesson_id") AS "_prefetch_related_val_weeklylesson_id", "univers
+       SELECT DISTINCT "schedule_lessonchange"."id", "schedule_lessonchange"."weekly_lesson_id", "schedule_lessonchan
+       SELECT ("schedule_weeklylesson_groups"."weeklylesson_id") AS "_prefetch_related_val_weeklylesson_id", "univers
+  ── Thought for 8s
+    The home page should go from 10 queries to around 14 for a student, since the schedule adds four. I'm skipping the extra profile lookup I had in the prototype, because HomeSummary.student covers that. The count depends on data, though: an empty changes list skips its prefetch, so it's 3 extra queries with no changes and 4 with changes. And if there are no lessons, that changes the count again.
+
+    I'm now pinning down the test fixture: a student with two lessons today, one change, a deadline, and a news item, which should give exactly 14 queries. The tests will freeze the clock so the day of the week stays fixed, and I'll also check that the count holds steady whether there is one lesson or three.
+
+    I'm going to check the static file setup next: running a manifest-based collectstatic against a temporary output directory with overridden settings. To confirm the manifest rewrites URLs inside CSS, I'll add a temporary test stylesheet in an extra static directory that points at the existing font file, since I shouldn't edit the real theme file.
+  ── Ran source .venv/bin/activate && mkdir -p "$TMPDIR/t012/extra/css" && printf '@font-face{font-family:"Press Start 2P";src:url("../fonts/PressStart2P-Regular.ttf") format("truetype");font-display:swap}\n' > "$TMPDIR/t012/extra/css/zz-proto.css" && cat > "$TMPDIR/t012/cs.py" <<'EOF' import time, json, os, tempfile, pathlib from django.conf import settings from django.core.management import call_command from django.test.utils import override_settings root=tempfile.mkdtemp(dir=os.environ['TMPDIR']) t=time.time() with override_settings(STATIC_ROOT=root, STATICFILES_DIRS=[*settings.STATICFILES_DIRS, os.environ['TMPDIR']+'/t012/extra'], STORAGES={**settings.STORAGES,'staticfiles':{'BACKEND':'whitenoise.storage.CompressedManifestStaticFilesStorage'}}):     call_command('collectstatic', interactive=False, verbosity=0) print('seconds', round(time.time()-t,2)) m=json.loads(pathlib.Path(root,'staticfiles.json').read_text())['paths'] print(m['fonts/PressStart2P-Regular.ttf'], m['css/zz-proto.css']) print(pathlib.Path(root, m['css/zz-proto.css']).read_text()) print('files', sum(1 for _ in pathlib.Path(root).rglob('*'))) EOF python manage.py shell < "$TMPDIR/t012/cs.py" 2>&1 | tail -5; shasum -a 256 static/fonts/PressStart2P-Regular.ttf static/fonts/OFL.txt; head -5 static/fonts/OFL.txt; python -c "import django,whitenoise;print(django.__version__, whitenoise.__version__)"; pip list 2>/dev/null | grep -i -e brotli -e fonttools (1s)
+    $ source .venv/bin/activate && mkdir -p "$TMPDIR/t012/extra/css" && printf '@font-face{font-family:"Press Start 2P";src:url("../fonts/PressStart2P-Regular.ttf") format("truetype");font-display:swap}\n' > "$TMPDIR/t012/extra/css/zz-proto.css" && cat > "$TMPDIR/t012/cs.py" <<'EOF'
+  import time, json, os, tempfile, pathlib
+  from django.conf import settings
+  from django.core.management import call_command
+  from django.test.utils import override_settings
+  root=tempfile.mkdtemp(dir=os.environ['TMPDIR'])
+  t=time.time()
+  with override_settings(STATIC_ROOT=root, STATICFILES_DIRS=[*settings.STATICFILES_DIRS, os.environ['TMPDIR']+'/t012/extra'], STORAGES={**settings.STORAGES,'staticfiles':{'BACKEND':'whitenoise.storage.CompressedManifestStaticFilesStorage'}}):
+      call_command('collectstatic', interactive=False, verbosity=0)
+  print('seconds', round(time.time()-t,2))
+  m=json.loads(pathlib.Path(root,'staticfiles.json').read_text())['paths']
+  print(m['fonts/PressStart2P-Regular.ttf'], m['css/zz-proto.css'])
+  print(pathlib.Path(root, m['css/zz-proto.css']).read_text())
+  print('files', sum(1 for _ in pathlib.Path(root).rglob('*')))
+  EOF
+  python manage.py shell < "$TMPDIR/t012/cs.py" 2>&1 | tail -5; shasum -a 256 static/fonts/PressStart2P-Regular.ttf static/fonts/OFL.txt; head -5 static/fonts/OFL.txt; python -c "import django,whitenoise;print(django.__version__, whitenoise.__version__)"; pip list 2>/dev/null | grep -i -e brotli -e fonttools
+    seconds 0.29
+    fonts/PressStart2P-Regular.ccb1dfce06ad.ttf css/zz-proto.3a51bdaf7e47.css
+    @font-face{font-family:"Press Start 2P";src:url("../fonts/PressStart2P-Regular.ccb1dfce06ad.ttf") format("truetype");font-display:swap}
+
+    files 549
+    034c77f1f05ec89421e4a63f0e3a4ca1ecf852cc6d2bf611f126f275728e017d  static/fonts/PressStart2P-Regular.ttf
+    705960c3281a5765ecc0b59bd4ed7ca59eed165748076bc2fc3e8fdbfeb944b0  static/fonts/OFL.txt
+    Copyright 2012 The Press Start 2P Project Authors (cody@zone38.net), with Reserved Font Name "Press Start 2P".
+
+    This Font Software is licensed under the SIL Open Font License, Version 1.1.
+    This license is copied below, and is also available with a FAQ at:
+    http://scripts.sil.org/OFL
+    Traceback (most recent call last):
+      File "<string>", line 1, in <module>
+    AttributeError: module 'whitenoise' has no attribute '__version__'
+  ── Thought for 2s
+    I'm checking the timing, 0.29 seconds seems fast, but threaded gzip could explain it, so I'll let it go. The env var from earlier isn't carried over since this was a separate bash call. I also want to confirm the OFL.txt URL isn't a problem, since static/fonts aren't scanned for URLs, only CSS and templates. Next I'm checking the "Press Start 2P" glyphs.
+
+    I'm checking whether the "Press Start 2P" font actually has glyphs for the "≡" and "→" characters used in the mockup, since a missing glyph would just fall back to a monospace font. To verify that, I'm going to write a small cmap parser, because fontTools isn't installed.
+  ── Ran cat > "$TMPDIR/t012/cmap.py" <<'EOF' import struct,sys d=open(sys.argv[1],'rb').read() n=struct.unpack('>H',d[4:6])[0] tables={d[12+16*i:16+16*i].decode():struct.unpack('>II',d[20+16*i:28+16*i]) for i in range(n)} off=tables['cmap'][0] nt=struct.unpack('>H',d[off+2:off+4])[0] cps=set() for i in range(nt):     pid,eid,so=struct.unpack('>HHI',d[off+4+8*i:off+12+8*i])     s=off+so; fmt=struct.unpack('>H',d[s:s+2])[0]     if fmt==4:         segx2=struct.unpack('>H',d[s+6:s+8])[0]; seg=segx2//2         ends=struct.unpack(f'>{seg}H',d[s+14:s+14+segx2]); starts=struct.unpack(f'>{seg}H',d[s+16+segx2:s+16+2*segx2])         for a,b in zip(starts,ends): cps.update(range(a,b+1)) for ch in 'ЁёАЯаяЙй≡→←·…–—№«»':     print(repr(ch), hex(ord(ch)), ord(ch) in cps) EOF python3 "$TMPDIR/t012/cmap.py" ~/hackatonproject/static/fonts/PressStart2P-Regular.ttf
+    $ cat > "$TMPDIR/t012/cmap.py" <<'EOF'
+  import struct,sys
+  d=open(sys.argv[1],'rb').read()
+  n=struct.unpack('>H',d[4:6])[0]
+  tables={d[12+16*i:16+16*i].decode():struct.unpack('>II',d[20+16*i:28+16*i]) for i in range(n)}
+  off=tables['cmap'][0]
+  nt=struct.unpack('>H',d[off+2:off+4])[0]
+  cps=set()
+  for i in range(nt):
+      pid,eid,so=struct.unpack('>HHI',d[off+4+8*i:off+12+8*i])
+      s=off+so; fmt=struct.unpack('>H',d[s:s+2])[0]
+      if fmt==4:
+          segx2=struct.unpack('>H',d[s+6:s+8])[0]; seg=segx2//2
+          ends=struct.unpack(f'>{seg}H',d[s+14:s+14+segx2]); starts=struct.unpack(f'>{seg}H',d[s+16+segx2:s+16+2*segx2])
+          for a,b in zip(starts,ends): cps.update(range(a,b+1))
+  for ch in 'ЁёАЯаяЙй≡→←·…–—№«»':
+      print(repr(ch), hex(ord(ch)), ord(ch) in cps)
+  EOF
+  python3 "$TMPDIR/t012/cmap.py" ~/hackatonproject/static/fonts/PressStart2P-Regular.ttf
+    'Ё' 0x401 True
+    'ё' 0x451 True
+    'А' 0x410 True
+    'Я' 0x42f True
+    'а' 0x430 True
+    'я' 0x44f True
+    'Й' 0x419 True
+    'й' 0x439 True
+    '≡' 0x2261 False
+    '→' 0x2192 True
+    '←' 0x2190 True
+    '·' 0xb7 True
+    '…' 0x2026 True
+    '–' 0x2013 True
+    '—' 0x2014 True
+    '№' 0x2116 True
+    '«' 0xab True
+    '»' 0xbb True
+  ── Thought for 9s
+    I'm weighing whether to draw the menu icon with CSS, since the "≡" glyph isn't in the font and would fall back. A CSS pseudo-element could make the three bars from box-shadow on a small block, leaving the UI coder to choose between that and the "≡" fallback.
+
+    I'm checking whether keeping the `<summary>` markup unchanged matters, and I think it does since it keeps things simpler. Next I want to check the longest headings at 360px. The h1 and h2 headings will use the pixel font, but the h3 titles hold user-written announcements and are long, so I'm leaning toward keeping h3 in the regular bold system font for readability.
+
+    Now I'm going through the headings to settle their font sizes and which words could run long at 360px. The h1 and h2 headings will keep the pixel font, and I'm still checking the longest word in their text against the seed data.
+
+    I'm going to grep the petition demo names and seed data to find the longest words in the headings.
+  ── Searched for <h[12][^>]*>[^<{]* in .
+  ── Thought for 9ms
+    I'm checking how awk's length handles Cyrillic text, since it counts bytes and each Cyrillic letter takes two, which makes an 11-character word come out as 11 bytes. I'm also checking the longest static heading word, which is also 11 characters, and confirming the data headings come from request type names and discipline names in the form request_type.name, along with the demo names.
+  ── Ran source .venv/bin/activate && DATABASE_URL="sqlite:///$TMPDIR/t012/db.sqlite3" DEBUG=true python manage.py shell -c " from petitions.models import RequestType from academics.models import * from university.models import * import re names=[t.name for t in RequestType.objects.all()]+[f.name for f in Faculty.objects.all()]+[g.name for g in StudyGroup.objects.all()] from notifications.models import Announcement names+= [a.title for a in Announcement.objects.all()] words=sorted({w for n in names for w in re.split(r'\s+',n)}, key=len, reverse=True)[:6] print(words); print(max(len(a.title) for a in Announcement.objects.all())) print(names[:4]) " 2>&1 | tail -3
+    $ source .venv/bin/activate && DATABASE_URL="sqlite:///$TMPDIR/t012/db.sqlite3" DEBUG=true python manage.py shell -c "
+  from petitions.models import RequestType
+  from academics.models import *
+  from university.models import *
+  import re
+  names=[t.name for t in RequestType.objects.all()]+[f.name for f in Faculty.objects.all()]+[g.name for g in StudyGroup.objects.all()]
+  from notifications.models import Announcement
+  names+= [a.title for a in Announcement.objects.all()]
+  words=sorted({w for n in names for w in re.split(r'\s+',n)}, key=len, reverse=True)[:6]
+  print(words); print(max(len(a.title) for a in Announcement.objects.all()))
+  print(names[:4])
+  " 2>&1 | tail -3
+    ['стипендиального', 'микроэкономике', 'промежуточную', 'академический', 'студенческие', 'Консультация']
+    35
+    ['Заявление на академический отпуск', 'Заявление на повторную промежуточную аттестацию', 'Справка для стипендиального отдела', 'Справка об обучении']
+  ── Thought for 4s
+    Checking whether the word "стипендиального" fits the h1 width at the 320px viewport: at 20px it's about 300px, which overflows the 288px available, so I'm considering a smaller font size around 18px.
+
+    I'm checking whether a 15-letter word fits at 320px, which means the h1 can't go much above 19px, and I'm considering a clamp that keeps it around 18px on small screens. Press Start 2P looks monospaced with each glyph one em wide, so I want to confirm that from the font's advance widths before settling on a size.
+  ── Ran cat > "$TMPDIR/t012/adv.py" <<'EOF' import struct,sys d=open(sys.argv[1],'rb').read() n=struct.unpack('>H',d[4:6])[0] t={d[12+16*i:16+16*i].decode():struct.unpack('>II',d[20+16*i:28+16*i]) for i in range(n)} upem=struct.unpack('>H',d[t['head'][0]+18:t['head'][0]+20])[0] nh=struct.unpack('>H',d[t['hhea'][0]+34:t['hhea'][0]+36])[0] h=t['hmtx'][0]; advs={struct.unpack('>H',d[h+4*i:h+4*i+2])[0] for i in range(nh)} print('unitsPerEm',upem,'advance widths',sorted(advs)[:10]) EOF python3 "$TMPDIR/t012/adv.py" ~/hackatonproject/static/fonts/PressStart2P-Regular.ttf
+    $ cat > "$TMPDIR/t012/adv.py" <<'EOF'
+  import struct,sys
+  d=open(sys.argv[1],'rb').read()
+  n=struct.unpack('>H',d[4:6])[0]
+  t={d[12+16*i:16+16*i].decode():struct.unpack('>II',d[20+16*i:28+16*i]) for i in range(n)}
+  upem=struct.unpack('>H',d[t['head'][0]+18:t['head'][0]+20])[0]
+  nh=struct.unpack('>H',d[t['hhea'][0]+34:t['hhea'][0]+36])[0]
+  h=t['hmtx'][0]; advs={struct.unpack('>H',d[h+4*i:h+4*i+2])[0] for i in range(nh)}
+  print('unitsPerEm',upem,'advance widths',sorted(advs)[:10])
+  EOF
+  python3 "$TMPDIR/t012/adv.py" ~/hackatonproject/static/fonts/PressStart2P-Regular.ttf
+    unitsPerEm 1000 advance widths [0, 1000]
+  ── Thought for 1m 5s
+    I'm confirming the per-glyph width at 1em, then moving on to writing the spec. I also want to check the notification chip with its "50+" label. For the 360px header, I'm working out the menu button's width from its icon, gap, label, padding, and border, and noting that the box-shadow adds visual extent without taking layout space.
+
+    Next I'm working out the home-page button grids: two columns for the "Документы" and "Чат" buttons, and a single column for the staff buttons below 48rem, switching to three columns on wider screens. I'm also mapping the access rules for the home route and the error pages, and checking whether a `.visually-hidden` utility needs adding to base.css.
+
+    Now I'm laying out the home template's markup, starting with the base layout and the page heading.
+
+    Now I'm drafting the home template's lessons card, with a compact lesson list and an empty-state message when there are no classes or the day has already finished.
+
+    I'm weighing whether the "Занятия" heading should link to the full schedule, but the request doesn't ask for that, so I'll leave it as plain text. I'm also deciding to skip any day-finished message on home, since past lessons are already shown without a tag.
+
+    Still writing the deadlines card markup...
+
+    Still writing the deadline list markup, with each item linking to its entry and showing the deadline label in coral.
+
+    Still writing the news card markup, with each item linking to the feed and showing its date in muted text.
+
+    Still writing the news card markup, with each item linking to the feed by key and its date shown in muted text.
+
+    Still writing the home buttons markup, with two links to the documents and chat pages.
+
+    Still writing the home buttons markup, with a two-column grid for the documents and chat links.
+
+    Still writing the staff buttons and the fallback home page markup, then setting up the home view's context with the current local time.
+
+    Still writing the home view's context, pulling the summary and today's schedule.
+
+    Checking whether `HomeSummary` is built anywhere else, since the new `student` field would need to be passed in those spots too. Then I'll write the compact lesson markup.
+
+    Still writing the compact lesson markup, with its time range, pair number, and an in-progress tag when relevant.
+
+    Still writing the lesson markup, with its time range, pair number, and a changed-lesson label when the schedule has been altered.
+
+    Still writing the base header markup, with the brand link and the main navigation.
+
+    Still writing the base header markup, with the notification link showing its unread count when there is one, and the current page marked as active.
+
+    I'm checking whether any test asserts `aria-current` on the notifications page, since the button now carries it alone. I'm also working out how an open menu should sit over the header row without pushing the notification button aside, likely as an absolutely positioned panel below the bar.
+
+    I'm deciding to drop the "Уведомления" entry from the inline nav, since the notifications button now covers that and keeping both would duplicate the link and the counter. I'm also wondering whether the logo should be a separate `.svg` template file, which I'll check against how the other icons are included.
+
+    Still writing the favicon markup, drawing it as a small square SVG in the accent color.
+
+    Still writing the favicon link and the 500 page, then checking the tests for external URLs and the scripts allowed in templates.
+
+    I'm checking the token test next: the required token names in tokens.css, and that base.css and theme.css use no hard-coded colour literals. The page background will come from a sky gradient built on the tokens.
+
+    Next I'm setting the font size tokens for the title, h1, h2, buttons, and tags, all in rem, with h1 capped near 1.125rem below 48rem so a 15-letter word still fits a 320px screen.
+
+    Now I'm checking the font sizes for the h2 headings and the tags, and noting that the button labels can wrap if they need to.
+
+    I'm settling on the pixel font for the tags and lesson badges, and I'm planning to set its line height to 1.5. For the map, I want to use colour tokens rather than hard-coded values, and I'm noticing the corridor outline in the border colour may be too faint against the background, so I'll need to check its visibility.
+
+    Now I'm writing the 404 page, starting with its heading.
+
+    Now I'm writing the error pages, with a 404 and a 403 that each have a heading, a short message, and a link back home. The 500 page will be a standalone template with the stylesheet links, the brand header, and a footer note, and it will link home with a plain href.
+
+    I'm checking whether any existing test looks for "Not Found" or the default 403 text, and I'm also searching for every place `HomeSummary` gets built and where `aria-current` is asserted on the notifications page.
+  ── Thought for 3ms
+    Палитру, шрифт и число запросов уже проверены. Дальше сверю тесты, которые затронет новая шапка, и напишу спецификацию.
+  ── Searched for Not Found in .
+  ── Thought for 5ms
+    I'm checking the campusmap test at line 98: on the floor 2 map page, the nav "Карта" link shouldn't get the current mark, since the path isn't /map/, so this one is unaffected. Then the notifications test at line 455 on the feed page, where the deadlines-before-feed order doesn't depend on the home page, so it's unaffected too. Next I want to look at the context around line 640 in the chat tests, lines 630 to 645.
+  ── Read chat/tests/test_views.py
+  ── Thought for 2s
+    I'm checking whether the student chat count of two still holds on the home page, since the "Чат" button there could also match. The chat tests load /profile/, so that shouldn't collide. I'm also confirming the superuser nav test expects neither "Уведомления" nor "Объявления" on the home page.
+
+    I'm also going to fix the student nav test on the home page, since its "Уведомления (2)" assertion needs to match the new chip markup. Then I need to find where the schedule test helpers like make_lesson and make_room live, so I'll check that module's location and signatures.
+  ── Listed files in */tests/helpers.py
+  ── Read schedule/tests/helpers.py
+  ── Thought for 1s
+    I need to confirm the weekday numbering: it looks like 0 is Monday, and the notification test used weekday=2 for Wednesday, November 11, 2026. I'll check that directly with Python's date weekday call to be sure.
+
+    I'm checking the TIME_SLOTS definitions next to see whether the frozen 12:00 time falls inside one of the slots, starting with whether slot 1 really runs from 09:00 to 10:30.
+  ── Read schedule/timeslots.py
+  ── Thought for 10s
+    I'm setting up a test case with the clock frozen at Wednesday 11:00, where slot 2 is in progress, and the room for slot 2 changes on day D. Next I'm working out the expected query counts for the home view.
+
+    Now I'm checking the expected query count for the home view: with the room change included it comes to 14, and 13 without it. I still need the UI coder to confirm this by running the test.
+
+    Now I'm laying out the CSS split: tokens for colours and sizes, base for layout, and theme for the visual styling. The layout rules need the title and label ellipsis behaviour, so they belong in base.css, and I'm checking that the existing test still forbids `max-width: 100%` in the theme.
+
+    I'm going to check which test files already exist in the schedule and notifications test folders before naming the new schedule test.
+  ── Listed files in schedule/tests
+  ── Thought for 5ms
+    Now I'm writing the spec, keeping it complete without padding. I also need to cover the message block variants, the midnight boundary for the test runner, and how the Russian weekday name comes out of the date format.
+
+    I'm going to check how Russian `l` renders weekday names in the Django shell, specifically whether "вторник" comes out lowercase.
+
+── Assistant ───────────────────────────────────────────────
+Данные для спецификации собраны. Пишу файл `docs/tasks/TASK-012.md`.
+
+── Ran 1 command, created 1 file ───────────────────────────
+  ── Ran source .venv/bin/activate && DEBUG=true python manage.py shell -c " from django.template import Template, Context; import datetime print(Template('{{ d|date:\"l, j E\" }}').render(Context({'d': datetime.date(2026,11,17)})))" 2>&1 | tail -1; grep -n "visually-hidden\|sr-only" -r static templates */templates | head -3
+    $ source .venv/bin/activate && DEBUG=true python manage.py shell -c "
+  from django.template import Template, Context; import datetime
+  print(Template('{{ d|date:\"l, j E\" }}').render(Context({'d': datetime.date(2026,11,17)})))" 2>&1 | tail -1; grep -n "visually-hidden\|sr-only" -r static templates */templates | head -3
+    Вторник, 17 ноября
+  ── Thought
+    Now I'm moving on to writing the spec.
+  ── Created docs/tasks/TASK-012.md +520
+    --- /dev/null
+    +++ b~/hackatonproject/docs/tasks/TASK-012.md
+    +# TASK-012: "Night pixel" visual theme for the whole site
+    +
+    +Assignee: **UI coder** (thr_pgcwc2dwnn). Request: Team lead, approved by the user (plan.md stage 4, "Интерфейс (пиксель-арт)").
+    +
+    +## Goal
+    +
+    +The whole site gets the approved "night pixel" look. It is readable and usable on a 360 px phone and on a desktop. No JavaScript is added. Behaviour stays the same, except for the student and staff home pages and the header, which this spec redesigns.
+    +
+    +Design references (read both before you start):
+    +- `docs/design/home-mockup.html` (open it in the browser; it is the reference for colours, frames, buttons and the header);
+    +- `docs/design/home-mockup.jpg` (the approved screenshot, 360 px).
+    +
+    +## Acceptance criteria
+    +
+    +- AC1. **Tokens.** Every colour of the theme is a named custom property in `static/css/tokens.css` (list in D3). `static/css/base.css` and `static/css/theme.css` contain no colour literals (`#rgb`, `#rrggbb`, `#rrggbbaa`, `rgb(`, `rgba(`, `hsl(`, `hsla(`). Only tokens.css contains them.
+    +- AC2. **Font.** `static/fonts/PressStart2P-Regular.ttf` and `static/fonts/OFL.txt` stay byte-identical (SHA-256 below). `theme.css` declares `@font-face` with `src: url("../fonts/PressStart2P-Regular.ttf") format("truetype")` and `font-display: swap`. The font is used only for: the site title, `h1`, `h2`, card titles, buttons (D6) and tags (D7). Body text, `h3`, nav links, form fields, tables, lists and messages use `--font-body`. `collectstatic` with `CompressedManifestStaticFilesStorage` rewrites the font URL in the processed `theme.css` to the hashed file name.
+    +- AC3. **No external resources.** No template and no CSS file contains `https://`, `@import` or a `url(` that does not start with `../`. Templates may contain `http://` only as the exact SVG namespace `http://www.w3.org/2000/svg` (and they do not need it at all; see D9). Only `chat/student.html` and `chat/staff_dialog.html` contain `<script`. `static/js/` contains only `chat.js`, unchanged.
+    +- AC4. **Logo and favicon.** The header shows the pixel academic cap (inline SVG of `<rect>` elements, `shape-rendering="crispEdges"`, `aria-hidden="true"`, `focusable="false"`; our own drawing, copied from the mockup) and the title "Цифровой деканат" (shown in capitals by CSS, two lines below 48rem). `static/img/favicon.svg` is the same cap. `base.html` and `500.html` link it with `<link rel="icon" href="…/img/favicon.svg" type="image/svg+xml">`.
+    +- AC5. **Header for students.** The header has the brand, the wide nav (≥ 48rem) or the "Меню" `<details>` menu (< 48rem), and a "Уведомления" button with a yellow pixel bell. The button is visible at every width. The button shows a count chip only when the badge is not empty. The badge is computed once per page (existing test `test_badge_computed_once`). The nav lists no longer contain a "Уведомления" item (D11).
+    +- AC6. **Header for staff, superuser and anonymous users.** There is no notifications button. Staff and superusers have the same menu and wide nav as before. Anonymous pages have no menu (existing test `test_anonymous_unchanged`).
+    +- AC7. **Student home** (`core:home`, a student with a profile). It shows the `h1` "Сегодня", the date and the group. Then three cards in this order: "Занятия" (today's lessons: time, pair number, discipline, type, teacher, room link to the map, change mark, the "идёт" tag on the current lesson; empty state "Сегодня занятий нет."), "Дедлайны" and "Новости" (at most 3 rows each). Then two buttons on one line: "Документы" (→ `/requests/`) and "Чат" (→ `/chat/`). The titles "Дедлайны" and "Новости" are links to `/notifications/#deadlines` and `/notifications/#feed`, with an arrow "→" after the text. The old "Все уведомления" link is removed (D12).
+    +- AC8. **Card rows.** In "Дедлайны" and "Новости", each row is one line at every width. The title is a link, cut with an ellipsis and carrying a `title` attribute with the full title. The right-hand label (relative deadline label, or the news date `dd.mm`) is never cut or wrapped.
+    +- AC9. **Staff home.** `h1` "Деканат" and three buttons of the same style and size: "Заявки" (→ `/staff/requests/`), "Чаты" (→ `/staff/chats/`), "Объявления" (→ `/staff/announcements/`).
+    +- AC10. **Other roles on home.** A student without a profile and a superuser see the old placeholder ("Раздел в разработке").
+    +- AC11. **Anchors on the feed page.** `/notifications/` has `<section id="deadlines" …>` and `<section id="feed" …>`.
+    +- AC12. **Home query count.** For a student with two lessons today (one with a room change), one deadline, one news item and one unread chat message, `GET /` makes exactly **14** queries. The count is the same with 1 and 3 lessons, and the same with 0 and 4 deadlines.
+    +- AC13. **Error pages.** `templates/403.html` and `templates/404.html` extend `base.html` and show a themed heading, a short text and a "На главную" button. `templates/500.html` is a standalone page (it does not extend `base.html`, uses no context variables and makes no queries) with the same look.
+    +- AC14. **All pages themed** (list in "Pages" below) without behaviour changes. Forms, inputs, selects, textareas, the file input, errors, messages, empty states, `<details>`, tables and the footer are themed. Tap targets are at least 44 px (D14). Every interactive element has a visible `:focus-visible` style.
+    +- AC15. **Map readable.** Rooms, landmarks, service rooms and the corridor are visible on the dark background. The current room is clearly marked by stroke width, fill and label colour, not by hue alone. The map redesign itself is TASK-013.
+    +- AC16. **Contrast.** Every text/background pair in the "Contrast" table meets WCAG AA. Coral text uses `--color-warn-text` (D4).
+    +- AC17. **No horizontal scroll** at 320, 360 and 1024 px on every page in the "Pages" list, for a student and for staff.
+    +- AC18. **README** has a "## Design" section: palette, font name, licence (SIL OFL 1.1, Reserved Font Name "Press Start 2P", file `static/fonts/OFL.txt`, used unmodified), and "the logo and favicon are our own pixel drawing".
+    +- AC19. The admin site is unchanged (no `templates/admin/`). No new Python dependencies. No migrations.
+    +
+    +## Out of scope
+    +
+    +- Map improvements: a larger room list, the final highlight design, landmark vs service frames, the corridor label, zoom (TASK-013).
+    +- New features, new pages, behaviour changes other than those listed in AC5–AC13.
+    +- A light theme or a theme switcher. Any JavaScript. Transitions and animations (D15).
+    +- Changes to `static/js/chat.js`, models, migrations, forms, URLs and permissions.
+    +
+    +## Design decisions
+    +
+    +- **D1. CSS layers.** `tokens.css` holds only custom properties (colours, fonts, font sizes, frame sizes). `base.css` holds layout (display, flex/grid, spacing, widths, the ellipsis rules, visibility by breakpoint, `.visually-hidden`). `theme.css` holds the look: `@font-face`, backgrounds, the gradient, stars, frames, shadows, colours via `var(--…)`, fonts, focus styles, form looks, map colours. All three files stay linked in this order (existing test `test_home_css_layers_in_order`). Keep the existing rules that tests check: `input, select, textarea, button { max-width: 100%; … }` in base.css; `.site-nav--wide { display: none; }` and the `@media (min-width: 48rem) { .site-nav--wide { display: block; } .site-nav-compact { display: none; …` block in base.css; `.chat-message--own { margin-left:` and `.chat-message--other { margin-right:` in base.css; `.map-current .map-room-label` with `var(--color-map-highlight)` in base.css. theme.css must not contain `max-width: 100%`.
+    +- **D2. Breakpoint.** One breakpoint, `48rem`, as now. You may add `min-width: 64rem` rules for desktop font sizes if needed.
+    +- **D3. Tokens.** Keep the existing names (base.css uses them) with new values, and add new ones. Required names and values:
+    +
+    +  | Token | Value | Use |
+    +  |---|---|---|
+    +  | `--color-bg` | `#120a2a` | fallback page background |
+    +  | `--color-sky-1` … `--color-sky-4` | `#120a2a`, `#221449`, `#3a2272`, `#4b2a86` | page gradient stops (0%, 40%, 75%, 100%) |
+    +  | `--color-panel` | `rgba(36, 22, 78, 0.88)` | cards, panels, buttons |
+    +  | `--color-frame` | `#5a3fa3` | pixel frame lines, heading text-shadow |
+    +  | `--color-frame-gap` | `#170d33` | the 3 px gap between frame lines |
+    +  | `--color-text` | `#f3ecff` | text |
+    +  | `--color-muted` | `#b8a6e8` | secondary text |
+    +  | `--color-heading` | `#ffd25e` | card titles, bell icon |
+    +  | `--color-link` | `#ffc46b` | links |
+    +  | `--color-accent` | `#ffc46b` | existing name; same value as link |
+    +  | `--color-border` | `#5a3fa3` | existing name; dashed separators |
+    +  | `--color-warn` | `#ff6f7d` | coral backgrounds (count chip) |
+    +  | `--color-warn-text` | `#ff8a95` | coral text: changes, errors, deadline labels (D4) |
+    +  | `--color-changed` | `#ff8a95` | existing name; same value as warn-text |
+    +  | `--color-orange` | `#ff9f2e` | tags, primary buttons, logo |
+    +  | `--color-orange-light` | `#ffc04d` | primary button gradient top |
+    +  | `--color-orange-dark` | `#f07a1a` | primary button gradient bottom |
+    +  | `--color-orange-edge` | `#ffd98a` | primary button border |
+    +  | `--color-on-accent` | `#2b1300` | text on orange, on coral |
+    +  | `--color-now-bg` | `rgba(255, 159, 46, 0.14)` | existing name; current lesson tint |
+    +  | `--color-field-bg` | `#170d33` | inputs, selects, textareas |
+    +  | `--color-field-border` | `#a58cf0` | input borders (3:1, D4) |
+    +  | `--color-focus` | `#ffd25e` | focus outline |
+    +  | `--color-star-yellow`, `--color-star-lilac` | `#ffe9a8`, `#d9c8ff` | stars |
+    +  | `--color-map-highlight` | `#ffd25e` | existing name; current room |
+    +  | `--color-map-highlight-fill` | `rgba(255, 210, 94, 0.22)` | current room fill |
+    +  | `--color-map-room-fill` | `rgba(36, 22, 78, 0.88)` | room fill |
+    +  | `--font-body` | unchanged system stack | body text |
+    +  | `--font-pixel` | `"Press Start 2P", ui-monospace, monospace` | pixel font |
+    +  | `--font-heading` | `var(--font-pixel)` | existing name |
+    +  | `--font-size-title`, `--font-size-h1`, `--font-size-h2`, `--font-size-button`, `--font-size-tag` | in `rem` (D5) | pixel text sizes |
+    +  | `--frame-width` | `3px` | frame line and gap |
+    +
+    +  You may add more tokens (for example a slightly lighter corridor fill). Every colour stays in tokens.css.
+    +- **D4. Contrast rules** (computed with the WCAG 2.x formula; the panel is composited over the lightest sky colour `#4b2a86`, which gives `#29184f`, the worst case):
+    +  - On the bare sky (the page outside cards), only `--color-text`, `--color-muted`, `--color-heading`, `--color-link`, `--color-warn-text` and `--color-orange` may be used as text colours.
+    +  - `#ff6f7d` (mockup coral) gives only 3.96:1 on `#4b2a86`. Coral **text** therefore always uses `--color-warn-text` `#ff8a95` (4.72:1 on the lightest sky, 6.87:1 on the panel).
+    +  - The count chip is `--color-warn` background with `--color-on-accent` text (6.54:1). The mockup's white text on coral gives 2.68:1, which fails. This is a deliberate change from the mockup.
+    +  - Input borders use `--color-field-border` `#a58cf0` (3.85:1 on the lightest sky, 5.61:1 on the panel, 6.66:1 against the field). The `#5a3fa3` frame (1.35–2.43:1) is used only for decorative frames of cards and buttons. Buttons are identified by their visible text label (WCAG 1.4.11 does not require a contrasting border then).
+    +  - The focus outline is `--color-focus` (≥ 7.41:1 on every background).
+    +- **D5. Pixel text sizes.** Press Start 2P is monospace: every glyph is exactly 1em wide (`unitsPerEm` 1000, all advance widths 1000; checked from the font's `hmtx` table). A word of N letters at size S is N×S px wide. Content width is 288 px at 320 px and 328 px at 360 px (16 px page padding). Inside a card, subtract 2×(padding + 2 frame widths). Constraints:
+    +  - `h1` < 48rem: at most `1.125rem` (18 px). The longest demo word that can appear in an `h1` is "стипендиального" (15 letters, the request type "Справка для стипендиального отдела"): 15×18 = 270 ≤ 288. You may use a larger `h1` (for example `1.5rem`) at ≥ 48rem.
+    +  - `h2` and card titles: about `0.75rem` (mockup 12 px). Site title, buttons: about `0.6875rem` (mockup 11 px). Tags and chip: about `0.625rem`.
+    +  - Line height for pixel text: about 1.5. Long titles and button labels may wrap between words. `body { overflow-wrap: anywhere; }` stays, so no word causes horizontal scroll.
+    +  - The font has no glyph for "≡" (U+2261). It has "→", "←", "·", "…", "–", "—", "№", "«", "»", "ё", "Ё" (checked from its `cmap`).
+    +- **D6. Buttons.** One pixel button look:
+    +  - Panel button (default): `.btn`, the menu `summary.site-menu-toggle`, the notifications button. It has `--color-panel` background, `--color-text` text, the pixel font, a double frame (3 px `--color-frame` border, then the gap and the outer line made with `box-shadow: 0 0 0 3px var(--color-frame-gap), 0 0 0 6px var(--color-frame)`), square corners and a minimum height of 44 px.
+    +  - Primary button: every `<button>` in a form (`.form button`, `.action-form button`, `.chat-form button`) and `.btn--primary`. It has the orange gradient (`--color-orange-light` → `--color-orange` → `--color-orange-dark`), `--color-orange-edge` border and `--color-on-accent` text.
+    +  - The logout button in the nav looks like a nav link (system font, link colour, underlined), not like a big button. Its tap target is still at least 44 px.
+    +  - The box-shadow frame takes no layout space. Leave at least 6 px around every button (gap or margin) so frames do not overlap.
+    +- **D7. Tags.** `.tag` (new) and the existing `.lesson-badge` ("Сейчас", "Следующая" on the schedule) use the pixel font, `--font-size-tag`, `--color-orange` background and `--color-on-accent` text. The text stays (information is not only colour).
+    +- **D8. Headings.** `h1`: pixel font, `--color-text`, `text-shadow: 3px 3px 0 var(--color-frame)`. `h2` outside cards: pixel font, `--color-heading`. Card titles (`.card-title`, an `h2`): pixel font, `--color-heading`. `h3` stays in the body font, bold, because `h3` holds data (announcement titles, floor names, grade subsections). This is a deliberate reading of "headings" for readability.
+    +- **D9. Inline SVG.** The logo and the bell are includes (`templates/includes/icon_cap.html`, `templates/includes/icon_bell.html`). Each is one `<svg>` with `viewBox`, `width`/`height`, `shape-rendering="crispEdges"`, `aria-hidden="true"`, `focusable="false"` and `<g fill="currentColor">` with the mockup's rects. Inline SVG in HTML needs no `xmlns`; do not add one. `static/img/favicon.svg` is a file, so it needs `xmlns="http://www.w3.org/2000/svg"` and a fixed fill `#ff9f2e` (an image file, not CSS, so AC1 does not apply). Use a square `viewBox` (for example `0 -1 12 12`).
+    +- **D10. Header layout** (exact markup in F5). Order: brand, wide nav, then the actions row (`.site-nav-compact` with the `<details>` menu, then the notifications button). Below 48rem: the brand on the first line, the menu button and the notifications button on the second line, both the same height. At 320 px the two buttons may wrap to two lines; no horizontal scroll. At ≥ 48rem: the brand, the wide nav (links in the body font, wrapping as needed) and the notifications button. The open menu is a themed panel. Opening it must not move the notifications button out of view. The menu items are at least 44 px high. The "≡" icon is drawn in CSS on `summary.site-menu-toggle::before` (three 2–3 px bars made with `box-shadow` or a gradient; `content: ""`), because the font has no "≡". The `<summary>` markup stays `<summary class="site-menu-toggle">Меню</summary>`. Hide the default disclosure marker (`list-style: none` and `::-webkit-details-marker { display: none; }`).
+    +- **D11. One entry point for notifications.** The "Уведомления" item is removed from `templates/includes/site_nav_items.html`. The header button replaces it at every width, so the page has one notifications link and one counter instead of three. The button has `aria-current="page"` on `/notifications/`.
+    +- **D12. "Все уведомления" link removed** from the home page. Reason: the header button and both card-title links already lead to the feed. A fourth link to the same page adds a tap target and no value, and the mockup has none.
+    +- **D13. Stars.** Pure CSS (for example `body::before` or `.site-header::before` with `box-shadow` pixels in `--color-star-yellow`/`--color-star-lilac`), `content: ""` (pseudo-elements are not exposed to assistive technology), `pointer-events: none`, below the content (`z-index`). Only in the header area and in the side margins. Never over text or controls at 320, 360 and 1024 px. You choose the positions.
+    +- **D14. Tap targets** ≥ 44×44 px: buttons, the menu toggle, the notifications button, menu items, floor switcher links (already), card-row title links (row height ≥ 44 px), the home action buttons, the file input button, the error-page button. Links inside running text are exempt (WCAG 2.5.8 inline exception).
+    +- **D15. No transitions or animations.** If you add any `transition` or `animation`, also add `@media (prefers-reduced-motion: reduce)` that turns them off (test T-D7).
+    +- **D16. Forms.** Light text on a dark field: `--color-field-bg` background, `--color-text` text, 3 px `--color-field-border` border, square corners, body font, minimum height 44 px. `input[type=file]::file-selector-button` gets the panel button look. `.errorlist` and `.message--error` use `--color-warn-text`. `.form` (also used for the login form, the staff queue filter, the announcement form and the chat form) is a panel with the double frame.
+    +- **D17. Chat.** `.chat-message--own` and `.chat-message--other` look different in more than colour. Keep the existing side margins (base.css); also use a different frame or background tint (for example `--color-now-bg` on own messages). The meta line ("Вы", "Деканат · …", the student name) stays.
+    +- **D18. Error templates.** 403 and 404 extend `base.html`. 500 is standalone: Django renders it with an empty context and the database may be down, so it must not extend `base.html` (base runs DB-backed tags for students). It uses only `{% load static %}`, `{% static %}` and plain HTML. The button on 500 links to `/`.
+    +
+    +## Architecture / files
+    +
+    +Python (small context changes; no models, no migrations):
+    +- `notifications/feed.py`: `HomeSummary` gets a `student: StudentProfile` field. `home_summary()` gets an optional `now` argument (F1).
+    +- `schedule/services.py`: new `today_schedule()` (F2).
+    +- `schedule/views.py`: `TodayView` uses `today_schedule()` (F3).
+    +- `core/views.py`: `HomeView` adds the day schedule to the context (F4).
+    +
+    +Templates:
+    +- `templates/base.html` (F5): favicon, new header.
+    +- `templates/includes/site_nav_items.html`: remove the student "Уведомления" `<li>` (D11). Nothing else changes in it.
+    +- New `templates/includes/icon_cap.html`, `templates/includes/icon_bell.html` (D9).
+    +- `core/templates/core/home.html` (F6): rewritten.
+    +- New `schedule/templates/schedule/includes/lesson_compact.html` (F7).
+    +- `notifications/templates/notifications/feed.html`: add `id="deadlines"` to the deadlines `<section>` and `id="feed"` to the feed `<section>`. Nothing else.
+    +- New `templates/403.html`, `templates/404.html`, `templates/500.html` (F8).
+    +- Other page templates (see "Pages"): you may add CSS classes and wrapper elements (`<div class="card">`, `<section class="card">`) for styling. Do not change text, links, form fields, element ids, `data-*` attributes or the order of content. Every such change is listed in the REPORT.
+    +
+    +Static:
+    +- `static/css/tokens.css`, `static/css/base.css`, `static/css/theme.css` (D1–D17).
+    +- New `static/img/favicon.svg` (D9).
+    +- `static/fonts/*`: unchanged. `static/js/chat.js`: unchanged.
+    +
+    +Docs:
+    +- `README.md`: new "## Design" section (AC18), placed after "## Chat".
+    +
+    +Tests: see the Test plan.
+    +
+    +## Functions
+    +
+    +### F1. `notifications/feed.py`
+    +
+    +```python
+    +@dataclass(frozen=True)
+    +class HomeSummary:
+    +    student: StudentProfile
+    +    deadlines: list[DeadlineItem]
+    +    news: list[FeedItem]
+    +
+    +
+    +def home_summary(
+    +    user: AbstractBaseUser | AnonymousUser, now: datetime | None = None
+    +) -> HomeSummary | None:
+    +```
+    +- Purpose: also return the student profile (with `group__program` already loaded by `student_context`), so the home page needs no extra query for the group.
+    +- Algorithm: `ctx = student_context(user, now)`; the rest stays. Return `HomeSummary(student=ctx.student, deadlines=deadlines, news=news)`. `StudentProfile` is already imported in this module.
+    +- Callers: `core.views.HomeView` only (checked: no other caller and no test builds `HomeSummary` directly).
+    +- Tests: T-F1a, T-F1b.
+    +
+    +### F2. `schedule/services.py`
+    +
+    +```python
+    +def today_schedule(group_id: int, now: datetime) -> tuple[DaySchedule, TodayAnnotation]:
+    +```
+    +- Purpose: the shared "today" computation of the "Сегодня" page and the home page.
+    +- Input: a group id and an aware datetime. Output: the day schedule for the Moscow-local date of `now`, and its annotation at the local time of `now`.
+    +- Algorithm: `local = timezone.localtime(now)`; `day = day_schedule(local.date(), [group_id], today=local.date())`; `return day, annotate_today(day.items, local.time())`. Import `datetime` from `datetime` and `timezone` from `django.utils`.
+    +- Edge cases: `now` just before or after Moscow midnight gives the local date (test with `now` = `2026-11-17 21:00 UTC`, which is `2026-11-18 00:00` in Moscow).
+    +- Tests: T-F2a, T-F2b.
+    +
+    +### F3. `schedule/views.py` `TodayView.get_context_data`
+    +
+    +Replace the three lines that compute `now`, `day` and `annotation` with `day, annotation = today_schedule(self.profile.group_id, timezone.now())`. The context keys stay the same. Remove imports that are no longer used (`day_schedule`, `annotate_today`) only if ruff reports them. Covered by the existing schedule view tests.
+    +
+    +### F4. `core/views.py` `HomeView.get_context_data`
+    +
+    +```python
+    +def get_context_data(self, **kwargs):
+    +    context = super().get_context_data(**kwargs)
+    +    now = timezone.now()
+    +    summary = home_summary(self.request.user, now)
+    +    context["summary"] = summary
+    +    if summary is not None:
+    +        day, annotation = today_schedule(summary.student.group_id, now)
+    +        context["day"] = day
+    +        context["annotation"] = annotation
+    +    return context
+    +```
+    +- One `now` for both services, so the date of the cards and the lessons is the same at midnight.
+    +- Access: unchanged (login required by the middleware; the role switch is in the template).
+    +- Tests: T-H*.
+    +
+    +### F5. `templates/base.html`
+    +
+    +Exact header structure (classes and texts are tested; you may add classes and wrappers that do not change the listed markup):
+    +
+    +```django
+    +{% load static notifications_tags chat_tags %}<!doctype html>
+    +…
+    +  <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
+    +  {# the three stylesheet links stay as they are, in the same order #}
+    +…
+    +  <header class="site-header">
+    +    <a class="site-brand" href="{% url 'core:home' %}">{% include "includes/icon_cap.html" %}<span class="site-title"><span class="site-title-line">Цифровой</span> <span class="site-title-line">деканат</span></span></a>
+    +    {% if user.is_student %}{% notifications_badge as badge %}{% chat_unread_badge as chat_badge %}{% endif %}
+    +    <nav class="site-nav site-nav--wide" aria-label="Основная навигация">
+    +      {% block nav %}{% if user.is_authenticated %}{% include "includes/site_nav_items.html" %}{% endif %}{% endblock %}
+    +    </nav>
+    +    {% if user.is_authenticated %}
+    +    <div class="site-header-actions">
+    +      <div class="site-nav-compact">
+    +        <details class="site-menu">
+    +          <summary class="site-menu-toggle">Меню</summary>
+    +          <nav class="site-nav" aria-label="Основная навигация">
+    +            {% include "includes/site_nav_items.html" %}
+    +          </nav>
+    +        </details>
+    +      </div>
+    +      {% if user.is_student %}{% url 'notifications:feed' as notif_url %}<a class="btn site-notif" href="{{ notif_url }}"{% if request.path == notif_url %} aria-current="page"{% endif %}>{% include "includes/icon_bell.html" %}Уведомления{% if badge %}<span class="site-notif-count"><span class="visually-hidden">, непрочитанных: </span>{{ badge }}</span>{% endif %}</a>{% endif %}
+    +    </div>
+    +    {% endif %}
+    +  </header>
+    +```
+    +- Keep the skip link, `<main id="main" class="site-main">`, the messages block and the footer text unchanged (tests check them). You may add classes to them.
+    +- The title text is "Цифровой деканат" in mixed case; `text-transform: uppercase` in theme.css shows it in capitals. `.site-title-line` is `display: block` below 48rem and `inline` at ≥ 48rem.
+    +- Do not use the class names `site-menu-badge` or anything containing `site-menu` for the button (the anonymous test checks that "site-menu" is absent).
+    +- Add `.visually-hidden` (the standard clip pattern) to base.css.
+    +- Tests: T-N*.
+    +
+    +### F6. `core/templates/core/home.html`
+    +
+    +```django
+    +{% extends "base.html" %}
+    +{% block content %}
+    +{% if summary %}
+    +  <h1>Сегодня</h1>
+    +  <p class="page-sub">{{ day.date|date:"l, j E" }} · {{ summary.student.group.name }}</p>
+    +  <section class="card" aria-labelledby="home-lessons">
+    +    <h2 class="card-title" id="home-lessons">Занятия</h2>
+    +    {% if day.items %}<ol class="lesson-list lesson-list--compact">{% for row in annotation.rows %}{% include "schedule/includes/lesson_compact.html" with item=row.item row=row %}{% endfor %}</ol>
+    +    {% else %}<p class="card-empty">Сегодня занятий нет.</p>{% endif %}
+    +  </section>
+    +  <section class="card" aria-labelledby="home-deadlines">
+    +    <h2 class="card-title" id="home-deadlines"><a class="card-title-link" href="{% url 'notifications:feed' %}#deadlines">Дедлайны<span aria-hidden="true"> →</span></a></h2>
+    +    {% if summary.deadlines %}<ul class="card-rows">{% for d in summary.deadlines %}
+    +      <li class="card-row"><a class="card-row-title" href="{% url 'notifications:feed' %}#deadline-{{ d.public_id }}" title="{{ d.title }}">{{ d.title }}</a><time class="card-row-label card-row-label--deadline" datetime="{{ d.deadline|date:'Y-m-d' }}">{{ d.label }}</time></li>
+    +    {% endfor %}</ul>{% else %}<p class="card-empty">Ближайших дедлайнов нет.</p>{% endif %}
+    +  </section>
+    +  <section class="card" aria-labelledby="home-news">
+    +    <h2 class="card-title" id="home-news"><a class="card-title-link" href="{% url 'notifications:feed' %}#feed">Новости<span aria-hidden="true"> →</span></a></h2>
+    +    {% if summary.news %}<ul class="card-rows">{% for item in summary.news %}
+    +      <li class="card-row"><a class="card-row-title" href="{% url 'notifications:feed' %}#{{ item.key }}" title="{{ item.title }}">{{ item.title }}</a><time class="card-row-label" datetime="{{ item.timestamp|date:'c' }}">{{ item.timestamp|date:"d.m" }}</time></li>
+    +    {% endfor %}</ul>{% else %}<p class="card-empty">Новостей пока нет.</p>{% endif %}
+    +  </section>
+    +  <div class="home-actions home-actions--two">
+    +    <a class="btn" href="{% url 'petitions:my_list' %}">Документы</a>
+    +    <a class="btn" href="{% url 'chat:student' %}">Чат</a>
+    +  </div>
+    +{% elif user.is_deanery_staff %}
+    +  <h1>Деканат</h1>
+    +  <div class="home-actions home-actions--three">
+    +    <a class="btn" href="{% url 'petitions:staff_queue' %}">Заявки</a>
+    +    <a class="btn" href="{% url 'chat:staff_list' %}">Чаты</a>
+    +    <a class="btn" href="{% url 'notifications:staff_announcements' %}">Объявления</a>
+    +  </div>
+    +{% else %}
+    +  <h1>Цифровой деканат будущего</h1>
+    +  <p>Прототип личного кабинета студента. Раздел в разработке.</p>
+    +{% endif %}
+    +{% endblock %}
+    +```
+    +Layout rules (base.css):
+    +- `.card-row { display: flex; align-items: baseline; gap: …; }`.
+    +- `.card-row-title { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }`, with a line height or min-height that gives a row of at least 44 px.
+    +- `.card-row-label { flex: none; white-space: nowrap; }`.
+    +- `.home-actions--two { display: grid; grid-template-columns: 1fr 1fr; }` at every width (both buttons the same size).
+    +- `.home-actions--three`: one column below 48rem ("Объявления" is 10 glyphs, about 110 px plus padding, which does not fit three in a row at 360 px); `repeat(3, 1fr)` at ≥ 48rem.
+    +- Theme: dashed separators between rows (`2px dashed var(--color-border)`, none before the first row), deadline label in `--color-warn-text` bold, news date in `--color-muted`. "Дедлайны" and "Новости" look identical apart from that label colour.
+    +
+    +### F7. `schedule/templates/schedule/includes/lesson_compact.html`
+    +
+    +```django
+    +<li class="lesson lesson--{{ item.kind }}{% if row.is_in_progress %} lesson--now{% endif %}">
+    +  <p class="lesson-time"><time>{{ item.slot.start|time:"H:i" }}</time>–<time>{{ item.slot.end|time:"H:i" }}</time> · {{ item.slot.number }} пара{% if row.is_in_progress %} <span class="tag">идёт</span>{% endif %}</p>
+    +  <p class="lesson-title">{{ item.lesson.discipline.name }}</p>
+    +  <p class="lesson-meta">{{ item.lesson.get_lesson_type_display }} · {{ item.teacher.short_name }} · {% if item.is_happening %}<a class="room" href="{% url 'campusmap:room' item.room.code %}">ауд. {{ item.room.number }}</a>{% else %}<span class="room">ауд. {{ item.room.number }}</span>{% endif %}{% if item.is_changed %} <span class="lesson-change">{% if item.kind == "cancelled" %}отменено{% elif item.kind == "moved-out" %}перенесено на {{ item.moved_to_date|date:"j E" }}{% elif item.kind == "moved-in" %}перенесено с {{ item.moved_from_date|date:"j E" }}{% elif item.kind == "room-changed" %}аудитория изменена{% elif item.kind == "teacher-replaced" %}замена преподавателя{% endif %}</span>{% endif %}</p>
+    +</li>
+    +```
+    +- The existing `.lesson--cancelled .lesson-title` / `.lesson--moved-out .lesson-title` line-through rule applies.
+    +- The theme gives `.lesson-change` `--color-warn-text` bold and `.lesson-time` `--color-muted` (mockup).
+    +
+    +### F8. Error templates
+    +
+    +- `templates/404.html`: `{% extends "base.html" %}`, `{% block title %}Страница не найдена{% endblock %}`, `<h1>Страница не найдена</h1>`, `<p>Проверьте адрес или вернитесь на главную.</p>`, `<p><a class="btn" href="{% url 'core:home' %}">На главную</a></p>`.
+    +- `templates/403.html`: the same with the title and `h1` "Доступ запрещён" and the text "У вас нет доступа к этой странице."
+    +- `templates/500.html`: standalone `<!doctype html>`, `lang="ru"`, viewport meta, `<title>Ошибка сервера</title>`, the favicon and the three stylesheet links via `{% static %}`, a header with the cap and the title (same classes as base, no nav), `<main class="site-main"><h1>Ошибка сервера</h1><p>Что-то пошло не так. Попробуйте обновить страницу позже.</p><p><a class="btn" href="/">На главную</a></p></main>`, and the footer disclaimer. The cap is included with `{% include "includes/icon_cap.html" %}` (a plain template with no tags).
+    +
+    +## Pages (theme each, no behaviour change; check each in the browser)
+    +
+    +| Page | URL (demo data) | Roles |
+    +|---|---|---|
+    +| Login | `/login/` | anonymous |
+    +| Home | `/` | student, staff, superuser |
+    +| Profile | `/profile/` | student, staff |
+    +| Schedule today / week | `/schedule/`, `/schedule/week/` | student |
+    +| Staff schedule groups / group week | `/staff/schedule/`, a group week | staff |
+    +| Grades report with an open `<details>` | `/grades/` | student |
+    +| Requests: list, catalog, form with the file input (submit once with an error to see `.errorlist`), detail | `/requests/`, `/requests/new/`, a form, a detail | student |
+    +| Staff requests: queue (filter form), detail (actions, reject textarea, comment form) | `/staff/requests/`, a detail | staff |
+    +| Notifications feed (check `#deadlines` and `#feed` anchors) | `/notifications/` | student |
+    +| Staff announcements (form + list + unpublish button) | `/staff/announcements/` | staff |
+    +| Chat student / staff list / staff dialog (own vs other messages) | `/chat/`, `/st
+    …[26,043 more characters truncated]
+  ── Thought for 7s
+    I'm checking a few spec details: whether the petitions catalog URL is really `/requests/new/`, whether the `/schedule/week/` path exists, and that the map room URL looks right. I also want to see how the default `server_error` view renders 500.html in tests, since that depends on the static files storage chosen from the DEBUG setting.
+
+    I'm working out whether the 500 page's static link is right: with DEBUG set from the environment, the storage is plain StaticFilesStorage, so the expected `/static/css/theme.css` holds, and existing tests already depend on that. Next I'm checking the manifest-rewrite test, where overriding STORAGES should reset the cached static storage, as my earlier shell prototype showed.
+
+    Next I'm checking the date format for the news row: the `date:'c'` filter should give an ISO timestamp in local time, and that looks right. Then I'm confirming the Russian weekday line and the "GX" group name. Last, I want to confirm that staff hitting the student request page and students hitting the staff page both get a 403 from the access mixins, so I'll verify those URLs and views.
+
+── Assistant ───────────────────────────────────────────────
+Спецификация написана. Сверяю URL и коды ответов, на которые ссылаются тесты.
+
+── Explored 1 file ─────────────────────────────────────────
+  ── Read petitions/urls.py
+  ── Thought for 3s
+    I'm checking the chat badge test: an unread chat message still costs only one query, and the home summary's news query is always one. That makes the expected count 14, measured as 10 plus 4 from the changes. I'm also confirming that the lesson-count test, which creates lesson A after the first measurement and then counts with lesson B only, holds up.
+
+    I'm reviewing the remaining test checks: the lessons-card tag appearing once after 10:40, the day-date format producing "Среда, 11 ноября", and the body-font regex, which I'll accept as is. I'm also checking that the favicon link test holds under the test storage setup, and concluding it does. Next I'll send the UI coder its task with visual acceptance criteria and a short summary.
+
+── Assistant ───────────────────────────────────────────────
+Всё сходится. Передаю задачу UI-кодеру.
+
+── Ran bb thread tell thr_pgcwc2dwnn --message-file - <<'EOF' [TASK-012] Planner -> UI coder: TASK Spec: docs/tasks/TASK-012.md. Design references: docs/design/home-mockup.html (open it in the browser) and docs/design/home-mockup.jpg. Summary: - Apply the "night pixel" theme to the whole site. Colours go only in tokens.css (D3), layout in base.css, the look in theme.css. Use Press Start 2P as is: only for the site title, h1/h2, card titles, buttons and tags. Coral text uses --color-warn-text (contrast, D4). - New header (F5): the cap logo + "Цифровой деканат", the "Меню" <details> menu and, for students, the "Уведомления" button with a bell and a count chip. Remove the nav "Уведомления" item (D11). - New student home (F6/F7: Занятия / Дедлайны / Новости cards with one-line ellipsis rows, Документы + Чат buttons) and staff home (3 buttons). Small Python changes: F1–F4 (home_summary.student and now, today_schedule). - Add 403/404/500 templates (500 standalone), static/img/favicon.svg, feed anchors #deadlines/#feed, README "## Design". Tests: see the Test plan (14 queries on home, SHA-256 of the font, no external URLs). Visual acceptance: every page in the "Pages" table, for a student and for staff, at 360x780 and 1024x768. Also the home page and the header at 320x780. No horizontal scroll. Stars never cover content. Focus is visible. Tap targets are at least 44 px. Baseline: 1002 tests OK (2026-11-17). EOF (2s)
+  $ bb thread tell thr_pgcwc2dwnn --message-file - <<'EOF'
+[TASK-012] Planner -> UI coder: TASK
+Spec: docs/tasks/TASK-012.md. Design references: docs/design/home-mockup.html (open it in the browser) and docs/design/home-mockup.jpg.
+Summary:
+- Apply the "night pixel" theme to the whole site. Colours go only in tokens.css (D3), layout in base.css, the look in theme.css. Use Press Start 2P as is: only for the site title, h1/h2, card titles, buttons and tags. Coral text uses --color-warn-text (contrast, D4).
+- New header (F5): the cap logo + "Цифровой деканат", the "Меню" <details> menu and, for students, the "Уведомления" button with a bell and a count chip. Remove the nav "Уведомления" item (D11).
+- New student home (F6/F7: Занятия / Дедлайны / Новости cards with one-line ellipsis rows, Документы + Чат buttons) and staff home (3 buttons). Small Python changes: F1–F4 (home_summary.student and now, today_schedule).
+- Add 403/404/500 templates (500 standalone), static/img/favicon.svg, feed anchors #deadlines/#feed, README "## Design". Tests: see the Test plan (14 queries on home, SHA-256 of the font, no external URLs).
+Visual acceptance: every page in the "Pages" table, for a student and for staff, at 360x780 and 1024x768. Also the home page and the header at 320x780. No horizontal scroll. Stars never cover content. Focus is visible. Tap targets are at least 44 px. Baseline: 1002 tests OK (2026-11-17).
+EOF
+  Thread thr_pgcwc2dwnn steered
+
+── Assistant ───────────────────────────────────────────────
+Я написал спецификацию [TASK-012](docs/tasks/TASK-012.md) и отправил её UI-кодеру. До изменений прошли все 1002 теста.
+
+**Что входит в задачу:**
+- **Тема «ночной пиксель».** Все цвета хранятся в `tokens.css`, внешний вид задаётся в `theme.css`, раскладка — в `base.css`. Шрифт Press Start 2P идёт только на заголовки, кнопки и метки. Основной текст набирается системным шрифтом.
+- **Шапка.** Слева логотип-шапочка и надпись «Цифровой деканат». Ниже две кнопки: «Меню» и, для студентов, «Уведомления» с колокольчиком и счётчиком.
+- **Главная студента:** карточки «Занятия», «Дедлайны», «Новости». Под ними кнопки «Документы» и «Чат». Строки в карточках занимают одну строку, длинный текст обрезается многоточием.
+- **Главная сотрудника:** три кнопки — «Заявки», «Чаты», «Объявления».
+- **Остальное:** страницы ошибок 403, 404 и 500, иконка вкладки (favicon), раздел «Design» в README. Тема применяется ко всем страницам, их поведение не меняется.
+
+**Три моих решения, которые отличаются от запроса или макета:**
+1. Убрал пункт «Уведомления» из меню. Кнопка в шапке видна на любой ширине экрана, второй вход на ту же страницу не нужен.
+2. Убрал ссылку «Все уведомления» с главной. На ленту уже ведут кнопка в шапке и заголовки обеих карточек.
+3. Изменил два цвета ради контраста (стандарт WCAG AA):
+   - В макете счётчик — белая цифра на коралловом фоне, это плохо читается. В спецификации цифра тёмная.
+   - Коралловый текст светлее, чем в макете (`#ff8a95` вместо `#ff6f7d`). Иначе внизу страницы он читается плохо.
+
+**Что я проверил заранее:**
+- В шрифте есть кириллица, «ё» и «→», но нет знака «≡». Поэтому значок меню рисуется средствами CSS.
+- Самое длинное слово в заголовках демо-данных — «стипендиального», 15 букв. Я ограничил размер заголовка так, чтобы на экране 320 px это слово помещалось в одну строку.
+- При сборке статики для боевого сервера ссылка на шрифт подставляется верно.
+- Главная сейчас делает 10 запросов к базе. После добавления занятий будет 14, тест проверяет это число.
+
+Жду вопросов UI-кодера.

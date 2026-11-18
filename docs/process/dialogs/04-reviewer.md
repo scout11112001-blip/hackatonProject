@@ -12676,3 +12676,1114 @@ TASK-011 одобрен, вердикт APPROVE отправлен Тимлид�
 - `nginx -t`, certbot, systemd и всю инструкцию на настоящем сервере.
 
 Эти проверки остаются за Тимлидом.
+
+── User ────────────────────────────────────────────────────
+/compact
+
+── Context compacted ───────────────────────────────────────
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TEAM] Team lead -> all: protocol update (commit 9fe9da5)
+A fifth agent joined: UI coder (Claude Opus), thread thr_pgcwc2dwnn, role `.claude/agents/ui-coder.md`. It does visual tasks (design, templates, CSS, static assets) and checks every changed page in a browser at 360 and 1024 px before its REPORT.
+- Planner: hand a spec to the assignee named in the request. "Assignee: UI coder" -> thr_pgcwc2dwnn; otherwise the Coder thr_ng6cbgatm6.
+- Reviewer: send CHANGES REQUESTED to the coder who sent the REPORT.
+- Coder: you keep all non-visual tasks.
+Re-read `.bb/AGENTS.md` and your role file. No reply needed.
+
+── Explored 1 file ─────────────────────────────────────────
+  ── Thought for 5ms
+    I'm going back to re-read AGENTS.md and my role file, since the Team lead asked for that and doesn't need a reply.
+  ── Read .claude/agents/reviewer.md
+  ── Thought for 2s
+    Сейчас мне нужно коротко сообщить пользователю по-русски, что ответ не требуется и задача завершена.
+
+── Assistant ───────────────────────────────────────────────
+Я перечитал обновлённый протокол и свою роль. Тимлиду не отвечаю: ответ не нужен.
+
+- **Новый агент: UI-кодер** (тред thr_pgcwc2dwnn). Он делает визуальные задачи: шаблоны, CSS, статические файлы.
+- **Куда я теперь отправляю ответы.** `CHANGES REQUESTED` отправляю тому кодеру, который прислал REPORT. Это может быть обычный кодер или UI-кодер. `APPROVE` и `ESCALATION` по-прежнему идут Тимлиду.
+- **Что я проверяю в UI-задачах дополнительно.** Таблицу визуальной самопроверки и скриншоты на 360 и 1024 px. Если страница вызывает сомнения, открываю её сам.
+
+Жду следующий REPORT.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_pgcwc2dwnn]
+
+[TASK-012] UI coder -> Reviewer: REPORT
+Spec: docs/tasks/TASK-012.md (design refs docs/design/home-mockup.html, .jpg).
+
+## What was done
+- F1 `notifications/feed.py`: `HomeSummary.student`, `home_summary(user, now=None)`.
+- F2 `schedule/services.py`: `today_schedule(group_id, now)`. F3 `TodayView` uses it (unused imports removed). F4 `HomeView` adds `day`/`annotation` with one `now`.
+- F5 `templates/base.html`: favicon link, new header exactly as in F5 (brand + cap, wide nav, `.site-header-actions` with the `<details>` menu and the student "Уведомления" button with bell and count chip). D11: the "Уведомления" `<li>` removed from `site_nav_items.html`.
+- D9 icons: `templates/includes/icon_cap.html`, `icon_bell.html` (rects copied from the mockup, no xmlns), `static/img/favicon.svg` (viewBox `0 -1 12 12`, fill `#ff9f2e`).
+- F6 `core/templates/core/home.html` and F7 `schedule/templates/schedule/includes/lesson_compact.html`: copied verbatim from the spec.
+- Feed anchors `id="deadlines"` / `id="feed"` (nothing else changed in feed.html).
+- F8 `templates/403.html`, `404.html` (extend base), `500.html` (standalone, only `{% load static %}`/`{% static %}`/include of the cap).
+- CSS: `tokens.css` (all D3 tokens + extra `--color-own-bg`, `--color-map-corridor-fill`, `--font-size-h1-wide`, `--line-height-pixel`); `base.css` layout (header, `.visually-hidden`, `.btn`, cards, card rows with ellipsis, home action grids, form/list/chat spacing, 44 px targets); `theme.css` look (@font-face, sky gradient, CSS stars, double pixel frames, panel/primary buttons, CSS "≡" icon, chip, headings, forms, chat, map). All test-checked base.css rules kept.
+- README: "## Design" after "## Chat".
+
+## Changed files
+Python: notifications/feed.py, schedule/services.py, schedule/views.py, core/views.py.
+Templates: templates/base.html, templates/includes/site_nav_items.html, core/templates/core/home.html, notifications/templates/notifications/feed.html, schedule/templates/schedule/staff_group_list.html (see below); new: templates/403.html, 404.html, 500.html, templates/includes/icon_cap.html, icon_bell.html, schedule/templates/schedule/includes/lesson_compact.html.
+Static: static/css/tokens.css, base.css, theme.css; new static/img/favicon.svg. Fonts and chat.js unchanged.
+Docs: README.md.
+Tests: new core/tests/test_design.py, test_home.py, test_errors.py; updated core/tests/test_nav.py, chat/tests/test_views.py, notifications/tests/test_views.py, notifications/tests/test_feed.py, schedule/tests/test_services.py (each changed assertion has a `# TASK-012:` comment).
+
+Allowed "other page" template change (class only, no text/link/order change):
+- schedule/templates/schedule/staff_group_list.html: `<ul>` → `<ul class="group-list">` (to give the group links a 44 px tap target).
+
+Unexpected changes: none (`git status` matches the list above; docs/tasks/TASK-012.md is the Planner's untracked spec).
+
+## Tests not in the spec list that changed
+None. Changed existing tests: test_nav (student menu list, badge tests renamed/replaced per spec), chat NavTests.test_badge_includes_chat_reply, notifications HomeSummaryTests.test_student_summary / test_news_heading / test_staff_no_summary, NavTests.test_student_nav_with_count — all as listed in the Test plan.
+Note: `test_design.py::BaseTemplateLogoTests::test_base_links_favicon` is a separate `TestCase` class (LogoTests is a SimpleTestCase and cannot use the DB).
+
+## How to verify
+Run (2026-11-18, Moscow time):
+- `python manage.py check`: no issues. `check --deploy --fail-level WARNING` (CI env): no issues (1 silenced). `makemigrations --check --dry-run`: No changes detected. ci.yml YAML: ok. Log: /tmp/claude-501/verify-checks.log
+- `python manage.py test --parallel 1`: **Ran 1051 tests, OK** (~13:37–13:40 MSK), log /tmp/claude-501/test-full-20261118-133739.log
+- `python scripts/run_tests_at.py 2026-11-18T00:00:00`: **Ran 1051 tests, OK** (~13:40–13:43 MSK), log /tmp/claude-501/test-midnight-20261118-134005.log
+- Earlier partial runs: `test schedule notifications core` after F1–F4: 406 OK (~13:15 MSK); `test core notifications chat schedule`: 584 OK twice (13:34 and 13:36 MSK). No failing run at any point.
+- `ruff check` / `ruff format --check` on the 12 Python files of this task: passed (one test file was reformatted by `ruff format`).
+- Baseline 1002 → 1051 tests (+49 new).
+
+## Visual self-check (server on temp DB, port 8770, headless Chrome; student1 / staff1 / anonymous)
+No horizontal scroll (scrollWidth == viewport) — automated check over 46 page/viewport/role combinations: student 14 pages and staff 9 pages at 360x780 and 1024x768; plus home/header at 320x780 for student and staff; login (anonymous) 360/1024; 403/404 (student, staff) and 500 at 360/1024 rendered to files.
+
+| Page | Role | 320 | 360 | 1024 | Result |
+|---|---|---|---|---|---|
+| Home (cards, buttons, long 150-char deadline) | student | ok | ok | ok | rows one line, ellipsis, labels never cut; buttons equal |
+| Header + open menu | student | ok (wraps allowed, fits on one row at 360) | ok | ok | menu drops down over content, notif button stays in place |
+| Home (3 buttons) / header | staff | ok | ok | ok | |
+| Login | anonymous | – | ok | ok | no menu, no notif button |
+| Profile | student, staff | – | ok | ok | |
+| Schedule today / week | student | – | ok | ok | today's day framed in heading colour + "(сегодня)" |
+| Staff schedule groups / group week | staff | – | ok | ok | |
+| Grades with open `<details>` | student | – | ok | ok | |
+| Requests list / catalog / form with `.errorlist` + file input / detail / submitted | student | – | ok | ok | |
+| Staff queue (filter form) / detail (actions, reject textarea, comment form, error message) | staff | – | ok | ok | |
+| Notifications feed `#deadlines`, `#feed` | student | – | ok | ok | anchors land on the sections |
+| Staff announcements (form, list, unpublish, success message) | staff | – | ok | ok | |
+| Chat student / staff list / staff dialog | student, staff | – | ok | ok | own = tinted + solid light frame + left margin; other = dashed frame |
+| Map, floor 2, room highlight | student | – | ok | ok | current room: 6 px yellow stroke + fill + bold yellow label |
+| Staff students list / detail | staff | – | ok | ok | |
+| 403 / 404 | student, staff | – | ok | ok | |
+| 500 (standalone file) | – | – | ok | ok | |
+
+Focus: keyboard Tab shows the 3 px yellow outline on the menu toggle, card-row links, file input button. Tap targets: script check found no interactive element below 44 px except the skip link (hidden until focused) and links inside running text (exempt).
+Stars: only in the 4–10 px side margins and, below 48rem, in the header to the right of the title; never over text/controls at 320/360/1024.
+
+Screenshots (headless session tmp dir, removed when the session closes): copied to /tmp/claude-501/ui/shots/ (58 JPEGs, e.g. home 360/320/1024, open menu, staff home, form with errorlist, chat, map room, 403/404/500).
+
+## Open visual decisions (mine)
+- Open menu is a dropdown panel (absolute, z-index above main) under the header actions, so opening it never moves the notifications button (D10).
+- Card-title links ("Дедлайны →", "Новости →"): heading colour, no underline (arrow marks them), underline on hover. Card-row titles: text colour, no underline (list-row pattern), link colour + underline on hover, yellow outline on focus.
+- Lists and blocks themed as framed panels without wrappers: `.form`, `.fields`, `.petition`, `.feed-item`, `.discipline`, `.day`, `.chat-message`, `.chat-dialogs li`, `.message`, and the today `.lesson-list`.
+- `.lesson-badge` and `.tag` are uppercase (text unchanged in HTML).
+- `color-scheme: dark` on `html` so the native date picker icon and select arrow are visible on dark fields.
+- Notifications button `aria-current="page"` gets a heading-colour frame; `.message--error` gets a warn-text frame; `.day--today` a heading-colour frame (decorative, text also says "сегодня").
+- `.lesson-meta .room` is `white-space: nowrap` so "ауд. 212" never splits.
+- No transitions/animations, so no reduced-motion block is needed.
+
+## New text/background pairs (WCAG 2.x)
+- Map current label `#ffd25e` on highlight fill over panel (≈ `#584152`): ≈ 6.5:1.
+- Map landmark/service labels `#b8a6e8` on room fill (panel `#29184f`): 7.12:1.
+- Skip link `#ffc46b` on `#170d33`: ≈ 11:1.
+- Current nav item `#f3ecff` on sky: ≥ 9.24:1.
+All other pairs are from the spec's Contrast table.
+
+## What remains
+- Map redesign is TASK-013 (out of scope).
+- The file input button label ("Choose Files") comes from the browser locale.
+
+── Ran 3 commands, explored 2 files, 1 list ────────────────
+  ── Thought for 6ms
+    I'm starting the review by reading the spec.
+  ── Ran git status --short && wc -l docs/tasks/TASK-012.md && git diff --stat
+    $ git status --short && wc -l docs/tasks/TASK-012.md && git diff --stat
+    M README.md
+     M chat/tests/test_views.py
+     M core/templates/core/home.html
+     M core/tests/test_nav.py
+     M core/views.py
+     M notifications/feed.py
+     M notifications/templates/notifications/feed.html
+     M notifications/tests/test_feed.py
+     M notifications/tests/test_views.py
+     M schedule/services.py
+     M schedule/templates/schedule/staff_group_list.html
+     M schedule/tests/test_services.py
+     M schedule/views.py
+     M static/css/base.css
+     M static/css/theme.css
+     M static/css/tokens.css
+     M templates/base.html
+     M templates/includes/site_nav_items.html
+    ?? core/tests/test_design.py
+    ?? core/tests/test_errors.py
+    ?? core/tests/test_home.py
+    ?? docs/tasks/TASK-012.md
+    ?? schedule/templates/schedule/includes/lesson_compact.html
+    ?? static/img/
+    ?? templates/403.html
+    ?? templates/404.html
+    ?? templates/500.html
+    ?? templates/includes/icon_bell.html
+    ?? templates/includes/icon_cap.html
+         520 docs/tasks/TASK-012.md
+     README.md                                         |   9 +
+     chat/tests/test_views.py                          |   5 +-
+     core/templates/core/home.html                     |  51 +-
+     core/tests/test_nav.py                            |  49 +-
+     core/views.py                                     |  10 +-
+     notifications/feed.py                             |   9 +-
+     notifications/templates/notifications/feed.html   |   4 +-
+     notifications/tests/test_feed.py                  |  21 +
+     notifications/tests/test_views.py                 |  27 +-
+     schedule/services.py                              |   9 +-
+     schedule/templates/schedule/staff_group_list.html |   2 +-
+     schedule/tests/test_services.py                   |  28 +-
+     schedule/views.py                                 |   7 +-
+     static/css/base.css                               | 457 +++++++++++++++-
+     static/css/theme.css                              | 601 +++++++++++++++++++++-
+     static/css/tokens.css                             |  56 +-
+     templates/base.html                               |  21 +-
+     templates/includes/site_nav_items.html            |   1 -
+     18 files changed, 1290 insertions(+), 77 deletions(-)
+  ── Read ~/hackatonproject/docs/tasks/TASK-012.md
+  ── Thought for 6ms
+    I'm kicking off the tests in the background right away so they run while I go through the diffs.
+  ── Ran source .venv/bin/activate && TS=$(date +%Y%m%d-%H%M%S) && echo $TS && (python manage.py test --parallel 1 > "$TMPDIR/test-$TS.log" 2>&1; python scripts/run_tests_at.py 2026-11-18T00:00:00 > "$TMPDIR/test-midnight-$TS.log" 2>&1; echo done > "$TMPDIR/done-$TS") & sleep 1; echo started (2s)
+    $ source .venv/bin/activate && TS=$(date +%Y%m%d-%H%M%S) && echo $TS && (python manage.py test --parallel 1 > "$TMPDIR/test-$TS.log" 2>&1; python scripts/run_tests_at.py 2026-11-18T00:00:00 > "$TMPDIR/test-midnight-$TS.log" 2>&1; echo done > "$TMPDIR/done-$TS") &
+  sleep 1; echo started
+    Command running in background with ID: bychd6hth. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bychd6hth.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran git diff -- notifications/feed.py schedule/services.py schedule/views.py core/views.py templates/ core/templates notifications/templates schedule/templates README.md && for f in templates/403.html templates/404.html templates/500.html templates/includes/icon_cap.html templates/includes/icon_bell.html schedule/templates/schedule/includes/lesson_compact.html static/img/favicon.svg; do echo "=== $f"; cat $f; done (2s)
+    $ git diff -- notifications/feed.py schedule/services.py schedule/views.py core/views.py templates/ core/templates notifications/templates schedule/templates README.md && for f in templates/403.html templates/404.html templates/500.html templates/includes/icon_cap.html templates/includes/icon_bell.html schedule/templates/schedule/includes/lesson_compact.html static/img/favicon.svg; do echo "=== $f"; cat $f; done
+    diff --git a/README.md b/README.md
+    index 88173b9..548ddf4 100644
+    --- a/README.md
+    +++ b/README.md
+    @@ -178,6 +178,15 @@ guards against double submit. New staff replies appear in «Уведомлени
+     markers are message ids on the dialog (student marker, shared staff marker);
+     both only move forward.
+     
+    +## Design
+    +
+    +The interface uses the "night pixel" theme: a dark violet night sky with pixel stars, panels with a double pixel frame, orange primary buttons and a yellow focus outline.
+    +
+    +- Palette (all colours are custom properties in `static/css/tokens.css`): sky `#120a2a` → `#4b2a86`, panel `rgba(36, 22, 78, 0.88)`, frame `#5a3fa3`, text `#f3ecff`, muted `#b8a6e8`, headings `#ffd25e`, links `#ffc46b`, accent orange `#ff9f2e`, coral `#ff6f7d` (backgrounds) / `#ff8a95` (text), focus `#ffd25e`. Every text/background pair meets WCAG AA.
+    +- CSS layers: `tokens.css` (colours, fonts, sizes), `base.css` (layout), `theme.css` (the look). No JavaScript is used for the theme.
+    +- Font: "Press Start 2P" (file `static/fonts/PressStart2P-Regular.ttf`) for the site title, page and card headings, buttons and tags only; body text uses the system font. Licence: SIL Open Font License, Version 1.1, Reserved Font Name "Press Start 2P", full text in `static/fonts/OFL.txt`. The font file is used unmodified and is served from this site (no external font services).
+    +- The logo and the favicon are our own pixel drawing (an academic cap, `templates/includes/icon_cap.html` and `static/img/favicon.svg`).
+    +
+     ## Login protection
+     
+     Failed login attempts are throttled per (username, client IP) and stored in
+    diff --git a/core/templates/core/home.html b/core/templates/core/home.html
+    index 9022714..9adcfc4 100644
+    --- a/core/templates/core/home.html
+    +++ b/core/templates/core/home.html
+    @@ -1,21 +1,38 @@
+     {% extends "base.html" %}
+     {% block content %}
+    +{% if summary %}
+    +  <h1>Сегодня</h1>
+    +  <p class="page-sub">{{ day.date|date:"l, j E" }} · {{ summary.student.group.name }}</p>
+    +  <section class="card" aria-labelledby="home-lessons">
+    +    <h2 class="card-title" id="home-lessons">Занятия</h2>
+    +    {% if day.items %}<ol class="lesson-list lesson-list--compact">{% for row in annotation.rows %}{% include "schedule/includes/lesson_compact.html" with item=row.item row=row %}{% endfor %}</ol>
+    +    {% else %}<p class="card-empty">Сегодня занятий нет.</p>{% endif %}
+    +  </section>
+    +  <section class="card" aria-labelledby="home-deadlines">
+    +    <h2 class="card-title" id="home-deadlines"><a class="card-title-link" href="{% url 'notifications:feed' %}#deadlines">Дедлайны<span aria-hidden="true"> →</span></a></h2>
+    +    {% if summary.deadlines %}<ul class="card-rows">{% for d in summary.deadlines %}
+    +      <li class="card-row"><a class="card-row-title" href="{% url 'notifications:feed' %}#deadline-{{ d.public_id }}" title="{{ d.title }}">{{ d.title }}</a><time class="card-row-label card-row-label--deadline" datetime="{{ d.deadline|date:'Y-m-d' }}">{{ d.label }}</time></li>
+    +    {% endfor %}</ul>{% else %}<p class="card-empty">Ближайших дедлайнов нет.</p>{% endif %}
+    +  </section>
+    +  <section class="card" aria-labelledby="home-news">
+    +    <h2 class="card-title" id="home-news"><a class="card-title-link" href="{% url 'notifications:feed' %}#feed">Новости<span aria-hidden="true"> →</span></a></h2>
+    +    {% if summary.news %}<ul class="card-rows">{% for item in summary.news %}
+    +      <li class="card-row"><a class="card-row-title" href="{% url 'notifications:feed' %}#{{ item.key }}" title="{{ item.title }}">{{ item.title }}</a><time class="card-row-label" datetime="{{ item.timestamp|date:'c' }}">{{ item.timestamp|date:"d.m" }}</time></li>
+    +    {% endfor %}</ul>{% else %}<p class="card-empty">Новостей пока нет.</p>{% endif %}
+    +  </section>
+    +  <div class="home-actions home-actions--two">
+    +    <a class="btn" href="{% url 'petitions:my_list' %}">Документы</a>
+    +    <a class="btn" href="{% url 'chat:student' %}">Чат</a>
+    +  </div>
+    +{% elif user.is_deanery_staff %}
+    +  <h1>Деканат</h1>
+    +  <div class="home-actions home-actions--three">
+    +    <a class="btn" href="{% url 'petitions:staff_queue' %}">Заявки</a>
+    +    <a class="btn" href="{% url 'chat:staff_list' %}">Чаты</a>
+    +    <a class="btn" href="{% url 'notifications:staff_announcements' %}">Объявления</a>
+    +  </div>
+    +{% else %}
+       <h1>Цифровой деканат будущего</h1>
+    -  {% if summary %}
+    -    <section aria-labelledby="home-deadlines">
+    -      <h2 id="home-deadlines">Ближайшие дедлайны</h2>
+    -      {% if summary.deadlines %}<ul class="deadline-list">{% for d in summary.deadlines %}
+    -        <li><a href="{% url 'notifications:feed' %}#deadline-{{ d.public_id }}">{{ d.title }}</a> — до {{ d.deadline|date:"d.m" }}, {{ d.label }}</li>
+    -      {% endfor %}</ul>{% else %}<p>Ближайших дедлайнов нет.</p>{% endif %}
+    -    </section>
+    -    <section aria-labelledby="home-news">
+    -      <h2 id="home-news">Новости</h2>
+    -      {% if summary.news %}<ul class="deadline-list">{% for item in summary.news %}
+    -        <li><a href="{% url 'notifications:feed' %}#{{ item.key }}">{{ item.title }}</a> <span class="feed-meta">{{ item.timestamp|date:"d.m" }}</span></li>
+    -      {% endfor %}</ul>{% else %}<p>Новостей пока нет.</p>{% endif %}
+    -    </section>
+    -    <p class="page-actions"><a href="{% url 'notifications:feed' %}">Все уведомления</a></p>
+    -  {% else %}
+    -    <p>Прототип личного кабинета студента. Раздел в разработке.</p>
+    -  {% endif %}
+    +  <p>Прототип личного кабинета студента. Раздел в разработке.</p>
+    +{% endif %}
+     {% endblock %}
+    diff --git a/core/views.py b/core/views.py
+    index ed39521..dfee481 100644
+    --- a/core/views.py
+    +++ b/core/views.py
+    @@ -1,10 +1,12 @@
+     from django.contrib.auth.decorators import login_not_required
+     from django.http import HttpRequest, JsonResponse
+    +from django.utils import timezone
+     from django.views.decorators.cache import never_cache
+     from django.views.decorators.http import require_GET
+     from django.views.generic import TemplateView
+     
+     from notifications.feed import home_summary
+    +from schedule.services import today_schedule
+     
+     
+     class HomeView(TemplateView):
+    @@ -12,7 +14,13 @@ class HomeView(TemplateView):
+     
+         def get_context_data(self, **kwargs):
+             context = super().get_context_data(**kwargs)
+    -        context["summary"] = home_summary(self.request.user)
+    +        now = timezone.now()
+    +        summary = home_summary(self.request.user, now)
+    +        context["summary"] = summary
+    +        if summary is not None:
+    +            day, annotation = today_schedule(summary.student.group_id, now)
+    +            context["day"] = day
+    +            context["annotation"] = annotation
+             return context
+     
+     
+    diff --git a/notifications/feed.py b/notifications/feed.py
+    index b1c7cfd..b0cf3a8 100644
+    --- a/notifications/feed.py
+    +++ b/notifications/feed.py
+    @@ -102,16 +102,19 @@ def upcoming_deadlines(ctx: FeedContext, limit: int) -> list[DeadlineItem]:
+     
+     @dataclass(frozen=True)
+     class HomeSummary:
+    +    student: StudentProfile
+         deadlines: list[DeadlineItem]
+         news: list[FeedItem]
+     
+     
+    -def home_summary(user: AbstractBaseUser | AnonymousUser) -> HomeSummary | None:
+    -    ctx = student_context(user)
+    +def home_summary(
+    +    user: AbstractBaseUser | AnonymousUser, now: datetime | None = None
+    +) -> HomeSummary | None:
+    +    ctx = student_context(user, now)
+         if ctx is None:
+             return None
+         deadlines = upcoming_deadlines(ctx, HOME_ITEMS)
+         shown = {f"news-{d.public_id}" for d in deadlines}
+         candidates = NewsSource().latest(ctx, HOME_ITEMS + len(shown))
+         news = [item for item in candidates if item.key not in shown][:HOME_ITEMS]
+    -    return HomeSummary(deadlines=deadlines, news=news)
+    +    return HomeSummary(student=ctx.student, deadlines=deadlines, news=news)
+    diff --git a/notifications/templates/notifications/feed.html b/notifications/templates/notifications/feed.html
+    index e918d23..b74c3b0 100644
+    --- a/notifications/templates/notifications/feed.html
+    +++ b/notifications/templates/notifications/feed.html
+    @@ -2,11 +2,11 @@
+     {% block title %}Уведомления{% endblock %}
+     {% block content %}
+     <h1>Уведомления</h1>
+    -<section aria-labelledby="deadlines-title">
+    +<section id="deadlines" aria-labelledby="deadlines-title">
+       <h2 id="deadlines-title">Ближайшие дедлайны</h2>
+       {% include "notifications/_deadlines.html" %}
+     </section>
+    -<section aria-labelledby="feed-title">
+    +<section id="feed" aria-labelledby="feed-title">
+       <h2 id="feed-title">Лента</h2>
+       {% if items %}
+       <ul class="feed">
+    diff --git a/schedule/services.py b/schedule/services.py
+    index ae1c20c..73c90bd 100644
+    --- a/schedule/services.py
+    +++ b/schedule/services.py
+    @@ -2,10 +2,11 @@
+     
+     from collections.abc import Collection
+     from dataclasses import dataclass
+    -from datetime import date, time, timedelta
+    +from datetime import date, datetime, time, timedelta
+     from enum import StrEnum
+     
+     from django.db.models import Q, QuerySet
+    +from django.utils import timezone
+     
+     from university.models import Room, Teacher
+     
+    @@ -264,3 +265,9 @@ def annotate_today(items: list[ScheduleItem], now: time) -> TodayAnnotation:
+             next_item=next_item,
+             day_finished=day_finished,
+         )
+    +
+    +
+    +def today_schedule(group_id: int, now: datetime) -> tuple[DaySchedule, TodayAnnotation]:
+    +    local = timezone.localtime(now)
+    +    day = day_schedule(local.date(), [group_id], today=local.date())
+    +    return day, annotate_today(day.items, local.time())
+    diff --git a/schedule/templates/schedule/staff_group_list.html b/schedule/templates/schedule/staff_group_list.html
+    index 801f899..32a0185 100644
+    --- a/schedule/templates/schedule/staff_group_list.html
+    +++ b/schedule/templates/schedule/staff_group_list.html
+    @@ -1,7 +1,7 @@
+     {% extends "base.html" %}
+     {% block content %}
+       <h1>Расписание групп</h1>
+    -  <ul>
+    +  <ul class="group-list">
+         {% for group in groups %}
+           <li>
+             <a href="{% url 'schedule:staff_group_week' group.pk %}">{{ group.name }}</a>
+    diff --git a/schedule/views.py b/schedule/views.py
+    index a4e4644..0a2980f 100644
+    --- a/schedule/views.py
+    +++ b/schedule/views.py
+    @@ -11,8 +11,7 @@ from accounts.access import StaffRequiredMixin, StudentRequiredMixin
+     from accounts.selectors import groups_visible_to
+     from schedule.services import (
+         WeekSchedule,
+    -    annotate_today,
+    -    day_schedule,
+    +    today_schedule,
+         week_schedule,
+         week_start,
+     )
+    @@ -24,9 +23,7 @@ class TodayView(StudentRequiredMixin, TemplateView):
+     
+         def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+             context = super().get_context_data(**kwargs)
+    -        now = timezone.localtime()
+    -        day = day_schedule(now.date(), [self.profile.group_id], today=now.date())
+    -        annotation = annotate_today(day.items, now.time())
+    +        day, annotation = today_schedule(self.profile.group_id, timezone.now())
+             context["day"] = day
+             context["annotation"] = annotation
+             context["group"] = self.profile.group
+    diff --git a/templates/base.html b/templates/base.html
+    index 4a9f278..f8f0968 100644
+    --- a/templates/base.html
+    +++ b/templates/base.html
+    @@ -4,6 +4,7 @@
+       <meta charset="utf-8">
+       <meta name="viewport" content="width=device-width, initial-scale=1">
+       <title>{% block title %}Цифровой деканат будущего{% endblock %}</title>
+    +  <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
+       <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+       <link rel="stylesheet" href="{% static 'css/base.css' %}">
+       <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+    @@ -12,20 +13,22 @@
+     <body>
+       <a class="skip-link" href="#main">Перейти к содержимому</a>
+       <header class="site-header">
+    -    <a class="site-title" href="{% url 'core:home' %}">Цифровой деканат будущего</a>
+    +    <a class="site-brand" href="{% url 'core:home' %}">{% include "includes/icon_cap.html" %}<span class="site-title"><span class="site-title-line">Цифровой</span> <span class="site-title-line">деканат</span></span></a>
+         {% if user.is_student %}{% notifications_badge as badge %}{% chat_unread_badge as chat_badge %}{% endif %}
+         <nav class="site-nav site-nav--wide" aria-label="Основная навигация">
+           {% block nav %}{% if user.is_authenticated %}{% include "includes/site_nav_items.html" %}{% endif %}{% endblock %}
+         </nav>
+         {% if user.is_authenticated %}
+    -    <div class="site-nav-compact">
+    -      <details class="site-menu">
+    -        <summary class="site-menu-toggle">Меню</summary>
+    -        <nav class="site-nav" aria-label="Основная навигация">
+    -          {% include "includes/site_nav_items.html" %}
+    -        </nav>
+    -      </details>
+    -      {% if badge %}<a class="site-menu-badge" href="{% url 'notifications:feed' %}">Уведомления ({{ badge }})</a>{% endif %}
+    +    <div class="site-header-actions">
+    +      <div class="site-nav-compact">
+    +        <details class="site-menu">
+    +          <summary class="site-menu-toggle">Меню</summary>
+    +          <nav class="site-nav" aria-label="Основная навигация">
+    +            {% include "includes/site_nav_items.html" %}
+    +          </nav>
+    +        </details>
+    +      </div>
+    +      {% if user.is_student %}{% url 'notifications:feed' as notif_url %}<a class="btn site-notif" href="{{ notif_url }}"{% if request.path == notif_url %} aria-current="page"{% endif %}>{% include "includes/icon_bell.html" %}Уведомления{% if badge %}<span class="site-notif-count"><span class="visually-hidden">, непрочитанных: </span>{{ badge }}</span>{% endif %}</a>{% endif %}
+         </div>
+         {% endif %}
+       </header>
+    diff --git a/templates/includes/site_nav_items.html b/templates/includes/site_nav_items.html
+    index 458e43b..90fc640 100644
+    --- a/templates/includes/site_nav_items.html
+    +++ b/templates/includes/site_nav_items.html
+    @@ -6,7 +6,6 @@
+       {% url 'academics:my_grades' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Успеваемость</a></li>
+       {% url 'petitions:my_list' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Заявки</a></li>
+       {% url 'chat:student' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Чат{% if chat_badge %} ({{ chat_badge }}){% endif %}</a></li>
+    -  {% url 'notifications:feed' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Уведомления{% if badge %} ({{ badge }}){% endif %}</a></li>
+       {% elif user.is_deanery_staff %}
+       {% url 'schedule:staff_groups' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Расписание</a></li>
+       {% url 'campusmap:map' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Карта</a></li>
+    === templates/403.html
+    {% extends "base.html" %}
+    {% block title %}Доступ запрещён{% endblock %}
+    {% block content %}
+      <h1>Доступ запрещён</h1>
+      <p>У вас нет доступа к этой странице.</p>
+      <p><a class="btn" href="{% url 'core:home' %}">На главную</a></p>
+    {% endblock %}
+    === templates/404.html
+    {% extends "base.html" %}
+    {% block title %}Страница не найдена{% endblock %}
+    {% block content %}
+      <h1>Страница не найдена</h1>
+      <p>Проверьте адрес или вернитесь на главную.</p>
+      <p><a class="btn" href="{% url 'core:home' %}">На главную</a></p>
+    {% endblock %}
+    === templates/500.html
+    {% load static %}<!doctype html>
+    <html lang="ru">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Ошибка сервера</title>
+      <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
+      <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+      <link rel="stylesheet" href="{% static 'css/base.css' %}">
+      <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+    </head>
+    <body>
+      <header class="site-header">
+        <a class="site-brand" href="/">{% include "includes/icon_cap.html" %}<span class="site-title"><span class="site-title-line">Цифровой</span> <span class="site-title-line">деканат</span></span></a>
+      </header>
+      <main class="site-main"><h1>Ошибка сервера</h1><p>Что-то пошло не так. Попробуйте обновить страницу позже.</p><p><a class="btn" href="/">На главную</a></p></main>
+      <footer class="site-footer">
+        <p class="site-disclaimer">Концепт для конкурса MGIMO AI Challenge. Не является официальным сервисом вуза. Все данные вымышлены.</p>
+      </footer>
+    </body>
+    </html>
+    === templates/includes/icon_cap.html
+    <svg class="icon-cap" viewBox="0 0 12 10" width="36" height="30" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><g fill="currentColor"><rect x="5" y="0" width="2" height="1"/><rect x="3" y="1" width="6" height="1"/><rect x="1" y="2" width="10" height="1"/><rect x="0" y="3" width="12" height="1"/><rect x="1" y="4" width="10" height="1"/><rect x="3" y="5" width="6" height="1"/><rect x="3" y="6" width="6" height="2"/><rect x="10" y="4" width="1" height="4"/><rect x="9" y="8" width="3" height="1"/></g></svg>
+    === templates/includes/icon_bell.html
+    <svg class="icon-bell" viewBox="0 0 8 9" width="14" height="16" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><g fill="currentColor"><rect x="3" y="0" width="2" height="1"/><rect x="2" y="1" width="4" height="1"/><rect x="1" y="2" width="6" height="4"/><rect x="0" y="6" width="8" height="1"/><rect x="3" y="8" width="2" height="1"/></g></svg>
+    === schedule/templates/schedule/includes/lesson_compact.html
+    <li class="lesson lesson--{{ item.kind }}{% if row.is_in_progress %} lesson--now{% endif %}">
+      <p class="lesson-time"><time>{{ item.slot.start|time:"H:i" }}</time>–<time>{{ item.slot.end|time:"H:i" }}</time> · {{ item.slot.number }} пара{% if row.is_in_progress %} <span class="tag">идёт</span>{% endif %}</p>
+      <p class="lesson-title">{{ item.lesson.discipline.name }}</p>
+      <p class="lesson-meta">{{ item.lesson.get_lesson_type_display }} · {{ item.teacher.short_name }} · {% if item.is_happening %}<a class="room" href="{% url 'campusmap:room' item.room.code %}">ауд. {{ item.room.number }}</a>{% else %}<span class="room">ауд. {{ item.room.number }}</span>{% endif %}{% if item.is_changed %} <span class="lesson-change">{% if item.kind == "cancelled" %}отменено{% elif item.kind == "moved-out" %}перенесено на {{ item.moved_to_date|date:"j E" }}{% elif item.kind == "moved-in" %}перенесено с {{ item.moved_from_date|date:"j E" }}{% elif item.kind == "room-changed" %}аудитория изменена{% elif item.kind == "teacher-replaced" %}замена преподавателя{% endif %}</span>{% endif %}</p>
+    </li>
+    === static/img/favicon.svg
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -1 12 12" width="32" height="32" shape-rendering="crispEdges"><g fill="#ff9f2e"><rect x="5" y="0" width="2" height="1"/><rect x="3" y="1" width="6" height="1"/><rect x="1" y="2" width="10" height="1"/><rect x="0" y="3" width="12" height="1"/><rect x="1" y="4" width="10" height="1"/><rect x="3" y="5" width="6" height="1"/><rect x="3" y="6" width="6" height="2"/><rect x="10" y="4" width="1" height="4"/><rect x="9" y="8" width="3" height="1"/></g></svg>
+  ── Thought
+    The background wrapper quit right away because the inner subshell was started with &, so the tests are probably still running detached. Next I'll confirm the Python and templates match the spec, then check the cap rects against the mockup at docs/design/home-mockup.html, plus the tests and CSS.
+  ── Listed files in $TMPDIR
+  ── Thought for 4ms
+    I'm noting that the TypeScript echo got lost, and the test log is named test-20261118-024306.log. The timestamp looks like 02:43 in local machine time, which I think is US Pacific, so Moscow would be about 13:43. That's fine as is. Next I'm turning to the CSS files, which are large, so I'll read them in full for the UI review, starting with tokens.css.
+  ── Read static/css/tokens.css
+
+── Assistant ───────────────────────────────────────────────
+Проверяю TASK-012 от UI-кодера. Python и шаблоны совпадают со спецификацией. Сейчас смотрю CSS, тесты идут в фоне.
+
+── Explored 3 files, 1 list, ran 2 commands ────────────────
+  ── Read static/css/theme.css
+  ── Thought for 11s
+    I'm checking the body's min-height and the absolutely positioned stars, wondering whether the body padding or base.css rules push them past the edge. The stars reaching up to 1600px on short pages could extend the document height, which would be vertical overflow rather than horizontal.
+
+    I'm working through the remaining checks: the header notification panel, the muted lesson text on the current-lesson tint, and the map legend swatch, which I want to verify against the map template. I also need to confirm the absolute-positioned nav and that the error message colour holds up on its panel, and then look at outline clipping on the card row titles.
+
+    I'm checking whether the header's star field at 320px wide runs into the brand text, since the stars start around x=121 and the brand reaches about 134px. I also want to confirm box-sizing on the form inputs and that the map highlight variable and max-width rules are set correctly in the stylesheets.
+
+    I'm wondering whether the header's star field at 320px reaches the brand title, since the stars start near x=121 and the title runs to about 134px. Before deciding, I want to check base.css for the header padding and then see whether a headless browser render is available to confirm it.
+  ── Read static/css/base.css
+  ── Thought for 2ms
+    The legend shows landmark and service with the same muted stroke, which looks wrong since the spec puts "landmark vs service frames" out of scope for this task. I need to check whether they differed before TASK-012, so I'll look at the old theme.css in git history.
+  ── Ran git show HEAD:static/css/theme.css | grep -n -A6 'map-' | head -80; sed -n 280,340p static/css/base.css
+    $ git show HEAD:static/css/theme.css | grep -n -A6 'map-' | head -80; sed -n 280,340p static/css/base.css
+    font-size: 20px;
+      fill: var(--color-text);
+    }
+
+    .map-landmark-label {
+      font-size: 15px;
+      fill: var(--color-muted);
+    }
+
+    .map-service-label {
+      font-size: 15px;
+      fill: var(--color-muted);
+    }
+
+    /* Highlighted room: one class, restyle in the UI stage. */
+    .map-current .map-room-label {
+      fill: var(--color-map-highlight);
+    }
+
+    a.map-current {
+      color: var(--color-map-highlight);
+    }
+
+    .floor-switcher ul,
+    .map-legend,
+    .map-room-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .floor-switcher ul {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: var(--space-2);
+    }
+
+    .floor-switcher a {
+      display: inline-block;
+      min-width: 2.75rem;
+      min-height: 2.75rem;
+      line-height: 2.75rem;
+      text-align: center;
+    }
+
+    .floor-current {
+      font-weight: bold;
+    }
+
+    .map-legend-swatch {
+      width: 1.5rem;
+      height: 1rem;
+      vertical-align: middle;
+    }
+
+    .site-nav--wide {
+      display: none;
+    }
+
+    .site-nav-compact {
+      display: flex;
+  ── Ran git show HEAD:static/css/theme.css | head -60; git show HEAD:static/css/base.css | sed -n 230,280p
+    $ git show HEAD:static/css/theme.css | head -60; git show HEAD:static/css/base.css | sed -n 230,280p
+    /* Visual theme layer. The pixel-art skin replaces this file and tokens.css. */
+      overflow-wrap: anywhere;
+    }
+
+    .feed-item h3 {
+      margin: var(--space-1) 0;
+      font-size: var(--font-size-base);
+    }
+
+    .feed-meta {
+      margin: 0;
+      font-size: 0.875rem;
+    }
+
+    .map-svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      margin: var(--space-2) 0;
+    }
+
+    .map-outline,
+    .map-room rect,
+    .map-room polygon,
+    .map-landmark rect,
+    .map-landmark polygon,
+    .map-service rect,
+    .map-service polygon,
+    .map-corridor {
+      fill: none;
+      stroke: var(--color-text);
+      stroke-width: 2;
+    }
+
+    .map-corridor {
+      stroke: var(--color-border);
+    }
+
+    .map-landmark rect,
+    .map-landmark polygon {
+      stroke: var(--color-muted);
+      stroke-dasharray: 6 4;
+    }
+
+    .map-service rect,
+    .map-service polygon {
+      stroke: var(--color-muted);
+      stroke-dasharray: 2 3;
+    }
+
+    .map-room-label {
+      font-size: 20px;
+  ── Thought for 2ms
+    The dasharrays are in base.css and still apply, since theme.css doesn't override them. The landmark and service styles are still distinct, which is good. Next I'll wait for the tests and check their status.
+  ── Listed files in .
+  ── Thought for 3ms
+    I notice the TMPDIR path matches /tmp/claude-501, which means the UI coder's logs are in the same place. The tests are already running, so while they finish I'll go through the new test files.
+  ── Read core/tests/test_home.py
+  ── Thought for 2s
+    I'm checking the spec items in test_home. The lessons test deletes lesson A and creates two new lessons, which I think is an equivalent setup to the spec's count. For the deadlines test, the spec says "same lessons," and that holds, though the base setup has a news item I still need to look at.
+
+    I'm going through the rest of the test_home checks: the chat message is fine, the exact-queries test matches the spec's lesson, deadline, news and chat setup, and the news row markup check is fine too. The empty-cards edge case in HomeStudentTests also looks fine. Next I'll move on to test_design.py and the test_nav diff.
+
+── Assistant ───────────────────────────────────────────────
+Читаю новые тесты. Полный прогон ещё идёт.
+
+── Explored 6 files, 2 lists, ran 6 commands, ran 1 tool ───
+  ── Read core/tests/test_design.py
+  ── Thought for 1s
+    I'm checking that the frozen clock in the feed test lines up with the spec date of 2026-11-11, and that the summary test is using that same value. Then I confirmed the wide nav's notifications link doesn't carry the current marker, since only one aria-current should be present on the feed. Next I'm planning a few visual checks myself, starting with the header star at 320 pixels.
+
+    I'm going to check whether headless Chrome is available, since the UI coder may have used it through a browser-automation tool. If it was, their screenshots in the shots folder should let me look at the home page at 320 and 360 pixels and the open menu.
+  ── Listed files in /tmp/claude-501/ui/shots/
+  ── Thought for 4ms
+    I'm going through the unnamed screenshots, starting with the first few, which are probably from the home screen, and I'll open images 2, 3, and 4 to check them.
+  ── Read /tmp/claude-501/ui/shots/shot-1794997529783-2.jpg
+  ── Read /tmp/claude-501/ui/shots/shot-1794997529877-3.jpg
+  ── Read /tmp/claude-501/ui/shots/shot-1794997530018-4.jpg
+  ── Thought for 6s
+    I'm checking the layout at 360 px against the spec, which says the menu and notifications buttons should sit together on the second line at the same height. The report claims everything fits on one row at that width, yet the 360 px screenshot appears to show the two buttons on separate lines, so I'm questioning whether the screenshot really is 360 wide.
+
+    I'm wondering whether the 360 px screenshot is stale, since the shot numbers and timestamps suggest it was taken early, so I want to check the later shots (54–58) and render the page myself. I'm also noticing the "Дедлайны→" arrow seems to have lost its leading space, even though a space inside the inline span should render, so I'll look into whether the screenshot is just old.
+
+    The 360 px screenshot shows the room label splitting at 320 px, which is the kind of wrapping that the nowrap fix should have prevented, so this capture is probably from before that fix. I'll check the later shots (54–58) to see whether the layout is current.
+  ── Read /tmp/claude-501/ui/shots/shot-1794998262469-54.jpg
+  ── Read /tmp/claude-501/ui/shots/shot-1794998262619-55.jpg
+  ── Thought for 2ms
+    I'm going through the screenshots, but many are unlabelled and may be stale, so I'll render the key pages myself. I'm checking whether headless Chrome is available and whether the UI server from earlier, on port 8770 with its temp DB, is still running.
+  ── Listed files in /Applications/Google Chrome.app/Contents/MacOS/
+  ── Thought for 532ms
+    I'm going to do my own visual check at the key widths: the home page at 320 and 360 for the header and the stars over the title, the menu open state, and the 1024 header. I'll set up a temporary database and a separate server on port 8771. Getting a session cookie into headless Chrome is awkward through the CLI screenshot flag, so I'm leaning toward browser automation driven by the role file instead. I'll start the server first and wait for the tests to
+
+    I'll wait for the tests to finish so the load doesn't interfere, then start the server on a separate temp database.
+  ── Thought
+    Тесты ещё идут; параллельно поднимаю свой сервер на временной базе, чтобы проверить шапку и главную на 320, 360 и 1024.
+  ── Ran source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/rev-ui.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/rev-ui-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && python manage.py migrate -v0 && python manage.py seed_demo 2>&1 | tail -2 && python manage.py shell -c " from django.contrib.sessions.backends.db import SessionStore from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY U=get_user_model() for n in ('student1','staff1'):     u=U.objects.get(username=n); s=SessionStore()     s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create()     print(n, s.session_key) " > $TMPDIR/rev-sessions.txt && cat $TMPDIR/rev-sessions.txt | sed 's/ .*/ <key saved>/' (4s)
+    $ source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/rev-ui.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/rev-ui-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && python manage.py migrate -v0 && python manage.py seed_demo 2>&1 | tail -2 && python manage.py shell -c "
+  from django.contrib.sessions.backends.db import SessionStore
+  from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY
+  U=get_user_model()
+  for n in ('student1','staff1'):
+      u=U.objects.get(username=n); s=SessionStore()
+      s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create()
+      print(n, s.session_key)
+  " > $TMPDIR/rev-sessions.txt && cat $TMPDIR/rev-sessions.txt | sed 's/ .*/ <key saved>/'
+    Notifications ready: 9 announcements.
+    Chat ready: 3 dialogs, 8 messages.
+    31 <key saved>
+
+    student1 <key saved>
+    staff1 <key saved>
+  ── Ran source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/rev-ui.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/rev-ui-private" && python manage.py runserver 127.0.0.1:8771 --noreload > $TMPDIR/rev-ui-server.log 2>&1 (1s)
+    $ source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/rev-ui.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/rev-ui-private" && python manage.py runserver 127.0.0.1:8771 --noreload > $TMPDIR/rev-ui-server.log 2>&1
+    Command running in background with ID: bvo0vhb5o. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bvo0vhb5o.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran bb guide browser-automation 2>/dev/null | head -60 || bb browser-automation --help (1s)
+    $ bb guide browser-automation 2>/dev/null | head -60 || bb browser-automation --help
+    exit code 0
+  ── Ran bb browser-automation --help 2>&1 | head -40; bb browser-automation run --help 2>&1 | head -40 (1s)
+    $ bb browser-automation --help 2>&1 | head -40; bb browser-automation run --help 2>&1 | head -40
+    bb browser-automation — Persistent DevBrowser desktop and headless sessions
+
+    Sessions belong to the thread that opened them. run, pages, and screenshot renew expiry to 30 minutes after use, capped at 8 hours from creation.
+    Desktop sessions also expire at their non-renewable control lease/connection deadline (at most 30 minutes).
+    list and live preview do not renew expiry. A stopped or expired session cannot be resumed; open a new one.
+
+    Usage:
+      bb browser-automation <command> [options]
+
+    Commands:
+      bb browser-automation open        Open a desktop or local headless session; --tab takes over an existing tab
+      bb browser-automation list        List this thread's browser sessions
+      bb browser-automation run         Run a trusted DevBrowser script; runs serialize per session
+      bb browser-automation pages       Inspect persistent named pages
+      bb browser-automation screenshot  Save a bounded JPEG in session tmp; return its path and host ID
+      bb browser-automation preview     Describe the live preview frame of a local headless session, without image bytes
+      bb browser-automation stop        Cancel queued and running work and release control; open a new session to resume
+      bb browser-automation close       Dispose owned browsers and tabs, preserving handed-off tabs
+
+    Run `bb browser-automation <command> --help` for a command's arguments and options.
+    bb browser-automation run — Run a trusted DevBrowser script; runs serialize per session
+
+    Usage:
+      bb browser-automation run <session-id> [--script <code>] [--script-file <path>] [--script-host <host-id>] [--timeout-ms <1000-120000>] [--timeout <duration>] [--thread <id>] [--json]
+
+    Scripts may return at most 4 screenshots per run, JPEG only, 500 KB combined;
+    anything larger or in another format fails the run.
+
+    Arguments:
+      <session-id>  Session id returned by `bb browser-automation open` (required)
+
+    Options:
+      --script <code>             DevBrowser script source
+      --script-file <path>        File holding the script, read from --script-host
+      --script-host <host-id>     Host that holds --script-file
+      --timeout-ms <1000-120000>  Run timeout in milliseconds (default: 30000)
+      --timeout <duration>        Run timeout as a duration (90s, 2m, 1500ms); a bare number is seconds (1-120) or milliseconds (1000-120000)
+      --thread <id>               Thread that owns the session; defaults to the invoking thread and cannot name another
+      --json                      Emit machine-readable JSON
+      --help, -h                  Show this help and exit
+
+    Rules:
+      Exactly one of:  --script, --script-file
+      --script-file    requires --script-host
+      --script-host    requires --script-file
+      At most one of:  --timeout, --timeout-ms
+  ── Thought for 2ms
+    I need to pull up the DevBrowser script API, so I'm reading the skill file to see what it covers.
+  ── Loaded skill bb-global-skills:browser-automation
+    Launching skill: bb-global-skills:browser-automation
+  ── Ran bb browser-automation open --backend local --headless --json 2>&1 | tail -20 (2s)
+    $ bb browser-automation open --backend local --headless --json 2>&1 | tail -20
+    {
+      "ok": false,
+      "error": {
+        "code": "missing_required",
+        "message": "missing required options: --machine",
+        "hint": "bb browser-automation open --backend <desktop|local> --machine <name-or-id> [--desktop <instance-id>] [--tab <tab-id>] [--headless] [--thread <id>] [--json]"
+      }
+    }
+    missing required options: --machine
+
+    Usage:
+      bb browser-automation open --backend <desktop|local> --machine <name-or-id> [--desktop <instance-id>] [--tab <tab-id>] [--headless] [--thread <id>] [--json]
+  ── Ran bb status 2>&1 | head -20; bb host list --json 2>/dev/null | head -30 (1s)
+    $ bb status 2>&1 | head -20; bb host list --json 2>/dev/null | head -30
+    Project: hackatonproject (proj_bvdv8zxqrp)
+
+    Thread: thr_cpuae9aqw3
+      Status: active
+      Title: Ревьюер
+      Pinned: 11/10/2026, 3:51:52 PM
+      Environment: Project checkout (env_pvj4ihy7st)
+
+    Data dir: ~/.bb
+    [
+      {
+        "id": "host_cuvmpv75p3",
+        "name": "MacBook Air — Andrey",
+        "type": "persistent",
+        "status": "connected",
+        "machineProviderId": null,
+        "lifecycle": {
+          "phase": "active",
+          "suspendedAt": null,
+          "message": null,
+          "pendingLog": "",
+          "teardown": null
+        },
+        "maxPermissionMode": "full",
+        "lastSeenAt": 1794998675938,
+        "lastRejectedProtocolVersion": null,
+        "createdAt": 1794310653863,
+        "updatedAt": 1794998675938
+      },
+      {
+        "id": "host_j9sh7k6286",
+        "name": "Pushka",
+        "type": "persistent",
+        "status": "disconnected",
+        "machineProviderId": "manual",
+        "lifecycle": {
+          "phase": "active",
+          "suspendedAt": null,
+          "message": null,
+
+── Assistant ───────────────────────────────────────────────
+Открываю headless-браузер на этом Mac, чтобы проверить шапку и главную.
+
+── Ran bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -20 (2s)
+  $ bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -20
+  {"id":"1af37078-5eee-41eb-b5c6-abf00a85551e","threadId":"thr_cpuae9aqw3","hostId":"host_cuvmpv75p3","backend":"local","state":"ready","createdAt":1794998679074,"expiresAt":1795000479074,"previewDirective":"::browser-preview{session=\"1af37078-5eee-41eb-b5c6-abf00a85551e\"}"}
+
+── Assistant ───────────────────────────────────────────────
+::browser-preview{session="1af37078-5eee-41eb-b5c6-abf00a85551e"}
+
+── Ran 5 commands, explored 8 files, ran 1 tool ────────────
+  ── Ran STU=$(awk '/^student1/{print $2}' $TMPDIR/rev-sessions.txt) && cat > $TMPDIR/rev-s1.js <<EOF const p = await browser.getPage("main"); await p.setCookie({name:"sessionid", value:"$STU", domain:"127.0.0.1", path:"/"}); const out = {}; for (const w of [320, 360, 1024]) {   await p.setViewport({width:w, height: w===1024?768:780});   await p.goto("http://127.0.0.1:8771/");   out[w] = await p.evaluate(() => {     const r = s => { const e=document.querySelector(s); if(!e) return null; const b=e.getBoundingClientRect(); return [Math.round(b.left),Math.round(b.top),Math.round(b.width),Math.round(b.height)]; };     return {sw: document.documentElement.scrollWidth, title: r('.site-title'), toggle: r('.site-menu-toggle'), notif: r('.site-notif'),       arrowW: (()=>{const s=document.querySelector('.card-title-link span'); return s? s.getBoundingClientRect().width:null})()};   }); } return out; EOF bb browser-automation run 1af37078-5eee-41eb-b5c6-abf00a85551e --script "$(cat $TMPDIR/rev-s1.js)" --json --timeout 60s 2>&1 | grep -v sessionid | head -30 (1s)
+    $ STU=$(awk '/^student1/{print $2}' $TMPDIR/rev-sessions.txt) && cat > $TMPDIR/rev-s1.js <<EOF
+  const p = await browser.getPage("main");
+  await p.setCookie({name:"sessionid", value:"$STU", domain:"127.0.0.1", path:"/"});
+  const out = {};
+  for (const w of [320, 360, 1024]) {
+    await p.setViewport({width:w, height: w===1024?768:780});
+    await p.goto("http://127.0.0.1:8771/");
+    out[w] = await p.evaluate(() => {
+      const r = s => { const e=document.querySelector(s); if(!e) return null; const b=e.getBoundingClientRect(); return [Math.round(b.left),Math.round(b.top),Math.round(b.width),Math.round(b.height)]; };
+      return {sw: document.documentElement.scrollWidth, title: r('.site-title'), toggle: r('.site-menu-toggle'), notif: r('.site-notif'),
+        arrowW: (()=>{const s=document.querySelector('.card-title-link span'); return s? s.getBoundingClientRect().width:null})()};
+    });
+  }
+  return out;
+  EOF
+  bb browser-automation run 1af37078-5eee-41eb-b5c6-abf00a85551e --script "$(cat $TMPDIR/rev-s1.js)" --json --timeout 60s 2>&1 | grep -v sessionid | head -30
+    {"text":"{\n  \"320\": {\n    \"sw\": 320,\n    \"title\": [\n      62,\n      22,\n      53,\n      33\n    ],\n    \"toggle\": [\n      16,\n      82,\n      87,\n      44\n    ],\n    \"notif\": [\n      153,\n      82,\n      151,\n      44\n    ],\n    \"arrowW\": 14.453125\n  },\n  \"360\": {\n    \"sw\": 360,\n    \"title\": [\n      62,\n      22,\n      88,\n      33\n    ],\n    \"toggle\": [\n      16,\n      82,\n      104,\n      44\n    ],\n    \"notif\": [\n      137,\n      82,\n      207,\n      44\n    ],\n    \"arrowW\": 24\n  },\n  \"1024\": {\n    \"sw\": 1024,\n    \"title\": [\n      70,\n      60,\n      176,\n      17\n    ],\n    \"toggle\": [\n      0,\n      0,\n      0,\n      0\n    ],\n    \"notif\": [\n      793,\n      46,\n      207,\n      44\n    ],\n    \"arrowW\": 24\n  }\n}","images":[],"exitCode":0,"hostId":"host_cuvmpv75p3"}
+  ── Thought for 4ms
+    At 360px both buttons sit on one row, which is what I wanted. At 320px they also fit on one row, though the title measurement looks off, likely because the fallback font is still showing before the web font loads. Next I'm capturing screenshots of the home view at 360 and 320 and the menu open at 360, plus the home view at 1024.
+  ── Ran cat > $TMPDIR/rev-s2.js <<'EOF' const p = await browser.getPage("main"); const shots = []; for (const w of [320, 360]) {   await p.setViewport({width:w, height:780});   await p.goto("http://127.0.0.1:8771/");   await p.evaluate(() => document.fonts.ready);   shots.push(await p.shot({type:"jpeg",maxEdge:780,quality:60})); } await p.evaluate(() => document.querySelector('details.site-menu').open = true); shots.push(await p.shot({type:"jpeg",maxEdge:780,quality:60})); await p.setViewport({width:1024, height:768}); await p.goto("http://127.0.0.1:8771/"); await p.evaluate(() => document.fonts.ready); shots.push(await p.shot({type:"jpeg",maxEdge:960,quality:60})); undefined EOF bb browser-automation run 1af37078-5eee-41eb-b5c6-abf00a85551e --script "$(cat $TMPDIR/rev-s2.js)" --json --timeout 90s 2>&1 | python3 -c "import json,sys; d=json.load(sys.stdin); print([i['path'] for i in d.get('images',[])], d.get('text','')[:300])" (3s)
+    $ cat > $TMPDIR/rev-s2.js <<'EOF'
+  const p = await browser.getPage("main");
+  const shots = [];
+  for (const w of [320, 360]) {
+    await p.setViewport({width:w, height:780});
+    await p.goto("http://127.0.0.1:8771/");
+    await p.evaluate(() => document.fonts.ready);
+    shots.push(await p.shot({type:"jpeg",maxEdge:780,quality:60}));
+  }
+  await p.evaluate(() => document.querySelector('details.site-menu').open = true);
+  shots.push(await p.shot({type:"jpeg",maxEdge:780,quality:60}));
+  await p.setViewport({width:1024, height:768});
+  await p.goto("http://127.0.0.1:8771/");
+  await p.evaluate(() => document.fonts.ready);
+  shots.push(await p.shot({type:"jpeg",maxEdge:960,quality:60}));
+  undefined
+  EOF
+  bb browser-automation run 1af37078-5eee-41eb-b5c6-abf00a85551e --script "$(cat $TMPDIR/rev-s2.js)" --json --timeout 90s 2>&1 | python3 -c "import json,sys; d=json.load(sys.stdin); print([i['path'] for i in d.get('images',[])], d.get('text','')[:300])"
+    ['/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-sgCjMB/db-WrDiLl/tmp/shot-1794998695047-1.jpg', '/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-sgCjMB/db-WrDiLl/tmp/shot-1794998695161-2.jpg', '/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-sgCjMB/db-WrDiLl/tmp/shot-1794998695208-3.jpg', '/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-sgCjMB/db-WrDiLl/tmp/shot-1794998695311-4.jpg']
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-sgCjMB/db-WrDiLl/tmp/shot-1794998695047-1.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-sgCjMB/db-WrDiLl/tmp/shot-1794998695161-2.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-sgCjMB/db-WrDiLl/tmp/shot-1794998695208-3.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-sgCjMB/db-WrDiLl/tmp/shot-1794998695311-4.jpg
+  ── Thought for 2s
+    I'm checking the layout at 320, 360, and 1024 pixels: the buttons wrap at the narrow width, which is fine, and the open menu at 360 covers some content but leaves the notification button in place. I'm also checking whether the star near the title at 320 overlaps anything, and it looks like it sits to the right of the title and not over it.
+
+    I'll check a staff form page and the chat at 360 too, but the coder already covered those. Instead I'll run a few student pages at 360 (chat, the map room, the request form) and the staff announcements page, plus the 404 page, since the staff queue needs a staff cookie.
+  ── Ran source .venv/bin/activate && DATABASE_URL="sqlite:///$TMPDIR/rev-ui.sqlite3" python manage.py shell -c " from petitions.models import * import petitions.models as m print([n for n in dir(m) if n[0].isupper()][:20]) from university.models import Room; print(Room.objects.filter(number='212').values_list('code',flat=True)[:1]) " 2>&1 | tail -3; grep -n "path(" petitions/urls.py | head
+    $ source .venv/bin/activate && DATABASE_URL="sqlite:///$TMPDIR/rev-ui.sqlite3" python manage.py shell -c "
+  from petitions.models import *
+  import petitions.models as m
+  print([n for n in dir(m) if n[0].isupper()][:20])
+  from university.models import Room; print(Room.objects.filter(number='212').values_list('code',flat=True)[:1])
+  " 2>&1 | tail -3; grep -n "path(" petitions/urls.py | head
+    ['MAX_COMMENT_LENGTH', 'MaxValueValidator', 'MinValueValidator', 'Petition', 'PetitionAttachment', 'PetitionComment', 'PetitionStatus', 'PetitionStatusChange', 'RequestKind', 'RequestType', 'STATUS_VALUES', 'ValidationError']
+    <QuerySet ['room-212']>
+    7:    path("requests/", views.MyPetitionsView.as_view(), name="my_list"),
+    8:    path("requests/new/", views.CatalogView.as_view(), name="catalog"),
+    9:    path("requests/new/<int:type_id>/", views.SubmitPetitionView.as_view(), name="submit"),
+    10:    path("requests/<uuid:public_id>/", views.StudentPetitionDetailView.as_view(), name="detail"),
+    11:    path("requests/<uuid:public_id>/submitted/", views.SubmittedView.as_view(), name="submitted"),
+    12:    path(
+    17:    path("staff/requests/", views.StaffQueueView.as_view(), name="staff_queue"),
+    18:    path(
+    23:    path(
+    28:    path(
+  ── Ran STF=$(awk '/^staff1/{print $2}' $TMPDIR/rev-sessions.txt) && cat > $TMPDIR/rev-s3.js <<EOF const p = await browser.getPage("main"); await p.setViewport({width:360, height:780}); const shots = []; const sw = {}; await p.goto("http://127.0.0.1:8771/chat/"); await p.evaluate(() => document.fonts.ready); await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); sw.chat = await p.evaluate(()=>document.documentElement.scrollWidth); shots.push(await p.shot({type:"jpeg",maxEdge:780,quality:55})); await p.goto("http://127.0.0.1:8771/map/room/room-212/"); sw.map = await p.evaluate(()=>document.documentElement.scrollWidth); await p.evaluate(() => document.querySelector('.map-current')?.scrollIntoView({block:'center'})); shots.push(await p.shot({type:"jpeg",maxEdge:780,quality:55})); await p.goto("http://127.0.0.1:8771/requests/new/"); const link = await p.evaluate(() => [...document.querySelectorAll('main a')].map(a=>a.href).find(h=>/new\/\d+\/$/.test(h))); await p.goto(link); await p.evaluate(()=>document.querySelector('main form button[type=submit], main form button').click()).catch(()=>{}); await new Promise(r=>setTimeout(r,1500)); sw.form = await p.evaluate(()=>document.documentElement.scrollWidth); shots.push(await p.shot({type:"jpeg",maxEdge:780,quality:55})); await p.setCookie({name:"sessionid", value:"$STF", domain:"127.0.0.1", path:"/"}); await p.goto("http://127.0.0.1:8771/staff/announcements/"); sw.ann = await p.evaluate(()=>document.documentElement.scrollWidth); shots.push(await p.shot({type:"jpeg",maxEdge:780,quality:55})); return sw; EOF bb browser-automation run 1af37078-5eee-41eb-b5c6-abf00a85551e --script "$(cat $TMPDIR/rev-s3.js)" --json --timeout 90s 2>&1 | python3 -c "import json,sys; d=json.load(sys.stdin); print([i['path'] for i in d.get('images',[])], d.get('text','')[:300], d.get('error'))" (3s)
+    $ STF=$(awk '/^staff1/{print $2}' $TMPDIR/rev-sessions.txt) && cat > $TMPDIR/rev-s3.js <<EOF
+  const p = await browser.getPage("main");
+  await p.setViewport({width:360, height:780});
+  const shots = []; const sw = {};
+  await p.goto("http://127.0.0.1:8771/chat/"); await p.evaluate(() => document.fonts.ready);
+  await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); sw.chat = await p.evaluate(()=>document.documentElement.scrollWidth);
+  shots.push(await p.shot({type:"jpeg",maxEdge:780,quality:55}));
+  await p.goto("http://127.0.0.1:8771/map/room/room-212/"); sw.map = await p.evaluate(()=>document.documentElement.scrollWidth);
+  await p.evaluate(() => document.querySelector('.map-current')?.scrollIntoView({block:'center'}));
+  shots.push(await p.shot({type:"jpeg",maxEdge:780,quality:55}));
+  await p.goto("http://127.0.0.1:8771/requests/new/");
+  const link = await p.evaluate(() => [...document.querySelectorAll('main a')].map(a=>a.href).find(h=>/new\/\d+\/$/.test(h)));
+  await p.goto(link); await p.evaluate(()=>document.querySelector('main form button[type=submit], main form button').click()).catch(()=>{});
+  await new Promise(r=>setTimeout(r,1500)); sw.form = await p.evaluate(()=>document.documentElement.scrollWidth);
+  shots.push(await p.shot({type:"jpeg",maxEdge:780,quality:55}));
+  await p.setCookie({name:"sessionid", value:"$STF", domain:"127.0.0.1", path:"/"});
+  await p.goto("http://127.0.0.1:8771/staff/announcements/"); sw.ann = await p.evaluate(()=>document.documentElement.scrollWidth);
+  shots.push(await p.shot({type:"jpeg",maxEdge:780,quality:55}));
+  return sw;
+  EOF
+  bb browser-automation run 1af37078-5eee-41eb-b5c6-abf00a85551e --script "$(cat $TMPDIR/rev-s3.js)" --json --timeout 90s 2>&1 | python3 -c "import json,sys; d=json.load(sys.stdin); print([i['path'] for i in d.get('images',[])], d.get('text','')[:300], d.get('error'))"
+    ['/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-sgCjMB/db-WrDiLl/tmp/shot-1794998717227-5.jpg', '/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-sgCjMB/db-WrDiLl/tmp/shot-1794998717296-6.jpg', '/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-sgCjMB/db-WrDiLl/tmp/shot-1794998718917-7.jpg', '/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-sgCjMB/db-WrDiLl/tmp/shot-1794998719165-8.jpg'] {
+      "chat": 360,
+      "map": 360,
+      "form": 360,
+      "ann": 360
+    } None
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-sgCjMB/db-WrDiLl/tmp/shot-1794998717227-5.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-sgCjMB/db-WrDiLl/tmp/shot-1794998717296-6.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-sgCjMB/db-WrDiLl/tmp/shot-1794998718917-7.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-sgCjMB/db-WrDiLl/tmp/shot-1794998719165-8.jpg
+  ── Thought for 552ms
+    Everything checks out: the "Все аудитории" heading is the h2 at the pixel size I expected. The map stars sit near the left edge, a little before the rooms begin, so they should be fine. Next I'll close the browser, stop the server, and run the tests.
+  ── Thought
+    Шапка, меню, главная, чат, карта и формы выглядят нормально; закрываю браузер и сервер и смотрю итоги тестов.
+  ── Ran bb browser-automation close 1af37078-5eee-41eb-b5c6-abf00a85551e --json >/dev/null 2>&1; pkill -f "runserver 127.0.0.1:8771"; ls $TMPDIR/ | grep -E 'test-.*20261118-0243|done-'; tail -4 $TMPDIR/test-20261118-024306.log; ls $TMPDIR/test-midnight-20261118-02* 2>/dev/null (2s, error)
+    $ bb browser-automation close 1af37078-5eee-41eb-b5c6-abf00a85551e --json >/dev/null 2>&1; pkill -f "runserver 127.0.0.1:8771"; ls $TMPDIR/ | grep -E 'test-.*20261118-0243|done-'; tail -4 $TMPDIR/test-20261118-024306.log; ls $TMPDIR/test-midnight-20261118-02* 2>/dev/null
+    Exit code 1
+    sysmon request failed with error: sysmond service not found
+    pkill: Cannot get process list
+    test-20261118-024306.log
+    django.core.exceptions.PermissionDenied
+    .2026-11-18 13:45:01,957 WARNING django.request Not Found: /requests/4d813cf9-2834-456f-aaaf-5508c9c4615f/submitted/
+    .2026-11-18 13:45:01,963 WARNING django.security.csrf Forbidden (CSRF cookie not set.): /requests/new/1/
+    ...............................................................................(eval):1: no matches found: /tmp/claude-501/test-midnight-20261118-02*
+    exit 1
+  ── Thought for 3ms
+    The sandbox blocked pkill, but the server is a background task I started, so it's tracked and I can stop it with TaskStop. I'll load TaskStop.
+  ── Stopped task
+    {"message":"Successfully stopped task: bvo0vhb5o (source .venv/bin/activate && export DATABASE_URL=\"sqlite:///$TMPDIR/rev-ui.sqlite3\" PRIVATE_MEDIA_ROOT=\"$TMPDIR/rev-ui-private\" && python manage.py runserver 127.0.0.1:8771 --noreload > $TMPDIR/rev-ui-server.log 2>&1)","task_id":"bvo0vhb5o","task_type":"local_bash","command":"source .venv/bin/activate && export DATABASE_URL=\"sqlite:///$TMPDIR/rev-ui.sqlite3\" PRIVATE_MEDIA_ROOT=\"$TMPDIR/rev-ui-private\" && python manage.py runserver 127.0.0.1:8771 --noreload > $TMPDIR/rev-ui-server.log 2>&1"}
+
+── Assistant ───────────────────────────────────────────────
+Meanwhile, run the static checks and a mutation check.
+
+── Ran 7 commands, explored 1 search ───────────────────────
+  ── Ran source .venv/bin/activate && TS=$(date +%Y%m%d-%H%M%S); { python manage.py check; DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop python manage.py check --deploy --fail-level WARNING; python manage.py makemigrations --check --dry-run; ruff check .; ruff format --check .; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; git diff --stat -- static/fonts static/js; } > $TMPDIR/rev-checks-$TS.log 2>&1; cat $TMPDIR/rev-checks-$TS.log | tail -15 (2s)
+    $ source .venv/bin/activate && TS=$(date +%Y%m%d-%H%M%S); { python manage.py check; DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop python manage.py check --deploy --fail-level WARNING; python manage.py makemigrations --check --dry-run; ruff check .; ruff format --check .; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; git diff --stat -- static/fonts static/js; } > $TMPDIR/rev-checks-$TS.log 2>&1; cat $TMPDIR/rev-checks-$TS.log | tail -15
+    System check identified no issues (0 silenced).
+    System check identified no issues (1 silenced).
+    No changes detected
+    All checks passed!
+    189 files already formatted
+    yaml ok
+  ── Ran until grep -qE '^(OK|FAILED)' $TMPDIR/test-20261118-024306.log; do sleep 5; done; grep -E '^Ran|^OK|^FAILED|^(ERROR|FAIL):' $TMPDIR/test-20261118-024306.log
+    $ until grep -qE '^(OK|FAILED)' $TMPDIR/test-20261118-024306.log; do sleep 5; done; grep -E '^Ran|^OK|^FAILED|^(ERROR|FAIL):' $TMPDIR/test-20261118-024306.log
+    Ran 1051 tests in 152.103s
+    OK
+  ── Thought for 2s
+    I'm going to run the midnight job in the subshell next. I'll also check a few key tests by applying mutations in a temporary copy of the repo, since I shouldn't edit the real code. For example, removing `aria-current` from the notification button should make the feed-current test fail.
+
+    I'm also planning a few more mutation checks in the temporary copy, such as changing the home view's time computation, adding an extra query in the lesson compact view, and breaking the 500 page's base template inheritance, to see which targeted tests catch each one. I'll keep it to two or three quick checks and run only the relevant tests.
+  ── Thought for 5ms
+    Полный прогон прошёл: 1051 тестов OK. Сейчас проверяю тесты мутациями на копии проекта, рабочее дерево не трогаю, а потом жду ночной прогон.
+  ── Ran M=$TMPDIR/rev-mut && rm -rf "$M" && mkdir -p "$M" && rsync -a --exclude .venv --exclude .git --exclude db.sqlite3 --exclude '.env' --exclude staticfiles ./ "$M/" && cd "$M" && source ~/hackatonproject/.venv/bin/activate && run(){ python manage.py test "$@" --parallel 1 2>&1 | grep -E '^(Ran|OK|FAILED)' | tr '\n' ' '; echo; } cp templates/base.html /tmp/x 2>/dev/null; cp templates/base.html base.bak # M1: drop aria-current on notif button sed -i '' 's/{% if request.path == notif_url %} aria-current="page"{% endif %}//' templates/base.html; echo -n "M1 "; run core.tests.test_nav; cp base.bak templates/base.html # M2: per-lesson query in compact include cp schedule/templates/schedule/includes/lesson_compact.html lc.bak; echo '{{ item.lesson.groups.all|length }}' >> schedule/templates/schedule/includes/lesson_compact.html; echo -n "M2 "; run core.tests.test_home.HomeQueryTests; cp lc.bak schedule/templates/schedule/includes/lesson_compact.html # M3: today_schedule uses UTC date cp schedule/services.py sv.bak; sed -i '' 's/    local = timezone.localtime(now)/    local = now/' schedule/services.py; echo -n "M3 "; run schedule.tests.test_services.TodayScheduleTests; cp sv.bak schedule/services.py # M4: HomeView ignores now for home_summary cp core/views.py v.bak; sed -i '' 's/home_summary(self.request.user, now)/home_summary(self.request.user)/' core/views.py; echo -n "M4 "; run core.tests.test_home; cp v.bak core/views.py # M5: card-row-label wraps cp static/css/base.css b.bak; python3 - <<'EOF' import re;p='static/css/base.css';s=open(p).read();s=s.replace(".card-row-label {\n  flex: none;\n  white-space: nowrap;",".card-row-label {\n  flex: none;");open(p,'w').write(s) EOF echo -n "M5 "; run core.tests.test_design; cp b.bak static/css/base.css (4s)
+    $ M=$TMPDIR/rev-mut && rm -rf "$M" && mkdir -p "$M" && rsync -a --exclude .venv --exclude .git --exclude db.sqlite3 --exclude '.env' --exclude staticfiles ./ "$M/" && cd "$M" && source ~/hackatonproject/.venv/bin/activate && run(){ python manage.py test "$@" --parallel 1 2>&1 | grep -E '^(Ran|OK|FAILED)' | tr '\n' ' '; echo; }
+  cp templates/base.html /tmp/x 2>/dev/null; cp templates/base.html base.bak
+  # M1: drop aria-current on notif button
+  sed -i '' 's/{% if request.path == notif_url %} aria-current="page"{% endif %}//' templates/base.html; echo -n "M1 "; run core.tests.test_nav; cp base.bak templates/base.html
+  # M2: per-lesson query in compact include
+  cp schedule/templates/schedule/includes/lesson_compact.html lc.bak; echo '{{ item.lesson.groups.all|length }}' >> schedule/templates/schedule/includes/lesson_compact.html; echo -n "M2 "; run core.tests.test_home.HomeQueryTests; cp lc.bak schedule/templates/schedule/includes/lesson_compact.html
+  # M3: today_schedule uses UTC date
+  cp schedule/services.py sv.bak; sed -i '' 's/    local = timezone.localtime(now)/    local = now/' schedule/services.py; echo -n "M3 "; run schedule.tests.test_services.TodayScheduleTests; cp sv.bak schedule/services.py
+  # M4: HomeView ignores now for home_summary
+  cp core/views.py v.bak; sed -i '' 's/home_summary(self.request.user, now)/home_summary(self.request.user)/' core/views.py; echo -n "M4 "; run core.tests.test_home; cp v.bak core/views.py
+  # M5: card-row-label wraps
+  cp static/css/base.css b.bak; python3 - <<'EOF'
+  import re;p='static/css/base.css';s=open(p).read();s=s.replace(".card-row-label {\n  flex: none;\n  white-space: nowrap;",".card-row-label {\n  flex: none;");open(p,'w').write(s)
+  EOF
+  echo -n "M5 "; run core.tests.test_design; cp b.bak static/css/base.css
+    M1 
+    M2 
+    M3 
+    M4 
+    M5
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 3ms
+    The grep came back empty, so I'm checking whether the copy step failed, maybe because there's no .env file and the settings won't load. I'll look at the output to confirm.
+  ── Ran cd $TMPDIR/rev-mut && source ~/hackatonproject/.venv/bin/activate && python manage.py test core.tests.test_errors --parallel 1 2>&1 | tail -5
+    $ cd $TMPDIR/rev-mut && source ~/hackatonproject/.venv/bin/activate && python manage.py test core.tests.test_errors --parallel 1 2>&1 | tail -5
+    SECRET_KEY = resolve_secret_key(env.str("SECRET_KEY", default=""), DEBUG)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/private/tmp/claude-501/rev-mut/config/env_utils.py", line 21, in resolve_secret_key
+        raise ImproperlyConfigured("SECRET_KEY environment variable is required when DEBUG is false.")
+    django.core.exceptions.ImproperlyConfigured: SECRET_KEY environment variable is required when DEBUG is false.
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 3ms
+    I'm skipping the .env file since none was copied. To get the test settings working, I'll set DEBUG=true and a dummy SECRET_KEY as environment variables, even though the tests run with DEBUG=False anyway.
+  ── Ran cd $TMPDIR/rev-mut && source ~/hackatonproject/.venv/bin/activate && export DEBUG=true SECRET_KEY=mut-dummy-key-0123456789abcdefghijklmnopqrstuvwxyz && run(){ python manage.py test "$@" --parallel 1 2>&1 | grep -E '^(Ran|OK|FAILED|FAIL:|ERROR:)' | tr '\n' ' '; echo; } echo -n "M0 "; run core.tests.test_errors sed -i '' 's/{% if request.path == notif_url %} aria-current="page"{% endif %}//' templates/base.html; echo -n "M1 "; run core.tests.test_nav; cp base.bak templates/base.html echo '{{ item.lesson.groups.all|length }}' >> schedule/templates/schedule/includes/lesson_compact.html; echo -n "M2 "; run core.tests.test_home.HomeQueryTests; cp lc.bak schedule/templates/schedule/includes/lesson_compact.html sed -i '' 's/    local = timezone.localtime(now)/    local = now/' schedule/services.py; echo -n "M3 "; run schedule.tests.test_services.TodayScheduleTests; cp sv.bak schedule/services.py sed -i '' 's/home_summary(self.request.user, now)/home_summary(self.request.user)/' core/views.py; echo -n "M4 "; run core.tests.test_home; cp v.bak core/views.py python3 -c " p='static/css/base.css';s=open(p).read();s=s.replace('.card-row-label {\n  flex: none;\n  white-space: nowrap;','.card-row-label {\n  flex: none;');open(p,'w').write(s)"; echo -n "M5 "; run core.tests.test_design; cp b.bak static/css/base.css sed -i '' '1s/^/{% extends "base.html" %}/' templates/500.html; echo -n "M6 "; run core.tests.test_errors (11s)
+    $ cd $TMPDIR/rev-mut && source ~/hackatonproject/.venv/bin/activate && export DEBUG=true SECRET_KEY=mut-dummy-key-0123456789abcdefghijklmnopqrstuvwxyz && run(){ python manage.py test "$@" --parallel 1 2>&1 | grep -E '^(Ran|OK|FAILED|FAIL:|ERROR:)' | tr '\n' ' '; echo; }
+  echo -n "M0 "; run core.tests.test_errors
+  sed -i '' 's/{% if request.path == notif_url %} aria-current="page"{% endif %}//' templates/base.html; echo -n "M1 "; run core.tests.test_nav; cp base.bak templates/base.html
+  echo '{{ item.lesson.groups.all|length }}' >> schedule/templates/schedule/includes/lesson_compact.html; echo -n "M2 "; run core.tests.test_home.HomeQueryTests; cp lc.bak schedule/templates/schedule/includes/lesson_compact.html
+  sed -i '' 's/    local = timezone.localtime(now)/    local = now/' schedule/services.py; echo -n "M3 "; run schedule.tests.test_services.TodayScheduleTests; cp sv.bak schedule/services.py
+  sed -i '' 's/home_summary(self.request.user, now)/home_summary(self.request.user)/' core/views.py; echo -n "M4 "; run core.tests.test_home; cp v.bak core/views.py
+  python3 -c "
+  p='static/css/base.css';s=open(p).read();s=s.replace('.card-row-label {\n  flex: none;\n  white-space: nowrap;','.card-row-label {\n  flex: none;');open(p,'w').write(s)"; echo -n "M5 "; run core.tests.test_design; cp b.bak static/css/base.css
+  sed -i '' '1s/^/{% extends "base.html" %}/' templates/500.html; echo -n "M6 "; run core.tests.test_errors
+    M0 Ran 5 tests in 0.051s OK 
+    M1 FAIL: test_button_current_on_feed (core.tests.test_nav.NavBadgeTests.test_button_current_on_feed) Ran 13 tests in 0.539s FAILED (failures=1) 
+    M2 Ran 3 tests in 0.352s OK 
+    M3 FAIL: test_uses_moscow_local_date (schedule.tests.test_services.TodayScheduleTests.test_uses_moscow_local_date) Ran 2 tests in 0.035s FAILED (failures=1) 
+    M4 Ran 16 tests in 1.226s OK 
+    M5 FAIL: test_card_row_ellipsis (core.tests.test_design.ThemeRuleTests.test_card_row_ellipsis) Ran 20 tests in 0.348s FAILED (failures=1) 
+    M6 FAIL: test_500_standalone (core.tests.test_errors.ErrorPageTests.test_500_standalone) Ran 5 tests in 0.050s FAILED (failures=1)
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 7s
+    The mutant on the compact include survived, so I'm checking whether the per-lesson query is really there. My guess is that `item.lesson.groups` is already prefetched by `day_schedule`, which would make the mutation equivalent. The spec warns against per-lesson queries like `item.lesson.groups.all`, so I want to confirm the prefetch is actually in place.
+
+    I'm weighing a few other relations to target that aren't prefetched, since `groups` already is. I'm considering a reverse-relation count on the lesson, but I'm unsure whether `.count()` reads from the prefetch cache, so I'm leaning toward a different, unprefetched path for the probe.
+
+    Next I'll check M4 and look at the models for the related name, so I can build an alternate M2 probe. M4 survived because HomeView's `now` passes through to `home_summary` and the frozen clock makes the two equivalent in tests, so it only differs at a midnight boundary. That's a minor nit and the code itself is correct, so I don't think a test is needed.
+  ── Searched for ForeignKey\|ManyToMany\|related_name in schedule/models.py
+  ── Ran cd $TMPDIR/rev-mut && source ~/hackatonproject/.venv/bin/activate && export DEBUG=true SECRET_KEY=mut-dummy-key-0123456789abcdefghijklmnopqrstuvwxyz && echo '{{ item.lesson.changes.exists }}' >> schedule/templates/schedule/includes/lesson_compact.html; python manage.py test core.tests.test_home.HomeQueryTests --parallel 1 2>&1 | grep -E '^(Ran|OK|FAILED|FAIL:)'; cp lc.bak schedule/templates/schedule/includes/lesson_compact.html; cd /; rm -rf "$TMPDIR/rev-mut"; ls $TMPDIR | grep midnight (3s)
+    $ cd $TMPDIR/rev-mut && source ~/hackatonproject/.venv/bin/activate && export DEBUG=true SECRET_KEY=mut-dummy-key-0123456789abcdefghijklmnopqrstuvwxyz && echo '{{ item.lesson.changes.exists }}' >> schedule/templates/schedule/includes/lesson_compact.html; python manage.py test core.tests.test_home.HomeQueryTests --parallel 1 2>&1 | grep -E '^(Ran|OK|FAILED|FAIL:)'; cp lc.bak schedule/templates/schedule/includes/lesson_compact.html; cd /; rm -rf "$TMPDIR/rev-mut"; ls $TMPDIR | grep midnight
+    FAIL: test_exact_queries (core.tests.test_home.HomeQueryTests.test_exact_queries)
+    FAIL: test_queries_constant_in_lessons (core.tests.test_home.HomeQueryTests.test_queries_constant_in_lessons)
+    Ran 3 tests in 0.353s
+    FAILED (failures=2)
+    test-midnight-20261118-024306.log
+    test-midnight-20261118-134005.log
+    Shell cwd was reset to ~/hackatonproject
+  ── Ran until grep -qE '^(OK|FAILED)' $TMPDIR/test-midnight-20261118-024306.log; do sleep 5; done; grep -E '^Ran|^OK|^FAILED|^(ERROR|FAIL):' $TMPDIR/test-midnight-20261118-024306.log; cd ~/hackatonproject && git status --short | wc -l (1m 36s)
+    $ until grep -qE '^(OK|FAILED)' $TMPDIR/test-midnight-20261118-024306.log; do sleep 5; done; grep -E '^Ran|^OK|^FAILED|^(ERROR|FAIL):' $TMPDIR/test-midnight-20261118-024306.log; cd ~/hackatonproject && git status --short | wc -l
+    Ran 1051 tests in 148.140s
+    OK
+          29
+  ── Thought for 7ms
+    I'm checking the repo status: the earlier list of 18 modified and 11 untracked files adds up to 29, and my temp files are in TMPDIR rather than the repo. Three minor notes to keep in mind: the one-`now` rule isn't covered by a test, though it's equivalent under a frozen clock, the "Выйти" label wraps at 1024px, which is acceptable, and the README's WCAG AA claim for the palette looks fine.
+
+    I'm wrapping up the review by marking the work as approved and sending it on to the team lead.
+
+── Assistant ───────────────────────────────────────────────
+Оба прогона дали 1051 OK. Отправляю APPROVE Тимлиду.
+
+── Ran bb thread tell thr_4izdzwetb4 --message-file - <<'EOF' [TASK-012] Reviewer -> Team lead: APPROVE Round 1. Assignee: UI coder (thr_pgcwc2dwnn). Spec: docs/tasks/TASK-012.md. ## Verified - F1-F4 (Python) match the spec exactly. home.html (F6), lesson_compact.html (F7), base.html header (F5), 403/404/500 (F8), feed anchors and D11 nav removal also match. icon_cap/icon_bell rects are identical to docs/design/home-mockup.html. The favicon uses viewBox 0 -1 12 12 and fill #ff9f2e. - CSS: every colour is in tokens.css and the D3 values are exact. theme.css has no `max-width: 100%`. The base.css rules that tests check are kept. Landmark/service dasharrays are still in base.css, so the map legend still tells them apart. - Changed tests match the Test plan, each with a `# TASK-012:` comment. Only one other template changed: staff_group_list.html gets `class="group-list"` and nothing else. - Mutations (run on a temp copy of the tree):   - caught: aria-current removed from the notif button; UTC date used in today_schedule; per-lesson `.changes.exists` added in lesson_compact (2 query tests fail); nowrap removed from .card-row-label; `{% extends %}` added to 500.html.   - equivalent: `item.lesson.groups.all` is prefetched, so it adds no query.   - survived: HomeView calls home_summary without `now`. The code is correct; the frozen clock cannot tell the two apart. Low risk, no test proposed. - My own browser check: temp DB, port 8771, headless Chrome.   - Student home at 320/360/1024: menu and notif button on one row at 360, wrapped at 320 (allowed).   - Open menu at 360: drops down; the notif button stays in place.   - Ellipsis rows, chat own vs other, map room-212 highlight, request form with the file input, staff announcements form.   - scrollWidth equals the viewport on every checked page. Stars do not cover text. ## Runs (log time is local US; Moscow = +11 h) - `python manage.py test --parallel 1`: Ran 1051 tests, OK. $TMPDIR/test-20261118-024306.log, ~13:43-13:46 MSK. - `scripts/run_tests_at.py 2026-11-18T00:00:00`: Ran 1051 tests, OK. $TMPDIR/test-midnight-20261118-024306.log. - No failures in any run. - check, check --deploy --fail-level WARNING, makemigrations --check, ruff check ., ruff format --check . (189 files) and ci.yml yaml: all OK. static/fonts and static/js are unchanged. ## Remaining risks / notes - At 1024 px the wide nav wraps "Выйти" onto a second line next to the brand. The spec allows wrapping; consider it in the UI stage. - The file input label ("Choose Files") follows the browser locale. - Map redesign is TASK-013. EOF
+  $ bb thread tell thr_4izdzwetb4 --message-file - <<'EOF'
+[TASK-012] Reviewer -> Team lead: APPROVE
+Round 1. Assignee: UI coder (thr_pgcwc2dwnn). Spec: docs/tasks/TASK-012.md.
+
+## Verified
+- F1-F4 (Python) match the spec exactly. home.html (F6), lesson_compact.html (F7), base.html header (F5), 403/404/500 (F8), feed anchors and D11 nav removal also match. icon_cap/icon_bell rects are identical to docs/design/home-mockup.html. The favicon uses viewBox 0 -1 12 12 and fill #ff9f2e.
+- CSS: every colour is in tokens.css and the D3 values are exact. theme.css has no `max-width: 100%`. The base.css rules that tests check are kept. Landmark/service dasharrays are still in base.css, so the map legend still tells them apart.
+- Changed tests match the Test plan, each with a `# TASK-012:` comment. Only one other template changed: staff_group_list.html gets `class="group-list"` and nothing else.
+- Mutations (run on a temp copy of the tree):
+  - caught: aria-current removed from the notif button; UTC date used in today_schedule; per-lesson `.changes.exists` added in lesson_compact (2 query tests fail); nowrap removed from .card-row-label; `{% extends %}` added to 500.html.
+  - equivalent: `item.lesson.groups.all` is prefetched, so it adds no query.
+  - survived: HomeView calls home_summary without `now`. The code is correct; the frozen clock cannot tell the two apart. Low risk, no test proposed.
+- My own browser check: temp DB, port 8771, headless Chrome.
+  - Student home at 320/360/1024: menu and notif button on one row at 360, wrapped at 320 (allowed).
+  - Open menu at 360: drops down; the notif button stays in place.
+  - Ellipsis rows, chat own vs other, map room-212 highlight, request form with the file input, staff announcements form.
+  - scrollWidth equals the viewport on every checked page. Stars do not cover text.
+
+## Runs (log time is local US; Moscow = +11 h)
+- `python manage.py test --parallel 1`: Ran 1051 tests, OK. $TMPDIR/test-20261118-024306.log, ~13:43-13:46 MSK.
+- `scripts/run_tests_at.py 2026-11-18T00:00:00`: Ran 1051 tests, OK. $TMPDIR/test-midnight-20261118-024306.log.
+- No failures in any run.
+- check, check --deploy --fail-level WARNING, makemigrations --check, ruff check ., ruff format --check . (189 files) and ci.yml yaml: all OK. static/fonts and static/js are unchanged.
+
+## Remaining risks / notes
+- At 1024 px the wide nav wraps "Выйти" onto a second line next to the brand. The spec allows wrapping; consider it in the UI stage.
+- The file input label ("Choose Files") follows the browser locale.
+- Map redesign is TASK-013.
+EOF
+  Thread thr_4izdzwetb4 steered
+
+── Assistant ───────────────────────────────────────────────
+TASK-012 (тема «ночной пиксель») одобрен с первого раза. APPROVE отправлен Тимлиду.
+
+- **Тесты:** полный прогон дал 1051 OK, прогон «в полночь» тоже 1051 OK. Падений не было. `check`, `check --deploy`, миграции и ruff в порядке. Шрифт и `chat.js` не менялись.
+- **Соответствие спецификации:** код на Python, шаблоны, иконки и CSS-токены совпадают со спецификацией. Значки взяты из макета точно.
+- **Проверка тестов мутациями.** Я ломал код в копии проекта. Тесты поймали 5 поломок из 7. Одна мутация на деле ничего не меняла: связанные данные уже загружены заранее, лишнего запроса нет. Одна мутация прошла: главная страница может брать время дважды вместо одного раза. Сам код верный, тест это различить не может. Риск низкий, новый тест я не предлагал.
+- **Сам смотрел в браузере.** На отдельной временной базе проверил:
+  - главную на 320, 360 и 1024 px;
+  - открытое меню;
+  - чат;
+  - карту с выделенной аудиторией;
+  - форму заявки;
+  - форму объявлений.
+
+  Горизонтальной прокрутки нет, звёзды не закрывают текст, кнопка уведомлений при открытом меню остаётся на месте.
+
+Мелочь на этап интерфейса: на ширине 1024 px пункт «Выйти» в меню уходит на вторую строку. Спецификация это разрешает.
+
+Временную базу и копию проекта для мутаций я создавал в `$TMPDIR`. Браузер закрыт, сервер остановлен. Жду следующий REPORT.

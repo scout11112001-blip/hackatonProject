@@ -1,13 +1,54 @@
 :root {
-  --color-bg: #ffffff;
-  --color-text: #1a1a1a;
-  --color-muted: #6b6b6b;
-  --color-accent: #0055aa;
-  --color-border: #d0d0d0;
+  /* Night pixel palette (TASK-012, D3). Every colour of the theme lives here. */
+  --color-bg: #120a2a;
+  --color-sky-1: #120a2a;
+  --color-sky-2: #221449;
+  --color-sky-3: #3a2272;
+  --color-sky-4: #4b2a86;
+  --color-panel: rgba(36, 22, 78, 0.88);
+  --color-frame: #5a3fa3;
+  --color-frame-gap: #170d33;
+  --color-text: #f3ecff;
+  --color-muted: #b8a6e8;
+  --color-heading: #ffd25e;
+  --color-link: #ffc46b;
+  --color-accent: #ffc46b;
+  --color-border: #5a3fa3;
+  --color-warn: #ff6f7d;
+  --color-warn-text: #ff8a95;
+  --color-changed: #ff8a95;
+  --color-orange: #ff9f2e;
+  --color-orange-light: #ffc04d;
+  --color-orange-dark: #f07a1a;
+  --color-orange-edge: #ffd98a;
+  --color-on-accent: #2b1300;
+  --color-now-bg: rgba(255, 159, 46, 0.14);
+  --color-own-bg: rgba(255, 196, 107, 0.12);
+  --color-field-bg: #170d33;
+  --color-field-border: #a58cf0;
+  --color-focus: #ffd25e;
+  --color-star-yellow: #ffe9a8;
+  --color-star-lilac: #d9c8ff;
+  --color-map-highlight: #ffd25e;
+  --color-map-highlight-fill: rgba(255, 210, 94, 0.22);
+  --color-map-room-fill: rgba(36, 22, 78, 0.88);
+  --color-map-corridor-fill: rgba(90, 63, 163, 0.35);
+
   --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-heading: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-pixel: "Press Start 2P", ui-monospace, monospace;
+  --font-heading: var(--font-pixel);
   --font-size-base: 1rem;
+  --font-size-title: 0.6875rem;
+  --font-size-h1: 1.125rem;
+  --font-size-h1-wide: 1.5rem;
+  --font-size-h2: 0.75rem;
+  --font-size-button: 0.6875rem;
+  --font-size-tag: 0.625rem;
   --line-height-base: 1.5;
+  --line-height-pixel: 1.5;
+
+  --frame-width: 3px;
+
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 1rem;
@@ -15,7 +56,4 @@
   --space-5: 2rem;
   --content-max-width: 60rem;
   --radius: 0;
-  --color-changed: #a35200;
-  --color-now-bg: #eaf2ff;
-  --color-map-highlight: #c00000;
 }

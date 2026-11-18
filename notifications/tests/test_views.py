@@ -306,7 +306,9 @@ class HomeSummaryTests(FrozenClockMixin, TestCase):
         response = self.client.get(reverse("core:home"))
         content = response.content.decode()
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Ближайшие дедлайны", content)
+        # TASK-012: the home card is titled "Дедлайны" (F6).
+        self.assertIn('id="home-deadlines"', content)
+        self.assertIn("Дедлайны<span", content)
         self.assertIn("Дедлайн", content)
         self.assertIn("/notifications/#", content)
 
@@ -382,7 +384,12 @@ class HomeSummaryTests(FrozenClockMixin, TestCase):
     def test_news_heading(self):
         self.client.force_login(self.w.ax)
         content = self.client.get(reverse("core:home")).content.decode()
-        self.assertIn('<h2 id="home-news">Новости</h2>', content)
+        # TASK-012: the card title is a link to the feed anchor (F6).
+        self.assertIn(
+            '<h2 class="card-title" id="home-news"><a class="card-title-link" '
+            'href="/notifications/#feed">Новости<span aria-hidden="true"> →</span></a></h2>',
+            content,
+        )
         self.assertNotIn("Новости деканата", content)
 
     def test_student_without_profile(self):
@@ -395,7 +402,10 @@ class HomeSummaryTests(FrozenClockMixin, TestCase):
     def test_staff_no_summary(self):
         self.client.force_login(self.w.sx)
         response = self.client.get(reverse("core:home"))
-        self.assertIn("Раздел в разработке", response.content.decode())
+        # TASK-012: staff get the staff home with three buttons (AC9).
+        content = response.content.decode()
+        self.assertIn("<h1>Деканат</h1>", content)
+        self.assertNotIn('id="home-deadlines"', content)
 
     def test_superuser_no_summary(self):
         self.client.force_login(self.w.root)
@@ -457,6 +467,11 @@ class FeedViewTests(FrozenClockMixin, TestCase):
     def test_empty_state(self):
         response = self._get()
         self.assertIn("Уведомлений за последние 30 дней нет.", response.content.decode())
+
+    def test_section_anchors(self):
+        content = self._get().content.decode()
+        self.assertIn('<section id="deadlines" aria-labelledby="deadlines-title">', content)
+        self.assertIn('<section id="feed" aria-labelledby="feed-title">', content)
 
     def test_body_escaped_and_line_breaks_kept(self):
         make_announcement(
@@ -625,7 +640,11 @@ class NavTests(FrozenClockMixin, TestCase):
         make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
         self.client.force_login(self.w.ax)
         response = self.client.get(reverse("core:home"))
-        self.assertIn("Уведомления (2)", response.content.decode())
+        # TASK-012: the count is the chip of the header button (AC5).
+        self.assertIn(
+            '<span class="visually-hidden">, непрочитанных: </span>2</span>',
+            response.content.decode(),
+        )
 
     def test_student_nav_without_count(self):
         self.client.force_login(self.w.ax)

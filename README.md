@@ -178,6 +178,15 @@ guards against double submit. New staff replies appear in «Уведомлени
 markers are message ids on the dialog (student marker, shared staff marker);
 both only move forward.
 
+## Design
+
+The interface uses the "night pixel" theme: a dark violet night sky with pixel stars, panels with a double pixel frame, orange primary buttons and a yellow focus outline.
+
+- Palette (all colours are custom properties in `static/css/tokens.css`): sky `#120a2a` → `#4b2a86`, panel `rgba(36, 22, 78, 0.88)`, frame `#5a3fa3`, text `#f3ecff`, muted `#b8a6e8`, headings `#ffd25e`, links `#ffc46b`, accent orange `#ff9f2e`, coral `#ff6f7d` (backgrounds) / `#ff8a95` (text), focus `#ffd25e`. Every text/background pair meets WCAG AA.
+- CSS layers: `tokens.css` (colours, fonts, sizes), `base.css` (layout), `theme.css` (the look). No JavaScript is used for the theme.
+- Font: "Press Start 2P" (file `static/fonts/PressStart2P-Regular.ttf`) for the site title, page and card headings, buttons and tags only; body text uses the system font. Licence: SIL Open Font License, Version 1.1, Reserved Font Name "Press Start 2P", full text in `static/fonts/OFL.txt`. The font file is used unmodified and is served from this site (no external font services).
+- The logo and the favicon are our own pixel drawing (an academic cap, `templates/includes/icon_cap.html` and `static/img/favicon.svg`).
+
 ## Login protection
 
 Failed login attempts are throttled per (username, client IP) and stored in
