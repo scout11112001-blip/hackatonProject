@@ -6,6 +6,7 @@
   <p>Аудиторий пока нет.</p>
 {% else %}
   <svg class="map-defs" width="0" height="0" aria-hidden="true" focusable="false"><defs><pattern id="map-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect class="map-hatch-bg" width="8" height="8"/><rect class="map-hatch-line" width="2" height="8"/></pattern></defs></svg>
+  <div class="map-layout">
   <nav class="floor-switcher" aria-label="Этажи">
     <span>Этаж:</span>
     <ul>
@@ -14,6 +15,7 @@
       {% endfor %}
     </ul>
   </nav>
+  <div class="map-plan">
   {% if plan %}
   <svg class="map-svg" viewBox="0 0 {{ plan.width }} {{ plan.height }}" role="img" aria-labelledby="map-title">
     <title id="map-title">Схема, {{ plan.floor }} этаж</title>
@@ -28,6 +30,8 @@
     {% endfor %}
   </svg>
   {% else %}<p>Схемы {{ current_floor }} этажа нет.</p>{% endif %}
+  </div>
+  <div class="map-side">
   <ul class="map-legend">
     <li><svg class="map-legend-swatch" viewBox="0 0 24 16" aria-hidden="true"><g class="map-room"><rect x="1" y="1" width="22" height="14"/></g></svg> Аудитория</li>
     <li><svg class="map-legend-swatch" viewBox="0 0 24 16" aria-hidden="true"><g class="map-landmark"><rect x="1" y="1" width="22" height="14"/></g></svg> Вход, лестницы, деканат, библиотека, столовая</li>
@@ -42,5 +46,7 @@
     {% endfor %}
   </ul>
   {% endfor %}
+  </div>
+  </div>
 {% endif %}
 {% endblock %}

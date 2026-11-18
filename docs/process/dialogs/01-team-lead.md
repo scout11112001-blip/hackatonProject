@@ -18391,7 +18391,657 @@ Round 1. Assignee: Coder. Spec: docs/tasks/TASK-013-FIX.md.
 ── Assistant ───────────────────────────────────────────────
 Все прогоны прошли, папка `private_media` не изменилась. Выгружаю диалоги и делаю коммит.
 
-── Running O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)     t=t.replace('[id скрыт]','[id скрыт]')     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]     assert not bad,(f,bad)     assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF rm -rf "$O"
+── Ran 3 commands ──────────────────────────────────────────
+  ── Ran O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)     t=t.replace('[id скрыт]','[id скрыт]')     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]     assert not bad,(f,bad)     assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF rm -rf "$O" (6s)
+    $ O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF'
+  import os,re,sys
+  d=sys.argv[1]; out='docs/process/dialogs'
+  for f in sorted(os.listdir(d)):
+      t=open(os.path.join(d,f),encoding='utf-8').read()
+      t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)
+      t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)
+      t=t.replace('[id скрыт]','[id скрыт]')
+      t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')
+      t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)
+      t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')
+      bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]
+      assert not bad,(f,bad)
+      assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f
+      assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f
+      assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f
+      assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f
+      open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
+  EOF
+  rm -rf "$O"
+    01-team-lead.md 1832 KB
+    02-planner.md 1749 KB
+    03-coder-deepseek.md 5306 KB
+    04-reviewer.md 1173 KB
+    05-ui-coder.md 458 KB
+  ── Ran git add -A README.md CHANGELOG.md plan.md core notifications schedule docs && git status --short | grep -v "^[AM] "; git diff --cached --stat | tail -1 && git commit -q -F - <<'EOF' TASK-013-FIX: feed marks a lesson change new only on visible edits; parallel tests keep uploads in a temp dir - LessonChange.changed_at moves only when a student-visible field changes   (kind, dates, slot, room, teacher, lesson); a reason-only edit does not   make the change unread. Migration schedule/0006 copies updated_at, so the   read/unread state is kept. The feed uses changed_at. - ProjectTestRunner passes the temporary private media directory to   spawned parallel workers through the environment and restores it after. - Process docs: screenshots 58-61, CHANGELOG, plan, dialogs. Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com> EOF git log --oneline -1; git status --short | wc -l; git rev-list --count origin/main..main (Outside of sandbox)
+    $ git add -A README.md CHANGELOG.md plan.md core notifications schedule docs && git status --short | grep -v "^[AM] "; git diff --cached --stat | tail -1 && git commit -q -F - <<'EOF'
+  TASK-013-FIX: feed marks a lesson change new only on visible edits; parallel tests keep uploads in a temp dir
+
+  - LessonChange.changed_at moves only when a student-visible field changes
+    (kind, dates, slot, room, teacher, lesson); a reason-only edit does not
+    make the change unread. Migration schedule/0006 copies updated_at, so the
+    read/unread state is kept. The feed uses changed_at.
+  - ProjectTestRunner passes the temporary private media directory to
+    spawned parallel workers through the environment and restores it after.
+  - Process docs: screenshots 58-61, CHANGELOG, plan, dialogs.
+
+  Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+  EOF
+  git log --oneline -1; git status --short | wc -l; git rev-list --count origin/main..main
+    21 files changed, 7609 insertions(+), 7 deletions(-)
+    8f469b2 TASK-013-FIX: feed marks a lesson change new only on visible edits; parallel tests keep uploads in a temp dir
+           0
+    6
+  ── Ran bb browser-automation stop $(cat $TMPDIR/bsess) >/dev/null 2>&1; pkill -f "runserver 127.0.0.1:8772" 2>/dev/null; rm -rf "$TMPDIR/lead13fix.sqlite3" "$TMPDIR/lead13fix-media" "$TMPDIR/sess13fix.json" "$TMPDIR/f13.js" "$TMPDIR/f13.out" "$TMPDIR/pm-before.txt" "$TMPDIR/pm-after.txt"; echo done (3s)
+    $ bb browser-automation stop $(cat $TMPDIR/bsess) >/dev/null 2>&1; pkill -f "runserver 127.0.0.1:8772" 2>/dev/null; rm -rf "$TMPDIR/lead13fix.sqlite3" "$TMPDIR/lead13fix-media" "$TMPDIR/sess13fix.json" "$TMPDIR/f13.js" "$TMPDIR/f13.out" "$TMPDIR/pm-before.txt" "$TMPDIR/pm-after.txt"; echo done
+    done
+  ── Thought for 3s
+    I'm putting together the report now. It needs the FIX2 approval question, the Reviewer's minor note with my recommendation to accept it as is, and the Coder's context at 118k with no compaction. I also need to flag the git push reminder (6 commits ahead) and that the user's local database needs `python manage.py migrate` for migrations 0005 and 0006 before running the server on localhost.
+
+── Assistant ───────────────────────────────────────────────
+TASK-013-FIX закрыта, коммит `8f469b2`. Ревьюер одобрил её с первого раунда.
+
+**Что изменилось:**
+- Изменение занятия снова становится «Новым» в ленте только при правке, которую видит студент: вид, дата, пара, аудитория, преподаватель. Правка одной причины ленту не трогает. Прочитанные записи остались прочитанными.
+- Тесты с `--parallel` больше не пишут файлы в папку проекта.
+
+**Моя проверка:**
+- Обычный прогон, параллельный прогон и прогон на границе полуночи по Москве: 1087 тестов, ошибок нет. В папке `private_media` по-прежнему 3 файла.
+- В браузере на временной базе:
+  - поменял в админке только причину — у студента нет новых уведомлений;
+  - поменял аудиторию 402 → 403 — на кнопке «Уведомления» появилось число 1, в ленте метка «Новое»;
+  - причина нигде не показывается.
+- Скриншоты 58–61 лежат в `docs/process`, там же обновлены диалоги, `CHANGELOG.md` и `plan.md`.
+- У Кодера на DeepSeek в контексте 118 тыс. токенов, это меньше порога 200 тыс. Поэтому сжимать контекст не нужно.
+
+**Недочёт для следующего fix.** Ревьюер отметил одно место в тестах. Если тест `test_runner_restores_env` упадёт, временная папка останется на диске. При успешных тестах этого не бывает. Рекомендую принять как есть: правка мелкая, её можно добавить в следующую задачу Кодера.
+
+**Что нужно от вас:**
+- Отправлять TASK-013-FIX2 Кодеру интерфейса? В ней план этажа на широком экране должен помещаться на экран. Сейчас он 912×1477 px.
+- Перед локальным запуском обновите базу командой `python manage.py migrate`. Появились миграции `schedule/0005` и `0006`.
+- Локальная ветка опережает GitHub на 6 коммитов, можно сделать `git push`.
+
+── User ────────────────────────────────────────────────────
+Давай fix2 и git push после
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Thought for 3s
+    The user approved FIX2 and wants a git push afterward, so I need to work out who can push. My first thought is that the user does the push, since I have no GitHub credentials. Then I wonder whether `gh` being logged in on the Mac would let git push over HTTPS through its credential helper.
+
+    The approval for FIX2 is in, and the user wants a git push afterward. I'm still weighing whether pushing with the `gh` credentials on this Mac is within what they've authorized. I'll commit FIX2, then attempt the push, and ask the user if access doesn't work.
+  ── Ran git status --short | wc -l && bb thread tell thr_2imsg4kck2 --message-file - < ~/.bb/thread-storage/thr_4izdzwetb4/TASK-013-FIX2.txt && .venv/bin/python - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() row=[l for l in s.split('\n') if l.startswith('| TASK-013-FIX |')][0] new_row='| TASK-013-FIX2 | Карта на широком экране: план этажа помещается на экран (исполнитель — Кодер интерфейса) | В работе |' assert s.count(row)==1 s=s.replace(row, row+'\n'+new_row) old='Следующая — TASK-013-FIX2 (Кодер интерфейса): план этажа на широком экране должен помещаться на экран; ждёт решения пользователя.' assert s.count(old)==1 s=s.replace(old,'TASK-013-FIX2 (Кодер интерфейса, план этажа на широком экране) в работе; после неё — git push.') open(p,'w',encoding='utf-8').write(s) EOF grep -n "TASK-013-FIX2" plan.md | cut -c1-120 (2s)
+    $ git status --short | wc -l && bb thread tell thr_2imsg4kck2 --message-file - < ~/.bb/thread-storage/thr_4izdzwetb4/TASK-013-FIX2.txt && .venv/bin/python - <<'EOF'
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  row=[l for l in s.split('\n') if l.startswith('| TASK-013-FIX |')][0]
+  new_row='| TASK-013-FIX2 | Карта на широком экране: план этажа помещается на экран (исполнитель — Кодер интерфейса) | В работе |'
+  assert s.count(row)==1
+  s=s.replace(row, row+'\n'+new_row)
+  old='Следующая — TASK-013-FIX2 (Кодер интерфейса): план этажа на широком экране должен помещаться на экран; ждёт решения пользователя.'
+  assert s.count(old)==1
+  s=s.replace(old,'TASK-013-FIX2 (Кодер интерфейса, план этажа на широком экране) в работе; после неё — git push.')
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  grep -n "TASK-013-FIX2" plan.md | cut -c1-120
+    0
+    Thread thr_2imsg4kck2 steered
+    107:| TASK-013-FIX2 | Карта на широком экране: план этажа помещается на экр�
+    112:Сейчас: TASK-013 (карта, без причин изменений, мелкие правки) закрыт�
+
+── Assistant ───────────────────────────────────────────────
+Я отправил TASK-013-FIX2 Планировщику, исполнитель — Кодер интерфейса. Задача: план этажа на широком экране помещается на экран, а вид на телефоне не меняется. В `plan.md` она отмечена как «В работе».
+
+Когда Ревьюер одобрит задачу, я проверю карту на 360, 1024, 1280 и 1440 px и сделаю коммит. Затем выполню `git push`. Если с этого Mac не получится отправить код на GitHub, попрошу вас сделать push самому.
+
+── User ────────────────────────────────────────────────────
+В будущий task:
+Добавить справку в военкомат и 2 пункта вроде "Другая справка" и "Другое заявление" с обязательными для заполнения строками "Тип" и "Комментарий"
+
+── Explored 1 file, created 1 file, ran 1 command ──────────
+  ── Thought for 5s
+    I'm going to treat this as a future task: adding three request types, "Справка в военкомат", "Другая справка", and "Другое заявление", where "Тип" and "Комментарий" are mandatory for the "other" items. I'll log it in plan.md as a candidate TASK-014, and then check how the current petitions model handles request types and the comment field.
+
+    I'm weighing whether "Справка в военкомат" needs any extra fields beyond the standard ones, and I'm planning to confirm a few points: whether the "Тип" field is free text with a length limit, whether it should appear in the staff queue as part of the request title, and whether the comment should be mandatory only for the "other" types. I also want to check whether request types are seeded data or hard-coded, since that decides whether adding them means a model flag like `requires_subject`.
+  ── Read petitions/models.py
+  ── Thought for 3s
+    Comment is already required per type, so the new piece is a "Тип" field, likely a `subject_required` flag on RequestType plus a `Petition.subject` CharField. Seeds would use the RequestKind choices of certificate and application. I'm also drafting the TASK-014 request with clarifying points and recommendations, starting with the military-office certificate: the comment stays optional with a hint, and I'm weighing the processing time in days.
+
+    I'm settling the clarifying questions for the TASK-014 request, recommending defaults for each, like a three-working-day processing time for the military-office certificate with an optional comment. Then I'll draft TASK-014.txt, note it in plan.md, and keep the confirmation list short for later.
+  ── Created ~/.bb/thread-storage/thr_4izdzwetb4/TASK-014.txt +21
+    --- /dev/null
+    +++ b~/.bb/thread-storage/thr_4izdzwetb4/TASK-014.txt
+    +[TASK-014] Team lead -> Planner: TASK
+    +Approved by the user. Write the spec `docs/tasks/TASK-014.md` and hand it to the Coder (DeepSeek, thr_ng6cbgatm6).
+    +
+    +## Context
+    +Requests (`petitions`): `RequestType` (name, kind certificate/application, description, processing_days, comment_required + comment_hint, is_active) is seeded by `petitions/demo.py` (4 types); `PetitionForm` already makes the comment required per type. Apply your "Feasibility check" and "Test plan" sections.
+    +
+    +## Requirements (user request 18.11)
+    +1. New certificate type "Справка в военкомат" (kind certificate). Comment optional with a hint (TBD), processing days (TBD).
+    +2. Two catch-all types: "Другая справка" (certificate) and "Другое заявление" (application). For these two, two fields are REQUIRED:
+    +   - "Тип": one line, what exactly the student needs (e.g. "Справка о периоде обучения"); max length (TBD, e.g. 150); trimmed; blank is an error.
+    +   - "Комментарий": required (existing `comment_required` + hint).
+    +   Other types do not show the "Тип" field.
+    +3. Architecture direction (Planner decides details): a per-type flag (e.g. `RequestType.subject_required`) and a petition field (e.g. `Petition.subject`, blank for other types), migration; the flag is editable in the admin like `comment_required`.
+    +4. Where "Тип" is shown (TBD, proposal): the student's request list and detail, the staff queue and detail - as "Другая справка: <Тип>"; it is escaped like any user text.
+    +5. Seeds: `seed_demo` creates the 3 new types (idempotent, run twice) and keeps existing demo requests valid; optionally one demo request of "Другая справка" with a "Тип".
+    +
+    +## Out of scope
+    +New request workflow, new statuses, file rules.
+    +
+    +## Verification
+    +All existing verification commands; tests for the required "Тип"/"Комментарий" (empty, spaces only, too long), the field hidden for other types, access matrix unchanged, query count of the lists unchanged.
+  ── Ran .venv/bin/python - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() row=[l for l in s.split('\n') if l.startswith('| TASK-013-FIX2 |')][0] new_row='| TASK-014 | Заявки: «Справка в военкомат», «Другая справка» и «Другое заявление» с обязательными полями «Тип» и «Комментарий» | Запланирована |' assert s.count(row)==1 s=s.replace(row, row+'\n'+new_row) open(p,'w',encoding='utf-8').write(s) EOF grep -n "TASK-014" plan.md | cut -c1-80 (2s)
+    $ .venv/bin/python - <<'EOF'
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  row=[l for l in s.split('\n') if l.startswith('| TASK-013-FIX2 |')][0]
+  new_row='| TASK-014 | Заявки: «Справка в военкомат», «Другая справка» и «Другое заявление» с обязательными полями «Тип» и «Комментарий» | Запланирована |'
+  assert s.count(row)==1
+  s=s.replace(row, row+'\n'+new_row)
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  grep -n "TASK-014" plan.md | cut -c1-80
+    108:| TASK-014 | Заявки: «Справка в военкомат», «Др�
+
+── Assistant ───────────────────────────────────────────────
+Я записал задачу как TASK-014 со статусом «Запланирована» в `plan.md`. Черновик лежит в `TASK-014.txt`. Отправлю его только после вашего «отправляй».
+
+**Что войдёт:**
+- Новый вид «Справка в военкомат».
+- Новые виды «Другая справка» и «Другое заявление». У них 2 обязательных поля: «Тип» (одна строка, что именно нужно) и «Комментарий».
+- У остальных видов поля «Тип» нет.
+- `seed_demo` создаёт новые виды. Исполнитель — Кодер на DeepSeek.
+
+**Что нужно решить до отправки.** В скобках мои варианты:
+1. «Справка в военкомат»: комментарий необязательный, подсказка «Укажите военкомат, если нужно». Срок 3 рабочих дня.
+2. Срок для «Другой справки» и «Другого заявления»: 5 рабочих дней.
+3. Длина поля «Тип»: до 150 символов.
+4. Где показывать «Тип»: в списке и в карточке заявки у студента и у сотрудника. Формат: «Другая справка: <Тип>».
+
+Если согласны со всем, при отправке просто напишите «отправляй».
+
+── User ────────────────────────────────────────────────────
+1) Подсказка правильная, но комментарий должен быть обязаельным
+2) "до 5 рабочих дней"
+3) Да
+4) Да
+
+── Explored 1 search, created 1 file, ran 1 command ────────
+  ── Thought for 2s
+    I'm updating the draft with the decisions, starting with the military office certificate. The hint "Укажите военкомат, если нужно" conflicts with the field being required, so I'm going to change it to "Укажите военкомат" and flag that change, keeping the meaning the user already approved.
+
+    The processing days for the military office are staying at 3, since the user only objected to the comment. Next I need to check how processing days are shown in the catalog, whether as "до 5 рабочих дней" or "Срок: 5 рабочих дней", and whether that wording applies to every type or only these.
+  ── Searched for processing_days\|рабоч in core/templates
+  ── Thought for 3s
+    Right now the display reads "Срок: N раб. дн." and the user wants "до 5 рабочих дней" for the other types. I'm considering switching every type to "Срок: до N рабочих дней", since processing days give the maximum term (services.py:96), so that wording fits all of them. There's still an open question about whether
+
+    Deciding whether "до" should apply to every type or only the "other" ones, I'm leaning toward all of them for consistency. The display will read "Срок: до N рабочих дней" with the correct Russian genitive (рабочего дня for 1 and 21, рабочих дней otherwise), which I'll handle with a helper and mention in the reply so the user can object.
+  ── Created ~/.bb/thread-storage/thr_4izdzwetb4/TASK-014.txt +22
+    --- /dev/null
+    +++ b~/.bb/thread-storage/thr_4izdzwetb4/TASK-014.txt
+    +[TASK-014] Team lead -> Planner: TASK
+    +Approved by the user. Write the spec `docs/tasks/TASK-014.md` and hand it to the Coder (DeepSeek, thr_ng6cbgatm6).
+    +
+    +## Context
+    +Requests (`petitions`): `RequestType` (name, kind certificate/application, description, processing_days, comment_required + comment_hint, is_active) is seeded by `petitions/demo.py` (4 types); `PetitionForm` already makes the comment required per type; the catalog shows "Срок: N раб. дн." (`petitions/templates/petitions/catalog.html`). Apply your "Feasibility check" and "Test plan" sections.
+    +
+    +## Requirements (user decisions 18.11)
+    +1. New certificate type "Справка в военкомат" (kind certificate): comment REQUIRED, hint "Укажите военкомат"; processing days 3.
+    +2. Two catch-all types: "Другая справка" (certificate) and "Другое заявление" (application), processing days 5 each. For these two, two fields are REQUIRED:
+    +   - "Тип": one line, what exactly the student needs (e.g. "Справка о периоде обучения"); max 150 characters; trimmed; blank or spaces only is an error.
+    +   - "Комментарий": required (existing `comment_required` + a hint, e.g. "Опишите, что нужно и для чего").
+    +   Other types do not show the "Тип" field.
+    +3. Term wording (user decision): the catalog shows the term as a maximum, "Срок: до N рабочих дней", for every type, with correct Russian genitive after "до" (1, 21, 31 ... -> "до 1 рабочего дня"; other numbers -> "до N рабочих дней"; e.g. "до 3 рабочих дней", "до 5 рабочих дней"). Replace the current "N раб. дн." wherever the term is shown to users.
+    +4. Architecture direction (Planner decides details): a per-type flag (e.g. `RequestType.subject_required`) and a petition field (e.g. `Petition.subject`, blank for other types), migration; the flag is editable in the admin like `comment_required`; a type with the flag must also require a comment (validation like the existing `clean`).
+    +5. Where "Тип" is shown (user decision): the student's request list and detail, the staff queue and detail, as "Другая справка: <Тип>" / "Другое заявление: <Тип>"; escaped like any user text; long values must not break the 360 px layout (wrap or ellipsis with the full text available).
+    +6. Seeds: `seed_demo` creates the 3 new types (idempotent, run twice) and keeps existing demo requests valid; one demo request of "Другая справка" with a "Тип" so the jury sees the feature.
+    +
+    +## Out of scope
+    +New request workflow, new statuses, file rules, visual redesign.
+    +
+    +## Verification
+    +All existing verification commands; tests for the required "Тип"/"Комментарий" (empty, spaces only, 150/151 characters), the required comment of "Справка в военкомат", the field hidden for other types, the term wording (1, 3, 5, 21 days), the display in the four views, access matrix unchanged, query count of the lists unchanged. The Team lead checks the catalog, the form and the lists at 360 px in the browser.
+  ── Thought for 3ms
+    I'm checking whether these decisions should go into the plan.md journal. If so, I'd add an 18.11 line recording the TASK-014 decisions, which is a quick update.
+  ── Ran .venv/bin/python - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() anchor='- 18.11.2026: TASK-013 по замечаниям пользователя' assert s.count(anchor)==1 s=s.replace(anchor,'- 18.11.2026: TASK-014 (заявки): «Справка в военкомат» — комментарий обязателен, подсказка «Укажите военкомат», срок 3 дня; «Другая справка» и «Другое заявление» — обязательные «Тип» (до 150 символов) и «Комментарий», срок 5 дней; срок везде пишется «до N рабочих дней»; «Тип» виден в списках и карточках у студента и сотрудника.\n'+anchor) open(p,'w',encoding='utf-8').write(s) EOF grep -c "TASK-014" plan.md (2s)
+    $ .venv/bin/python - <<'EOF'
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  anchor='- 18.11.2026: TASK-013 по замечаниям пользователя'
+  assert s.count(anchor)==1
+  s=s.replace(anchor,'- 18.11.2026: TASK-014 (заявки): «Справка в военкомат» — комментарий обязателен, подсказка «Укажите военкомат», срок 3 дня; «Другая справка» и «Другое заявление» — обязательные «Тип» (до 150 символов) и «Комментарий», срок 5 дней; срок везде пишется «до N рабочих дней»; «Тип» виден в списках и карточках у студента и сотрудника.\n'+anchor)
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  grep -c "TASK-014" plan.md
+    2
+
+── User ────────────────────────────────────────────────────
+Стой
+steer
+
+── Assistant ───────────────────────────────────────────────
+Остановился. Я ничего не отправлял. Изменились только 2 файла:
+- черновик `TASK-014.txt` с вашими ответами;
+- `plan.md`: строка TASK-014 и запись решений в журнал.
+
+TASK-013-FIX2 по-прежнему у Планировщика и Кодера интерфейса, её я не трогал.
+
+Что поправить?
+
+── User ────────────────────────────────────────────────────
+Давай "до" вообще перед каждым существующим сроком. Так лучше, чем просто число
+
+── Edited 1 file ───────────────────────────────────────────
+  ── Thought for 971ms
+    I'm confirming that the draft already applies "до" to every existing term, since item 3 covers all types, not just the new ones. The only place the terms appear is the catalog page, so I'm checking whether the due date is displayed anywhere else.
+
+    I'm checking whether the due date also appears somewhere other than the catalog page, then making the draft say explicitly that "до" applies to all existing and new types.
+  ── Edited ~/.bb/thread-storage/thr_4izdzwetb4/TASK-014.txt +1 -1
+    --- a~/.bb/thread-storage/thr_4izdzwetb4/TASK-014.txt
+    +++ b~/.bb/thread-storage/thr_4izdzwetb4/TASK-014.txt
+    -3. Term wording (user decision): the catalog shows the term as a maximum, "Срок: до N рабочих дней", for every type, with
+    +3. Term wording (user decision): the catalog shows the term as a maximum, "Срок: до N рабочих дней", for EVERY type (the 4 existing types and the 3 new ones), with
+
+── Assistant ───────────────────────────────────────────────
+Это уже есть в черновике, и я дописал явно: «до» будет у всех 7 видов заявок, у 4 старых и 3 новых.
+
+Сейчас срок в каталоге выглядит как «Срок: 3 раб. дн.». Будет «Срок: до 3 рабочих дней». Для 1, 21 и подобных чисел будет «до 1 рабочего дня». Других мест, где сайт показывает срок, в коде нет.
+
+Черновик TASK-014 готов. Отправлю его после вашего «отправляй».
+
+── User ────────────────────────────────────────────────────
+Отлично, отправляй
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Thought for 4s
+    I'm weighing whether to send TASK-014 to the Planner right now, since FIX2 is still in progress on the UI side and would leave uncommitted changes in the working tree. That would conflict with the Planner's clean-starting-point check and could trigger an escalation, and two coders sharing one tree also complicates review and commit. I'm considering sending it now with an instruction to queue, or holding it until FIX2 is done.
+
+    I'm considering a middle path: the Planner can write the spec now since it only touches docs, but it shouldn't hand the spec to the Coder until FIX2 is committed. The files don't overlap much, yet both changes sitting in the same tree could still muddy review and commits, so I'm weighing whether to tell the Planner explicitly to hold the handoff.
+  ── Ran git status --short | head; { cat ~/.bb/thread-storage/thr_4izdzwetb4/TASK-014.txt; cat <<'EOF' ## Timing TASK-013-FIX2 (UI coder, map CSS/template) is still in progress, so the working tree is not clean. Write the spec and run the feasibility check now (treat the TASK-013-FIX2 files as expected uncommitted changes, not an escalation), but do NOT hand the spec to the Coder until I send you "TASK-013-FIX2 committed". Then re-run the verification commands on the clean tree and hand it over. EOF } > "$TMPDIR/task014-send.txt" && bb thread tell thr_2imsg4kck2 --message-file - < "$TMPDIR/task014-send.txt" && rm -f "$TMPDIR/task014-send.txt" (1s)
+    $ git status --short | head; { cat ~/.bb/thread-storage/thr_4izdzwetb4/TASK-014.txt; cat <<'EOF'
+
+  ## Timing
+  TASK-013-FIX2 (UI coder, map CSS/template) is still in progress, so the working tree is not clean. Write the spec and run the feasibility check now (treat the TASK-013-FIX2 files as expected uncommitted changes, not an escalation), but do NOT hand the spec to the Coder until I send you "TASK-013-FIX2 committed". Then re-run the verification commands on the clean tree and hand it over.
+  EOF
+  } > "$TMPDIR/task014-send.txt" && bb thread tell thr_2imsg4kck2 --message-file - < "$TMPDIR/task014-send.txt" && rm -f "$TMPDIR/task014-send.txt"
+    M campusmap/templates/campusmap/map.html
+     M campusmap/tests/test_views.py
+     M core/tests/test_css.py
+     M plan.md
+     M static/css/base.css
+    ?? docs/tasks/TASK-013-FIX2.md
+    Thread thr_2imsg4kck2 steered
+
+── Assistant ───────────────────────────────────────────────
+You've hit your 5-hour limit · resets 2:40pm (America/Los_Angeles)
+
+── Error ───────────────────────────────────────────────────
+  Provider rate limit reached
+  You've hit your 5-hour limit · resets 2:40pm (America/Los_Angeles)
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Thought for 9ms
+    The old runserver from the TASK-013-FIX browser check was the notification's subject, and I already stopped it with pkill, so nothing more is needed there. Next I'll set TASK-014 in plan.md to "Sent to the Planner (awaiting FIX2)" and let the user know it went out.
+  ── Ran .venv/bin/python - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() row=[l for l in s.split('\n') if l.startswith('| TASK-014 |')][0] assert row.endswith('| Запланирована |') s=s.replace(row, row[:-len('| Запланирована |')]+'| Спецификация (Кодеру после коммита TASK-013-FIX2) |') open(p,'w',encoding='utf-8').write(s) EOF grep -c "Кодеру после коммита TASK-013-FIX2" plan.md (3s)
+    $ .venv/bin/python - <<'EOF'
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  row=[l for l in s.split('\n') if l.startswith('| TASK-014 |')][0]
+  assert row.endswith('| Запланирована |')
+  s=s.replace(row, row[:-len('| Запланирована |')]+'| Спецификация (Кодеру после коммита TASK-013-FIX2) |')
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  grep -c "Кодеру после коммита TASK-013-FIX2" plan.md
+    1
+
+── Assistant ───────────────────────────────────────────────
+Я отправил TASK-014 Планировщику. Он уже пишет спецификацию, но Кодеру отдаст её только после коммита TASK-013-FIX2.
+
+Так нужно, потому что Кодер интерфейса сейчас меняет карту в той же рабочей папке. Если два исполнителя работают одновременно, Ревьюеру и мне труднее разделить их изменения при проверке и коммите.
+
+**Порядок дальше:**
+1. Кодер интерфейса заканчивает TASK-013-FIX2, Ревьюер её проверяет.
+2. Я проверяю карту в браузере, делаю коммит и `git push`.
+3. Пишу Планировщику «TASK-013-FIX2 committed», и он передаёт TASK-014 Кодеру на DeepSeek.
+
+В `plan.md` у TASK-014 стоит статус «Спецификация (Кодеру после коммита TASK-013-FIX2)».
+
+── User ────────────────────────────────────────────────────
+Прогресс есть
+
+── Explored 2 files, 1 search ──────────────────────────────
+  ── Read ~/.bb/thread-storage/thr_4izdzwetb4/Attachments/Welcone-to-Ubuntu-24.84.3-LTS-GNULinux-6.8.0-85-generic-x86_64--1795041866357-m34pu3.png
+  ── Thought for 8s
+    The server is up, but the root login is asking for a password, so password auth is still on even though my `hackaton_deploy` key wasn't accepted. That's a security risk, and the hardening config in DEPLOY.md would turn password auth off, so I need to get the keys in place first.
+
+    I'm planning the next step: the user adds both public keys to root's authorized_keys, and I'll test key login from the Mac, which means the VPN has to be off during my session.
+
+    I still need a domain from the user for HTTPS, and the repo is private, so the server can't clone it from GitHub yet. I'll need to either make it public, set up a read-only deploy key, or copy the code over from my Mac. Since a few steps here are hard to undo, I'll lay out the full runbook with checkpoints and get the go-ahead before touching the server.
+
+    I'm checking DEPLOY.md to see how the server gets the repo, since the clone URL is set there and the repo is private.
+  ── Searched for REPO_URL\|private\|deploy key\|DOMAIN=\|certbot\|PasswordAuthentication\|ufw\|authorized_keys in docs/DEPLOY.md
+  ── Thought for 11s
+    I still need two things before I can run the runbook: SSH key access for my account and for the deploy user, since root is still asking for a password, which means the key isn't installed yet. I also need a domain, because HTTPS through certbot works best with one, and Let's Encrypt's IP certificate option is something I'm still checking.
+
+    I'm weighing a deploy key over making the repo public: a read-only key lets the server clone while the repo stays private until submission, so other contestants can't copy the work early. I'd generate the key on the server under the deanery user and show the user the public key to add in the repo settings.
+
+    Next I'll get the user to install the SSH keys so I can log in as the app and deploy users. Then I'll show them the commands to run in the root session, plus the command for adding their own key from the Mac. After that I'll verify that my public key file matches what's on the server.
+
+    I'm going to read the public key file from my account to confirm it matches what's on the server, since that's safe to show. Root password login will be disabled once hardening is done, so the console password matters less. I'll test the route from the Mac once the user confirms the keys are in, and I still need to ask about a domain, keeping the question short.
+  ── Read ~/.ssh/hackaton_lead.pub
+  ── Thought for 7s
+    The route is still going through the VPN tunnel, so I need to remember to turn the VPN off before I connect.
+
+── Assistant ───────────────────────────────────────────────
+Сервер работает: Ubuntu 24.04.3, диск 10 ГБ (занято 15%), память занята на 20%. Но сервер спросил пароль. Значит, SSH-ключи на нём не установлены. Их нужно добавить, и тогда я начну деплой.
+
+**1. Добавьте ключи.** Это 2 шага.
+
+Мой ключ. Вставьте в уже открытую сессию `root` на сервере:
+```
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
+echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIFMbGXCLcgl3lEo8/QjH/XDLeDkoLOV4qD5pJHMNU9y hackaton-lead' >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+```
+
+Ваш ключ. Выполните в новой вкладке терминала на Mac (команда спросит пароль `root` один раз):
+```
+ssh-copy-id -i ~/.ssh/hackaton_deploy.pub root@129.101.95.154
+```
+Потом проверьте: `ssh -i ~/.ssh/hackaton_deploy root@129.101.95.154` должен войти без пароля. Вход по паролю я отключу на шаге усиления SSH, поэтому сначала ключ.
+
+**2. VPN.** Сейчас ваш Mac снова отправляет трафик через VPN (`utun4`). Пока я работаю с сервером, Happ должен быть выключен.
+
+**3. Что ещё нужно решить:**
+- **Домен.** Он нужен для HTTPS. Сертификат Let's Encrypt выдаётся на домен. Он у вас есть? Если нет, купите его у любого регистратора, например `.ru` за ~200 ₽, и направьте запись A на `129.101.95.154`.
+- **Доступ сервера к коду.** Репозиторий закрытый, поэтому сервер не сможет его скачать. Есть 2 варианта:
+  - **(а) Рекомендую.** Ключ развёртывания (deploy key) только для чтения. Я создам его на сервере и пришлю вам открытую часть. Вы добавите её в GitHub: репозиторий → Settings → Deploy keys. До сдачи код останется закрытым.
+  - (б) Сделать репозиторий публичным уже сейчас. Минус: работу раньше срока увидят другие участники.
+- **Почта для сертификата.** Предлагаю получить сертификат без почты (`--register-unsafely-without-email`). Тогда вашу почту не нужно никуда передавать.
+
+**Что я буду спрашивать по ходу.** Все шаги идут по `docs/DEPLOY.md`: swap, пакеты, усиление SSH, брандмауэр, PostgreSQL, приложение, nginx, HTTPS. Перед каждым шагом, который трудно откатить, я спрошу вас: отключение входа по паролю, включение брандмауэра, выпуск сертификата.
+
+Напишите, когда добавите ключи и выключите VPN. Ещё ответьте про домен и вариант (а) или (б).
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_cpuae9aqw3]
+
+[TASK-013-FIX2] Reviewer -> Team lead: APPROVE
+Round 1. Assignee: UI coder. Spec: docs/tasks/TASK-013-FIX2.md.
+
+## Verified
+- map.html adds only the 6 wrapper lines. map-defs stays before `.map-layout`; nothing inside the moved blocks changed.
+- The base.css @media block is verbatim from the spec (checked programmatically). The mobile `.map-svg` rule is unchanged. Changed files: map.html, base.css and 2 test files. No JS, no Python, no tokens.
+- New tests match the Test plan: MapLayoutTests (4) and MapLayoutCssTests (4). No existing test changed.
+- My own browser measurement (temp DB, headless Chrome, scroll 0): student and staff, room-101 and room-402, at 1024x768, 1280x800, 1440x900, 768x1024 and 360x780. All 20 rows PASS and match the UI coder's numbers exactly:
+  - 1024x768 student: svg 200-760, width 346; highlight inside; no horizontal scroll.
+  - 360x780: floors 227-277, svg 285-816, width 328, equal to the AC3 baseline.
+  - Sticky: at 1024x768 with "4 этаж" scrolled to the centre (scrollY 453) the plan sits at 16-576.
+  - Screenshots show the plan left, the room grid right, and the current 402 orange in both.
+
+## Runs (log time US; MSK = +11 h, ~02:17-02:23 MSK 19.11)
+- `test --parallel 1`: Ran 1095 tests, OK. $TMPDIR/test-fix2-rev-20261118-151733.log
+- `run_tests_at.py 2026-11-19T00:00:00`: Ran 1095 tests, OK. $TMPDIR/test-fix2-rev-midnight-20261118-151733.log
+- No failures. The UI coder reported one interrupted run (~22:37 MSK 18.11, session restart). It was not a test failure.
+- check, makemigrations --check, ruff check . and ruff format --check . (190 files): all OK.
+
+## Notes
+- Remaining risk from the spec: on windows shorter than ~726 px the plan keeps 20rem and may extend below the fold. Accepted.
+- plan.md is still modified (your file).
+
+── Thought for 9ms ─────────────────────────────────────────
+  I'm working through the post-approval checklist for FIX2: running the tests, checking the layout at four widths, taking screenshots, then the README, dialogs, and changelog/plan updates. After that comes the commit and push, and then I'll notify the Planner. I'm starting by checking git status.
+
+── Assistant ───────────────────────────────────────────────
+Ревьюер одобрил TASK-013-FIX2 с первого раунда. Проверяю её сам.
+
+── Ran 5 commands ──────────────────────────────────────────
+  ── Ran git status --short; git diff --stat | tail -1; git diff campusmap/templates/campusmap/map.html static/css/base.css | head -80
+    $ git status --short; git diff --stat | tail -1; git diff campusmap/templates/campusmap/map.html static/css/base.css | head -80
+    M campusmap/templates/campusmap/map.html
+     M campusmap/tests/test_views.py
+     M core/tests/test_css.py
+     M plan.md
+     M static/css/base.css
+    ?? docs/tasks/TASK-013-FIX2.md
+    ?? docs/tasks/TASK-014.md
+     5 files changed, 191 insertions(+), 1 deletion(-)
+    diff --git a/campusmap/templates/campusmap/map.html b/campusmap/templates/campusmap/map.html
+    index 5e20d9f..c28f7f7 100644
+    --- a/campusmap/templates/campusmap/map.html
+    +++ b/campusmap/templates/campusmap/map.html
+    @@ -6,6 +6,7 @@
+       <p>Аудиторий пока нет.</p>
+     {% else %}
+       <svg class="map-defs" width="0" height="0" aria-hidden="true" focusable="false"><defs><pattern id="map-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect class="map-hatch-bg" width="8" height="8"/><rect class="map-hatch-line" width="2" height="8"/></pattern></defs></svg>
+    +  <div class="map-layout">
+       <nav class="floor-switcher" aria-label="Этажи">
+         <span>Этаж:</span>
+         <ul>
+    @@ -14,6 +15,7 @@
+           {% endfor %}
+         </ul>
+       </nav>
+    +  <div class="map-plan">
+       {% if plan %}
+       <svg class="map-svg" viewBox="0 0 {{ plan.width }} {{ plan.height }}" role="img" aria-labelledby="map-title">
+         <title id="map-title">Схема, {{ plan.floor }} этаж</title>
+    @@ -28,6 +30,8 @@
+         {% endfor %}
+       </svg>
+       {% else %}<p>Схемы {{ current_floor }} этажа нет.</p>{% endif %}
+    +  </div>
+    +  <div class="map-side">
+       <ul class="map-legend">
+         <li><svg class="map-legend-swatch" viewBox="0 0 24 16" aria-hidden="true"><g class="map-room"><rect x="1" y="1" width="22" height="14"/></g></svg> Аудитория</li>
+         <li><svg class="map-legend-swatch" viewBox="0 0 24 16" aria-hidden="true"><g class="map-landmark"><rect x="1" y="1" width="22" height="14"/></g></svg> Вход, лестницы, деканат, библиотека, столовая</li>
+    @@ -42,5 +46,7 @@
+         {% endfor %}
+       </ul>
+       {% endfor %}
+    +  </div>
+    +  </div>
+     {% endif %}
+     {% endblock %}
+    diff --git a/static/css/base.css b/static/css/base.css
+    index 3663b0c..9599c2f 100644
+    --- a/static/css/base.css
+    +++ b/static/css/base.css
+    @@ -849,6 +849,45 @@ input[type="file"]::file-selector-button {
+       font-size: 0.875rem;
+     }
+     
+    +/* Wide map (TASK-013-FIX2): plan on the left (sticky, sized from the viewport height),
+    +   floor buttons, legend and room list on the right. DOM order stays the mobile order. */
+    +@media (min-width: 48rem) {
+    +  .map-layout {
+    +    display: grid;
+    +    grid-template-columns: auto minmax(14rem, 1fr);
+    +    grid-template-rows: auto 1fr;
+    +    grid-template-areas:
+    +      "plan floors"
+    +      "plan side";
+    +    column-gap: var(--space-4);
+    +    align-items: start;
+    +  }
+    +
+    +  .map-layout > .floor-switcher {
+    +    grid-area: floors;
+    +  }
+    +
+    +  .map-plan {
+    +    grid-area: plan;
+    +    position: sticky;
+    +    top: var(--space-3);
+    +  }
+    +
+    +  .map-side {
+    +    grid-area: side;
+    +    min-width: 0;
+    +  }
+    +
+    +  .map-plan .map-svg {
+    +    width: clamp(20rem, calc((100vh - 13rem) * 0.6173), 32rem);
+    +    margin: 0;
+    +  }
+    +
+    +  .map-side > h2:first-of-type {
+  ── Thought for 102ms
+    I need to keep TASK-014.md, the Planner's spec, out of the FIX2 commit since it belongs to TASK-014 and is still untracked. I'll start the tests in the background and launch the server so I can run the browser check.
+  ── Ran . .venv/bin/activate && L="$TMPDIR/test-lead13fix2-$(date +%Y%m%d-%H%M%S).log" && echo "$L" > "$TMPDIR/lead13fix2log" && { python manage.py check; DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ python manage.py check --deploy --fail-level WARNING; echo "deploy-check=$?"; python manage.py makemigrations --check --dry-run; echo "makemigrations=$?"; ruff check . && ruff format --check .; echo "ruff=$?"; python manage.py test --parallel 2 2>&1; echo "parallel=$?"; python scripts/run_tests_at.py 2026-11-19T00:00:00 2>&1; echo "midnight=$?"; } > "$L" 2>&1; TZ=Europe/Moscow date; grep -E "^(Ran|OK|FAILED)|=[0-9]+$" "$L" (4s)
+    $ . .venv/bin/activate && L="$TMPDIR/test-lead13fix2-$(date +%Y%m%d-%H%M%S).log" && echo "$L" > "$TMPDIR/lead13fix2log" && { python manage.py check; DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ python manage.py check --deploy --fail-level WARNING; echo "deploy-check=$?"; python manage.py makemigrations --check --dry-run; echo "makemigrations=$?"; ruff check . && ruff format --check .; echo "ruff=$?"; python manage.py test --parallel 2 2>&1; echo "parallel=$?"; python scripts/run_tests_at.py 2026-11-19T00:00:00 2>&1; echo "midnight=$?"; } > "$L" 2>&1; TZ=Europe/Moscow date; grep -E "^(Ran|OK|FAILED)|=[0-9]+$" "$L"
+    Command running in background with ID: b2uuvzh92. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ece4e4ba-ff05-48af-a52d-ff31c8b1af47/tasks/b2uuvzh92.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran . .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/lead13fix2.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/lead13fix2-media" && rm -f "$TMPDIR/lead13fix2.sqlite3" && mkdir -p "$TMPDIR/lead13fix2-media" && python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py shell -c " import json from django.contrib.sessions.backends.db import SessionStore from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY U=get_user_model(); out={} for n in ['student1','staff1']:     u=U.objects.get(username=n); s=SessionStore()     s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create(); out[n]=s.session_key json.dump(out, open('$TMPDIR/sessfix2.json','w')) " 2>&1 | grep -v imported (6s)
+    $ . .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/lead13fix2.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/lead13fix2-media" && rm -f "$TMPDIR/lead13fix2.sqlite3" && mkdir -p "$TMPDIR/lead13fix2-media" && python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py shell -c "
+  import json
+  from django.contrib.sessions.backends.db import SessionStore
+  from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY
+  U=get_user_model(); out={}
+  for n in ['student1','staff1']:
+      u=U.objects.get(username=n); s=SessionStore()
+      s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create(); out[n]=s.session_key
+  json.dump(out, open('$TMPDIR/sessfix2.json','w'))
+  " 2>&1 | grep -v imported
+    Chat ready: 3 dialogs, 8 messages.
+  ── Ran . .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/lead13fix2.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/lead13fix2-media" DEBUG=true && exec python manage.py runserver 127.0.0.1:8773 --noreload (2s)
+    $ . .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/lead13fix2.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/lead13fix2-media" DEBUG=true && exec python manage.py runserver 127.0.0.1:8773 --noreload
+    Command running in background with ID: bhdbfo95u. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ece4e4ba-ff05-48af-a52d-ff31c8b1af47/tasks/bhdbfo95u.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran sleep 4; curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8773/login/; bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -1 > "$TMPDIR/bopen.json"; ~/hackatonproject/.venv/bin/python -c "import json;d=json.load(open('$TMPDIR/bopen.json'));print(d.get('sessionId') or d.get('id'));print(d.get('previewDirective',''))" | tee "$TMPDIR/bopen.txt"; head -1 "$TMPDIR/bopen.txt" > "$TMPDIR/bsess" (6s)
+    $ sleep 4; curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8773/login/; bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -1 > "$TMPDIR/bopen.json"; ~/hackatonproject/.venv/bin/python -c "import json;d=json.load(open('$TMPDIR/bopen.json'));print(d.get('sessionId') or d.get('id'));print(d.get('previewDirective',''))" | tee "$TMPDIR/bopen.txt"; head -1 "$TMPDIR/bopen.txt" > "$TMPDIR/bsess"
+    200
+    acda224a-d27e-4ee7-8ed2-df07cf6eff2c
+    ::browser-preview{session="acda224a-d27e-4ee7-8ed2-df07cf6eff2c"}
+
+── Assistant ───────────────────────────────────────────────
+::browser-preview{session="acda224a-d27e-4ee7-8ed2-df07cf6eff2c"}
+
+── Ran 4 commands, explored 4 files ────────────────────────
+  ── Ran cat > "$TMPDIR/x2.js" <<'EOF' const p = await browser.getPage('main'); const res = {}; const as = async (k) => { await p.deleteCookie({name: 'sessionid', domain: '127.0.0.1'}); await p.setCookie({name: 'sessionid', value: k, domain: '127.0.0.1', path: '/'}); }; const m = (vh) => p.evaluate((vh) => { const s = document.querySelector('.map-svg').getBoundingClientRect(); const c = document.querySelector('.map-svg .map-current'); const cr = c ? c.getBoundingClientRect() : null; return {svg: [Math.round(s.top), Math.round(s.bottom), Math.round(s.width)], fits: s.bottom <= vh, cur: cr ? [Math.round(cr.top), Math.round(cr.bottom)] : null, sw: document.documentElement.scrollWidth, vw: window.innerWidth}; }, vh); await as('__K1__'); for (const [w, h, u, shot] of [[1024, 768, 'room/room-101/', true], [1280, 800, 'room/room-402/', true], [1440, 900, 'floor/3/', false], [360, 780, 'room/room-403/', true]]) {   await p.setViewport({width: w, height: h, deviceScaleFactor: 1});   await p.goto('http://127.0.0.1:8773/map/' + u, {waitUntil: 'networkidle0'});   res[w + 'x' + h + ' ' + u] = await m(h);   if (shot) await p.shot({type: 'jpeg', maxEdge: 1440, quality: 70}); } await as('__KS__'); await p.setViewport({width: 1024, height: 768, deviceScaleFactor: 1}); await p.goto('http://127.0.0.1:8773/map/room/room-205/', {waitUntil: 'networkidle0'}); res['staff 1024 room-205'] = await m(768); await p.evaluate(() => window.scrollTo(0, 600)); res['staff 1024 scrolled'] = await m(768); await p.shot({type: 'jpeg', maxEdge: 1024, quality: 70}); console.log(JSON.stringify(res)); EOF K1=$(~/hackatonproject/.venv/bin/python -c "import json;print(json.load(open('$TMPDIR/sessfix2.json'))['student1'])"); KS=$(~/hackatonproject/.venv/bin/python -c "import json;print(json.load(open('$TMPDIR/sessfix2.json'))['staff1'])"); sed -i '' "s/__K1__/$K1/; s/__KS__/$KS/" "$TMPDIR/x2.js"; bb browser-automation run $(cat $TMPDIR/bsess) --timeout 120s --json --script "$(cat $TMPDIR/x2.js)" > $TMPDIR/x2.out 2>&1; ~/hackatonproject/.venv/bin/python -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d.get("text") or d);[print(i["path"]) for i in d.get("images",[])]' $TMPDIR/x2.out 2>/dev/null || head -c 2500 $TMPDIR/x2.out (6s)
+    $ cat > "$TMPDIR/x2.js" <<'EOF'
+  const p = await browser.getPage('main');
+  const res = {};
+  const as = async (k) => { await p.deleteCookie({name: 'sessionid', domain: '127.0.0.1'}); await p.setCookie({name: 'sessionid', value: k, domain: '127.0.0.1', path: '/'}); };
+  const m = (vh) => p.evaluate((vh) => { const s = document.querySelector('.map-svg').getBoundingClientRect(); const c = document.querySelector('.map-svg .map-current'); const cr = c ? c.getBoundingClientRect() : null; return {svg: [Math.round(s.top), Math.round(s.bottom), Math.round(s.width)], fits: s.bottom <= vh, cur: cr ? [Math.round(cr.top), Math.round(cr.bottom)] : null, sw: document.documentElement.scrollWidth, vw: window.innerWidth}; }, vh);
+  await as('__K1__');
+  for (const [w, h, u, shot] of [[1024, 768, 'room/room-101/', true], [1280, 800, 'room/room-402/', true], [1440, 900, 'floor/3/', false], [360, 780, 'room/room-403/', true]]) {
+    await p.setViewport({width: w, height: h, deviceScaleFactor: 1});
+    await p.goto('http://127.0.0.1:8773/map/' + u, {waitUntil: 'networkidle0'});
+    res[w + 'x' + h + ' ' + u] = await m(h);
+    if (shot) await p.shot({type: 'jpeg', maxEdge: 1440, quality: 70});
+  }
+  await as('__KS__');
+  await p.setViewport({width: 1024, height: 768, deviceScaleFactor: 1});
+  await p.goto('http://127.0.0.1:8773/map/room/room-205/', {waitUntil: 'networkidle0'});
+  res['staff 1024 room-205'] = await m(768);
+  await p.evaluate(() => window.scrollTo(0, 600));
+  res['staff 1024 scrolled'] = await m(768);
+  await p.shot({type: 'jpeg', maxEdge: 1024, quality: 70});
+  console.log(JSON.stringify(res));
+  EOF
+  K1=$(~/hackatonproject/.venv/bin/python -c "import json;print(json.load(open('$TMPDIR/sessfix2.json'))['student1'])"); KS=$(~/hackatonproject/.venv/bin/python -c "import json;print(json.load(open('$TMPDIR/sessfix2.json'))['staff1'])"); sed -i '' "s/__K1__/$K1/; s/__KS__/$KS/" "$TMPDIR/x2.js"; bb browser-automation run $(cat $TMPDIR/bsess) --timeout 120s --json --script "$(cat $TMPDIR/x2.js)" > $TMPDIR/x2.out 2>&1; ~/hackatonproject/.venv/bin/python -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d.get("text") or d);[print(i["path"]) for i in d.get("images",[])]' $TMPDIR/x2.out 2>/dev/null || head -c 2500 $TMPDIR/x2.out
+    {"1024x768 room/room-101/":{"svg":[200,760,346],"fits":true,"cur":[203,300],"sw":1024,"vw":1024},"1280x800 room/room-402/":{"svg":[200,792,365],"fits":true,"cur":[321,386],"sw":1280,"vw":1280},"1440x900 floor/3/":{"svg":[200,892,427],"fits":true,"cur":null,"sw":1440,"vw":1440},"360x780 room/room-403/":{"svg":[285,816,328],"fits":false,"cur":[452,505],"sw":360,"vw":360},"staff 1024 room-205":{"svg":[188,748,346],"fits":true,"cur":[475,537],"sw":1024,"vw":1024},"staff 1024 scrolled":{"svg":[16,576,346],"fits":true,"cur":[303,365],"sw":1024,"vw":1024}}
+
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-2Wm2C7/db-cKDGah/tmp/shot-1795044214109-1.jpg
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-2Wm2C7/db-cKDGah/tmp/shot-1795044215108-2.jpg
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-2Wm2C7/db-cKDGah/tmp/shot-1795044217112-3.jpg
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-2Wm2C7/db-cKDGah/tmp/shot-1795044218117-4.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-2Wm2C7/db-cKDGah/tmp/shot-1795044214109-1.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-2Wm2C7/db-cKDGah/tmp/shot-1795044215108-2.jpg
+  ── Thought for 909ms
+    I've confirmed the plan fits at both 1024 and 1280, with the bottom edge sitting comfortably clear of the viewport and the title centered within its max-width. Next I'm deciding whether the 360 and scrolled-staff screenshots need a look, since the 360 measurement already matches the baseline, so I'll skip that one.
+
+    I'm going to check the staff-scrolled screenshot to confirm the sticky header holds.
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-2Wm2C7/db-cKDGah/tmp/shot-1795044218117-4.jpg
+  ── Thought for 356ms
+    Everything checks out, so next I'm grabbing the four screenshots: the 1024 student view for room-101, the 1280 view for room-402, the 360 view for room-403, and the staff view at 1024 with the sticky element scrolled. After that I'll add their rows to the README.
+  ── Thought for 4ms
+    Карта на широком экране работает: план помещается слева, список аудиторий справа и не сдвигается при прокрутке. Сохраняю скриншоты.
+  ── Ran B=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-2Wm2C7/db-cKDGah/tmp && D=docs/process/screenshots && cp $B/shot-1795044214109-1.jpg $D/2026-11-19_62_map-wide-1024_student1.jpg && cp $B/shot-1795044215108-2.jpg $D/2026-11-19_63_map-wide-1280-room402_student1.jpg && cp $B/shot-1795044217112-3.jpg $D/2026-11-19_64_map-360-room403_student1.jpg && cp $B/shot-1795044218117-4.jpg $D/2026-11-19_65_map-wide-1024-scrolled_staff1.jpg && .venv/bin/python - <<'EOF' p='docs/process/README.md' s=open(p,encoding='utf-8').read() anchor=[l for l in s.split('\n') if l.startswith('| `2026-11-18_61_')][0] rows=[ ('62_map-wide-1024_student1','После TASK-013-FIX2 (карта на широком экране)','Экран 1024×768: план этажа слева целиком (высота 560 px вместо 1477), справа этажи, легенда и кнопки аудиторий; подсвечена 101. Сравните со снимком 51'), ('63_map-wide-1280-room402_student1','После TASK-013-FIX2','Экран 1280×800, 4 этаж, подсвечена 402: план помещается на экран'), ('64_map-360-room403_student1','После TASK-013-FIX2','Телефон 360 px: вид как раньше (план во всю ширину, список под ним)'), ('65_map-wide-1024-scrolled_staff1','После TASK-013-FIX2','Сотрудник, 1024 px, страница прокручена к 4 этажу списка: план 2 этажа остаётся на экране, 205 подсвечена и на плане, и в списке'), ] new='\n'.join(f'| `2026-11-19_{n}.jpg` | 19.11.2026 | {st} | {d} |' for n,st,d in rows) assert s.count(anchor)==1 s=s.replace(anchor, anchor+'\n'+new) open(p,'w',encoding='utf-8').write(s) p='CHANGELOG.md' s=open(p,encoding='utf-8').read() head='# История изменений\n\nФормат: одна запись на задачу или изменение настройки. Новые записи сверху.\n\n' assert s.startswith(head) entry='''## 2026-11-19 ### TASK-013-FIX2: карта на широком экране - От 48rem план этажа стоит слева и подстраивается под высоту окна (на 1024×768 — 346×560 px вместо 912×1477), справа этажи, легенда и кнопки аудиторий. План «прилипает» при прокрутке списка. На телефоне вид прежний. Только HTML-обёртки и CSS, без JavaScript. - Исполнитель — Кодер интерфейса. Ревью: 1 раунд, без замечаний. Проверка тимлида в браузере: 1024, 1280, 1440 и 360 px, студент и сотрудник. Всего тестов: 1095. ''' s=head+entry+s[len(head):] open(p,'w',encoding='utf-8').write(s) p='plan.md' s=open(p,encoding='utf-8').read() row=[l for l in s.split('\n') if l.startswith('| TASK-013-FIX2 |')][0] assert row.endswith('| В работе |') s=s.replace(row, row[:-len('| В работе |')]+'| Готово |') old='TASK-013-FIX2 (Кодер интерфейса, план этажа на широком экране) в работе; после неё — git push.' assert s.count(old)==1 s=s.replace(old,'TASK-013-FIX2 закрыта 19.11. TASK-014 (заявки) — у Кодера на DeepSeek.') s=s.replace('- На широком экране план этажа 912×1477 px и не помещается на экран (TASK-013).\n','- Сделано в TASK-013-FIX2: на широком экране план этажа слева и помещается на экран.\n') open(p,'w',encoding='utf-8').write(s) EOF grep -n "TASK-013-FIX2\|TASK-014" plan.md | cut -c1-110 (1s)
+    $ B=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-2Wm2C7/db-cKDGah/tmp && D=docs/process/screenshots && cp $B/shot-1795044214109-1.jpg $D/2026-11-19_62_map-wide-1024_student1.jpg && cp $B/shot-1795044215108-2.jpg $D/2026-11-19_63_map-wide-1280-room402_student1.jpg && cp $B/shot-1795044217112-3.jpg $D/2026-11-19_64_map-360-room403_student1.jpg && cp $B/shot-1795044218117-4.jpg $D/2026-11-19_65_map-wide-1024-scrolled_staff1.jpg && .venv/bin/python - <<'EOF'
+  p='docs/process/README.md'
+  s=open(p,encoding='utf-8').read()
+  anchor=[l for l in s.split('\n') if l.startswith('| `2026-11-18_61_')][0]
+  rows=[
+  ('62_map-wide-1024_student1','После TASK-013-FIX2 (карта на широком экране)','Экран 1024×768: план этажа слева целиком (высота 560 px вместо 1477), справа этажи, легенда и кнопки аудиторий; подсвечена 101. Сравните со снимком 51'),
+  ('63_map-wide-1280-room402_student1','После TASK-013-FIX2','Экран 1280×800, 4 этаж, подсвечена 402: план помещается на экран'),
+  ('64_map-360-room403_student1','После TASK-013-FIX2','Телефон 360 px: вид как раньше (план во всю ширину, список под ним)'),
+  ('65_map-wide-1024-scrolled_staff1','После TASK-013-FIX2','Сотрудник, 1024 px, страница прокручена к 4 этажу списка: план 2 этажа остаётся на экране, 205 подсвечена и на плане, и в списке'),
+  ]
+  new='\n'.join(f'| `2026-11-19_{n}.jpg` | 19.11.2026 | {st} | {d} |' for n,st,d in rows)
+  assert s.count(anchor)==1
+  s=s.replace(anchor, anchor+'\n'+new)
+  open(p,'w',encoding='utf-8').write(s)
+  p='CHANGELOG.md'
+  s=open(p,encoding='utf-8').read()
+  head='# История изменений\n\nФормат: одна запись на задачу или изменение настройки. Новые записи сверху.\n\n'
+  assert s.startswith(head)
+  entry='''## 2026-11-19
+  ### TASK-013-FIX2: карта на широком экране
+  - От 48rem план этажа стоит слева и подстраивается под высоту окна (на 1024×768 — 346×560 px вместо 912×1477), справа этажи, легенда и кнопки аудиторий. План «прилипает» при прокрутке списка. На телефоне вид прежний. Только HTML-обёртки и CSS, без JavaScript.
+  - Исполнитель — Кодер интерфейса. Ревью: 1 раунд, без замечаний. Проверка тимлида в браузере: 1024, 1280, 1440 и 360 px, студент и сотрудник. Всего тестов: 1095.
+
+  '''
+  s=head+entry+s[len(head):]
+  open(p,'w',encoding='utf-8').write(s)
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  row=[l for l in s.split('\n') if l.startswith('| TASK-013-FIX2 |')][0]
+  assert row.endswith('| В работе |')
+  s=s.replace(row, row[:-len('| В работе |')]+'| Готово |')
+  old='TASK-013-FIX2 (Кодер интерфейса, план этажа на широком экране) в работе; после неё — git push.'
+  assert s.count(old)==1
+  s=s.replace(old,'TASK-013-FIX2 закрыта 19.11. TASK-014 (заявки) — у Кодера на DeepSeek.')
+  s=s.replace('- На широком экране план этажа 912×1477 px и не помещается на экран (TASK-013).\n','- Сделано в TASK-013-FIX2: на широком экране план этажа слева и помещается на экран.\n')
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  grep -n "TASK-013-FIX2\|TASK-014" plan.md | cut -c1-110
+    107:| TASK-013-FIX2 | Карта на широком экране: план этажа помещается н
+    108:| TASK-014 | Заявки: «Справка в военкомат», «Другая справка» и «
+    113:Сейчас: TASK-013 (карта, без причин изменений, мелкие правки) з�
+    125:- Сделано в TASK-013-FIX2: на широком экране план этажа слева и по
+    142:- 18.11.2026: TASK-014 (заявки): «Справка в военкомат» — комментарий
+  ── Thought for 5ms
+    I'm also going to update the "Сейчас" line, since it describes the deploy status. The server is now reachable over SSH with a password, as of about 00:50 MSK on 19 November, and it's waiting on keys and the domain. Next I'll check the current text of line 113.
+  ── Ran .venv/bin/python - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() old='Деплой ждёт исправления сервера у хостинга (консоль 504, SSH не отвечает без VPN; пользователь написал в поддержку 3 раза).' assert s.count(old)==1, s[s.find('Сейчас:'):s.find('Сейчас:')+600] s=s.replace(old,'Сервер заработал 19.11 (вход по паролю root); для деплоя нужны SSH-ключи, домен и доступ сервера к закрытому репозиторию (ключ развёртывания).') row=[l for l in s.split('\n') if l.startswith('| TASK-014 |')][0] s=s.replace(row, row.rsplit('|',2)[0]+'| В работе |') open(p,'w',encoding='utf-8').write(s) EOF sed -n 108p plan.md | cut -c1-60; grep -o "Сервер заработал[^.]*" plan.md (2s)
+    $ .venv/bin/python - <<'EOF'
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  old='Деплой ждёт исправления сервера у хостинга (консоль 504, SSH не отвечает без VPN; пользователь написал в поддержку 3 раза).'
+  assert s.count(old)==1, s[s.find('Сейчас:'):s.find('Сейчас:')+600]
+  s=s.replace(old,'Сервер заработал 19.11 (вход по паролю root); для деплоя нужны SSH-ключи, домен и доступ сервера к закрытому репозиторию (ключ развёртывания).')
+  row=[l for l in s.split('\n') if l.startswith('| TASK-014 |')][0]
+  s=s.replace(row, row.rsplit('|',2)[0]+'| В работе |')
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  sed -n 108p plan.md | cut -c1-60; grep -o "Сервер заработал[^.]*" plan.md
+    | TASK-014 | Заявки: «Справка в военко�
+    Сервер заработал 19
+  ── Read plan.md
+  ── Thought for 3ms
+    I'm waiting on the tests to finish, and I'm holding off on anything else until they do. I'll let the waiting loop run.
+  ── Ran L=$(cat $TMPDIR/lead13fix2log); for i in $(seq 1 55); do grep -q "^midnight=" "$L" && break; sleep 10; done; grep -E "^(Ran|OK|FAILED)|=[0-9]+$" "$L"; TZ=Europe/Moscow date (3m 1s)
+    $ L=$(cat $TMPDIR/lead13fix2log); for i in $(seq 1 55); do grep -q "^midnight=" "$L" && break; sleep 10; done; grep -E "^(Ran|OK|FAILED)|=[0-9]+$" "$L"; TZ=Europe/Moscow date
+    deploy-check=0
+    makemigrations=0
+    ruff=0
+    Ran 1095 tests in 78.856s
+    OK
+    parallel=0
+    Ran 1095 tests in 159.496s
+    OK
+    midnight=0
+    Thu Nov 19 02:27:14 MSK 2026
+
+── Assistant ───────────────────────────────────────────────
+Все тесты прошли: 1095. Выгружаю диалоги, делаю коммит и `git push`.
+
+── Running O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)     t=t.replace('[id скрыт]','[id скрыт]')     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]     assert not bad,(f,bad)     assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF rm -rf "$O"; git status --short
   $ O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF'
 import os,re,sys
 d=sys.argv[1]; out='docs/process/dialogs'
@@ -18411,4 +19061,4 @@ for f in sorted(os.listdir(d)):
     assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f
     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
 EOF
-rm -rf "$O"
+rm -rf "$O"; git status --short

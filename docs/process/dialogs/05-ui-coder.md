@@ -7178,3 +7178,917 @@ TASK-013 готова, отчёт отправлен Ревьюеру (@thread:t
 **Что не проверено:** полосу прокрутки на снимках не видно, потому что браузер без окна рисует её поверх страницы. Её поведение я проверил по вычисленным стилям. В Safari я ничего не проверял: доступен только Chromium.
 
 Тестовый сервер я опять останавливал командой без песочницы: песочница не показывает процессы из других команд. Сервер и браузер закрыты. Жду ответа Ревьюера.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_2imsg4kck2]
+
+[TASK-013-FIX2] Planner -> UI coder: TASK
+Spec: docs/tasks/TASK-013-FIX2.md. Reference: docs/process/screenshots/2026-11-18_51_map-wide-1024_student1.jpg (the problem).
+Summary:
+- From 48rem, the map page gets two columns: the plan on the left (sticky), and the floor buttons, legend and room list on the right. The DOM order stays the mobile order: wrappers .map-layout/.map-plan/.map-side in map.html; nothing inside the moved blocks changes.
+- Plan width: clamp(20rem, calc((100vh - 13rem) * 0.6173), 32rem). In my injected-CSS prototype the plan was 200-760 px at 1024x768 (346 px wide, labels 17/13 px) and the 360 px layout was unchanged.
+- Only map.html, base.css and new tests change. No JS, no Python, no tokens.
+Visual acceptance: student and staff, /map/room/room-101/ and /map/room/room-402/, at 1024x768, 1280x800, 1440x900, 768x1024 and 360x780. Report the measured numbers: plan, floor buttons and highlight inside the viewport, no horizontal scroll, 360 unchanged. Baseline: 1087 tests OK (2026-11-18 ~22:30 MSK).
+
+── Assistant ───────────────────────────────────────────────
+Получил TASK-013-FIX2. Читаю спецификацию.
+
+── Ran 1 command, explored 1 file ──────────────────────────
+  ── Ran git status --short && git log --oneline -5 && cat docs/tasks/TASK-013-FIX2.md
+    $ git status --short && git log --oneline -5 && cat docs/tasks/TASK-013-FIX2.md
+    M plan.md
+    ?? docs/tasks/TASK-013-FIX2.md
+    8f469b2 TASK-013-FIX: feed marks a lesson change new only on visible edits; parallel tests keep uploads in a temp dir
+    8316949 TASK-013: floor plans without storage, two staircases, corridor access; hide change reasons; small UI fixes
+    775c082 TASK-012: night pixel design for all pages
+    59481cf Design: approved mockup and Press Start 2P font (OFL) for TASK-012
+    9fe9da5 Team: add the UI coder agent (Claude Opus) for visual tasks
+    # TASK-013-FIX2: The floor plan fits the screen on wide viewports
+
+    Assignee: **UI coder** (thr_pgcwc2dwnn). Request: Team lead, approved by the user (found by the Team lead on 18.11).
+
+    ## Goal
+
+    On wide screens (≥ 48rem) the whole floor plan, the floor buttons and the highlighted room are visible together without scrolling, at 1024 × 768 and larger. The 360 px layout stays exactly as now. No JavaScript.
+
+    Problem today (measured 2026-11-18 on a seeded temporary DB, `/map/room/room-101/`, student): at 1024 × 768, 1280 × 800 and 1440 × 900 the plan is 912 × 1477 px (the full content width), from y = 258 to y = 1735; the page is 2642 px high. Screenshot: `docs/process/screenshots/2026-11-18_51_map-wide-1024_student1.jpg`.
+
+    ## Acceptance criteria
+
+    - AC1. At ≥ 48rem the map page uses two columns: the plan on the left; the floor buttons, the legend and the room list on the right (D1).
+    - AC2. At 1024 × 768, 1280 × 800 and 1440 × 900, with the page scrolled to the top, for a student and for staff, on `/map/room/room-101/` (floor 1) and `/map/room/room-402/` (floor 4): the bottom of `.map-svg` ≤ `innerHeight`; the floor switcher is fully inside the viewport; the highlighted room (`.map-svg .map-current`) is fully inside the viewport; `document.documentElement.scrollWidth === innerWidth`.
+    - AC3. At 360 × 780 the layout is unchanged: the same order (floor buttons, plan, legend, room list) and the same positions as before the change (measured before: floor switcher y 227–277, `.map-svg` y 285–816, width 328, for a student on `/map/room/room-101/`; tolerance ±2 px).
+    - AC4. Labels stay readable: the plan is never narrower than 20rem (320 px) at ≥ 48rem, so the 20-unit room labels are ≥ 16 px and the 15-unit landmark/service labels are ≥ 12 px on screen.
+    - AC5. Pinch-zoom keeps working: the viewport meta tag is unchanged (`width=device-width, initial-scale=1`, no `maximum-scale`, no `user-scalable=no`), and no CSS sets `touch-action: none` on the map.
+    - AC6. No new JavaScript, no Python changes, no new tokens or colours. Only `campusmap/templates/campusmap/map.html`, `static/css/base.css` and tests change.
+
+    ## Out of scope
+
+    Zoom buttons, route finding, new features. Map colours, the room list look and the plans themselves (TASK-013). The page header.
+
+    ## Design decisions
+
+    - **D1. Two columns, not only a height cap.** Measured with a CSS prototype injected into the page (no file changed), at 1024 × 768:
+      - a height cap with the floor buttons above the plan leaves 768 − 258 − 8 = 502 px of height → the plan is 310 px wide; the landmark labels become 11.6 px (below the 12 px reached on a 360 px phone);
+      - two columns put the plan right under the `h1` (top at y = 200), so it gets 560 px of height → 346 px wide; labels 17.3 px (rooms) and 13 px (landmarks). The 912 px content width has room for a right column (542 px at 1024), and the room buttons sit next to the plan, so choosing a room keeps the plan in view.
+    - **D2. DOM order stays the mobile order.** Floor switcher, then plan, then the side content (legend, "Все аудитории", room lists). At ≥ 48rem CSS grid areas place the plan on the left across two rows and the floor switcher and the side content on the right. The reading and tab order (floor links, then room links) stays logical; the SVG is not focusable.
+    - **D3. Plan size from the viewport height.** At ≥ 48rem: `width: clamp(20rem, calc((100vh - 13rem) * 0.6173), 32rem)`; the height follows from the `viewBox` (400 × 648; 400 / 648 = 0.6173). `13rem` (208 px) = the plan's top at y = 200 (header 108 px, main padding 24 px, `h1` 36 px with 16 px margins) plus an 8 px gap at the bottom. Below a viewport height of about 726 px the 20rem minimum wins and the plan may extend below the fold (readability first). The 32rem cap keeps the plan moderate on very tall screens.
+    - **D4. Sticky plan.** `.map-plan { position: sticky; top: var(--space-3); align-self: start; }` at ≥ 48rem: when the room list is longer than the screen and the user scrolls, the plan stays visible. The plan's height (≤ `100vh − 13rem`) is smaller than the viewport, so it never hides its own bottom.
+    - **D5. The hidden hatch `<svg class="map-defs">` stays before the layout wrapper**, outside the grid, so it does not become a grid item.
+
+    ## Architecture / files
+
+    ### `campusmap/templates/campusmap/map.html`
+
+    Inside `{% else %}` (floors exist), after the `map-defs` SVG, wrap the rest of the content:
+
+    ```django
+      <div class="map-layout">
+        <nav class="floor-switcher" aria-label="Этажи"> … unchanged … </nav>
+        <div class="map-plan">
+          {% if plan %}<svg class="map-svg" …> … unchanged … </svg>
+          {% else %}<p>Схемы {{ current_floor }} этажа нет.</p>{% endif %}
+        </div>
+        <div class="map-side">
+          <ul class="map-legend"> … unchanged … </ul>
+          <h2>Все аудитории</h2>
+          {% for f in floors %} … unchanged h3 + ul.map-room-list … {% endfor %}
+        </div>
+      </div>
+    ```
+    Do not change anything inside the moved blocks (texts, classes, attributes, ids).
+
+    ### `static/css/base.css` (layout only)
+
+    Add after the existing map rules:
+
+    ```css
+    @media (min-width: 48rem) {
+      .map-layout {
+        display: grid;
+        grid-template-columns: auto minmax(14rem, 1fr);
+        grid-template-rows: auto 1fr;
+        grid-template-areas:
+          "plan floors"
+          "plan side";
+        column-gap: var(--space-4);
+        align-items: start;
+      }
+
+      .map-layout > .floor-switcher {
+        grid-area: floors;
+      }
+
+      .map-plan {
+        grid-area: plan;
+        position: sticky;
+        top: var(--space-3);
+      }
+
+      .map-side {
+        grid-area: side;
+        min-width: 0;
+      }
+
+      .map-plan .map-svg {
+        width: clamp(20rem, calc((100vh - 13rem) * 0.6173), 32rem);
+        margin: 0;
+      }
+
+      .map-side > h2:first-of-type {
+        margin-top: var(--space-3);
+      }
+    }
+    ```
+    You may adjust spacing (gaps, the `h2` margin) after the visual check, but keep: the grid areas, `minmax(14rem, 1fr)` for the right column, the `clamp(20rem, calc((100vh - 13rem) * 0.6173), 32rem)` width, and the sticky plan. The existing mobile rule `.map-svg { display: block; width: 100%; height: auto; … }` stays unchanged. Below 48rem the wrappers are plain blocks (no rules), so the phone layout does not change.
+
+    Prototype result with exactly these rules (2026-11-18 ~22:20 MSK, injected into the live page in headless Chromium; seeded temporary DB; student and staff):
+
+    | Viewport | Plan (top–bottom, width) | Floor switcher | Highlight 101 / 402 | Horizontal scroll |
+    |---|---|---|---|---|
+    | 1024 × 768 student | 200–760, 346 | 200–250 | 203–300 / 314–376 | none |
+    | 1024 × 768 staff | 188–748, 346 | 188–238 | inside | none |
+    | 1280 × 800 | 200–792, 365 | 200–250 | inside | none |
+    | 1440 × 900 | 200–892, 427 | 200–250 | inside | none |
+    | 768 × 1024 (tablet, header wraps) | 232–997, 472; right column 224 px | 232–306 | inside | none |
+    | 360 × 780 | 285–816, 328 (unchanged) | 227–277 (unchanged) | inside | none |
+
+    ## Functions
+
+    No Python functions change.
+
+    ## Feasibility check
+
+    1. Clean starting point: `git status --short` shows only ` M plan.md` (the Team lead's file; allowed). HEAD `8f469b2 TASK-013-FIX: …`.
+    2. Referenced objects exist: `campusmap/templates/campusmap/map.html` (`map-defs` SVG, `nav.floor-switcher`, `svg.map-svg` with only a `viewBox`, `ul.map-legend`, `<h2>Все аудитории</h2>`, `ul.map-room-list`, "Схемы … этажа нет."), `static/css/base.css:243` `.map-svg { display: block; width: 100%; height: auto; margin: var(--space-2) 0; }`, `templates/base.html` viewport meta `width=device-width, initial-scale=1`, tokens `--space-3`, `--space-4`.
+    3. New names are free: `.map-layout`, `.map-plan`, `.map-side` (no match in `static/css/` or templates).
+    4. Data and migrations: none; `makemigrations --check --dry-run`: "No changes detected".
+    5. Tools: no new dependency. Headless Chromium via `bb browser-automation` works (used for the measurements).
+    6. Framework/browser capabilities: CSS grid areas, `clamp()`, `calc()` with `vh`, `position: sticky` in a grid item — all work in Chromium (prototype above).
+    7. Environment: none.
+    8. Verification is runnable on the current tree: `check` (no issues), `makemigrations --check` (no changes), `ruff check .` (passed), `ruff format --check .` (190 files formatted), `python manage.py test --parallel 1`: **Ran 1087 tests, OK** (log `/tmp/claude-501/test-20261118-113007.log`, 2026-11-18 ~22:30 MSK).
+    9. Conflicts: none.
+    10. Assumptions / blockers: none.
+
+    ## Test plan
+
+    ### Traceability
+
+    | AC | Tests / checks |
+    |---|---|
+    | AC1, AC2 | `campusmap/tests/test_views.py::MapLayoutTests::test_layout_wrappers_and_order`, `core/tests/test_css.py::MapLayoutCssTests::test_wide_two_columns`, `::test_plan_width_from_viewport`; visual measurement (below) |
+    | AC3 | `MapLayoutTests::test_layout_wrappers_and_order` (DOM order); `MapLayoutCssTests::test_mobile_svg_rule_unchanged`; visual measurement at 360 |
+    | AC4 | `MapLayoutCssTests::test_plan_width_from_viewport` (min `20rem`) |
+    | AC5 | `MapLayoutCssTests::test_no_zoom_blocking`; `core/tests/test_views.py` viewport tests (existing) |
+    | AC6 | `MapLayoutTests::test_defs_outside_layout`; `git status` in the REPORT |
+
+    ### Access matrix
+
+    No view or permission changes. The existing `campusmap/tests/test_views.py::MapAccessTests` must pass unchanged.
+
+    ### New tests
+
+    `campusmap/tests/test_views.py` — new class `MapLayoutTests(TestCase)` with the same `setUpTestData` pattern as `MapViewTests` (student, rooms `room-101`, `room-402`):
+    - `test_layout_wrappers_and_order`: on `/map/room/room-101/` the content contains `<div class="map-layout">`, `<div class="map-plan">`, `<div class="map-side">` once each, and these indexes are increasing: `map-layout`, `class="floor-switcher"`, `map-plan`, `<svg class="map-svg"`, `map-side`, `class="map-legend"`, `<h2>Все аудитории</h2>`, `class="map-room-list"`.
+    - `test_defs_outside_layout`: the index of `class="map-defs"` is smaller than the index of `class="map-layout"`.
+    - `test_floor_without_plan_inside_plan_column`: create `room-501` (floor 5); on `/map/floor/5/` the text "Схемы 5 этажа нет." lies between `<div class="map-plan">` and `<div class="map-side">`.
+    - `test_no_floors_no_layout`: with no rooms, `/map/` has "Аудиторий пока нет." and no `map-layout`.
+
+    `core/tests/test_css.py` — new class `MapLayoutCssTests(SimpleTestCase)` (read `static/css/base.css`; extract the body of every `@media (min-width: 48rem) { … }` block with a small brace-matching helper in the test):
+    - `test_wide_two_columns`: some 48rem block contains a `.map-layout` rule with `display: grid`, `grid-template-areas` with `"plan floors"` and `"plan side"`, and `minmax(14rem, 1fr)`; and `.map-plan` with `position: sticky`.
+    - `test_plan_width_from_viewport`: a 48rem block contains `.map-plan .map-svg` with `width: clamp(20rem, calc((100vh - 13rem) * 0.6173), 32rem)`.
+    - `test_mobile_svg_rule_unchanged`: outside media blocks, the `.map-svg` rule still has `width: 100%` and `height: auto`; no `.map-layout` rule exists outside a 48rem media block.
+    - `test_no_zoom_blocking`: no CSS file contains `touch-action: none`; `templates/base.html` has `content="width=device-width, initial-scale=1"` and no `maximum-scale` / `user-scalable`.
+
+    Existing tests: all `campusmap` tests must pass unchanged (the moved blocks keep their markup). Do not edit any existing test; if one fails, fix the markup.
+
+    ### Visual check (UI coder; numbers in the REPORT)
+
+    Run the app on a temporary DB (role file). For a student and for staff, on `/map/room/room-101/` and `/map/room/room-402/`, at 1024 × 768, 1280 × 800, 1440 × 900, 768 × 1024 and 360 × 780, at scroll 0, report:
+    ```js
+    const b = s => { const r = document.querySelector(s).getBoundingClientRect(); return [Math.round(r.top), Math.round(r.bottom), Math.round(r.width)]; };
+    ({floors: b(".floor-switcher"), svg: b(".map-svg"), cur: b(".map-svg .map-current"), vh: innerHeight, sw: document.documentElement.scrollWidth, vw: innerWidth})
+    ```
+    Pass: at ≥ 1024 wide, `svg[1] <= vh`, `floors[1] <= vh`, `cur[1] <= vh`, `sw === vw`; at 360 the numbers match AC3. Screenshots: floor 1 and floor 4 with a highlight at 1024 × 768 (student), 1440 × 900 (staff) and 360 × 780 (student). Also scroll the page at 1024 × 768 until the "4 этаж" room list is visible and confirm the plan stays in view (sticky).
+
+    ### Edge cases
+
+    - A floor without a plan (floor 5): the message sits in the plan column.
+    - No rooms at all: no layout wrapper.
+    - Viewport height below ~726 px: the plan keeps its 20rem minimum (may extend below the fold); no horizontal scroll.
+
+    ## Implementation order
+
+    1. Template wrappers (no CSS yet). Run `python manage.py test campusmap --parallel 1` (log): all pass.
+    2. CSS rules. Visual measurement at all viewports. Adjust spacing only.
+    3. New tests. Full verification. REPORT.
+
+    ## Verification
+
+    ```bash
+    source .venv/bin/activate
+    python manage.py check
+    python manage.py makemigrations --check --dry-run
+    python manage.py test --parallel 1 2>&1 | tee "$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log"
+    python scripts/run_tests_at.py 2026-11-19T00:00:00 2>&1 | tee "$TMPDIR/test-midnight-$(date +%Y%m%d-%H%M%S).log"
+    ruff check core/tests/test_css.py campusmap/tests/test_views.py
+    ruff format --check core/tests/test_css.py campusmap/tests/test_views.py
+    git status --short
+    ```
+    If any run fails or stalls, even once, put the test name, the Moscow time and the traceback excerpt into the REPORT.
+
+    ## Risks
+
+    - **Short desktop windows** (< ~726 px high): the plan keeps 20rem width and may extend below the fold; the sticky plan then scrolls with the page. Accepted for readability.
+    - **Header height changes** (a future header change) shift the plan's top; `13rem` would need an update. The visual check catches it.
+    - **Tablets 48–64rem**: the right column is narrow (224 px at 768 × 1024); the room buttons wrap to two per row. Checked in the prototype; no horizontal scroll.
+  ── Read campusmap/templates/campusmap/map.html
+  ── Thought for 7ms
+    I'm deciding to wrap the block without re-indenting the inner content, since the tests shouldn't depend on whitespace. I'll just insert the wrapper lines and leave everything inside as it is.
+
+── Assistant ───────────────────────────────────────────────
+Шаг 1: обёртки в шаблоне без изменения содержимого блоков.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran python3 - <<'EOF' import pathlib def rep(s, old, new):     assert s.count(old)==1, old; return s.replace(old,new) p=pathlib.Path("campusmap/templates/campusmap/map.html"); s=p.read_text() s=rep(s,"""</svg>   <nav class="floor-switcher" aria-label="Этажи">""","""</svg>   <div class="map-layout">   <nav class="floor-switcher" aria-label="Этажи">""") s=rep(s,"""  </nav>   {% if plan %}""","""  </nav>   <div class="map-plan">   {% if plan %}""") s=rep(s,"""  {% else %}<p>Схемы {{ current_floor }} этажа нет.</p>{% endif %}   <ul class="map-legend">""","""  {% else %}<p>Схемы {{ current_floor }} этажа нет.</p>{% endif %}   </div>   <div class="map-side">   <ul class="map-legend">""") s=rep(s,"""  </ul>   {% endfor %} {% endif %}""","""  </ul>   {% endfor %}   </div>   </div> {% endif %}""") p.write_text(s) EOF git diff campusmap/templates/campusmap/map.html | grep "^[-+]" ; source .venv/bin/activate && L="$TMPDIR/test-fix2-step1-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"; python manage.py test campusmap --parallel 1 > "$L" 2>&1; echo $L; grep -E "^(Ran|OK|FAILED)" $L (4s)
+    $ python3 - <<'EOF'
+  import pathlib
+  def rep(s, old, new):
+      assert s.count(old)==1, old; return s.replace(old,new)
+  p=pathlib.Path("campusmap/templates/campusmap/map.html"); s=p.read_text()
+  s=rep(s,"""</svg>
+    <nav class="floor-switcher" aria-label="Этажи">""","""</svg>
+    <div class="map-layout">
+    <nav class="floor-switcher" aria-label="Этажи">""")
+  s=rep(s,"""  </nav>
+    {% if plan %}""","""  </nav>
+    <div class="map-plan">
+    {% if plan %}""")
+  s=rep(s,"""  {% else %}<p>Схемы {{ current_floor }} этажа нет.</p>{% endif %}
+    <ul class="map-legend">""","""  {% else %}<p>Схемы {{ current_floor }} этажа нет.</p>{% endif %}
+    </div>
+    <div class="map-side">
+    <ul class="map-legend">""")
+  s=rep(s,"""  </ul>
+    {% endfor %}
+  {% endif %}""","""  </ul>
+    {% endfor %}
+    </div>
+    </div>
+  {% endif %}""")
+  p.write_text(s)
+  EOF
+  git diff campusmap/templates/campusmap/map.html | grep "^[-+]" ; source .venv/bin/activate && L="$TMPDIR/test-fix2-step1-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"; python manage.py test campusmap --parallel 1 > "$L" 2>&1; echo $L; grep -E "^(Ran|OK|FAILED)" $L
+    python3: error: couldn't create cache file '/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/xcrun_db-eQGkXunJ' (errno=Operation not permitted)
+    --- a/campusmap/templates/campusmap/map.html
+    +++ b/campusmap/templates/campusmap/map.html
+    +  <div class="map-layout">
+    +  <div class="map-plan">
+    +  </div>
+    +  <div class="map-side">
+    +  </div>
+    +  </div>
+    /tmp/claude-501/test-fix2-step1-20261118-223434.log
+    Ran 45 tests in 0.914s
+    OK
+  ── Thought for 10ms
+    I'm going to measure the baseline at 360 on the server before touching any CSS, so I have numbers for AC3. That means starting the server and setting up a temp database with a fresh seed and sessions, using the same seeding approach but without the flood. The wrappers are already in place with no CSS yet, so the layout should match the pre-change state, and the spec's figures are a reasonable fallback.
+
+── Assistant ───────────────────────────────────────────────
+Шаг 1 готов: 45 тестов OK. Поднимаю временную БД и сервер, чтобы снять базовые замеры на 360 px.
+
+── Created 1 file, ran 3 commands ──────────────────────────
+  ── Created /tmp/claude-501/ui/sessions.py +12
+    --- /dev/null
+    +++ b/tmp/claude-501/ui/sessions.py
+    +from django.contrib.auth import BACKEND_SESSION_KEY, HASH_SESSION_KEY, SESSION_KEY, get_user_model
+    +from django.contrib.sessions.backends.db import SessionStore
+    +
+    +U = get_user_model()
+    +for name in ["student1", "staff1"]:
+    +    u = U.objects.get(username=name)
+    +    s = SessionStore()
+    +    s[SESSION_KEY] = str(u.pk)
+    +    s[BACKEND_SESSION_KEY] = "django.contrib.auth.backends.ModelBackend"
+    +    s[HASH_SESSION_KEY] = u.get_session_auth_hash()
+    +    s.create()
+    +    print(name, s.session_key)
+  ── Ran source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/uifix2.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/ui-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && python manage.py migrate -v0 && python manage.py seed_demo 2>&1 | tail -1 && python manage.py shell < $TMPDIR/ui/sessions.py 2>&1 | grep -v imported (5s)
+    $ source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/uifix2.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/ui-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && python manage.py migrate -v0 && python manage.py seed_demo 2>&1 | tail -1 && python manage.py shell < $TMPDIR/ui/sessions.py 2>&1 | grep -v imported
+    Chat ready: 3 dialogs, 8 messages.
+
+    student1 zx7kd8jibiwy2w9rarh5nnumdhgafrwd
+    staff1 nyi0smmluqmmgmog7x2f31tyiix6mja0
+  ── Ran source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/uifix2.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/ui-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && python manage.py runserver 127.0.0.1:8770 > $TMPDIR/ui-server.log 2>&1 (1s)
+    $ source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/uifix2.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/ui-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && python manage.py runserver 127.0.0.1:8770 > $TMPDIR/ui-server.log 2>&1
+    Command running in background with ID: bo8ox5ns6. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/bo8ox5ns6.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran bb browser-automation open --backend local --machine host_cuvmpv75p3 --headless --json 2>&1 | tail -1 (3s)
+    $ bb browser-automation open --backend local --machine host_cuvmpv75p3 --headless --json 2>&1 | tail -1
+    {"id":"586f262a-341e-467c-98c1-3a929b3f1494","threadId":"thr_pgcwc2dwnn","hostId":"host_cuvmpv75p3","backend":"local","state":"ready","createdAt":1795030494272,"expiresAt":1795032294272,"previewDirective":"::browser-preview{session=\"586f262a-341e-467c-98c1-3a929b3f1494\"}"}
+
+── Assistant ───────────────────────────────────────────────
+::browser-preview{session="586f262a-341e-467c-98c1-3a929b3f1494"}
+
+── Ran 1 command, explored 1 list ──────────────────────────
+  ── Ran python3 - <<'EOF' 2>/dev/null import re,pathlib p=pathlib.Path("/tmp/claude-501/ui/run.sh"); s=p.read_text() s=re.sub(r"S=[0-9a-f-]+","S=586f262a-341e-467c-98c1-3a929b3f1494",s,1) s=re.sub(r'const SID=\{[^}]*\};','const SID={student1:"zx7kd8jibiwy2w9rarh5nnumdhgafrwd",staff1:"nyi0smmluqmmgmog7x2f31tyiix6mja0"};',s,1) p.write_text(s) EOF cat > /tmp/claude-501/ui/measure.js <<'EOF' const out = []; const M = () => p.evaluate(() => {   const b = (s) => { const e = document.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.bottom), Math.round(r.width)]; };   window.scrollTo(0, 0);   return { floors: b(".floor-switcher"), svg: b(".map-svg"), cur: b(".map-svg .map-current"), vh: innerHeight, sw: document.documentElement.scrollWidth, vw: innerWidth }; }); const VIEWS = (globalThis.VIEWS || [[1024, 768], [1280, 800], [1440, 900], [768, 1024], [360, 780]]); for (const [w, h] of VIEWS) for (const u of ["student1", "staff1"]) for (const room of ["room-101", "room-402"]) {   await go(u, `/map/room/${room}/`, w, h);   const m = await M();   const ok = w >= 1024 ? (m.svg[1] <= m.vh && m.floors[1] <= m.vh && m.cur[1] <= m.vh && m.cur[0] >= 0 && m.sw === m.vw) : m.sw === m.vw;   out.push(`${w}x${h} ${u} ${room} floors=${m.floors} svg=${m.svg} cur=${m.cur} vh=${m.vh} sw=${m.sw} ${ok ? "PASS" : "FAIL"}`); } return out.join("\n"); EOF sleep 2; /tmp/claude-501/ui/run.sh 'globalThis.VIEWS=[[360,780]];'"$(cat /tmp/claude-501/ui/measure.js)" (2s, error)
+    $ python3 - <<'EOF' 2>/dev/null
+  import re,pathlib
+  p=pathlib.Path("/tmp/claude-501/ui/run.sh"); s=p.read_text()
+  s=re.sub(r"S=[0-9a-f-]+","S=586f262a-341e-467c-98c1-3a929b3f1494",s,1)
+  s=re.sub(r'const SID=\{[^}]*\};','const SID={student1:"zx7kd8jibiwy2w9rarh5nnumdhgafrwd",staff1:"nyi0smmluqmmgmog7x2f31tyiix6mja0"};',s,1)
+  p.write_text(s)
+  EOF
+  cat > /tmp/claude-501/ui/measure.js <<'EOF'
+  const out = [];
+  const M = () => p.evaluate(() => {
+    const b = (s) => { const e = document.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.bottom), Math.round(r.width)]; };
+    window.scrollTo(0, 0);
+    return { floors: b(".floor-switcher"), svg: b(".map-svg"), cur: b(".map-svg .map-current"), vh: innerHeight, sw: document.documentElement.scrollWidth, vw: innerWidth };
+  });
+  const VIEWS = (globalThis.VIEWS || [[1024, 768], [1280, 800], [1440, 900], [768, 1024], [360, 780]]);
+  for (const [w, h] of VIEWS) for (const u of ["student1", "staff1"]) for (const room of ["room-101", "room-402"]) {
+    await go(u, `/map/room/${room}/`, w, h);
+    const m = await M();
+    const ok = w >= 1024 ? (m.svg[1] <= m.vh && m.floors[1] <= m.vh && m.cur[1] <= m.vh && m.cur[0] >= 0 && m.sw === m.vw) : m.sw === m.vw;
+    out.push(`${w}x${h} ${u} ${room} floors=${m.floors} svg=${m.svg} cur=${m.cur} vh=${m.vh} sw=${m.sw} ${ok ? "PASS" : "FAIL"}`);
+  }
+  return out.join("\n");
+  EOF
+  sleep 2; /tmp/claude-501/ui/run.sh 'globalThis.VIEWS=[[360,780]];'"$(cat /tmp/claude-501/ui/measure.js)"
+    Exit code 127
+    (eval):24: no such file or directory: /tmp/claude-501/ui/run.sh
+    exit 127
+  ── Listed files in /tmp/claude-501/ui/
+  ── Thought for 104ms
+    The temp directory was wiped, so the earlier files are gone. I need to recreate run.sh from scratch.
+
+── Assistant ───────────────────────────────────────────────
+Временные файлы прошлых задач удалены. Пересоздаю помощник для браузера.
+
+── Created 1 file, ran 1 command ───────────────────────────
+  ── Created /tmp/claude-501/ui/run.sh +24
+    --- /dev/null
+    +++ b/tmp/claude-501/ui/run.sh
+    +#!/bin/bash
+    +# usage: run.sh '<js body>' | run.sh file.js   (helpers: go(user,path,w,h), shot(full))
+    +S=586f262a-341e-467c-98c1-3a929b3f1494
+    +PRE='const SID={student1:"zx7kd8jibiwy2w9rarh5nnumdhgafrwd",staff1:"nyi0smmluqmmgmog7x2f31tyiix6mja0"};
+    +const p = await browser.getPage("main");
+    +const B="http://127.0.0.1:8770";
+    +async function go(user,path,w,h){ const cs=await p.cookies(B); for(const c of cs){await p.deleteCookie({name:c.name,url:B});}
+    + if(user&&SID[user]) await p.setCookie({name:"sessionid",value:SID[user],url:B});
+    + await p.setViewport({width:w,height:h||780,deviceScaleFactor:1});
+    + await p.goto(path.startsWith("file:")?path:B+path,{waitUntil:"load"});
+    + await p.evaluate(()=>document.fonts.ready);
+    + return await p.evaluate(()=>({url:location.pathname+location.hash,sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth,h:document.documentElement.scrollHeight,title:document.title}));}
+    +async function shot(full){ await p.shot({type:"jpeg",quality:60,maxEdge:full?2400:1500,fullPage:!!full}); }
+    +'
+    +BODY="$1"; if [ -f "$1" ]; then BODY="$(cat "$1")"; fi
+    +OUT=/tmp/claude-501/ui/last.json
+    +bb browser-automation run $S --timeout 120s --json --script "$PRE
+    +$BODY" > $OUT 2>&1
+    +python3 -c "
+    +import json
+    +d=json.load(open('$OUT'))
+    +print(d.get('text') or d)
+    +for i in d.get('images',[]): print('IMG', i['path'], i['width'], i['height'])
+    +" 2>/dev/null || cat $OUT
+  ── Ran chmod +x /tmp/claude-501/ui/run.sh; /tmp/claude-501/ui/run.sh 'globalThis.VIEWS=[[360,780]];'"$(cat /tmp/claude-501/ui/measure.js)" (3s)
+    $ chmod +x /tmp/claude-501/ui/run.sh; /tmp/claude-501/ui/run.sh 'globalThis.VIEWS=[[360,780]];'"$(cat /tmp/claude-501/ui/measure.js)"
+    360x780 student1 room-101 floors=227,277,328 svg=285,816,328 cur=288,380,131 vh=780 sw=360 PASS
+    360x780 student1 room-402 floors=227,277,328 svg=285,816,328 cur=393,452,131 vh=780 sw=360 PASS
+    360x780 staff1 room-101 floors=227,277,328 svg=285,816,328 cur=288,380,131 vh=780 sw=360 PASS
+    360x780 staff1 room-402 floors=227,277,328 svg=285,816,328 cur=393,452,131 vh=780 sw=360 PASS
+  ── Thought for 5ms
+    Staff has no notification button, so the header height should still match the earlier 227 rather than 360. The baseline lines up with AC3. Next I'll add the new CSS after the existing map rules, probably after the `.map-room-off` rule.
+
+── Assistant ───────────────────────────────────────────────
+Базовые замеры на 360 px совпадают с AC3 (лента этажей 227–277, план 285–816, ширина 328). Добавляю CSS.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran python3 - <<'EOF' 2>/dev/null import pathlib p=pathlib.Path("static/css/base.css"); s=p.read_text() anchor=""".map-room-off {   display: block;   margin-top: 0.5rem;   font-size: 0.875rem; } """ assert s.count(anchor)==1 s=s.replace(anchor, anchor+""" /* Wide map (TASK-013-FIX2): plan on the left (sticky, sized from the viewport height),    floor buttons, legend and room list on the right. DOM order stays the mobile order. */ @media (min-width: 48rem) {   .map-layout {     display: grid;     grid-template-columns: auto minmax(14rem, 1fr);     grid-template-rows: auto 1fr;     grid-template-areas:       "plan floors"       "plan side";     column-gap: var(--space-4);     align-items: start;   }   .map-layout > .floor-switcher {     grid-area: floors;   }   .map-plan {     grid-area: plan;     position: sticky;     top: var(--space-3);   }   .map-side {     grid-area: side;     min-width: 0;   }   .map-plan .map-svg {     width: clamp(20rem, calc((100vh - 13rem) * 0.6173), 32rem);     margin: 0;   }   .map-side > h2:first-of-type {     margin-top: var(--space-3);   } } """) p.write_text(s) EOF grep -n "map-layout" static/css/base.css | head -3; /tmp/claude-501/ui/run.sh /tmp/claude-501/ui/measure.js (2s)
+    $ python3 - <<'EOF' 2>/dev/null
+  import pathlib
+  p=pathlib.Path("static/css/base.css"); s=p.read_text()
+  anchor=""".map-room-off {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+  }
+  """
+  assert s.count(anchor)==1
+  s=s.replace(anchor, anchor+"""
+  /* Wide map (TASK-013-FIX2): plan on the left (sticky, sized from the viewport height),
+     floor buttons, legend and room list on the right. DOM order stays the mobile order. */
+  @media (min-width: 48rem) {
+    .map-layout {
+      display: grid;
+      grid-template-columns: auto minmax(14rem, 1fr);
+      grid-template-rows: auto 1fr;
+      grid-template-areas:
+        "plan floors"
+        "plan side";
+      column-gap: var(--space-4);
+      align-items: start;
+    }
+
+    .map-layout > .floor-switcher {
+      grid-area: floors;
+    }
+
+    .map-plan {
+      grid-area: plan;
+      position: sticky;
+      top: var(--space-3);
+    }
+
+    .map-side {
+      grid-area: side;
+      min-width: 0;
+    }
+
+    .map-plan .map-svg {
+      width: clamp(20rem, calc((100vh - 13rem) * 0.6173), 32rem);
+      margin: 0;
+    }
+
+    .map-side > h2:first-of-type {
+      margin-top: var(--space-3);
+    }
+  }
+  """)
+  p.write_text(s)
+  EOF
+  grep -n "map-layout" static/css/base.css | head -3; /tmp/claude-501/ui/run.sh /tmp/claude-501/ui/measure.js
+    855:  .map-layout {
+    866:  .map-layout > .floor-switcher {
+    1024x768 student1 room-101 floors=200,250,542 svg=200,760,346 cur=203,300,138 vh=768 sw=1024 PASS
+    1024x768 student1 room-402 floors=200,250,542 svg=200,760,346 cur=314,376,138 vh=768 sw=1024 PASS
+    1024x768 staff1 room-101 floors=188,238,542 svg=188,748,346 cur=191,288,138 vh=768 sw=1024 PASS
+    1024x768 staff1 room-402 floors=188,238,542 svg=188,748,346 cur=302,364,138 vh=768 sw=1024 PASS
+    1280x800 student1 room-101 floors=200,250,523 svg=200,792,365 cur=204,306,146 vh=800 sw=1280 PASS
+    1280x800 student1 room-402 floors=200,250,523 svg=200,792,365 cur=321,386,146 vh=800 sw=1280 PASS
+    1280x800 staff1 room-101 floors=188,238,523 svg=188,780,365 cur=192,294,146 vh=800 sw=1280 PASS
+    1280x800 staff1 room-402 floors=188,238,523 svg=188,780,365 cur=309,374,146 vh=800 sw=1280 PASS
+    1440x900 student1 room-101 floors=200,250,461 svg=200,892,427 cur=204,324,171 vh=900 sw=1440 PASS
+    1440x900 student1 room-402 floors=200,250,461 svg=200,892,427 cur=341,418,171 vh=900 sw=1440 PASS
+    1440x900 staff1 room-101 floors=188,238,461 svg=188,880,427 cur=192,312,171 vh=900 sw=1440 PASS
+    1440x900 staff1 room-402 floors=188,238,461 svg=188,880,427 cur=329,406,171 vh=900 sw=1440 PASS
+    768x1024 student1 room-101 floors=232,306,224 svg=232,997,472 cur=237,369,189 vh=1024 sw=768 PASS
+    768x1024 student1 room-402 floors=232,306,224 svg=232,997,472 cur=388,473,189 vh=1024 sw=768 PASS
+    768x1024 staff1 room-101 floors=232,306,224 svg=232,997,472 cur=237,369,189 vh=1024 sw=768 PASS
+    768x1024 staff1 room-402 floors=232,306,224 svg=232,997,472 cur=388,473,189 vh=1024 sw=768 PASS
+    360x780 student1 room-101 floors=227,277,328 svg=285,816,328 cur=288,380,131 vh=780 sw=360 PASS
+    360x780 student1 room-402 floors=227,277,328 svg=285,816,328 cur=393,452,131 vh=780 sw=360 PASS
+    360x780 staff1 room-101 floors=227,277,328 svg=285,816,328 cur=288,380,131 vh=780 sw=360 PASS
+    360x780 staff1 room-402 floors=227,277,328 svg=285,816,328 cur=393,452,131 vh=780 sw=360 PASS
+  ── Thought for 5ms
+    Everything passed and the result matches the prototype. Next I'm capturing screenshots: floors 1 and 4 at 1024 for students, 1440 for staff, and 360 for students, plus the sticky scroll at 1024.
+
+── Assistant ───────────────────────────────────────────────
+Все 20 замеров проходят и совпадают с прототипом. Делаю скриншоты и проверяю «липкий» план.
+
+── Created 1 file, ran 2 commands, explored 4 files ────────
+  ── Created /tmp/claude-501/ui/shots.js +17
+    --- /dev/null
+    +++ b/tmp/claude-501/ui/shots.js
+    +const r = [];
+    +await go("student1", "/map/room/room-101/", 1024, 768);
+    +await shot(false);
+    +await go("student1", "/map/room/room-402/", 1024, 768);
+    +await shot(false);
+    +// Sticky: scroll until the "4 этаж" room list is visible; the plan must stay in view.
+    +r.push(await p.evaluate(() => {
+    +  const h = [...document.querySelectorAll(".map-side h3")].find((e) => e.textContent.trim() === "4 этаж");
+    +  h.scrollIntoView({ block: "center" });
+    +  const s = document.querySelector(".map-svg").getBoundingClientRect();
+    +  const hb = h.getBoundingClientRect();
+    +  return { scrollY: Math.round(scrollY), h3Top: Math.round(hb.top), svgTop: Math.round(s.top), svgBottom: Math.round(s.bottom), vh: innerHeight };
+    +}));
+    +await shot(false);
+    +await go("staff1", "/map/room/room-402/", 1440, 900);
+    +await shot(false);
+    +return r;
+  ── Ran /tmp/claude-501/ui/run.sh /tmp/claude-501/ui/shots.js (2s)
+    $ /tmp/claude-501/ui/run.sh /tmp/claude-501/ui/shots.js
+    [
+      {
+        "scrollY": 453,
+        "h3Top": 474,
+        "svgTop": 16,
+        "svgBottom": 576,
+        "vh": 768
+      }
+    ]
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-92WhGN/db-5A7PS5/tmp/shot-1795030536016-1.jpg 1024 768
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-92WhGN/db-5A7PS5/tmp/shot-1795030536105-2.jpg 1024 768
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-92WhGN/db-5A7PS5/tmp/shot-1795030536159-3.jpg 1024 768
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-92WhGN/db-5A7PS5/tmp/shot-1795030536245-4.jpg 1440 900
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-92WhGN/db-5A7PS5/tmp/shot-1795030536016-1.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-92WhGN/db-5A7PS5/tmp/shot-1795030536159-3.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-92WhGN/db-5A7PS5/tmp/shot-1795030536245-4.jpg
+  ── Thought for 7ms
+    I'm checking the layout at 1024 width: the room list buttons look close to the right edge but still fit, and the floor switcher sits tight against the legend with a gap of about 8px. The highlight frame on room 101 touches the plan frame on the left, which seems acceptable. Next I'll take a 360px screenshot.
+  ── Ran /tmp/claude-501/ui/run.sh 'await go("student1","/map/room/room-101/",360,780); await shot(false); await go("student1","/map/room/room-402/",360,780); await shot(false); return 1;' (1s)
+    $ /tmp/claude-501/ui/run.sh 'await go("student1","/map/room/room-101/",360,780); await shot(false); await go("student1","/map/room/room-402/",360,780); await shot(false); return 1;'
+    1
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-92WhGN/db-5A7PS5/tmp/shot-1795030547560-5.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-92WhGN/db-5A7PS5/tmp/shot-1795030547652-6.jpg 360 780
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-92WhGN/db-5A7PS5/tmp/shot-1795030547560-5.jpg
+
+── Assistant ───────────────────────────────────────────────
+Мобильный вид не изменился. Пишу новые тесты.
+
+── Explored 1 file, ran 1 command ──────────────────────────
+  ── Read core/tests/test_css.py
+  ── Ran python3 - <<'EOF' 2>/dev/null import pathlib p=pathlib.Path("campusmap/tests/test_views.py"); s=p.read_text() i=s.index("class MapQueryTests(TestCase):") new='''class MapLayoutTests(TestCase):     """Two-column map on wide screens; the DOM keeps the mobile order (TASK-013-FIX2)."""     @classmethod     def setUpTestData(cls):         cls.faculty = make_faculty("FX")         cls.group = make_group(cls.faculty, "GX")         cls.student = make_student("stu", cls.group, "REC-1")         Room.objects.create(code="room-101", floor=1, number="101")         Room.objects.create(code="room-402", floor=4, number="402")     def setUp(self):         self.client.force_login(self.student)     def test_layout_wrappers_and_order(self):         content = self.client.get("/map/room/room-101/").content.decode()         for wrapper in ('<div class="map-layout">', '<div class="map-plan">', '<div class="map-side">'):             self.assertEqual(content.count(wrapper), 1, wrapper)         order = [             "map-layout",             'class="floor-switcher"',             "map-plan",             '<svg class="map-svg"',             "map-side",             'class="map-legend"',             "<h2>Все аудитории</h2>",             'class="map-room-list"',         ]         positions = [content.index(marker) for marker in order]         self.assertEqual(positions, sorted(positions))     def test_defs_outside_layout(self):         content = self.client.get("/map/room/room-101/").content.decode()         self.assertLess(content.index('class="map-defs"'), content.index('class="map-layout"'))     def test_floor_without_plan_inside_plan_column(self):         Room.objects.create(code="room-501", floor=5, number="501")         content = self.client.get("/map/floor/5/").content.decode()         message = content.index("Схемы 5 этажа нет.")         self.assertLess(content.index('<div class="map-plan">'), message)         self.assertLess(message, content.index('<div class="map-side">'))     def test_no_floors_no_layout(self):         Room.objects.all().delete()         content = self.client.get("/map/").content.decode()         self.assertIn("Аудиторий пока нет.", content)         self.assertNotIn("map-layout", content) ''' s=s[:i]+new+s[i:] p.write_text(s) p=pathlib.Path("core/tests/test_css.py"); s=p.read_text().rstrip("\n") s+=''' BASE_CSS = Path(settings.BASE_DIR) / "static/css/base.css" WIDE_MEDIA = "@media (min-width: 48rem)" def _wide_blocks(css: str) -> list[str]:     """Bodies of every `@media (min-width: 48rem) { ... }` block (brace matching)."""     blocks = []     start = css.find(WIDE_MEDIA)     while start != -1:         open_brace = css.index("{", start)         depth = 0         for i in range(open_brace, len(css)):             if css[i] == "{":                 depth += 1             elif css[i] == "}":                 depth -= 1                 if depth == 0:                     blocks.append(css[open_brace + 1 : i])                     break         start = css.find(WIDE_MEDIA, i)     return blocks def _outside_media(css: str) -> str:     """The stylesheet with every @media block removed."""     out = []     i = 0     while True:         start = css.find("@media", i)         if start == -1:             out.append(css[i:])             return "".join(out)         out.append(css[i:start])         depth = 0         for j in range(css.index("{", start), len(css)):             if css[j] == "{":                 depth += 1             elif css[j] == "}":                 depth -= 1                 if depth == 0:                     i = j + 1                     break def _rule(css: str, selector: str) -> str:     """Joined bodies of the rules whose selector list contains `selector`."""     bodies = []     for sel, body in re.findall(r"([^{}]+)\\{([^{}]*)\\}", css):         if selector in [part.strip() for part in sel.split(",")]:             bodies.append(body)     return "\\n".join(bodies) class MapLayoutCssTests(SimpleTestCase):     """Wide map layout (TASK-013-FIX2)."""     def setUp(self):         self.css = BASE_CSS.read_text()     def test_wide_two_columns(self):         layouts = [_rule(block, ".map-layout") for block in _wide_blocks(self.css)]         layout = next(body for body in layouts if "display: grid" in body)         self.assertIn('"plan floors"', layout)         self.assertIn('"plan side"', layout)         self.assertIn("minmax(14rem, 1fr)", layout)         plans = "\\n".join(_rule(block, ".map-plan") for block in _wide_blocks(self.css))         self.assertIn("position: sticky", plans)     def test_plan_width_from_viewport(self):         widths = "\\n".join(_rule(block, ".map-plan .map-svg") for block in _wide_blocks(self.css))         self.assertIn("width: clamp(20rem, calc((100vh - 13rem) * 0.6173), 32rem)", widths)     def test_mobile_svg_rule_unchanged(self):         outside = _outside_media(self.css)         svg = _rule(outside, ".map-svg")         self.assertIn("width: 100%", svg)         self.assertIn("height: auto", svg)         self.assertEqual(_rule(outside, ".map-layout"), "")     def test_no_zoom_blocking(self):         for path in sorted((Path(settings.BASE_DIR) / "static/css").glob("*.css")):             with self.subTest(file=path.name):                 self.assertNotIn("touch-action: none", path.read_text())         base = (Path(settings.BASE_DIR) / "templates/base.html").read_text()         self.assertIn('content="width=device-width, initial-scale=1"', base)         self.assertNotIn("maximum-scale", base)         self.assertNotIn("user-scalable", base) ''' p.write_text(s) EOF source .venv/bin/activate && ruff check core/tests/test_css.py campusmap/tests/test_views.py && ruff format core/tests/test_css.py campusmap/tests/test_views.py && L="$TMPDIR/test-fix2-new-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"; python manage.py test campusmap core.tests.test_css --parallel 1 > "$L" 2>&1; echo $L; grep -E "^(Ran|OK|FAILED)" $L; grep -E "^(FAIL|ERROR):" -A12 $L | head -40 (2m 1s)
+    $ python3 - <<'EOF' 2>/dev/null
+  import pathlib
+  p=pathlib.Path("campusmap/tests/test_views.py"); s=p.read_text()
+  i=s.index("class MapQueryTests(TestCase):")
+  new='''class MapLayoutTests(TestCase):
+      """Two-column map on wide screens; the DOM keeps the mobile order (TASK-013-FIX2)."""
+
+      @classmethod
+      def setUpTestData(cls):
+          cls.faculty = make_faculty("FX")
+          cls.group = make_group(cls.faculty, "GX")
+          cls.student = make_student("stu", cls.group, "REC-1")
+          Room.objects.create(code="room-101", floor=1, number="101")
+          Room.objects.create(code="room-402", floor=4, number="402")
+
+      def setUp(self):
+          self.client.force_login(self.student)
+
+      def test_layout_wrappers_and_order(self):
+          content = self.client.get("/map/room/room-101/").content.decode()
+          for wrapper in ('<div class="map-layout">', '<div class="map-plan">', '<div class="map-side">'):
+              self.assertEqual(content.count(wrapper), 1, wrapper)
+          order = [
+              "map-layout",
+              'class="floor-switcher"',
+              "map-plan",
+              '<svg class="map-svg"',
+              "map-side",
+              'class="map-legend"',
+              "<h2>Все аудитории</h2>",
+              'class="map-room-list"',
+          ]
+          positions = [content.index(marker) for marker in order]
+          self.assertEqual(positions, sorted(positions))
+
+      def test_defs_outside_layout(self):
+          content = self.client.get("/map/room/room-101/").content.decode()
+          self.assertLess(content.index('class="map-defs"'), content.index('class="map-layout"'))
+
+      def test_floor_without_plan_inside_plan_column(self):
+          Room.objects.create(code="room-501", floor=5, number="501")
+          content = self.client.get("/map/floor/5/").content.decode()
+          message = content.index("Схемы 5 этажа нет.")
+          self.assertLess(content.index('<div class="map-plan">'), message)
+          self.assertLess(message, content.index('<div class="map-side">'))
+
+      def test_no_floors_no_layout(self):
+          Room.objects.all().delete()
+          content = self.client.get("/map/").content.decode()
+          self.assertIn("Аудиторий пока нет.", content)
+          self.assertNotIn("map-layout", content)
+
+
+  '''
+  s=s[:i]+new+s[i:]
+  p.write_text(s)
+
+  p=pathlib.Path("core/tests/test_css.py"); s=p.read_text().rstrip("\n")
+  s+='''
+
+
+  BASE_CSS = Path(settings.BASE_DIR) / "static/css/base.css"
+  WIDE_MEDIA = "@media (min-width: 48rem)"
+
+
+  def _wide_blocks(css: str) -> list[str]:
+      """Bodies of every `@media (min-width: 48rem) { ... }` block (brace matching)."""
+      blocks = []
+      start = css.find(WIDE_MEDIA)
+      while start != -1:
+          open_brace = css.index("{", start)
+          depth = 0
+          for i in range(open_brace, len(css)):
+              if css[i] == "{":
+                  depth += 1
+              elif css[i] == "}":
+                  depth -= 1
+                  if depth == 0:
+                      blocks.append(css[open_brace + 1 : i])
+                      break
+          start = css.find(WIDE_MEDIA, i)
+      return blocks
+
+
+  def _outside_media(css: str) -> str:
+      """The stylesheet with every @media block removed."""
+      out = []
+      i = 0
+      while True:
+          start = css.find("@media", i)
+          if start == -1:
+              out.append(css[i:])
+              return "".join(out)
+          out.append(css[i:start])
+          depth = 0
+          for j in range(css.index("{", start), len(css)):
+              if css[j] == "{":
+                  depth += 1
+              elif css[j] == "}":
+                  depth -= 1
+                  if depth == 0:
+                      i = j + 1
+                      break
+
+
+  def _rule(css: str, selector: str) -> str:
+      """Joined bodies of the rules whose selector list contains `selector`."""
+      bodies = []
+      for sel, body in re.findall(r"([^{}]+)\\{([^{}]*)\\}", css):
+          if selector in [part.strip() for part in sel.split(",")]:
+              bodies.append(body)
+      return "\\n".join(bodies)
+
+
+  class MapLayoutCssTests(SimpleTestCase):
+      """Wide map layout (TASK-013-FIX2)."""
+
+      def setUp(self):
+          self.css = BASE_CSS.read_text()
+
+      def test_wide_two_columns(self):
+          layouts = [_rule(block, ".map-layout") for block in _wide_blocks(self.css)]
+          layout = next(body for body in layouts if "display: grid" in body)
+          self.assertIn('"plan floors"', layout)
+          self.assertIn('"plan side"', layout)
+          self.assertIn("minmax(14rem, 1fr)", layout)
+          plans = "\\n".join(_rule(block, ".map-plan") for block in _wide_blocks(self.css))
+          self.assertIn("position: sticky", plans)
+
+      def test_plan_width_from_viewport(self):
+          widths = "\\n".join(_rule(block, ".map-plan .map-svg") for block in _wide_blocks(self.css))
+          self.assertIn("width: clamp(20rem, calc((100vh - 13rem) * 0.6173), 32rem)", widths)
+
+      def test_mobile_svg_rule_unchanged(self):
+          outside = _outside_media(self.css)
+          svg = _rule(outside, ".map-svg")
+          self.assertIn("width: 100%", svg)
+          self.assertIn("height: auto", svg)
+          self.assertEqual(_rule(outside, ".map-layout"), "")
+
+      def test_no_zoom_blocking(self):
+          for path in sorted((Path(settings.BASE_DIR) / "static/css").glob("*.css")):
+              with self.subTest(file=path.name):
+                  self.assertNotIn("touch-action: none", path.read_text())
+          base = (Path(settings.BASE_DIR) / "templates/base.html").read_text()
+          self.assertIn('content="width=device-width, initial-scale=1"', base)
+          self.assertNotIn("maximum-scale", base)
+          self.assertNotIn("user-scalable", base)
+  '''
+  p.write_text(s)
+  EOF
+  source .venv/bin/activate && ruff check core/tests/test_css.py campusmap/tests/test_views.py && ruff format core/tests/test_css.py campusmap/tests/test_views.py && L="$TMPDIR/test-fix2-new-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"; python manage.py test campusmap core.tests.test_css --parallel 1 > "$L" 2>&1; echo $L; grep -E "^(Ran|OK|FAILED)" $L; grep -E "^(FAIL|ERROR):" -A12 $L | head -40
+    E501 Line too long (104 > 100)
+       --> campusmap/tests/test_views.py:296:101
+        |
+    294 |     def test_layout_wrappers_and_order(self):
+    295 |         content = self.client.get("/map/room/room-101/").content.decode()
+    296 |         for wrapper in ('<div class="map-layout">', '<div class="map-plan">', '<div class="map-side">'):
+        |                                                                                                     ^^^^
+    297 |             self.assertEqual(content.count(wrapper), 1, wrapper)
+    298 |         order = [
+        |
+
+    Found 1 error.
+    (eval):152: no such file or directory:
+    Command did not complete within its 120s timeout and was moved to the background (ID: bq5mftwph). Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/bq5mftwph.output. You will be notified when it completes. If it is still running after 30m in the background, it will be stopped and you will be notified. It is running now: do not start a second copy while it runs. If it is no longer needed, stop it with TaskStop. To check interim output, use Read on that file path.
+
+── Assistant ───────────────────────────────────────────────
+You've hit your 5-hour limit · resets 2:40pm (America/Los_Angeles)
+
+── Error ───────────────────────────────────────────────────
+  Provider rate limit reached
+  You've hit your 5-hour limit · resets 2:40pm (America/Los_Angeles)
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Thought for 421ms
+    The session restarted, so the server and tests are stopped. The test file still has an E501 line-length issue that ruff format may fix, but the earlier check failed and the format step never ran. I'll run ruff format and check first, then rerun the tests.
+  ── Thought for 7ms
+    Сессия перезапустилась, сервер и тесты остановлены. Сейчас исправлю длинную строку и запущу тесты заново.
+  ── Ran git status --short && source .venv/bin/activate && ruff format core/tests/test_css.py campusmap/tests/test_views.py && ruff check core/tests/test_css.py campusmap/tests/test_views.py && ruff format --check core/tests/test_css.py campusmap/tests/test_views.py (2s)
+    $ git status --short && source .venv/bin/activate && ruff format core/tests/test_css.py campusmap/tests/test_views.py && ruff check core/tests/test_css.py campusmap/tests/test_views.py && ruff format --check core/tests/test_css.py campusmap/tests/test_views.py
+    M campusmap/templates/campusmap/map.html
+     M campusmap/tests/test_views.py
+     M core/tests/test_css.py
+     M plan.md
+     M static/css/base.css
+    ?? docs/tasks/TASK-013-FIX2.md
+    1 file reformatted, 1 file left unchanged
+    All checks passed!
+    2 files already formatted
+  ── Ran source .venv/bin/activate && L="$TMPDIR/test-fix2-new-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"; python manage.py test campusmap core.tests.test_css --parallel 1 > "$L" 2>&1; echo "$L"; grep -E "^(Ran|OK|FAILED)" "$L"; grep -E "^(FAIL|ERROR):" -A12 "$L" | head -40 (3s)
+    $ source .venv/bin/activate && L="$TMPDIR/test-fix2-new-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"; python manage.py test campusmap core.tests.test_css --parallel 1 > "$L" 2>&1; echo "$L"; grep -E "^(Ran|OK|FAILED)" "$L"; grep -E "^(FAIL|ERROR):" -A12 "$L" | head -40
+    /tmp/claude-501/test-fix2-new-20261119-014216.log
+    Ran 57 tests in 0.974s
+    OK
+  ── Thought for 12ms
+    I've got 57 tests passing. The earlier run seems to have been cut off by the session ending rather than actually failing, though its log command had a broken variable, so I'll report it as interrupted and not as a failure. Next I'm starting the full verification in the background.
+
+── Assistant ───────────────────────────────────────────────
+57 тестов OK. Запускаю полную проверку в фоне.
+
+── Created 1 file, ran 3 commands, explored 1 list ─────────
+  ── Created /tmp/claude-501/ui/verify-fix2.sh +17
+    --- /dev/null
+    +++ b/tmp/claude-501/ui/verify-fix2.sh
+    +#!/bin/zsh
+    +cd ~/hackatonproject
+    +source .venv/bin/activate
+    +T=/tmp/claude-501
+    +{
+    +  echo "== check"; python manage.py check
+    +  echo "== makemigrations"; python manage.py makemigrations --check --dry-run
+    +  echo "== ruff"; ruff check core/tests/test_css.py campusmap/tests/test_views.py && ruff format --check core/tests/test_css.py campusmap/tests/test_views.py
+    +} > "$T/verify-fix2-checks.log" 2>&1
+    +L="$T/test-fix2-full-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"
+    +python manage.py test --parallel 1 > "$L" 2>&1
+    +M="$T/test-fix2-midnight-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"
+    +python scripts/run_tests_at.py 2026-11-19T00:00:00 > "$M" 2>&1
+    +echo "$L $M"
+    +grep -E "^(Ran|OK|FAILED)" "$L" "$M"
+    +grep -E "^(FAIL|ERROR):" "$L" "$M" | head
+    +cat "$T/verify-fix2-checks.log"
+  ── Ran zsh /tmp/claude-501/ui/verify-fix2.sh
+    $ zsh /tmp/claude-501/ui/verify-fix2.sh
+    Command running in background with ID: bf4cx20ts. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/bf4cx20ts.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Thought for 5ms
+    The browser session has probably expired, and the screenshots from the earlier session may have been cleaned out of the browser's temp folder. I'll check whether they're still there and copy them if so. I'll also look at whether port 8770 is free now that the server is stopped, then close the browser session if it's still open.
+  ── Ran mkdir -p /tmp/claude-501/ui/shots-fix2 && cp /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-92WhGN/db-5A7PS5/tmp/shot-*.jpg /tmp/claude-501/ui/shots-fix2/ 2>&1 | head -2; ls /tmp/claude-501/ui/shots-fix2 | wc -l; bb browser-automation close 586f262a-341e-467c-98c1-3a929b3f1494 --json 2>&1 | grep -o '"state":"[a-z]*"\|"code":"[a-z_]*"'
+    $ mkdir -p /tmp/claude-501/ui/shots-fix2 && cp /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-92WhGN/db-5A7PS5/tmp/shot-*.jpg /tmp/claude-501/ui/shots-fix2/ 2>&1 | head -2; ls /tmp/claude-501/ui/shots-fix2 | wc -l; bb browser-automation close 586f262a-341e-467c-98c1-3a929b3f1494 --json 2>&1 | grep -o '"state":"[a-z]*"\|"code":"[a-z_]*"'
+    (eval):1: no matches found: /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-92WhGN/db-5A7PS5/tmp/shot-*.jpg
+           0
+    "state":"closed"
+  ── Thought for 536ms
+    The screenshots were lost when the session got cleaned up, so I need to retake them by restarting the server and the browser. I'm wondering whether I can do that right after verification, and since the server can run alongside the tests on a separate database, I'll start it now.
+  ── Thought for 3ms
+    Скриншоты пропали вместе со старой сессией браузера, поэтому я делаю их заново, запуская сервер и браузер параллельно с тестами.
+  ── Ran source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/uifix2.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/ui-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && python manage.py runserver 127.0.0.1:8770 --noreload > $TMPDIR/ui-server.log 2>&1 (1s)
+    $ source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/uifix2.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/ui-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && python manage.py runserver 127.0.0.1:8770 --noreload > $TMPDIR/ui-server.log 2>&1
+    Command running in background with ID: b97setfcy. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/b97setfcy.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Listed files in $TMPDIR/uifix2.sqlite3
+
+── Assistant ───────────────────────────────────────────────
+::browser-preview{session="5b08aee7-484b-4b2d-8f0f-ca0bd8d30cc5"}
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Ran sed -i '' 's/^S=.*/S=5b08aee7-484b-4b2d-8f0f-ca0bd8d30cc5/' /tmp/claude-501/ui/run.sh && cat > /tmp/claude-501/ui/shots2.js <<'EOF' const r = []; await go("student1", "/map/room/room-101/", 1024, 768); await shot(false); await go("student1", "/map/room/room-402/", 1024, 768); await shot(false); r.push(await p.evaluate(() => {   const h = [...document.querySelectorAll(".map-side h3")].find((e) => e.textContent.trim() === "4 этаж");   h.scrollIntoView({ block: "center" });   const s = document.querySelector(".map-svg").getBoundingClientRect();   return { scrollY: Math.round(scrollY), svgTop: Math.round(s.top), svgBottom: Math.round(s.bottom), vh: innerHeight }; })); await shot(false); await go("staff1", "/map/room/room-101/", 1440, 900); await shot(false); return r; EOF sleep 2; /tmp/claude-501/ui/run.sh /tmp/claude-501/ui/shots2.js (6s)
+    $ sed -i '' 's/^S=.*/S=5b08aee7-484b-4b2d-8f0f-ca0bd8d30cc5/' /tmp/claude-501/ui/run.sh && cat > /tmp/claude-501/ui/shots2.js <<'EOF'
+  const r = [];
+  await go("student1", "/map/room/room-101/", 1024, 768); await shot(false);
+  await go("student1", "/map/room/room-402/", 1024, 768); await shot(false);
+  r.push(await p.evaluate(() => {
+    const h = [...document.querySelectorAll(".map-side h3")].find((e) => e.textContent.trim() === "4 этаж");
+    h.scrollIntoView({ block: "center" });
+    const s = document.querySelector(".map-svg").getBoundingClientRect();
+    return { scrollY: Math.round(scrollY), svgTop: Math.round(s.top), svgBottom: Math.round(s.bottom), vh: innerHeight };
+  }));
+  await shot(false);
+  await go("staff1", "/map/room/room-101/", 1440, 900); await shot(false);
+  return r;
+  EOF
+  sleep 2; /tmp/claude-501/ui/run.sh /tmp/claude-501/ui/shots2.js
+    [
+      {
+        "scrollY": 453,
+        "svgTop": 16,
+        "svgBottom": 576,
+        "vh": 768
+      }
+    ]
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-rlkP8u/db-jXEQjA/tmp/shot-1795041770640-1.jpg 1024 768
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-rlkP8u/db-jXEQjA/tmp/shot-1795041770784-2.jpg 1024 768
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-rlkP8u/db-jXEQjA/tmp/shot-1795041770853-3.jpg 1024 768
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-rlkP8u/db-jXEQjA/tmp/shot-1795041770950-4.jpg 1440 900
+    [This command modified 1 file you've previously read: ../../../tmp/claude-501/ui/run.sh. Call Read before editing.]
+  ── Ran /tmp/claude-501/ui/run.sh 'await go("student1","/map/room/room-101/",360,780); await shot(false); await go("student1","/map/room/room-402/",360,780); await shot(false); return 1;' && /tmp/claude-501/ui/run.sh /tmp/claude-501/ui/measure.js > /tmp/claude-501/ui/measure-final.txt; cat /tmp/claude-501/ui/measure-final.txt | grep -c PASS; grep FAIL /tmp/claude-501/ui/measure-final.txt; mkdir -p /tmp/claude-501/ui/shots-fix2 && cp /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-rlkP8u/db-jXEQjA/tmp/shot-*.jpg /tmp/claude-501/ui/shots-fix2/ && ls /tmp/claude-501/ui/shots-fix2 (3s)
+    $ /tmp/claude-501/ui/run.sh 'await go("student1","/map/room/room-101/",360,780); await shot(false); await go("student1","/map/room/room-402/",360,780); await shot(false); return 1;' && /tmp/claude-501/ui/run.sh /tmp/claude-501/ui/measure.js > /tmp/claude-501/ui/measure-final.txt; cat /tmp/claude-501/ui/measure-final.txt | grep -c PASS; grep FAIL /tmp/claude-501/ui/measure-final.txt; mkdir -p /tmp/claude-501/ui/shots-fix2 && cp /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-rlkP8u/db-jXEQjA/tmp/shot-*.jpg /tmp/claude-501/ui/shots-fix2/ && ls /tmp/claude-501/ui/shots-fix2
+    1
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-rlkP8u/db-jXEQjA/tmp/shot-1795041778482-5.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-rlkP8u/db-jXEQjA/tmp/shot-1795041778567-6.jpg 360 780
+    20
+    shot-1795041770640-1.jpg
+    shot-1795041770784-2.jpg
+    shot-1795041770853-3.jpg
+    shot-1795041770950-4.jpg
+    shot-1795041778482-5.jpg
+    shot-1795041778567-6.jpg
+  ── Thought for 105ms
+    I'm going to take a quick look at one of the 1440 staff screenshots as an optional check. It's one I've already seen, so that's fine. Then I'll close the browser and stop the server.
+
+── Assistant ───────────────────────────────────────────────
+Повторный замер: 20 из 20 PASS. Закрываю браузер и сервер.
+
+── Ran bb browser-automation close 5b08aee7-484b-4b2d-8f0f-ca0bd8d30cc5 --json 2>&1 | grep -o '"state":"[a-z]*"'; pkill -f "runserver 127.0.0.1:8770"; sleep 1; pgrep -f "runserver 127.0.0.1:8770" || echo stopped (Outside of sandbox) (4s)
+  $ bb browser-automation close 5b08aee7-484b-4b2d-8f0f-ca0bd8d30cc5 --json 2>&1 | grep -o '"state":"[a-z]*"'; pkill -f "runserver 127.0.0.1:8770"; sleep 1; pgrep -f "runserver 127.0.0.1:8770" || echo stopped
+  "state":"closed"
+  stopped
+
+── Assistant ───────────────────────────────────────────────
+Сервер остановлен (код 144 означает, что его остановил я). Жду окончания полной проверки.
+
+── Created /tmp/claude-501/ui/report-fix2.md +26 ───────────
+  --- /dev/null
+  +++ b/tmp/claude-501/ui/report-fix2.md
+  +[TASK-013-FIX2] UI coder -> Reviewer: REPORT
+  +Spec: docs/tasks/TASK-013-FIX2.md.
+  +
+  +## What was done
+  +- `campusmap/templates/campusmap/map.html`: after the `map-defs` SVG (D5, stays outside the grid), wrapped the content in `<div class="map-layout">` with `<nav class="floor-switcher">` (unchanged), `<div class="map-plan">` (the `{% if plan %}` SVG / "Схемы … этажа нет." branch, unchanged) and `<div class="map-side">` (legend, `<h2>Все аудитории</h2>`, per-floor room lists, unchanged). Only the 6 wrapper lines were added; nothing inside the moved blocks changed (no re-indent).
+  +- `static/css/base.css`: the `@media (min-width: 48rem)` block from the spec, verbatim, after the map rules (grid areas "plan floors" / "plan side", `minmax(14rem, 1fr)`, sticky `.map-plan`, `width: clamp(20rem, calc((100vh - 13rem) * 0.6173), 32rem)`). No spacing adjustment was needed. The mobile `.map-svg` rule is unchanged; below 48rem the wrappers have no rules.
+  +- Tests: new `campusmap/tests/test_views.py::MapLayoutTests` (4 tests) and `core/tests/test_css.py::MapLayoutCssTests` (4 tests, with brace-matching helpers `_wide_blocks`, `_outside_media`, `_rule`). No existing test was edited.
+  +
+  +## Changed files
+  +campusmap/templates/campusmap/map.html, static/css/base.css, campusmap/tests/test_views.py, core/tests/test_css.py.
+  +Unexpected changes: none (`plan.md` is the Team lead's file; `docs/tasks/TASK-013-FIX2.md` is the spec). No JS, no Python app code, no tokens.
+  +
+  +## Visual measurements (temp DB, headless Chromium, scroll 0; `[top, bottom, width]`)
+  +MEASURE_PLACEHOLDER
+  +
+  +All ≥ 1024 rows: `svg[1] ≤ vh`, `floors[1] ≤ vh`, highlight fully inside, `sw === vw`. 768 × 1024: everything inside, no horizontal scroll (right column 224 px, room buttons 2 per row). 360 × 780: identical to the AC3 baseline I measured before adding the CSS (floor switcher 227–277, `.map-svg` 285–816, width 328) for both roles.
+  +Plan width at ≥ 48rem is never below 320 px (min 346 px at 1024 × 768) → room labels ≥ 17 px, landmark labels ≥ 13 px.
+  +Sticky: at 1024 × 768 scrolled so that "4 этаж" is centred (scrollY 453) the plan stays in view at 16–576 px.
+  +
+  +Screenshots: /tmp/claude-501/ui/shots-fix2/ — 1: room-101 1024×768 student; 2: room-402 1024×768 student; 3: same scrolled to "4 этаж" (sticky); 4: room-101 1440×900 staff; 5–6: room-101 / room-402 360×780 student.
+  +
+  +## Test runs (Moscow time)
+  +RESULTS_PLACEHOLDER
+  +
+  +## What remains
+  +Nothing in scope. Short desktop windows (< ~726 px high) keep the 20rem minimum as the spec accepts.
+
+── Assistant ───────────────────────────────────────────────
+Отчёт подготовлен. Жду результатов полного прогона: Monitor сообщит.
+
+── Read /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/bf4cx20ts.output
+  $ cat /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/bf4cx20ts.output
+
+── Ran git status --short && python3 - <<'EOF' 2>/dev/null import pathlib p=pathlib.Path("/tmp/claude-501/ui/report-fix2.md"); s=p.read_text() m=pathlib.Path("/tmp/claude-501/ui/measure-final.txt").read_text().strip() s=s.replace("MEASURE_PLACEHOLDER","```\n"+m+"\n```") s=s.replace("RESULTS_PLACEHOLDER","""- Step 1 (wrappers only) `test campusmap`: 45 OK (~22:34 MSK 18.11), log /tmp/claude-501/test-fix2-step1-20261118-223434.log. - Interrupted run (not a test failure): my first `test campusmap core.tests.test_css` (~22:37 MSK 18.11) started after a ruff E501 error in my new test and was stopped when my session restarted; it left no result. After `ruff format`: `test campusmap core.tests.test_css` 57 OK (01:42 MSK 19.11), log /tmp/claude-501/test-fix2-new-20261119-014216.log. - Full `python manage.py test --parallel 1`: **Ran 1095 tests, OK** (01:42–01:45 MSK 19.11), log /tmp/claude-501/test-fix2-full-20261119-014227.log. Baseline 1087 → 1095 (+8). - `scripts/run_tests_at.py 2026-11-19T00:00:00`: **Ran 1095 tests, OK** (01:45–01:47 MSK), log /tmp/claude-501/test-fix2-midnight-20261119-014508.log. - `check`: no issues; `makemigrations --check --dry-run`: No changes detected; `ruff check` / `ruff format --check` on the two test files: passed. Log /tmp/claude-501/verify-fix2-checks.log.""") p.write_text(s) EOF bb thread tell thr_cpuae9aqw3 --message-file /tmp/claude-501/ui/report-fix2.md 2>&1 | tail -1
+  $ git status --short && python3 - <<'EOF' 2>/dev/null
+import pathlib
+p=pathlib.Path("/tmp/claude-501/ui/report-fix2.md"); s=p.read_text()
+m=pathlib.Path("/tmp/claude-501/ui/measure-final.txt").read_text().strip()
+s=s.replace("MEASURE_PLACEHOLDER","```\n"+m+"\n```")
+s=s.replace("RESULTS_PLACEHOLDER","""- Step 1 (wrappers only) `test campusmap`: 45 OK (~22:34 MSK 18.11), log /tmp/claude-501/test-fix2-step1-20261118-223434.log.
+- Interrupted run (not a test failure): my first `test campusmap core.tests.test_css` (~22:37 MSK 18.11) started after a ruff E501 error in my new test and was stopped when my session restarted; it left no result. After `ruff format`: `test campusmap core.tests.test_css` 57 OK (01:42 MSK 19.11), log /tmp/claude-501/test-fix2-new-20261119-014216.log.
+- Full `python manage.py test --parallel 1`: **Ran 1095 tests, OK** (01:42–01:45 MSK 19.11), log /tmp/claude-501/test-fix2-full-20261119-014227.log. Baseline 1087 → 1095 (+8).
+- `scripts/run_tests_at.py 2026-11-19T00:00:00`: **Ran 1095 tests, OK** (01:45–01:47 MSK), log /tmp/claude-501/test-fix2-midnight-20261119-014508.log.
+- `check`: no issues; `makemigrations --check --dry-run`: No changes detected; `ruff check` / `ruff format --check` on the two test files: passed. Log /tmp/claude-501/verify-fix2-checks.log.""")
+p.write_text(s)
+EOF
+bb thread tell thr_cpuae9aqw3 --message-file /tmp/claude-501/ui/report-fix2.md 2>&1 | tail -1
+  M campusmap/templates/campusmap/map.html
+   M campusmap/tests/test_views.py
+   M core/tests/test_css.py
+   M plan.md
+   M static/css/base.css
+  ?? docs/tasks/TASK-013-FIX2.md
+  Thread thr_cpuae9aqw3 steered
+  [This command modified 1 file you've previously read: ../../../tmp/claude-501/ui/report-fix2.md. Call Read before editing.]
+
+── Claude Code API retry 1/10 after 569ms: unknown ─────────
+
+── Thought for 5s ──────────────────────────────────────────
+  I'm checking whether the step1 log was in TMPDIR and got wiped by the cleanup. It was created at 22:34, after the cleanup, so it's fine. The task is done, and I'll report the result to the user in Russian.
+
+── Assistant ───────────────────────────────────────────────
+Исправление TASK-013-FIX2 готово, отчёт отправлен Ревьюеру (@thread:thr_cpuae9aqw3). Полный прогон: 1095 тестов OK, было 1087. Прогон с часами на полночь тоже прошёл.
+
+**Что сделано:**
+- **Две колонки на широком экране (от 48rem):** план слева, справа кнопки этажей, легенда и список аудиторий. При прокрутке план остаётся на экране.
+- **Порядок элементов в HTML не изменился.** В `map.html` добавлены только три обёртки, содержимое блоков не тронуто.
+- **Правила CSS** взяты из спецификации без изменений, подгонять отступы не пришлось.
+- **8 новых тестов,** старые тесты не менялись.
+
+**Замеры** (студент и сотрудник, аудитории 101 и 402): все 20 проверок проходят.
+
+| Экран | План (верх–низ), ширина | Кнопки этажей и выбранная аудитория | Горизонтальный скролл |
+|---|---|---|---|
+| 1024×768 | 200–760 px, 346 px | на экране | нет |
+| 1280×800 | 200–792 px, 365 px | на экране | нет |
+| 1440×900 | 200–892 px, 427 px | на экране | нет |
+| 768×1024 | 232–997 px, 472 px | на экране | нет |
+| 360×780 | 285–816 px, 328 px, как до изменения | на экране | нет |
+
+Подписи на плане не меньше 13 px. Когда список прокручен до «4 этаж», план остаётся на экране (16–576 px).
+
+**Что пошло не так по ходу:**
+- Первый прогон новых тестов прервался из-за перезапуска моей сессии и результата не дал. Это не падение теста, я указал это в отчёте. Повторный прогон: 57 тестов OK.
+- При перезапуске пропали и первые скриншоты. Я снял их заново.
+
+Тестовый сервер я снова останавливал командой без песочницы: песочница не показывает процессы из других команд. Сервер и браузер закрыты. Жду ответа Ревьюера.

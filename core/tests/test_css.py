@@ -50,3 +50,92 @@ class BaseCssTests(SimpleTestCase):
         self.assertRegex(base_css, r"\.chat-message--other\s*\{\s*margin-right:")
         self.assertNotIn(".chat-message--student {", base_css)
         self.assertNotIn(".chat-message--staff {", base_css)
+
+
+BASE_CSS = Path(settings.BASE_DIR) / "static/css/base.css"
+WIDE_MEDIA = "@media (min-width: 48rem)"
+
+
+def _wide_blocks(css: str) -> list[str]:
+    """Bodies of every `@media (min-width: 48rem) { ... }` block (brace matching)."""
+    blocks = []
+    start = css.find(WIDE_MEDIA)
+    while start != -1:
+        open_brace = css.index("{", start)
+        depth = 0
+        for i in range(open_brace, len(css)):
+            if css[i] == "{":
+                depth += 1
+            elif css[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    blocks.append(css[open_brace + 1 : i])
+                    break
+        start = css.find(WIDE_MEDIA, i)
+    return blocks
+
+
+def _outside_media(css: str) -> str:
+    """The stylesheet with every @media block removed."""
+    out = []
+    i = 0
+    while True:
+        start = css.find("@media", i)
+        if start == -1:
+            out.append(css[i:])
+            return "".join(out)
+        out.append(css[i:start])
+        depth = 0
+        for j in range(css.index("{", start), len(css)):
+            if css[j] == "{":
+                depth += 1
+            elif css[j] == "}":
+                depth -= 1
+                if depth == 0:
+                    i = j + 1
+                    break
+
+
+def _rule(css: str, selector: str) -> str:
+    """Joined bodies of the rules whose selector list contains `selector`."""
+    bodies = []
+    for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+        if selector in [part.strip() for part in sel.split(",")]:
+            bodies.append(body)
+    return "\n".join(bodies)
+
+
+class MapLayoutCssTests(SimpleTestCase):
+    """Wide map layout (TASK-013-FIX2)."""
+
+    def setUp(self):
+        self.css = BASE_CSS.read_text()
+
+    def test_wide_two_columns(self):
+        layouts = [_rule(block, ".map-layout") for block in _wide_blocks(self.css)]
+        layout = next(body for body in layouts if "display: grid" in body)
+        self.assertIn('"plan floors"', layout)
+        self.assertIn('"plan side"', layout)
+        self.assertIn("minmax(14rem, 1fr)", layout)
+        plans = "\n".join(_rule(block, ".map-plan") for block in _wide_blocks(self.css))
+        self.assertIn("position: sticky", plans)
+
+    def test_plan_width_from_viewport(self):
+        widths = "\n".join(_rule(block, ".map-plan .map-svg") for block in _wide_blocks(self.css))
+        self.assertIn("width: clamp(20rem, calc((100vh - 13rem) * 0.6173), 32rem)", widths)
+
+    def test_mobile_svg_rule_unchanged(self):
+        outside = _outside_media(self.css)
+        svg = _rule(outside, ".map-svg")
+        self.assertIn("width: 100%", svg)
+        self.assertIn("height: auto", svg)
+        self.assertEqual(_rule(outside, ".map-layout"), "")
+
+    def test_no_zoom_blocking(self):
+        for path in sorted((Path(settings.BASE_DIR) / "static/css").glob("*.css")):
+            with self.subTest(file=path.name):
+                self.assertNotIn("touch-action: none", path.read_text())
+        base = (Path(settings.BASE_DIR) / "templates/base.html").read_text()
+        self.assertIn('content="width=device-width, initial-scale=1"', base)
+        self.assertNotIn("maximum-scale", base)
+        self.assertNotIn("user-scalable", base)

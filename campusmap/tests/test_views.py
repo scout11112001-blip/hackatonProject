@@ -277,6 +277,59 @@ class MapViewTests(TestCase):
         self.assertNotIn("personal-last", content)
 
 
+class MapLayoutTests(TestCase):
+    """Two-column map on wide screens; the DOM keeps the mobile order (TASK-013-FIX2)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.faculty = make_faculty("FX")
+        cls.group = make_group(cls.faculty, "GX")
+        cls.student = make_student("stu", cls.group, "REC-1")
+        Room.objects.create(code="room-101", floor=1, number="101")
+        Room.objects.create(code="room-402", floor=4, number="402")
+
+    def setUp(self):
+        self.client.force_login(self.student)
+
+    def test_layout_wrappers_and_order(self):
+        content = self.client.get("/map/room/room-101/").content.decode()
+        for wrapper in (
+            '<div class="map-layout">',
+            '<div class="map-plan">',
+            '<div class="map-side">',
+        ):
+            self.assertEqual(content.count(wrapper), 1, wrapper)
+        order = [
+            "map-layout",
+            'class="floor-switcher"',
+            "map-plan",
+            '<svg class="map-svg"',
+            "map-side",
+            'class="map-legend"',
+            "<h2>Все аудитории</h2>",
+            'class="map-room-list"',
+        ]
+        positions = [content.index(marker) for marker in order]
+        self.assertEqual(positions, sorted(positions))
+
+    def test_defs_outside_layout(self):
+        content = self.client.get("/map/room/room-101/").content.decode()
+        self.assertLess(content.index('class="map-defs"'), content.index('class="map-layout"'))
+
+    def test_floor_without_plan_inside_plan_column(self):
+        Room.objects.create(code="room-501", floor=5, number="501")
+        content = self.client.get("/map/floor/5/").content.decode()
+        message = content.index("Схемы 5 этажа нет.")
+        self.assertLess(content.index('<div class="map-plan">'), message)
+        self.assertLess(message, content.index('<div class="map-side">'))
+
+    def test_no_floors_no_layout(self):
+        Room.objects.all().delete()
+        content = self.client.get("/map/").content.decode()
+        self.assertIn("Аудиторий пока нет.", content)
+        self.assertNotIn("map-layout", content)
+
+
 class MapQueryTests(TestCase):
     @classmethod
     def setUpTestData(cls):

@@ -849,6 +849,45 @@ input[type="file"]::file-selector-button {
   font-size: 0.875rem;
 }
 
+/* Wide map (TASK-013-FIX2): plan on the left (sticky, sized from the viewport height),
+   floor buttons, legend and room list on the right. DOM order stays the mobile order. */
+@media (min-width: 48rem) {
+  .map-layout {
+    display: grid;
+    grid-template-columns: auto minmax(14rem, 1fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "plan floors"
+      "plan side";
+    column-gap: var(--space-4);
+    align-items: start;
+  }
+
+  .map-layout > .floor-switcher {
+    grid-area: floors;
+  }
+
+  .map-plan {
+    grid-area: plan;
+    position: sticky;
+    top: var(--space-3);
+  }
+
+  .map-side {
+    grid-area: side;
+    min-width: 0;
+  }
+
+  .map-plan .map-svg {
+    width: clamp(20rem, calc((100vh - 13rem) * 0.6173), 32rem);
+    margin: 0;
+  }
+
+  .map-side > h2:first-of-type {
+    margin-top: var(--space-3);
+  }
+}
+
 .map-legend li {
   margin-bottom: var(--space-2);
 }
