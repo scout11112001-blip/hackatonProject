@@ -330,6 +330,8 @@ class LessonChangeSourceTests(FrozenClockMixin, TestCase):
         self.assertFalse(any(k.startswith("lesson-change-") for k in _keys(self.w.ax)))
 
     def test_edited_change_is_new_again(self):
+        # TASK-013-FIX: a visible edit (new date) makes the change new; a
+        # reason-only edit does not, see test_reason_only_edit_stays_read.
         lesson = self._lesson()
         change = save_lesson_change(
             LessonChange(
@@ -340,10 +342,72 @@ class LessonChangeSourceTests(FrozenClockMixin, TestCase):
         set_seen(self.w.ax, t)
         self.assertEqual(unread_count(_ctx(self.w.ax)), 0)
         with mock.patch("django.utils.timezone.now", return_value=t + timedelta(hours=1)):
-            change.reason = "Новая причина"
+            change.original_date = D + timedelta(days=7)
             save_lesson_change(change)
         ctx = _ctx(self.w.ax, now=t + timedelta(hours=2))
         self.assertEqual(unread_count(ctx), 1)
+
+    def test_reason_only_edit_stays_read(self):
+        lesson = self._lesson()
+        change = save_lesson_change(
+            LessonChange(
+                weekly_lesson=lesson, original_date=D, kind=ChangeKind.CANCELLED, reason="Причина"
+            )
+        )
+        t = moscow(NOW)
+        set_seen(self.w.ax, t)
+        with mock.patch("django.utils.timezone.now", return_value=t + timedelta(hours=1)):
+            change.reason = "Новая причина"
+            save_lesson_change(change)
+        ctx = _ctx(self.w.ax, now=t + timedelta(hours=2))
+        self.assertEqual(unread_count(ctx), 0)
+        item = next(i for i in build_feed(ctx) if i.key == f"lesson-change-{change.pk}")
+        self.assertFalse(ctx.is_new(item.timestamp))
+
+    def test_admin_reason_only_edit_stays_read(self):
+        lesson = self._lesson()
+        change = save_lesson_change(
+            LessonChange(
+                weekly_lesson=lesson, original_date=D, kind=ChangeKind.CANCELLED, reason="Причина"
+            )
+        )
+        t = moscow(NOW)
+        set_seen(self.w.ax, t)
+        self.client.force_login(self.w.root)
+        with mock.patch("django.utils.timezone.now", return_value=t + timedelta(hours=1)):
+            response = self.client.post(
+                reverse("admin:schedule_lessonchange_change", args=[change.pk]),
+                {
+                    "weekly_lesson": lesson.pk,
+                    "original_date": "2026-11-11",
+                    "kind": "cancelled",
+                    "new_date": "",
+                    "new_slot": "",
+                    "new_room": "",
+                    "new_teacher": "",
+                    "reason": "Из админки",
+                },
+            )
+        self.assertEqual(response.status_code, 302)
+        ctx = _ctx(self.w.ax, now=t + timedelta(hours=2))
+        self.assertEqual(unread_count(ctx), 0)
+
+    def test_item_timestamp_is_changed_at(self):
+        lesson = self._lesson()
+        change = save_lesson_change(
+            LessonChange(
+                weekly_lesson=lesson, original_date=D, kind=ChangeKind.CANCELLED, reason="Причина"
+            )
+        )
+        t = moscow(NOW)
+        with mock.patch("django.utils.timezone.now", return_value=t + timedelta(hours=1)):
+            change.reason = "Новая причина"
+            save_lesson_change(change)
+        change.refresh_from_db()
+        ctx = _ctx(self.w.ax, now=t + timedelta(hours=2))
+        item = next(i for i in build_feed(ctx) if i.key == f"lesson-change-{change.pk}")
+        self.assertEqual(item.timestamp, change.changed_at)
+        self.assertNotEqual(item.timestamp, change.updated_at)
 
 
 class GradeSourcesTests(FrozenClockMixin, TestCase):

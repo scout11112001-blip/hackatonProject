@@ -183,7 +183,7 @@ class PetitionCommentSource(FeedSource):
 class LessonChangeSource(FeedSource):
     kind = "lesson_change"
     tag = "Расписание"
-    event_field = "updated_at"
+    event_field = "changed_at"
     related = ("weekly_lesson__discipline", "new_room", "new_teacher")
 
     def base_queryset(self, ctx: FeedContext) -> QuerySet:
@@ -213,7 +213,7 @@ class LessonChangeSource(FeedSource):
             key=f"lesson-change-{obj.pk}",
             kind=self.kind,
             tag=self.tag,
-            timestamp=obj.updated_at,
+            timestamp=obj.changed_at,
             title=title,
             body="",
             url=reverse("schedule:week_of", kwargs={"day": affected_day}),

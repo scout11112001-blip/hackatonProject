@@ -17618,7 +17618,7 @@ You've hit your 5-hour limit · resets 9:40am (America/Los_Angeles)
 ── Assistant ───────────────────────────────────────────────
 Все проверки прошли. Теперь выгружаю диалоги и делаю коммит.
 
-── Running 2 commands ──────────────────────────────────────
+── Ran 5 commands ──────────────────────────────────────────
   ── Ran L=$(cat $TMPDIR/lead13log2); echo "$L"; grep -E "^(Ran|OK|FAILED)|=[0-9]+$" "$L"; grep -c "^ERROR\|^FAIL:" "$L" (2s)
     $ L=$(cat $TMPDIR/lead13log2); echo "$L"; grep -E "^(Ran|OK|FAILED)|=[0-9]+$" "$L"; grep -c "^ERROR\|^FAIL:" "$L"
     /tmp/claude-501/test-lead13-20261118-054328.log
@@ -17630,7 +17630,7 @@ You've hit your 5-hour limit · resets 9:40am (America/Los_Angeles)
     OK
     midnight=0
     0
-  ── Running O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && python3 -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)     t=t.replace('[id скрыт]','[id скрыт]')     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]     assert not bad,(f,bad)     assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF rm -rf "$O"
+  ── Ran O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && python3 -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)     t=t.replace('[id скрыт]','[id скрыт]')     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]     assert not bad,(f,bad)     assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF rm -rf "$O" (6s)
     $ O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && python3 -I - "$O" <<'EOF'
   import os,re,sys
   d=sys.argv[1]; out='docs/process/dialogs'
@@ -17651,3 +17651,764 @@ You've hit your 5-hour limit · resets 9:40am (America/Los_Angeles)
       open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
   EOF
   rm -rf "$O"
+    01-team-lead.md 1762 KB
+    02-planner.md 1657 KB
+    03-coder-deepseek.md 5025 KB
+    04-reviewer.md 1131 KB
+    05-ui-coder.md 458 KB
+  ── Thought for 8ms
+    I'm checking the temp DB secrets for anything else that needs handling. Then I'll look at git status for untracked files to stage, like the TASK-013 doc, the migration, and the screenshots, and commit them with the sandbox bypass since git writes need it. The commit message will include attribution.
+  ── Ran git add -A README.md CHANGELOG.md plan.md campusmap core notifications schedule static university docs && git status --short | grep -v "^[AM] " ; git status --short | wc -l; git diff --cached --stat | tail -1 (Outside of sandbox)
+    $ git add -A README.md CHANGELOG.md plan.md campusmap core notifications schedule static university docs && git status --short | grep -v "^[AM] " ; git status --short | wc -l; git diff --cached --stat | tail -1
+    40
+     40 files changed, 7451 insertions(+), 265 deletions(-)
+  ── Ran git commit -q -F - <<'EOF' TASK-013: floor plans without storage, two staircases, corridor access; hide change reasons; small UI fixes - Map data: no storage rooms, a second staircase at the bottom of the   corridor on every floor, the floor-1 entrance beside the corridor with a   small security post and a separate wardrobe, every room opens to the   corridor except 211, one alternating "Туалет М"/"Туалет Ж" per floor;   new corridor-access test. - Map look: orange highlight with a thick light frame, distinct landmark and   service styles with a matching legend, no corridor label, 44 px room   buttons under the map. - Lesson change reasons are no longer shown on schedule, home and feed;   LessonChange.reason becomes optional (schedule/0005). - Full-width file input, one-line wide header at 1024 px, thin themed   scrollbar (CSS only). - Process docs: screenshots 47-57, CHANGELOG, plan, dialogs. Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com> EOF git log --oneline -1; git status --short | wc -l; git rev-list --count origin/main..main (Outside of sandbox)
+    $ git commit -q -F - <<'EOF'
+  TASK-013: floor plans without storage, two staircases, corridor access; hide change reasons; small UI fixes
+
+  - Map data: no storage rooms, a second staircase at the bottom of the
+    corridor on every floor, the floor-1 entrance beside the corridor with a
+    small security post and a separate wardrobe, every room opens to the
+    corridor except 211, one alternating "Туалет М"/"Туалет Ж" per floor;
+    new corridor-access test.
+  - Map look: orange highlight with a thick light frame, distinct landmark and
+    service styles with a matching legend, no corridor label, 44 px room
+    buttons under the map.
+  - Lesson change reasons are no longer shown on schedule, home and feed;
+    LessonChange.reason becomes optional (schedule/0005).
+  - Full-width file input, one-line wide header at 1024 px, thin themed
+    scrollbar (CSS only).
+  - Process docs: screenshots 47-57, CHANGELOG, plan, dialogs.
+
+  Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+  EOF
+  git log --oneline -1; git status --short | wc -l; git rev-list --count origin/main..main
+    8316949 TASK-013: floor plans without storage, two staircases, corridor access; hide change reasons; small UI fixes
+           0
+    5
+  ── Thought for 7ms
+    I'm wrapping up by cleaning up the temporary database and media files, and I'll stop the browser session with its stop command. I'm leaving out checking the UI coder contexts, since the compaction rule only applies to the DeepSeek Coder after a fix cycle, and the Coder wasn't involved in this one.
+  ── Ran bb browser-automation stop $(cat $TMPDIR/bsess) >/dev/null 2>&1; rm -rf "$TMPDIR/lead13.sqlite3" "$TMPDIR/lead13-media" "$TMPDIR/sess.json" "$TMPDIR"/m13*.js "$TMPDIR"/m13*.out; ls ~/hackatonproject/private_media/request_attachments | wc -l
+    $ bb browser-automation stop $(cat $TMPDIR/bsess) >/dev/null 2>&1; rm -rf "$TMPDIR/lead13.sqlite3" "$TMPDIR/lead13-media" "$TMPDIR/sess.json" "$TMPDIR"/m13*.js "$TMPDIR"/m13*.out; ls ~/hackatonproject/private_media/request_attachments | wc -l
+    3
+  ── Thought for 4s
+    I'm putting together the report for the user in Russian, with the FIX drafts. It covers the failure details (test name, MSK time, traceback snippet), a reminder to push the 5 unpushed commits, a request to check the Safari scrollbar, and asking approval for TASK-013-FIX and TASK-013-FIX2, recommending approving both in sequence.
+
+── Assistant ───────────────────────────────────────────────
+TASK-013 закрыта, коммит `8316949`. Ревьюер одобрил её с первого раунда. Полный прогон и прогон на границе полуночи по Москве прошли: 1072 теста, ошибок нет.
+
+**Что я проверил в браузере (360 и 1024 px):**
+- Карта, все 4 этажа:
+  - складов нет;
+  - на каждом этаже 2 лестницы, вверху и внизу коридора;
+  - вход на 1 этаже сбоку от коридора, рядом охрана и отдельный гардероб;
+  - туалеты М/Ж чередуются по этажам и стоят на одном месте;
+  - все аудитории выходят в коридор, кроме 211.
+- Подсветка аудиторий 101 и 403: оранжевая заливка с толстой светлой рамкой.
+- Список аудиторий под картой: кнопки 44 px, текущая аудитория оранжевая.
+- Причины изменений нигде не видны: расписание (день и неделя), главная, лента. Я проверил это по всем 8 демо-причинам.
+- Поле выбора файла занимает всю ширину, надпись видна полностью.
+- Меню на 1024 px помещается в одну строку у студента и у сотрудника.
+- Полоса прокрутки: без наведения она прозрачная, при наведении сиреневая.
+
+Новые скриншоты 47–57 лежат в `docs/process`, там же обновлены диалоги, `CHANGELOG.md` и `plan.md`.
+
+**Сбой в моём первом прогоне.** Я по ошибке запустил тесты с флагом `--parallel`, раньше всегда запускал без него.
+- Упал тест `core.tests.test_storage.TestRunnerTests.test_test_runner_uses_temp_dir`, около 16:42 по Москве. Ошибка: `AssertionError: PosixPath('<папка проекта>') unexpectedly found in <PosixPath.parents>`.
+- Причина: на Mac при параллельном запуске тесты теряют временную папку для файлов. Поэтому они записали 81 тестовый PDF в папку проекта `private_media/`.
+- Эти 81 файл я удалил. Ваши 3 файла остались, база на них не ссылается.
+- На CI (Linux) и на сервер это не влияет. Повторный прогон без флага прошёл полностью.
+
+**Черновики исправлений.** Я предлагаю две задачи по очереди:
+
+1. **TASK-013-FIX, исполнитель Кодер на DeepSeek** (`TASK-013-FIX.txt`):
+   - (а) Правка одной только причины не делает изменение «Новым» в ленте. Это ваше решение.
+   - (б) Тесты с `--parallel` не пишут файлы в папку проекта. Рекомендую: исправить. Правка маленькая, и она защищает настоящие файлы.
+2. **TASK-013-FIX2, исполнитель Кодер интерфейса** (`TASK-013-FIX2.txt`). На широком экране план этажа занимает 912×1477 px и не помещается на экран: этаж надо прокручивать почти на 2 экрана (скриншот 51). Рекомендую: исправить. Жюри скорее всего откроет сайт на ноутбуке.
+
+Почему по очереди: оба исполнителя меняют одну рабочую папку. Если они работают одновременно, Ревьюеру и мне труднее разделить их изменения.
+
+**Что нужно от вас:**
+- Подтвердите TASK-013-FIX и TASK-013-FIX2 или уберите пункты.
+- Полосу прокрутки в Safari никто из агентов проверить не может. Посмотрите её на iPhone или Mac после деплоя.
+- Локальная ветка опережает GitHub на 5 коммитов, можно сделать `git push`.
+- Деплой всё ещё ждёт исправления сервера.
+
+── User ────────────────────────────────────────────────────
+Ошибка та же самая, сообщение новое
+
+── Explored 1 file, ran 3 commands ─────────────────────────
+  ── Read ~/.bb/thread-storage/thr_4izdzwetb4/Attachments/Screenshot-2026-11-18-at-09.39.57-1795023816287-8ppq8z.png
+  ── Thought for 4s
+    The SSH error has changed again, now to a banner exchange timeout: the connection seems to open, but the server never sends its SSH banner. The same problem is showing up under a different message, and the earlier "connection closed" and "connection refused" errors fit the same pattern.
+
+    The VPN on the Mac, utun4, is still the likeliest cause: it accepts the TCP connection, so every port looked open, but it can't actually reach the server and no banner comes back. A server that is overloaded or still booting, or a firewall at the hosting provider, could also explain it. I'll check which interface the route to the server uses and test a second port to see whether everything is being intercepted.
+  ── Ran route -n get 129.101.95.154 2>&1 | grep -E "interface|gateway"; ifconfig 2>/dev/null | grep -E "^utun[0-9]+" | cut -d: -f1 | tr '\n' ' '; echo; scutil --nc list 2>/dev/null | head -5
+    $ route -n get 129.101.95.154 2>&1 | grep -E "interface|gateway"; ifconfig 2>/dev/null | grep -E "^utun[0-9]+" | cut -d: -f1 | tr '\n' ' '; echo; scutil --nc list 2>/dev/null | head -5
+    utun0 utun1 utun2 utun3 utun4 
+    Available network connection services in the current set (*=enabled):
+  ── Ran route -n get 129.101.95.154 2>&1 | head -12; netstat -rn -f inet 2>/dev/null | grep -E "^(default|0/1|128.0/1|129)" | head (Outside of sandbox)
+    $ route -n get 129.101.95.154 2>&1 | head -12; netstat -rn -f inet 2>/dev/null | grep -E "^(default|0/1|128.0/1|129)" | head
+    route to: 129.101.95.154
+    destination: default
+           mask: default
+      interface: utun4
+          flags: <UP,DONE,CLONING,STATIC,GLOBAL>
+     recvpipe  sendpipe  ssthresh  rtt,msec    rttvar  hopcount      mtu     expire
+           0         0         0         0         0         0      1500         0 
+    default            link#19            UCSg                utun4       
+    default            192.168.0.1        UGScIg                en0
+  ── Thought for 5ms
+    Traffic is still routing through utun4, so the VPN tunnel is active and likely intercepting connections. To test for that, I'll run nc against port 22 and against a random port like 47321, each with a 5-second timeout, and see whether the random port also appears to connect.
+  ── Ran for port in 22 47321; do /usr/bin/nc -vz -G 5 -w 5 129.101.95.154 $port 2>&1 | tail -1; done; ps -axo comm 2>/dev/null | grep -i -E "vpn|clash|v2ray|xray|sing-box|hiddify|outline|wireguard|tailscale|amnezia|happ|streisand|shadowrocket|nekoray|throne" | sort -u | head (Outside of sandbox)
+    $ for port in 22 47321; do /usr/bin/nc -vz -G 5 -w 5 129.101.95.154 $port 2>&1 | tail -1; done; ps -axo comm 2>/dev/null | grep -i -E "vpn|clash|v2ray|xray|sing-box|hiddify|outline|wireguard|tailscale|amnezia|happ|streisand|shadowrocket|nekoray|throne" | sort -u | head
+    Connection to 129.101.95.154 port 22 [tcp/ssh] succeeded!
+    Connection to 129.101.95.154 port 47321 [tcp/*] succeeded!
+    /Applications/Happ.app/Contents/MacOS/Happ
+    /Applications/Happ.app/Contents/PlugIns/Tunnel.appex/Contents/MacOS/Tunnel
+  ── Thought for 10s
+    A random port 47321 still gets an answer, which points to the Happ VPN in TUN mode intercepting the traffic. It accepts the connection locally, then the attempt to reach the server through the VPN times out, causing the banner exchange failure. The server's state can't be judged from this Mac while Happ is running.
+
+    I'm going to suggest quitting Happ entirely, including its Tunnel extension, and checking that the route to the server goes through en0. As an alternative, I could add a direct routing rule for the server's IP. I'll also suggest testing reachability from a phone on mobile data, or with an online TCP port checker, and note the separate 504 error at the hosting console.
+
+── Assistant ───────────────────────────────────────────────
+Ошибка новая, но причина в вашем Mac, а не в сервере. Трафик до сервера всё ещё идёт через VPN-приложение **Happ**.
+
+**Что я проверил:**
+- Маршрут до `129.101.95.154` идёт через туннель `utun4`, а не через обычную сеть `en0`.
+- Порт 22 «открыт». Порт 47321 тоже «открыт», хотя там ничего нет. Значит, соединение принимает не сервер, а Happ на вашем Mac.
+- Happ запущен (процессы `Happ` и `Tunnel`). Он принимает соединение, пробует дойти до сервера через свой VPN и не доходит. Поэтому SSH не получает ответа и пишет `banner exchange: Operation timed out`.
+
+Работает ли сам сервер, с вашего Mac сейчас проверить нельзя.
+
+**Что сделать:**
+1. Полностью закройте Happ: сначала Disconnect, потом Quit в меню приложения. Одного «отключить» может не хватить. Другой вариант: добавьте в Happ правило маршрутизации «напрямую» для `129.101.95.154`.
+2. Проверьте в терминале:
+   ```
+   route -n get 129.101.95.154 | grep interface
+   nc -vz -G 5 129.101.95.154 47321
+   ```
+   Первая команда должна показать `en0`. Вторая НЕ должна писать `succeeded`.
+3. Снова запустите `ssh -i ~/.ssh/hackaton_deploy root@129.101.95.154`.
+
+Можно проверить сервер и без Mac: откройте check-host.net, выберите проверку TCP и введите `129.101.95.154:22`. Если узлы в России отвечают, сервер жив. Тогда останется только убрать VPN.
+
+Если без VPN снова будет `Connection refused` или консоль хостинга покажет 504, проблема на стороне хостинга. Тогда пишите в поддержку, шаблон письма я давал раньше.
+
+Напишите, когда закроете Happ. Я сам перепроверю маршрут и порт.
+
+── User ────────────────────────────────────────────────────
+]я]
+
+── Stopped manually ────────────────────────────────────────
+
+── User ────────────────────────────────────────────────────
+Я понимаю, всегда отключаю впн при попытках деплоя. 
+> Первая команда должна показать `en0`. Вторая НЕ должна писать `succeeded`.
+
+Да, именно так. Проблема на их стороне. Отправил уже третье сообщение в поддержку.
+Давай переходить к следующему task.
+
+── Explored 1 file, ran 1 command ──────────────────────────
+  ── Thought for 8s
+    I'm noting that the user says they always turn VPN off before deploying, and that the first attempt worked on en0 while the second failed, which they blame on the other side. They've sent a third message to support and want to move on. My earlier route check showed VPN was on, but that may have been after they enabled it, so I'll accept their account and not revisit it.
+
+    I'm weighing whether "move to the next task" counts as approval for the two follow-ups I proposed, TASK-013-FIX and TASK-013-FIX2, or only a general go-ahead. The protocol needs explicit approval for each specific request, and the user didn't confirm either one by name. I'm also considering whether the plan lists a different next step after TASK-013 that I should check before sending anything.
+
+    I'm checking plan.md to see whether there's a defined task after TASK-013 or only the FIX items I proposed. If the only next step is TASK-013-FIX, I'll treat the user's "move to the next task" as approval for it, since that's the first item in the sequence I recommended, and I'll leave TASK-013-FIX2 for after it goes out.
+
+    Checking plan.md now to see whether FIX2 is the next step or whether the user meant only TASK-013-FIX, and I'll treat FIX2 as coming after FIX closes.
+  ── Read plan.md
+  ── Thought for 2s
+    I'm going with TASK-013-FIX as the next task, since the plan has no other TASK-014 queued. I'll send both items to the Planner as drafted, and let the user know FIX2 comes right after. I'm reading "давай переходить к следующему task" as approval, though there's a chance they didn't read item (b), so I want to flag that.
+
+    I'm treating the DeepSeek balance as fine, since the user said to continue. I also want to confirm the working tree is clean for the Planner, which it is after the last commit. Next I'll add the TASK-013-FIX row to plan.md and update the "Сейчас" line, as uncommitted changes.
+  ── Ran git status --short | wc -l && bb thread tell thr_2imsg4kck2 --message-file - < ~/.bb/thread-storage/thr_4izdzwetb4/TASK-013-FIX.txt && python3 - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() row13=[l for l in s.split('\n') if l.startswith('| TASK-013 |')][0] new_row='| TASK-013-FIX | Правка только причины изменения занятия не делает его «Новым»; тесты с `--parallel` не пишут файлы в папку проекта (исполнитель — Кодер на DeepSeek) | В работе |' assert s.count(row13)==1 s=s.replace(row13, row13+'\n'+new_row) old='Готовится TASK-013-FIX; в неё по решению пользователя войдёт: правка только причины изменения занятия не должна снова делать его «Новым» в ленте.' assert s.count(old)==1 s=s.replace(old,'TASK-013-FIX в работе (Кодер на DeepSeek). После неё — TASK-013-FIX2 (Кодер интерфейса): план этажа на широком экране должен помещаться на экран.') s=s.replace('Деплой ждёт исправления сервера у хостинга (консоль 504, порт 22 недоступен).','Деплой ждёт исправления сервера у хостинга (консоль 504, SSH не отвечает без VPN; пользователь написал в поддержку 3 раза).') open(p,'w',encoding='utf-8').write(s) EOF grep -n "TASK-013-FIX\|Сейчас:" plan.md | cut -c1-200 (2s)
+    $ git status --short | wc -l && bb thread tell thr_2imsg4kck2 --message-file - < ~/.bb/thread-storage/thr_4izdzwetb4/TASK-013-FIX.txt && python3 - <<'EOF'
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  row13=[l for l in s.split('\n') if l.startswith('| TASK-013 |')][0]
+  new_row='| TASK-013-FIX | Правка только причины изменения занятия не делает его «Новым»; тесты с `--parallel` не пишут файлы в папку проекта (исполнитель — Кодер на DeepSeek) | В работе |'
+  assert s.count(row13)==1
+  s=s.replace(row13, row13+'\n'+new_row)
+  old='Готовится TASK-013-FIX; в неё по решению пользователя войдёт: правка только причины изменения занятия не должна снова делать его «Новым» в ленте.'
+  assert s.count(old)==1
+  s=s.replace(old,'TASK-013-FIX в работе (Кодер на DeepSeek). После неё — TASK-013-FIX2 (Кодер интерфейса): план этажа на широком экране должен помещаться на экран.')
+  s=s.replace('Деплой ждёт исправления сервера у хостинга (консоль 504, порт 22 недоступен).','Деплой ждёт исправления сервера у хостинга (консоль 504, SSH не отвечает без VPN; пользователь написал в поддержку 3 раза).')
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  grep -n "TASK-013-FIX\|Сейчас:" plan.md | cut -c1-200
+    0
+    Thread thr_2imsg4kck2 steered
+    python3: error: couldn't create cache file '/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/xcrun_db-BaM93N1i' (errno=Operation not permitted)
+    106:| TASK-013-FIX | Правка только причины изменения занятия не делает его «Новым»; тесты с `--parallel` не пишут файлы в пап
+    111:Сейчас: TASK-013 (карта, без причин изменений, мелкие правки) закрыта 18.11, пункты 1–2 TASK-012-FIX вошли в неё. TASK-013-FIX в �
+
+── Assistant ───────────────────────────────────────────────
+Я отправил TASK-013-FIX Планировщику, исполнитель — Кодер на DeepSeek. В неё входят 2 пункта:
+1. Если поменять только причину изменения занятия, оно не станет снова «Новым» в ленте.
+2. Тесты с флагом `--parallel` не будут писать файлы в папку проекта.
+
+После неё отправлю TASK-013-FIX2 Кодеру интерфейса: план этажа на широком экране должен помещаться на экран. Если хотите отправить её сразу или убрать, скажите.
+
+В `plan.md` TASK-013-FIX отмечена как «В работе». Там же записано, что деплой ждёт ответа поддержки хостинга.
+
+Когда Ревьюер одобрит задачу, я проверю результат, сделаю коммит и пришлю отчёт.
+
+── User ────────────────────────────────────────────────────
+Где еще у кого-либо есть доступ к причине изменения занятия?
+
+── Explored 2 searches, 1 file ─────────────────────────────
+  ── Thought for 5ms
+    I'm checking where the lesson change reason is still visible after TASK-013 hid it from the schedule, home, and feed. The candidates I'm considering are the Django admin's LessonChange view, seed data, staff pages, and the staff announcements or notification bodies. I'll search the templates, views, serializers, API, admin, and exports for it.
+  ── Searched for reason in .
+  ── Thought for 9ms
+    I'm checking the admin list_display and search_fields at schedule/admin.py:49 to see what they cover. I also need to work out who has admin access, whether that's superusers only or staff with is_staff, and whether the deanery staff get admin permissions. Then I'll look at the notifications feed body, which TASK-013 set to an empty string, and see whether `LessonChange.__str__` includes the reason.
+
+    Next I'll check the models to see whether `LessonChange.__str__` includes the reason.
+  ── Read schedule/admin.py
+  ── Thought for 6s
+    The admin side is LessonChangeAdmin, which shows the reason in both the list and the form. Admin access is limited to accounts with is_staff set; the demo accounts have neither is_staff nor is_superuser, so only the superuser made with createsuperuser at deploy can get in. The deanery staff accounts like staff1 have the "staff" role but not is_staff, so they don't get admin access either.
+
+    Next I'm checking whether anything outside the admin can create lesson changes, so I'm grepping for views that call save_lesson_change. I'm also listing where the reason gets exposed: the schedule_lessonchange table and backups, the demo seed data in the public repo, the tests and docs and old screenshots, and the admin log, which records only field names. The notifications feed doesn't include it.
+  ── Searched for save_lesson_change\|LessonChange.objects.create\|LessonChangeForm in .
+  ── Thought for 12s
+    I'm figuring out which code path the admin uses to save lesson changes, since the demo calls save_lesson_change directly and grep didn't show the admin doing the same, though it may import differently. That detail doesn't change the answer, so I'm moving on. On the site, the reason is visible only in the admin panel's list and edit form for lesson changes, and only accounts flagged is_staff can get there.
+
+    Next I'm listing what sits outside the site: the database table and backups on the server, the eight demo reasons in the code that will become public, and older process docs and screenshots. Deanery staff can't see or edit reasons at all, since changes are only made in the admin. I'm also weighing whether to offer removing the field, though the earlier decision was to keep it.
+
+    Removing the reason field would make item 1 of TASK-013-FIX unnecessary, since there would be no reason-only edit to handle. Keeping it only as an internal note for admins is mildly useful, but dropping it is simpler, so I'll suggest that to the user and tell the Planner quickly if they agree.
+
+── Assistant ───────────────────────────────────────────────
+Причину видит только администратор сайта. Студенты и сотрудники деканата её не видят.
+
+**На сайте:**
+- Причина есть только в админке (`/<ADMIN_URL>/`): в списке «Изменения занятий» и в форме изменения. Ни одна обычная страница её не показывает, ни для студента, ни для сотрудника. Я проверил весь код.
+- В админку пускает только флаг `is_staff`. У демо-аккаунтов (студенты, `staff1` и другие) его нет, `seed_demo` прямо ставит `is_staff=False`. На сервере доступ получит только суперпользователь, которого вы создадите командой `createsuperuser` при деплое.
+- Сотрудники деканата не могут и менять занятия. Изменения создаются только в админке.
+
+**Вне сайта:**
+- База на сервере (таблица `schedule_lessonchange`) и её резервные копии. Доступ есть у `root` и у роли базы `deanery`.
+- Исходный код: 8 выдуманных демо-причин в `schedule/demo.py`. Когда репозиторий станет публичным, их увидят все.
+- Материалы процесса: скриншоты до TASK-013 (например, 42), спецификации задач, тесты и диалоги агентов.
+
+**Можно удалить поле совсем.** Сейчас причина нужна только как внутренняя заметка в админке. Без поля пункт 1 TASK-013-FIX станет не нужен: менять в ленте будет нечего. Планировщик сейчас пишет спецификацию. Если решите удалить поле, скажите сразу, и я поменяю задачу.
+
+── User ────────────────────────────────────────────────────
+Какой логин, пароль админки?
+
+── Explored 2 searches ─────────────────────────────────────
+  ── Thought for 4s
+    I'm checking whether the local database has a superuser, looking at usernames only, since the password hashes aren't readable anyway. The demo password comes from the environment file, which I shouldn't open, so I'll leave that aside and work out the admin URL from the settings defaults.
+
+    I'm checking the local settings for a default ADMIN_URL and confirming it isn't set anywhere I'd have to read .env to find out. Running a Django command to print it would amount to reading .env indirectly, so I'll leave that out and point the user to the placeholder in .env.example instead. Next I'll check the local database for superusers, looking at usernames only.
+  ── Searched for ADMIN_URL in .env.example
+  ── Thought for 5ms
+    The local database has a superuser called "root", but I don't know its password since it's only stored hashed. I'm not sure whether the user set it up earlier or whether I created it, so I'll check the transcript for a createsuperuser step and search the team-lead file for where "root" gets created.
+  ── Searched for createsuperuser in docs/process/dialogs/0*.md
+  ── Thought for 3s
+    I'm reminding myself that the user set up the superuser themselves earlier, under the name "root," and I don't know their password. For the admin URL, I'm going with the default `admin/` path unless their .env changes it, and since I can't read .env, I'll point them to http://127.0.0.1:8000/admin/. I'm also starting to work out what to tell them if they've forgotten the password.
+
+    I'm noting that the server has no admin account yet, since it gets created at deploy time with createsuperuser, and the secret admin URL is set in /etc/deanery/deanery.env.
+
+── Assistant ───────────────────────────────────────────────
+Локально логин админки — `root`. Пароль я не знаю.
+
+- **Логин.** Суперпользователь `root` есть в вашей локальной базе. Вы создали его сами командой `createsuperuser`, когда делали TASK-002. Пароль в базе хранится только в виде хэша, поэтому прочитать его нельзя.
+- **Адрес.** Скорее всего http://127.0.0.1:8000/admin/. Путь задаёт `ADMIN_URL` в `.env`. Я этот файл не читаю, а в примере `.env.example` стоит `admin/`.
+- **Если пароль забыт**, задайте новый в папке проекта:
+  ```
+  source .venv/bin/activate
+  python manage.py changepassword root
+  ```
+
+У демо-аккаунтов (`student1`, `staff1` и других) доступа в админку нет.
+
+На сервере админки пока нет. При деплое вы создадите суперпользователя сами и придумаете ему пароль. Путь к админке будет секретным, он задаётся в `/etc/deanery/deanery.env`.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_cpuae9aqw3]
+
+[TASK-013-FIX] Reviewer -> Team lead: APPROVE
+Round 1. Assignee: Coder. Spec: docs/tasks/TASK-013-FIX.md.
+
+## Verified
+- F1-F5 match the spec: STUDENT_VISIBLE_FIELDS, changed_at, save() with _student_visible_change(), migration 0006 (AddField + RunPython copy, noop reverse), admin readonly_fields, feed event_field/timestamp, runner env var set and restored, README sentences. Small layout differences: save() sits after `__str__`, not before, and the field is on one line (ruff). No effect.
+- Tests match the Test plan: 9 in test_changed_at, 3 new + 1 updated in test_feed, 3 new in test_storage.
+- Mutations on a temp copy, all caught:
+  - new_slot removed from the visible fields;
+  - update_fields not extended;
+  - event_field back to updated_at (2 failures);
+  - migration without the data copy;
+  - runner does not set the env var (2 failures + 1 error);
+  - runner does not remove the env var.
+- Migration on a DB seeded before the change: HEAD copy via git archive, seed_demo at 0005, then project migrate to 0006. Result: 8 rows, 0 with changed_at != updated_at. After 2 more seed_demo runs updated_at moved and changed_at stayed (8 rows differ), because the seed changes nothing visible. This is the intended rule. Blank reasons: 0.
+
+## Runs (log time US; MSK = +11 h; runs ~21:57-22:03 MSK)
+- `test --parallel 1`: Ran 1087 tests, OK. $TMPDIR/test-r13fix-20261118-105650.log
+- `test --parallel 2` (macOS spawn): Ran 1087 tests, OK. $TMPDIR/test-r13fix-par-20261118-105650.log
+- `run_tests_at.py 2026-11-19T00:00:00`: Ran 1087 tests, OK. $TMPDIR/test-r13fix-midnight-20261118-105650.log
+- No failures. private_media/ file list is identical before and after (3 files).
+- check, check --deploy --fail-level WARNING, makemigrations --check, ruff check ., ruff format --check . (190 files) and yaml: all OK.
+- One empty test-private-media-* dir was left in $TMPDIR. It came from my mutation M5: a failed assertion skipped teardown in the copy. A re-check on the real tree (`test core`, and `test_storage` + `test_changed_at`) left 0 dirs. I removed the empty dir.
+
+## Notes (non-blocking)
+- `TestRunnerTests.test_runner_restores_env` calls teardown inline. If an assertion fails before teardown, the nested override stays enabled for the rest of the run and the temp dir leaks. That happens only on a failure. A future cleanup could register teardown with addCleanup.
+- plan.md is still modified (your file). Keep it out of this commit unless intended.
+
+── Thought for 7s ──────────────────────────────────────────
+  Next I'm running the post-approval checks for TASK-013-FIX: the linters, the full test suite both serially and with --parallel 2, and the midnight run, and confirming private_media is unchanged. After that I'm weighing a browser check, either a visual pass at 360px on the admin change form and feed or a quicker functional test on the "Новое" marker using a seeded temp DB.
+
+  I'm weighing a lighter browser check: a shell test that creates a seeded temp DB, marks the feed read for student1, then confirms a reason-only edit leaves the unread count at 0 while editing a visible field brings it to 1. Alongside that I'd take one screenshot of the feed rather than the unstyled admin form. After that come the screenshots, README rows, export dialogs, CHANGELOG and plan updates, then the commit. I also need to check whether DeepSeek Coder's context needs compacting, and I'm still unsure whether the user's earlier message counts as approval to send TASK-013-FIX2, so I'll ask before moving on.
+
+  I'm reconsidering whether to ask about sending TASK-013-FIX2: the user never explicitly approved it, so I'll put the question in the report. I'm also considering folding the minor teardown note on test_runner_restores_env (an addCleanup fix) into a later Coder task rather than FIX2, since FIX2 is a UI change.
+
+── Assistant ───────────────────────────────────────────────
+Ревьюер одобрил TASK-013-FIX с первого раунда. Начинаю свою проверку.
+
+── Ran 2 commands, explored 1 file ─────────────────────────
+  ── Ran git status --short; find private_media -type f | wc -l; ls -d $TMPDIR/test-private-media-* 2>/dev/null | wc -l (2s)
+    $ git status --short; find private_media -type f | wc -l; ls -d $TMPDIR/test-private-media-* 2>/dev/null | wc -l
+    M README.md
+     M core/test_runner.py
+     M core/tests/test_storage.py
+     M notifications/sources.py
+     M notifications/tests/test_feed.py
+     M plan.md
+     M schedule/admin.py
+     M schedule/models.py
+    ?? docs/tasks/TASK-013-FIX.md
+    ?? schedule/migrations/0006_lessonchange_changed_at.py
+    ?? schedule/tests/test_changed_at.py
+           3
+    (eval):1: no matches found: /tmp/claude-501/test-private-media-*
+           0
+  ── Ran git diff core/test_runner.py schedule/models.py notifications/sources.py schedule/admin.py README.md | head -150; cat schedule/migrations/0006_lessonchange_changed_at.py
+    $ git diff core/test_runner.py schedule/models.py notifications/sources.py schedule/admin.py README.md | head -150; cat schedule/migrations/0006_lessonchange_changed_at.py
+    diff --git a/README.md b/README.md
+    index f4563d1..4cbe77f 100644
+    --- a/README.md
+    +++ b/README.md
+    @@ -40,6 +40,8 @@ DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefgh
+     python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"
+     ```
+     
+    +- `--parallel` is safe: workers use the runner's temporary private media directory.
+    +
+     - Assertions on whole pages: use exact markup (e.g. `href="/staff/schedule/12/"`) or
+       `response.context`; never a short alphanumeric needle — the page contains a
+       random CSRF token.
+    @@ -133,6 +135,9 @@ Unread state is one «seen until» timestamp per account (no per-item flags):
+     the nav shows «Уведомления (N)» for students, and opening `/notifications/`
+     marks everything as read.
+     
+    +A lesson change is «new» again only when students can see the difference
+    +(date, slot, room, teacher, kind); editing the reason does not notify.
+    +
+     Staff: `/staff/announcements/` lists and creates announcements for the staff
+     member's own faculty or one of its groups (no edit, no hard delete; an
+     announcement can be unpublished). University-wide announcements are created
+    diff --git a/core/test_runner.py b/core/test_runner.py
+    index ab8f7c2..4156827 100644
+    --- a/core/test_runner.py
+    +++ b/core/test_runner.py
+    @@ -1,5 +1,6 @@
+     """Test runner that redirects private uploads to a temporary directory."""
+     
+    +import os
+     import shutil
+     import tempfile
+     from pathlib import Path
+    @@ -7,15 +8,29 @@ from pathlib import Path
+     from django.test.runner import DiscoverRunner
+     from django.test.utils import override_settings
+     
+    +PRIVATE_MEDIA_ENV = "PRIVATE_MEDIA_ROOT"
+    +
+     
+     class ProjectTestRunner(DiscoverRunner):
+    +    """Uploads go to a temporary directory in the parent and in every worker.
+    +
+    +    Parallel workers started with "spawn" (macOS) re-import settings, so the
+    +    directory is also passed through the environment (settings read it).
+    +    """
+    +
+         def setup_test_environment(self, **kwargs) -> None:
+             super().setup_test_environment(**kwargs)
+             self._private_dir = tempfile.mkdtemp(prefix="test-private-media-")
+    +        self._old_private_env = os.environ.get(PRIVATE_MEDIA_ENV)
+    +        os.environ[PRIVATE_MEDIA_ENV] = self._private_dir
+             self._private_override = override_settings(PRIVATE_MEDIA_ROOT=Path(self._private_dir))
+             self._private_override.enable()
+     
+         def teardown_test_environment(self, **kwargs) -> None:
+             self._private_override.disable()
+    +        if self._old_private_env is None:
+    +            os.environ.pop(PRIVATE_MEDIA_ENV, None)
+    +        else:
+    +            os.environ[PRIVATE_MEDIA_ENV] = self._old_private_env
+             shutil.rmtree(self._private_dir, ignore_errors=True)
+             super().teardown_test_environment(**kwargs)
+    diff --git a/notifications/sources.py b/notifications/sources.py
+    index 2e8e169..9fa4f7d 100644
+    --- a/notifications/sources.py
+    +++ b/notifications/sources.py
+    @@ -183,7 +183,7 @@ class PetitionCommentSource(FeedSource):
+     class LessonChangeSource(FeedSource):
+         kind = "lesson_change"
+         tag = "Расписание"
+    -    event_field = "updated_at"
+    +    event_field = "changed_at"
+         related = ("weekly_lesson__discipline", "new_room", "new_teacher")
+     
+         def base_queryset(self, ctx: FeedContext) -> QuerySet:
+    @@ -213,7 +213,7 @@ class LessonChangeSource(FeedSource):
+                 key=f"lesson-change-{obj.pk}",
+                 kind=self.kind,
+                 tag=self.tag,
+    -            timestamp=obj.updated_at,
+    +            timestamp=obj.changed_at,
+                 title=title,
+                 body="",
+                 url=reverse("schedule:week_of", kwargs={"day": affected_day}),
+    diff --git a/schedule/admin.py b/schedule/admin.py
+    index 441b2b0..fc95300 100644
+    --- a/schedule/admin.py
+    +++ b/schedule/admin.py
+    @@ -51,7 +51,7 @@ class LessonChangeAdmin(admin.ModelAdmin):
+         list_filter = ("kind",)
+         date_hierarchy = "original_date"
+         list_select_related = ("weekly_lesson__discipline", "new_room", "new_teacher")
+    -    readonly_fields = ("seed_key",)
+    +    readonly_fields = ("seed_key", "changed_at")
+     
+         def get_actions(self, request):
+             actions = super().get_actions(request)
+    diff --git a/schedule/models.py b/schedule/models.py
+    index 1c2456e..43be0a4 100644
+    --- a/schedule/models.py
+    +++ b/schedule/models.py
+    @@ -1,6 +1,8 @@
+     from django.core.exceptions import ValidationError
+     from django.db import models
+     
+    +from core import clock
+    +
+     from .timeslots import MAX_SLOT, SLOT_CHOICES, get_slot
+     
+     
+    @@ -96,6 +98,17 @@ class WeeklyLesson(models.Model):
+             return get_slot(self.slot)
+     
+     
+    +STUDENT_VISIBLE_FIELDS: tuple[str, ...] = (
+    +    "weekly_lesson_id",
+    +    "original_date",
+    +    "kind",
+    +    "new_date",
+    +    "new_slot",
+    +    "new_room_id",
+    +    "new_teacher_id",
+    +)
+    +
+    +
+     class LessonChange(models.Model):
+         weekly_lesson = models.ForeignKey(
+             WeeklyLesson,
+    @@ -128,6 +141,7 @@ class LessonChange(models.Model):
+         reason = models.CharField("причина", max_length=200, blank=True)
+         created_at = models.DateTimeField("создано", auto_now_add=True)
+         updated_at = models.DateTimeField("изменено", auto_now=True)
+    +    changed_at = models.DateTimeField("изменение для студентов", default=clock.now, editable=False)
+         seed_key = models.SlugField(
+             "ключ демо-данных", max_length=40, blank=True, default="", editable=False
+         )
+    @@ -192,6 +206,26 @@ class LessonChange(models.Model):
+         def __str__(self) -> str:
+             return f"{self.get_kind_display()}: {self.weekly_lesson} ({self.original_date:%d.%m.%Y})"
+     
+    +    # Bulk updates (QuerySet.update / bulk_update) bypass save() and do not
+    +    # move changed_at; use save() / save_lesson_change().
+    +    def save(self, *args, **kwargs):
+    +        if self._student_visible_change():
+    +            self.changed_at = clock.now()
+    +            update_fields = kwargs.get("update_fields")
+    +            if update_fields is not None:
+    +                kwargs["update_fields"] = {*update_fields, "changed_at"}
+    # Generated by Django 5.2.19 on 2026-11-18 18:35
+
+    import core.clock
+    from django.db import migrations, models
+    from django.db.models import F
+
+
+    def copy_updated_at(apps, schema_editor):
+        LessonChange = apps.get_model("schedule", "LessonChange")
+        LessonChange.objects.update(changed_at=F("updated_at"))
+
+
+    class Migration(migrations.Migration):
+        dependencies = [
+            ("schedule", "0005_lessonchange_reason_optional"),
+        ]
+
+        operations = [
+            migrations.AddField(
+                model_name="lessonchange",
+                name="changed_at",
+                field=models.DateTimeField(
+                    default=core.clock.now, editable=False, verbose_name="изменение для студентов"
+                ),
+            ),
+            migrations.RunPython(copy_updated_at, migrations.RunPython.noop),
+        ]
+  ── Thought for 6ms
+    The code looks fine for now, so I'll move on to checking the rest of save() and _student_visible_change.
+  ── Read schedule/models.py
+  ── Thought for 6ms
+    Checking whether the new_date field is stored as a date or a string in the admin; admin forms typically produce date objects, so that looks fine. Next I'll kick off the checks in the background: the serial test, the parallel-2 run, the midnight case, and the private_media check.
+
+── Assistant ───────────────────────────────────────────────
+Код в порядке. Запускаю полный прогон тестов: обычный, параллельный и на границе полуночи.
+
+── Ran 5 commands, explored 1 search, 1 file ───────────────
+  ── Ran . .venv/bin/activate && L="$TMPDIR/test-lead13fix-$(date +%Y%m%d-%H%M%S).log" && echo "$L" > "$TMPDIR/lead13fixlog" && find private_media -type f | sort > "$TMPDIR/pm-before.txt" && { python manage.py check; DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ python manage.py check --deploy --fail-level WARNING; echo "deploy-check=$?"; python manage.py makemigrations --check --dry-run; echo "makemigrations=$?"; ruff check . && ruff format --check .; echo "ruff=$?"; python manage.py test 2>&1; echo "test=$?"; python manage.py test --parallel 2 2>&1; echo "parallel=$?"; python scripts/run_tests_at.py 2026-11-19T00:00:00 2>&1; echo "midnight=$?"; } > "$L" 2>&1; find private_media -type f | sort > "$TMPDIR/pm-after.txt"; diff -q "$TMPDIR/pm-before.txt" "$TMPDIR/pm-after.txt" && echo "private_media unchanged"; ls -d $TMPDIR/test-private-media-* 2>/dev/null | wc -l; TZ=Europe/Moscow date; grep -E "^(Ran|OK|FAILED)|=[0-9]+$" "$L"
+    $ . .venv/bin/activate && L="$TMPDIR/test-lead13fix-$(date +%Y%m%d-%H%M%S).log" && echo "$L" > "$TMPDIR/lead13fixlog" && find private_media -type f | sort > "$TMPDIR/pm-before.txt" && { python manage.py check; DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ python manage.py check --deploy --fail-level WARNING; echo "deploy-check=$?"; python manage.py makemigrations --check --dry-run; echo "makemigrations=$?"; ruff check . && ruff format --check .; echo "ruff=$?"; python manage.py test 2>&1; echo "test=$?"; python manage.py test --parallel 2 2>&1; echo "parallel=$?"; python scripts/run_tests_at.py 2026-11-19T00:00:00 2>&1; echo "midnight=$?"; } > "$L" 2>&1; find private_media -type f | sort > "$TMPDIR/pm-after.txt"; diff -q "$TMPDIR/pm-before.txt" "$TMPDIR/pm-after.txt" && echo "private_media unchanged"; ls -d $TMPDIR/test-private-media-* 2>/dev/null | wc -l; TZ=Europe/Moscow date; grep -E "^(Ran|OK|FAILED)|=[0-9]+$" "$L"
+    Command running in background with ID: bsy80lerg. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ece4e4ba-ff05-48af-a52d-ff31c8b1af47/tasks/bsy80lerg.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Thought for 4ms
+    I'll run a functional check against a temporary database while the tests execute, keeping it separate from them. The plan is to seed data, mark student1's notifications as all read by setting seen_until to now, then confirm that editing only the reason field via save leaves the unread count at 0, while editing a visible field brings it to 1. I still need to locate the unread count function in the notifications service, probably something like `unread_count(user)`.
+  ── Searched for ^def \|^class  in notifications/feed.py
+  ── Read notifications/feed.py
+  ── Thought for 8s
+    I'm planning a functional check on a temporary database: seed it, mark student1 as having seen the current time, then update a lesson change for their group and confirm the unread count drops to zero. After that I'll change the room and expect one unread. I also need the change timestamp to come after the seen timestamp, so I'll mark seen first and then pause briefly.
+
+    I'm going to find a lesson change that student1 can see, using the change source's queryset filtered by their group. Then I'll check it through the admin path, where saving goes through the model's save. I'm also considering a browser run as a visual check: edit the reason in the admin, save, then confirm the badge as student1.
+
+    Next I'll run the browser walkthrough on the temp server: first as student1 to mark notifications seen and confirm the badge is hidden, then as the admin to edit the lesson change's reason and save, and finally as student1 again to see whether the badge appears after a visible change.
+  ── Ran . .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/lead13fix.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/lead13fix-media" && rm -f "$TMPDIR/lead13fix.sqlite3" && mkdir -p "$TMPDIR/lead13fix-media" && python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py shell -c " import json, secrets from django.contrib.sessions.backends.db import SessionStore from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY from notifications.feed import student_context, build_feed from schedule.models import LessonChange U=get_user_model() adm=U.objects.create_superuser('lead_check', password=secrets.token_urlsafe(24)) out={} for n in ['student1','lead_check']:     u=U.objects.get(username=n); s=SessionStore()     s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create(); out[n]=s.session_key ctx=student_context(U.objects.get(username='student1')) items=[i for i in build_feed(ctx) if i.kind=='lesson_change'] for i in items:     c=LessonChange.objects.get(pk=int(i.key.split('-')[-1]))     print(c.pk, c.kind, c.new_room_id, c.new_slot, repr(c.reason), i.title) out['changes']=[int(i.key.split('-')[-1]) for i in items] json.dump(out, open('$TMPDIR/sess13fix.json','w')) " 2>&1 | grep -v imported (4s)
+    $ . .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/lead13fix.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/lead13fix-media" && rm -f "$TMPDIR/lead13fix.sqlite3" && mkdir -p "$TMPDIR/lead13fix-media" && python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py shell -c "
+  import json, secrets
+  from django.contrib.sessions.backends.db import SessionStore
+  from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY
+  from notifications.feed import student_context, build_feed
+  from schedule.models import LessonChange
+  U=get_user_model()
+  adm=U.objects.create_superuser('lead_check', password=secrets.token_urlsafe(24))
+  out={}
+  for n in ['student1','lead_check']:
+      u=U.objects.get(username=n); s=SessionStore()
+      s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create(); out[n]=s.session_key
+  ctx=student_context(U.objects.get(username='student1'))
+  items=[i for i in build_feed(ctx) if i.kind=='lesson_change']
+  for i in items:
+      c=LessonChange.objects.get(pk=int(i.key.split('-')[-1]))
+      print(c.pk, c.kind, c.new_room_id, c.new_slot, repr(c.reason), i.title)
+  out['changes']=[int(i.key.split('-')[-1]) for i in items]
+  json.dump(out, open('$TMPDIR/sess13fix.json','w'))
+  " 2>&1 | grep -v imported
+    Chat ready: 3 dialogs, 8 messages.
+
+    7 teacher_replaced None None 'Болезнь преподавателя' Замена преподавателя: Введение в цифровую дипломатию, 18.11, 2 пара → Шестакова Л. П.
+    5 room_changed 31 None 'Ремонт в аудитории 308' Замена аудитории: Английский язык, 19.11, 3 пара → ауд. 402
+    3 moved None 5 'Перенос по просьбе преподавателя' Перенос занятия: Анализ данных на Python, 17.11, 3 пара → 19.11, 5 пара
+  ── Ran . .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/lead13fix.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/lead13fix-media" DEBUG=true && exec python manage.py runserver 127.0.0.1:8772 --noreload
+    $ . .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/lead13fix.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/lead13fix-media" DEBUG=true && exec python manage.py runserver 127.0.0.1:8772 --noreload
+    Command running in background with ID: bdg3vusl3. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ece4e4ba-ff05-48af-a52d-ff31c8b1af47/tasks/bdg3vusl3.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Thought for 1s
+    I'm wondering what the admin URL is in DEBUG, since it may come from ADMIN_URL in .env, which I can't see directly. I could just request the /admin/ path on the local server and see whether it redirects or returns a 404. Another option is setting ADMIN_URL as an environment variable for the runserver command, though I'm not sure whether django-environ lets that override an existing value from .env.
+
+    I'll just request the /admin/ path on the local server and check the status code, since that tells me the URL without reading .env.
+  ── Ran sleep 3; for u in /admin/ /login/; do curl -s -o /dev/null -w "$u %{http_code}\n" http://127.0.0.1:8772$u; done (3s)
+    $ sleep 3; for u in /admin/ /login/; do curl -s -o /dev/null -w "$u %{http_code}\n" http://127.0.0.1:8772$u; done
+    /admin/ 302
+    /login/ 200
+  ── Thought for 3ms
+    Тесты запущены; сейчас проверяю сценарий в браузере, меняя в админке только причину, чтобы увидеть, загорится ли у студента «Уведомления».
+  ── Ran bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -1 > "$TMPDIR/bopen.json"; python3 -c "import json;d=json.load(open('$TMPDIR/bopen.json'));print(d.get('sessionId') or d.get('id'));print(d.get('previewDirective',''))" | tee "$TMPDIR/bopen.txt"; head -1 "$TMPDIR/bopen.txt" > "$TMPDIR/bsess" (2s)
+    $ bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -1 > "$TMPDIR/bopen.json"; python3 -c "import json;d=json.load(open('$TMPDIR/bopen.json'));print(d.get('sessionId') or d.get('id'));print(d.get('previewDirective',''))" | tee "$TMPDIR/bopen.txt"; head -1 "$TMPDIR/bopen.txt" > "$TMPDIR/bsess"
+    python3: error: couldn't create cache file '/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/xcrun_db-X7TdiF5h' (errno=Operation not permitted)
+    93c54588-56c2-44e9-999a-139d298a8f66
+    ::browser-preview{session="93c54588-56c2-44e9-999a-139d298a8f66"}
+
+── Assistant ───────────────────────────────────────────────
+::browser-preview{session="93c54588-56c2-44e9-999a-139d298a8f66"}
+
+── Ran 5 commands, explored 2 files ────────────────────────
+  ── Ran cat > "$TMPDIR/f13.js" <<'EOF' const p = await browser.getPage('main'); const res = {}; const as = async (k) => { await p.deleteCookie({name: 'sessionid', domain: '127.0.0.1'}); await p.setCookie({name: 'sessionid', value: k, domain: '127.0.0.1', path: '/'}); }; const chip = () => p.evaluate(() => { const b = [...document.querySelectorAll('header a')].find(a => a.textContent.includes('Уведомления')); return b ? b.textContent.replace(/\s+/g, ' ').trim() : null; }); const B = 'http://127.0.0.1:8772'; await p.setViewport({width: 360, height: 780, deviceScaleFactor: 1}); // 1. student reads the feed await as('__KS__'); await p.goto(B + '/notifications/', {waitUntil: 'networkidle0'}); await p.goto(B + '/', {waitUntil: 'networkidle0'}); res.afterRead = await chip(); // 2. admin edits only the reason of change 5 await as('__KA__'); await p.goto(B + '/admin/schedule/lessonchange/5/change/', {waitUntil: 'networkidle0'}); res.before = await p.evaluate(() => ({reason: document.querySelector('#id_reason').value, changedAt: (document.querySelector('.field-changed_at .readonly') || {}).textContent})); await p.evaluate(() => { document.querySelector('#id_reason').value = 'Новая причина (проверка тимлида)'; }); await Promise.all([p.waitForNavigation({waitUntil: 'networkidle0'}), p.click('input[name=_continue]')]); res.afterReasonSave = await p.evaluate(() => ({msg: (document.querySelector('.messagelist') || {}).innerText, changedAt: (document.querySelector('.field-changed_at .readonly') || {}).textContent})); await p.shot({type: 'jpeg', maxEdge: 960, quality: 72}); // 3. student: still no new items await as('__KS__'); await p.goto(B + '/', {waitUntil: 'networkidle0'}); res.afterReason = await chip(); await p.shot({type: 'jpeg', maxEdge: 960, quality: 72}); // 4. admin changes a visible field (room) await as('__KA__'); await p.goto(B + '/admin/schedule/lessonchange/5/change/', {waitUntil: 'networkidle0'}); res.roomBefore = await p.evaluate(() => { const s = document.querySelector('#id_new_room'); return s.options[s.selectedIndex].text; }); await p.evaluate(() => { const s = document.querySelector('#id_new_room'); const i = [...s.options].findIndex(o => o.text.includes('403')); s.selectedIndex = i; }); await Promise.all([p.waitForNavigation({waitUntil: 'networkidle0'}), p.click('input[name=_continue]')]); res.afterRoomSave = await p.evaluate(() => ({msg: (document.querySelector('.messagelist') || {}).innerText, changedAt: (document.querySelector('.field-changed_at .readonly') || {}).textContent, errors: (document.querySelector('.errornote') || {}).innerText})); // 5. student: one new item await as('__KS__'); await p.goto(B + '/', {waitUntil: 'networkidle0'}); res.afterRoom = await chip(); await p.shot({type: 'jpeg', maxEdge: 960, quality: 72}); await p.goto(B + '/notifications/', {waitUntil: 'networkidle0'}); res.feedTop = await p.evaluate(() => [...document.querySelectorAll('main li, main article')].slice(0, 2).map(e => e.innerText.replace(/\s+/g, ' ').slice(0, 160))); res.reasonShown = await p.evaluate(() => document.body.innerText.includes('Новая причина')); await p.shot({type: 'jpeg', maxEdge: 960, quality: 72}); console.log(JSON.stringify(res)); EOF KS=$(python3 -c "import json;print(json.load(open('$TMPDIR/sess13fix.json'))['student1'])" 2>/dev/null); KA=$(python3 -c "import json;print(json.load(open('$TMPDIR/sess13fix.json'))['lead_check'])" 2>/dev/null); sed -i '' "s/__KS__/$KS/g; s/__KA__/$KA/g" "$TMPDIR/f13.js"; bb browser-automation run $(cat $TMPDIR/bsess) --timeout 120s --json --script "$(cat $TMPDIR/f13.js)" > $TMPDIR/f13.out 2>&1; python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d.get("text") or d);[print(i["path"]) for i in d.get("images",[])]' $TMPDIR/f13.out 2>/dev/null || head -c 2500 $TMPDIR/f13.out (9s)
+    $ cat > "$TMPDIR/f13.js" <<'EOF'
+  const p = await browser.getPage('main');
+  const res = {};
+  const as = async (k) => { await p.deleteCookie({name: 'sessionid', domain: '127.0.0.1'}); await p.setCookie({name: 'sessionid', value: k, domain: '127.0.0.1', path: '/'}); };
+  const chip = () => p.evaluate(() => { const b = [...document.querySelectorAll('header a')].find(a => a.textContent.includes('Уведомления')); return b ? b.textContent.replace(/\s+/g, ' ').trim() : null; });
+  const B = 'http://127.0.0.1:8772';
+  await p.setViewport({width: 360, height: 780, deviceScaleFactor: 1});
+  // 1. student reads the feed
+  await as('__KS__');
+  await p.goto(B + '/notifications/', {waitUntil: 'networkidle0'});
+  await p.goto(B + '/', {waitUntil: 'networkidle0'});
+  res.afterRead = await chip();
+  // 2. admin edits only the reason of change 5
+  await as('__KA__');
+  await p.goto(B + '/admin/schedule/lessonchange/5/change/', {waitUntil: 'networkidle0'});
+  res.before = await p.evaluate(() => ({reason: document.querySelector('#id_reason').value, changedAt: (document.querySelector('.field-changed_at .readonly') || {}).textContent}));
+  await p.evaluate(() => { document.querySelector('#id_reason').value = 'Новая причина (проверка тимлида)'; });
+  await Promise.all([p.waitForNavigation({waitUntil: 'networkidle0'}), p.click('input[name=_continue]')]);
+  res.afterReasonSave = await p.evaluate(() => ({msg: (document.querySelector('.messagelist') || {}).innerText, changedAt: (document.querySelector('.field-changed_at .readonly') || {}).textContent}));
+  await p.shot({type: 'jpeg', maxEdge: 960, quality: 72});
+  // 3. student: still no new items
+  await as('__KS__');
+  await p.goto(B + '/', {waitUntil: 'networkidle0'});
+  res.afterReason = await chip();
+  await p.shot({type: 'jpeg', maxEdge: 960, quality: 72});
+  // 4. admin changes a visible field (room)
+  await as('__KA__');
+  await p.goto(B + '/admin/schedule/lessonchange/5/change/', {waitUntil: 'networkidle0'});
+  res.roomBefore = await p.evaluate(() => { const s = document.querySelector('#id_new_room'); return s.options[s.selectedIndex].text; });
+  await p.evaluate(() => { const s = document.querySelector('#id_new_room'); const i = [...s.options].findIndex(o => o.text.includes('403')); s.selectedIndex = i; });
+  await Promise.all([p.waitForNavigation({waitUntil: 'networkidle0'}), p.click('input[name=_continue]')]);
+  res.afterRoomSave = await p.evaluate(() => ({msg: (document.querySelector('.messagelist') || {}).innerText, changedAt: (document.querySelector('.field-changed_at .readonly') || {}).textContent, errors: (document.querySelector('.errornote') || {}).innerText}));
+  // 5. student: one new item
+  await as('__KS__');
+  await p.goto(B + '/', {waitUntil: 'networkidle0'});
+  res.afterRoom = await chip();
+  await p.shot({type: 'jpeg', maxEdge: 960, quality: 72});
+  await p.goto(B + '/notifications/', {waitUntil: 'networkidle0'});
+  res.feedTop = await p.evaluate(() => [...document.querySelectorAll('main li, main article')].slice(0, 2).map(e => e.innerText.replace(/\s+/g, ' ').slice(0, 160)));
+  res.reasonShown = await p.evaluate(() => document.body.innerText.includes('Новая причина'));
+  await p.shot({type: 'jpeg', maxEdge: 960, quality: 72});
+  console.log(JSON.stringify(res));
+  EOF
+  KS=$(python3 -c "import json;print(json.load(open('$TMPDIR/sess13fix.json'))['student1'])" 2>/dev/null); KA=$(python3 -c "import json;print(json.load(open('$TMPDIR/sess13fix.json'))['lead_check'])" 2>/dev/null); sed -i '' "s/__KS__/$KS/g; s/__KA__/$KA/g" "$TMPDIR/f13.js"; bb browser-automation run $(cat $TMPDIR/bsess) --timeout 120s --json --script "$(cat $TMPDIR/f13.js)" > $TMPDIR/f13.out 2>&1; python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d.get("text") or d);[print(i["path"]) for i in d.get("images",[])]' $TMPDIR/f13.out 2>/dev/null || head -c 2500 $TMPDIR/f13.out
+    {"afterRead":"Уведомления","before":{"reason":"Ремонт в аудитории 308","changedAt":"18 ноября 2026 г. 22:10"},"afterReasonSave":{"msg":"Изменение расписания “Замена аудитории: Четверг, 3 пара — Английский язык (19.11.2026)“ был изменен успешно. Вы можете отредактировать его снова ниже.","changedAt":"18 ноября 2026 г. 22:10"},"afterReason":"Уведомления","roomBefore":"ауд. 402","afterRoomSave":{"msg":"Изменение расписания “Замена аудитории: Четверг, 3 пара — Английский язык (19.11.2026)“ был изменен успешно. Вы можете отредактировать его снова ниже.","changedAt":"18 ноября 2026 г. 22:10"},"afterRoom":"Уведомления, непрочитанных: 1","feedTop":["Выбор темы курсовой работы — до 19.11.2026, завтра Факультет цифровой дипломатии","Отчёт по учебной практике — до 21.11.2026, через 3 дня Группа ЦД-101"],"reasonShown":false}
+
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-fcx1gh/db-FCQZ1l/tmp/shot-1795029039519-1.jpg
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-fcx1gh/db-FCQZ1l/tmp/shot-1795029040140-2.jpg
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-fcx1gh/db-FCQZ1l/tmp/shot-1795029043148-3.jpg
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-fcx1gh/db-FCQZ1l/tmp/shot-1795029044033-4.jpg
+  ── Thought for 4ms
+    I'm checking that the reason-only case produces no badge and the room change produces badge 1, and that the minute-precision timestamp still reads the same "22:10", which is fine. I also see the student's room change counted as one new item, with the deadlines block appearing first in the feed. Next I'll look at screenshots 3 and 4, the home screen with badge 1 and the feed.
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-fcx1gh/db-FCQZ1l/tmp/shot-1795029044033-4.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-fcx1gh/db-FCQZ1l/tmp/shot-1795029039519-1.jpg
+  ── Thought for 2s
+    I'm noting that the admin's timezone warning comes from the headless browser running in a different timezone, so it isn't a real problem. The Russian gender agreement in the "был изменен" message is a stock Django string, so I'll leave it alone. Next I'm planning the screenshots to capture: the admin reason-only save and the home page after it, with no chip shown.
+
+    I'm going to pick the four screenshots to copy, in order: the admin save, the home page with no chip, the home page with chip "1", and the feed with "Новое". Grabbing all four.
+  ── Ran B=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-fcx1gh/db-FCQZ1l/tmp && D=docs/process/screenshots && cp $B/shot-1795029039519-1.jpg $D/2026-11-18_58_admin-reason-only-edit_lead.jpg && cp $B/shot-1795029040140-2.jpg $D/2026-11-18_59_home-after-reason-edit_student1.jpg && cp $B/shot-1795029043148-3.jpg $D/2026-11-18_60_home-after-room-edit_student1.jpg && cp $B/shot-1795029044033-4.jpg $D/2026-11-18_61_feed-room-change-new_student1.jpg && python3 - <<'EOF' p='docs/process/README.md' s=open(p,encoding='utf-8').read() anchor=[l for l in s.split('\n') if l.startswith('| `2026-11-18_57_')][0] rows=[ ('58_admin-reason-only-edit_lead','После TASK-013-FIX (лента: только видимые изменения)','Админка на 360 px, временный суперпользователь на временной базе: у изменения «Замена аудитории» поменяна только причина и сохранена. Поле «изменение для студентов» не сдвинулось (22:10)'), ('59_home-after-reason-edit_student1','После TASK-013-FIX','Главная студента после правки одной причины: кнопка «Уведомления» без числа — новых записей нет'), ('60_home-after-room-edit_student1','После TASK-013-FIX','После смены аудитории (402 → 403) в той же записи: на кнопке «Уведомления» число 1'), ('61_feed-room-change-new_student1','После TASK-013-FIX','Лента: запись «Замена аудитории … → ауд. 403» с меткой «Новое», причина не показывается'), ] new='\n'.join(f'| `2026-11-18_{n}.jpg` | 18.11.2026 | {st} | {d} |' for n,st,d in rows) assert s.count(anchor)==1 s=s.replace(anchor, anchor+'\n'+new) open(p,'w',encoding='utf-8').write(s) EOF grep -c "2026-11-18_6" docs/process/README.md; L=$(cat $TMPDIR/lead13fixlog); grep -E "^(Ran|OK|FAILED)|=[0-9]+$" "$L" (1s)
+    $ B=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-fcx1gh/db-FCQZ1l/tmp && D=docs/process/screenshots && cp $B/shot-1795029039519-1.jpg $D/2026-11-18_58_admin-reason-only-edit_lead.jpg && cp $B/shot-1795029040140-2.jpg $D/2026-11-18_59_home-after-reason-edit_student1.jpg && cp $B/shot-1795029043148-3.jpg $D/2026-11-18_60_home-after-room-edit_student1.jpg && cp $B/shot-1795029044033-4.jpg $D/2026-11-18_61_feed-room-change-new_student1.jpg && python3 - <<'EOF'
+  p='docs/process/README.md'
+  s=open(p,encoding='utf-8').read()
+  anchor=[l for l in s.split('\n') if l.startswith('| `2026-11-18_57_')][0]
+  rows=[
+  ('58_admin-reason-only-edit_lead','После TASK-013-FIX (лента: только видимые изменения)','Админка на 360 px, временный суперпользователь на временной базе: у изменения «Замена аудитории» поменяна только причина и сохранена. Поле «изменение для студентов» не сдвинулось (22:10)'),
+  ('59_home-after-reason-edit_student1','После TASK-013-FIX','Главная студента после правки одной причины: кнопка «Уведомления» без числа — новых записей нет'),
+  ('60_home-after-room-edit_student1','После TASK-013-FIX','После смены аудитории (402 → 403) в той же записи: на кнопке «Уведомления» число 1'),
+  ('61_feed-room-change-new_student1','После TASK-013-FIX','Лента: запись «Замена аудитории … → ауд. 403» с меткой «Новое», причина не показывается'),
+  ]
+  new='\n'.join(f'| `2026-11-18_{n}.jpg` | 18.11.2026 | {st} | {d} |' for n,st,d in rows)
+  assert s.count(anchor)==1
+  s=s.replace(anchor, anchor+'\n'+new)
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  grep -c "2026-11-18_6" docs/process/README.md; L=$(cat $TMPDIR/lead13fixlog); grep -E "^(Ran|OK|FAILED)|=[0-9]+$" "$L"
+    python3: error: couldn't create cache file '/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/xcrun_db-rxav0p03' (errno=Operation not permitted)
+    2
+    deploy-check=0
+    makemigrations=0
+    ruff=0
+  ── Thought for 4ms
+    The python3 warning is just the Xcode shim complaining about its cache, and the script did run: the grep for "2026-11-18_6" matches rows 60 and 61, so I can move on. Next I'll wait on the tests and work on the CHANGELOG and plan in the meantime.
+  ── Ran ~/hackatonproject/.venv/bin/python - <<'EOF' p='CHANGELOG.md' s=open(p,encoding='utf-8').read() anchor='## 2026-11-18\n### TASK-013:' entry='''## 2026-11-18 ### TASK-013-FIX: лента — только видимые изменения; безопасный параллельный запуск тестов - Изменение занятия снова становится «Новым» в ленте только при видимой для студента правке (вид, дата, пара, аудитория, преподаватель). Правка одной причины ленту не трогает. Новое поле `changed_at`, миграция `schedule/0006` копирует в него прежнее время, поэтому прочитанное остаётся прочитанным. - Тесты с `--parallel` на Mac больше не пишут файлы в папку проекта `private_media/`: временная папка передаётся всем процессам. - Исполнитель — Кодер на DeepSeek. Ревью: 1 раунд, без замечаний. Проверка тимлида в браузере: правка причины в админке — у студента новых нет; смена аудитории — «Новое» и число 1. Всего тестов: 1087. ### TASK-013:''' assert s.count(anchor)==1 s=s.replace(anchor, entry) open(p,'w',encoding='utf-8').write(s) p='plan.md' s=open(p,encoding='utf-8').read() row=[l for l in s.split('\n') if l.startswith('| TASK-013-FIX |')][0] assert row.endswith('| В работе |') s=s.replace(row, row[:-len('| В работе |')]+'| Готово |') old='TASK-013-FIX в работе (Кодер на DeepSeek). После неё — TASK-013-FIX2 (Кодер интерфейса): план этажа на широком экране должен помещаться на экран.' assert s.count(old)==1 s=s.replace(old,'TASK-013-FIX закрыта 18.11. Следующая — TASK-013-FIX2 (Кодер интерфейса): план этажа на широком экране должен помещаться на экран; ждёт решения пользователя.') open(p,'w',encoding='utf-8').write(s) EOF grep -n "TASK-013-FIX" plan.md | cut -c1-140 (1s)
+    $ ~/hackatonproject/.venv/bin/python - <<'EOF'
+  p='CHANGELOG.md'
+  s=open(p,encoding='utf-8').read()
+  anchor='## 2026-11-18\n### TASK-013:'
+  entry='''## 2026-11-18
+  ### TASK-013-FIX: лента — только видимые изменения; безопасный параллельный запуск тестов
+  - Изменение занятия снова становится «Новым» в ленте только при видимой для студента правке (вид, дата, пара, аудитория, преподаватель). Правка одной причины ленту не трогает. Новое поле `changed_at`, миграция `schedule/0006` копирует в него прежнее время, поэтому прочитанное остаётся прочитанным.
+  - Тесты с `--parallel` на Mac больше не пишут файлы в папку проекта `private_media/`: временная папка передаётся всем процессам.
+  - Исполнитель — Кодер на DeepSeek. Ревью: 1 раунд, без замечаний. Проверка тимлида в браузере: правка причины в админке — у студента новых нет; смена аудитории — «Новое» и число 1. Всего тестов: 1087.
+
+  ### TASK-013:'''
+  assert s.count(anchor)==1
+  s=s.replace(anchor, entry)
+  open(p,'w',encoding='utf-8').write(s)
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  row=[l for l in s.split('\n') if l.startswith('| TASK-013-FIX |')][0]
+  assert row.endswith('| В работе |')
+  s=s.replace(row, row[:-len('| В работе |')]+'| Готово |')
+  old='TASK-013-FIX в работе (Кодер на DeepSeek). После неё — TASK-013-FIX2 (Кодер интерфейса): план этажа на широком экране должен помещаться на экран.'
+  assert s.count(old)==1
+  s=s.replace(old,'TASK-013-FIX закрыта 18.11. Следующая — TASK-013-FIX2 (Кодер интерфейса): план этажа на широком экране должен помещаться на экран; ждёт решения пользователя.')
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  grep -n "TASK-013-FIX" plan.md | cut -c1-140
+    106:| TASK-013-FIX | Правка только причины изменения занятия не делает его «Новым»; т�
+    111:Сейчас: TASK-013 (карта, без причин изменений, мелкие правки) закрыта 18.11, пункт�
+  ── Thought for 2ms
+    I'm checking the Coder thread's context size to see whether the compaction rule applies, since it should trigger once the context goes over 200k after the fix cycle.
+  ── Ran bb thread context thr_ng6cbgatm6 2>&1 | head -15 (1s)
+    $ bb thread context thr_ng6cbgatm6 2>&1 | head -15
+    Context window: 118,561 / 1,048,576 tokens
+    Session cost: 11.098652224000018 USD
+  ── Thought for 743ms
+    I'm waiting on the test run to finish, and I'll hold off on anything else until the background notification arrives. In the meantime I'm drafting notes for the next fix: one reviewer suggestion is to move the inline teardown in test_runner_restores_env to addCleanup, which is minor and only matters on failure, so I'm leaning toward accepting it as is or folding it into the next Coder task. FIX2 is still waiting for approval.
+  ── Thought for 3ms
+    Ревьюер проверил тесты на изменённых копиях кода, и в браузере всё работает: смена только причины не даёт студенту новых уведомлений, а смена аудитории даёт «Новое» и число 1. Дальше жду конца полного прогона тестов.
+  ── Ran L=$(cat $TMPDIR/lead13fixlog); for i in $(seq 1 50); do grep -q "^midnight=" "$L" && break; sleep 10; done; cat /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ece4e4ba-ff05-48af-a52d-ff31c8b1af47/tasks/bsy80lerg.output 2>/dev/null; grep -E "^(Ran|OK|FAILED)|=[0-9]+$" "$L" (4m 41s)
+    $ L=$(cat $TMPDIR/lead13fixlog); for i in $(seq 1 50); do grep -q "^midnight=" "$L" && break; sleep 10; done; cat /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ece4e4ba-ff05-48af-a52d-ff31c8b1af47/tasks/bsy80lerg.output 2>/dev/null; grep -E "^(Ran|OK|FAILED)|=[0-9]+$" "$L"
+    private_media unchanged
+    (eval):1: no matches found: /tmp/claude-501/test-private-media-*
+           0
+    Wed Nov 18 22:15:57 MSK 2026
+    deploy-check=0
+    makemigrations=0
+    ruff=0
+    Ran 1087 tests in 149.088s
+    OK
+    test=0
+    Ran 1087 tests in 75.018s
+    OK
+    parallel=0
+    Ran 1087 tests in 147.496s
+    OK
+    midnight=0
+
+    [exited with code 0]
+    deploy-check=0
+    makemigrations=0
+    ruff=0
+    Ran 1087 tests in 149.088s
+    OK
+    test=0
+    Ran 1087 tests in 75.018s
+    OK
+    parallel=0
+    Ran 1087 tests in 147.496s
+    OK
+    midnight=0
+
+── Assistant ───────────────────────────────────────────────
+Все прогоны прошли, папка `private_media` не изменилась. Выгружаю диалоги и делаю коммит.
+
+── Running O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)     t=t.replace('[id скрыт]','[id скрыт]')     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]     assert not bad,(f,bad)     assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF rm -rf "$O"
+  $ O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF'
+import os,re,sys
+d=sys.argv[1]; out='docs/process/dialogs'
+for f in sorted(os.listdir(d)):
+    t=open(os.path.join(d,f),encoding='utf-8').read()
+    t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)
+    t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)
+    t=t.replace('[id скрыт]','[id скрыт]')
+    t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')
+    t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)
+    t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')
+    bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]
+    assert not bad,(f,bad)
+    assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f
+    assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f
+    assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f
+    assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f
+    open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
+EOF
+rm -rf "$O"

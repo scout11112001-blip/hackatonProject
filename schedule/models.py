@@ -1,6 +1,8 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from core import clock
+
 from .timeslots import MAX_SLOT, SLOT_CHOICES, get_slot
 
 
@@ -96,6 +98,17 @@ class WeeklyLesson(models.Model):
         return get_slot(self.slot)
 
 
+STUDENT_VISIBLE_FIELDS: tuple[str, ...] = (
+    "weekly_lesson_id",
+    "original_date",
+    "kind",
+    "new_date",
+    "new_slot",
+    "new_room_id",
+    "new_teacher_id",
+)
+
+
 class LessonChange(models.Model):
     weekly_lesson = models.ForeignKey(
         WeeklyLesson,
@@ -128,6 +141,7 @@ class LessonChange(models.Model):
     reason = models.CharField("причина", max_length=200, blank=True)
     created_at = models.DateTimeField("создано", auto_now_add=True)
     updated_at = models.DateTimeField("изменено", auto_now=True)
+    changed_at = models.DateTimeField("изменение для студентов", default=clock.now, editable=False)
     seed_key = models.SlugField(
         "ключ демо-данных", max_length=40, blank=True, default="", editable=False
     )
@@ -191,6 +205,26 @@ class LessonChange(models.Model):
 
     def __str__(self) -> str:
         return f"{self.get_kind_display()}: {self.weekly_lesson} ({self.original_date:%d.%m.%Y})"
+
+    # Bulk updates (QuerySet.update / bulk_update) bypass save() and do not
+    # move changed_at; use save() / save_lesson_change().
+    def save(self, *args, **kwargs):
+        if self._student_visible_change():
+            self.changed_at = clock.now()
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None:
+                kwargs["update_fields"] = {*update_fields, "changed_at"}
+        super().save(*args, **kwargs)
+
+    def _student_visible_change(self) -> bool:
+        if self._state.adding or self.pk is None:
+            return True
+        stored = (
+            type(self)._default_manager.filter(pk=self.pk).values(*STUDENT_VISIBLE_FIELDS).first()
+        )
+        if stored is None:
+            return True
+        return any(stored[f] != getattr(self, f) for f in STUDENT_VISIBLE_FIELDS)
 
     def clean(self):
         super().clean()

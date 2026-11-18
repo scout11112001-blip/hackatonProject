@@ -51,7 +51,7 @@ class LessonChangeAdmin(admin.ModelAdmin):
     list_filter = ("kind",)
     date_hierarchy = "original_date"
     list_select_related = ("weekly_lesson__discipline", "new_room", "new_teacher")
-    readonly_fields = ("seed_key",)
+    readonly_fields = ("seed_key", "changed_at")
 
     def get_actions(self, request):
         actions = super().get_actions(request)

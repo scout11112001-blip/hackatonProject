@@ -1,14 +1,20 @@
 """Tests for private file storage and the test runner."""
 
+import os
 import shutil
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
+from unittest import mock
 
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.test import SimpleTestCase, TestCase, override_settings
+from django.test.runner import DiscoverRunner
 
 from core.storage import get_private_storage
+from core.test_runner import ProjectTestRunner
 from core.tests.test_production_settings import PRODUCTION_ENV, _exec_settings, _new_settings_module
 
 
@@ -42,6 +48,56 @@ class TestRunnerTests(SimpleTestCase):
         self.assertNotEqual(root, base)
         self.assertNotIn(base, root.parents)
         self.assertTrue(root.is_dir())
+
+    def test_env_points_to_temp_dir(self):
+        self.assertEqual(os.environ["PRIVATE_MEDIA_ROOT"], str(settings.PRIVATE_MEDIA_ROOT))
+
+    def test_fresh_process_gets_temp_dir(self):
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "import django; django.setup(); from django.conf import settings; "
+                "print(settings.PRIVATE_MEDIA_ROOT)",
+            ],
+            cwd=settings.BASE_DIR,
+            env={**os.environ, "DJANGO_SETTINGS_MODULE": "config.settings"},
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=60,
+        )
+        self.assertEqual(result.stdout.strip(), str(settings.PRIVATE_MEDIA_ROOT))
+
+    def test_runner_restores_env(self):
+        outer = settings.PRIVATE_MEDIA_ROOT
+        with (
+            mock.patch.object(DiscoverRunner, "setup_test_environment"),
+            mock.patch.object(DiscoverRunner, "teardown_test_environment"),
+            mock.patch.dict(os.environ, {"PRIVATE_MEDIA_ROOT": "/old/value"}),
+        ):
+            runner = ProjectTestRunner()
+            runner.setup_test_environment()
+            self.assertEqual(os.environ["PRIVATE_MEDIA_ROOT"], runner._private_dir)
+            self.assertTrue(Path(runner._private_dir).is_dir())
+            self.assertEqual(settings.PRIVATE_MEDIA_ROOT, Path(runner._private_dir))
+            runner.teardown_test_environment()
+            self.assertEqual(os.environ["PRIVATE_MEDIA_ROOT"], "/old/value")
+            self.assertFalse(Path(runner._private_dir).exists())
+            self.assertEqual(settings.PRIVATE_MEDIA_ROOT, outer)
+
+        with (
+            mock.patch.object(DiscoverRunner, "setup_test_environment"),
+            mock.patch.object(DiscoverRunner, "teardown_test_environment"),
+            mock.patch.dict(os.environ, {}, clear=False),
+        ):
+            os.environ.pop("PRIVATE_MEDIA_ROOT", None)
+            runner = ProjectTestRunner()
+            runner.setup_test_environment()
+            self.assertEqual(os.environ["PRIVATE_MEDIA_ROOT"], runner._private_dir)
+            runner.teardown_test_environment()
+            self.assertNotIn("PRIVATE_MEDIA_ROOT", os.environ)
+            self.assertEqual(settings.PRIVATE_MEDIA_ROOT, outer)
 
 
 class PrivateRootSettingsTests(SimpleTestCase):

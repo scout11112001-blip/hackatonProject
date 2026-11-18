@@ -83933,3 +83933,4487 @@ Understood — noted the new UI coder agent (thr_pgcwc2dwnn) and the updated ass
 
 ── Assistant ───────────────────────────────────────────────
 Acknowledged.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_2imsg4kck2]
+
+[TASK-013-FIX] Planner -> Coder: TASK
+Spec: docs/tasks/TASK-013-FIX.md (exact code in F1-F5).
+Summary:
+- New field LessonChange.changed_at (default core.clock.now, editable=False). LessonChange.save() moves it only when a student-visible field changes (STUDENT_VISIBLE_FIELDS; one SELECT on update). This covers the admin, save_lesson_change and update_fields.
+- Migration schedule/0006_lessonchange_changed_at: AddField + RunPython copying updated_at -> changed_at, so unread state is kept. The feed source uses event_field "changed_at" and timestamp=obj.changed_at. Admin readonly_fields add "changed_at".
+- core/test_runner.py: also set os.environ["PRIVATE_MEDIA_ROOT"] to the temp dir (spawned workers on macOS re-read settings) and restore it at teardown.
+- Tests: new schedule/tests/test_changed_at.py (incl. a MigrationExecutor test). Update test_edited_change_is_new_again to a visible edit; add reason-only regression tests (service + admin); add runner env/subprocess tests. README two sentences.
+Verification includes `--parallel 2` and a before/after diff of private_media/ (3 files now; never delete them). Baseline: 1072 tests OK serial (2026-11-18 ~21:30 MSK). Prototype: the fix gave 0 leaked files; the old runner leaked 42 in a copy.
+
+── Worked for (22m 42s) ────────────────────────────────────
+  ── Ran 42 tools, edited 9 files, ran 23 commands, explored 4 lists, 1 search
+    ── Thought for 222ms
+      Let me start by reading the spec.
+    ── Read file read
+      # TASK-013-FIX: Reason-only edits stay read; test uploads never leak with --parallel
+
+      Assignee: **Coder** (DeepSeek, thr_ng6cbgatm6). Request: Team lead, approved by the user (item 1: user decision 18.11; item 2: found by the Team lead 18.11).
+
+      ## Goal
+
+      1. Since TASK-013 the reason of a lesson change is hidden from students. An edit that changes only the reason (or other fields students do not see) must not make the change "Новое" again in the feed or raise the badge.
+      2. `python manage.py test --parallel N` on macOS must not write test uploads into the project's `private_media/`. Every test process must use the temporary private media directory, and the directory must be removed after the run.
+
+      ## Acceptance criteria
+
+      - AC1. `LessonChange` has a new field `changed_at` (`DateTimeField`, `editable=False`, default `core.clock.now`). It is set to the current time on insert and on every save that changes a field visible to students: `weekly_lesson`, `original_date`, `kind`, `new_date`, `new_slot`, `new_room`, `new_teacher`. A save that changes only `reason` (or nothing visible) keeps `changed_at`. `updated_at` (auto_now) stays as the technical "last saved" time.
+      - AC2. The rule holds for every write path: `schedule.mutations.save_lesson_change`, the admin change form, and any direct `save()`.
+      - AC3. The feed uses `changed_at`: `LessonChangeSource.event_field = "changed_at"` and the item timestamp is `obj.changed_at`. The unread count and the "Новое" mark follow `changed_at`.
+      - AC4. Migration `schedule/0006_lessonchange_changed_at` adds the field and copies `updated_at` into `changed_at` for every existing row. After the migration, every existing change has the same read/unread state as before.
+      - AC5. The test runner sets the environment variable `PRIVATE_MEDIA_ROOT` to its temporary directory before any worker starts and restores the old value (or removes the variable) at teardown. Spawned workers re-read settings and get the temporary directory. The directory is removed after the run. The serial behaviour is unchanged.
+      - AC6. `python manage.py test --parallel 2` on macOS passes, and the file list of the project's `private_media/` is identical before and after the run (and after a serial run).
+
+      ## Out of scope
+
+      - Showing `changed_at` to students. Changing `updated_at` or removing it.
+      - Bulk writes (`QuerySet.update`, `bulk_update`): no application code uses them for `LessonChange` (checked: `grep -rn "bulk_create\|bulk_update\|\.update(" schedule notifications` finds none for this model). They bypass `save()`; this is documented in the model docstring comment, not handled.
+      - Installing `tblib` (see Risks).
+
+      ## Design decisions
+
+      - **D1. A separate field instead of changing `updated_at`.** `updated_at` is `auto_now`; Django sets it on every `save()` and the admin cannot skip it. A second field with an explicit rule keeps both meanings: "last saved" for staff, "last change students can see" for the feed. The same pattern as `core.clock.now` defaults in `academics/0002`.
+      - **D2. The rule lives in `LessonChange.save()`**, so the admin (`ModelAdmin.save_model` → `obj.save()`), `save_lesson_change` and seeds all follow it without extra code. On update, `save()` reads the stored visible fields with one `SELECT … WHERE pk = …` and compares them. One extra query per update is acceptable: changes are edited rarely and by staff only. This is simpler and safer than a snapshot in `from_db()` (no stale state after `refresh_from_db` or after an insert).
+      - **D3. Visible fields** are compared by attribute name: `weekly_lesson_id`, `original_date`, `kind`, `new_date`, `new_slot`, `new_room_id`, `new_teacher_id`. `reason`, `seed_key`, `created_at`, `updated_at` are not visible. A new instance (`self._state.adding`) always gets `changed_at = now`. If the stored row is gone (deleted by another transaction), treat it as visible (set `changed_at`).
+      - **D4. `update_fields`.** If a caller passes `update_fields` and a visible field changed, add `"changed_at"` to it. Today only migration `0003` uses `update_fields` (on the historical model, which has no custom `save()`).
+      - **D5. Data migration.** `AddField` with `default=core.clock.now` fills old rows with the migration time; the `RunPython` step then sets `changed_at = updated_at` for all rows (`QuerySet.update(changed_at=F("updated_at"))`; no model `save()` runs). Reverse: `RunPython.noop` (the reverse `AddField` drops the column).
+      - **D6. Test runner: environment variable.** On macOS the parallel runner starts workers with `spawn`. Django's `_init_worker` then calls `django.setup()` and Django's own `setup_test_environment()` (not our runner's method), so our `override_settings` from the parent is lost. Workers inherit the parent's environment, and `config/settings.py:126` reads `PRIVATE_MEDIA_ROOT` from the environment (`django-environ` `read_env` uses `setdefault`, so the process environment wins over `.env`). Setting `os.environ["PRIVATE_MEDIA_ROOT"]` in `ProjectTestRunner.setup_test_environment` (it runs before the suite and the pool are built) fixes every worker with no subclass of Django's private `ParallelTestSuite`/`_init_worker` API. We keep the `override_settings` for the parent process (its settings are already loaded). With `fork` (Linux CI) workers copy the parent memory; nothing changes there.
+
+      ## Architecture / files
+
+      - `schedule/models.py`: import `from core import clock`; module constant `STUDENT_VISIBLE_FIELDS`; field `changed_at`; methods `save()` and `_student_visible_change()` (F1, F2).
+      - New `schedule/migrations/0006_lessonchange_changed_at.py` (F3).
+      - `schedule/admin.py`: `LessonChangeAdmin.readonly_fields = ("seed_key", "changed_at")` (staff can see the student-visible time; the field is not editable).
+      - `notifications/sources.py`: `LessonChangeSource.event_field = "changed_at"`; `timestamp=obj.changed_at` (F4).
+      - `core/test_runner.py` (F5).
+      - Tests: `notifications/tests/test_feed.py`, new `schedule/tests/test_changed_at.py`, `core/tests/test_storage.py`.
+      - `README.md`: one sentence in "## Notifications" (or where lesson changes in the feed are described): "A lesson change is "new" again only when students can see the difference (date, slot, room, teacher, kind); editing the reason does not notify." and one sentence in "## Test & lint": "`--parallel` is safe: workers use the runner's temporary private media directory."
+
+      ## Functions
+
+      ### F1. `schedule/models.py` — constant and field
+
+      ```python
+      from core import clock  # add after "from django.db import models", before the relative imports
+
+      STUDENT_VISIBLE_FIELDS: tuple[str, ...] = (
+          "weekly_lesson_id",
+          "original_date",
+          "kind",
+          "new_date",
+          "new_slot",
+          "new_room_id",
+          "new_teacher_id",
+      )
+      ```
+      Place the constant directly above `class LessonChange(models.Model):`. Add the field directly after `updated_at`:
+      ```python
+          changed_at = models.DateTimeField(
+              "изменение для студентов", default=clock.now, editable=False
+          )
+      ```
+
+      ### F2. `LessonChange.save()` and `LessonChange._student_visible_change()`
+
+      Place both directly above `def __str__` of `LessonChange`.
+
+      ```python
+          def save(self, *args, **kwargs):
+              if self._student_visible_change():
+                  self.changed_at = clock.now()
+                  update_fields = kwargs.get("update_fields")
+                  if update_fields is not None:
+                      kwargs["update_fields"] = {*update_fields, "changed_at"}
+              super().save(*args, **kwargs)
+
+          def _student_visible_change(self) -> bool:
+              if self._state.adding or self.pk is None:
+                  return True
+              stored = (
+                  type(self)._default_manager.filter(pk=self.pk).values(*STUDENT_VISIBLE_FIELDS).first()
+              )
+              if stored is None:
+                  return True
+              return any(stored[f] != getattr(self, f) for f in STUDENT_VISIBLE_FIELDS)
+      ```
+      - Inputs: the instance. Output: `None` / `bool`. No exceptions of its own.
+      - `kind` compares fine: `ChangeKind` is a `TextChoices` (a `str`).
+      - Callers: everything that saves a `LessonChange`. Access is unchanged (admin: superuser; services: staff code paths).
+      - Tests: T1–T6.
+
+      ### F3. `schedule/migrations/0006_lessonchange_changed_at.py`
+
+      Generate with `python manage.py makemigrations schedule --name lessonchange_changed_at`, then add the data step so the file is exactly (after `ruff format` on this one file):
+
+      ```python
+      import core.clock
+      from django.db import migrations, models
+      from django.db.models import F
+
+
+      def copy_updated_at(apps, schema_editor):
+          LessonChange = apps.get_model("schedule", "LessonChange")
+          LessonChange.objects.update(changed_at=F("updated_at"))
+
+
+      class Migration(migrations.Migration):
+          dependencies = [
+              ("schedule", "0005_lessonchange_reason_optional"),
+          ]
+
+          operations = [
+              migrations.AddField(
+                  model_name="lessonchange",
+                  name="changed_at",
+                  field=models.DateTimeField(
+                      default=core.clock.now, editable=False, verbose_name="изменение для студентов"
+                  ),
+              ),
+              migrations.RunPython(copy_updated_at, migrations.RunPython.noop),
+          ]
+      ```
+      (Keep the "Generated by Django" header line if makemigrations writes it.)
+
+      ### F4. `notifications/sources.py` — `LessonChangeSource`
+
+      - `event_field = "updated_at"` → `event_field = "changed_at"`.
+      - In `to_item`: `timestamp=obj.updated_at,` → `timestamp=obj.changed_at,`.
+      - Nothing else changes.
+
+      ### F5. `core/test_runner.py`
+
+      ```python
+      """Test runner that redirects private uploads to a temporary directory."""
+
+      import os
+      import shutil
+      import tempfile
+      from pathlib import Path
+
+      from django.test.runner import DiscoverRunner
+      from django.test.utils import override_settings
+
+      PRIVATE_MEDIA_ENV = "PRIVATE_MEDIA_ROOT"
+
+
+      class ProjectTestRunner(DiscoverRunner):
+          """Uploads go to a temporary directory in the parent and in every worker.
+
+          Parallel workers started with "spawn" (macOS) re-import settings, so the
+          directory is also passed through the environment (settings read it).
+          """
+
+          def setup_test_environment(self, **kwargs) -> None:
+              super().setup_test_environment(**kwargs)
+              self._private_dir = tempfile.mkdtemp(prefix="test-private-media-")
+              self._old_private_env = os.environ.get(PRIVATE_MEDIA_ENV)
+              os.environ[PRIVATE_MEDIA_ENV] = self._private_dir
+              self._private_override = override_settings(PRIVATE_MEDIA_ROOT=Path(self._private_dir))
+              self._private_override.enable()
+
+          def teardown_test_environment(self, **kwargs) -> None:
+              self._private_override.disable()
+              if self._old_private_env is None:
+                  os.environ.pop(PRIVATE_MEDIA_ENV, None)
+              else:
+                  os.environ[PRIVATE_MEDIA_ENV] = self._old_private_env
+              shutil.rmtree(self._private_dir, ignore_errors=True)
+              super().teardown_test_environment(**kwargs)
+      ```
+
+      ## Feasibility check
+
+      1. Clean starting point: `git status --short` shows only ` M plan.md` (the Team lead's file; allowed). HEAD `8316949 TASK-013: …`.
+      2. Referenced objects exist: `schedule/models.py:130` `updated_at = DateTimeField("изменено", auto_now=True)`, `LessonChange.__str__` (line 195 area), `schedule/mutations.py:save_lesson_change` (full_clean + save in a transaction), `schedule/admin.py:54` `readonly_fields = ("seed_key",)` (no custom `save_model`, so the admin calls `obj.save()`), `notifications/sources.py:186` `event_field = "updated_at"` and `:216` `timestamp=obj.updated_at`, `core/clock.py:now`, `core/test_runner.py:ProjectTestRunner`, `config/settings.py:126-127` (`PRIVATE_MEDIA_ROOT` from env, default `BASE_DIR / "private_media"`), `config/settings.py:132` `TEST_RUNNER`, `core/tests/test_storage.py:38` `TestRunnerTests.test_test_runner_uses_temp_dir`, `notifications/tests/test_feed.py:332` `test_edited_change_is_new_again` (class `LessonChangeSourceTests`, `frozen_now = NOW = "2026-11-11 12:00"`), `notifications/tests/test_feed.py:382` `AdminEventsTests` (admin POST pattern), helpers `make_world`, `set_seen`, `make_lesson`, `make_room`, `moscow`.
+      3. New names are free: `changed_at`, `STUDENT_VISIBLE_FIELDS`, `_student_visible_change`, `PRIVATE_MEDIA_ENV`, migration `0006_lessonchange_changed_at` (latest is `0005_lessonchange_reason_optional`), `schedule/tests/test_changed_at.py`.
+      4. Data and migrations: `makemigrations --check --dry-run` clean before. Prototype in a temporary copy of HEAD (`git archive HEAD | tar -x`, `$TMPDIR/t013fix/proj`): `makemigrations schedule --name lessonchange_changed_at` produced the `AddField` above; with the `RunPython` step added, a migration test (migrate to 0005, create a change, set `updated_at` to 2026-11-10 09:30 MSK, migrate to 0006) gave `changed_at == updated_at`; `makemigrations --check` clean after. `core.clock.now` is already used as a migration default (`academics/migrations/0002_…`).
+      5. Tools: Python 3.12 `.venv`, Django 5.2.19, ruff 0.17.4. No new dependency.
+      6. Framework capabilities (installed Django source, `.venv/lib/python3.12/site-packages/django/test/runner.py`): `_init_worker` (line 402) calls `django.setup()` and `setup_test_environment(debug=…)` only when the start method is `spawn` (line 426); `DiscoverRunner.run_tests` calls `self.setup_test_environment()` first (line 1072), before the suite and the pool. `multiprocessing.get_start_method()` is `spawn` here (macOS, Python 3.12). `QuerySet.values("weekly_lesson_id", …)` accepts attnames.
+      7. Environment: no new env variables for the app; the runner sets `PRIVATE_MEDIA_ROOT` only inside the test process.
+      8. Verification is runnable on the current tree: `check` (no issues), `makemigrations --check` (no changes), `ruff check .` (passed), `ruff format --check .` (189 files formatted), `python manage.py test --parallel 1`: **Ran 1072 tests, OK** (log `/tmp/claude-501/test-20261118-102946.log`, 2026-11-18 ~21:30 MSK); the project's `private_media/` has 3 files before and after that run.
+         Prototype results in the copy (2026-11-18 ~21:27–21:30 MSK):
+         - serial `test core.tests.test_proto_t013fix notifications schedule core.tests.test_storage`: 331 tests, the only failure is the old `test_edited_change_is_new_again` (`AssertionError: 0 != 1`) — expected, it asserts the old behaviour (log `/tmp/claude-501/test-t013fix-proto-20261118-102751.log`); the new service, admin and migration tests passed; a child Python process started with the test environment printed the temporary directory as `settings.PRIVATE_MEDIA_ROOT`;
+         - `--parallel 2` on `petitions core.tests.test_storage` + prototype tests **with** F5: 165 tests OK, 0 files in the copy's `private_media/` (log `/tmp/claude-501/test-t013fix-par-20261118-102909.log`);
+         - the same **with the old runner**: 42 files written into the copy's `private_media/`, `test_test_runner_uses_temp_dir` failed with `PosixPath('<copy>') unexpectedly found in <PosixPath.parents>`, and the parallel run crashed with `TypeError: cannot pickle 'traceback' object` (no `tblib`) (log `/tmp/claude-501/test-t013fix-par-old-*.log`). This reproduces the Team lead's finding.
+      9. Conflicts: none.
+      10. Assumptions / blockers: none.
+
+      ## Test plan
+
+      Time-dependent tests use `FrozenClockMixin` with `frozen_now = "2026-11-11 12:00"` and `mock.patch("django.utils.timezone.now", …)` for later moments (`core.clock.now` reads `timezone.now` at call time, so the patch applies).
+
+      ### Traceability
+
+      | AC | Tests |
+      |---|---|
+      | AC1 | `schedule/tests/test_changed_at.py::ChangedAtTests::test_insert_sets_changed_at`, `::test_reason_only_keeps_changed_at`, `::test_each_visible_field_moves_changed_at`, `::test_updated_at_still_moves` |
+      | AC2 | `::test_reason_only_keeps_changed_at` (service), `::test_admin_reason_only_keeps_changed_at`, `::test_admin_visible_edit_moves_changed_at`, `::test_update_fields_includes_changed_at` |
+      | AC3 | `notifications/tests/test_feed.py::LessonChangeSourceTests::test_edited_change_is_new_again` (updated), `::test_reason_only_edit_stays_read`, `::test_admin_reason_only_edit_stays_read`, `::test_item_timestamp_is_changed_at` |
+      | AC4 | `schedule/tests/test_changed_at.py::ChangedAtMigrationTests::test_copies_updated_at` |
+      | AC5, AC6 | `core/tests/test_storage.py::TestRunnerTests::test_test_runner_uses_temp_dir` (unchanged; must pass serial and `--parallel 2`), `::test_env_points_to_temp_dir`, `::test_fresh_process_gets_temp_dir`, `::test_runner_restores_env`; Verification steps 5–7 |
+
+      ### Access matrix
+
+      No view, URL or permission changes. The admin change view is superuser-only as today (existing admin tests). The new admin tests log in as the superuser `make_world().root`.
+
+      ### Tests (file, class, method)
+
+      `schedule/tests/test_changed_at.py` (new):
+      - `ChangedAtTests(FrozenClockMixin, TestCase)`, `frozen_now = "2026-11-11 12:00"`; `setUpTestData`: `make_world()`, rooms `room-101`, `room-102`, teacher `make_teacher("Замена")`, a lesson `make_lesson([w.gx1], weekday=2, slot=1, room=room101)`. Helper `_cancel()` → `save_lesson_change(LessonChange(weekly_lesson=lesson, original_date=date(2026, 11, 11), kind=ChangeKind.CANCELLED, reason="Причина"))`. `T0 = moscow("2026-11-11 12:00")`, `T1 = T0 + 1 h`.
+        - `test_insert_sets_changed_at`: after `_cancel()`, `changed_at == T0` (also with `LessonChange.objects.create(...)` for a second lesson date: `changed_at == T0`).
+        - `test_reason_only_keeps_changed_at`: with `timezone.now` patched to `T1`, set `reason = "Новая причина"` and call `save_lesson_change`; reload: `reason` changed, `changed_at == T0`.
+        - `test_updated_at_still_moves`: same edit; reload: `updated_at == T1` (the technical field still moves).
+        - `test_each_visible_field_moves_changed_at` (subTest per field): start from a fresh change each time and, at `T1`, change one field: `original_date` → 2026-11-18 (cancel); `kind` → `ROOM_CHANGED` with `new_room=room102`; for a `ROOM_CHANGED` change, `new_room` → another room (create `room-103`); for a `TEACHER_REPLACED` change, `new_teacher` → another teacher; for a `MOVED` change (new_date 2026-11-12, new_slot 3), `new_date` → 2026-11-13 and separately `new_slot` → 4; `weekly_lesson` → a second lesson of the same group (weekday 2, slot 2, room 102). After each save: `changed_at == T1`. Use valid combinations (`full_clean` runs in `save_lesson_change`).
+        - `test_update_fields_includes_changed_at`: at `T1`, `change.original_date = date(2026, 11, 18); change.save(update_fields=["original_date"])`; reload: `changed_at == T1`. And `change.reason = "X"; change.save(update_fields=["reason"])` at `T1 + 1 h`: `changed_at` stays `T1`.
+        - `test_admin_reason_only_keeps_changed_at`: superuser `force_login`; at `T1` POST to `reverse("admin:schedule_lessonchange_change", args=[pk])` with `{"weekly_lesson": lesson.pk, "original_date": "2026-11-11", "kind": "cancelled", "new_date": "", "new_slot": "", "new_room": "", "new_teacher": "", "reason": "Из админки"}` → 302; reload: `reason == "Из админки"`, `changed_at == T0`.
+        - `test_admin_visible_edit_moves_changed_at`: the same POST with `"original_date": "2026-11-18"` → 302; `changed_at == T1`.
+        - `test_admin_shows_changed_at_readonly`: GET the change page → 200; the form has no input named `changed_at`; the page contains the label "Изменение для студентов" (Django capitalises the verbose name).
+      - `ChangedAtMigrationTests(TransactionTestCase)`:
+        - `test_copies_updated_at`: `executor = MigrationExecutor(connection)`; `executor.migrate([("schedule", "0005_lessonchange_reason_optional")])`; `apps = executor.loader.project_state([("schedule", "0005_lessonchange_reason_optional")]).apps`; create with historical models `university.Room` (`code="room-101", floor=1, number="101"`), `university.Teacher` (`last_name="T", first_name="I"`), `university.Discipline` (`name="D", short_name="D"`), `schedule.WeeklyLesson` (`weekday=2, slot=1, discipline, lesson_type="lecture", teacher, room, valid_from=date(2026, 9, 1), valid_until=date(2026, 12, 31)`) and two `schedule.LessonChange` rows (cancelled on 2026-11-11 and 2026-11-18); set their `updated_at` with `.filter(pk=…).update(updated_at=moscow("2026-11-10 09:30"))` and `moscow("2026-11-10 15:00")`. Then a NEW `MigrationExecutor(connection)` migrates to `[("schedule", "0006_lessonchange_changed_at")]`; with `executor.loader.project_state(...).apps` read the rows: `changed_at == updated_at` for both. In `tearDown` (or `addCleanup` registered first): `executor = MigrationExecutor(connection); executor.loader.build_graph(); executor.migrate(executor.loader.graph.leaf_nodes())` so later tests see the full schema. This keeps the unread state: unread is `event_field > seen_until`, and the value of the event field is the same before (`updated_at`) and after (`changed_at`).
+
+      `notifications/tests/test_feed.py` (class `LessonChangeSourceTests`):
+      - `test_edited_change_is_new_again` — update (comment `# TASK-013-FIX: a visible edit (new date) makes the change new; a reason-only edit does not, see test_reason_only_edit_stays_read`): inside the patched block replace `change.reason = "Новая причина"` with `change.original_date = D + timedelta(days=7)`; the rest stays (`unread_count == 1`).
+      - New `test_reason_only_edit_stays_read`: the old scenario (reason-only edit via `save_lesson_change` at `t + 1 h`) → `unread_count(_ctx(self.w.ax, now=t + timedelta(hours=2))) == 0`, and the `lesson-change-<pk>` item from `build_feed(ctx)` is not new: `ctx.is_new(item.timestamp)` is False (`FeedContext.is_new`, `notifications/sources.py:48`; do not rely on `FeedItem.is_new`, which `to_item` does not set).
+      - New `test_admin_reason_only_edit_stays_read`: superuser POST as in `ChangedAtTests::test_admin_reason_only_keeps_changed_at` at `t + 1 h` → unread count stays 0.
+      - New `test_item_timestamp_is_changed_at`: after a reason-only edit at `t + 1 h`, the item's `timestamp == change.changed_at` (reloaded) and `!= change.updated_at`.
+
+      `core/tests/test_storage.py` (class `TestRunnerTests`):
+      - `test_test_runner_uses_temp_dir`: unchanged.
+      - New `test_env_points_to_temp_dir`: `os.environ["PRIVATE_MEDIA_ROOT"] == str(settings.PRIVATE_MEDIA_ROOT)`.
+      - New `test_fresh_process_gets_temp_dir` (simulates a spawned worker): `subprocess.run([sys.executable, "-c", "import django; django.setup(); from django.conf import settings; print(settings.PRIVATE_MEDIA_ROOT)"], cwd=settings.BASE_DIR, env={**os.environ, "DJANGO_SETTINGS_MODULE": "config.settings"}, capture_output=True, text=True, check=True, timeout=60)`; `stdout.strip() == str(settings.PRIVATE_MEDIA_ROOT)`. (Fails on the old runner: the child falls back to `<project>/private_media` or to `.env`.)
+      - New `test_runner_restores_env` (`SimpleTestCase`, no real Django test environment re-setup): with `mock.patch.object(DiscoverRunner, "setup_test_environment")` and `mock.patch.object(DiscoverRunner, "teardown_test_environment")`, and `mock.patch.dict(os.environ, {"PRIVATE_MEDIA_ROOT": "/old/value"})`: `runner = ProjectTestRunner()`; `runner.setup_test_environment()`; assert `os.environ["PRIVATE_MEDIA_ROOT"] == runner._private_dir`, the directory exists, `settings.PRIVATE_MEDIA_ROOT == Path(runner._private_dir)`; `runner.teardown_test_environment()`; assert `os.environ["PRIVATE_MEDIA_ROOT"] == "/old/value"`, the directory no longer exists, and `settings.PRIVATE_MEDIA_ROOT` is back to the outer test-run value. Second case: with the variable removed from `os.environ` (`mock.patch.dict(os.environ, clear=False)` + `os.environ.pop(...)` inside), after teardown the variable is absent. Restore the outer value at the end (the `patch.dict` context does it).
+
+      ### Edge cases
+
+      - Reason-only edit (service and admin); edits of each visible field; `update_fields` with and without a visible field.
+      - Two existing rows with different `updated_at` in the migration test.
+      - A user shell that already exports `PRIVATE_MEDIA_ROOT` (restored after the run).
+      - Serial and `--parallel 2` runs.
+
+      ### Query count
+
+      No list page changes. `save()` makes one extra `SELECT` on update only (D2). The existing feed query-count tests (`notifications/tests/test_views.py::QueryCountTests`) must pass unchanged.
+
+      ## Implementation order
+
+      1. F1, F2 (model), F3 (migration), admin `readonly_fields`. Run `python manage.py makemigrations --check --dry-run` and `python manage.py test schedule --parallel 1` (log).
+      2. F4 (feed source). Update and add the feed tests; add `schedule/tests/test_changed_at.py`. Run `python manage.py test schedule notifications --parallel 1` (log).
+      3. F5 (runner) and the `TestRunnerTests` tests. Run `python manage.py test core --parallel 1` (log).
+      4. README sentences. Full verification below.
+
+      ## Verification
+
+      ```bash
+      source .venv/bin/activate
+      python manage.py check
+      DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop python manage.py check --deploy --fail-level WARNING
+      python manage.py makemigrations --check --dry-run
+      # 1. File list of private_media before
+      find private_media -type f | sort > "$TMPDIR/pm-before.txt"
+      # 2. Serial run
+      python manage.py test --parallel 1 2>&1 | tee "$TMPDIR/test-serial-$(date +%Y%m%d-%H%M%S).log"
+      # 3. Parallel run (macOS uses spawn)
+      python manage.py test --parallel 2 2>&1 | tee "$TMPDIR/test-parallel-$(date +%Y%m%d-%H%M%S).log"
+      # 4. Midnight boundary run
+      python scripts/run_tests_at.py 2026-11-19T00:00:00 2>&1 | tee "$TMPDIR/test-midnight-$(date +%Y%m%d-%H%M%S).log"
+      # 5. File list after: must be identical
+      find private_media -type f | sort > "$TMPDIR/pm-after.txt"
+      diff "$TMPDIR/pm-before.txt" "$TMPDIR/pm-after.txt" && echo "private_media unchanged"
+      # 6. No leftover temp dirs from this run
+      ls -d "${TMPDIR:-/tmp}"/test-private-media-* 2>/dev/null | wc -l   # report the number before and after steps 2-4
+      # 7. Migration on a database seeded BEFORE the change (temporary files only)
+      mkdir -p "$TMPDIR/t013fix-before" && git archive HEAD | tar -x -C "$TMPDIR/t013fix-before"
+      #   in "$TMPDIR/t013fix-before" (no .env there): DEBUG=true SECRET_KEY=<50+ char dummy> DEMO_PASSWORD=... PRIVATE_MEDIA_ROOT="$TMPDIR/t013fix-pm"
+      #   DATABASE_URL="sqlite:///$TMPDIR/t013fix-before.sqlite3" python manage.py migrate && ... python manage.py seed_demo
+      #   then in the project: DATABASE_URL="sqlite:///$TMPDIR/t013fix-before.sqlite3" python manage.py migrate
+      #   check with "python manage.py shell -c": every LessonChange has changed_at == updated_at; then seed_demo twice.
+      ruff check <the Python files of this task>
+      ruff format --check <the Python files of this task>
+      python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"
+      git status --short
+      ```
+      - `git archive HEAD | tar -x` only reads git. Never run `git stash`, `git checkout`, `git worktree`.
+      - Never delete files in the project's `private_media/` (it has 3 files before the change). Never touch `db.sqlite3`.
+      - If any run fails or stalls, even once, put the test name, the Moscow time and the traceback excerpt into the REPORT. Note: in `--parallel` mode on macOS a failing test can crash the run with `TypeError: cannot pickle 'traceback' object` (no `tblib`); if you see it, rerun the failing module with `--parallel 1` to get the real traceback and report both.
+
+      ## Risks
+
+      - **Bulk updates** (`QuerySet.update`) bypass `save()` and do not move `changed_at`. No code uses them for `LessonChange` today. Add a one-line comment above `save()`: `# Bulk updates bypass this rule; use save() / save_lesson_change().`
+      - **Concurrency.** Two staff edits of the same change at the same time: each `save()` compares against the row it reads; the worst case is a visible edit without a `changed_at` bump if the other transaction committed the same visible values first — harmless (students already see those values). `save_lesson_change` runs inside `transaction.atomic()`.
+      - **`tblib` missing.** Parallel failures on macOS crash instead of reporting (see Verification). Not in scope; no new dependency.
+      - **CI (Linux, fork)** is unaffected by F5; the env variable is set but workers already share the parent's settings.
+    ── Thought for 309ms
+      Let me start by exploring the current state of the files I need to modify. Let me read the relevant files first.
+    ── Read file read (1s)
+      from django.core.exceptions import ValidationError
+      from django.db import models
+
+      from .timeslots import MAX_SLOT, SLOT_CHOICES, get_slot
+
+
+      class Weekday(models.IntegerChoices):
+          MONDAY = 0, "Понедельник"
+          TUESDAY = 1, "Вторник"
+          WEDNESDAY = 2, "Среда"
+          THURSDAY = 3, "Четверг"
+          FRIDAY = 4, "Пятница"
+          SATURDAY = 5, "Суббота"
+          SUNDAY = 6, "Воскресенье"
+
+
+      class LessonType(models.TextChoices):
+          LECTURE = "lecture", "Лекция"
+          SEMINAR = "seminar", "Семинар"
+          LAB = "lab", "Лабораторная работа"
+
+
+      class ChangeKind(models.TextChoices):
+          CANCELLED = "cancelled", "Отмена"
+          MOVED = "moved", "Перенос"
+          ROOM_CHANGED = "room_changed", "Замена аудитории"
+          TEACHER_REPLACED = "teacher_replaced", "Замена преподавателя"
+
+
+      class WeeklyLesson(models.Model):
+          weekday = models.PositiveSmallIntegerField("день недели", choices=Weekday.choices)
+          slot = models.PositiveSmallIntegerField("пара", choices=SLOT_CHOICES)
+          discipline = models.ForeignKey(
+              "university.Discipline",
+              on_delete=models.PROTECT,
+              related_name="weekly_lessons",
+              verbose_name="дисциплина",
+          )
+          lesson_type = models.CharField("тип занятия", max_length=16, choices=LessonType.choices)
+          teacher = models.ForeignKey(
+              "university.Teacher",
+              on_delete=models.PROTECT,
+              related_name="weekly_lessons",
+              verbose_name="преподаватель",
+          )
+          room = models.ForeignKey(
+              "university.Room",
+              on_delete=models.PROTECT,
+              related_name="weekly_lessons",
+              verbose_name="аудитория",
+          )
+          groups = models.ManyToManyField(
+              "university.StudyGroup", related_name="weekly_lessons", verbose_name="группы"
+          )
+          valid_from = models.DateField("действует с")
+          valid_until = models.DateField("действует по")
+          seed_key = models.SlugField(
+              "ключ демо-данных", max_length=40, blank=True, default="", editable=False
+          )
+    ── Read file read
+      new_teacher = models.ForeignKey(
+              "university.Teacher",
+              on_delete=models.PROTECT,
+              null=True,
+              blank=True,
+              related_name="+",
+              verbose_name="новый преподаватель",
+          )
+          reason = models.CharField("причина", max_length=200, blank=True)
+          created_at = models.DateTimeField("создано", auto_now_add=True)
+          updated_at = models.DateTimeField("изменено", auto_now=True)
+          seed_key = models.SlugField(
+              "ключ демо-данных", max_length=40, blank=True, default="", editable=False
+          )
+
+          class Meta:
+              ordering = ["original_date"]
+              indexes = [
+                  models.Index(fields=["original_date"], name="schedule_change_orig_idx"),
+                  models.Index(fields=["new_date"], name="schedule_change_new_idx"),
+              ]
+              constraints = [
+                  models.UniqueConstraint(
+                      fields=["weekly_lesson", "original_date"],
+                      name="schedule_change_one_per_occurrence",
+                  ),
+                  models.UniqueConstraint(
+                      fields=["seed_key"],
+                      condition=~models.Q(seed_key=""),
+                      name="schedule_change_unique_seed_key",
+                  ),
+                  models.CheckConstraint(
+                      name="schedule_change_fields_match_kind",
+                      condition=(
+                          models.Q(
+                              kind="cancelled",
+                              new_date__isnull=True,
+                              new_slot__isnull=True,
+                              new_room__isnull=True,
+                              new_teacher__isnull=True,
+                          )
+                          | models.Q(
+                              kind="moved",
+                              new_date__isnull=False,
+                              new_slot__isnull=False,
+                              new_teacher__isnull=True,
+                          )
+                          | models.Q(
+                              kind="room_changed",
+                              new_room__isnull=False,
+                              new_date__isnull=True,
+                              new_slot__isnull=True,
+                              new_teacher__isnull=True,
+                          )
+                          | models.Q(
+                              kind="teacher_replaced",
+                              new_teacher__isnull=False,
+                              new_date__isnull=True,
+                              new_slot__isnull=True,
+                              new_room__isnull=True,
+                          )
+                      ),
+                  ),
+                  models.CheckConstraint(
+                      condition=models.Q(new_slot__isnull=True)
+                      | (models.Q(new_slot__gte=1) & models.Q(new_slot__lte=MAX_SLOT)),
+                      name="schedule_change_new_slot_range",
+                  ),
+              ]
+              verbose_name = "изменение расписания"
+              verbose_name_plural = "изменения расписания"
+
+          def __str__(self) -> str:
+              return f"{self.get_kind_display()}: {self.weekly_lesson} ({self.original_date:%d.%m.%Y})"
+
+          def clean(self):
+              super().clean()
+              if self.weekly_lesson_id is None or self.original_date is None or not self.kind:
+                  return
+              lesson = self.weekly_lesson
+              errors: dict[str, list[str]] = {}
+              if self.original_date.weekday() != lesson.weekday:
+                  errors.setdefault("original_date", []).append(
+                      "Дата не совпадает с днём недели занятия."
+                  )
+              if not lesson.valid_from <= self.original_date <= lesson.valid_until:
+                  errors.setdefault("original_date", []).append("Дата вне периода действия занятия.")
+
+              # Kind rules (mirror of the DB constraint, field-level messages).
+              required = {
+                  ChangeKind.MOVED: ("new_date", "new_slot"),
+                  ChangeKind.ROOM_CHANGED: ("new_room",),
+                  ChangeKind.TEACHER_REPLACED: ("new_teacher",),
+              }
+              for field in required.get(self.kind, ()):
+                  if getattr(self, field) is None:
+                      errors.setdefault(field, []).append("Обязательно для этого вида изменения.")
+
+              forbidden = {
+                  ChangeKind.CANCELLED: ("new_date", "new_slot", "new_room", "new_teacher"),
+    ── Read file read
+      weekly_lesson = models.ForeignKey(
+              WeeklyLesson,
+              on_delete=models.CASCADE,
+              related_name="changes",
+              verbose_name="занятие",
+          )
+          original_date = models.DateField("дата занятия по расписанию")
+          kind = models.CharField("вид изменения", max_length=20, choices=ChangeKind.choices)
+          new_date = models.DateField("новая дата", null=True, blank=True)
+          new_slot = models.PositiveSmallIntegerField(
+              "новая пара", choices=SLOT_CHOICES, null=True, blank=True
+          )
+          new_room = models.ForeignKey(
+              "university.Room",
+              on_delete=models.PROTECT,
+              null=True,
+              blank=True,
+              related_name="+",
+              verbose_name="новая аудитория",
+          )
+          new_teacher = models.ForeignKey(
+              "university.Teacher",
+              on_delete=models.PROTECT,
+              null=True,
+              blank=True,
+              related_name="+",
+              verbose_name="новый преподаватель",
+          )
+          reason = models.CharField("причина", max_length=200, blank=True)
+          created_at = models.DateTimeField("создано", auto_now_add=True)
+          updated_at = models.DateTimeField("изменено", auto_now=True)
+          seed_key = models.SlugField(
+              "ключ демо-данных", max_length=40, blank=True, default="", editable=False
+          )
+
+          class Meta:
+              ordering = ["original_date"]
+              indexes = [
+                  models.Index(fields=["original_date"], name="schedule_change_orig_idx"),
+                  models.Index(fields=["new_date"], name="schedule_change_new_idx"),
+              ]
+              constraints = [
+                  models.UniqueConstraint(
+                      fields=["weekly_lesson", "original_date"],
+                      name="schedule_change_one_per_occurrence",
+                  ),
+                  models.UniqueConstraint(
+                      fields=["seed_key"],
+                      condition=~models.Q(seed_key=""),
+                      name="schedule_change_unique_seed_key",
+    ── Thought for 306ms
+      Let me read the class definition start (line ~95) to see where the class begins.
+    ── Read file read
+      super().clean()
+              if self.valid_from and self.valid_until and self.valid_until < self.valid_from:
+                  raise ValidationError({"valid_until": "Дата окончания раньше даты начала."})
+
+          @property
+          def time_slot(self):
+              return get_slot(self.slot)
+
+
+      class LessonChange(models.Model):
+    ── Thought for 569ms
+      Now let me make the model edits. F1: add `from core import clock` import and `STUDENT_VISIBLE_FIELDS` constant, and the field `changed_at`.
+
+      F2: add `save()` and `_student_visible_change()` methods above `__str__`.
+
+      Let me do the edits.
+    ── Edited schedule/models.py +2
+      --- a~/hackatonproject/schedule/models.py
+      +++ b~/hackatonproject/schedule/models.py
+      +from core import clock
+      +
+    ── Failed to edit schedule/models.py (error)
+      Could not find oldString in the file. It must match exactly, including whitespace, indentation, and line endings.
+    ── Thought for 320ms
+      I need to add the constant above the class. Let me do it properly by replacing the `class LessonChange(models.Model):` line.
+    ── Edited schedule/models.py +11
+      --- a~/hackatonproject/schedule/models.py
+      +++ b~/hackatonproject/schedule/models.py
+      +STUDENT_VISIBLE_FIELDS: tuple[str, ...] = (
+      +    "weekly_lesson_id",
+      +    "original_date",
+      +    "kind",
+      +    "new_date",
+      +    "new_slot",
+      +    "new_room_id",
+      +    "new_teacher_id",
+      +)
+      +
+      +
+    ── Edited schedule/models.py +3
+      --- a~/hackatonproject/schedule/models.py
+      +++ b~/hackatonproject/schedule/models.py
+      +    changed_at = models.DateTimeField(
+      +        "изменение для студентов", default=clock.now, editable=False
+      +    )
+    ── Failed to edit schedule/models.py (error)
+      Could not find oldString in the file. It must match exactly, including whitespace, indentation, and line endings.
+    ── Thought for 380ms
+      I need to add save() and _student_visible_change() above __str__. Let me insert them before __str__.
+    ── Edited schedule/models.py +20
+      --- a~/hackatonproject/schedule/models.py
+      +++ b~/hackatonproject/schedule/models.py
+      +    # Bulk updates (QuerySet.update / bulk_update) bypass save() and do not
+      +    # move changed_at; use save() / save_lesson_change().
+      +    def save(self, *args, **kwargs):
+      +        if self._student_visible_change():
+      +            self.changed_at = clock.now()
+      +            update_fields = kwargs.get("update_fields")
+      +            if update_fields is not None:
+      +                kwargs["update_fields"] = {*update_fields, "changed_at"}
+      +        super().save(*args, **kwargs)
+      +
+      +    def _student_visible_change(self) -> bool:
+      +        if self._state.adding or self.pk is None:
+      +            return True
+      +        stored = (
+      +            type(self)._default_manager.filter(pk=self.pk).values(*STUDENT_VISIBLE_FIELDS).first()
+      +        )
+      +        if stored is None:
+      +            return True
+      +        return any(stored[f] != getattr(self, f) for f in STUDENT_VISIBLE_FIELDS)
+      +
+    ── Thought for 125ms
+      Now F3: generate the migration. Let me run makemigrations with the name.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && python manage.py makemigrations schedule --name lessonchange_changed_at 2>&1 | tail -5
+      $ cd ~/hackatonproject && source .venv/bin/activate && python manage.py makemigrations schedule --name lessonchange_changed_at 2>&1 | tail -5
+      Migrations for 'schedule':
+        schedule/migrations/0006_lessonchange_changed_at.py
+          + Add field changed_at to lessonchange
+    ── Read file read
+      # Generated by Django 5.2.19 on 2026-11-18 18:35
+
+      import core.clock
+      from django.db import migrations, models
+
+
+      class Migration(migrations.Migration):
+
+          dependencies = [
+              ('schedule', '0005_lessonchange_reason_optional'),
+          ]
+
+          operations = [
+              migrations.AddField(
+                  model_name='lessonchange',
+                  name='changed_at',
+                  field=models.DateTimeField(default=core.clock.now, editable=False, verbose_name='изменение для студентов'),
+              ),
+          ]
+    ── Thought for 679ms
+      Now I need to add the data step (RunPython) exactly as in the spec. The spec shows the file with double quotes and formatted. Let me write the exact file. The spec says "then add the data step so the file is exactly (after `ruff format` on this one file)". Let me write it and then run ruff format on it.
+    ── Created schedule/migrations/0006_lessonchange_changed_at.py
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff format schedule/migrations/0006_lessonchange_changed_at.py 2>&1 | tail -2 && python manage.py makemigrations --check --dry-run 2>&1 | tail -2
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff format schedule/migrations/0006_lessonchange_changed_at.py 2>&1 | tail -2 && python manage.py makemigrations --check --dry-run 2>&1 | tail -2
+      1 file reformatted
+      No changes detected
+    ── Read file read
+      class LessonChangeAdmin(admin.ModelAdmin):
+          list_display = (
+              "original_date",
+              "kind",
+              "weekly_lesson",
+              "new_date",
+              "new_slot",
+              "new_room",
+              "new_teacher",
+              "reason",
+          )
+          list_filter = ("kind",)
+          date_hierarchy = "original_date"
+          list_select_related = ("weekly_lesson__discipline", "new_room", "new_teacher")
+          readonly_fields = ("seed_key",)
+
+          def get_actions(self, request):
+              actions = super().get_actions(request)
+              actions.pop("delete_selected", None)
+              return actions
+
+          def delete_model(self, request, obj):
+              delete_lesson_change(obj)
+
+          def delete_view(self, request, object_id, extra_context=None):
+              try:
+                  with transaction.atomic():
+                      return super().delete_view(request, object_id, extra_context)
+              except ValidationError as exc:
+                  self.message_user(request, " ".join(exc.messages), level=messages.ERROR)
+                  return HttpResponseRedirect(
+                      reverse("admin:schedule_lessonchange_change", args=[object_id])
+                  )
+    ── Failed to edit schedule/admin.py (error)
+      Found multiple matches for oldString. Provide more surrounding context to make the match unique.
+    ── Searched grep
+      No files found
+    ── Searched grep
+      Found 2 matches
+      ~/hackatonproject/schedule/admin.py:
+        Line 29:     readonly_fields = ("seed_key",)
+
+        Line 54:     readonly_fields = ("seed_key",)
+    ── Read file read
+      "valid_until",
+          )
+          list_filter = ("weekday", "lesson_type", "groups")
+          filter_horizontal = ("groups",)
+          list_select_related = ("discipline", "teacher", "room")
+          readonly_fields = ("seed_key",)
+
+          def get_queryset(self, request):
+              return super().get_queryset(request).prefetch_related("groups")
+
+          @admin.display(description="группы")
+          def group_names(self, obj):
+    ── Edited schedule/admin.py +1 -1
+      --- a~/hackatonproject/schedule/admin.py
+      +++ b~/hackatonproject/schedule/admin.py
+      -    readonly_fields = ("seed_key",)
+      +    readonly_fields = ("seed_key", "changed_at")
+    ── Thought for 244ms
+      Now F4: notifications/sources.py. Let me read the relevant section.
+    ── Read file read
+      )
+
+
+      class LessonChangeSource(FeedSource):
+          kind = "lesson_change"
+          tag = "Расписание"
+          event_field = "updated_at"
+          related = ("weekly_lesson__discipline", "new_room", "new_teacher")
+
+          def base_queryset(self, ctx: FeedContext) -> QuerySet:
+              return LessonChange.objects.filter(weekly_lesson__groups=ctx.group_id).filter(
+                  Q(original_date__range=(ctx.today, ctx.horizon_end))
+                  | Q(new_date__range=(ctx.today, ctx.horizon_end))
+              )
+
+          def to_item(self, obj: LessonChange, ctx: FeedContext) -> FeedItem:
+              lesson = obj.weekly_lesson
+              when = f"{lesson.discipline.name}, {obj.original_date:%d.%m}, {lesson.slot} пара"
+              if obj.kind == "cancelled":
+                  title = f"Отмена занятия: {when}"
+              elif obj.kind == "moved":
+                  title = f"Перенос занятия: {when} → {obj.new_date:%d.%m}, {obj.new_slot} пара"
+                  if obj.new_room:
+                      title += f", {obj.new_room}"
+              elif obj.kind == "room_changed":
+                  title = f"Замена аудитории: {when} → {obj.new_room}"
+              else:
+                  title = f"Замена преподавателя: {when} → {obj.new_teacher.short_name}"
+              if ctx.today <= obj.original_date <= ctx.horizon_end:
+                  affected_day = obj.original_date
+              else:
+                  affected_day = obj.new_date
+              return FeedItem(
+                  key=f"lesson-change-{obj.pk}",
+                  kind=self.kind,
+                  tag=self.tag,
+                  timestamp=obj.updated_at,
+                  title=title,
+                  body="",
+                  url=reverse("schedule:week_of", kwargs={"day": affected_day}),
+              )
+
+
+      class CurrentMarkSource(FeedSource):
+          kind = "mark"
+          tag = "Оценка"
+          event_field = "created_at"
+          related = ("curriculum_item__discipline", "curriculum_item__term")
+
+          def base_queryset(self, ctx: FeedContext) -> QuerySet:
+    ── Edited notifications/sources.py +1 -1
+      --- a~/hackatonproject/notifications/sources.py
+      +++ b~/hackatonproject/notifications/sources.py
+      -    event_field = "updated_at"
+      +    event_field = "changed_at"
+    ── Edited notifications/sources.py +1 -1
+      --- a~/hackatonproject/notifications/sources.py
+      +++ b~/hackatonproject/notifications/sources.py
+      -            timestamp=obj.updated_at,
+      +            timestamp=obj.changed_at,
+    ── Read file read
+      """Test runner that redirects private uploads to a temporary directory."""
+
+      import shutil
+      import tempfile
+      from pathlib import Path
+
+      from django.test.runner import DiscoverRunner
+      from django.test.utils import override_settings
+
+
+      class ProjectTestRunner(DiscoverRunner):
+          def setup_test_environment(self, **kwargs) -> None:
+              super().setup_test_environment(**kwargs)
+              self._private_dir = tempfile.mkdtemp(prefix="test-private-media-")
+              self._private_override = override_settings(PRIVATE_MEDIA_ROOT=Path(self._private_dir))
+              self._private_override.enable()
+
+          def teardown_test_environment(self, **kwargs) -> None:
+              self._private_override.disable()
+              shutil.rmtree(self._private_dir, ignore_errors=True)
+              super().teardown_test_environment(**kwargs)
+    ── Edited core/test_runner.py
+    ── Thought for 402ms
+      Now let me check the settings.py:126 to confirm PRIVATE_MEDIA_ROOT is read from env. Also check core/clock.py for `now`.
+    ── Read file read
+      if DEBUG
+                  else "whitenoise.storage.CompressedManifestStaticFilesStorage"
+              )
+          },
+      }
+
+      PRIVATE_MEDIA_ROOT = Path(
+          env.str("PRIVATE_MEDIA_ROOT", default="") or str(BASE_DIR / "private_media")
+      )
+      FILE_UPLOAD_PERMISSIONS = 0o640
+      FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o750
+
+      TEST_RUNNER = "core.test_runner.ProjectTestRunner"
+
+      # Security
+    ── Read file read
+      """Call-time clock for model defaults (test clock patches apply)."""
+
+      from datetime import datetime
+
+      from django.utils import timezone
+
+
+      def now() -> datetime:
+          return timezone.now()
+    ── Thought for 685ms
+      Now let me look at the existing tests to understand the helpers and patterns. Let me read the existing test files:
+      1. schedule/tests/ - to understand existing test helpers (make_world, make_lesson, make_room, make_teacher, save_lesson_change, FrozenClockMixin).
+      2. notifications/tests/test_feed.py - the LessonChangeSourceTests class.
+      3. core/tests/test_storage.py - TestRunnerTests.
+
+      Let me read these.
+    ── Read file read
+      """Tests for private file storage and the test runner."""
+
+      import shutil
+      import tempfile
+      from pathlib import Path
+
+      from django.conf import settings
+      from django.core.files.base import ContentFile
+      from django.test import SimpleTestCase, TestCase, override_settings
+
+      from core.storage import get_private_storage
+      from core.tests.test_production_settings import PRODUCTION_ENV, _exec_settings, _new_settings_module
+
+
+      class PrivateStorageTests(TestCase):
+          def test_location_follows_setting(self):
+              tmp = tempfile.mkdtemp(prefix="priv-")
+              self.addCleanup(shutil.rmtree, tmp, True)
+              with override_settings(PRIVATE_MEDIA_ROOT=tmp):
+                  self.assertEqual(get_private_storage().location, tmp)
+
+          def test_url_raises(self):
+              with self.assertRaisesMessage(ValueError, "no public URL"):
+                  get_private_storage().url("request_attachments/ab/cd.pdf")
+
+          def test_existing_name_is_not_overwritten(self):
+              tmp = tempfile.mkdtemp(prefix="priv-")
+              self.addCleanup(shutil.rmtree, tmp, True)
+              with override_settings(PRIVATE_MEDIA_ROOT=tmp):
+                  storage = get_private_storage()
+                  name = storage.save("a/x.pdf", ContentFile(b"%PDF-first"))
+                  with self.assertRaises(FileExistsError):
+                      storage.save(name, ContentFile(b"%PDF-second"))
+                  with storage.open(name, "rb") as fh:
+                      self.assertEqual(fh.read(), b"%PDF-first")
+
+
+      class TestRunnerTests(SimpleTestCase):
+          def test_test_runner_uses_temp_dir(self):
+              root = Path(settings.PRIVATE_MEDIA_ROOT)
+              base = Path(settings.BASE_DIR)
+              self.assertNotEqual(root, base)
+              self.assertNotIn(base, root.parents)
+              self.assertTrue(root.is_dir())
+
+
+      class PrivateRootSettingsTests(SimpleTestCase):
+          def _load(self, extra: dict[str, str]):
+              module = _new_settings_module()
+              _exec_settings(module, {**PRODUCTION_ENV, **extra})
+              return module
+
+          def test_private_root_default(self):
+              mod = self._load({"PRIVATE_MEDIA_ROOT": ""})
+              self.assertEqual(mod.PRIVATE_MEDIA_ROOT, mod.BASE_DIR / "private_media")
+
+          def test_private_root_unset(self):
+              mod = self._load({})
+              self.assertEqual(mod.PRIVATE_MEDIA_ROOT, mod.BASE_DIR / "private_media")
+
+          def test_private_root_set(self):
+              mod = self._load({"PRIVATE_MEDIA_ROOT": "/srv/private"})
+              self.assertEqual(mod.PRIVATE_MEDIA_ROOT, Path("/srv/private"))
+    ── Read file read
+      from datetime import date, timedelta
+      from unittest import mock
+
+      from django.test import TestCase
+      from django.urls import reverse
+      from django.utils import timezone
+
+      from academics.models import CurrentMark, FinalResult
+      from academics.tests.helpers import make_item, make_mark, make_result, make_term
+      from core.testing import FrozenClockMixin, moscow
+      from notifications.feed import (
+          badge_for_user,
+          badge_label,
+          build_feed,
+          home_summary,
+          student_context,
+          unread_count,
+          upcoming_deadlines,
+      )
+      from notifications.models import Audience
+      from notifications.sources import NewsSource, get_feed_sources
+      from petitions.models import PetitionComment, PetitionStatusChange
+      from petitions.services import change_status
+      from petitions.tests.helpers import make_petition, make_type
+      from schedule.models import ChangeKind, LessonChange
+      from schedule.mutations import save_lesson_change
+      from schedule.tests.helpers import make_discipline, make_lesson, make_room, make_teacher
+
+      from .helpers import make_announcement, make_world, set_seen
+
+      NOW = "2026-11-11 12:00"
+      D = date(2026, 11, 11)
+
+
+      def _ctx(user, now=None):
+          return student_context(user, now)
+
+
+      def _keys(user, now=None):
+          return [i.key for i in build_feed(_ctx(user, now))]
+
+
+      class StudentScopeTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+
+          def test_university_item_visible_to_all_students(self):
+              announcement = make_announcement(self.w.sx, audience=Audience.UNIVERSITY)
+              key = f"news-{announcement.public_id}"
+              for student in (self.w.ax, self.w.bx, self.w.cx, self.w.ay):
+                  self.assertIn(key, _keys(student))
+
+          def test_faculty_item_only_for_that_faculty(self):
+              announcement = make_announcement(self.w.sx, audience=Audience.FACULTY, faculty=self.w.fx)
+              key = f"news-{announcement.public_id}"
+              self.assertIn(key, _keys(self.w.ax))
+              self.assertIn(key, _keys(self.w.cx))
+              self.assertNotIn(key, _keys(self.w.ay))
+
+          def test_group_item_only_for_that_group(self):
+              announcement = make_announcement(self.w.sx, audience=Audience.GROUP, group=self.w.gx1)
+              key = f"news-{announcement.public_id}"
+              self.assertIn(key, _keys(self.w.ax))
+              self.assertIn(key, _keys(self.w.bx))
+              self.assertNotIn(key, _keys(self.w.cx))
+              self.assertNotIn(key, _keys(self.w.ay))
+
+          def test_unpublished_hidden_everywhere(self):
+              announcement = make_announcement(
+                  self.w.sx,
+                  audience=Audience.UNIVERSITY,
+                  is_published=False,
+                  deadline=D + timedelta(days=1),
+              )
+              key = f"news-{announcement.public_id}"
+              ctx = _ctx(self.w.ax)
+              self.assertNotIn(key, _keys(self.w.ax))
+              self.assertNotIn(key, [d.title for d in upcoming_deadlines(ctx, 10)])
+              self.assertEqual(unread_count(ctx), 0)
+
+          def test_other_students_personal_events_hidden(self):
+              rtype = make_type("Справка")
+              petition = make_petition(self.w.bx_profile, rtype)
+              change_status(petition, self.w.sx, "submitted", "in_progress")
+              PetitionComment.objects.create(
+                  petition=petition, author=self.w.sx, text="Комментарий", created_at=timezone.now()
+              )
+              term = make_term(code="t-2026-autumn")
+              disc = make_discipline("Дисциплина-BX")
+              item = make_item(self.w.gx1, disc, term)
+              make_mark(self.w.bx_profile, item, 5, D, "Семинар")
+              make_result(self.w.bx_profile, item, "5", date=D)
+
+              keys = _keys(self.w.ax)
+              self.assertNotIn(
+                  f"petition-status-{PetitionStatusChange.objects.filter(petition=petition).last().pk}",
+                  keys,
+              )
+              self.assertNotIn(f"petition-comment-{PetitionComment.objects.get().pk}", keys)
+              self.assertNotIn(f"mark-{CurrentMark.objects.get().pk}", keys)
+              self.assertNotIn(f"final-result-{FinalResult.objects.get().pk}", keys)
+
+          def test_other_group_lesson_change_hidden(self):
+              room = make_room("room-101")
+              lesson = make_lesson([self.w.gx2], weekday=2, slot=1, room=room)
+              change = save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=lesson, original_date=D, kind=ChangeKind.CANCELLED, reason="Причина"
+                  )
+              )
+              self.assertNotIn(f"lesson-change-{change.pk}", _keys(self.w.ax))
+
+          def test_shared_lesson_change_visible_to_both_groups(self):
+              room = make_room("room-101")
+              lesson = make_lesson([self.w.gx1, self.w.gx2], weekday=2, slot=1, room=room)
+              change = save_lesson_change(
+                  LessonChange(
+    ── Thought for 244ms
+      Let me look at the LessonChangeSourceTests class and test_edited_change_is_new_again.
+    ── Read file read
+      reason="Причина",
+                  )
+              )
+              self.assertFalse(any(k.startswith("lesson-change-") for k in _keys(self.w.ax)))
+
+          def test_past_original_with_future_new_date_included_links_new_week(self):
+              lesson = self._lesson()
+              save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=lesson,
+                      original_date=date(2026, 11, 4),
+                      kind=ChangeKind.MOVED,
+                      new_date=date(2026, 11, 12),
+                      new_slot=2,
+                      reason="Причина",
+                  )
+              )
+              item = next(i for i in build_feed(_ctx(self.w.ax)) if i.kind == "lesson_change")
+              self.assertEqual(item.url, reverse("schedule:week_of", kwargs={"day": date(2026, 11, 12)}))
+
+          def test_past_change_excluded(self):
+              lesson = self._lesson()
+              save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=lesson,
+                      original_date=date(2026, 11, 4),
+                      kind=ChangeKind.CANCELLED,
+                      reason="Причина",
+                  )
+              )
+              self.assertFalse(any(k.startswith("lesson-change-") for k in _keys(self.w.ax)))
+
+          def test_edited_change_is_new_again(self):
+              lesson = self._lesson()
+              change = save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=lesson, original_date=D, kind=ChangeKind.CANCELLED, reason="Причина"
+                  )
+              )
+              t = moscow(NOW)
+              set_seen(self.w.ax, t)
+              self.assertEqual(unread_count(_ctx(self.w.ax)), 0)
+              with mock.patch("django.utils.timezone.now", return_value=t + timedelta(hours=1)):
+                  change.reason = "Новая причина"
+                  save_lesson_change(change)
+              ctx = _ctx(self.w.ax, now=t + timedelta(hours=2))
+              self.assertEqual(unread_count(ctx), 1)
+
+
+      class GradeSourcesTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+              cls.term = make_term(code="t-2026-autumn")
+              cls.disc = make_discipline("Дисциплина")
+              cls.item = make_item(cls.w.gx1, cls.disc, cls.term)
+
+          def test_new_mark_listed_with_term_link(self):
+              mark = make_mark(self.w.ax_profile, self.item, 5, D, "Семинар")
+              items = build_feed(_ctx(self.w.ax))
+              item = next(i for i in items if i.key == f"mark-{mark.pk}")
+              self.assertEqual(
+                  item.url, reverse("academics:my_grades_term", kwargs={"term_code": self.term.code})
+              )
+
+          def test_new_final_result_listed(self):
+              result = make_result(self.w.ax_profile, self.item, "5", date=D)
+              self.assertIn(f"final-result-{result.pk}", _keys(self.w.ax))
+
+          def test_retake_title_mentions_attempt(self):
+              make_result(self.w.ax_profile, self.item, "2", attempt=1, date=date(2026, 10, 1))
+              make_result(self.w.ax_profile, self.item, "3", attempt=2, date=date(2026, 10, 20))
+              items = build_feed(_ctx(self.w.ax))
+              self.assertTrue(any("попытка 2" in i.title for i in items if i.kind == "final_result"))
+
+          def test_mark_created_via_save_validated_uses_frozen_clock(self):
+              mark = make_mark(self.w.ax_profile, self.item, 4, D, "Семинар")
+              self.assertEqual(mark.created_at, timezone.now())
+
+
+      class AdminEventsTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+              cls.room = make_room("room-101")
+              cls.term = make_term(code="t-2026-autumn")
+              cls.disc = make_discipline("Дисциплина")
+              cls.item = make_item(cls.w.gx1, cls.disc, cls.term)
+
+          def setUp(self):
+              self.client.force_login(self.w.root)
+
+          def test_admin_lesson_change_appears(self):
+              lesson = make_lesson([self.w.gx1], weekday=2, slot=1, room=self.room)
+              response = self.client.post(
+                  reverse("admin:schedule_lessonchange_add"),
+                  {
+                      "weekly_lesson": lesson.pk,
+                      "original_date": "2026-11-11",
+                      "kind": "cancelled",
+                      "reason": "Отмена",
+                  },
+              )
+              self.assertEqual(response.status_code, 302)
+              self.assertTrue(any(k.startswith("lesson-change-") for k in _keys(self.w.ax)))
+
+          def test_admin_mark_appears(self):
+              response = self.client.post(
+                  reverse("admin:academics_currentmark_add"),
+                  {
+                      "student": self.w.ax_profile.pk,
+                      "curriculum_item": self.item.pk,
+                      "value": 5,
+                      "date": "2026-11-01",
+                      "kind": "Семинар",
+                  },
+              )
+              self.assertEqual(response.status_code, 302)
+              self.assertTrue(any(k.startswith("mark-") for k in _keys(self.w.ax)))
+
+
+      class FeedWindowTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+    ── Thought for 418ms
+      Let me find the LessonChangeSourceTests class definition and its setUpTestData/helper `_lesson`.
+    ── Searched grep
+      Found 38 matches
+      ~/hackatonproject/notifications/tests/test_feed.py:
+        Line 47:     def setUpTestData(cls):
+
+        Line 133:     def setUpTestData(cls):
+
+        Line 187: class LessonChangeSourceTests(FrozenClockMixin, TestCase):
+
+        Line 191:     def setUpTestData(cls):
+
+        Line 197:     def _lesson(self, weekday=2, groups=None):
+
+        Line 353:     def setUpTestData(cls):
+
+        Line 386:     def setUpTestData(cls):
+
+        Line 393:     def setUp(self):
+
+        Line 429:     def setUpTestData(cls):
+
+        Line 495:     def setUpTestData(cls):
+
+        Line 551:     def setUpTestData(cls):
+
+        Line 581:     def setUpTestData(cls):
+
+        Line 611:     def setUpTestData(cls):
+
+        Line 658:     def setUpTestData(cls):
+
+        Line 681:     def setUpTestData(cls):
+
+
+      ~/hackatonproject/notifications/tests/test_models.py:
+        Line 15:     def setUpTestData(cls):
+
+
+      ~/hackatonproject/notifications/tests/test_services.py:
+        Line 28:     def setUpTestData(cls):
+
+        Line 93:     def setUpTestData(cls):
+
+        Line 219:     def setUpTestData(cls):
+
+        Line 263:     def setUpTestData(cls):
+
+
+      ~/hackatonproject/notifications/tests/test_admin.py:
+        Line 15:     def setUpTestData(cls):
+
+        Line 21:     def setUp(self):
+
+
+      ~/hackatonproject/notifications/tests/test_views.py:
+        Line 39:     def setUpTestData(cls):
+
+        Line 122:     def setUpTestData(cls):
+
+        Line 153:     def setUpTestData(cls):
+
+        Line 220:     def setUpTestData(cls):
+
+        Line 298:     def setUpTestData(cls):
+
+        Line 426:     def setUpTestData(cls):
+
+        Line 429:     def setUp(self):
+
+        Line 455:     def setUpTestData(cls):
+
+        Line 535:     def setUpTestData(cls):
+
+        Line 538:     def setUp(self):
+
+        Line 620:     def setUpTestData(cls):
+
+        Line 623:     def setUp(self):
+
+        Line 652:     def setUpTestData(cls):
+
+        Line 690:     def setUpTestData(cls):
+
+        Line 693:     def setUp(self):
+
+        Line 788:     def setUpTestData(cls):
+    ── Read file read
+      class LessonChangeSourceTests(FrozenClockMixin, TestCase):
+          frozen_now = NOW
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+              cls.room = make_room("room-101")
+              cls.room2 = make_room("room-102")
+              cls.teacher = make_teacher("Замена")
+
+          def _lesson(self, weekday=2, groups=None):
+              return make_lesson(groups or [self.w.gx1], weekday=weekday, slot=1, room=self.room)
+
+          def test_cancelled_title_and_week_link(self):
+              lesson = self._lesson()
+    ── Thought for 400ms
+      Now let me understand the helpers. Let me look at `make_lesson`, `make_room`, `make_teacher` signatures and `save_lesson_change`, `moscow`, `FrozenClockMixin`, `make_world`, `set_seen`.
+    ── Read file read
+      """Plain helper functions for schedule tests (no extra dependencies)."""
+
+      from datetime import date, datetime
+      from zoneinfo import ZoneInfo
+
+      from schedule.models import WeeklyLesson
+      from schedule.mutations import save_weekly_lesson
+      from university.models import Discipline, Room, Teacher
+
+      MOSCOW = ZoneInfo("Europe/Moscow")
+
+      _counter = 0
+
+
+      def _next_counter() -> int:
+          global _counter
+          _counter += 1
+          return _counter
+
+
+      def make_room(code: str, floor: int | None = None) -> Room:
+          number = code.removeprefix("room-")
+          if floor is None:
+              floor = int(number[0])
+          return Room.objects.create(code=code, floor=floor, number=number)
+
+
+      def make_teacher(last_name: str) -> Teacher:
+          return Teacher.objects.create(last_name=last_name, first_name="Иван")
+
+
+      def make_discipline(name: str) -> Discipline:
+          return Discipline.objects.create(name=name, short_name=name[:10])
+
+
+      def make_lesson(
+          groups,
+          weekday: int,
+          slot: int,
+          room: Room,
+          *,
+          discipline: Discipline | None = None,
+          teacher: Teacher | None = None,
+          lesson_type: str = "lecture",
+          valid_from: date = date(2026, 9, 1),
+          valid_until: date = date(2026, 12, 31),
+      ) -> WeeklyLesson:
+          if discipline is None:
+              discipline = make_discipline(f"Дисциплина {_next_counter()}")
+          if teacher is None:
+              teacher = make_teacher(f"Преподаватель {_next_counter()}")
+          lesson = WeeklyLesson(
+              weekday=weekday,
+              slot=slot,
+              discipline=discipline,
+              lesson_type=lesson_type,
+              teacher=teacher,
+              room=room,
+              valid_from=valid_from,
+              valid_until=valid_until,
+          )
+          return save_weekly_lesson(lesson, list(groups))
+
+
+      def aware(dt_str: str) -> datetime:
+          return datetime.fromisoformat(dt_str).replace(tzinfo=MOSCOW)
+    ── Read file read
+      """The only write path for schedule models in application code."""
+
+      from collections.abc import Sequence
+
+      from django.core.exceptions import ValidationError
+      from django.db import transaction
+
+      from university.models import StudyGroup
+
+      from .guards import run_change_guards
+      from .models import LessonChange, WeeklyLesson
+      from .validation import restored_occurrence_conflicts, validate_weekly_lesson
+
+
+      def save_weekly_lesson(lesson: WeeklyLesson, groups: Sequence[StudyGroup]) -> WeeklyLesson:
+          with transaction.atomic():
+              lesson.full_clean()
+              errors = validate_weekly_lesson(
+                  weekday=lesson.weekday,
+                  slot=lesson.slot,
+                  valid_from=lesson.valid_from,
+                  valid_until=lesson.valid_until,
+                  room_id=lesson.room_id,
+                  group_ids=[g.pk for g in groups],
+                  exclude_pk=lesson.pk,
+              )
+              if errors:
+                  raise ValidationError(errors)
+              lesson.save()
+              lesson.groups.set(groups)
+              return lesson
+
+
+      def save_lesson_change(change: LessonChange) -> LessonChange:
+          with transaction.atomic():
+              change.full_clean()
+              change.save()
+              return change
+
+
+      def delete_lesson_change(change: LessonChange) -> None:
+          with transaction.atomic():
+              errors = restored_occurrence_conflicts(change) + run_change_guards(change, deleting=True)
+              if errors:
+                  raise ValidationError(errors)
+              change.delete()
+    ── Read file read
+      """Test clock helpers.
+
+      A plain module (not a test module). It freezes ``django.utils.timezone.now`` for a
+      whole test class so tests do not depend on the real current date.
+      """
+
+      from datetime import datetime
+      from typing import ClassVar
+      from unittest import mock
+      from zoneinfo import ZoneInfo
+
+      MOSCOW = ZoneInfo("Europe/Moscow")
+
+
+      def moscow(dt_str: str) -> datetime:
+          """Parse an ISO string as a Moscow-aware datetime, e.g. "2026-11-18 12:00"."""
+          return datetime.fromisoformat(dt_str).replace(tzinfo=MOSCOW)
+
+
+      class FrozenClockMixin:
+          frozen_now: ClassVar[str] = "2026-11-18 12:00"
+
+          @classmethod
+          def setUpClass(cls) -> None:
+              cls._clock_patcher = mock.patch(
+                  "django.utils.timezone.now", return_value=moscow(cls.frozen_now)
+              )
+              cls._clock_patcher.start()
+              try:
+                  super().setUpClass()
+              except Exception:
+                  cls._clock_patcher.stop()
+                  raise
+
+          @classmethod
+          def tearDownClass(cls) -> None:
+              try:
+                  super().tearDownClass()
+              finally:
+                  cls._clock_patcher.stop()
+    ── Thought for 415ms
+      Now I understand the structure. Let me look at the `make_world` helper and `set_seen`, and the `FeedContext.is_new` method, and `notifications/sources.py` top.
+    ── Read file read
+      """Test helpers for the notifications app (reuse accounts helpers)."""
+
+      from types import SimpleNamespace
+
+      from django.utils import timezone
+
+      from accounts.models import User
+      from accounts.tests.helpers import make_faculty, make_group, make_staff, make_student
+      from notifications.models import Announcement, NotificationState
+
+
+      def make_announcement(
+          author,
+          *,
+          audience,
+          faculty=None,
+          group=None,
+          title="Объявление",
+          body="Текст объявления",
+          deadline=None,
+          published_at=None,
+          is_published=True,
+      ) -> Announcement:
+          ts = published_at or timezone.now()
+          kwargs = {
+              "author": author,
+              "audience": audience,
+              "faculty": faculty,
+              "group": group,
+              "title": title,
+              "body": body,
+              "deadline": deadline,
+              "published_at": ts,
+              "is_published": is_published,
+          }
+          if not is_published:
+              kwargs["unpublished_at"] = ts
+              kwargs["unpublished_by"] = author
+          return Announcement.objects.create(**kwargs)
+
+
+      def set_seen(user, when) -> None:
+          NotificationState.objects.update_or_create(user=user, defaults={"seen_until": when})
+
+
+      def make_world() -> SimpleNamespace:
+          fx = make_faculty("FX")
+          fy = make_faculty("FY")
+          gx1 = make_group(fx, "GX1")
+          gx2 = make_group(fx, "GX2")
+          gy1 = make_group(fy, "GY1")
+          ax = make_student("ax", gx1, "ST-AX-1")
+          bx = make_student("bx", gx1, "ST-BX-1")
+          cx = make_student("cx", gx2, "ST-CX-1")
+          ay = make_student("ay", gy1, "ST-AY-1")
+          sx = make_staff("sx", fx)
+          sy = make_staff("sy", fy)
+          root = User.objects.create_superuser("root", password="Super-Pass-2026!")
+          return SimpleNamespace(
+              fx=fx,
+              fy=fy,
+              gx1=gx1,
+              gx2=gx2,
+              gy1=gy1,
+              ax=ax,
+              bx=bx,
+              cx=cx,
+              ay=ay,
+              sx=sx,
+              sy=sy,
+              root=root,
+              ax_profile=ax.student_profile,
+              bx_profile=bx.student_profile,
+              cx_profile=cx.student_profile,
+              ay_profile=ay.student_profile,
+              sx_profile=sx.staff_profile,
+              sy_profile=sy.staff_profile,
+          )
+    ── Read file read
+      """Feed sources registry.
+
+      Each ``FeedSource`` computes the personal feed items of one event kind from the
+      rows that already exist (no stored notification rows). To add a new kind (e.g.
+      chat in TASK-009), subclass ``FeedSource`` and append it to ``FEED_SOURCES``;
+      nothing else changes.
+      """
+
+      from dataclasses import dataclass, replace
+      from datetime import date, datetime, timedelta
+      from typing import Any, ClassVar
+
+      from django.db.models import F, Q, QuerySet
+      from django.urls import reverse
+      from django.utils.text import Truncator
+
+      from academics.models import CurrentMark, FinalResult
+      from accounts.models import StudentProfile
+      from chat.constants import FEED_PREVIEW_CHARS
+      from chat.models import AuthorRole, Message
+      from petitions.models import PetitionComment, PetitionStatusChange
+      from schedule.models import LessonChange
+
+      from .constants import LESSON_CHANGE_HORIZON_DAYS
+      from .dates import relative_day_label
+      from .models import Announcement
+      from .selectors import announcements_for_student
+
+      STATUS_TITLES = {
+          "in_progress": "Заявка «{name}» взята в работу",
+          "ready": "Заявка «{name}» готова — заберите документ в деканате",
+          "issued": "Заявка «{name}» выдана",
+          "rejected": "Заявка «{name}» отклонена",
+      }
+
+
+      @dataclass(frozen=True)
+      class FeedContext:
+          user_id: int
+          student: StudentProfile
+          group_id: int
+          faculty_id: int
+          now: datetime
+          today: date
+          window_start: datetime
+          seen_until: datetime | None
+
+          def is_new(self, ts: datetime) -> bool:
+              return self.seen_until is None or ts > self.seen_until
+
+          @property
+          def horizon_end(self) -> date:
+              return self.today + timedelta(days=LESSON_CHANGE_HORIZON_DAYS)
+
+
+      @dataclass(frozen=True)
+      class FeedItem:
+          key: str
+          kind: str
+          tag: str
+          timestamp: datetime
+          title: str
+          body: str = ""
+          url: str = ""
+          deadline: date | None = None
+          deadline_label: str = ""
+          audience_label: str = ""
+          is_new: bool = False
+    ── Thought for 9s
+      Now I have enough understanding. Let me now write the tests.
+
+      First, update `test_edited_change_is_new_again` in test_feed.py: replace `change.reason = "Новая причина"` with `change.original_date = D + timedelta(days=7)`.
+
+      Wait, but the original_date must satisfy `clean()` - weekday must match, and within valid period. D = 2026-11-11 (Wednesday, weekday=2). D + timedelta(days=7) = 2026-11-18, also Wednesday (weekday=2). Good, same weekday. Within valid_from 2026-09-01 to valid_until 2026-12-31. Good.
+
+      But there's also the uniqueness constraint: `schedule_change_one_per_occurrence` on (weekly_lesson, original_date). Since we're editing the same change's original_date, and no other change exists for that lesson on 2026-11-18, it's fine.
+
+      Also `save_lesson_change` runs `run_change_guards`? No — it only runs `full_clean()` and `save()`. Actually it does NOT run guards. Let me verify: `save_lesson_change` = full_clean + save in transaction. No guards. So no issue with conflict checks.
+
+      Actually wait, let me check — does `full_clean()` validate the CheckConstraint? The `clean()` method checks kind rules. For a CANCELLED change, new_date/new_slot/new_room/new_teacher must be None. Changing original_date keeps it cancelled, fine.
+
+      Now the new test `test_reason_only_edit_stays_read`, `test_admin_reason_only_edit_stays_read`, `test_item_timestamp_is_changed_at`.
+
+      Let me write these in the LessonChangeSourceTests class.
+
+      Now let me first update the existing test.
+
+      Let me also check what `_ctx` and `unread_count` return. Already imported.
+
+      Now let me write the tests. For `test_reason_only_edit_stays_read`:
+
+      ```python
+      def test_reason_only_edit_stays_read(self):
+          lesson = self._lesson()
+          change = save_lesson_change(
+              LessonChange(
+                  weekly_lesson=lesson, original_date=D, kind=ChangeKind.CANCELLED, reason="Причина"
+              )
+          )
+          t = moscow(NOW)
+          set_seen(self.w.ax, t)
+          with mock.patch("django.utils.timezone.now", return_value=t + timedelta(hours=1)):
+              change.reason = "Новая причина"
+              save_lesson_change(change)
+          ctx = _ctx(self.w.ax, now=t + timedelta(hours=2))
+          self.assertEqual(unread_count(ctx), 0)
+          item = next(i for i in build_feed(ctx) if i.key == f"lesson-change-{change.pk}")
+          self.assertFalse(ctx.is_new(item.timestamp))
+      ```
+
+      Wait, `build_feed(ctx)` — need to confirm the item is included. The change is on 2026-11-11 (D = 2026-11-11), horizon_end = today + LESSON_CHANGE_HORIZON_DAYS. Since ctx.now = t+2h (still 2026-11-11), today = 2026-11-11, horizon includes 2026-11-11. So the change is included. Good.
+
+      `test_admin_reason_only_edit_stays_read`:
+      ```python
+      def test_admin_reason_only_edit_stays_read(self):
+          lesson = self._lesson()
+          change = save_lesson_change(
+              LessonChange(
+                  weekly_lesson=lesson, original_date=D, kind=ChangeKind.CANCELLED, reason="Причина"
+              )
+          )
+          t = moscow(NOW)
+          set_seen(self.w.ax, t)
+          self.client.force_login(self.w.root)
+          with mock.patch("django.utils.timezone.now", return_value=t + timedelta(hours=1)):
+              response = self.client.post(
+                  reverse("admin:schedule_lessonchange_change", args=[change.pk]),
+                  {
+                      "weekly_lesson": lesson.pk,
+                      "original_date": "2026-11-11",
+                      "kind": "cancelled",
+                      "new_date": "",
+                      "new_slot": "",
+                      "new_room": "",
+                      "new_teacher": "",
+                      "reason": "Из админки",
+                  },
+              )
+          self.assertEqual(response.status_code, 302)
+          ctx = _ctx(self.w.ax, now=t + timedelta(hours=2))
+          self.assertEqual(unread_count(ctx), 0)
+      ```
+
+      Wait, but does the admin change form include `changed_at`? It's in readonly_fields, so it's displayed read-only and not submitted. But the form might require it? No, readonly fields aren't validated/submitted. Good.
+
+      But wait — the admin form might also have other required fields. Let me check what the admin change form needs. The AdminEventsTests::test_admin_lesson_change_appears uses the add form with fields: weekly_lesson, original_date, kind, reason. So for the change form, similar fields. Let me use the same field set as the spec's test_admin_reason_only_keeps_changed_at (which lists all fields).
+
+      The spec's test_admin_reason_only_keeps_changed_at uses:
+      ```
+      {"weekly_lesson": lesson.pk, "original_date": "2026-11-11", "kind": "cancelled", "new_date": "", "new_slot": "", "new_room": "", "new_teacher": "", "reason": "Из админки"}
+      ```
+
+      I'll use the same.
+
+      `test_item_timestamp_is_changed_at`:
+      ```python
+      def test_item_timestamp_is_changed_at(self):
+          lesson = self._lesson()
+          change = save_lesson_change(
+              LessonChange(
+                  weekly_lesson=lesson, original_date=D, kind=ChangeKind.CANCELLED, reason="Причина"
+              )
+          )
+          t = moscow(NOW)
+          with mock.patch("django.utils.timezone.now", return_value=t + timedelta(hours=1)):
+              change.reason = "Новая причина"
+              save_lesson_change(change)
+          change.refresh_from_db()
+          ctx = _ctx(self.w.ax, now=t + timedelta(hours=2))
+          item = next(i for i in build_feed(ctx) if i.key == f"lesson-change-{change.pk}")
+          self.assertEqual(item.timestamp, change.changed_at)
+          self.assertNotEqual(item.timestamp, change.updated_at)
+      ```
+
+      Now for the `_lesson` helper — it uses `self.room`. Good.
+
+      Now let me update the existing test first.
+
+      Now let me write the schedule/tests/test_changed_at.py file. This is the biggest part.
+
+      Let me check the existing schedule/tests/ directory structure and how other test files import things (to match conventions).
+    ── Listed files in schedule/tests/
+    ── Read file read
+      from datetime import date
+      from unittest import mock
+
+      from django.core.exceptions import ValidationError
+      from django.test import TestCase
+      from django.urls import reverse
+
+      from accounts.models import User
+      from accounts.tests.helpers import make_faculty, make_group
+      from core.testing import FrozenClockMixin
+      from schedule.locking import lock_rooms_and_groups
+      from schedule.models import ChangeKind, LessonChange
+      from schedule.mutations import save_lesson_change
+      from schedule.tests.helpers import make_lesson, make_room, make_teacher
+
+
+      class EditLessonChangeTests(FrozenClockMixin, TestCase):
+          @classmethod
+          def setUpTestData(cls):
+              cls.faculty = make_faculty("FX")
+              cls.g1 = make_group(cls.faculty, "G1")
+              cls.g2 = make_group(cls.faculty, "G2")
+              cls.g3 = make_group(cls.faculty, "G3")
+              cls.r1 = make_room("room-101")
+              cls.r2 = make_room("room-102")
+              cls.r3 = make_room("room-103")
+              cls.r4 = make_room("room-104")
+              cls.r5 = make_room("room-105")
+              cls.r6 = make_room("room-106")
+              cls.l_a = make_lesson([cls.g1], weekday=0, slot=2, room=cls.r1)
+              cls.l_b = make_lesson([cls.g2], weekday=1, slot=1, room=cls.r2)
+
+          def _change(self, lesson, kind, original_date, **kwargs):
+              return LessonChange(
+                  weekly_lesson=lesson,
+                  original_date=original_date,
+                  kind=kind,
+                  reason="Причина",
+                  **kwargs,
+              )
+
+          def _cancel(self, original_date=date(2026, 11, 23)):
+              return save_lesson_change(self._change(self.l_a, ChangeKind.CANCELLED, original_date))
+
+          def _move_b_into_r1(self):
+              return save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=self.l_b,
+                      original_date=date(2026, 11, 17),
+                      kind=ChangeKind.MOVED,
+                      new_date=date(2026, 11, 23),
+                      new_slot=2,
+                      new_room=self.r1,
+                      reason="Перенос",
+                  )
+              )
+
+          def _reload(self, change):
+              return LessonChange.objects.get(pk=change.pk)
+
+          def test_cancel_to_teacher_replaced_rejected(self):
+              cancel = self._cancel()
+              self._move_b_into_r1()
+              row = self._reload(cancel)
+              row.kind = ChangeKind.TEACHER_REPLACED
+              row.new_teacher = make_teacher("Замена")
+              with self.assertRaises(ValidationError) as cm:
+                  save_lesson_change(row)
+              msg = " ".join(cm.exception.messages)
+              self.assertIn(f"аудитория {self.r1.number}", msg)
+              self.assertIn("23.11.2026", msg)
+              self.assertEqual(self._reload(cancel).kind, ChangeKind.CANCELLED)
+
+          def test_cancel_original_date_change_rejected(self):
+              cancel = self._cancel()
+              self._move_b_into_r1()
+              row = self._reload(cancel)
+              row.original_date = date(2026, 11, 30)
+              with self.assertRaises(ValidationError):
+                  save_lesson_change(row)
+              self.assertEqual(self._reload(cancel).original_date, date(2026, 11, 23))
+
+          def test_room_changed_to_teacher_replaced_rejected(self):
+              room_change = save_lesson_change(
+                  self._change(self.l_a, ChangeKind.ROOM_CHANGED, date(2026, 11, 23), new_room=self.r5)
+              )
+              l_d = make_lesson([self.g3], weekday=0, slot=2, room=self.r6)
+              save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=l_d,
+                      original_date=date(2026, 11, 23),
+                      kind=ChangeKind.ROOM_CHANGED,
+                      new_room=self.r1,
+                      reason="Замена",
+                  )
+              )
+              row = self._reload(room_change)
+              row.kind = ChangeKind.TEACHER_REPLACED
+              row.new_room = None
+              row.new_teacher = make_teacher("Замена")
+              with self.assertRaises(ValidationError) as cm:
+                  save_lesson_change(row)
+              self.assertIn(f"аудитория {self.r1.number}", " ".join(cm.exception.messages))
+
+          def test_group_conflict_on_restore_rejected(self):
+              cancel = self._cancel()
+              l_c = make_lesson([self.g1], weekday=1, slot=1, room=self.r3)
+              save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=l_c,
+                      original_date=date(2026, 11, 17),
+                      kind=ChangeKind.MOVED,
+                      new_date=date(2026, 11, 23),
+                      new_slot=2,
+                      reason="Перенос",
+                  )
+              )
+              row = self._reload(cancel)
+              row.original_date = date(2026, 11, 30)
+              with self.assertRaises(ValidationError) as cm:
+                  save_lesson_change(row)
+              self.assertIn("группа G1", " ".join(cm.exception.messages))
+
+          def test_allowed_edits(self):
+              # 1. reason change
+              cancel = self._cancel()
+              self._move_b_into_r1()
+              row = self._reload(cancel)
+              row.reason = "Новая причина"
+              save_lesson_change(row)
+              self.assertEqual(self._reload(cancel).reason, "Новая причина")
+              LessonChange.objects.all().delete()
+
+              # 2. original_date change when nothing occupies the old slot
+              cancel2 = self._cancel()
+              move_b = self._move_b_into_r1()
+              LessonChange.objects.get(pk=move_b.pk).delete()
+              row = self._reload(cancel2)
+              row.original_date = date(2026, 11, 30)
+              save_lesson_change(row)
+              self.assertEqual(self._reload(cancel2).original_date, date(2026, 11, 30))
+              LessonChange.objects.all().delete()
+
+              # 3. CANCELLED -> MOVED with the old slot still occupied by B (no false positive)
+              cancel3 = self._cancel()
+              self._move_b_into_r1()
+              row = self._reload(cancel3)
+              row.kind = ChangeKind.MOVED
+              row.new_date = date(2026, 11, 25)
+              row.new_slot = 4
+              save_lesson_change(row)
+              self.assertEqual(self._reload(cancel3).kind, ChangeKind.MOVED)
+
+          def test_move_target_change_allowed(self):
+              move = save_lesson_change(
+                  self._change(
+                      self.l_a,
+                      ChangeKind.MOVED,
+                      date(2026, 11, 23),
+                      new_date=date(2026, 11, 25),
+                      new_slot=4,
+                  )
+              )
+              row = self._reload(move)
+              row.new_slot = 5
+              save_lesson_change(row)
+              self.assertEqual(self._reload(move).new_slot, 5)
+
+          def test_move_original_date_change_no_self_conflict(self):
+              move = save_lesson_change(
+                  self._change(
+                      self.l_a,
+                      ChangeKind.MOVED,
+                      date(2026, 11, 23),
+                      new_date=date(2026, 11, 25),
+                      new_slot=4,
+                  )
+              )
+              row = self._reload(move)
+              row.original_date = date(2026, 11, 30)
+              save_lesson_change(row)
+              self.assertEqual(self._reload(move).original_date, date(2026, 11, 30))
+
+          def test_admin_edit_shows_form_error(self):
+              superuser = User.objects.create_superuser("root", password="Super-Pass-2026!")
+              cancel = self._cancel()
+              self._move_b_into_r1()
+              self.client.force_login(superuser)
+              url = reverse("admin:schedule_lessonchange_change", args=[cancel.pk])
+              response = self.client.post(
+                  url,
+                  {
+                      "weekly_lesson": self.l_a.pk,
+                      "original_date": "2026-11-23",
+                      "kind": "teacher_replaced",
+                      "new_teacher": make_teacher("Замена").pk,
+                      "reason": "Замена",
+                  },
+              )
+              self.assertEqual(response.status_code, 200)
+              self.assertContains(response, "Нельзя так изменить запись")
+              self.assertEqual(self._reload(cancel).kind, ChangeKind.CANCELLED)
+
+          def test_edit_locks_once_in_order(self):
+              cancel = self._cancel()
+              self._move_b_into_r1()
+              row = self._reload(cancel)
+              row.original_date = date(2026, 11, 30)
+              with mock.patch("schedule.locking.lock_rooms_and_groups", wraps=lock_rooms_and_groups) as m:
+                  with self.assertRaises(ValidationError):
+                      save_lesson_change(row)
+              calls = m.call_args_list
+              self.assertGreaterEqual(len(calls), 1)
+              first_args, _ = calls[0]
+              self.assertEqual({r for r in first_args[0] if r is not None}, {self.r1.pk})
+              self.assertEqual(set(first_args[1]), {self.g1.pk})
+    ── Thought for 2s
+      I see — `save_lesson_change` does run guards! Wait, let me re-read mutations.py. Actually the `save_lesson_change` only does full_clean + save. But test_change_edit.py references `run_change_guards` indirectly via `save_lesson_change`? Wait no. Let me look more carefully.
+
+      Actually, `save_lesson_change` in mutations.py:
+      ```python
+      def save_lesson_change(change: LessonChange) -> LessonChange:
+          with transaction.atomic():
+              change.full_clean()
+              change.save()
+              return change
+      ```
+
+      No guards. But test_change_edit tests reference "замена аудитории" errors, "группа G1" errors etc. These come from `full_clean()` → `clean()`. Wait, does `clean()` run guards? Let me check the rest of clean() in models.py (lines 220+).
+
+      Actually wait — there's also `run_change_guards` in guards.py. Let me check where it's called. In mutations.py, only `delete_lesson_change` calls `run_change_guards`. But the edit tests show conflicts being rejected on save. Let me look at the full `clean()` method of LessonChange (lines 195-262).
+    ── Read file read
+      return True
+              stored = (
+                  type(self)._default_manager.filter(pk=self.pk).values(*STUDENT_VISIBLE_FIELDS).first()
+              )
+              if stored is None:
+                  return True
+              return any(stored[f] != getattr(self, f) for f in STUDENT_VISIBLE_FIELDS)
+
+          def __str__(self) -> str:
+              return f"{self.get_kind_display()}: {self.weekly_lesson} ({self.original_date:%d.%m.%Y})"
+
+          def clean(self):
+              super().clean()
+              if self.weekly_lesson_id is None or self.original_date is None or not self.kind:
+                  return
+              lesson = self.weekly_lesson
+              errors: dict[str, list[str]] = {}
+              if self.original_date.weekday() != lesson.weekday:
+                  errors.setdefault("original_date", []).append(
+                      "Дата не совпадает с днём недели занятия."
+                  )
+              if not lesson.valid_from <= self.original_date <= lesson.valid_until:
+                  errors.setdefault("original_date", []).append("Дата вне периода действия занятия.")
+
+              # Kind rules (mirror of the DB constraint, field-level messages).
+              required = {
+                  ChangeKind.MOVED: ("new_date", "new_slot"),
+                  ChangeKind.ROOM_CHANGED: ("new_room",),
+                  ChangeKind.TEACHER_REPLACED: ("new_teacher",),
+              }
+              for field in required.get(self.kind, ()):
+                  if getattr(self, field) is None:
+                      errors.setdefault(field, []).append("Обязательно для этого вида изменения.")
+
+              forbidden = {
+                  ChangeKind.CANCELLED: ("new_date", "new_slot", "new_room", "new_teacher"),
+                  ChangeKind.MOVED: ("new_teacher",),
+                  ChangeKind.ROOM_CHANGED: ("new_date", "new_slot", "new_teacher"),
+                  ChangeKind.TEACHER_REPLACED: ("new_date", "new_slot", "new_room"),
+              }
+              for field in forbidden.get(self.kind, ()):
+                  if getattr(self, field) is not None:
+                      errors.setdefault(field, []).append("Не заполняйте для этого вида изменения.")
+
+              if self.kind == ChangeKind.MOVED:
+                  if (self.new_date, self.new_slot) == (self.original_date, lesson.slot) and (
+                      self.new_room is None or self.new_room_id == lesson.room_id
+                  ):
+                      errors.setdefault("new_date", []).append("Новое время совпадает со старым.")
+              elif self.kind == ChangeKind.ROOM_CHANGED:
+                  if self.new_room_id == lesson.room_id:
+                      errors.setdefault("new_room", []).append("Аудитория не изменилась.")
+              elif self.kind == ChangeKind.TEACHER_REPLACED:
+                  if self.new_teacher_id == lesson.teacher_id:
+                      errors.setdefault("new_teacher", []).append("Преподаватель не изменился.")
+
+              if errors:
+                  raise ValidationError(errors)
+
+              if self.pk is not None:
+    ── Read file read
+      if self.pk is not None:
+                  old = LessonChange.objects.select_related("weekly_lesson").filter(pk=self.pk).first()
+                  if old is not None:
+                      from .validation import released_occurrence_errors
+
+                      released = released_occurrence_errors(old, self)
+                      if released:
+                          raise ValidationError(released)
+
+              from .guards import run_change_guards
+
+              guard_errors = run_change_guards(self, deleting=False)
+              if guard_errors:
+                  raise ValidationError(guard_errors)
+
+              from .validation import change_conflicts
+
+              conflicts = change_conflicts(self)
+              if conflicts:
+                  raise ValidationError(conflicts)
+    ── Thought for 24s
+      OK so `clean()` runs guards and conflicts too. This is important for the tests in test_changed_at.py. When I edit a visible field like `weekly_lesson`, `new_room`, `new_teacher`, `new_date`, etc., the `clean()` will run `change_conflicts` and guards. I need to make sure the edits are valid (don't conflict).
+
+      Let me carefully design the test_changed_at.py tests per the spec.
+
+      The spec test plan for `ChangedAtTests`:
+      - setUpTestData: make_world(), rooms room-101, room-102, teacher make_teacher("Замена"), a lesson make_lesson([w.gx1], weekday=2, slot=1, room=room101). Helper `_cancel()` → save_lesson_change(LessonChange(weekly_lesson=lesson, original_date=date(2026, 11, 11), kind=ChangeKind.CANCELLED, reason="Причина")). T0 = moscow("2026-11-11 12:00"), T1 = T0 + 1h.
+
+      Wait, `make_room` requires code starting with "room-" and floor derived from number. room-101 → floor 1, number "101". room-102 → floor 1, number "102". room-103 → floor 1, number "103".
+
+      Tests:
+      1. test_insert_sets_changed_at: after _cancel(), changed_at == T0. Also with LessonChange.objects.create(...) for a second lesson date: changed_at == T0.
+
+      Note: `make_world()` creates groups gx1, gx2, etc. The lesson uses [w.gx1].
+
+      2. test_reason_only_keeps_changed_at: patch timezone.now to T1, set reason, save_lesson_change; reload: reason changed, changed_at == T0.
+
+      3. test_updated_at_still_moves: same edit; reload updated_at == T1.
+
+      4. test_each_visible_field_moves_changed_at (subTest per field): start fresh change each time, at T1 change one field. Fields:
+         - original_date → 2026-11-18 (cancel)
+         - kind → ROOM_CHANGED with new_room=room102
+         - for ROOM_CHANGED change, new_room → room103
+         - for TEACHER_REPLACED change, new_teacher → another teacher
+         - for MOVED change (new_date 2026-11-12, new_slot 3), new_date → 2026-11-13; and separately new_slot → 4
+         - weekly_lesson → second lesson of same group (weekday 2, slot 2, room 102)
+
+      Wait, note there are 7 visible fields but `new_teacher` field is tested via the TEACHER_REPLACED change, and `new_room` via ROOM_CHANGED. `new_date` and `new_slot` via MOVED. Let me enumerate the subTests:
+         - "original_date"
+         - "kind"
+         - "new_room"
+         - "new_teacher"
+         - "new_date"
+         - "new_slot"
+         - "weekly_lesson"
+
+      That's 7 fields. Each needs a fresh change and a valid edit.
+
+      This is complex. Let me think about how to write this cleanly with a fresh change each subTest.
+
+      Actually, I need to be careful about conflicts. `change_conflicts(self)` checks if the new slot/room/date conflicts with existing lessons/changes. Let me check what validation does. But the spec says "Use valid combinations (full_clean runs in save_lesson_change)."
+
+      Let me think about each:
+
+      For a base cancelled change on original_date=2026-11-11 (Wednesday), lesson weekday=2 (Wednesday). Good.
+
+      - original_date edit: change.original_date = 2026-11-18 (also Wednesday, weekday=2). Need to check `change_conflicts` — changing original_date of a cancelled change. The guards check released occurrence and conflicts. Since nothing else occupies 2026-11-18 for group gx1, it should be fine. Actually wait, `released_occurrence_errors(old, self)` checks if the old occurrence is being released (another change now needs to cover it). For a simple original_date change of a cancelled change, released = the old 2026-11-11 slot. Is 2026-11-11 covered by another change? No. So no error. Then `run_change_guards(self, deleting=False)` and `change_conflicts(self)`. Should be fine for a fresh single change.
+
+      - kind edit: cancelled → room_changed with new_room=room102. Need new_room != lesson.room (lesson room = room101). room102 is different. Valid. But change_conflicts: a room_changed means the lesson stays in room101 but... actually room_changed means the room is replaced to room102. Does room102 conflict? Need to check change_conflicts logic. Probably fine since room102 is free on 2026-11-11 slot1. Actually wait, room_changed change: new_room=room102, the change still occupies slot (weekday2, slot1) of the lesson but with room changed to room102. Hmm, actually a room change means the lesson is now in room102 instead of room101. The conflict check would verify room102 isn't occupied by another lesson at that time. room102 is free. OK.
+
+      - new_room edit (for a room_changed change): base change is room_changed with new_room=room102, then edit new_room → room103. Valid.
+
+      - new_teacher edit (for teacher_replaced): base change teacher_replaced with new_teacher = teacher "Замена" (different from lesson teacher). Then edit new_teacher → another teacher. Valid.
+
+      - new_date edit (for moved): base moved change new_date=2026-11-12 (Thursday), new_slot=3. Wait 2026-11-12 is Thursday (weekday=3). Does new_date weekday matter? For MOVED, new_date can be any date? Let me check clean(): it checks original_date.weekday() == lesson.weekday (Wednesday). For new_date, no weekday check in clean(). But `change_conflicts` might check. The spec says new_date 2026-11-12, new_slot 3. Then edit new_date → 2026-11-13. Valid.
+
+      - new_slot edit (for moved): moved change, edit new_slot → 4.
+
+      - weekly_lesson edit: base cancelled change on lesson1 (weekday2 slot1 room101). Edit weekly_lesson → lesson2 (weekday2 slot2 room102). Need lesson2 same group gx1. original_date=2026-11-11 (Wednesday), lesson2 weekday=2. Valid. The change_conflicts would check lesson2's slot. Should be fine.
+
+      This is getting complex. Let me write a helper that creates a fresh change for each subTest based on the field, then edits it.
+
+      Actually, let me look at how the spec intends it. It says "start from a fresh change each time and, at T1, change one field". So each subTest:
+      1. Create the appropriate base change.
+      2. Patch timezone.now to T1.
+      3. Modify the one field.
+      4. save_lesson_change.
+      5. assert changed_at == T1.
+
+      Let me structure this as a helper method `_edit(field, setup_fn)` or just inline with subTest.
+
+      Let me write it carefully. I'll create a method that returns a change for a given "scenario". Actually, simpler: within the subTest loop, build the base change according to which field we're testing, then edit.
+
+      Let me define the field -> (build change, edit) mapping inline.
+
+      Let me think about the exact code. I'll use a dict or if/elif.
+
+      Actually, let me write a cleaner approach:
+
+      ```python
+      def test_each_visible_field_moves_changed_at(self):
+          cases = {
+              "original_date": self._edit_original_date,
+              ...
+          }
+      ```
+
+      Hmm, this is getting complicated. Let me just write it with explicit subTest calls. Actually, let me write a parametrized loop with a list of (name, build_callable, mutate_callable).
+
+      Let me define within the test method:
+
+      ```python
+      def test_each_visible_field_moves_changed_at(self):
+          # each (field_name, make_change, mutate)
+          ...
+      ```
+
+      Actually, simpler to write each edit inline with subTest and clear comments.
+
+      Let me consider what's needed for each. I'll write:
+
+      ```python
+      def test_each_visible_field_moves_changed_at(self):
+          t1 = self.T1
+
+          def check(change, mutate):
+              with mock.patch("django.utils.timezone.now", return_value=t1):
+                  mutate(change)
+                  save_lesson_change(change)
+              change.refresh_from_db()
+              self.assertEqual(change.changed_at, t1)
+
+          # original_date
+          change = self._cancel()
+          def m1(c):
+              c.original_date = date(2026, 11, 18)
+          check(change, m1)
+          ...
+      ```
+
+      But subTest is requested. Let me use subTest with a loop.
+
+      Actually, the cleanest is a list of (label, setup_function, mutate_function) tuples. Let me write:
+
+      ```python
+      def test_each_visible_field_moves_changed_at(self):
+          second = make_lesson([self.w.gx1], weekday=2, slot=2, room=self.room102)
+          teacher2 = make_teacher("Замена2")
+
+          def original_date(c):
+              c.original_date = date(2026, 11, 18)
+
+          def kind(c):
+              c.kind = ChangeKind.ROOM_CHANGED
+              c.new_room = self.room102
+
+          def new_room(c):
+              c.new_room = self.room103
+
+          def new_teacher(c):
+              c.new_teacher = teacher2
+
+          def new_date(c):
+              c.new_date = date(2026, 11, 13)
+
+          def new_slot(c):
+              c.new_slot = 4
+
+          def weekly_lesson(c):
+              c.weekly_lesson = second
+
+          cases = [
+              ("original_date", self._cancel, original_date),
+              ("kind", self._cancel, kind),
+              ("new_room", self._room_change, new_room),
+              ("new_teacher", self._teacher_change, new_teacher),
+              ("new_date", self._moved_change, new_date),
+              ("new_slot", self._moved_change, new_slot),
+              ("weekly_lesson", self._cancel, weekly_lesson),
+          ]
+          for label, setup, mutate in cases:
+              with self.subTest(field=label):
+                  change = setup()
+                  self.assertEqual(change.changed_at, self.T0)
+                  with mock.patch("django.utils.timezone.now", return_value=self.T1):
+                      mutate(change)
+                      save_lesson_change(change)
+                  change.refresh_from_db()
+                  self.assertEqual(change.changed_at, self.T1)
+      ```
+
+      Where:
+      - `_cancel()` = cancelled change (base)
+      - `_room_change()` = room_changed change with new_room=room102
+      - `_teacher_change()` = teacher_replaced change with new_teacher=self.teacher
+      - `_moved_change()` = moved change new_date=2026-11-12, new_slot=3
+
+      But wait, there's a subtlety: the fresh change's `changed_at` should equal T0 (frozen clock). Since FrozenClockMixin freezes `django.utils.timezone.now` to "2026-11-11 12:00" = T0, when we create the change, `clock.now()` returns T0. So changed_at == T0. Good.
+
+      But there's a problem: `save_lesson_change` runs `full_clean()` which runs `change_conflicts` and guards. For the fresh change created via `_cancel()`, the change is created in setUpTestData... wait no, each test method creates fresh changes. But `setUpTestData` creates the world and rooms/lesson. The changes are created per test method.
+
+      Actually wait — `setUpTestData` runs once per class and its data is wrapped in a transaction that's rolled back per-test, but objects created in setUpTestData persist (cloned) for each test. Objects created inside test methods are rolled back. So each test method starts fresh with the world, rooms, lesson from setUpTestData, and any changes created in the test are isolated.
+
+      But there's a concern: within a single test method (test_each_visible_field_moves_changed_at), I create 7 changes sequentially in the SAME test (same transaction). Each `setup()` creates a new change. But if a previous subTest's change still exists, it might conflict with the next one.
+
+      For example:
+      - "original_date" subTest: creates cancelled change on 2026-11-11, edits original_date → 2026-11-18. Now change1 is on 2026-11-18.
+      - "kind" subTest: creates cancelled change on 2026-11-11 (unique constraint on weekly_lesson+original_date). change1 is now on 2026-11-18, so creating a new cancelled change on 2026-11-11 for the same lesson is fine (no unique conflict). But then editing kind → room_changed new_room=room102. Does room102 conflict with change1? change1 is a cancelled change on 2026-11-18 (Wednesday slot1 room101). The new room_changed change is on 2026-11-11 slot1 room102. No overlap.
+
+      Hmm wait, but there might be conflicts accumulating. Let me think about whether the accumulating changes cause `change_conflicts` to fail.
+
+      Actually, this is getting risky. Let me use a fresh approach: for each subTest, delete all changes first (or create the change fresh and ensure no conflicts). 
+
+      Actually the spec says "start from a fresh change each time". The simplest safe approach: at the start of each subTest iteration, delete existing changes? But that's hacky.
+
+      Alternatively, use `self.addCleanup`? No, cleanup runs at end of test, not per subTest.
+
+      Hmm. Let me reconsider. Maybe I should make each field test a SEPARATE test method? No, the spec explicitly says one test method `test_each_visible_field_moves_changed_at` with subTest per field.
+
+      Let me think about whether accumulating changes cause conflicts. The key is `change_conflicts(self)` and `run_change_guards(self)`. Let me look at what these check.
+    ── Read file read
+      """Business rules for the schedule, called from mutations and admin forms."""
+
+      from collections.abc import Collection
+      from datetime import date, timedelta
+
+      from . import locking
+      from .models import ChangeKind, LessonChange, WeeklyLesson
+      from .services import occurrences_between
+
+
+      def validate_weekly_lesson(
+          *,
+          weekday: int,
+          slot: int,
+          valid_from: date,
+          valid_until: date,
+          room_id: int,
+          group_ids: Collection[int],
+          exclude_pk: int | None,
+      ) -> list[str]:
+          locking.lock_rooms_and_groups([room_id], group_ids)
+          errors: list[str] = []
+          if not group_ids:
+              errors.append("Выберите хотя бы одну группу.")
+
+          others = WeeklyLesson.objects.filter(
+              weekday=weekday,
+              slot=slot,
+              valid_from__lte=valid_until,
+              valid_until__gte=valid_from,
+          )
+          if exclude_pk is not None:
+              others = others.exclude(pk=exclude_pk)
+
+          for o in others.filter(room_id=room_id).select_related("discipline", "room"):
+              errors.append(f"Аудитория {o.room.number} уже занята в это время: {o.discipline.name}.")
+
+          for o in (
+              others.filter(groups__in=group_ids)
+              .distinct()
+              .select_related("discipline")
+              .prefetch_related("groups")
+          ):
+              for g in o.groups.all():
+                  if g.id in group_ids:
+                      errors.append(f"Группа {g.name} уже занята в это время: {o.discipline.name}.")
+
+          if exclude_pk is not None:
+              for c in LessonChange.objects.filter(weekly_lesson_id=exclude_pk):
+                  if c.original_date.weekday() != weekday or not (
+                      valid_from <= c.original_date <= valid_until
+                  ):
+                      errors.append(
+                          f"Есть изменение на {c.original_date:%d.%m.%Y}, которое не подходит к новому "
+                          "расписанию. Сначала удалите его."
+                      )
+
+          if not errors:
+              errors.extend(
+                  _occurrence_conflicts(
+                      lesson_pk=exclude_pk,
+                      weekday=weekday,
+                      slot=slot,
+                      valid_from=valid_from,
+                      valid_until=valid_until,
+                      room_id=room_id,
+                      group_ids=group_ids,
+                  )
+              )
+
+          return errors
+
+
+      def _occurrence_conflicts(
+          *,
+          lesson_pk: int | None,
+          weekday: int,
+          slot: int,
+          valid_from: date,
+          valid_until: date,
+          room_id: int,
+          group_ids: Collection[int],
+      ) -> list[str]:
+          own_changes = (
+              {
+                  c.original_date: c
+                  for c in LessonChange.objects.filter(weekly_lesson_id=lesson_pk).select_related(
+                      "new_room"
+                  )
+              }
+              if lesson_pk
+              else {}
+          )
+
+          # Proposed own occurrences P: (date, slot_number, room_id, original_date).
+          p: list[tuple[date, int, int | None, date]] = []
+          d = valid_from
+          while d <= valid_until:
+              if d.weekday() == weekday:
+                  c = own_changes.get(d)
+                  if c is None:
+                      p.append((d, slot, room_id, d))
+                  elif c.kind == ChangeKind.ROOM_CHANGED:
+                      p.append((d, slot, c.new_room_id, d))
+                  # CANCELLED or MOVED: the regular occurrence is skipped.
+              d += timedelta(days=1)
+
+          for c in own_changes.values():
+              if c.kind == ChangeKind.MOVED:
+                  p.append((c.new_date, c.new_slot, c.new_room_id or room_id, c.original_date))
+
+          if not p:
+              return []
+
+          min_date = min(entry[0] for entry in p)
+          max_date = max(entry[0] for entry in p)
+          others = [
+              i
+              for i in occurrences_between(min_date, max_date, None)
+              if i.is_happening and i.lesson.id != lesson_pk
+          ]
+          index: dict[tuple[date, int], list] = {}
+          for item in others:
+              index.setdefault((item.date, item.slot.number), []).append(item)
+
+          errors: list[str] = []
+
+          # Conflicts with other lessons' occurrences at the proposed date/slot.
+          for p_date, p_slot, p_room, _ in p:
+              for item in index.get((p_date, p_slot), []):
+                  if item.room.id == p_room:
+                      errors.append(
+                          f"{p_date:%d.%m.%Y}, {p_slot} пара: аудитория {item.room.number} занята "
+                          f"({item.lesson.discipline.name})."
+                      )
+                  for g in item.lesson.groups.all():
+                      if g.id in group_ids:
+                          errors.append(
+                              f"{p_date:%d.%m.%Y}, {p_slot} пара: группа {g.name} занята "
+                              f"({item.lesson.discipline.name})."
+                          )
+
+          # Own duplicates: the same (date, slot) proposed twice (a move onto its own slot).
+          seen: set[tuple[date, int]] = set()
+          for p_date, p_slot, _room, _orig in p:
+              key = (p_date, p_slot)
+              if key in seen:
+                  errors.append(f"{p_date:%d.%m.%Y}, {p_slot} пара: занятие стоит дважды из-за переноса.")
+              seen.add(key)
+
+          # Own ROOM_CHANGED whose new room equals the lesson's (now) room.
+          for c in own_changes.values():
+              if c.kind == ChangeKind.ROOM_CHANGED and c.new_room_id == room_id:
+                  errors.append(
+                      f"Изменение на {c.original_date:%d.%m.%Y}: новая аудитория совпадает с аудиторией "
+                      "занятия. Удалите изменение."
+                  )
+
+          deduped: list[str] = []
+          seen_set: set[str] = set()
+          for msg in errors:
+              if msg not in seen_set:
+                  seen_set.add(msg)
+                  deduped.append(msg)
+
+          if len(deduped) > 10:
+              deduped = deduped[:10] + [f"…и ещё {len(deduped) - 10} конфликтов."]
+          return deduped
+
+
+      def change_conflicts(change: LessonChange) -> list[str]:
+          if change.kind in (ChangeKind.CANCELLED, ChangeKind.TEACHER_REPLACED):
+              return []
+
+          lesson = change.weekly_lesson
+          if change.kind == ChangeKind.MOVED:
+              target_date = change.new_date
+              target_slot = change.new_slot
+          else:  # ROOM_CHANGED
+              target_date = change.original_date
+              target_slot = lesson.slot
+
+          target_room_id = change.new_room_id or lesson.room_id
+          group_ids = set(lesson.groups.values_list("id", flat=True))
+
+          locking.lock_rooms_and_groups([target_room_id], group_ids)
+
+          items = occurrences_between(target_date, target_date, None)
+          conflicts: list[str] = []
+          for item in items:
+              if not item.is_happening or item.slot.number != target_slot:
+                  continue
+              if item.lesson.id == lesson.id and item.original_date == change.original_date:
+                  continue
+              if change.pk is not None and item.change is not None and item.change.pk == change.pk:
+                  continue
+              if item.room.id == target_room_id:
+                  conflicts.append(
+                      f"Аудитория {item.room.number} занята: {item.lesson.discipline.name}, "
+                      f"{target_date:%d.%m.%Y}, {target_slot} пара."
+                  )
+              for g in item.lesson.groups.all():
+                  if g.id in group_ids:
+                      conflicts.append(
+                          f"Группа {g.name} занята: {item.lesson.discipline.name}, "
+                          f"{target_date:%d.%m.%Y}, {target_slot} пара."
+                      )
+          return conflicts
+
+
+      def restored_occurrence_conflicts(
+          change: LessonChange, prefix: str = "Нельзя удалить изменение"
+      ) -> list[str]:
+          """Conflicts when ``change`` is removed and its original occurrence becomes regular again."""
+          if change.kind == ChangeKind.TEACHER_REPLACED:
+              return []
+
+          lesson = change.weekly_lesson
+          group_ids = set(lesson.groups.values_list("id", flat=True))
+
+          locking.lock_rooms_and_groups([lesson.room_id], group_ids)
+
+          items = occurrences_between(change.original_date, change.original_date, None)
+          conflicts: list[str] = []
+          for item in items:
+              if not item.is_happening or item.slot.number != lesson.slot:
+                  continue
+              if item.lesson.id == lesson.id and item.original_date == change.original_date:
+                  continue
+              if item.room.id == lesson.room_id:
+                  conflicts.append(
+                      f"{prefix}: {change.original_date:%d.%m.%Y}, {lesson.slot} пара, "
+                      f"аудитория {item.room.number} уже занята ({item.lesson.discipline.name})."
+                  )
+              for g in item.lesson.groups.all():
+                  if g.id in group_ids:
+                      conflicts.append(
+                          f"{prefix}: {change.original_date:%d.%m.%Y}, "
+                          f"{lesson.slot} пара, группа {g.name} уже занята "
+                          f"({item.lesson.discipline.name})."
+                      )
+          return conflicts
+
+
+      def released_occurrence_errors(old: LessonChange, new: LessonChange) -> list[str]:
+          """Conflicts when an edit releases the old occurrence, and delete guards on identity change."""
+          identity_changed = (
+              old.weekly_lesson_id != new.weekly_lesson_id or old.original_date != new.original_date
+          )
+          hides = old.kind in (ChangeKind.CANCELLED, ChangeKind.MOVED, ChangeKind.ROOM_CHANGED)
+          restores = hides and (identity_changed or new.kind == ChangeKind.TEACHER_REPLACED)
+          if not restores and not identity_changed:
+              return []
+
+          rooms = {old.weekly_lesson.room_id, new.weekly_lesson.room_id, new.new_room_id}
+          groups = set(old.weekly_lesson.groups.values_list("id", flat=True)) | set(
+              new.weekly_lesson.groups.values_list("id", flat=True)
+          )
+          locking.lock_rooms_and_groups(rooms, groups)
+
+          errors: list[str] = []
+          if restores:
+              errors += restored_occurrence_conflicts(old, prefix="Нельзя так изменить запись")
+          if identity_changed:
+              from .guards import run_change_guards
+
+              errors += run_change_guards(old, deleting=True)
+          return errors
+    ── Thought for 11s
+      Key insights:
+      - `change_conflicts` returns [] for CANCELLED and TEACHER_REPLACED. So original_date, kind(cancelled→room_changed is ROOM_CHANGED, so conflict check applies), weekly_lesson (cancelled → still cancelled, returns []).
+      - For CANCELLED changes, change_conflicts returns []. So original_date edit (cancelled) → no conflict from change_conflicts, but `released_occurrence_errors` runs (identity_changed for original_date). That runs `restored_occurrence_conflicts(old)` if restores. For a cancelled change, `hides=True`, and identity_changed (original_date changed) → restores=True → runs restored_occurrence_conflicts(old). This checks if the OLD occurrence (2026-11-11 slot1 room101 group gx1) is now occupied. Since no other change/lesson occupies it, no errors.
+
+      So each field edit in isolation is fine as long as there are no OTHER changes/lessons occupying the relevant slots.
+
+      Now the accumulating concern: in `test_each_visible_field_moves_changed_at`, I create 7 changes sequentially. Let me trace whether later edits conflict with earlier changes.
+
+      Let me reconsider. Actually, a cleaner approach to avoid accumulation: each subTest should create its change AND delete it, or better, use a unique lesson/original_date combination per subTest so no unique constraint violations and no conflicts.
+
+      But the bigger concern is conflicts from earlier changes. Let me think:
+
+      Changes created (all for group gx1, lesson on weekday2):
+      1. "original_date": cancel on 2026-11-11 → edit original_date to 2026-11-18. Final: cancelled change on 2026-11-18.
+      2. "kind": cancel on 2026-11-11 → room_changed new_room=room102. Final: room_changed on 2026-11-11, new_room=room102.
+
+      Wait, but there's a UNIQUE constraint on (weekly_lesson, original_date). Change1 is now on 2026-11-18 (same weekly_lesson lesson1). Change2 on 2026-11-11. No conflict.
+
+      But wait, change2's room_changed: target_date=2026-11-11, target_slot=lesson.slot=1, target_room=room102. `change_conflicts` checks occurrences on 2026-11-11 slot1. Change1 is on 2026-11-18, so not relevant. room102 free on 2026-11-11 slot1. OK.
+
+      3. "new_room": base room_changed on 2026-11-11 new_room=room102 → edit new_room=room103. But wait, change2 is ALSO a room_changed on 2026-11-11 (weekly_lesson=lesson1)! Unique constraint (weekly_lesson, original_date) → can't create a second change for lesson1 on 2026-11-11.
+
+      This is the problem. The base `_room_change()` creates a room_changed for lesson1 on 2026-11-11, but change2 already occupies (lesson1, 2026-11-11).
+
+      So I need to use DIFFERENT original_dates for each subTest to avoid unique constraint collisions.
+
+      Hmm. Let me reconsider. Actually, the spec says "start from a fresh change each time". Maybe I should delete prior changes, or use distinct dates.
+
+      Let me use distinct original_dates (and distinct lessons where needed) for each subTest. The lesson has weekday=2 (Wednesday). Valid dates are Wednesdays between 2026-09-01 and 2026-12-31.
+
+      Wednesdays in Nov 2026: 2026-11-04, 2026-11-11, 2026-11-18, 2026-11-25.
+
+      Let me assign distinct original_dates per subTest to avoid unique constraints:
+      1. original_date edit: cancel on 2026-11-04 → 2026-11-11 (wait, but then "kind" uses 2026-11-11...). Let me be systematic.
+
+      Actually, a simpler and cleaner approach: for each subTest, create the change, do the edit, assert, then `LessonChange.objects.all().delete()` to clean up before the next subTest. But delete may fail due to guards? `delete()` on the model directly (not `delete_lesson_change`) just deletes via QuerySet.delete(), bypassing guards. So `LessonChange.objects.all().delete()` is safe and clean.
+
+      Wait, but the spec says "start from a fresh change each time". Using `.delete()` between subTests is a reasonable implementation. But it's a bit unusual. However it guarantees isolation.
+
+      Actually, let me reconsider — is there a simpler clean approach? I could just use a distinct original_date for each subTest and a distinct lesson where the field is weekly_lesson.
+
+      Actually, the cleanest robust approach: wrap each subTest to create fresh change and delete all changes after. But deleting in the middle is fine since each subTest is independent.
+
+      Hmm, but actually there's another subtlety. Let me reconsider the simplest approach that matches "start from a fresh change each time": 
+
+      For each subTest, I can just delete all LessonChange rows at the START (clean slate), create the fresh base change, edit, assert. This is clean.
+
+      Let me do:
+      ```python
+      for label, setup, mutate in cases:
+          with self.subTest(field=label):
+              LessonChange.objects.all().delete()
+              change = setup()
+              ...
+      ```
+
+      Wait, but there could be a subtle issue: `save_lesson_change`'s `full_clean` → `change_conflicts` calls `occurrences_between` which looks at lessons (not changes) for conflicts, plus changes. If I delete all changes before each subTest, then no cross-change conflicts. 
+
+      Let me verify each setup is valid on a clean slate:
+
+      1. `_cancel()`: cancel lesson1 on 2026-11-11. change_conflicts returns [] (cancelled). guards? `run_change_guards(self, deleting=False)`. Let me check guards.py to see if a cancelled change needs a guard.
+    ── Read file read
+      """Change guard registry: lets other apps veto schedule changes without schedule importing them."""
+
+      from collections.abc import Callable
+      from typing import TYPE_CHECKING
+
+      if TYPE_CHECKING:
+          from .models import LessonChange
+
+      ChangeGuard = Callable[["LessonChange", bool], list[str]]
+
+      _guards: list[ChangeGuard] = []
+
+
+      def register_change_guard(guard: ChangeGuard) -> None:
+          """Append ``guard`` if it is not already registered (idempotent)."""
+          if guard not in _guards:
+              _guards.append(guard)
+
+
+      def run_change_guards(change: "LessonChange", *, deleting: bool) -> list[str]:
+          """Run all registered guards in registration order and concatenate their messages."""
+          errors: list[str] = []
+          for guard in _guards:
+              errors.extend(guard(change, deleting))
+          return errors
+    ── Thought for 470ms
+      Guards are registered by other apps (like petitions or attendance). Let me check what guards are registered, since they might veto certain changes.
+    ── Searched grep
+      Found 25 matches
+      ~/hackatonproject/academics/apps.py:
+        Line 10:         from schedule.guards import register_change_guard
+
+        Line 14:         register_change_guard(attendance_change_guard)
+
+
+      ~/hackatonproject/academics/tests/test_change_guard.py:
+        Line 244:         guards.register_change_guard(guard)
+
+        Line 246:             guards.register_change_guard(guard)
+
+
+      ~/hackatonproject/schedule/guards.py:
+        Line 14: def register_change_guard(guard: ChangeGuard) -> None:
+
+
+      ~/hackatonproject/docs/process/dialogs/04-reviewer.md:
+        Line 4478: 3. Guard registry (AC4): `schedule/guards.py` (`register_change_guard`, `run_change_guards`). `schedule` never mentions `academics` (grep on non-test schedule/*.py is empty).
+
+
+      ~/hackatonproject/docs/process/dialogs/02-planner.md:
+        Line 5914:     +def register_change_guard(guard: ChangeGuard) -> None
+
+        Line 5917:     +- `register_change_guard`: append if not already present (idempotent; `ready()` may run more than once in tests).
+
+        Line 5945:     +- `AcademicsConfig.ready()`: `from schedule.guards import register_change_guard`; `from .services import attendance_change_guard`; `register_change_guard(attendance_change_guard)`.
+
+
+      ~/hackatonproject/docs/process/dialogs/03-coder-deepseek.md:
+        Line 20264:       def register_change_guard(guard: ChangeGuard) -> None
+
+        Line 20267:       - `register_change_guard`: append if not already present (idempotent; `ready()` may run more than once in tests).
+
+        Line 20295:       - `AcademicsConfig.ready()`: `from schedule.guards import register_change_guard`; `from .services import attendance_change_guard`; `register_change_guard(attendance_change_guard)`.
+
+        Line 22655:       But there's the guard registration: `register_change_guard` from schedule.guards. academics.apps.ready() calls it. That's fine.
+
+        Line 23529:       +        from schedule.guards import register_change_guard
+
+        Line 23533:       +        register_change_guard(attendance_change_guard)
+
+        Line 24103:               guards.register_change_guard(guard)
+
+        Line 24105:                   guards.register_change_guard(guard)
+
+        Line 27049:     ── Ran cd ~/hackatonproject && bb thread tell thr_cpuae9aqw3 --message-file - <<'EOF' [TASK-005-FIX] Coder -> Reviewer: REPORT Spec: docs/tasks/TASK-005-FIX.md (approved). All AC1-AC7 implemented; section 9 passes. ## What was done (item -> implementation) 1. Deletion validation (AC1): `schedule/validation.restored_occurrence_conflicts` (locks via `locking.lock_rooms_and_groups`, skips TEACHER_REPLACED, checks the restored original occurrence for room/group collisions); `schedule/mutations.delete_lesson_change` runs conflicts + guards inside `transaction.atomic()` and raises ValidationError. 2. Admin (AC2): `LessonChangeAdmin.delete_model` -> `delete_lesson_change`; `delete_view` wraps super() in atomic and catches ValidationError -> admin ERROR message + redirect to the change page (never 500); `get_actions` removes `delete_selected`. 3. Guard registry (AC4): `schedule/guards.py` (`register_change_guard`, `run_change_guards`). `schedule` never mentions `academics` (grep on non-test schedule/*.py is empty). 4. Attendance guard (AC3): `academics.services.attendance_change_guard` registered in `AcademicsConfig.ready()`; rejects CANCELLED with attendance, MOVED to future with attendance, and (delete path) MOVED back to a future date with attendance — non-field errors mentioning «отметки посещения». 5. Clock (AC5/AC6): `core/testing.FrozenClockMixin` + `moscow()`; applied to all test classes in 5.6; `scripts/run_tests_at.py`; CI step at 2027-03-01T12:00:00; `test_clock_boundaries.py` (MoscowMidnightTests) covers mark/result/attendance future checks, today-view date, unmarked counter, machine-tz independence, seed at midnight. 6. README (AC7): "Known limitations" section + `run_tests_at` line in Test & lint. ## Test count 364 -> **397** (33 new: 13 delete + 13 guard + 7 clock boundaries). ## Regression tests confirmed failing BEFORE the fix - `ScheduleViewsTests.test_week_shows_only_own_group` under `run_tests_at.py 2027-03-01T12:00:00` -> 1 failure before the mixin ...
+        Line 27058:     3. Guard registry (AC4): `schedule/guards.py` (`register_change_guard`, `run_change_guards`). `schedule` never mentions `academics` (grep on non-test schedule/*.py is empty).
+
+        Line 28310:               guards.register_change_guard(guard)
+
+        Line 28312:                   guards.register_change_guard(guard)
+
+        Line 29472:   - `schedule/guards.py`: `register_change_guard`, `run_change_guards`.
+
+
+      ~/hackatonproject/docs/tasks/TASK-005-FIX.md:
+        Line 80: def register_change_guard(guard: ChangeGuard) -> None
+
+        Line 83: - `register_change_guard`: append if not already present (idempotent; `ready()` may run more than once in tests).
+
+        Line 112: - `AcademicsConfig.ready()`: `from schedule.guards import register_change_guard`; `from .services import attendance_change_guard`; `register_change_guard(attendance_change_guard)`.
+    ── Searched grep
+      Found 1 matches
+      ~/hackatonproject/academics/services.py:
+        Line 292: def attendance_change_guard(change: LessonChange, deleting: bool) -> list[str]:
+    ── Read file read
+      def attendance_change_guard(change: LessonChange, deleting: bool) -> list[str]:
+          """Reject changes that would hide existing attendance records.
+
+          Registered via schedule.guards so that the schedule app never imports academics.
+          """
+          if change.weekly_lesson_id is None or change.original_date is None:
+              return []
+          count = Attendance.objects.filter(
+              weekly_lesson_id=change.weekly_lesson_id, original_date=change.original_date
+          ).count()
+          if count == 0:
+              return []
+          today = timezone.localdate()
+          d = f"{change.original_date:%d.%m.%Y}"
+          if not deleting:
+              if change.kind == ChangeKind.CANCELLED:
+                  return [
+                      f"Нельзя отменить занятие {d}: есть отметки посещения ({count}). "
+                      "Сначала удалите их."
+                  ]
+              effective = change.new_date if change.kind == ChangeKind.MOVED else change.original_date
+              if effective is not None and effective > today:
+                  if change.kind == ChangeKind.MOVED:
+                      return [
+                          f"Нельзя перенести занятие {d} на будущую дату: есть отметки посещения "
+                          f"({count}). Сначала удалите их."
+                      ]
+                  return [
+                      f"Нельзя сохранить изменение занятия {d}: занятие окажется в будущем, "
+                      f"а отметки посещения ({count}) уже есть. Сначала удалите их."
+                  ]
+          else:
+              if change.kind == ChangeKind.MOVED and change.original_date > today:
+                  return [
+                      f"Нельзя удалить перенос занятия {d}: занятие вернётся на будущую дату, "
+                      f"а отметки посещения ({count}) уже есть. Сначала удалите их."
+                  ]
+          return []
+    ── Thought for 10s
+      The attendance guard only fires if there are Attendance records for the lesson on original_date. In my tests, no attendance records exist, so the guard returns []. Good.
+
+      So with no attendance and no cross-conflicts, all my edits are valid.
+
+      Now let me finalize the approach. I'll use `LessonChange.objects.all().delete()` at the start of each subTest iteration for cleanliness. Actually wait — there's a subtlety: `make_lesson` for `second` and `teacher2` and `room103` need to be created in setUpTestData (or in the test). Let me put them in setUpTestData.
+
+      Let me now also think about `_moved_change`: moved change new_date=2026-11-12 (Thursday), new_slot=3. change_conflicts for MOVED: target_date=new_date=2026-11-12, target_slot=new_slot=3, target_room=lesson.room_id=room101. `occurrences_between(2026-11-12, 2026-11-12)`. The lesson1 is weekday=2 (Wednesday), so no regular occurrence on Thursday 2026-11-12. But wait, is there another lesson for group gx1 on Thursday slot3? No, only lesson1 (weekday2 slot1). So no conflict. Good.
+
+      But `change_conflicts` for MOVED checks target. new_slot=3. No lesson occupies. OK.
+
+      For the new_date edit → 2026-11-13 (Friday). Still no conflict. new_slot edit → 4. No conflict.
+
+      Now, the `_moved_change` base: new_date=2026-11-12, new_slot=3. But wait — `full_clean` also checks the MOVED kind rules: `new_date` and `new_slot` required. Both set. Good. Also "Новое время совпадает со старым" check: (new_date, new_slot) == (original_date, lesson.slot) → (2026-11-12, 3) != (2026-11-11, 1). OK.
+
+      For the new_date edit: change new_date to 2026-11-13, keep new_slot=3. Valid. (new_date, new_slot) = (2026-11-13, 3) != (2026-11-11, 1). OK.
+
+      For new_slot edit: change new_slot to 4, keep new_date=2026-11-12. Valid.
+
+      Now for `_teacher_change`: teacher_replaced with new_teacher=self.teacher ("Замена"). Lesson1's teacher is auto-generated (make_teacher("Преподаватель N")). So new_teacher != lesson.teacher. Valid. change_conflicts returns [] (TEACHER_REPLACED). Good. Then edit new_teacher → teacher2 ("Замена2"). Valid.
+
+      For `_room_change`: room_changed new_room=room102. lesson.room=room101. new_room != lesson.room. Valid. change_conflicts for ROOM_CHANGED: target_date=original_date=2026-11-11, target_slot=lesson.slot=1, target_room=room102. occurrences on 2026-11-11 slot1: lesson1 occurrence (but it's the same lesson, and item.lesson.id == lesson.id and item.original_date == change.original_date → skipped). Also room102 — no other lesson. So no conflict. Good. Then edit new_room → room103.
+
+      Now `_cancel` base: cancelled on 2026-11-11. change_conflicts []. Valid.
+
+      For "original_date" edit: cancel → original_date=2026-11-18. `released_occurrence_errors`: old original_date=2026-11-11, new=2026-11-18. identity_changed=True, hides=True (cancelled), restores = hides and (identity_changed or ...) = True. So runs restored_occurrence_conflicts(old): checks 2026-11-11 slot1 room101 group gx1. No other lesson/change. No errors. And run_change_guards(old, deleting=True) → attendance guard: no attendance → []. Good.
+
+      For "weekly_lesson" edit: cancel lesson1 → lesson2. identity_changed=True (weekly_lesson changed). restores=True (cancelled hides). restored_occurrence_conflicts(old): old lesson1 on 2026-11-11 slot1 room101 group gx1. No conflicts. run_change_guards(old, deleting=True) → no attendance → []. Good. New change on lesson2 (weekday2 slot2 room102) original_date=2026-11-11 (Wednesday, weekday2 ✓). change_conflicts for CANCELLED → []. Good.
+
+      Wait, but lesson2 has weekday=2 slot=2. original_date 2026-11-11 is Wednesday (weekday=2). So clean() checks original_date.weekday() == lesson2.weekday → 2==2 ✓. valid_from/until ✓.
+
+      So all edits are valid.
+
+      Now let me also handle: `_moved_change` uses new_date=2026-11-12. But wait, does `change_conflicts` for MOVED need new_room? MOVED's new_room is optional. target_room = new_room_id or lesson.room_id = room101. OK.
+
+      Now, one more consideration: the `second` lesson (for weekly_lesson edit) and `teacher2`, `room103` need to be created. Let me create them in setUpTestData.
+
+      Actually, `make_room("room-103")` → floor=1, number="103". Valid.
+
+      Now let me write the test file.
+
+      Also I need to import things. Let me look at what's imported in a similar schedule test (test_change_edit.py already shown). I'll mirror imports.
+
+      For the migration test, I need `MigrationExecutor`, `TransactionTestCase`, historical models. Let me write that carefully.
+
+      Let me look at how other tests use MigrationExecutor, if any exist.
+    ── Searched grep
+      Found 2 matches
+      ~/hackatonproject/docs/process/dialogs/02-planner.md:
+        Line 9006:     I'm leaving out a migration backfill test since it would need MigrationExecutor and is heavy for this case, so I'll verify that step by hand. For the LessonChange edit case, I'll check that a change saved after the original seen time comes back as new: I'll patch timezone.now to a later moment for the save, then call student_context with that later time explicitly.
+
+
+      ~/hackatonproject/docs/tasks/TASK-013-FIX.md:
+        Line 224:   - `test_copies_updated_at`: `executor = MigrationExecutor(connection)`; `executor.migrate([("schedule", "0005_lessonchange_reason_optional")])`; `apps = executor.loader.project_state([("schedule", "0005_lessonchange_reason_optional")]).apps`; create with historical models `university.Room` (`code="room-101", floor=1, number="101"`), `university.Teacher` (`last_name="T", first_name="I"`), `university.Discipline` (`name="D", short_name="D"`), `schedule.WeeklyLesson` (`weekday=2, slot=1, discipline, lesson_type="lecture", teacher, room, valid_from=date(2026, 9, 1), valid_until=date(2026, 12, 31)`) and two `schedule.LessonChange` rows (cancelled on 2026-11-11 and 2026-11-18); set their `updated_at` with `.filter(pk=…).update(updated_at=moscow("2026-11-10 09:30"))` and `moscow("2026-11-10 15:00")`. Then a NEW `MigrationExecutor(connection)` migrates to `[("schedule", "0006_lessonchange_changed_at")]`; with `executor.loader.project_state(...).apps` read the rows: `changed_at == updated_at` for both. In `tearDown` (or `addCleanup` registered first): `executor = MigrationExecutor(connection); executor.loader.build_graph(); executor.migrate(executor.loader.graph.leaf_nodes())` so later tests see the full schema. This keeps the unread state: unread is `event_field > seen_until`, and the value of the event field is the same before (`updated_at`) and after (`changed_at`).
+    ── Thought for 15s
+      No existing migration tests. I need to write `ChangedAtMigrationTests(TransactionTestCase)`. Let me carefully write it per the spec.
+
+      Key details:
+      - `executor = MigrationExecutor(connection)` — need `from django.db import connection`, `from django.db.migrations.executor import MigrationExecutor`.
+      - migrate to 0005.
+      - Create historical models via `apps = executor.loader.project_state([("schedule", "0005_lessonchange_reason_optional")]).apps`.
+      - Historical models: `university.Room`, `university.Teacher`, `university.Discipline`, `schedule.WeeklyLesson`, `schedule.LessonChange`.
+
+      Note: the historical models at 0005 don't have `changed_at` field yet. LessonChange at 0005 has: weekly_lesson, original_date, kind, new_date, new_slot, new_room, new_teacher, reason, created_at, updated_at, seed_key. 
+
+      The WeeklyLesson historical model needs: weekday, slot, discipline, lesson_type, teacher, room, groups (m2m - can skip), valid_from, valid_until, seed_key.
+
+      Creating LessonChange requires: weekly_lesson (FK), original_date, kind, reason (optional now after 0005), created_at (auto_now_add, but with historical model it might have default), updated_at (auto_now).
+
+      Actually, historical models have `auto_now_add` fields with default=timezone.now, so I don't need to set created_at/updated_at explicitly. But then I override updated_at via `.update()`.
+
+      Let me write the migration test:
+
+      ```python
+      from datetime import date
+
+      from django.db import connection
+      from django.db.migrations.executor import MigrationExecutor
+      from django.test import TransactionTestCase
+
+      from core.testing import moscow
+
+
+      class ChangedAtMigrationTests(TransactionTestCase):
+          def test_copies_updated_at(self):
+              executor = MigrationExecutor(connection)
+              executor.migrate([("schedule", "0005_lessonchange_reason_optional")])
+              apps = executor.loader.project_state([("schedule", "0005_lessonchange_reason_optional")]).apps
+
+              Room = apps.get_model("university", "Room")
+              Teacher = apps.get_model("university", "Teacher")
+              Discipline = apps.get_model("university", "Discipline")
+              WeeklyLesson = apps.get_model("schedule", "WeeklyLesson")
+              LessonChange = apps.get_model("schedule", "LessonChange")
+
+              room = Room.objects.create(code="room-101", floor=1, number="101")
+              teacher = Teacher.objects.create(last_name="T", first_name="I")
+              discipline = Discipline.objects.create(name="D", short_name="D")
+              lesson = WeeklyLesson.objects.create(
+                  weekday=2,
+                  slot=1,
+                  discipline=discipline,
+                  lesson_type="lecture",
+                  teacher=teacher,
+                  room=room,
+                  valid_from=date(2026, 9, 1),
+                  valid_until=date(2026, 12, 31),
+              )
+              c1 = LessonChange.objects.create(
+                  weekly_lesson=lesson,
+                  original_date=date(2026, 11, 11),
+                  kind="cancelled",
+                  reason="Причина",
+              )
+              c2 = LessonChange.objects.create(
+                  weekly_lesson=lesson,
+                  original_date=date(2026, 11, 18),
+                  kind="cancelled",
+                  reason="Причина",
+              )
+              LessonChange.objects.filter(pk=c1.pk).update(updated_at=moscow("2026-11-10 09:30"))
+              LessonChange.objects.filter(pk=c2.pk).update(updated_at=moscow("2026-11-10 15:00"))
+
+              executor2 = MigrationExecutor(connection)
+              executor2.migrate([("schedule", "0006_lessonchange_changed_at")])
+              apps2 = executor2.loader.project_state([("schedule", "0006_lessonchange_changed_at")]).apps
+              LessonChange2 = apps2.get_model("schedule", "LessonChange")
+
+              for pk, expected in (
+                  (c1.pk, moscow("2026-11-10 09:30")),
+                  (c2.pk, moscow("2026-11-10 15:00")),
+              ):
+                  row = LessonChange2.objects.get(pk=pk)
+                  self.assertEqual(row.changed_at, row.updated_at)
+                  self.assertEqual(row.changed_at, expected)
+
+              # restore full schema for later tests
+              executor3 = MigrationExecutor(connection)
+              executor3.loader.build_graph()
+              executor3.migrate(executor3.loader.graph.leaf_nodes())
+      ```
+
+      But wait, `TransactionTestCase` — the spec says use `tearDown` or `addCleanup` registered FIRST. Since TransactionTestCase doesn't wrap in a transaction (it truncates tables after each test), I should restore the full schema. Actually, the issue: after migrating to 0006 in this test, the schema is at 0006. But other tests in the same class (only one test here) run after. And after this class, other test classes expect the full schema (latest migration).
+
+      The concern: when the test runner flushes the database for TransactionTestCase, it uses the current schema. If I leave it at 0006 (which is the latest anyway, since 0006 IS the latest migration), then it's fine. But wait — is 0006 the latest? Yes, it's the newest. So `leaf_nodes()` would include 0006. So migrating to leaf_nodes is a no-op essentially.
+
+      But actually, the issue is more subtle: TransactionTestCase resets the DB by truncating tables at the START of each test (based on the schema at that point). Actually, Django's TransactionTestCase truncates tables before each test using the current database schema. Since the DB is migrated to 0006 at the end, and 0006 is the latest, subsequent tests (which use the normal test runner setup with `migrate` to latest) should be fine.
+
+      Actually, the standard Django test runner runs `migrate` once at the beginning (to latest = 0006). But my TransactionTestCase's test does its OWN migration dance: first migrate DOWN to 0005, then create data, then migrate UP to 0006. If I don't restore, the DB is left at 0006 (which happens to be the latest), so it's fine.
+
+      But to be safe and follow the spec, I'll add the cleanup to migrate to leaf_nodes. But `addCleanup` registered FIRST means the cleanup runs LAST (cleanups run LIFO). The spec says "In tearDown (or addCleanup registered first)". Let me use addCleanup registered at the very start of the test:
+
+      ```python
+      def test_copies_updated_at(self):
+          def restore():
+              executor = MigrationExecutor(connection)
+              executor.loader.build_graph()
+              executor.migrate(executor.loader.graph.leaf_nodes())
+          self.addCleanup(restore)
+          ...
+      ```
+
+      Wait, but there's a subtlety with TransactionTestCase: the test runner, at the END of the test, also tries to flush tables for the NEXT test. If the schema is at 0006 (latest), flushing works. But the cleanup restores to leaf_nodes (0006), which is the same.
+
+      Actually, there might be a deeper issue. Let me think about whether the migration test even needs TransactionTestCase vs TestCase. TransactionTestCase is needed because MigrationExecutor uses schema_editor and does raw SQL that doesn't play well with TestCase's transaction wrapping. So TransactionTestCase is correct.
+
+      Let me also consider: does `MigrationExecutor.migrate` inside a TransactionTestCase cause the test runner's truncation to have issues? This is a known pattern and works. I'll follow the spec exactly.
+
+      Now, the historical model at 0005 — does `LessonChange` have a `kind` field with choices? At 0005, kind is CharField with choices. The value "cancelled" is the raw value. Good.
+
+      Also, does the historical WeeklyLesson model require `groups` m2m? No, groups is a ManyToManyField, optional. Creating without groups is fine.
+
+      Also `seed_key` on WeeklyLesson and LessonChange has default="" and editable=False, so not required.
+
+      Let me also verify: `LessonChange` at 0005 has `created_at` auto_now_add and `updated_at` auto_now. When using `objects.create()`, Django's historical model save will set auto_now_add/auto_now. But then `.filter(pk=...).update(updated_at=...)` overrides updated_at. Good.
+
+      Now, the model has a unique constraint `schedule_change_one_per_occurrence` on (weekly_lesson, original_date). c1 on 2026-11-11, c2 on 2026-11-18 — distinct. Good.
+
+      Also `schedule_change_unique_seed_key` unique on seed_key where seed_key != "". Both have seed_key="" (default). So the condition `~Q(seed_key="")` excludes empty seed_key, so no conflict. Good.
+
+      Now let me write everything.
+
+      Let me also double check the `moscow` import and `FrozenClockMixin`.
+
+      Now for the README. Let me find the relevant sections.
+
+      Let me first write the schedule test file.
+
+      Let me also decide on imports for test_changed_at.py:
+      - `from datetime import date, timedelta`
+      - `from unittest import mock`
+      - `from django.db import connection`
+      - `from django.db.migrations.executor import MigrationExecutor`
+      - `from django.test import TestCase, TransactionTestCase`
+      - `from django.urls import reverse`
+      - `from core.testing import FrozenClockMixin, moscow`
+      - `from notifications.tests.helpers import make_world` (for make_world) — wait, make_world is in notifications/tests/helpers.py. But it's a notification helper. The spec uses make_world for the ChangedAtTests (setUpTestData: make_world()). Let me import from notifications.tests.helpers.
+
+      Actually, wait — is it appropriate for schedule tests to import from notifications.tests.helpers? The spec says `setUpTestData`: `make_world()`. And `make_world` is defined in notifications/tests/helpers.py. Let me check if there's another make_world elsewhere. The test_change_edit.py uses make_faculty/make_group from accounts directly. But the spec explicitly says make_world().
+
+      Let me check if make_world exists in a more neutral place.
+    ── Searched for def make_world
+    ── Searched grep
+      Found 5 matches
+      ~/hackatonproject/notifications/tests/helpers.py:
+        Line 46: def make_world() -> SimpleNamespace:
+
+
+      ~/hackatonproject/docs/process/dialogs/05-ui-coder.md:
+        Line 4674:   ── Searched for def make_world in notifications/tests/helpers.py
+
+
+      ~/hackatonproject/docs/process/dialogs/03-coder-deepseek.md:
+        Line 46457:       def make_world() -> SimpleNamespace:
+
+        Line 59828:       def make_world() -> SimpleNamespace:
+
+        Line 68891:       def make_world() -> SimpleNamespace:
+    ── Thought for 19s
+      Only in notifications/tests/helpers.py. So schedule/tests/test_changed_at.py will import make_world from notifications.tests.helpers. That's a cross-app test import, which is fine (test helpers can cross).
+
+      Actually, let me check whether schedule tests already import from notifications anywhere, or vice versa. The spec explicitly says use `make_world()` and `make_lesson`, `make_room`, `make_teacher` (which are in schedule.tests.helpers). `make_world` is in notifications.tests.helpers.
+
+      So imports for test_changed_at.py:
+      ```python
+      from notifications.tests.helpers import make_world
+      from schedule.tests.helpers import make_lesson, make_room, make_teacher
+      ```
+
+      Now, let me write the full test file.
+
+      For the admin tests, I need `force_login` with superuser. `self.w.root` is the superuser from make_world.
+
+      Let me also check the admin change form field names. For the change form POST, the fields are: weekly_lesson, original_date, kind, new_date, new_slot, new_room, new_teacher, reason. Plus possibly other admin fields. Let me check the admin change form - the spec's test_admin_reason_only_keeps_changed_at lists these exact fields, so I'll use them.
+
+      For `test_admin_shows_changed_at_readonly`: GET the change page, assert 200, no input named changed_at, page contains "Изменение для студентов".
+
+      Let me check: Django admin readonly field `changed_at` with verbose_name "изменение для студентов". In the admin change form, readonly fields are displayed as `<div class="readonly">Изменение для студентов</div>` with the label. The label would be "Изменение для студентов" (capitalized first letter). The spec says "the page contains the label 'Изменение для студентов' (Django capitalises the verbose name)".
+
+      Actually, the readonly field label in admin is rendered via `field.label` which is the verbose_name capitalized? Let me think. The model field `changed_at` has verbose_name "изменение для студентов". In the admin, `get_fields` returns fields, and the label is `capfirst(verbose_name)` = "Изменение для студентов". So `assertContains(response, "Изменение для студентов")`.
+
+      And "the form has no input named changed_at" → assert there's no `<input ... name="changed_at"`.
+
+      Let me write it using `assertNotContains(response, 'name="changed_at"')`.
+
+      Actually, a cleaner check: `response.context["adminform"].form.fields` doesn't contain changed_at (it's readonly, so not in the form fields). But simpler to check the HTML.
+
+      Let me use:
+      ```python
+      def test_admin_shows_changed_at_readonly(self):
+          change = self._cancel()
+          self.client.force_login(self.w.root)
+          response = self.client.get(reverse("admin:schedule_lessonchange_change", args=[change.pk]))
+          self.assertEqual(response.status_code, 200)
+          self.assertNotContains(response, 'name="changed_at"')
+          self.assertContains(response, "Изменение для студентов")
+      ```
+
+      Now for the `_cancel` helper and the fields. Let me define in ChangedAtTests:
+
+      ```python
+      class ChangedAtTests(FrozenClockMixin, TestCase):
+          frozen_now = "2026-11-11 12:00"
+
+          @classmethod
+          def setUpTestData(cls):
+              cls.w = make_world()
+              cls.room101 = make_room("room-101")
+              cls.room102 = make_room("room-102")
+              cls.room103 = make_room("room-103")
+              cls.teacher = make_teacher("Замена")
+              cls.teacher2 = make_teacher("Замена2")
+              cls.lesson = make_lesson([cls.w.gx1], weekday=2, slot=1, room=cls.room101)
+              cls.lesson2 = make_lesson([cls.w.gx1], weekday=2, slot=2, room=cls.room102)
+              cls.T0 = moscow("2026-11-11 12:00")
+              cls.T1 = cls.T0 + timedelta(hours=1)
+
+          def _cancel(self):
+              return save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=self.lesson,
+                      original_date=date(2026, 11, 11),
+                      kind=ChangeKind.CANCELLED,
+                      reason="Причина",
+                  )
+              )
+
+          def _room_change(self):
+              return save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=self.lesson,
+                      original_date=date(2026, 11, 11),
+                      kind=ChangeKind.ROOM_CHANGED,
+                      new_room=self.room102,
+                      reason="Причина",
+                  )
+              )
+
+          def _teacher_change(self):
+              return save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=self.lesson,
+                      original_date=date(2026, 11, 11),
+                      kind=ChangeKind.TEACHER_REPLACED,
+                      new_teacher=self.teacher,
+                      reason="Причина",
+                  )
+              )
+
+          def _moved_change(self):
+              return save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=self.lesson,
+                      original_date=date(2026, 11, 11),
+                      kind=ChangeKind.MOVED,
+                      new_date=date(2026, 11, 12),
+                      new_slot=3,
+                      reason="Причина",
+                  )
+              )
+      ```
+
+      Now the tests:
+
+      test_insert_sets_changed_at:
+      ```python
+      def test_insert_sets_changed_at(self):
+          change = self._cancel()
+          self.assertEqual(change.changed_at, self.T0)
+          # second lesson date via objects.create
+          change2 = LessonChange.objects.create(
+              weekly_lesson=self.lesson,
+              original_date=date(2026, 11, 18),
+              kind=ChangeKind.CANCELLED,
+              reason="Причина",
+          )
+          self.assertEqual(change2.changed_at, self.T0)
+      ```
+
+      Wait — `LessonChange.objects.create` bypasses `full_clean` but DOES call `save()`. So `changed_at` set via save(). Good. And no unique conflict since 2026-11-18 differs from 2026-11-11.
+
+      But wait — `objects.create` doesn't run guards/conflicts (that's only in full_clean). So no issue with creating a cancelled change directly.
+
+      test_reason_only_keeps_changed_at:
+      ```python
+      def test_reason_only_keeps_changed_at(self):
+          change = self._cancel()
+          with mock.patch("django.utils.timezone.now", return_value=self.T1):
+              change.reason = "Новая причина"
+              save_lesson_change(change)
+          change.refresh_from_db()
+          self.assertEqual(change.reason, "Новая причина")
+          self.assertEqual(change.changed_at, self.T0)
+      ```
+
+      test_updated_at_still_moves:
+      ```python
+      def test_updated_at_still_moves(self):
+          change = self._cancel()
+          with mock.patch("django.utils.timezone.now", return_value=self.T1):
+              change.reason = "Новая причина"
+              save_lesson_change(change)
+          change.refresh_from_db()
+          self.assertEqual(change.updated_at, self.T1)
+      ```
+
+      test_each_visible_field_moves_changed_at (as above).
+
+      test_update_fields_includes_changed_at:
+      ```python
+      def test_update_fields_includes_changed_at(self):
+          change = self._cancel()
+          with mock.patch("django.utils.timezone.now", return_value=self.T1):
+              change.original_date = date(2026, 11, 18)
+              change.save(update_fields=["original_date"])
+          change.refresh_from_db()
+          self.assertEqual(change.changed_at, self.T1)
+
+          with mock.patch("django.utils.timezone.now", return_value=self.T1 + timedelta(hours=1)):
+              change.reason = "X"
+              change.save(update_fields=["reason"])
+          change.refresh_from_db()
+          self.assertEqual(change.changed_at, self.T1)
+      ```
+
+      Wait, careful: `change.save(update_fields=["original_date"])` — this calls `save()` directly (not `save_lesson_change`), so it bypasses full_clean and guards. That's fine per spec (it's testing the save() update_fields path). The `_student_visible_change()` reads stored values and sees original_date changed → sets changed_at and adds "changed_at" to update_fields. Good.
+
+      But note: changing original_date via direct `.save()` skips the unique constraint check? No — the unique constraint is a DB-level constraint, so it would still be enforced by the DB. But since 2026-11-18 is free, no violation.
+
+      Actually wait, there's a subtle issue: `change.save(update_fields=["original_date"])` where original_date changed from 2026-11-11 to 2026-11-18. The `save()` adds "changed_at" to update_fields (via the mutable set). Then super().save() updates original_date and changed_at. Good.
+
+      But then `change.refresh_from_db()` — reloads. changed_at == T1. Good.
+
+      Then the reason-only update: `change.save(update_fields=["reason"])`. `_student_visible_change()`: reads stored visible fields (original_date now 2026-11-18, etc.). Compares: no visible change (only reason). Returns False. So changed_at stays T1. update_fields not modified. Good.
+
+      test_admin_reason_only_keeps_changed_at:
+      ```python
+      def test_admin_reason_only_keeps_changed_at(self):
+          change = self._cancel()
+          self.client.force_login(self.w.root)
+          with mock.patch("django.utils.timezone.now", return_value=self.T1):
+              response = self.client.post(
+                  reverse("admin:schedule_lessonchange_change", args=[change.pk]),
+                  {
+                      "weekly_lesson": self.lesson.pk,
+                      "original_date": "2026-11-11",
+                      "kind": "cancelled",
+                      "new_date": "",
+                      "new_slot": "",
+                      "new_room": "",
+                      "new_teacher": "",
+                      "reason": "Из админки",
+                  },
+              )
+          self.assertEqual(response.status_code, 302)
+          change.refresh_from_db()
+          self.assertEqual(change.reason, "Из админки")
+          self.assertEqual(change.changed_at, self.T0)
+      ```
+
+      test_admin_visible_edit_moves_changed_at:
+      ```python
+      def test_admin_visible_edit_moves_changed_at(self):
+          change = self._cancel()
+          self.client.force_login(self.w.root)
+          with mock.patch("django.utils.timezone.now", return_value=self.T1):
+              response = self.client.post(
+                  reverse("admin:schedule_lessonchange_change", args=[change.pk]),
+                  {
+                      "weekly_lesson": self.lesson.pk,
+                      "original_date": "2026-11-18",
+                      "kind": "cancelled",
+                      "new_date": "",
+                      "new_slot": "",
+                      "new_room": "",
+                      "new_teacher": "",
+                      "reason": "Причина",
+                  },
+              )
+          self.assertEqual(response.status_code, 302)
+          change.refresh_from_db()
+          self.assertEqual(change.changed_at, self.T1)
+      ```
+
+      Wait, but the admin save_model calls `obj.save()` after `form.save()`. Actually the admin `ModelAdmin.save_model(request, obj, form, change)` calls `obj.save()`. But before that, `form.full_clean()` is called during form validation, which validates the fields. The admin form is a ModelForm, so `full_clean` on the form validates the model's `clean()`? Actually, ModelForm validation calls `instance.full_clean()` (via `_post_clean` → `instance.full_clean(exclude=...)`). So the guards/conflicts run during form validation.
+
+      For the visible edit (original_date → 2026-11-18), `released_occurrence_errors` runs, no conflict (no other changes). So it passes. Good.
+
+      But wait — there's a subtlety about `original_date` change in admin: the admin form's `original_date` field is a DateField. The POST value "2026-11-18" is parsed. Good.
+
+      Now, the reason-only admin edit: `original_date` stays "2026-11-11". No visible change. So changed_at stays T0. Good.
+
+      Now let me also double check: does the admin change form POST require `seed_key` or other fields? seed_key is readonly + editable=False, so not required. `created_at`/`updated_at`/`changed_at` are auto/readonly, not required. So the form only needs weekly_lesson, original_date, kind (required) and reason (optional). new_date/new_slot/new_room/new_teacher optional. Good.
+
+      But wait, there might be an issue: the admin form might also render a `groups`-related field? No, LessonChange has no groups field.
+
+      Let me verify the existing admin add test in test_feed.py (test_admin_lesson_change_appears) posts only weekly_lesson, original_date, kind, reason and gets 302. So the change form should also work with the full field set.
+
+      Now let me write everything. Let me write the test_changed_at.py file.
+
+      One more thing: the `make_lesson` with `discipline` auto-created. For `lesson2`, `make_lesson([cls.w.gx1], weekday=2, slot=2, room=cls.room102)` — creates a discipline "Дисциплина N" and teacher "Преподаватель N" automatically. Good.
+
+      But wait — will `lesson2` (weekday=2 slot=2) conflict with `lesson` (weekday=2 slot=1)? No, different slots. And `validate_weekly_lesson` checks room conflicts: lesson is room101 slot1, lesson2 is room102 slot2. No conflict.
+
+      Now let me also think: in `setUpTestData`, creating `lesson` and `lesson2` for the same group gx1. `save_weekly_lesson` runs validate_weekly_lesson which checks group conflicts: lesson1 weekday2 slot1, lesson2 weekday2 slot2 — different slots, no group conflict. Good.
+
+      Let me write the file now.
+
+      Actually, I realize I should double-check the `make_room` floor for room-103: code "room-103" → number "103", floor = int(number[0]) = int("1") = 1. Good. room-101 → floor 1, room-102 → floor 1.
+
+      Now, writing the test file.
+    ── Created schedule/tests/test_changed_at.py
+    ── Thought for 311ms
+      Now update the existing test `test_edited_change_is_new_again` in test_feed.py, and add the new tests.
+
+      Let me update the existing test first.
+    ── Edited notifications/tests/test_feed.py +65 -1
+      --- a~/hackatonproject/notifications/tests/test_feed.py
+      +++ b~/hackatonproject/notifications/tests/test_feed.py
+      +        # TASK-013-FIX: a visible edit (new date) makes the change new; a
+      +        # reason-only edit does not, see test_reason_only_edit_stays_read.
+      -            change.reason = "Новая причина"
+      +            change.original_date = D + timedelta(days=7)
+      +
+      +    def test_reason_only_edit_stays_read(self):
+      +        lesson = self._lesson()
+      +        change = save_lesson_change(
+      +            LessonChange(
+      +                weekly_lesson=lesson, original_date=D, kind=ChangeKind.CANCELLED, reason="Причина"
+      +            )
+      +        )
+      +        t = moscow(NOW)
+      +        set_seen(self.w.ax, t)
+      +        with mock.patch("django.utils.timezone.now", return_value=t + timedelta(hours=1)):
+      +            change.reason = "Новая причина"
+      +            save_lesson_change(change)
+      +        ctx = _ctx(self.w.ax, now=t + timedelta(hours=2))
+      +        self.assertEqual(unread_count(ctx), 0)
+      +        item = next(i for i in build_feed(ctx) if i.key == f"lesson-change-{change.pk}")
+      +        self.assertFalse(ctx.is_new(item.timestamp))
+      +
+      +    def test_admin_reason_only_edit_stays_read(self):
+      +        lesson = self._lesson()
+      +        change = save_lesson_change(
+      +            LessonChange(
+      +                weekly_lesson=lesson, original_date=D, kind=ChangeKind.CANCELLED, reason="Причина"
+      +            )
+      +        )
+      +        t = moscow(NOW)
+      +        set_seen(self.w.ax, t)
+      +        self.client.force_login(self.w.root)
+      +        with mock.patch("django.utils.timezone.now", return_value=t + timedelta(hours=1)):
+      +            response = self.client.post(
+      +                reverse("admin:schedule_lessonchange_change", args=[change.pk]),
+      +                {
+      +                    "weekly_lesson": lesson.pk,
+      +                    "original_date": "2026-11-11",
+      +                    "kind": "cancelled",
+      +                    "new_date": "",
+      +                    "new_slot": "",
+      +                    "new_room": "",
+      +                    "new_teacher": "",
+      +                    "reason": "Из админки",
+      +                },
+      +            )
+      +        self.assertEqual(response.status_code, 302)
+      +        ctx = _ctx(self.w.ax, now=t + timedelta(hours=2))
+      +        self.assertEqual(unread_count(ctx), 0)
+      +
+      +    def test_item_timestamp_is_changed_at(self):
+      +        lesson = self._lesson()
+      +        change = save_lesson_change(
+      +            LessonChange(
+      +                weekly_lesson=lesson, original_date=D, kind=ChangeKind.CANCELLED, reason="Причина"
+      +            )
+      +        )
+      +        t = moscow(NOW)
+      +        with mock.patch("django.utils.timezone.now", return_value=t + timedelta(hours=1)):
+      +            change.reason = "Новая причина"
+      +            save_lesson_change(change)
+      +        change.refresh_from_db()
+      +        ctx = _ctx(self.w.ax, now=t + timedelta(hours=2))
+      +        item = next(i for i in build_feed(ctx) if i.key == f"lesson-change-{change.pk}")
+      +        self.assertEqual(item.timestamp, change.changed_at)
+      +        self.assertNotEqual(item.timestamp, change.updated_at)
+    ── Thought for 6s
+      Now update core/tests/test_storage.py to add the new tests.
+
+      The spec:
+      - `test_test_runner_uses_temp_dir`: unchanged (already exists).
+      - New `test_env_points_to_temp_dir`: `os.environ["PRIVATE_MEDIA_ROOT"] == str(settings.PRIVATE_MEDIA_ROOT)`.
+      - New `test_fresh_process_gets_temp_dir`: subprocess with sys.executable.
+      - New `test_runner_restores_env` (SimpleTestCase).
+
+      Let me add these. I need to add imports: os, sys, subprocess, and DiscoverRunner, and mock.
+
+      Let me read the current imports (already shown above). Need to add `import os`, `import sys`, `import subprocess`, `from unittest import mock`, `from django.test.runner import DiscoverRunner`, and `from core.test_runner import ProjectTestRunner`.
+
+      Actually, the spec's test_runner_restores_env mocks `DiscoverRunner.setup_test_environment` and `DiscoverRunner.teardown_test_environment`, so I need `from django.test.runner import DiscoverRunner` and `from core.test_runner import ProjectTestRunner`.
+
+      Let me write the additions.
+
+      test_env_points_to_temp_dir:
+      ```python
+      def test_env_points_to_temp_dir(self):
+          self.assertEqual(os.environ["PRIVATE_MEDIA_ROOT"], str(settings.PRIVATE_MEDIA_ROOT))
+      ```
+
+      test_fresh_process_gets_temp_dir:
+      ```python
+      def test_fresh_process_gets_temp_dir(self):
+          result = subprocess.run(
+              [
+                  sys.executable,
+                  "-c",
+                  "import django; django.setup(); from django.conf import settings; "
+                  "print(settings.PRIVATE_MEDIA_ROOT)",
+              ],
+              cwd=settings.BASE_DIR,
+              env={**os.environ, "DJANGO_SETTINGS_MODULE": "config.settings"},
+              capture_output=True,
+              text=True,
+              check=True,
+              timeout=60,
+          )
+          self.assertEqual(result.stdout.strip(), str(settings.PRIVATE_MEDIA_ROOT))
+      ```
+
+      But subprocess with sys.executable triggers S603/S607? `sys.executable` is a full path (variable), so no S607. S603 (subprocess without shell) — actually S603 is "subprocess call with shell=True" detection. Without shell, S603 might not fire. Wait, earlier S603 fired on `subprocess.run([bash, "-c", script])`. Hmm, S603 is actually "subprocess call - check for execution of untrusted input". Let me check: bandit S603 is "subprocess_without_shell_equals_true" — no wait. Let me recall: 
+      - S602: subprocess with shell=True
+      - S603: subprocess without shell=True? No.
+
+      Actually, bandit rules:
+      - B602 (S602): subprocess_popen_with_shell_equals_true — flag shell=True
+      - B603 (S603): subprocess_without_shell_equals_true — flag when shell is NOT set (defaults to False) but a command is built from parts? Actually B603 "subprocess_without_shell_equals_true" flags `subprocess.run([...])` without shell because it might be a false sense of security.
+
+      Hmm, actually in the earlier test, S603 was flagged on `subprocess.run([bash, "-c", script])` without shell. So S603 flags ANY subprocess.run call. I'll need `# noqa: S603` here too.
+
+      But wait — does the existing test_storage.py or other tests use subprocess with noqa? Let me check if there's an existing pattern. The `test_fresh_process_gets_temp_dir` uses subprocess.run. I'll add `# noqa: S603` and also S607 for `sys.executable`? sys.executable is a full path, ruff won't flag S607 (it only flags string literals). So just S603.
+
+      Actually wait, let me reconsider. Let me check if ruff flags S603 for subprocess.run([sys.executable, ...]). The earlier case `subprocess.run([bash, "-c", script])` got S603. So yes, any subprocess.run gets S603 unless there's a reason. I'll add noqa.
+
+      Actually, let me look at whether the project's ruff config might disable S603. Let me check existing subprocess usage in tests.
+    ── Searched grep
+      Found 41 matches
+      ~/hackatonproject/docs/process/dialogs/02-planner.md:
+        Line 15690:     +  - `test_deploy_check_passes_with_example_values`: build `env = {"PATH": os.environ["PATH"], **example_values}` (no other variables); `subprocess.run([sys.executable, "manage.py", "check", "--deploy", "--fail-level", "WARNING"], cwd=BASE_DIR, env=env, capture_output=True, text=True, timeout=120)` → return code 0 and «System check identified no issues» in stdout. (`environ.Env.read_env` never overrides variables that are already set, so a developer `.env` cannot change the result — django-environ 0.14 `read_env(overwrite=False)` uses `setdefault`.)
+
+
+      ~/hackatonproject/docs/tasks/TASK-011.md:
+        Line 390:   - `test_deploy_check_passes_with_example_values`: build `env = {"PATH": os.environ["PATH"], **example_values}` (no other variables); `subprocess.run([sys.executable, "manage.py", "check", "--deploy", "--fail-level", "WARNING"], cwd=BASE_DIR, env=env, capture_output=True, text=True, timeout=120)` → return code 0 and «System check identified no issues» in stdout. (`environ.Env.read_env` never overrides variables that are already set, so a developer `.env` cannot change the result — django-environ 0.14 `read_env(overwrite=False)` uses `setdefault`.)
+
+
+      ~/hackatonproject/docs/process/dialogs/03-coder-deepseek.md:
+        Line 80664:       - `subprocess.run([sys.executable, "manage.py", "check", "--deploy", "--fail-level", "WARNING"], cwd=BASE_DIR, env=env, capture_output=True, text=True, timeout=120)` → return code 0 and «System check identified no issues» in stdout.
+
+        Line 80690:       Actually, the test passes `env={"PATH": ..., **example_values}` with NO DJANGO_SETTINGS_MODULE. manage.py does `os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")`. But wait, manage.py reads `os.environ` at import time. When we subprocess.run with a fresh env, the child's os.environ is exactly `env`. manage.py sets DJANGO_SETTINGS_MODULE via setdefault. Good.
+
+        Line 80964:           result = subprocess.run(
+
+        Line 81321:       265 |         result = subprocess.run(
+
+        Line 81343:       2. There's another error above (S... at line 265 `subprocess.run`) — let me see the full error. The output shows line 263-267 and mentions something at 265. Let me see the full output.
+
+        Line 81353:       265 |         result = subprocess.run(
+
+        Line 81373:       1. S603 subprocess call (untrusted input) on `subprocess.run([bash, ...])`. I need to add `# noqa: S603` to that line.
+
+        Line 81376:       There's also the `subprocess.run` in `test_deploy_check_passes_with_example_values` — let me check if it also triggers S603. The command is `[sys.executable, "manage.py", ...]` — that's trusted input (sys.executable). But ruff's S603 flags any subprocess call without shell=True? Actually S603 is "subprocess call with shell=True or untrusted input". Hmm, actually S603 is `subprocess-without-shell-equals-true`? Let me recall: bandit's S603 is "subprocess call - check for execution of untrusted input". It flags `subprocess.run`, `subprocess.Popen`, `subprocess.call`, etc. when the first argument could be untrusted. But with a list where the first element is a variable (`bash` or `sys.executable`), it might still flag.
+
+        Line 81378:       Actually, the test_deploy_check one uses `[sys.executable, ...]` where sys.executable is a known value. Ruff S603 may or may not flag it. Let me check — the error only showed line 265 (the bash one). The `test_deploy_check_passes_with_example_values` subprocess.run is at a different line and wasn't flagged? Let me check if it was. The output only showed 2 errors: line 265 (S603) and line 345 (S104). So the `sys.executable` one at ~line 210 wasn't flagged? 
+
+        Line 81380:       Actually, ruff's S603 flags subprocess calls where the executable is not a literal string. `sys.executable` — hmm. Let me look: bandit S603 flags `subprocess.Popen(...)` etc. always (it's a warning to review). But ruff's implementation: S603 is emitted when subprocess is called with a command that isn't a literal. Actually, ruff's S603 has specific behavior: it flags subprocess calls unless the command is a known-safe literal.
+
+        Line 81382:       Wait, the test_deploy one uses `subprocess.run([sys.executable, "manage.py", ...])`. `sys.executable` is not a literal string. So why wasn't it flagged? 
+
+        Line 81390:       subprocess.run(
+
+        Line 81397:       Wait, let me reconsider. Maybe ruff S603 is only triggered for `subprocess.Popen`, `subprocess.call`, `subprocess.check_call`, `subprocess.check_output`, `subprocess.run` when the command is a SINGLE STRING (shell-like), not a list. With a list, ruff considers it "safe" (no shell injection) unless... Actually no.
+
+        Line 81401:       Regardless, I need to add `# noqa: S603` to the bash subprocess.run line. And `# noqa: S104` to the 0.0.0.0 line.
+
+        Line 81407:       For the bash subprocess, I'll add `# noqa: S603` on the `subprocess.run(` line or the statement. ruff allows `# noqa` on the same line. Let me add it to line 265.
+
+        Line 81409:       Actually, let me restructure to make it cleaner. The `result = subprocess.run(` line. I'll add `# noqa: S603`.
+
+        Line 81415:       -        result = subprocess.run(
+
+        Line 81416:       +        result = subprocess.run(  # noqa: S603
+
+        Line 82623:       Actually, running sed via bash with env vars is cleanest. But I can also just do the sed in Python using `subprocess.run(["bash", "-c", script])`.
+
+        Line 82723:       result = subprocess.run(["bash", "-c", script], env=env, capture_output=True, text=True)
+
+        Line 82772:           result = subprocess.run(["bash", "-c", script], env=env, capture_output=True, text=True)
+
+        Line 83183:           result = subprocess.run(
+
+        Line 83225:       Actually wait, let me trace the Python string construction more carefully. `STEP10_SED_EXPRS[0] = "s/example\\.com/$DOMAIN/g"`. In Python, `"\\."` is a single backslash followed by dot, i.e., the string value is `s/example\.com/$DOMAIN/g`. Then `f'-e "{expr}"'` = `-e "s/example\.com/$DOMAIN/g"`. This is what goes into the `script` string. Then `subprocess.run(["bash", "-c", script])` passes the script to bash. Bash sees `-e "s/example\.com/$DOMAIN/g"` and inside double quotes, `\.` → `\.` (backslash preserved), `$DOMAIN` → expanded. So sed gets `s/example\.com/deanery.example.org/g`. 
+
+        Line 83406:       +        result = subprocess.run(  # noqa: S603
+
+        Line 83487:       423 |         result = subprocess.run(  # noqa: S603
+
+        Line 83506:       Actually, cleaner to use shutil.which. But the existing test_bash_syntax uses `bash = shutil.which("bash")` and passes `[bash, ...]` — wait, that also would trigger S607? Let me check — no, `bash` is a variable holding the full path from shutil.which. But ruff's S607 checks for partial paths (no `/`). `shutil.which("bash")` returns `/bin/bash` (full path), but ruff can't know that statically... actually ruff does understand `shutil.which` returns a full path? Hmm. Actually, the existing test_bash_syntax with `subprocess.run([bash, "-n", ...])` where `bash = shutil.which("bash")` — did it pass ruff earlier? Yes, it passed (only S603 was flagged, which I suppressed with noqa). So ruff's S607 didn't flag `bash` variable because... hmm, actually maybe ruff doesn't flag variables, only string literals.
+
+        Line 83518:       -        result = subprocess.run(  # noqa: S603
+
+        Line 83519:       +        result = subprocess.run(  # noqa: S603, S607
+
+        Line 83540:       423 |         result = subprocess.run(  # noqa: S603, S607
+
+        Line 83549:       The noqa comment is on the `subprocess.run(` line (line 423), but the S607 violation is reported on line 424 (the `["bash", ...]` line). The noqa comment must be on the same line as the violation. The S607 is flagged on the argument line, not the `subprocess.run(` line.
+
+        Line 83551:       Actually, ruff reports the S607 on line 424 (the `["bash", ...]` line), but S603 is on line 423 (the `The noqa comment is on line 423 (the `subprocess.run(` line), but the S607 error is reported on line 424 (the `["bash", ...]` line). The noqa must be on the line where the error is reported. Actually, ruff reports S607 on line 424 (the argument list). The `# noqa` is on line 423.
+
+        Line 83567:           result = subprocess.run(
+
+        Line 83572:       But wait, does ruff still flag S603 for `subprocess.run([bash, ...])`? In the existing test_bash_syntax, `subprocess.run([bash, "-n", ...])` was flagged S603 (I added noqa S603). So S603 would still be flagged. And S607 — for a variable `bash`, ruff doesn't flag S607 (it only flags literal partial paths).
+
+        Line 83583:       -        result = subprocess.run(  # noqa: S603, S607
+
+        Line 83585:       +        result = subprocess.run(  # noqa: S603
+
+
+      ~/hackatonproject/core/tests/test_deploy.py:
+        Line 226:         result = subprocess.run(
+
+        Line 285:         result = subprocess.run(  # noqa: S603
+
+        Line 426:         result = subprocess.run(  # noqa: S603
+
+
+      ~/hackatonproject/docs/tasks/TASK-013-FIX.md:
+        Line 235: - New `test_fresh_process_gets_temp_dir` (simulates a spawned worker): `subprocess.run([sys.executable, "-c", "import django; django.setup(); from django.conf import settings; print(settings.PRIVATE_MEDIA_ROOT)"], cwd=settings.BASE_DIR, env={**os.environ, "DJANGO_SETTINGS_MODULE": "config.settings"}, capture_output=True, text=True, check=True, timeout=60)`; `stdout.strip() == str(settings.PRIVATE_MEDIA_ROOT)`. (Fails on the old runner: the child falls back to `<project>/private_media` or to `.env`.)
+    ── Thought for 611ms
+      Let me look at how test_deploy.py line 226 handles subprocess.run([sys.executable, ...]) — does it have noqa?
+    ── Read file read
+      self.assertTrue(origin.startswith("https://"))
+              self.assertEqual(values["SECURE_HSTS_PRELOAD"], "false")
+              self.assertEqual(values["GUNICORN_WORKERS"], "2")
+
+          def test_deploy_check_passes_with_example_values(self):
+              env = {"PATH": os.environ["PATH"], **_example_values()}
+              result = subprocess.run(
+                  [sys.executable, "manage.py", "check", "--deploy", "--fail-level", "WARNING"],
+                  cwd=str(BASE_DIR),
+                  env=env,
+                  capture_output=True,
+                  text=True,
+                  timeout=120,
+              )
+              self.assertEqual(result.returncode, 0, result.stderr)
+              self.assertIn("System check identified no issues", result.stdout)
+    ── Thought for 16s
+      So `subprocess.run([sys.executable, ...])` does NOT trigger S603 (no noqa needed). The earlier bash case triggered S603 because the executable was "bash" (a shell-ish thing?). Actually, the difference: S603 (bandit "subprocess_without_shell_equals_true") is triggered for `subprocess.run` when... hmm, but this sys.executable case doesn't have noqa and passes ruff.
+
+      Wait, actually let me reconsider. The earlier S603 was on `subprocess.run([bash, "-c", script])`. The difference might be that S603 is triggered when `-c` flag / shell command string is used? No.
+
+      Actually, bandit S603 "subprocess_without_shell_equals_true" is flagged when the first argument is not a literal string but a variable/list — but then why doesn't `[sys.executable, ...]` trigger it?
+
+      Hmm. Let me look more carefully. Actually, ruff's S603 has a specific rule: it flags subprocess calls when the command includes a "shell-like" element, OR always for certain functions.
+
+      Actually, I recall now: ruff S603 is "subprocess_without_shell_equals_true" which flags `subprocess.run(...)`, `subprocess.Popen(...)`, etc. when `shell` is not set to True (i.e., the default False) AND there's no `check`? No...
+
+      Let me just not overthink. The existing `test_deploy_check_passes_with_example_values` uses `subprocess.run([sys.executable, ...])` WITHOUT noqa and ruff passes (the whole file `ruff check .` passed earlier). So my `test_fresh_process_gets_temp_dir` using `subprocess.run([sys.executable, "-c", ...])` should also not trigger S603.
+
+      Wait, but actually maybe the difference is `-c` vs the command. The bash one had `["bash", "-c", script]` — a shell with `-c` and a script string. ruff S603 might specifically flag `-c` shell invocations. My sys.executable `-c "import django; ..."` also uses `-c`! That might trigger S603.
+
+      Hmm. Actually, let me reconsider what S603 really is. From bandit docs:
+      - B602 (S602): subprocess_popen_with_shell_equals_true
+      - B603 (S603): subprocess_without_shell_equals_true — "Consider possible security implications associated with the subprocess module."
+
+      B603 flags `subprocess.call/check_call/check_output/run/Popen` when `shell=False` (default). Actually no — B603 flags when shell is NOT specified (defaults False) and the args could be a list. Hmm.
+
+      Actually, I found it. In bandit, B603 flags subprocess usage where the command is passed as a list but without `shell=True` — this is actually the SAFE way, and B603 is more of a "consider" warning. Wait no.
+
+      Let me just test empirically. I'll write the test with no noqa first, run ruff, and add noqa if needed.
+
+      Actually, let me look at how the bash test in test_deploy.py line 426 looks and whether sys.executable at 226 is truly unflagged. Both files pass `ruff check .` currently. So line 226 (sys.executable) is NOT flagged, and line 426 (bash -c) IS flagged (has noqa). The difference: line 285 and 426 use `bash`/`shutil.which("bash")`. Line 285 is `subprocess.run([bash, "-n", ...])` with noqa. So it's the `bash` variable (or `-c`) that triggers.
+
+      Actually, the real difference: S607 is "partial executable path" — triggered by "bash" literal. And S603 is "subprocess with untrusted input" — triggered when... 
+
+      OK let me just be empirical. Let me write test_fresh_process_gets_temp_dir with subprocess.run([sys.executable, "-c", ...]) and run ruff, and fix whatever comes up.
+
+      Now let me write the test_storage.py additions.
+
+      For test_runner_restores_env, I need:
+      ```python
+      def test_runner_restores_env(self):
+          with mock.patch.object(DiscoverRunner, "setup_test_environment"), mock.patch.object(
+              DiscoverRunner, "teardown_test_environment"
+          ), mock.patch.dict(os.environ, {"PRIVATE_MEDIA_ROOT": "/old/value"}):
+              runner = ProjectTestRunner()
+              runner.setup_test_environment()
+              self.assertEqual(os.environ["PRIVATE_MEDIA_ROOT"], runner._private_dir)
+              self.assertTrue(Path(runner._private_dir).is_dir())
+              self.assertEqual(settings.PRIVATE_MEDIA_ROOT, Path(runner._private_dir))
+              runner.teardown_test_environment()
+              self.assertEqual(os.environ["PRIVATE_MEDIA_ROOT"], "/old/value")
+              self.assertFalse(Path(runner._private_dir).exists())
+              self.assertEqual(settings.PRIVATE_MEDIA_ROOT, <outer test-run value>)
+      ```
+
+      Wait, the spec says: "assert `settings.PRIVATE_MEDIA_ROOT` is back to the outer test-run value." So after teardown, settings.PRIVATE_MEDIA_ROOT should be restored to whatever the outer test environment set it to (the temp dir from the actual test run).
+
+      But there's a subtlety: `ProjectTestRunner.setup_test_environment` calls `super().setup_test_environment()` which is mocked (no-op), then sets up its own `_private_dir`, `_old_private_env`, env var, and `override_settings` enabled. Then `teardown_test_environment` disables the override, restores env, rmtree, then calls `super().teardown_test_environment()` (mocked no-op).
+
+      So after `runner.setup_test_environment()`, `settings.PRIVATE_MEDIA_ROOT` becomes `Path(runner._private_dir)` (override active). After teardown, the override is disabled, restoring the OUTER value.
+
+      The "outer test-run value" is whatever `settings.PRIVATE_MEDIA_ROOT` was BEFORE this test's setup — which is the value set by the real test runner's own `setup_test_environment` (the real temp dir). So I should capture `outer = settings.PRIVATE_MEDIA_ROOT` before, and assert it's restored after.
+
+      But wait — there's a subtlety. This is a `SimpleTestCase`. The real test runner already called `ProjectTestRunner.setup_test_environment()` at the start of the whole suite, so `settings.PRIVATE_MEDIA_ROOT` is the real temp dir, and `os.environ["PRIVATE_MEDIA_ROOT"]` is also the real temp dir. But this test mocks `patch.dict(os.environ, {"PRIVATE_MEDIA_ROOT": "/old/value"})` to simulate an outer shell that already exported the var.
+
+      So:
+      ```python
+      def test_runner_restores_env(self):
+          outer = settings.PRIVATE_MEDIA_ROOT
+          with mock.patch.object(DiscoverRunner, "setup_test_environment"), mock.patch.object(
+              DiscoverRunner, "teardown_test_environment"
+          ), mock.patch.dict(os.environ, {"PRIVATE_MEDIA_ROOT": "/old/value"}):
+              runner = ProjectTestRunner()
+              runner.setup_test_environment()
+              self.assertEqual(os.environ["PRIVATE_MEDIA_ROOT"], runner._private_dir)
+              self.assertTrue(Path(runner._private_dir).is_dir())
+              self.assertEqual(settings.PRIVATE_MEDIA_ROOT, Path(runner._private_dir))
+              runner.teardown_test_environment()
+              self.assertEqual(os.environ["PRIVATE_MEDIA_ROOT"], "/old/value")
+              self.assertFalse(Path(runner._private_dir).exists())
+              self.assertEqual(settings.PRIVATE_MEDIA_ROOT, outer)
+      ```
+
+      Second case: variable removed:
+      ```python
+          # second case: variable absent from os.environ before setup
+          with mock.patch.object(DiscoverRunner, "setup_test_environment"), mock.patch.object(
+              DiscoverRunner, "teardown_test_environment"
+          ), mock.patch.dict(os.environ, {}, clear=False):
+              os.environ.pop("PRIVATE_MEDIA_ROOT", None)
+              runner = ProjectTestRunner()
+              runner.setup_test_environment()
+              self.assertEqual(os.environ["PRIVATE_MEDIA_ROOT"], runner._private_dir)
+              runner.teardown_test_environment()
+              self.assertNotIn("PRIVATE_MEDIA_ROOT", os.environ)
+      ```
+
+      Wait, but `mock.patch.dict(os.environ, {}, clear=False)` with clear=False just patches with empty dict (no changes), but then `os.environ.pop("PRIVATE_MEDIA_ROOT", None)` removes it. Then after teardown of the `with`, patch.dict restores the original os.environ (including the original PRIVATE_MEDIA_ROOT).
+
+      Actually, the spec says: "Second case: with the variable removed from os.environ (mock.patch.dict(os.environ, clear=False) + os.environ.pop(...) inside), after teardown the variable is absent."
+
+      So the flow: patch.dict with clear=False (a no-op patch, but gives us the context manager for restoration), then inside, pop the var. Then setup → env var set to _private_dir. teardown → since _old_private_env is None (var was absent), pop it → absent. Assert absent.
+
+      But there's a subtlety: after the first case, `settings.PRIVATE_MEDIA_ROOT` is restored to `outer`. But `os.environ["PRIVATE_MEDIA_ROOT"]` — the outer test run set it to the real temp dir. After the first `with` block exits, patch.dict restores os.environ to its original (real temp dir value). Good.
+
+      Then the second case pops it, runs setup/teardown, asserts absent. Then exits the with, patch.dict restores.
+
+      This is getting a bit intricate but matches the spec. Let me also make sure the second case asserts `settings.PRIVATE_MEDIA_ROOT` back to outer.
+
+      Let me write a helper to avoid duplication, but the spec describes two explicit cases. I'll write them inline.
+
+      Actually, to keep it clean, let me write a single test method with two parts as the spec describes.
+
+      Let me now write the full additions to test_storage.py.
+
+      Let me also double-check: `override_settings` in the runner is `override_settings(PRIVATE_MEDIA_ROOT=Path(self._private_dir))`. In the test, after `runner.setup_test_environment()`, `settings.PRIVATE_MEDIA_ROOT == Path(runner._private_dir)`. Good.
+
+      Now the import for mock and subprocess and os and sys.
+
+      Let me write.
+    ── Edited core/tests/test_storage.py +6
+      --- a~/hackatonproject/core/tests/test_storage.py
+      +++ b~/hackatonproject/core/tests/test_storage.py
+      +import os
+      +import subprocess
+      +import sys
+      +from unittest import mock
+      +from django.test.runner import DiscoverRunner
+      +from core.test_runner import ProjectTestRunner
+    ── Edited core/tests/test_storage.py +46
+      --- a~/hackatonproject/core/tests/test_storage.py
+      +++ b~/hackatonproject/core/tests/test_storage.py
+      +
+      +    def test_env_points_to_temp_dir(self):
+      +        self.assertEqual(os.environ["PRIVATE_MEDIA_ROOT"], str(settings.PRIVATE_MEDIA_ROOT))
+      +
+      +    def test_fresh_process_gets_temp_dir(self):
+      +        result = subprocess.run(
+      +            [
+      +                sys.executable,
+      +                "-c",
+      +                "import django; django.setup(); from django.conf import settings; "
+      +                "print(settings.PRIVATE_MEDIA_ROOT)",
+      +            ],
+      +            cwd=settings.BASE_DIR,
+      +            env={**os.environ, "DJANGO_SETTINGS_MODULE": "config.settings"},
+      +            capture_output=True,
+      +            text=True,
+      +            check=True,
+      +            timeout=60,
+      +        )
+      +        self.assertEqual(result.stdout.strip(), str(settings.PRIVATE_MEDIA_ROOT))
+      +
+      +    def test_runner_restores_env(self):
+      +        outer = settings.PRIVATE_MEDIA_ROOT
+      +        with mock.patch.object(DiscoverRunner, "setup_test_environment"), mock.patch.object(
+      +            DiscoverRunner, "teardown_test_environment"
+      +        ), mock.patch.dict(os.environ, {"PRIVATE_MEDIA_ROOT": "/old/value"}):
+      +            runner = ProjectTestRunner()
+      +            runner.setup_test_environment()
+      +            self.assertEqual(os.environ["PRIVATE_MEDIA_ROOT"], runner._private_dir)
+      +            self.assertTrue(Path(runner._private_dir).is_dir())
+      +            self.assertEqual(settings.PRIVATE_MEDIA_ROOT, Path(runner._private_dir))
+      +            runner.teardown_test_environment()
+      +            self.assertEqual(os.environ["PRIVATE_MEDIA_ROOT"], "/old/value")
+      +            self.assertFalse(Path(runner._private_dir).exists())
+      +            self.assertEqual(settings.PRIVATE_MEDIA_ROOT, outer)
+      +
+      +        with mock.patch.object(DiscoverRunner, "setup_test_environment"), mock.patch.object(
+      +            DiscoverRunner, "teardown_test_environment"
+      +        ), mock.patch.dict(os.environ, {}, clear=False):
+      +            os.environ.pop("PRIVATE_MEDIA_ROOT", None)
+      +            runner = ProjectTestRunner()
+      +            runner.setup_test_environment()
+      +            self.assertEqual(os.environ["PRIVATE_MEDIA_ROOT"], runner._private_dir)
+      +            runner.teardown_test_environment()
+      +            self.assertNotIn("PRIVATE_MEDIA_ROOT", os.environ)
+      +            self.assertEqual(settings.PRIVATE_MEDIA_ROOT, outer)
+    ── Thought for 437ms
+      Now README sentences. Let me find the relevant sections.
+    ── Searched grep
+      Found 100 matches (more matches available)
+      ~/hackatonproject/README.md:
+        Line 28: ## Test & lint
+
+        Line 123: ## Notifications
+
+        Line 234: - Grades and lesson changes appear in the feed by the time they were recorded;
+
+
+      ~/hackatonproject/.claude/agents/planner.md:
+        Line 52: ## Test plan
+
+
+      ~/hackatonproject/.claude/agents/reviewer.md:
+        Line 30: ## Test proposals
+
+
+      ~/hackatonproject/.bb/AGENTS.md:
+        Line 49: ## Test runs
+
+
+      ~/hackatonproject/plan.md:
+        Line 34: | 5 | Уведомления | Новости деканата, дедлайны, изменения | Да |
+
+        Line 96: | TASK-007 | Уведомления: новости, дедлайны, личные изменения; объявления сотрудника; сводка на главной | Готово |
+
+        Line 105: | TASK-013 | Карта: план без складов, 2 лестницы, все аудитории у коридора (кроме 211), туалеты М/Ж; подсветка, рамки, список аудиторий; без причин изменений в расписании; поле PDF, меню на 1024 px, полоса прокрутки (исполнитель — Кодер интерфейса) | Готово |
+
+        Line 106: | TASK-013-FIX | Правка только причины изменения занятия не делает его «Новым»; тесты с `--parallel` не пишут файлы в папку проекта (исполнитель — Кодер на DeepSeek) | В работе |
+
+        Line 111: Сейчас: TASK-013 (карта, без причин изменений, мелкие правки) закрыта 18.11, пункты 1–2 TASK-012-FIX вошли в неё. TASK-013-FIX в работе (Кодер на DeepSeek). После неё — TASK-013-FIX2 (Кодер интерфейса): план этажа на широком экране должен помещаться на экран. Деплой ждёт исправления сервера у хостинга (консоль 504, SSH не отвечает без VPN; пользователь написал в поддержку 3 раза). Код на GitHub, CI зелёный.
+
+        Line 115: - `seed_demo` удаляет свои демо-изменения расписания массово, в обход проверки удаления. Возможный конфликт команда ловит сразу и останавливается с ошибкой.
+
+        Line 117: - После миграции `schedule/0004` в уже существующей базе старые изменения расписания один раз показываются как «Новое». На сервере база новая.
+
+        Line 140: - 18.11.2026: TASK-013 по замечаниям пользователя: склады убрать (они в подвале), 2 лестницы друг над другом, гардероб у входа (не в столовой), охрана меньше, каждая аудитория выходит в коридор (кроме 211), по одному туалету на этаж М/Ж через этаж; причины изменений расписания не показывать; подпись коридора не нужна; тонкая пиксельная полоса прокрутки, исчезающая без JavaScript; пункты 1–2 TASK-012-FIX — в этой же задаче, пункт 3 принят как есть.
+
+
+      ~/hackatonproject/CHANGELOG.md:
+        Line 1: # История изменений
+
+        Line 3: Формат: одна запись на задачу или изменение настройки. Новые записи сверху.
+
+        Line 6: ### TASK-013: новые планы этажей, без причин изменений, мелкие правки оформления
+
+        Line 32: - CI: новое задание `test-postgres` (PostgreSQL 16) — блокировки при одновременных изменениях работают только на PostgreSQL.
+
+        Line 82: - Время заявок, статусов, комментариев и вложений берётся из общих часов проекта (`core/clock.py`): тесты с подменённым временем видят правильное время. Миграция `petitions/0002` без изменения данных.
+
+        Line 83: - Приняты как ограничения (записаны в `plan.md`): разовая пометка «Новое» у старых изменений расписания после миграции; ссылка с главной на новость вне ленты.
+
+        Line 88: - Личная лента студента без отдельного хранения: собирается из существующих записей — новости, статусы заявок и комментарии сотрудников, изменения расписания группы на 14 дней вперёд, новые оценки. Каждая запись ведёт на свою страницу.
+
+        Line 92: - У текущих оценок и итоговых результатов появилось время создания, у изменений расписания — время изменения (миграции с заполнением старых записей).
+
+        Line 112: - Одновременные изменения: смена статуса проходит только если статус не изменился с момента просмотра; иначе «Заявка уже изменена, обновите страницу».
+
+        Line 119: - В роль Кодера добавлено: форматировать только файлы задачи; список файлов и папок, которые трогать нельзя (`docs/`, `.bb/`, `.claude/`, `.opencode/`, `plan.md`, `CHANGELOG.md`, `README.md` без указания в спецификации, `.env`, `db.sqlite3`); проверки базы — только на временной базе; перед отчётом сверять `git status` со спецификацией и сообщать о лишних изменениях.
+
+        Line 122: - Удаление изменения расписания проверяется: нельзя удалить отмену или перенос, если вернувшееся занятие столкнётся с другим по аудитории или группе. Массовое удаление изменений в админке отключено.
+
+        Line 123: - Редактирование изменения расписания проверяется так же (дополнение 1 после эскалации Ревьюера): смена вида на «замену преподавателя», смена даты или занятия больше не «возвращает» занятие без проверки.
+
+        Line 162: - Расписание: блокировка записей перед проверкой наложений (PostgreSQL); при изменении регулярного занятия перепроверяются существующие переносы.
+
+        Line 168: - Новое приложение `schedule`: недельное расписание и изменения на конкретную дату (отмена, перенос, смена аудитории, замена преподавателя).
+
+        Line 174: - `seed_demo`: 7 аудиторий, 6 преподавателей, 6 предметов, 18 занятий в неделю, 8 изменений.
+
+
+      ~/hackatonproject/docs/process/dialogs/01-team-lead.md:
+        Line 272:   ── Ran mkdir -p .opencode/agent .claude/agents .bb && cat > opencode.json <<'EOF' {   "$schema": "https://opencode.ai/config.json",   "provider": {     "deepseek": {       "options": {         "apiKey": "{env:DEEPSEEK_API_KEY}"       }     }   },   "model": "deepseek/deepseek-chat",   "default_agent": "coder" } EOF cat > .opencode/agent/coder.md <<'EOF' --- description: Кодер на DeepSeek — реализует задачи по плану планировщика mode: primary model: deepseek/deepseek-chat temperature: 0.2 --- Ты — агент-КОДЕР в команде из трёх агентов (планировщик → кодер → ревьюер). Правила: - Работай строго по плану из `docs/plan.md` (или из сообщения планировщика). Если плана нет — попроси его, не придумывай архитектуру сам. - Реализуй шаги плана по порядку, маленькими законченными изменениями. - После каждого шага запускай сборку/тесты/линтер проекта, если они есть, и исправляй ошибки. - Не меняй файлы вне области задачи, не трогай `.env` и секреты. - В конце кратко перечисли: что сделано, какие файлы изменены, как проверить, что осталось. Это отчёт для ревьюера. - Замечания ревьюера исправляй точечно и отмечай, какое замечание чем закрыто. EOF cat > .claude/agents/planner.md <<'EOF' --- name: planner description: Планировщик. Используй перед началом любой новой задачи — разбивает её на шаги и пишет план реализации в docs/plan.md. Код не пишет. tools: Read, Grep, Glob, Bash, Write, WebSearch, WebFetch model: opus --- Ты — агент-ПЛАНИРОВЩИК в команде (планировщик → кодер DeepSeek → ревьюер). Задача: превратить запрос пользователя в чёткий план, который кодер выполнит без догадок. Порядок работы: 1. Изучи проект (структуру, стек, существующий код, тесты). 2. Уточни неясные требования у пользователя, если без ответа план будет неверным. 3. Запиши план в `docs/plan.md`:    - Цель и критерии готовности.    - Затрагиваемые файлы/модули.    - Пронумерованные шаги, каждый — небольшой и проверяемый.    - Как проверить результат (команды сборки/тестов).    - Риски и что НЕ входит в задач...
+        Line 298:   - Реализуй шаги плана по порядку, маленькими законченными изменениями.
+
+        Line 329:   description: Ревьюер. Используй после того, как кодер закончил шаг или задачу — проверяет изменения на соответствие плану, баги, безопасность и качество. Код не правит.
+
+        Line 337:   2. Посмотри изменения (`git diff`, изменённые файлы) и запусти сборку/тесты, если они есть.
+
+        Line 416:     +description: Ревьюер. Используй после того, как кодер закончил шаг или задачу — проверяет изменения на соответствие плану, баги, безопасность и качество. Код не правит.
+
+        Line 424:     +2. Посмотри изменения (`git diff`, изменённые файлы) и запусти сборку/тесты, если они есть.
+
+        Line 463: 4. Планировщик и ревьюер работают в тредах **Claude Code**. Их можно вызвать прямо из чата: «используй агента planner для задачи …», затем «используй reviewer для проверки изменений». Можно и открыть для каждого отдельный тред.
+
+        Line 467: Отдельно: git-репозиторий у вас открыт на всю домашнюю папку `~`, а не на `hackatonproject`. Поэтому я ничего не коммитил. Лучше сделать в папке проекта отдельный `git init`, и тогда `git diff` у ревьюера будет показывать только изменения проекта.
+
+        Line 1198: Оба треда работают на Claude Code с моделью Opus 5.5. Они используют папку проекта `hackatonproject`. Поэтому ревьюер видит файл `docs/plan.md` и изменения кодера.
+
+        Line 1207: 3. Передайте Ревьюеру: «Проверь изменения». Отчёт кодера вставьте в сообщение или сохраните в файл.
+
+        Line 1227: Теперь про твои задачи как тимлида: обсуждать со мной все изменения, предлагать правки по проекту, советовать идеи, вести план в plan.md. Передавать мои запросы планировщику на английском. Команды планировщику отправляются ТОЛЬКО после моего прямого согласия.
+
+        Line 1893:      Расписание. Занятия на сегодня и на неделю, аудитория и преподаватель, заметные изменения и переносы.
+
+        Line 1896:      Уведомления. Новости и объявления деканата, напоминания о дедлайнах и изменениях.
+
+        Line 1998:     +| 5 | Уведомления | Новости деканата, дедлайны, изменения | Добавить |
+
+        Line 2130: ── Ran cd ~/hackatonproject && python3 -I - <<'EOF' p='plan.md'; t=open(p,encoding='utf-8').read() t=t.replace('Статус: черновик, ждёт согласования с пользователем.','Статус: согласован 11.11.2026.') t=t.replace('| Интерфейс | Ретро / пиксель-арт, делаем в конце |', '| Интерфейс | Ретро / пиксель-арт, делаем в конце. Вёрстка mobile-first с первого спринта; пиксельный шрифт только для заголовков |\n| Деплой | Пробный деплой 17.11, не в конце |\n| Сотрудник деканата | Свои простые страницы (чат, заявки) + админка Django для данных |\n| Чат | Страница сама запрашивает новые сообщения раз в N секунд (HTML-фрагмент от Django, без JSON-API) |\n| Карта | Условная SVG-схема вымышленного вуза. Если успеем — несколько этажей с переключением |\n| Описание процесса | Ведём с первого дня в `docs/process/` |') t=t.replace('| 4 | Заявки и справки | Заказ справки или заявление онлайн, статус заявки | Добавить |','| 4 | Заявки и справки | Заказ справки или заявление онлайн, статус заявки | Да |') t=t.replace('| 5 | Уведомления | Новости деканата, дедлайны, изменения | Добавить |','| 5 | Уведомления | Новости деканата, дедлайны, изменения | Да |') t=t.replace('| 0. Подготовка | 11.11 | Python 3.12, каркас Django (TASK-001) |','| 0. Подготовка | 11.11 | Каркас Django (TASK-001) |') t=t.replace('| TASK-001 | Каркас Django | Ждёт Python 3.12 |','| TASK-001 | Каркас Django | Ждёт одобрения запроса |') t=t.replace('## 7. Открытые вопросы\nСм. ответ тимлида от 11.11. После согласования раздел обновляется.','## 7. Открытые вопросы\nНет.') t=t.replace('- 11.11.2026: создан git-репозиторий проекта.','- 11.11.2026: создан git-репозиторий проекта.\n- 11.11.2026: согласованы план, этапы и решения из раздела 2.') open(p,'w',encoding='utf-8').write(t) EOF grep -c 'Добавить' plan.md; grep -n 'Статус:\|TASK-001' plan.md (6s)
+
+        Line 2137: t=t.replace('| 5 | Уведомления | Новости деканата, дедлайны, изменения | Добавить |','| 5 | Уведомления | Новости деканата, дедлайны, изменения | Да |')
+
+        Line 2349: Нет, сейчас коммиты не автоматизированы. Протокол не говорит, кто и когда делает коммит. Поэтому изменения после задачи останутся незакоммиченными. Ревьюеру это не мешает: он смотрит `git diff` по незакоммиченным изменениям.
+
+        Line 2364: Давай. Отчет о коммитах пиши прямо сюда. Также веди историю изменений
+
+        Line 2393: ── Ran python3 -I - <<'EOF' p='.bb/AGENTS.md'; t=open(p,encoding='utf-8').read() t=t.replace("## Messaging","""## Git and commits - Only the Team lead commits. The Planner, the Coder and the Reviewer NEVER run `git commit`, `git push`, `git stash`, `git checkout`, `git reset` or any other command that changes git history or the index. - The Coder leaves all changes uncommitted. The Reviewer reviews the uncommitted changes (`git status`, `git diff`, and untracked files). - After `APPROVE`, the Team lead commits the task as one commit `TASK-NNN: <summary>` and updates `CHANGELOG.md`. ## Messaging""",1) open(p,'w',encoding='utf-8').write(t) p='.bb/roles/lead.md'; t=open(p,encoding='utf-8').read() t=t.replace("""- `APPROVE` from the Reviewer: verify briefly, update `plan.md`, report the result to the user in Russian.""","""- `APPROVE` from the Reviewer: verify briefly (run the checks), update `plan.md` and `CHANGELOG.md`, commit the task as one commit `TASK-NNN: <summary>` (no user approval needed for this commit), then report to the user in Russian in the lead thread: task, commit hash, changed files, check results.""") open(p,'w',encoding='utf-8').write(t) EOF cat > CHANGELOG.md <<'EOF' # История изменений Формат: одна запись на задачу или изменение настройки. Новые записи сверху. ## 2026-11-11 ### Настройка команды - Протокол: коммиты делает только тимлид, один коммит на задачу после `APPROVE`. - Добавлен `CHANGELOG.md`. - Согласован план проекта (`plan.md`): этапы, спринты, решения. - Создан git-репозиторий проекта, первый коммит с конфигурацией команды из 4 агентов. EOF cat > $TMPDIR/git-rule.txt <<'EOF' [SETUP] Team lead -> all: PROTOCOL UPDATE New rule (see "Git and commits" in `.bb/AGENTS.md`): only the Team lead commits. Never run `git commit`, `git push`, `git stash`, `git checkout`, `git reset` or any command that changes git history or the index. Coder: keep all TASK-001 changes uncommitted. Reviewer: review uncommitted changes including untracked files. Do ...
+        Line 2408: # История изменений
+
+        Line 2410: Формат: одна запись на задачу или изменение настройки. Новые записи сверху.
+
+        Line 2460: | `CHANGELOG.md` | Новый файл, история изменений на русском |
+
+        Line 2467: - Ревьюер проверяет незакоммиченные изменения, включая новые файлы.
+
+        Line 2726:     +## Tests (must exist)
+
+        Line 2794:     +## Test proposals
+
+        Line 2975: **TASK-002 лучше отправить после этой доработки.** Иначе изменения двух задач смешаются в рабочей папке, и Ревьюеру будет труднее проверять каждую отдельно. Доработка небольшая.
+
+        Line 3440:     +## Tests (must exist)
+
+        Line 3476: 2. **Устройство расписания.** Обычное недельное расписание плюс отдельные записи изменений на конкретную дату: отмена, перенос, смена аудитории, замена преподавателя. Главное требование: расписание показывается правильно на **любую** дату без повторного запуска `seed_demo`. Жюри будет смотреть сайт в разные дни до 28.11.
+
+        Line 3480:    - Изменённое занятие выделено и показывает старое и новое значение (например, зачёркнутую старую аудиторию) и причину изменения.
+
+        Line 3489:    - Уведомления смогут находить изменения расписания для группы.
+
+        Line 3490: 7. **Тестовые данные.** Добавляются в `seed_demo`: 2 корпуса с несколькими этажами, полная неделя занятий для каждой группы, изменения каждого вида на текущей и следующей неделе.
+
+        Line 3497: - каждый вид изменения работает;
+
+        Line 3681:   ── Ran grep -n '12.11.2026\|согласованы план' plan.md; python3 -I - <<'EOF' p='plan.md'; t=open(p,encoding='utf-8').read() if '12.11.2026: у вымышленного вуза один корпус' not in t:     t=t.replace("## 8. Журнал решений\n","## 8. Журнал решений\n- 12.11.2026: у вымышленного вуза один корпус (для простоты).\n",1) t=t.replace("| TASK-003 | Расписание | У Планировщика |","| TASK-003 | Расписание | Готово |") t=t.replace("- Ручная проверка всех страниц на ширине 360 px.","""- Ручная проверка всех страниц на ширине 360 px. - `seed_demo` ищет демо-занятия по ключу (предмет, тип, день, пара). Занятие с тем же ключом, созданное в админке, будет перезаписано. - Нет блокировки при одновременном редактировании расписания в админке. - При смене аудитории или пары у регулярного занятия не перепроверяются уже существующие переносы на это время.""") open(p,'w',encoding='utf-8').write(t) p='CHANGELOG.md'; t=open(p,encoding='utf-8').read() entry="""### TASK-003: расписание - Новое приложение `schedule`: недельное расписание и изменения на конкретную дату (отмена, перенос, смена аудитории, замена преподавателя). - В `university` добавлены аудитории (этаж, номер, постоянный код для будущей карты), преподаватели и предметы. Корпус один. - Страницы студента: «Сегодня» (текущая и следующая пара, пустое состояние) и «Неделя» с переходом между неделями. Изменения выделены, видно старое и новое значение и причину. - Сотрудник видит расписание групп только своего факультета. - Наложение занятий одной группы или аудитории запрещено на уровне модели. - Расписание показывается на любую дату без повторного запуска `seed_demo`. - `seed_demo`: 7 аудиторий, 6 преподавателей, 6 предметов, 18 занятий в неделю, 8 изменений. - Ревью: 2 раунда. В первом найдена ошибка: повторный запуск `seed_demo` через 9+ недель падал. Исправлено, добавлен тест. - Всего тестов: 172. """ t=t.replace("## 2026-11-12\n","## 2026-11-12\n"+entry,1) open(p,'w',encoding='utf-8').write(t) EOF git add -A && git commit -q -F - ...
+        Line 3694:   - Новое приложение `schedule`: недельное расписание и изменения на конкретную дату (отмена, перенос, смена аудитории, замена преподавателя).
+
+        Line 3700:   - `seed_demo`: 7 аудиторий, 6 преподавателей, 6 предметов, 18 занятий в неделю, 8 изменений.
+
+        Line 3734:     I'm laying out the task order for sprint 2: grades and attendance first as TASK-004, then requests and the staff cabinet as TASK-005, then notifications as TASK-006. Running the tech-debt item in parallel would mix the working tree, so I'd fold it into the end of sprint 2 and recommend starting with grades and attendance.
+
+        Line 3740: - Новое приложение `schedule`: недельное расписание и изменения на дату.
+
+        Line 3759: **Ваша локальная база обновлена.** Я применил миграции и запустил `seed_demo`. Теперь в базе 7 аудиторий, 6 преподавателей, 18 занятий в неделю и 8 изменений на этой и следующей неделе. Чтобы посмотреть:
+
+        Line 3894:     +## Tests (must exist)
+
+        Line 4102:     +## Tests (must exist)
+
+        Line 4309:   ── Ran python3 -I - <<'EOF' p='plan.md'; t=open(p,encoding='utf-8').read() start=t.index("## 6a. Технический долг (из ревью)"); end=t.index("## 7. Открытые вопросы") t=t[:start]+"""## 6a. Технический долг (из ревью) - Ручная проверка всех страниц на ширине 360 px (делает тимлид). - Удаление изменения расписания (`LessonChange`) не проверяется. Пример: отмену занятия A удалили, а в его аудиторию уже перенесено занятие B — два занятия в одной аудитории в одно время. ## 6b. Обязательно при деплое - За nginx задать `CLIENT_IP_HEADER`. Иначе все клиенты получают IP прокси, и блокировка по «логин + IP» превращается в блокировку по логину: любой сможет заблокировать вход жюри. - Блокировки при одновременном редактировании работают только на PostgreSQL (SQLite их игнорирует). """+t[end:] t=t.replace("| TASK-004 | Технический долг (пункты 1–4, 6–8 раздела 6a) | У Планировщика |","| TASK-004 | Технический долг | Готово |") open(p,'w',encoding='utf-8').write(t) p='CHANGELOG.md'; t=open(p,encoding='utf-8').read() entry="""## 2026-11-13 ### TASK-004: технический долг - Защита от подбора пароля: после 5 неудачных попыток вход по паре «логин + IP» блокируется на 15 минут. Счётчик в базе, работает с несколькими процессами. Вход в админку защищён так же. Сообщение не раскрывает, существует ли логин. - IP клиента за прокси берётся из заголовка только при явной настройке `CLIENT_IP_HEADER`. - Роль и профиль согласованы: нельзя сменить роль, пока привязан профиль другой роли. - `seed_demo`: понятная ошибка при занятом номере зачётки; демо-данные расписания помечены `seed_key`, занятия из админки не перезаписываются. - Расписание: блокировка записей перед проверкой наложений (PostgreSQL); при изменении регулярного занятия перепроверяются существующие переносы. - Исправлена разметка списка студентов. - Ревью: 1 раунд, без замечаний. Всего тестов: 223. """ t=t.replace("## 2026-11-12\n", entry+"## 2026-11-12\n",1) open(p,'w',encoding='utf-8').write(t) EOF git add -A && git commit -q -F -...
+        Line 4315:   - Удаление изменения расписания (`LessonChange`) не проверяется. Пример: отмену занятия A удалили, а в его аудиторию уже перенесено занятие B — два занятия в одной аудитории в одно время.
+
+        Line 4331:   - Расписание: блокировка записей перед проверкой наложений (PostgreSQL); при изменении регулярного занятия перепроверяются существующие переносы.
+
+        Line 4346:   re-validation of existing changes when a weekly lesson changes; HTML
+
+        Line 4611: - **Удаление изменения расписания не проверяется.** Если удалить отмену занятия, в освободившуюся аудиторию которого уже перенесли другое занятие, получится два занятия в одной аудитории в одно время. Я записал это в технический долг.
+
+        Line 4640:     +## Test plan
+
+        Line 4696: 1. Рабочая папка чистая: нет незакоммиченных изменений от другой задачи.
+
+        Line 4703: 8. Команды проверки проходят до изменений. Тогда ошибка после изменений точно вызвана самими изменениями.
+
+        Line 4721: ── Ran python3 -I - <<'EOF' p='.claude/agents/planner.md' t=open(p,encoding='utf-8').read() d=open('~/.bb/thread-storage/thr_4izdzwetb4/planner-feasibility-draft.md',encoding='utf-8').read().strip()+"\n\n" a="## Test plan\n" assert a in t and "Feasibility check (mandatory" not in t t=t.replace(a, d+a,1) t=t.replace("   - **Test plan**: see the \"Test plan\" section below.","   - **Feasibility check**: see the \"Feasibility check\" section below.\n   - **Test plan**: see the \"Test plan\" section below.") t=t.replace("4. Send a `TASK` message to the Coder with the spec path and a 3-5 line summary.","4. Complete the feasibility check. Then send a `TASK` message to the Coder with the spec path and a 3-5 line summary.") open(p,'w',encoding='utf-8').write(t) EOF grep -n '^## \|Feasibility\|^4\. ' .claude/agents/planner.md
+
+        Line 4726: a="## Test plan\n"
+
+        Line 4741:   37:## Test plan
+
+        Line 4790: ── Ran F=~/.bb/thread-storage/thr_4izdzwetb4/TASK-005.txt && python3 -I - "$F" <<'EOF' import sys p=sys.argv[1]; t=open(p,encoding='utf-8').read() a="## Tests (must exist)" assert a in t and "UI fixes" not in t t=t.replace(a,"""7. UI fixes found by the Team lead's 360 px check (small, independent of the grades feature):    - `schedule/templates/schedule/week.html:6`: the student week view renders "← К списку групп" with an empty href (the link is meant for staff only; `back_url` is set only in the staff view). Show the link only when `back_url` is set, i.e. only for staff. Regression test: the student week page contains no "К списку групп" link; the staff group week page still contains it with the correct URL.    - `schedule/templates/schedule/includes/lesson_item.html`: the change label renders "Отменено . Причина: ..." with a space before the period. Fix the whitespace for every change kind. Regression test on the rendered text, e.g. "Отменено. Причина:". """+a,1) t=t.replace("visual theme, TASK-002/003 tech-debt items.","visual theme, remaining tech-debt items from `plan.md` (only the two UI fixes in item 7 are in scope).") open(p,'w',encoding='utf-8').write(t) EOF grep -n 'UI fixes\|Out of scope' -A1 $F | head -8
+
+        Line 4794: a="## Tests (must exist)"
+
+        Line 4813: Записываю изменения в историю, делаю коммит и сообщаю Планировщику о новых разделах роли:
+
+        Line 4873: 2. Лишний пробел убран во всех видах изменений расписания: «Отменено. Причина: …». Тест проверяет итоговый текст.
+
+        Line 5408:     3. Проверил остальные `clean()` — `FinalResult` и `Term` уже корректно защищены, изменений не требуют.
+
+        Line 5502:   - удаление изменения расписания не проверяется;
+
+        Line 5613:   ── Ran python3 -I - <<'EOF' p='plan.md'; t=open(p,encoding='utf-8').read() s=t.index("## 6a."); e=t.index("## 6b.") t=t[:s]+"""## 6a. Недочёты: порядок работы Технический долг не откладывается. После каждой задачи тимлид готовит задачу `TASK-NNN-FIX` с недочётами и рекомендациями. Пользователь решает, что исправлять. Исправление проходит полный цикл. После закрытия исправлений тимлид очищает контекст Кодера. Сейчас: `TASK-005-FIX` ждёт решения пользователя. ### Принятые ограничения - (пока нет) """+t[e:] t=t.replace("- Блокировки при одновременном редактировании работают только на PostgreSQL (SQLite их игнорирует).","- Блокировки при одновременном редактировании работают только на PostgreSQL (SQLite их игнорирует).\n- Ежедневный запуск `seed_demo` по расписанию (cron), чтобы посещения и изменения расписания в демо-данных оставались свежими до 28.11.") t=t.replace("| TASK-005 | Успеваемость и посещения + 2 исправления интерфейса | Готово |","| TASK-005 | Успеваемость и посещения + 2 исправления интерфейса | Готово |\n| TASK-005-FIX | Исправление недочётов TASK-004 и TASK-005 | Ждёт решения |") t=t.replace("## 8. Журнал решений\n","## 8. Журнал решений\n- 13.11.2026: технический долг не откладывается: после каждой задачи — задача `TASK-NNN-FIX`, затем очистка контекста Кодера. Контекст Claude-тредов не трогаем.\n",1) open(p,'w',encoding='utf-8').write(t) EOF sed -n '/## 6a/,/## 7/p' plan.md (1s)
+
+        Line 5626:   t=t.replace("- Блокировки при одновременном редактировании работают только на PostgreSQL (SQLite их игнорирует).","- Блокировки при одновременном редактировании работают только на PostgreSQL (SQLite их игнорирует).\n- Ежедневный запуск `seed_demo` по расписанию (cron), чтобы посещения и изменения расписания в демо-данных оставались свежими до 28.11.")
+
+        Line 5643:     - Ежедневный запуск `seed_demo` по расписанию (cron), чтобы посещения и изменения расписания в демо-данных оставались свежими до 28.11.
+
+        Line 5702: | 1 | **Удаление изменения расписания не проверяется.** Отменили занятие A, в его аудиторию перенесли занятие B, потом удалили отмену — два занятия в одной аудитории в одно время. Ревьюер воспроизвёл это | **Исправить.** Это прямо критерий «решение конфликтов». Проверка при удалении, включая массовое удаление в админке |
+
+        Line 5732: - В работе пункты 1–3: проверка при удалении изменения, запрет отмены занятия с отметками посещения, нестабильный тест около полуночи.
+
+        Line 6161:     I'm also updating the memory file, keeping the rule that Planner and Reviewer are never compacted. Only my own files get committed, since the coder is working in parallel. The plan's journal entry about clearing the coder's context also needs to change to compaction.
+
+        Line 6241: Cause: LessonChange.clean() validates only the NEW state (change_conflicts returns [] for TEACHER_REPLACED and never looks at the old original_date). Editing a CANCELLED / MOVED / ROOM_CHANGED change in a way that stops hiding the old occurrence (kind changes to TEACHER_REPLACED, or original_date / weekly_lesson changes) restores the old occurrence without the check that delete_lesson_change now does. The admin change form goes through the same clean(), so the gap is reachable from admin.
+
+        Line 6350: - удаление изменения расписания теперь проверяется;
+
+        Line 6354: Но Ревьюер нашёл ту же дыру через **редактирование**, а не удаление. Если изменить отмену занятия A на «замену преподавателя» или поменять в ней дату, занятие A снова появляется в расписании без проверки. В результате два занятия оказываются в одной аудитории в одно время. Ревьюер воспроизвёл оба сценария. Отметки посещения тоже можно «вернуть» на будущую дату через изменение даты переноса.
+
+        Line 6378: ── Ran cat > $TMPDIR/t5fix-amend.txt <<'EOF' [TASK-005-FIX] Team lead -> Planner: TASK Spec amendment 1 (approved by the user after a Reviewer ESCALATION). Add a section "Amendment 1" to `docs/tasks/TASK-005-FIX.md` and hand it to the Coder. The current implementation is otherwise correct; keep it. ## A1. Edit path of the "restored occurrence" defect The spec closed only the DELETE path. Editing a LessonChange can restore a hidden occurrence without checks. Reproduced by the Reviewer: - Setup: lesson A (G1, R1, Mon slot 2) is CANCELLED on 23.11.2026; lesson B is MOVED into 23.11 slot 2 with new_room=R1. - Edit A's change kind CANCELLED -> TEACHER_REPLACED (+ new_teacher) via save_lesson_change -> saved; R1 has 2 happening occurrences on 23.11 slot 2. - Edit A's change original_date 23.11 -> 30.11 -> saved; same double booking on 23.11. - Same blind spot in the attendance guard: editing the original_date of a MOVED change can return an occurrence that has attendance records to a future date. Cause: LessonChange.clean() validates only the NEW state and never the effect of leaving the OLD state. Required behaviour: when an existing change is edited so that it stops hiding its old occurrence (old kind CANCELLED / MOVED / ROOM_CHANGED and the new kind is TEACHER_REPLACED, or original_date or weekly_lesson changes, or the move target changes), run the same checks as delete for the OLD state (restored-occurrence conflicts and the delete guards) in addition to the existing checks for the NEW state, inside the same transaction and locking order. Reviewer's suggestion (your decision): in clean() when pk is set, load the stored row and run restored_occurrence_conflicts(old_row) and run_change_guards(old_row, deleting=True). Admin edits must show a form error, never 500. Regression tests: both scenarios above, the attendance scenario, and a positive case (an edit that does not restore a conflicting occurrence is still allowed). ## A2. Exclude the process archive from ruff `docs...
+        Line 6390: Required behaviour: when an existing change is edited so that it stops hiding its old occurrence (old kind CANCELLED / MOVED / ROOM_CHANGED and the new kind is TEACHER_REPLACED, or original_date or weekly_lesson changes, or the move target changes), run the same checks as delete for the OLD state (restored-occurrence conflicts and the delete guards) in addition to the existing checks for the NEW state, inside the same transaction and locking order. Reviewer's suggestion (your decision): in clean() when pk is set, load the stored row and run restored_occurrence_conflicts(old_row) and run_change_guards(old_row, deleting=True). Admin edits must show a form error, never 500.
+
+        Line 6399: bb thread tell thr_2imsg4kck2 --message-file $TMPDIR/t5fix-amend.txt 2>&1 | tail -1; cd ~/hackatonproject && sed -i '' 's/| TASK-005-FIX | Исправление недочётов TASK-004 и TASK-005 | У Планировщика |/| TASK-005-FIX | Исправление недочётов TASK-004 и TASK-005 | Дополнение 1 у Планировщика (редактирование изменений, исключение архива из ruff) |/' plan.md && grep -n 'TASK-005-FIX |' plan.md
+
+        Line 6401:   93:| TASK-005-FIX | Исправление недочётов TASK-004 и TASK-005 | Дополнение 1 у Планировщика (редактирование изменений, исключение архива из ruff) |
+
+        Line 6408: 1. **Проверка при редактировании изменения расписания.** Если правка «возвращает» скрытое занятие, выполняются те же проверки, что и при удалении: смена вида на «замену преподавателя», смена даты, смена занятия или цели переноса. Проверки идут в той же транзакции и с тем же порядком блокировок. Ошибка в админке показывается как ошибка формы, без кода 500.
+
+
+      (Results truncated. Consider using a more specific path or pattern.)
+    ── Read file read
+      ## Test & lint
+
+      ```bash
+      ruff check .
+      ruff format --check .
+      python manage.py check
+      python manage.py makemigrations --check --dry-run
+      python manage.py test
+      python scripts/run_tests_at.py 2027-03-01T12:00:00   # tests must not depend on the real date
+      DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop \
+        ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ \
+        python manage.py check --deploy --fail-level WARNING
+      python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"
+      ```
+
+      - Assertions on whole pages: use exact markup (e.g. `href="/staff/schedule/12/"`) or
+        `response.context`; never a short alphanumeric needle — the page contains a
+        random CSRF token.
+
+      ## Demo data
+
+      ```bash
+      python manage.py migrate
+      python manage.py seed_demo   # needs DEMO_PASSWORD in .env or the environment
+      ```
+
+      All demo data is fictional. Logins (password: the value of `DEMO_PASSWORD`):
+
+      | Login | Faculty | Group |
+      |---|---|---|
+      | `student1` | FDD | ЦД-101 |
+      | `student2` | FAE | ЭД-201 |
+      | `student3` | FDD | ЦД-101 |
+      | `staff1` | FDD | — |
+      | `staff2` | FAE | — |
+
+      Superuser (Django admin only): `python manage.py createsuperuser`.
+
+      The demo schedule covers 8 weeks before and 12 weeks after the run date.
+      Re-running `seed_demo` replaces the demo schedule changes with fresh ones for
+    ── Read file read
+      ## Notifications
+
+      Students: `/notifications/` shows a «Ближайшие дедлайны» block (deadlines
+      today or later, nearest first, labelled «сегодня» / «завтра» / «через N
+      дней») and one feed of dean's-office news and personal changes (request status
+      changes and staff comments, schedule changes for lessons in the next 14 days,
+      new current marks and final results). The feed is computed from existing rows,
+      covers the last 30 days, and is capped at 50 items.
+
+      Unread state is one «seen until» timestamp per account (no per-item flags):
+      the nav shows «Уведомления (N)» for students, and opening `/notifications/`
+      marks everything as read.
+
+      Staff: `/staff/announcements/` lists and creates announcements for the staff
+      member's own faculty or one of its groups (no edit, no hard delete; an
+      announcement can be unpublished). University-wide announcements are created
+      only in the Django admin.
+
+      Demo data: `seed_demo` creates 9 announcements (2 university-wide, 5 faculty, 2
+      group; 2 unpublished); published deadlines fall on run day +1…+5.
+
+      ## Map
+
+      Students and staff: `/map/` (lowest floor with rooms), `/map/floor/<n>/`
+      (a specific floor, 404 when no room is on it) and `/map/room/<code>/` (a room's
+      floor with that room highlighted). The map is one fictional building drawn as an
+      inline SVG with portrait floor plans for floors 1–4 in `university/building.py`.
+      Each floor has a vertical corridor in the middle, rooms of different sizes on
+      both sides, and service spaces (no free space except the corridor).
+
+      Plans:
+      - Every floor has two staircases: «Лестница» at the top and at the bottom end of the corridor.
+      - «Вход» is on floor 1 only, in the east wing next to the corridor. «Охрана» (a small post) and
+        «Гардероб» are next to the entrance and open onto it.
+      - One toilet per floor, all in one riser: «Туалет М» on floors 1 and 3, «Туалет Ж» on floors 2 and 4.
+      - Access rule: every room shares a wall of at least `DOOR_MIN` = 24 units (about 1 m, a door)
+        with the corridor, except the inner room 211, reached through room 210. Every other space
+        except the staircases opens onto the corridor or the entrance.
+      - Room 210 is the only L-shaped space (`<polygon>`).
+    ── Thought for 1s
+      I'll add the two README sentences. The first in "## Notifications" section, near the feed description. Let me add it after line 134 (the unread state paragraph) or in the feed description. The spec says: "one sentence in '## Notifications' (or where lesson changes in the feed are described)". Let me add it after the unread state paragraph (line 134).
+
+      The sentence: "A lesson change is "new" again only when students can see the difference (date, slot, room, teacher, kind); editing the reason does not notify."
+
+      The second sentence in "## Test & lint": "`--parallel` is safe: workers use the runner's temporary private media directory."
+
+      Let me add them.
+    ── Edited README.md +3
+      --- a~/hackatonproject/README.md
+      +++ b~/hackatonproject/README.md
+      +
+      +A lesson change is «new» again only when students can see the difference
+      +(date, slot, room, teacher, kind); editing the reason does not notify.
+    ── Edited README.md +2
+      --- a~/hackatonproject/README.md
+      +++ b~/hackatonproject/README.md
+      +
+      +- `--parallel` is safe: workers use the runner's temporary private media directory.
+    ── Thought for 891ms
+      Now let me run ruff on the changed files and run the tests in order per implementation order.
+
+      Changed files:
+      - schedule/models.py
+      - schedule/migrations/0006_lessonchange_changed_at.py
+      - schedule/admin.py
+      - notifications/sources.py
+      - core/test_runner.py
+      - schedule/tests/test_changed_at.py (new)
+      - notifications/tests/test_feed.py
+      - core/tests/test_storage.py
+      - README.md (not Python)
+
+      Let me run ruff format + check on the Python files, then run the tests.
+
+      First, ruff.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff format schedule/models.py schedule/migrations/0006_lessonchange_changed_at.py schedule/admin.py notifications/sources.py core/test_runner.py schedule/tests/test_changed_at.py notifications/tests/test_feed.py core/tests/test_storage.py 2>&1 | tail -5 && ruff check schedule/models.py schedule/migrations/0006_lessonchange_changed_at.py schedule/admin.py notifications/sources.py core/test_runner.py schedule/tests/test_changed_at.py notifications/tests/test_feed.py core/tests/test_storage.py 2>&1 | tail -20
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff format schedule/models.py schedule/migrations/0006_lessonchange_changed_at.py schedule/admin.py notifications/sources.py core/test_runner.py schedule/tests/test_changed_at.py notifications/tests/test_feed.py core/tests/test_storage.py 2>&1 | tail -5 && ruff check schedule/models.py schedule/migrations/0006_lessonchange_changed_at.py schedule/admin.py notifications/sources.py core/test_runner.py schedule/tests/test_changed_at.py notifications/tests/test_feed.py core/tests/test_storage.py 2>&1 | tail -20
+      3 files reformatted, 5 files left unchanged
+      5 |
+      6 + import core.clock
+      7 +
+      8 |
+        |
+
+      DJ012 Order of model's inner classes, methods, and fields does not follow the Django Style Guide: Magic method should come before `save` method
+         --> schedule/models.py:226:5
+          |
+      224 |           return any(stored[f] != getattr(self, f) for f in STUDENT_VISIBLE_FIELDS)
+      225 |
+      226 | /     def __str__(self) -> str:
+      227 | |         return f"{self.get_kind_display()}: {self.weekly_lesson} ({self.original_date:%d.%m.%Y})"
+          | |_________________________________________________________________________________________________^
+      228 |
+      229 |       def clean(self):
+          |
+
+      Found 2 errors.
+      [*] 1 fixable with `--fix`.
+    ── Thought for 6s
+      Two issues:
+      1. DJ012: `__str__` (magic method) should come before `save` method. Wait, the spec said "Place both directly above `def __str__`". But ruff's DJ012 says magic methods should come before `save`. So `__str__` should be before `save` and `_student_visible_change`.
+
+      Hmm. The spec F2 says "Place both directly above `def __str__`". But ruff complains. Let me re-read: "DJ012 Order of model's inner classes, methods, and fields does not follow the Django Style Guide: Magic method should come before `save` method".
+
+      So the Django style guide wants magic methods (__str__) before regular methods (save). The spec's instruction "place both directly above __str__" conflicts with ruff. But I must satisfy ruff (the spec also says "ruff check" must pass in verification).
+
+      Let me look at what ruff actually wants. The order in Django style guide:
+      1. Database fields
+      2. Custom manager attributes
+      3. Meta
+      4. __str__() 
+      5. save()
+      6. get_absolute_url()
+      7. Other custom methods
+
+      Actually the official Django style is:
+      - fields
+      - custom manager attributes
+      - class Meta
+      - def __str__()
+      - def save()
+      - def get_absolute_url()
+      - other methods
+
+      So `__str__` should come before `save`. And `_student_visible_change` is a "custom method" that comes after save.
+
+      So the correct order is:
+      - __str__ (magic)
+      - save
+      - _student_visible_change (helper, after save)
+
+      But the spec says "Place both directly above def __str__". This is a slight conflict. The spec author may not have realized ruff's DJ012 rule. But my instructions say "Work strictly according to the spec" AND "ruff check must pass".
+
+      Actually, wait — let me re-read the ruff error. It says the magic method __str__ should come before save. So the fix is to move save() and _student_visible_change() to AFTER __str__ (and after clean()? No, clean is a regular method too).
+
+      Actually, let me think about the current order in the model:
+      - fields
+      - Meta
+      - (my inserted) save(), _student_visible_change(), __str__, clean()
+
+      The Django style guide order would be:
+      - fields
+      - Meta
+      - __str__ (magic)
+      - save (regular)
+      - _student_visible_change (regular)
+      - clean (regular)
+
+      So I should move save() and _student_visible_change() to AFTER __str__ and before clean(). Or more precisely, __str__ first, then save, then _student_visible_change, then clean.
+
+      Wait, but does ruff's DJ012 check the relative order of __str__ vs save vs clean? Let me check what DJ012 actually enforces. The rule "Order of model's inner classes, methods, and fields does not follow the Django Style Guide" — the expected order per django-style-guide:
+
+      ```
+      [
+          "index_together",
+          "unique_together",
+          ...fields and managers...
+      ]
+      ```
+
+      Actually, let me just fix it to satisfy ruff. The simplest: move `save` and `_student_visible_change` to after `__str__`.
+
+      Let me look at the actual current state of the model after ruff format.
+    ── Read file read
+      ),
+                  ),
+                  models.CheckConstraint(
+                      condition=models.Q(new_slot__isnull=True)
+                      | (models.Q(new_slot__gte=1) & models.Q(new_slot__lte=MAX_SLOT)),
+                      name="schedule_change_new_slot_range",
+                  ),
+              ]
+              verbose_name = "изменение расписания"
+              verbose_name_plural = "изменения расписания"
+
+          # Bulk updates (QuerySet.update / bulk_update) bypass save() and do not
+          # move changed_at; use save() / save_lesson_change().
+          def save(self, *args, **kwargs):
+              if self._student_visible_change():
+                  self.changed_at = clock.now()
+                  update_fields = kwargs.get("update_fields")
+                  if update_fields is not None:
+                      kwargs["update_fields"] = {*update_fields, "changed_at"}
+              super().save(*args, **kwargs)
+
+          def _student_visible_change(self) -> bool:
+              if self._state.adding or self.pk is None:
+                  return True
+              stored = (
+                  type(self)._default_manager.filter(pk=self.pk).values(*STUDENT_VISIBLE_FIELDS).first()
+              )
+              if stored is None:
+                  return True
+              return any(stored[f] != getattr(self, f) for f in STUDENT_VISIBLE_FIELDS)
+
+          def __str__(self) -> str:
+              return f"{self.get_kind_display()}: {self.weekly_lesson} ({self.original_date:%d.%m.%Y})"
+
+          def clean(self):
+              super().clean()
+              if self.weekly_lesson_id is None or self.original_date is None or not self.kind:
+                  return
+              lesson = self.weekly_lesson
+              errors: dict[str, list[str]] = {}
+              if self.original_date.weekday() != lesson.weekday:
+                  errors.setdefault("original_date", []).append(
+                      "Дата не совпадает с днём недели занятия."
+                  )
+              if not lesson.valid_from <= self.original_date <= lesson.valid_until:
+    ── Thought for 933ms
+      I need to move `save` and `_student_visible_change` to AFTER `__str__`. So the order should be: __str__ (magic), then save, then _student_visible_change, then clean.
+
+      Let me restructure: move __str__ to be first (before save). Actually, I'll just reorder: put __str__ first, then save + _student_visible_change, then clean.
+
+      Let me rewrite lines 206-227 to reorder.
+    ── Edited schedule/models.py +3 -3
+      --- a~/hackatonproject/schedule/models.py
+      +++ b~/hackatonproject/schedule/models.py
+      +    def __str__(self) -> str:
+      +        return f"{self.get_kind_display()}: {self.weekly_lesson} ({self.original_date:%d.%m.%Y})"
+      +
+      -
+      -    def __str__(self) -> str:
+      -        return f"{self.get_kind_display()}: {self.weekly_lesson} ({self.original_date:%d.%m.%Y})"
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff format schedule/models.py 2>&1 | tail -2 && ruff check schedule/models.py schedule/migrations/0006_lessonchange_changed_at.py schedule/admin.py notifications/sources.py core/test_runner.py schedule/tests/test_changed_at.py notifications/tests/test_feed.py core/tests/test_storage.py 2>&1 | tail -20
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff format schedule/models.py 2>&1 | tail -2 && ruff check schedule/models.py schedule/migrations/0006_lessonchange_changed_at.py schedule/admin.py notifications/sources.py core/test_runner.py schedule/tests/test_changed_at.py notifications/tests/test_feed.py core/tests/test_storage.py 2>&1 | tail -20
+      1 file left unchanged
+      1 |   # Generated by Django 5.2.19 on 2026-11-18 18:35
+      2 |
+      3 | / import core.clock
+      4 | | from django.db import migrations, models
+      5 | | from django.db.models import F
+        | |______________________________^
+      help: Organize imports
+        |
+      2 |
+        - import core.clock
+      3 | from django.db import migrations, models
+      4 | from django.db.models import F
+      5 |
+      6 + import core.clock
+      7 +
+      8 |
+        |
+
+      Found 1 error.
+      [*] 1 fixable with `--fix`.
+    ── Thought for 6s
+      The migration file has an import ordering issue. The `import core.clock` should come before `from django.db import ...`. Let me look at the migration file. The spec's exact migration file shows:
+
+      ```python
+      import core.clock
+      from django.db import migrations, models
+      from django.db.models import F
+      ```
+
+      But ruff wants `import core.clock` AFTER the `from` imports? Let me look at the ruff error. It says "Organize imports" and shows:
+      ```
+        - import core.clock
+        | from django.db import migrations, models
+        | from django.db.models import F
+        + import core.clock
+      ```
+
+      So ruff wants `import core.clock` to be AFTER the `from django.db...` imports. The spec's F3 shows `import core.clock` FIRST. But ruff's isort config wants it last (because `core` is a first-party/local import, and `django` is third-party).
+
+      Wait, actually ruff isort: standard library, then third-party, then first-party. `core.clock` is first-party (local), `django` is third-party. So `import core.clock` should come AFTER `from django.db...`.
+
+      The spec shows `import core.clock` first, but that was "before ruff format". The spec says "so the file is exactly (after ruff format on this one file)". Hmm, but the spec's literal content shows `import core.clock` first. 
+
+      Wait, let me re-read F3. The spec says:
+
+      "Generate with `python manage.py makemigrations schedule --name lessonchange_changed_at`, then add the data step so the file is exactly (after `ruff format` on this one file):"
+
+      Then shows the file with `import core.clock` first. But ruff format doesn't reorder imports; ruff check --fix does (I001). Actually, `ruff format` doesn't touch import order. `ruff check --fix` fixes I001 (unsorted imports).
+
+      Hmm, but the spec's example shows `import core.clock` at top. Let me check: is `core` actually a first-party module in the isort config? Let me check the ruff/isort config.
+
+      Actually, the key issue: the migration was generated by makemigrations with `import core.clock` first (since that's how Django generated it — actually Django generated `import core.clock` because `default=core.clock.now` references it). Wait, the generated file (before my edit) had:
+
+      ```python
+      import core.clock
+      from django.db import migrations, models
+      ```
+
+      And ruff check flagged it. But wait — the generated file had `import core.clock` first, and when I ran `ruff format` earlier (which doesn't check imports), it didn't complain. Now `ruff check` flags I001.
+
+      Actually wait, let me check: does the project's ruff config treat `core` as first-party? Let me check pyproject.toml or ruff.toml.
+
+      Actually, the simplest: just run `ruff check --fix` on the migration file to fix the import order, OR manually reorder to match what ruff wants (import core.clock AFTER the django imports).
+
+      But wait — the spec explicitly shows the final file with `import core.clock` FIRST. Let me re-read very carefully.
+
+      Spec F3 shows:
+      ```python
+      import core.clock
+      from django.db import migrations, models
+      from django.db.models import F
+      ```
+
+      And says "so the file is exactly (after `ruff format` on this one file)".
+
+      But ruff check (not format) flags the import order. The spec's verification says `ruff check <the Python files>` must pass. So there's a tension: the spec's literal example vs ruff check.
+
+      Let me check the ruff config to understand the isort behavior.
+    ── Listed files in .
+    ── Thought for 8s
+      The ruff config has `extend-exclude = ["*/migrations/*", ...]`. So migration files are EXCLUDED from ruff check! But I explicitly passed the migration file to ruff check, which overrides the exclude? Actually, when you pass a file explicitly, ruff still applies excludes? No — passing a file path explicitly to `ruff check` will check it even if it's excluded, unless... Actually, ruff's behavior: explicitly passing a path bypasses the exclude? Let me recall.
+
+      Actually, ruff DOES still respect `extend-exclude` even for explicitly passed files? No. Let me think. Actually, when you explicitly pass file paths, ruff checks them regardless of exclude patterns (exclude only applies to directory traversal). Hmm, but the error appeared because I passed the migration file explicitly.
+
+      Actually, the important point: the migration file is in `*/migrations/*` which is excluded. So normally `ruff check .` won't check it. But `ruff format` also? `ruff format` has `extend-exclude` too, so migration files are excluded from format as well.
+
+      Wait, but the spec's verification says `ruff check <the Python files of this task>` — which would include the migration file? Let me re-read verification:
+
+      ```
+      ruff check <the Python files of this task>
+      ruff format --check <the Python files of this task>
+      ```
+
+      Hmm. If migration files are excluded from ruff, then `ruff check schedule/migrations/0006_...py` explicitly might still check it. But actually the spec says "then add the data step so the file is exactly (after `ruff format` on this one file)".
+
+      Actually the spec F3 note at line 127: "(Keep the "Generated by Django" header line if makemigrations writes it.)" and line 98: "Generate with makemigrations..., then add the data step so the file is exactly (after ruff format on this one file):".
+
+      So the spec EXPECTS `ruff format` to be run on the migration file. And `ruff format` does NOT reorder imports. So the import order `import core.clock` first is what `ruff format` produces (it doesn't touch import order).
+
+      But `ruff check` (which includes I001 import sorting) WOULD flag it if the file weren't excluded. But since migrations are excluded, `ruff check .` won't flag it.
+
+      However, my explicit `ruff check schedule/migrations/0006_...py` command flags it. That's because I explicitly passed the file, overriding the exclude.
+
+      So the question is: should I run `ruff check` on the migration file explicitly? The spec's verification says "ruff check <the Python files of this task>". But migrations are excluded from ruff (the config deliberately excludes them). 
+
+      Actually, wait — the migration file's import order issue: is `import core.clock` before `from django.db import ...` actually what makemigrations generated? The generated file had:
+      ```python
+      import core.clock
+      from django.db import migrations, models
+      ```
+
+      That's what Django's makemigrations generated (Django sorts imports with `import` statements before `from`? No...). Actually Django's migration writer imports: it collects imports and sorts them. Django's `MigrationWriter` puts `import` and `from` imports. The order in the generated file was `import core.clock` then `from django.db import ...`. That's Django's default.
+
+      So the spec's exact file (with `import core.clock` first) matches what makemigrations generates. And ruff format doesn't change it. And ruff check on the whole project excludes migrations, so no I001 error in the normal `ruff check .` run.
+
+      The I001 error only appears because I explicitly passed the migration file to `ruff check`. I should NOT pass the migration file explicitly to ruff check (since it's excluded). But the spec verification step says "ruff check <the Python files of this task>" — this is ambiguous. 
+
+      Actually, let me reconsider. The important thing: the final `ruff check .` (full project) must pass, and `ruff format --check .` must pass. Migrations are excluded, so the migration file won't be checked by the full-project ruff. But the spec ALSO explicitly runs ruff format on the migration file (F3 note).
+
+      Let me just NOT include the migration file in my explicit ruff check. The migration file is fine as-is (matches the spec exactly, with `import core.clock` first). The full `ruff check .` will exclude it.
+
+      Actually, wait — but is there a concern that `ruff format --check .` would flag the migration file's formatting? `ruff format` excludes migrations too (extend-exclude applies to both lint and format). So `ruff format --check .` won't check the migration file.
+
+      But the spec says "after ruff format on this one file". Let me run `ruff format` on the migration file explicitly (which I already did — "1 file reformatted" earlier). The reformatting may have changed quotes or line breaks. Let me check the current migration file content after my write + ruff format.
+    ── Read file read
+      # Generated by Django 5.2.19 on 2026-11-18 18:35
+
+      import core.clock
+      from django.db import migrations, models
+      from django.db.models import F
+
+
+      def copy_updated_at(apps, schema_editor):
+          LessonChange = apps.get_model("schedule", "LessonChange")
+          LessonChange.objects.update(changed_at=F("updated_at"))
+
+
+      class Migration(migrations.Migration):
+          dependencies = [
+              ("schedule", "0005_lessonchange_reason_optional"),
+          ]
+
+          operations = [
+              migrations.AddField(
+                  model_name="lessonchange",
+                  name="changed_at",
+                  field=models.DateTimeField(
+                      default=core.clock.now, editable=False, verbose_name="изменение для студентов"
+                  ),
+              ),
+              migrations.RunPython(copy_updated_at, migrations.RunPython.noop),
+          ]
+    ── Thought for 970ms
+      The migration file looks good and matches the spec (with the "Generated by Django" header). The `import core.clock` first is fine since migrations are excluded from ruff check. The I001 error was only because I explicitly passed the migration file to ruff check. 
+
+      Let me verify the full `ruff check .` passes (which excludes migrations).
+
+      Let me now re-run ruff check on just the NON-migration task files (excluding the migration), and also run `ruff check .` to be safe.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff check schedule/models.py schedule/admin.py notifications/sources.py core/test_runner.py schedule/tests/test_changed_at.py notifications/tests/test_feed.py core/tests/test_storage.py 2>&1 | tail -5 && echo "--- full project ---" && ruff check . 2>&1 | tail -3
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff check schedule/models.py schedule/admin.py notifications/sources.py core/test_runner.py schedule/tests/test_changed_at.py notifications/tests/test_feed.py core/tests/test_storage.py 2>&1 | tail -5 && echo "--- full project ---" && ruff check . 2>&1 | tail -3
+      All checks passed!
+      --- full project ---
+      All checks passed!
+    ── Thought for 636ms
+      Good. Now let me run the tests. Implementation order:
+      1. F1, F2, F3, admin. Run `makemigrations --check --dry-run` and `test schedule --parallel 1`.
+      2. F4 + tests. Run `test schedule notifications --parallel 1`.
+      3. F5 + tests. Run `test core --parallel 1`.
+      4. README + full verification.
+
+      Let me run makemigrations check and schedule tests.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && python manage.py makemigrations --check --dry-run 2>&1 | tail -3 && python manage.py check 2>&1 | tail -2 (1s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && python manage.py makemigrations --check --dry-run 2>&1 | tail -3 && python manage.py check 2>&1 | tail -2
+      No changes detected
+      System check identified no issues (0 silenced).
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test schedule --parallel 1 2>&1 | tee "$TMPDIR/test-$TS-schedule.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -10 (38s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test schedule --parallel 1 2>&1 | tee "$TMPDIR/test-$TS-schedule.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -10
+      Ran 150 tests in 36.009s
+      OK
+    ── Thought for 364ms
+      Schedule tests pass (150 tests). Now step 2: notifications tests + schedule.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test schedule notifications --parallel 1 2>&1 | tee "$TMPDIR/test-$TS-sched-notif.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -10 (1m 3s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test schedule notifications --parallel 1 2>&1 | tee "$TMPDIR/test-$TS-sched-notif.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -10
+      Ran 333 tests in 61.185s
+      OK
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test core --parallel 1 2>&1 | tee "$TMPDIR/test-$TS-core.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -10 (5s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test core --parallel 1 2>&1 | tee "$TMPDIR/test-$TS-core.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -10
+      Ran 147 tests in 2.902s
+      OK
+    ── Thought for 2s
+      All three steps pass. Now the full verification. Let me follow the verification steps exactly.
+
+      Baseline was 1072 tests. My new tests add:
+      - schedule/tests/test_changed_at.py: ChangedAtTests has 7 tests (insert, reason_only, updated_at, each_visible_field, update_fields, admin_reason_only, admin_visible_edit, admin_shows_readonly = 8 tests) + ChangedAtMigrationTests (1 test) = 9 new tests.
+      - notifications/tests/test_feed.py: 3 new tests (reason_only_edit_stays_read, admin_reason_only_edit_stays_read, item_timestamp_is_changed_at).
+      - core/tests/test_storage.py: 3 new tests (env_points_to_temp_dir, fresh_process_gets_temp_dir, runner_restores_env).
+
+      Total new = 9 + 3 + 3 = 15. So baseline 1072 + 15 = 1087.
+
+      Let me verify by running the full suite.
+
+      But first, let me do the verification steps in order. Let me start with the private_media file list before.
+
+      Actually, let me run the full verification. First, let me set up the private_media before/after check.
+
+      Let me check current private_media state.
+    ── Ran cd ~/hackatonproject && find private_media -type f | sort > "$TMPDIR/pm-before.txt" && cat "$TMPDIR/pm-before.txt" && echo "--- count ---" && wc -l < "$TMPDIR/pm-before.txt"
+      $ cd ~/hackatonproject && find private_media -type f | sort > "$TMPDIR/pm-before.txt" && cat "$TMPDIR/pm-before.txt" && echo "--- count ---" && wc -l < "$TMPDIR/pm-before.txt"
+      private_media/request_attachments/8a/8a077e68ffcc47f9b2179001c3aaa8f2.pdf
+      private_media/request_attachments/a5/a5f25bc070624affad8d225d5c894eac.pdf
+      private_media/request_attachments/f4/f4851d70b37943c5b432aea0eb3734e2.pdf
+      --- count ---
+             3
+    ── Thought for 418ms
+      3 files, as expected. Now let me check leftover temp dirs count before.
+    ── Listed files in ${TMPDIR:-/tmp}/test-private-media-*
+    ── Thought for 227ms
+      0 leftover temp dirs. Good. Now let me run the full verification sequence. Let me do the serial run first (--parallel 1).
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test --parallel 1 2>&1 | tee "$TMPDIR/test-serial-$TS.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -10 (2m 28s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test --parallel 1 2>&1 | tee "$TMPDIR/test-serial-$TS.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -10
+      Ran 1087 tests in 146.478s
+      OK
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test --parallel 2 2>&1 | tee "$TMPDIR/test-parallel-$TS.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:|TypeError" | tail -15 (1m 17s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test --parallel 2 2>&1 | tee "$TMPDIR/test-parallel-$TS.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:|TypeError" | tail -15
+      Ran 1087 tests in 75.093s
+      OK
+    ── Thought for 435ms
+      Parallel 2 passes (1087 tests). Now the midnight boundary run.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python scripts/run_tests_at.py 2026-11-19T00:00:00 2>&1 | tee "$TMPDIR/test-midnight-$TS.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -10 (2m 29s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python scripts/run_tests_at.py 2026-11-19T00:00:00 2>&1 | tee "$TMPDIR/test-midnight-$TS.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -10
+      Ran 1087 tests in 147.010s
+      OK
+    ── Ran cd ~/hackatonproject && find private_media -type f | sort > "$TMPDIR/pm-after.txt" && diff "$TMPDIR/pm-before.txt" "$TMPDIR/pm-after.txt" && echo "private_media unchanged" && echo "--- leftover temp dirs ---" && ls -d "${TMPDIR:-/tmp}"/test-private-media-* 2>/dev/null | wc -l
+      $ cd ~/hackatonproject && find private_media -type f | sort > "$TMPDIR/pm-after.txt" && diff "$TMPDIR/pm-before.txt" "$TMPDIR/pm-after.txt" && echo "private_media unchanged" && echo "--- leftover temp dirs ---" && ls -d "${TMPDIR:-/tmp}"/test-private-media-* 2>/dev/null | wc -l
+      private_media unchanged
+      --- leftover temp dirs ---
+      zsh:1: no matches found: /var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T//test-private-media-*
+             0
+    ── Thought for 3s
+      private_media unchanged, 0 leftover temp dirs. Now step 7: migration on a database seeded BEFORE the change.
+
+      Let me do the migration test per spec:
+      ```
+      mkdir -p "$TMPDIR/t013fix-before" && git archive HEAD | tar -x -C "$TMPDIR/t013fix-before"
+      ```
+
+      Then in "$TMPDIR/t013fix-before" (no .env there): 
+      ```
+      DEBUG=true SECRET_KEY=<50+ char dummy> DEMO_PASSWORD=... PRIVATE_MEDIA_ROOT="$TMPDIR/t013fix-pm"
+      DATABASE_URL="sqlite:///$TMPDIR/t013fix-before.sqlite3" python manage.py migrate && ... python manage.py seed_demo
+      ```
+      then in the project: 
+      ```
+      DATABASE_URL="sqlite:///$TMPDIR/t013fix-before.sqlite3" python manage.py migrate
+      ```
+      check: every LessonChange has changed_at == updated_at; then seed_demo twice.
+
+      Note: `git archive HEAD | tar -x` gives the code at HEAD (which is BEFORE my changes, since I haven't committed). So the "before" copy has the OLD schema (migration 0005 as latest). It does NOT have my new migration 0006. So I migrate there (to 0005), seed_demo, creating LessonChange rows with updated_at set. Then in the PROJECT (with my new 0006 migration), I run `migrate` against the same sqlite DB, which applies 0006 (AddField + RunPython copying updated_at → changed_at). Then verify changed_at == updated_at.
+
+      Let me do this carefully. Note the `git archive HEAD` only reads git. The HEAD is 8316949 (TASK-013). My changes are uncommitted, so HEAD is the pre-013-FIX state.
+
+      Let me first check what HEAD is and that git archive works.
+
+      Actually, I need a SECRET_KEY >= 50 chars and DEMO_PASSWORD. Let me use dummies.
+
+      Let me write this as a script.
+    ── Ran cd ~/hackatonproject && rm -rf "$TMPDIR/t013fix-before" "$TMPDIR/t013fix-pm" "$TMPDIR/t013fix-before.sqlite3" && mkdir -p "$TMPDIR/t013fix-before" && git archive HEAD | tar -x -C "$TMPDIR/t013fix-before" && echo "archive ok" && ls "$TMPDIR/t013fix-before" | head
+      $ cd ~/hackatonproject && rm -rf "$TMPDIR/t013fix-before" "$TMPDIR/t013fix-pm" "$TMPDIR/t013fix-before.sqlite3" && mkdir -p "$TMPDIR/t013fix-before" && git archive HEAD | tar -x -C "$TMPDIR/t013fix-before" && echo "archive ok" && ls "$TMPDIR/t013fix-before" | head
+      archive ok
+      CHANGELOG.md
+      README.md
+      academics
+      accounts
+      campusmap
+      chat
+      config
+      core
+      deploy
+      docs
+    ── Ran cd "$TMPDIR/t013fix-before" && DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop DEMO_PASSWORD=demo-pass-2026 PRIVATE_MEDIA_ROOT="$TMPDIR/t013fix-pm" DATABASE_URL="sqlite:///$TMPDIR/t013fix-before.sqlite3" ~/hackatonproject/.venv/bin/python manage.py migrate 2>&1 | tail -5 (2s)
+      $ cd "$TMPDIR/t013fix-before" && DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop DEMO_PASSWORD=demo-pass-2026 PRIVATE_MEDIA_ROOT="$TMPDIR/t013fix-pm" DATABASE_URL="sqlite:///$TMPDIR/t013fix-before.sqlite3" ~/hackatonproject/.venv/bin/python manage.py migrate 2>&1 | tail -5
+      Applying schedule.0004_lessonchange_updated_at... OK
+        Applying schedule.0005_lessonchange_reason_optional... OK
+        Applying sessions.0001_initial... OK
+        Applying university.0003_room_number_format_and_map_cell... OK
+        Applying university.0004_remove_room_map_cell... OK
+    ── Ran cd "$TMPDIR/t013fix-before" && DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop DEMO_PASSWORD=demo-pass-2026 PRIVATE_MEDIA_ROOT="$TMPDIR/t013fix-pm" DATABASE_URL="sqlite:///$TMPDIR/t013fix-before.sqlite3" ~/hackatonproject/.venv/bin/python manage.py seed_demo 2>&1 | tail -5 (3s)
+      $ cd "$TMPDIR/t013fix-before" && DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop DEMO_PASSWORD=demo-pass-2026 PRIVATE_MEDIA_ROOT="$TMPDIR/t013fix-pm" DATABASE_URL="sqlite:///$TMPDIR/t013fix-before.sqlite3" ~/hackatonproject/.venv/bin/python manage.py seed_demo 2>&1 | tail -5
+      Schedule ready: 39 rooms, 6 teachers, 6 disciplines, 18 weekly lessons, 8 changes.
+      Academics ready: 2 terms, 17 curriculum items, 13 final results, 70 marks, 232 attendance records.
+      Requests ready: 4 types, 7 requests, 3 attachments.
+      Notifications ready: 9 announcements.
+      Chat ready: 3 dialogs, 8 messages.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && DATABASE_URL="sqlite:///$TMPDIR/t013fix-before.sqlite3" python manage.py migrate 2>&1 | tail -8
+      $ cd ~/hackatonproject && source .venv/bin/activate && DATABASE_URL="sqlite:///$TMPDIR/t013fix-before.sqlite3" python manage.py migrate 2>&1 | tail -8
+      Operations to perform:
+        Apply all migrations: academics, accounts, admin, auth, chat, contenttypes, notifications, petitions, schedule, sessions, university
+      Running migrations:
+        Applying schedule.0006_lessonchange_changed_at... OK
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && DATABASE_URL="sqlite:///$TMPDIR/t013fix-before.sqlite3" python manage.py shell -c " from schedule.models import LessonChange total = LessonChange.objects.count() mismatch = LessonChange.objects.exclude(changed_at=__import__('django').db.models.F('updated_at')).count() print('total', total, 'mismatch(changed_at!=updated_at)', mismatch) " 2>&1 | tail -5 (1s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && DATABASE_URL="sqlite:///$TMPDIR/t013fix-before.sqlite3" python manage.py shell -c "
+    from schedule.models import LessonChange
+    total = LessonChange.objects.count()
+    mismatch = LessonChange.objects.exclude(changed_at=__import__('django').db.models.F('updated_at')).count()
+    print('total', total, 'mismatch(changed_at!=updated_at)', mismatch)
+    " 2>&1 | tail -5
+      31 objects imported automatically (use -v 2 for details).
+
+      total 8 mismatch(changed_at!=updated_at) 0
+    ── Thought for 306ms
+      8 LessonChange rows, 0 mismatches. Now seed_demo twice (idempotent).
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && DATABASE_URL="sqlite:///$TMPDIR/t013fix-before.sqlite3" DEMO_PASSWORD=demo-pass-2026 python manage.py seed_demo 2>&1 | tail -2 && echo "--- second run ---" && DATABASE_URL="sqlite:///$TMPDIR/t013fix-before.sqlite3" DEMO_PASSWORD=demo-pass-2026 python manage.py seed_demo 2>&1 | tail -2 (4s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && DATABASE_URL="sqlite:///$TMPDIR/t013fix-before.sqlite3" DEMO_PASSWORD=demo-pass-2026 python manage.py seed_demo 2>&1 | tail -2 && echo "--- second run ---" && DATABASE_URL="sqlite:///$TMPDIR/t013fix-before.sqlite3" DEMO_PASSWORD=demo-pass-2026 python manage.py seed_demo 2>&1 | tail -2
+      Notifications ready: 0 announcements.
+      Chat ready: 0 dialogs, 0 messages.
+      --- second run ---
+      Notifications ready: 0 announcements.
+      Chat ready: 0 dialogs, 0 messages.
+    ── Thought for 872ms
+      seed_demo ran twice idempotently (0 new announcements, 0 new dialogs on second runs). 
+
+      Now the remaining verification steps:
+      - `ruff check <files>` (done, passes)
+      - `ruff format --check <files>` 
+      - `python -c yaml...`
+      - `git status --short`
+
+      Let me run ruff format --check on the files, yaml check, and git status.
+
+      Also need to run `check --deploy`.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff format --check schedule/models.py schedule/admin.py notifications/sources.py core/test_runner.py schedule/tests/test_changed_at.py notifications/tests/test_feed.py core/tests/test_storage.py 2>&1 | tail -3 && ruff format --check schedule/migrations/0006_lessonchange_changed_at.py 2>&1 | tail -2 && DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop python manage.py check --deploy --fail-level WARNING 2>&1 | tail -2 && python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))" && echo "yaml ok" (2s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff format --check schedule/models.py schedule/admin.py notifications/sources.py core/test_runner.py schedule/tests/test_changed_at.py notifications/tests/test_feed.py core/tests/test_storage.py 2>&1 | tail -3 && ruff format --check schedule/migrations/0006_lessonchange_changed_at.py 2>&1 | tail -2 && DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop python manage.py check --deploy --fail-level WARNING 2>&1 | tail -2 && python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))" && echo "yaml ok"
+      7 files already formatted
+      1 file already formatted
+      System check identified no issues (1 silenced).
+      yaml ok
+    ── Ran cd ~/hackatonproject && git status --short
+      $ cd ~/hackatonproject && git status --short
+      M README.md
+       M core/test_runner.py
+       M core/tests/test_storage.py
+       M notifications/sources.py
+       M notifications/tests/test_feed.py
+       M plan.md
+       M schedule/admin.py
+       M schedule/models.py
+      ?? docs/tasks/TASK-013-FIX.md
+      ?? schedule/migrations/0006_lessonchange_changed_at.py
+      ?? schedule/tests/test_changed_at.py
+    ── Thought for 5s
+      Git status shows the expected files. Let me compare with the spec's file list:
+
+      Spec Architecture/files:
+      - schedule/models.py ✓ (M)
+      - schedule/migrations/0006_lessonchange_changed_at.py ✓ (new)
+      - schedule/admin.py ✓ (M)
+      - notifications/sources.py ✓ (M)
+      - core/test_runner.py ✓ (M)
+      - Tests: notifications/tests/test_feed.py ✓, schedule/tests/test_changed_at.py ✓ (new), core/tests/test_storage.py ✓
+      - README.md ✓ (M)
+
+      Unexpected: `plan.md` (M) — this is the Team lead's file, pre-existing modification (allowed per spec's feasibility check "git status --short shows only M plan.md (the Team lead's file; allowed)"). Wait, but the spec feasibility check said "Clean starting point: git status --short shows only M plan.md". So plan.md was already modified before I started. It's the Team lead's file, not mine.
+
+      Also `docs/tasks/TASK-013-FIX.md` (??) — this is the spec file, created by the Planner. Not mine (I don't touch docs/).
+
+      So my changed files are exactly:
+      - README.md
+      - core/test_runner.py
+      - core/tests/test_storage.py
+      - notifications/sources.py
+      - notifications/tests/test_feed.py
+      - schedule/admin.py
+      - schedule/models.py
+      - schedule/migrations/0006_lessonchange_changed_at.py
+      - schedule/tests/test_changed_at.py
+
+      All match the spec. plan.md and docs/tasks/TASK-013-FIX.md are not mine.
+
+      Note: `.env.production.example` is NOT modified this task (that was TASK-011).
+
+      Now let me double check there's no leftover __pycache__ in the t013fix-before temp dir affecting anything — no, it's in /tmp, outside the repo.
+
+      Let me also verify the git status doesn't show db.sqlite3 (it doesn't — I used DATABASE_URL for the migration check, and the test runner uses temp DB).
+
+      Wait, actually — did running `python manage.py migrate` with DATABASE_URL affect the local db.sqlite3? No, I set DATABASE_URL explicitly. But the `seed_demo` runs also used DATABASE_URL. The full test suite uses the test runner which uses a separate test DB. So db.sqlite3 is untouched. Let me verify db.sqlite3 isn't modified (it's not in git status, and it's likely gitignored anyway).
+
+      Actually, let me check: is db.sqlite3 gitignored? The git status doesn't show it, so either it's unchanged or gitignored. Either way, fine.
+
+      Now let me also verify: the `git status` shows no `__pycache__` or temp files in the repo. Good.
+
+      Now let me check the private_media is unchanged (already confirmed: diff passed, 3 files).
+
+      Let me also double-check there are no leftover test-private-media temp dirs (confirmed 0).
+
+      Everything looks complete. Let me now write the REPORT to the Reviewer.
+
+      Let me first verify the test count breakdown and note the logs.
+
+      Logs created:
+      - test-...-schedule.log (150 tests)
+      - test-...-sched-notif.log (333)
+      - test-...-core.log (147)
+      - test-serial-...log (1087)
+      - test-parallel-...log (1087)
+      - test-midnight-...log (1087)
+
+      Let me get the exact log filenames for the report.
+    ── Listed files in $TMPDIR/test-*.log
+    ── Ran cd ~/hackatonproject && bb thread tell thr_cpuae9aqw3 --message-file - <<'EOF' [TASK-013-FIX] Coder -> Reviewer: REPORT Spec: docs/tasks/TASK-013-FIX.md (exact code in F1-F5). All 6 ACs implemented. ## What was done 1. AC1/AC2 — `schedule/models.py`: `STUDENT_VISIBLE_FIELDS` constant, `changed_at = DateTimeField("изменение для студентов", default=clock.now, editable=False)`, `save()` + `_student_visible_change()` (one `SELECT … WHERE pk=…` on update; `update_fields` gets `"changed_at"` appended on a visible change; bulk-update caveat documented in a comment). `schedule/admin.py` `readonly_fields` now `("seed_key", "changed_at")`. 2. AC4 — `schedule/migrations/0006_lessonchange_changed_at.py`: `AddField` (default `core.clock.now`) + `RunPython(copy_updated_at, noop)` copying `updated_at -> changed_at` via `F()`. 3. AC3 — `notifications/sources.py`: `event_field = "changed_at"`, `timestamp=obj.changed_at`. 4. AC5/AC6 — `core/test_runner.py`: `PRIVATE_MEDIA_ENV`; `setup_test_environment` sets `os.environ["PRIVATE_MEDIA_ROOT"]` to a `mkdtemp` dir + `override_settings`; `teardown_test_environment` restores/removes the env var and `rmtree`s the dir. 5. Tests — new `schedule/tests/test_changed_at.py` (8 ChangedAtTests + 1 MigrationExecutor TransactionTestCase); `notifications/tests/test_feed.py` (updated `test_edited_change_is_new_again` to a visible edit + 3 new tests); `core/tests/test_storage.py` (3 new runner tests). README two sentences. ## Tests — 1072 -> 1087 (15 new) Serial and `--parallel 2` both **1087 OK**. ## Verification (all green) - `check` no issues; `makemigrations --check --dry-run` -> No changes; `check --deploy --fail-level WARNING` no issues (1 silenced). - serial `--parallel 1`: 1087 OK; `--parallel 2` (macOS spawn): 1087 OK; midnight `run_tests_at.py 2026-11-19T00:00:00`: 1087 OK. No failures/stalls. - `private_media/`: 3 files before and after (serial, parallel, midnight) — `diff` empty. - leftover `test-private-media-*` temp dirs: 0 before and after. - Migration on a pre-change DB: `git archive HEAD | tar -x` copy migrated to 0005 + `seed_demo` (8 changes), then project `migrate` applied 0006 -> all 8 rows `changed_at == updated_at` (mismatch count 0); `seed_demo` x2 idempotent. - `ruff check .` clean; `ruff format --check` clean (task files); yaml ok. Logs: `$TMPDIR/test-serial-20261118-214743.log`, `test-parallel-20261118-215022.log`, `test-midnight-20261118-215150.log`, plus per-app `test-20261118-214508-schedule.log` (150), `-214554-sched-notif.log` (333), `-214708-core.log` (147). ## git status ```  M README.md  M core/test_runner.py  M core/tests/test_storage.py  M notifications/sources.py  M notifications/tests/test_feed.py  M plan.md  M schedule/admin.py  M schedule/models.py ?? docs/tasks/TASK-013-FIX.md ?? schedule/migrations/0006_lessonchange_changed_at.py ?? schedule/tests/test_changed_at.py ``` Mine: all except `plan.md` (Team lead's pre-existing change) and `docs/tasks/TASK-013-FIX.md` (the spec). No other files touched; `db.sqlite3` and `private_media/` untouched (migration check used a temp sqlite via `DATABASE_URL`). EOF (6s)
+      $ cd ~/hackatonproject && bb thread tell thr_cpuae9aqw3 --message-file - <<'EOF'
+    [TASK-013-FIX] Coder -> Reviewer: REPORT
+    Spec: docs/tasks/TASK-013-FIX.md (exact code in F1-F5). All 6 ACs implemented.
+
+    ## What was done
+    1. AC1/AC2 — `schedule/models.py`: `STUDENT_VISIBLE_FIELDS` constant, `changed_at = DateTimeField("изменение для студентов", default=clock.now, editable=False)`, `save()` + `_student_visible_change()` (one `SELECT … WHERE pk=…` on update; `update_fields` gets `"changed_at"` appended on a visible change; bulk-update caveat documented in a comment). `schedule/admin.py` `readonly_fields` now `("seed_key", "changed_at")`.
+    2. AC4 — `schedule/migrations/0006_lessonchange_changed_at.py`: `AddField` (default `core.clock.now`) + `RunPython(copy_updated_at, noop)` copying `updated_at -> changed_at` via `F()`.
+    3. AC3 — `notifications/sources.py`: `event_field = "changed_at"`, `timestamp=obj.changed_at`.
+    4. AC5/AC6 — `core/test_runner.py`: `PRIVATE_MEDIA_ENV`; `setup_test_environment` sets `os.environ["PRIVATE_MEDIA_ROOT"]` to a `mkdtemp` dir + `override_settings`; `teardown_test_environment` restores/removes the env var and `rmtree`s the dir.
+    5. Tests — new `schedule/tests/test_changed_at.py` (8 ChangedAtTests + 1 MigrationExecutor TransactionTestCase); `notifications/tests/test_feed.py` (updated `test_edited_change_is_new_again` to a visible edit + 3 new tests); `core/tests/test_storage.py` (3 new runner tests). README two sentences.
+
+    ## Tests — 1072 -> 1087 (15 new)
+    Serial and `--parallel 2` both **1087 OK**.
+
+    ## Verification (all green)
+    - `check` no issues; `makemigrations --check --dry-run` -> No changes; `check --deploy --fail-level WARNING` no issues (1 silenced).
+    - serial `--parallel 1`: 1087 OK; `--parallel 2` (macOS spawn): 1087 OK; midnight `run_tests_at.py 2026-11-19T00:00:00`: 1087 OK. No failures/stalls.
+    - `private_media/`: 3 files before and after (serial, parallel, midnight) — `diff` empty.
+    - leftover `test-private-media-*` temp dirs: 0 before and after.
+    - Migration on a pre-change DB: `git archive HEAD | tar -x` copy migrated to 0005 + `seed_demo` (8 changes), then project `migrate` applied 0006 -> all 8 rows `changed_at == updated_at` (mismatch count 0); `seed_demo` x2 idempotent.
+    - `ruff check .` clean; `ruff format --check` clean (task files); yaml ok.
+
+    Logs: `$TMPDIR/test-serial-20261118-214743.log`, `test-parallel-20261118-215022.log`, `test-midnight-20261118-215150.log`, plus per-app `test-20261118-214508-schedule.log` (150), `-214554-sched-notif.log` (333), `-214708-core.log` (147).
+
+    ## git status
+    ```
+     M README.md
+     M core/test_runner.py
+     M core/tests/test_storage.py
+     M notifications/sources.py
+     M notifications/tests/test_feed.py
+     M plan.md
+     M schedule/admin.py
+     M schedule/models.py
+    ?? docs/tasks/TASK-013-FIX.md
+    ?? schedule/migrations/0006_lessonchange_changed_at.py
+    ?? schedule/tests/test_changed_at.py
+    ```
+    Mine: all except `plan.md` (Team lead's pre-existing change) and `docs/tasks/TASK-013-FIX.md` (the spec). No other files touched; `db.sqlite3` and `private_media/` untouched (migration check used a temp sqlite via `DATABASE_URL`).
+    EOF
+      Thread thr_cpuae9aqw3 steered
+    ── Ran tool 0 todos (1s)
+      {"output":"[\n  {\n    \"content\": \"F1-F3: model field/constant/save + migration + admin readonly\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"F4: feed source event_field/timestamp -> changed_at\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"F5: test runner env var + override_settings\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Tests (changed_at, feed, storage) + README\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Full verification incl --parallel 2, private_media diff, migration on pre-change DB\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  }\n]","metadata":{"todos":[{"content":"F1-F3: model field/constant/save + migration + admin readonly","status":"completed","priority":"high"},{"content":"F4: feed source event_field/timestamp -> changed_at","status":"completed","priority":"high"},{"content":"F5: test runner env var + override_settings","status":"completed","priority":"high"},{"content":"Tests (changed_at, feed, storage) + README","status":"completed","priority":"high"},{"content":"Full verification incl --parallel 2, private_media diff, migration on pre-change DB","status":"completed","priority":"high"}],"truncated":false}}
+
+── Assistant ───────────────────────────────────────────────
+TASK-013-FIX реализована по спецификации (F1–F5) и отправлена Ревьюеру.
+
+## Что сделано
+
+1. **AC1/AC2** — `schedule/models.py`: поле `changed_at` (default `core.clock.now`, `editable=False`), константа `STUDENT_VISIBLE_FIELDS`, методы `save()` и `_student_visible_change()` (один SELECT при update, дополнение `update_fields`). В админке `changed_at` добавлен в `readonly_fields`.
+2. **AC4** — миграция `0006_lessonchange_changed_at`: `AddField` + `RunPython` (копирует `updated_at → changed_at` через `F()`).
+3. **AC3** — `notifications/sources.py`: `event_field = "changed_at"`, `timestamp = obj.changed_at`.
+4. **AC5/AC6** — `core/test_runner.py`: переменная окружения `PRIVATE_MEDIA_ROOT` + `override_settings`, очистка в teardown.
+5. Тесты: новый `schedule/tests/test_changed_at.py` (9 тестов, включая MigrationExecutor), обновление + 3 новых теста в ленте, 3 новых теста runner'а. README — два предложения.
+
+## Результаты
+
+- **1087 тестов** (было 1072, +15): серийно и `--parallel 2` — всё OK.
+- `private_media/` — 3 файла до и после (без изменений), 0 утечек temp-каталогов.
+- Миграция на базе, засеянной до изменения: все 8 записей `changed_at == updated_at`, `seed_demo` идемпотентен.
+- `ruff check .` / `ruff format --check` / `check --deploy` — чисто.
+
+Жду вердикт Ревьюера.

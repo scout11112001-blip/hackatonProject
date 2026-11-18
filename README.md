@@ -40,6 +40,8 @@ DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefgh
 python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"
 ```
 
+- `--parallel` is safe: workers use the runner's temporary private media directory.
+
 - Assertions on whole pages: use exact markup (e.g. `href="/staff/schedule/12/"`) or
   `response.context`; never a short alphanumeric needle — the page contains a
   random CSRF token.
@@ -132,6 +134,9 @@ covers the last 30 days, and is capped at 50 items.
 Unread state is one «seen until» timestamp per account (no per-item flags):
 the nav shows «Уведомления (N)» for students, and opening `/notifications/`
 marks everything as read.
+
+A lesson change is «new» again only when students can see the difference
+(date, slot, room, teacher, kind); editing the reason does not notify.
 
 Staff: `/staff/announcements/` lists and creates announcements for the staff
 member's own faculty or one of its groups (no edit, no hard delete; an
