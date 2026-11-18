@@ -247,6 +247,7 @@ button {
   margin: var(--space-2) 0;
 }
 
+/* Map shapes: layout only (sizes, dash arrays). Colours are in theme.css. */
 .map-outline,
 .map-room rect,
 .map-room polygon,
@@ -255,49 +256,48 @@ button {
 .map-service rect,
 .map-service polygon,
 .map-corridor {
-  fill: none;
-  stroke: var(--color-text);
   stroke-width: 2;
-}
-
-.map-corridor {
-  stroke: var(--color-border);
 }
 
 .map-landmark rect,
 .map-landmark polygon {
-  stroke: var(--color-muted);
-  stroke-dasharray: 6 4;
+  stroke-dasharray: 8 4;
+  stroke-linecap: butt;
 }
 
 .map-service rect,
 .map-service polygon {
-  stroke: var(--color-muted);
-  stroke-dasharray: 2 3;
+  stroke-dasharray: 2 4;
+}
+
+.map-current rect,
+.map-current polygon {
+  stroke-width: 6;
+  stroke-dasharray: none;
 }
 
 .map-room-label {
   font-size: 20px;
-  fill: var(--color-text);
 }
 
 .map-landmark-label {
   font-size: 15px;
-  fill: var(--color-muted);
 }
 
 .map-service-label {
   font-size: 15px;
-  fill: var(--color-muted);
 }
 
-/* Highlighted room: one class, restyle in the UI stage. */
 .map-current .map-room-label {
-  fill: var(--color-map-highlight);
+  font-weight: 700;
 }
 
-a.map-current {
-  color: var(--color-map-highlight);
+/* Hidden SVG with the hatch pattern; not display: none, so the pattern still renders. */
+.map-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
 }
 
 .floor-switcher ul,
@@ -469,17 +469,17 @@ a.map-current {
   line-height: 2.75rem;
 }
 
+/* Wide header (TASK-013 D12): the title stays on two lines at every width and the gaps
+   are smaller, so brand, every nav item and the notifications button fit on one line
+   at 1024 px (student with "Чат (99+)" and the "50+" chip; staff with 8 items). */
 @media (min-width: 48rem) {
   .site-header {
     flex-wrap: nowrap;
+    gap: var(--space-3);
   }
 
   .site-brand {
     flex: none;
-  }
-
-  .site-title-line {
-    display: inline;
   }
 
   .site-nav--wide {
@@ -488,8 +488,9 @@ a.map-current {
   }
 
   .site-nav--wide .site-nav-list {
+    align-items: center;
     margin: 0;
-    gap: 0 var(--space-3);
+    gap: 0 0.75rem;
   }
 
   .site-header-actions {
@@ -704,14 +705,19 @@ a.map-current {
   vertical-align: middle;
 }
 
+/* File input (TASK-013 D13): full width; a compact button leaves room for the native text. */
 .form input[type="file"] {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
   padding: 6px;
+  font-size: 0.875rem;
 }
 
 input[type="file"]::file-selector-button {
   min-height: 2.75rem;
-  margin-right: var(--space-3);
-  padding: 0 var(--space-3);
+  margin-right: var(--space-2);
+  padding: 0 var(--space-2);
 }
 
 .form button,
@@ -755,8 +761,7 @@ input[type="file"]::file-selector-button {
 .petition > a,
 .chat-dialogs li > a,
 .student-list a,
-.group-list a,
-.map-room-list a {
+.group-list a {
   display: inline-block;
   min-height: 2.75rem;
   padding-block: 0.625rem;
@@ -825,9 +830,23 @@ input[type="file"]::file-selector-button {
 }
 
 .map-room-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
+  gap: 0.75rem;
+  margin: var(--space-2) 6px var(--space-4);
+}
+
+.map-room-btn {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0 var(--space-3);
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+}
+
+.map-room-off {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
 }
 
 .map-legend li {

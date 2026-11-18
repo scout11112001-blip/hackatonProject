@@ -148,19 +148,31 @@ Students and staff: `/map/` (lowest floor with rooms), `/map/floor/<n>/`
 floor with that room highlighted). The map is one fictional building drawn as an
 inline SVG with portrait floor plans for floors 1–4 in `university/building.py`.
 Each floor has a vertical corridor in the middle, rooms of different sizes on
-both sides, and service spaces (no free space except the corridor). Two L-shaped
-spaces are drawn as `<polygon>`: the canteen «Столовая» (floor 1) and room 210
-(floor 2).
+both sides, and service spaces (no free space except the corridor).
+
+Plans:
+- Every floor has two staircases: «Лестница» at the top and at the bottom end of the corridor.
+- «Вход» is on floor 1 only, in the east wing next to the corridor. «Охрана» (a small post) and
+  «Гардероб» are next to the entrance and open onto it.
+- One toilet per floor, all in one riser: «Туалет М» on floors 1 and 3, «Туалет Ж» on floors 2 and 4.
+- Access rule: every room shares a wall of at least `DOOR_MIN` = 24 units (about 1 m, a door)
+  with the corridor, except the inner room 211, reached through room 210. Every other space
+  except the staircases opens onto the corridor or the entrance.
+- Room 210 is the only L-shaped space (`<polygon>`).
 
 A room appears on the plan when its number is a slot on its floor's plan (no
 admin placement; to add a room to the plan, change the code). Rooms elsewhere
 (or floors 5–9, which have no plan) show «нет на схеме». Non-teaching spaces —
 landmarks («Лестница», «Вход», «Столовая», «Деканат», «Библиотека») and
-services («Гардероб», «Туалеты», «Кафедра», «Медпункт», «Склад», «Охрана»,
+services («Гардероб», «Туалет М», «Туалет Ж», «Кафедра», «Медпункт», «Охрана»,
 «Архив») — are drawn always; the legend explains the three kinds. A room number
 is exactly three digits (`NNN`) and its first digit must equal the floor (1–9).
-The highlighted room uses the single CSS class `map-current` (colour token
-`--color-map-highlight`).
+
+Look: rooms have a solid light frame; landmarks a dashed yellow frame and label;
+service spaces a dotted lilac frame, a diagonal hatch and a lilac label with a dark
+halo. The highlighted room (class `map-current`) is orange with a thick light frame
+and a dark number. Under the map, every floor lists its rooms as a grid of pixel
+buttons; the current room's button is orange.
 
 ## Chat
 

@@ -105,6 +105,20 @@ class HomeStudentTests(FrozenClockMixin, TestCase):
         self.assertIn('href="/map/room/room-103/">ауд. 103</a>', content)
         self.assertIn('<span class="lesson-change">аудитория изменена</span>', content)
 
+    def test_lessons_card_hides_reason(self):
+        save_lesson_change(
+            LessonChange(
+                weekly_lesson=self.lesson_a,
+                original_date=TODAY,
+                kind=ChangeKind.CANCELLED,
+                reason="Болезнь",
+            )
+        )
+        content = self._content()
+        self.assertIn("отменено", content)
+        self.assertNotIn("Ремонт", content)
+        self.assertNotIn("Болезнь", content)
+
     def test_other_group_lessons_hidden(self):
         self.assertNotIn("Чужая дисциплина", self._content())
 

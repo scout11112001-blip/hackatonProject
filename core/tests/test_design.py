@@ -48,6 +48,16 @@ REQUIRED_TOKENS = [
     "color-map-highlight",
     "color-map-highlight-fill",
     "color-map-room-fill",
+    # TASK-013: final map look and scrollbar tokens (D5).
+    "color-map-highlight-text",
+    "color-map-corridor-fill",
+    "color-map-room-stroke",
+    "color-map-landmark",
+    "color-map-service",
+    "color-map-hatch",
+    "color-map-label-halo",
+    "color-scroll-thumb",
+    "color-scroll-thumb-hover",
     "font-body",
     "font-pixel",
     "font-heading",
@@ -165,8 +175,9 @@ class ExternalResourceTests(SimpleTestCase):
                 self.assertNotIn("@import", css)
                 self.assertNotIn("https://", css)
                 self.assertNotIn("http://", css)
+                # TASK-013: fragment URLs (the inline SVG hatch pattern) are allowed (D6).
                 for match in re.finditer(r"url\(", css):
-                    self.assertRegex(css[match.start() :], r'^url\("?\.\./')
+                    self.assertRegex(css[match.start() :], r'^url\("?(\.\./|#)')
 
     def test_templates_have_no_external_urls(self):
         templates = _project_templates()
@@ -269,6 +280,57 @@ class ThemeRuleTests(SimpleTestCase):
             )
         )
 
+    def test_map_highlight_final(self):
+        rules = _rules(_read("static/css/theme.css"))
+        found = False
+        for sel, body in rules:
+            parts = {s.strip() for s in sel.split(",")}
+            if parts & {".map-current rect", ".map-current polygon"}:
+                width = re.search(r"stroke-width:\s*(\d+)", body)
+                if "fill: var(--color-map-highlight-fill)" in body and width:
+                    found = int(width.group(1)) >= 4
+        self.assertTrue(found)
+
+    def test_map_kinds_distinct(self):
+        theme = _read("static/css/theme.css")
+        self.assertIn("var(--color-map-landmark)", _rule_bodies(theme, ".map-landmark rect"))
+        service = _rule_bodies(theme, ".map-service rect")
+        self.assertIn("url(#map-hatch)", service)
+        self.assertIn("var(--color-map-service)", service)
+        service_label = _rule_bodies(theme, ".map-service-label")
+        landmark_label = _rule_bodies(theme, ".map-landmark-label")
+        self.assertIn("paint-order: stroke", service_label)
+
+        def fill(body):
+            return re.search(r"(?<![-\w])fill:\s*([^;]+);", body).group(1)
+
+        self.assertNotEqual(fill(service_label), fill(landmark_label))
+
+    def test_file_input_full_width(self):
+        base = _read("static/css/base.css")
+        self.assertIn("width: 100%", _rule_bodies(base, '.form input[type="file"]'))
+
+    def test_scrollbar_rules(self):
+        theme = _read("static/css/theme.css")
+        for needle in (
+            "scrollbar-width: thin",
+            "scrollbar-color: var(--color-scroll-thumb)",
+            "::-webkit-scrollbar-thumb",
+            "var(--color-scroll-thumb-hover)",
+            "@media (hover: hover) and (pointer: fine)",
+        ):
+            self.assertIn(needle, theme)
+        for path in sorted(CSS.glob("*.css")):
+            css = path.read_text(encoding="utf-8")
+            with self.subTest(file=path.name):
+                self.assertNotIn("scrollbar-width: none", css)
+                for sel, body in _rules(css):
+                    if "scrollbar" in sel:
+                        self.assertNotRegex(body, r"display:\s*none")
+                        radius = re.search(r"border-radius:\s*([^;]+);", body)
+                        if radius:
+                            self.assertRegex(radius.group(1).strip(), r"^0(px)?$")
+
     def test_body_font_for_text(self):
         self.assertRegex(
             _read("static/css/tokens.css"),
@@ -290,3 +352,11 @@ class ReadmeTests(SimpleTestCase):
         self.assertIn("SIL Open Font License", readme)
         self.assertIn("static/fonts/OFL.txt", readme)
         self.assertIn("The logo and the favicon are our own pixel drawing", readme)
+
+    def test_map_section_current(self):
+        readme = _read("README.md")
+        start = readme.index("## Map\n")
+        section = readme[start : readme.index("\n## ", start + 1)]
+        for needle in ("Туалет М", "Туалет Ж", "Вход", "Every floor has two staircases"):
+            self.assertIn(needle, section)
+        self.assertNotIn("Склад", section)

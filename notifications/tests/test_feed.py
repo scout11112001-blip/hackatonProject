@@ -209,6 +209,20 @@ class LessonChangeSourceTests(FrozenClockMixin, TestCase):
         self.assertIn("Отмена занятия", item.title)
         self.assertEqual(item.url, reverse("schedule:week_of", kwargs={"day": D}))
 
+    def test_change_item_has_no_body(self):
+        lesson = self._lesson()
+        save_lesson_change(
+            LessonChange(
+                weekly_lesson=lesson,
+                original_date=D,
+                kind=ChangeKind.CANCELLED,
+                reason="Скрытая причина",
+            )
+        )
+        item = next(i for i in build_feed(_ctx(self.w.ax)) if i.kind == "lesson_change")
+        self.assertEqual(item.body, "")
+        self.assertTrue(item.title.startswith("Отмена занятия:"), item.title)
+
     def test_moved_title_mentions_new_date_and_room(self):
         lesson = self._lesson()
         save_lesson_change(

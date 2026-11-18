@@ -244,18 +244,18 @@ class LessonChangeRuleTests(ValidationFixture):
             )
         self.assertIn("new_teacher", cm.exception.message_dict)
 
-    def test_blank_reason(self):
+    # TASK-013: the reason is optional now (AC13).
+    def test_blank_reason_allowed(self):
         lesson = self._lesson(weekday=0)
-        with self.assertRaises(ValidationError) as cm:
-            save_lesson_change(
-                LessonChange(
-                    weekly_lesson=lesson,
-                    original_date=date(2026, 11, 16),
-                    kind=ChangeKind.CANCELLED,
-                    reason="",
-                )
+        change = save_lesson_change(
+            LessonChange(
+                weekly_lesson=lesson,
+                original_date=date(2026, 11, 16),
+                kind=ChangeKind.CANCELLED,
+                reason="",
             )
-        self.assertIn("reason", cm.exception.message_dict)
+        )
+        self.assertEqual(LessonChange.objects.get(pk=change.pk).reason, "")
 
 
 class LessonChangeConflictTests(ValidationFixture):
@@ -387,13 +387,14 @@ class LessonChangeDBConstraintTests(ValidationFixture):
                     reason="y",
                 )
 
-    def test_blank_reason_violates_constraint(self):
+    # TASK-013: the constraint schedule_change_reason_required is removed (AC13).
+    def test_blank_reason_saved_in_db(self):
         lesson = self._lesson()
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                LessonChange.objects.create(
-                    weekly_lesson=lesson,
-                    original_date=date(2026, 11, 16),
-                    kind=ChangeKind.CANCELLED,
-                    reason="",
-                )
+        with transaction.atomic():
+            change = LessonChange.objects.create(
+                weekly_lesson=lesson,
+                original_date=date(2026, 11, 16),
+                kind=ChangeKind.CANCELLED,
+                reason="",
+            )
+        self.assertEqual(change.reason, "")

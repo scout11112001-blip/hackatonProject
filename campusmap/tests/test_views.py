@@ -112,7 +112,12 @@ class MapViewTests(TestCase):
         content = self.client.get("/map/room/room-402/").content.decode()
         self.assertIn('<title id="map-title">Схема, 4 этаж</title>', content)
         self.assertEqual(_svg_part(content).count("map-current"), 1)
-        self.assertIn('href="/map/room/room-402/" class="map-current"', content)
+        # TASK-013: the room list entry is a pixel button (D8).
+        self.assertIn(
+            '<a class="btn map-room-btn map-current" href="/map/room/room-402/" '
+            'aria-current="location">402</a>',
+            content,
+        )
         self.assertEqual(content.count("map-current"), 2)
 
     def test_highlight_has_accessible_name(self):
@@ -127,22 +132,36 @@ class MapViewTests(TestCase):
 
     def test_room_on_plan_by_number(self):
         content = self.client.get("/map/room/room-114/").content.decode()
-        self.assertNotIn("114</a> — нет на схеме", content)
+        # TASK-013: room list buttons; the note is a separate span (D8).
+        self.assertIn(
+            '<a class="btn map-room-btn map-current" href="/map/room/room-114/" '
+            'aria-current="location">114</a></li>',
+            content,
+        )
         self.assertIn("<title>Аудитория 114</title>", content)
 
     def test_room_not_on_plan_listed(self):
         content = self.client.get("/map/room/room-199/").content.decode()
-        self.assertIn("199</a> — нет на схеме", content)
+        # TASK-013: room list buttons; the note is a separate span (D8).
+        self.assertIn(
+            '<a class="btn map-room-btn map-current" href="/map/room/room-199/" '
+            'aria-current="location">199</a> <span class="map-room-off">нет на схеме</span>',
+            content,
+        )
         self.assertIn('<title id="map-title">Схема, 1 этаж</title>', content)
         self.assertNotIn("map-current", _svg_part(content))
-        self.assertIn('href="/map/room/room-199/" class="map-current"', content)
 
     def test_floor_without_plan(self):
         Room.objects.create(code="room-501", floor=5, number="501")
         content = self.client.get("/map/floor/5/").content.decode()
         self.assertIn("Схемы 5 этажа нет.", content)
         self.assertNotIn('<svg class="map-svg"', content)
-        self.assertIn("501</a> — нет на схеме", content)
+        # TASK-013: room list buttons; the note is a separate span (D8).
+        self.assertIn(
+            '<a class="btn map-room-btn" href="/map/room/room-501/">501</a> '
+            '<span class="map-room-off">нет на схеме</span>',
+            content,
+        )
 
     def test_highlight_polygon_room(self):
         Room.objects.create(code="room-210", floor=2, number="210")
@@ -158,12 +177,50 @@ class MapViewTests(TestCase):
         self.assertIn("Служебные помещения", content)
 
     def test_landmarks_per_floor(self):
+        # TASK-013: two staircases per floor; plan order on floor 1.
         f1 = _svg_part(self.client.get("/map/floor/1/").content.decode())
-        self.assertEqual(set(_landmark_labels(f1)), {"Лестница", "Вход", "Столовая"})
+        self.assertEqual(_landmark_labels(f1), ["Лестница", "Лестница", "Столовая", "Вход"])
         f2 = _svg_part(self.client.get("/map/floor/2/").content.decode())
         self.assertEqual(set(_landmark_labels(f2)), {"Лестница", "Деканат"})
+        self.assertEqual(_landmark_labels(f2).count("Лестница"), 2)
         f4 = _svg_part(self.client.get("/map/floor/4/").content.decode())
-        self.assertEqual(set(_landmark_labels(f4)), {"Лестница"})
+        self.assertEqual(_landmark_labels(f4), ["Лестница", "Лестница"])
+
+    def test_room_list_buttons(self):
+        content = self.client.get("/map/floor/2/").content.decode()
+        start = content.index('<ul class="map-room-list">')
+        rooms = content[start:]
+        links = re.findall(r"<a ([^>]*)>", rooms[: rooms.rindex("</ul>")])
+        self.assertTrue(links)
+        for attrs in links:
+            self.assertTrue(attrs.startswith('class="btn map-room-btn"'), attrs)
+        self.assertNotIn('aria-current="location"', content)
+
+    def test_hatch_pattern_defined(self):
+        content = self.client.get("/map/").content.decode()
+        self.assertEqual(content.count('<pattern id="map-hatch"'), 1)
+        defs = content[content.index('<svg class="map-defs"') :]
+        defs = defs[: defs.index(">")]
+        self.assertIn('aria-hidden="true"', defs)
+
+    def test_no_corridor_label(self):
+        for floor in (1, 2, 3, 4):
+            Room.objects.get_or_create(code=f"room-{floor}01", floor=floor, number=f"{floor}01")
+            svg = _svg_part(self.client.get(f"/map/floor/{floor}/").content.decode())
+            with self.subTest(floor=floor):
+                self.assertEqual(svg.count("<text "), svg.count('<g class="map-'))
+                self.assertNotIn("Коридор", svg)
+
+    def test_map_queries_constant(self):
+        url = "/map/room/room-402/"
+        with CaptureQueriesContext(connection) as before:
+            self.client.get(url)
+        for n in range(1, 6):
+            Room.objects.create(code=f"room-30{n}", floor=3, number=f"30{n}")
+        with CaptureQueriesContext(connection) as after:
+            self.client.get(url)
+        self.assertEqual(len(before.captured_queries), len(after.captured_queries))
+        self.assertEqual(len(before.captured_queries), 7)
 
     def test_legend_present(self):
         content = self.client.get("/map/").content.decode()

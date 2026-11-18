@@ -1,14 +1,19 @@
 from django.test import SimpleTestCase
 
 from university.building import (
-    BOTTOM_CENTRE,
     CORRIDOR,
+    DOOR_MIN,
     FLOOR_PLANS,
+    INNER_ROOMS,
     LANDMARK,
     OUTLINE,
     ROOM,
     SERVICE,
     STAIRS,
+    STAIRS_BOTTOM,
+    TOILET,
+    Rect,
+    Space,
     all_plan_rooms,
     plan_for,
     plan_room_numbers,
@@ -40,6 +45,23 @@ def _polygon_area(points):
     return abs(total) // 2
 
 
+def _shared_wall(a: Rect, b: Rect) -> int:
+    """Length of the common boundary of two non-overlapping rectangles."""
+    if a.x + a.width == b.x or b.x + b.width == a.x:
+        return max(0, min(a.y + a.height, b.y + b.height) - max(a.y, b.y))
+    if a.y + a.height == b.y or b.y + b.height == a.y:
+        return max(0, min(a.x + a.width, b.x + b.width) - max(a.x, b.x))
+    return 0
+
+
+def _space_wall(space: Space, rects: list[Rect]) -> int:
+    return max((_shared_wall(p, r) for p in space.parts for r in rects), default=0)
+
+
+def _find(floor: int, label: str) -> list[Space]:
+    return [s for s in FLOOR_PLANS[floor] if s.label == label]
+
+
 def _part_corners(rect):
     return {
         (rect.x, rect.y),
@@ -54,18 +76,90 @@ class FloorPlanTests(SimpleTestCase):
         self.assertEqual(sorted(FLOOR_PLANS), [1, 2, 3, 4])
         self.assertIsNone(plan_for(5))
 
-    def test_fixed_elements_same_on_every_floor(self):
+    # TASK-013: two staircases (top and bottom of the corridor) replace STAIRS + BOTTOM_CENTRE.
+    def test_two_staircases_same_place(self):
         for floor, spaces in FLOOR_PLANS.items():
             with self.subTest(floor=floor):
-                stairs = [s for s in spaces if s.parts == (STAIRS,)]
-                self.assertEqual(len(stairs), 1, "no single STAIRS space")
-                self.assertEqual(stairs[0].label, "Лестница")
-                self.assertEqual(stairs[0].kind, LANDMARK)
-                bottom = [s for s in spaces if s.parts == (BOTTOM_CENTRE,)]
-                self.assertEqual(len(bottom), 1, "no single BOTTOM_CENTRE space")
+                for rect in (STAIRS, STAIRS_BOTTOM):
+                    stairs = [s for s in spaces if s.parts == (rect,)]
+                    self.assertEqual(len(stairs), 1, f"no single space at {rect}")
+                    self.assertEqual(stairs[0].label, "Лестница")
+                    self.assertEqual(stairs[0].kind, LANDMARK)
+                self.assertEqual(len([s for s in spaces if s.label == "Лестница"]), 2)
                 for s in spaces:
                     for part in s.parts:
                         self.assertNotEqual(part, CORRIDOR)
+
+    def test_no_storage(self):
+        for floor, spaces in FLOOR_PLANS.items():
+            with self.subTest(floor=floor):
+                self.assertNotIn("Склад", {s.label for s in spaces})
+
+    def test_entrance_only_on_floor_1(self):
+        for floor in (2, 3, 4):
+            self.assertEqual(_find(floor, "Вход"), [], f"Вход on floor {floor}")
+        entrances = _find(1, "Вход")
+        self.assertEqual(len(entrances), 1)
+        entrance = entrances[0]
+        self.assertEqual(entrance.kind, LANDMARK)
+        self.assertEqual(entrance.parts, (Rect(236, 500, 160, 72),))
+        self.assertGreaterEqual(_space_wall(entrance, [CORRIDOR]), DOOR_MIN)
+
+    def test_wardrobe_and_security_next_to_entrance(self):
+        entrance = _find(1, "Вход")[0]
+        (wardrobe,) = _find(1, "Гардероб")
+        (security,) = _find(1, "Охрана")
+        for space in (wardrobe, security):
+            with self.subTest(label=space.label):
+                self.assertEqual(space.kind, SERVICE)
+                self.assertEqual(len(space.parts), 1)
+                self.assertGreaterEqual(_space_wall(space, list(entrance.parts)), DOOR_MIN)
+        self.assertLessEqual(security.parts[0].area, 72 * 72)
+        (canteen,) = _find(1, "Столовая")
+        self.assertEqual(_space_wall(wardrobe, list(canteen.parts)), 0)
+        self.assertEqual(len(canteen.parts), 1)
+        self.assertEqual(canteen.points, ())
+
+    def test_rooms_open_to_corridor(self):
+        self.assertEqual(INNER_ROOMS, {"211"})
+        for floor, spaces in FLOOR_PLANS.items():
+            for s in spaces:
+                if s.kind != ROOM or s.label in INNER_ROOMS:
+                    continue
+                with self.subTest(floor=floor, label=s.label):
+                    self.assertGreaterEqual(_space_wall(s, [CORRIDOR]), DOOR_MIN)
+        (inner,) = _find(2, "211")
+        (outer,) = _find(2, "210")
+        self.assertGreaterEqual(_space_wall(inner, list(outer.parts)), DOOR_MIN)
+
+    def test_other_spaces_open_to_corridor_or_entrance(self):
+        for floor, spaces in FLOOR_PLANS.items():
+            entrance_parts = [p for s in spaces if s.label == "Вход" for p in s.parts]
+            for s in spaces:
+                if s.kind == ROOM:
+                    continue
+                with self.subTest(floor=floor, label=s.label, parts=s.parts):
+                    if s.label == "Лестница":
+                        self.assertEqual(_space_wall(s, [CORRIDOR]), 72)
+                        continue
+                    access = max(_space_wall(s, [CORRIDOR]), _space_wall(s, entrance_parts))
+                    self.assertGreaterEqual(access, DOOR_MIN)
+
+    def test_one_toilet_per_floor_in_one_riser(self):
+        expected = {1: "Туалет М", 2: "Туалет Ж", 3: "Туалет М", 4: "Туалет Ж"}
+        for floor, spaces in FLOOR_PLANS.items():
+            with self.subTest(floor=floor):
+                toilets = [s for s in spaces if s.label.startswith("Туалет")]
+                self.assertEqual(len(toilets), 1)
+                self.assertEqual(toilets[0].label, expected[floor])
+                self.assertEqual(toilets[0].kind, SERVICE)
+                self.assertEqual(toilets[0].parts, (TOILET,))
+
+    def test_shared_wall_helper(self):
+        self.assertEqual(_shared_wall(Rect(0, 0, 10, 40), Rect(10, 0, 10, 40)), 40)
+        self.assertEqual(_shared_wall(Rect(0, 0, 10, 10), Rect(10, 10, 10, 10)), 0)
+        self.assertEqual(_shared_wall(Rect(0, 0, 10, 10), Rect(30, 30, 10, 10)), 0)
+        self.assertEqual(_shared_wall(Rect(0, 0, 40, 10), Rect(16, 10, 40, 10)), 24)
 
     def test_full_coverage_no_overlap(self):
         for floor, spaces in FLOOR_PLANS.items():
@@ -109,9 +203,8 @@ class FloorPlanTests(SimpleTestCase):
 
     def test_l_shapes_are_polygons_with_matching_area(self):
         multi = [s for spaces in FLOOR_PLANS.values() for s in spaces if len(s.parts) > 1]
-        self.assertEqual(
-            {(s.kind, s.label) for s in multi}, {(LANDMARK, "Столовая"), (ROOM, "210")}
-        )
+        # TASK-013: the canteen is one rectangle now; 210 is the only multi-part space.
+        self.assertEqual({(s.kind, s.label) for s in multi}, {(ROOM, "210")})
         for s in multi:
             self.assertEqual(len(s.parts), 2, s.label)
             self.assertEqual(_polygon_area(s.points), sum(p.area for p in s.parts), s.label)
@@ -134,10 +227,16 @@ class FloorPlanTests(SimpleTestCase):
         self.assertEqual(labels(2, LANDMARK), {"Лестница", "Деканат"})
         self.assertEqual(labels(3, LANDMARK), {"Лестница", "Библиотека"})
         self.assertEqual(labels(4, LANDMARK), {"Лестница"})
-        for floor in (1, 2, 3, 4):
-            self.assertIn("Туалеты", labels(floor, SERVICE), f"no Туалеты on {floor}")
-        self.assertIn("Гардероб", labels(1, SERVICE))
-        self.assertNotIn("Гардероб", labels(2, SERVICE))
+        # TASK-013: one toilet per floor, no "Склад", Охрана + Гардероб at the entrance.
+        self.assertEqual(
+            {f: labels(f, SERVICE) for f in (1, 2, 3, 4)},
+            {
+                1: {"Туалет М", "Кафедра", "Медпункт", "Охрана", "Гардероб"},
+                2: {"Туалет Ж", "Кафедра"},
+                3: {"Туалет М", "Кафедра"},
+                4: {"Туалет Ж", "Кафедра", "Архив"},
+            },
+        )
 
     def test_all_plan_rooms_sorted(self):
         rooms = all_plan_rooms()

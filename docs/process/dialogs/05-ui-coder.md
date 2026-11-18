@@ -5137,3 +5137,2044 @@ TASK-012 готова, отчёт отправлен Ревьюеру (@thread:t
 Чтобы остановить тестовый сервер, команду пришлось запустить один раз без песочницы: песочница не показывает процессы, запущенные в других командах. Браузер и сервер я закрыл.
 
 Жду ответа Ревьюера.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_2imsg4kck2]
+
+[TASK-013] Planner -> UI coder: TASK
+Spec: docs/tasks/TASK-013.md. Design references: the TASK-012 theme (tokens.css/theme.css) and the orange primary button for the map highlight.
+Summary:
+- Floor plans: replace the plan data in university/building.py with the exact block in D4. It has two staircases, no "Склад", the entrance on the east side with Охрана + Гардероб next to it, one toilet per floor (М/Ж) in one riser, and a door of 24 units or more from every room to the corridor (except 211). Rewrite the building tests per the Test plan.
+- Map look (D5-D9): orange highlighted room with a light thick frame and a dark number; yellow dashed landmarks; hatched lilac service spaces (hidden <pattern id="map-hatch">, label halo); no corridor label; the room list as a grid of 44 px pixel buttons.
+- Change reasons are hidden everywhere. Model: reason blank=True; drop the constraint with migration schedule/0005_lessonchange_reason_optional. Feed body "".
+- Fixes: full-width file input (native text not cut at 360 px), a one-line wide header at 1024/1280 px (D12 limits), thin square scrollbar that shows on hover (D14). README "## Map".
+Visual acceptance: see "Pages to check visually". It covers all 4 floors at 360 and 1024, highlights on floors 1 and 4, the room list, schedule today/week, home, the feed, the request form, and the wide header with "50+" and "Чат (99+)" (report the measured tops). Baseline: 1051 tests OK (2026-11-18 ~15:56 MSK).
+
+── Thought for 7ms ─────────────────────────────────────────
+  I'm starting by reading through the spec.
+
+── Assistant ───────────────────────────────────────────────
+Получил TASK-013. Читаю спецификацию.
+
+── Ran 1 command, explored 1 file ──────────────────────────
+  ── Ran git status --short && git log --oneline -4 && wc -l docs/tasks/TASK-013.md
+    $ git status --short && git log --oneline -4 && wc -l docs/tasks/TASK-013.md
+    M plan.md
+    ?? docs/tasks/TASK-013.md
+    775c082 TASK-012: night pixel design for all pages
+    59481cf Design: approved mockup and Press Start 2P font (OFL) for TASK-012
+    9fe9da5 Team: add the UI coder agent (Claude Opus) for visual tasks
+    7fbeaa5 Plan: code on GitHub, CI green on SQLite and PostgreSQL
+         456 docs/tasks/TASK-013.md
+  ── Read ~/hackatonproject/docs/tasks/TASK-013.md
+  ── Thought for 4ms
+    I'm going to look at building.py to work through the first step of the plan.
+
+── Assistant ───────────────────────────────────────────────
+Начинаю с планов этажей (шаг 1).
+
+── Explored 1 search, 1 file, ran 1 command ────────────────
+  ── Searched for VIEWBOX_WIDTH = 400\|^def plan_for\|^"""\|BOTTOM_CENTRE in university/building.py
+  ── Ran python3 - <<'EOF' import pathlib,re spec=pathlib.Path("docs/tasks/TASK-013.md").read_text() block=re.search(r"```python\n(VIEWBOX_WIDTH = 400.*?)```", spec, re.S).group(1) p=pathlib.Path("university/building.py"); s=p.read_text() i=s.index("VIEWBOX_WIDTH = 400"); j=s.index("def plan_for") s=s[:i]+block.rstrip("\n")+"\n\n\n"+s[j:] p.write_text(s) EOF source .venv/bin/activate && ruff check university/building.py && ruff format --check university/building.py && grep -rn "BOTTOM_CENTRE\|Склад" --include='*.py' . | grep -v .venv (2s)
+    $ python3 - <<'EOF'
+  import pathlib,re
+  spec=pathlib.Path("docs/tasks/TASK-013.md").read_text()
+  block=re.search(r"```python\n(VIEWBOX_WIDTH = 400.*?)```", spec, re.S).group(1)
+  p=pathlib.Path("university/building.py"); s=p.read_text()
+  i=s.index("VIEWBOX_WIDTH = 400"); j=s.index("def plan_for")
+  s=s[:i]+block.rstrip("\n")+"\n\n\n"+s[j:]
+  p.write_text(s)
+  EOF
+  source .venv/bin/activate && ruff check university/building.py && ruff format --check university/building.py && grep -rn "BOTTOM_CENTRE\|Склад" --include='*.py' . | grep -v .venv
+    All checks passed!
+    1 file already formatted
+    university/tests/test_building.py:4:    BOTTOM_CENTRE,
+    university/tests/test_building.py:64:                bottom = [s for s in spaces if s.parts == (BOTTOM_CENTRE,)]
+    university/tests/test_building.py:65:                self.assertEqual(len(bottom), 1, "no single BOTTOM_CENTRE space")
+  ── Read university/tests/test_building.py
+
+── Assistant ───────────────────────────────────────────────
+Переписываю тесты здания по Test plan.
+
+── Ran 2 commands, explored 1 file ─────────────────────────
+  ── Ran python3 - <<'EOF' import pathlib p=pathlib.Path("university/tests/test_building.py"); s=p.read_text() s=s.replace("""from university.building import (     BOTTOM_CENTRE,     CORRIDOR,     FLOOR_PLANS,     LANDMARK,     OUTLINE,     ROOM,     SERVICE,     STAIRS,     all_plan_rooms,""","""from university.building import (     CORRIDOR,     DOOR_MIN,     FLOOR_PLANS,     INNER_ROOMS,     LANDMARK,     OUTLINE,     ROOM,     SERVICE,     STAIRS,     STAIRS_BOTTOM,     TOILET,     Rect,     Space,     all_plan_rooms,""") s=s.replace('''def _part_corners(rect):''','''def _shared_wall(a: Rect, b: Rect) -> int:     """Length of the common boundary of two non-overlapping rectangles."""     if a.x + a.width == b.x or b.x + b.width == a.x:         return max(0, min(a.y + a.height, b.y + b.height) - max(a.y, b.y))     if a.y + a.height == b.y or b.y + b.height == a.y:         return max(0, min(a.x + a.width, b.x + b.width) - max(a.x, b.x))     return 0 def _space_wall(space: Space, rects: list[Rect]) -> int:     return max((_shared_wall(p, r) for p in space.parts for r in rects), default=0) def _find(floor: int, label: str) -> list[Space]:     return [s for s in FLOOR_PLANS[floor] if s.label == label] def _part_corners(rect):''') old_start=s.index("    def test_fixed_elements_same_on_every_floor(self):") old_end=s.index("    def test_full_coverage_no_overlap(self):") s=s[:old_start]+'''    # TASK-013: two staircases (top and bottom of the corridor) replace STAIRS + BOTTOM_CENTRE.     def test_two_staircases_same_place(self):         for floor, spaces in FLOOR_PLANS.items():             with self.subTest(floor=floor):                 for rect in (STAIRS, STAIRS_BOTTOM):                     stairs = [s for s in spaces if s.parts == (rect,)]                     self.assertEqual(len(stairs), 1, f"no single space at {rect}")                     self.assertEqual(stairs[0].label, "Лестница")                     self.assertEqual(stairs[0].kind, LANDMARK)                 self.assertEqual(len([s for s in spaces if s.label == "Лестница"]), 2)                 for s in spaces:                     for part in s.parts:                         self.assertNotEqual(part, CORRIDOR)     def test_no_storage(self):         for floor, spaces in FLOOR_PLANS.items():             with self.subTest(floor=floor):                 self.assertNotIn("Склад", {s.label for s in spaces})     def test_entrance_only_on_floor_1(self):         for floor in (2, 3, 4):             self.assertEqual(_find(floor, "Вход"), [], f"Вход on floor {floor}")         entrances = _find(1, "Вход")         self.assertEqual(len(entrances), 1)         entrance = entrances[0]         self.assertEqual(entrance.kind, LANDMARK)         self.assertEqual(entrance.parts, (Rect(236, 500, 160, 72),))         self.assertGreaterEqual(_space_wall(entrance, [CORRIDOR]), DOOR_MIN)     def test_wardrobe_and_security_next_to_entrance(self):         entrance = _find(1, "Вход")[0]         (wardrobe,) = _find(1, "Гардероб")         (security,) = _find(1, "Охрана")         for space in (wardrobe, security):             with self.subTest(label=space.label):                 self.assertEqual(space.kind, SERVICE)                 self.assertEqual(len(space.parts), 1)                 self.assertGreaterEqual(_space_wall(space, list(entrance.parts)), DOOR_MIN)         self.assertLessEqual(security.parts[0].area, 72 * 72)         (canteen,) = _find(1, "Столовая")         self.assertEqual(_space_wall(wardrobe, list(canteen.parts)), 0)         self.assertEqual(len(canteen.parts), 1)         self.assertEqual(canteen.points, ())     def test_rooms_open_to_corridor(self):         self.assertEqual(INNER_ROOMS, {"211"})         for floor, spaces in FLOOR_PLANS.items():             for s in spaces:                 if s.kind != ROOM or s.label in INNER_ROOMS:                     continue                 with self.subTest(floor=floor, label=s.label):                     self.assertGreaterEqual(_space_wall(s, [CORRIDOR]), DOOR_MIN)         (inner,) = _find(2, "211")         (outer,) = _find(2, "210")         self.assertGreaterEqual(_space_wall(inner, list(outer.parts)), DOOR_MIN)     def test_other_spaces_open_to_corridor_or_entrance(self):         for floor, spaces in FLOOR_PLANS.items():             entrance_parts = [p for s in spaces if s.label == "Вход" for p in s.parts]             for s in spaces:                 if s.kind == ROOM:                     continue                 with self.subTest(floor=floor, label=s.label, parts=s.parts):                     if s.label == "Лестница":                         self.assertEqual(_space_wall(s, [CORRIDOR]), 72)                         continue                     access = max(_space_wall(s, [CORRIDOR]), _space_wall(s, entrance_parts))                     self.assertGreaterEqual(access, DOOR_MIN)     def test_one_toilet_per_floor_in_one_riser(self):         expected = {1: "Туалет М", 2: "Туалет Ж", 3: "Туалет М", 4: "Туалет Ж"}         for floor, spaces in FLOOR_PLANS.items():             with self.subTest(floor=floor):                 toilets = [s for s in spaces if s.label.startswith("Туалет")]                 self.assertEqual(len(toilets), 1)                 self.assertEqual(toilets[0].label, expected[floor])                 self.assertEqual(toilets[0].kind, SERVICE)                 self.assertEqual(toilets[0].parts, (TOILET,))     def test_shared_wall_helper(self):         self.assertEqual(_shared_wall(Rect(0, 0, 10, 40), Rect(10, 0, 10, 40)), 40)         self.assertEqual(_shared_wall(Rect(0, 0, 10, 10), Rect(10, 10, 10, 10)), 0)         self.assertEqual(_shared_wall(Rect(0, 0, 10, 10), Rect(30, 30, 10, 10)), 0)         self.assertEqual(_shared_wall(Rect(0, 0, 40, 10), Rect(16, 10, 40, 10)), 24) '''+s[old_end:] s=s.replace("""        self.assertEqual(             {(s.kind, s.label) for s in multi}, {(LANDMARK, "Столовая"), (ROOM, "210")}         )""","""        # TASK-013: the canteen is one rectangle now; 210 is the only multi-part space.         self.assertEqual({(s.kind, s.label) for s in multi}, {(ROOM, "210")})""") old_start=s.index("        for floor in (1, 2, 3, 4):\n            self.assertIn(\"Туалеты\"") old_end=s.index("    def test_all_plan_rooms_sorted(self):") s=s[:old_start]+'''        # TASK-013: one toilet per floor, no "Склад", Охрана + Гардероб at the entrance.         self.assertEqual(             {f: labels(f, SERVICE) for f in (1, 2, 3, 4)},             {                 1: {"Туалет М", "Кафедра", "Медпункт", "Охрана", "Гардероб"},                 2: {"Туалет Ж", "Кафедра"},                 3: {"Туалет М", "Кафедра"},                 4: {"Туалет Ж", "Кафедра", "Архив"},             },         ) '''+s[old_end:] p.write_text(s) EOF source .venv/bin/activate && ruff check university/tests/test_building.py && ruff format university/tests/test_building.py && grep -n "Столовая\|polygon_points\|clamped\|Туалеты\|Склад" campusmap/tests/test_layout.py | head -20 (1s)
+    $ python3 - <<'EOF'
+  import pathlib
+  p=pathlib.Path("university/tests/test_building.py"); s=p.read_text()
+  s=s.replace("""from university.building import (
+      BOTTOM_CENTRE,
+      CORRIDOR,
+      FLOOR_PLANS,
+      LANDMARK,
+      OUTLINE,
+      ROOM,
+      SERVICE,
+      STAIRS,
+      all_plan_rooms,""","""from university.building import (
+      CORRIDOR,
+      DOOR_MIN,
+      FLOOR_PLANS,
+      INNER_ROOMS,
+      LANDMARK,
+      OUTLINE,
+      ROOM,
+      SERVICE,
+      STAIRS,
+      STAIRS_BOTTOM,
+      TOILET,
+      Rect,
+      Space,
+      all_plan_rooms,""")
+  s=s.replace('''def _part_corners(rect):''','''def _shared_wall(a: Rect, b: Rect) -> int:
+      """Length of the common boundary of two non-overlapping rectangles."""
+      if a.x + a.width == b.x or b.x + b.width == a.x:
+          return max(0, min(a.y + a.height, b.y + b.height) - max(a.y, b.y))
+      if a.y + a.height == b.y or b.y + b.height == a.y:
+          return max(0, min(a.x + a.width, b.x + b.width) - max(a.x, b.x))
+      return 0
+
+
+  def _space_wall(space: Space, rects: list[Rect]) -> int:
+      return max((_shared_wall(p, r) for p in space.parts for r in rects), default=0)
+
+
+  def _find(floor: int, label: str) -> list[Space]:
+      return [s for s in FLOOR_PLANS[floor] if s.label == label]
+
+
+  def _part_corners(rect):''')
+  old_start=s.index("    def test_fixed_elements_same_on_every_floor(self):")
+  old_end=s.index("    def test_full_coverage_no_overlap(self):")
+  s=s[:old_start]+'''    # TASK-013: two staircases (top and bottom of the corridor) replace STAIRS + BOTTOM_CENTRE.
+      def test_two_staircases_same_place(self):
+          for floor, spaces in FLOOR_PLANS.items():
+              with self.subTest(floor=floor):
+                  for rect in (STAIRS, STAIRS_BOTTOM):
+                      stairs = [s for s in spaces if s.parts == (rect,)]
+                      self.assertEqual(len(stairs), 1, f"no single space at {rect}")
+                      self.assertEqual(stairs[0].label, "Лестница")
+                      self.assertEqual(stairs[0].kind, LANDMARK)
+                  self.assertEqual(len([s for s in spaces if s.label == "Лестница"]), 2)
+                  for s in spaces:
+                      for part in s.parts:
+                          self.assertNotEqual(part, CORRIDOR)
+
+      def test_no_storage(self):
+          for floor, spaces in FLOOR_PLANS.items():
+              with self.subTest(floor=floor):
+                  self.assertNotIn("Склад", {s.label for s in spaces})
+
+      def test_entrance_only_on_floor_1(self):
+          for floor in (2, 3, 4):
+              self.assertEqual(_find(floor, "Вход"), [], f"Вход on floor {floor}")
+          entrances = _find(1, "Вход")
+          self.assertEqual(len(entrances), 1)
+          entrance = entrances[0]
+          self.assertEqual(entrance.kind, LANDMARK)
+          self.assertEqual(entrance.parts, (Rect(236, 500, 160, 72),))
+          self.assertGreaterEqual(_space_wall(entrance, [CORRIDOR]), DOOR_MIN)
+
+      def test_wardrobe_and_security_next_to_entrance(self):
+          entrance = _find(1, "Вход")[0]
+          (wardrobe,) = _find(1, "Гардероб")
+          (security,) = _find(1, "Охрана")
+          for space in (wardrobe, security):
+              with self.subTest(label=space.label):
+                  self.assertEqual(space.kind, SERVICE)
+                  self.assertEqual(len(space.parts), 1)
+                  self.assertGreaterEqual(_space_wall(space, list(entrance.parts)), DOOR_MIN)
+          self.assertLessEqual(security.parts[0].area, 72 * 72)
+          (canteen,) = _find(1, "Столовая")
+          self.assertEqual(_space_wall(wardrobe, list(canteen.parts)), 0)
+          self.assertEqual(len(canteen.parts), 1)
+          self.assertEqual(canteen.points, ())
+
+      def test_rooms_open_to_corridor(self):
+          self.assertEqual(INNER_ROOMS, {"211"})
+          for floor, spaces in FLOOR_PLANS.items():
+              for s in spaces:
+                  if s.kind != ROOM or s.label in INNER_ROOMS:
+                      continue
+                  with self.subTest(floor=floor, label=s.label):
+                      self.assertGreaterEqual(_space_wall(s, [CORRIDOR]), DOOR_MIN)
+          (inner,) = _find(2, "211")
+          (outer,) = _find(2, "210")
+          self.assertGreaterEqual(_space_wall(inner, list(outer.parts)), DOOR_MIN)
+
+      def test_other_spaces_open_to_corridor_or_entrance(self):
+          for floor, spaces in FLOOR_PLANS.items():
+              entrance_parts = [p for s in spaces if s.label == "Вход" for p in s.parts]
+              for s in spaces:
+                  if s.kind == ROOM:
+                      continue
+                  with self.subTest(floor=floor, label=s.label, parts=s.parts):
+                      if s.label == "Лестница":
+                          self.assertEqual(_space_wall(s, [CORRIDOR]), 72)
+                          continue
+                      access = max(_space_wall(s, [CORRIDOR]), _space_wall(s, entrance_parts))
+                      self.assertGreaterEqual(access, DOOR_MIN)
+
+      def test_one_toilet_per_floor_in_one_riser(self):
+          expected = {1: "Туалет М", 2: "Туалет Ж", 3: "Туалет М", 4: "Туалет Ж"}
+          for floor, spaces in FLOOR_PLANS.items():
+              with self.subTest(floor=floor):
+                  toilets = [s for s in spaces if s.label.startswith("Туалет")]
+                  self.assertEqual(len(toilets), 1)
+                  self.assertEqual(toilets[0].label, expected[floor])
+                  self.assertEqual(toilets[0].kind, SERVICE)
+                  self.assertEqual(toilets[0].parts, (TOILET,))
+
+      def test_shared_wall_helper(self):
+          self.assertEqual(_shared_wall(Rect(0, 0, 10, 40), Rect(10, 0, 10, 40)), 40)
+          self.assertEqual(_shared_wall(Rect(0, 0, 10, 10), Rect(10, 10, 10, 10)), 0)
+          self.assertEqual(_shared_wall(Rect(0, 0, 10, 10), Rect(30, 30, 10, 10)), 0)
+          self.assertEqual(_shared_wall(Rect(0, 0, 40, 10), Rect(16, 10, 40, 10)), 24)
+
+  '''+s[old_end:]
+  s=s.replace("""        self.assertEqual(
+              {(s.kind, s.label) for s in multi}, {(LANDMARK, "Столовая"), (ROOM, "210")}
+          )""","""        # TASK-013: the canteen is one rectangle now; 210 is the only multi-part space.
+          self.assertEqual({(s.kind, s.label) for s in multi}, {(ROOM, "210")})""")
+  old_start=s.index("        for floor in (1, 2, 3, 4):\n            self.assertIn(\"Туалеты\"")
+  old_end=s.index("    def test_all_plan_rooms_sorted(self):")
+  s=s[:old_start]+'''        # TASK-013: one toilet per floor, no "Склад", Охрана + Гардероб at the entrance.
+          self.assertEqual(
+              {f: labels(f, SERVICE) for f in (1, 2, 3, 4)},
+              {
+                  1: {"Туалет М", "Кафедра", "Медпункт", "Охрана", "Гардероб"},
+                  2: {"Туалет Ж", "Кафедра"},
+                  3: {"Туалет М", "Кафедра"},
+                  4: {"Туалет Ж", "Кафедра", "Архив"},
+              },
+          )
+
+  '''+s[old_end:]
+  p.write_text(s)
+  EOF
+  source .venv/bin/activate && ruff check university/tests/test_building.py && ruff format university/tests/test_building.py && grep -n "Столовая\|polygon_points\|clamped\|Туалеты\|Склад" campusmap/tests/test_layout.py | head -20
+    All checks passed!
+    1 file left unchanged
+    45:    def test_clamped_labels_exactly(self):
+    46:        clamped = set()
+    51:                    clamped.add((floor, shape.label))
+    53:            clamped,
+    68:    def test_polygon_points_string(self):
+    71:        canteen = next(s for s in plan.shapes if s.label == "Столовая")
+    [This command modified 1 file you've previously read: university/tests/test_building.py. Call Read before editing.]
+  ── Thought for 5ms
+    I'm keeping the name "test_l_shapes" as it is, and the "landmarks" part of the test stays the same since the label set is unchanged. I've dropped the "Гардероб not in floor 2" assertion because the exact equality check already covers it. Now I'm moving on to the layout tests.
+  ── Read campusmap/tests/test_layout.py
+  ── Ran python3 - <<'EOF' import pathlib p=pathlib.Path("campusmap/tests/test_layout.py"); s=p.read_text() old_start=s.index("    def test_clamped_labels_exactly(self):"); old_end=s.index("    def test_coordinates_are_integers(self):") s=s[:old_start]+'''    def test_clamped_labels_exactly(self):         clamped = set()         lengths = []         for floor in range(1, 5):             plan = floor_plan(floor, None)             for shape in plan.shapes:                 if shape.text_length is not None:                     clamped.add((floor, shape.label))                     lengths.append((floor, shape.label, shape.text_length))         # TASK-013: two staircases per floor; Охрана and Гардероб are small rooms by the entrance.         self.assertEqual(             clamped,             {(f, "Лестница") for f in range(1, 5)} | {(1, "Охрана"), (1, "Гардероб")},         )         for floor in range(1, 5):             stairs = [n for f, label, n in lengths if f == floor and label == "Лестница"]             self.assertEqual(stairs, [56, 56], f"floor {floor}")         self.assertIn((1, "Охрана", 56), lengths)         self.assertIn((1, "Гардероб", 72), lengths)         for floor in range(1, 5):             plan = floor_plan(floor, None)             for shape in plan.shapes:                 if shape.kind == "room":                     self.assertIsNone(shape.text_length, shape.label)     def test_polygon_points_string(self):         self.assertEqual(svg_points(((4, 452), (164, 452))), "4,452 164,452")         # TASK-013: the canteen is a rectangle now; room 210 is the only polygon.         plan = floor_plan(2, None)         room = next(s for s in plan.shapes if s.label == "210")         self.assertEqual(room.points, "236,188 396,188 396,316 316,316 316,412 236,412") '''+s[old_end:] p.write_text(s) EOF source .venv/bin/activate && ruff check campusmap/tests/test_layout.py && ruff format campusmap/tests/test_layout.py; L="$TMPDIR/test-t013-step1-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"; python manage.py test university campusmap --parallel 1 > "$L" 2>&1; echo $L; grep -E "^(Ran|OK|FAILED)" $L; grep -E "^(FAIL|ERROR):" -A12 $L | head -60 (3s)
+    $ python3 - <<'EOF'
+  import pathlib
+  p=pathlib.Path("campusmap/tests/test_layout.py"); s=p.read_text()
+  old_start=s.index("    def test_clamped_labels_exactly(self):"); old_end=s.index("    def test_coordinates_are_integers(self):")
+  s=s[:old_start]+'''    def test_clamped_labels_exactly(self):
+          clamped = set()
+          lengths = []
+          for floor in range(1, 5):
+              plan = floor_plan(floor, None)
+              for shape in plan.shapes:
+                  if shape.text_length is not None:
+                      clamped.add((floor, shape.label))
+                      lengths.append((floor, shape.label, shape.text_length))
+          # TASK-013: two staircases per floor; Охрана and Гардероб are small rooms by the entrance.
+          self.assertEqual(
+              clamped,
+              {(f, "Лестница") for f in range(1, 5)} | {(1, "Охрана"), (1, "Гардероб")},
+          )
+          for floor in range(1, 5):
+              stairs = [n for f, label, n in lengths if f == floor and label == "Лестница"]
+              self.assertEqual(stairs, [56, 56], f"floor {floor}")
+          self.assertIn((1, "Охрана", 56), lengths)
+          self.assertIn((1, "Гардероб", 72), lengths)
+          for floor in range(1, 5):
+              plan = floor_plan(floor, None)
+              for shape in plan.shapes:
+                  if shape.kind == "room":
+                      self.assertIsNone(shape.text_length, shape.label)
+
+      def test_polygon_points_string(self):
+          self.assertEqual(svg_points(((4, 452), (164, 452))), "4,452 164,452")
+          # TASK-013: the canteen is a rectangle now; room 210 is the only polygon.
+          plan = floor_plan(2, None)
+          room = next(s for s in plan.shapes if s.label == "210")
+          self.assertEqual(room.points, "236,188 396,188 396,316 316,316 316,412 236,412")
+
+  '''+s[old_end:]
+  p.write_text(s)
+  EOF
+  source .venv/bin/activate && ruff check campusmap/tests/test_layout.py && ruff format campusmap/tests/test_layout.py; L="$TMPDIR/test-t013-step1-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"; python manage.py test university campusmap --parallel 1 > "$L" 2>&1; echo $L; grep -E "^(Ran|OK|FAILED)" $L; grep -E "^(FAIL|ERROR):" -A12 $L | head -60
+    All checks passed!
+    1 file left unchanged
+    /tmp/claude-501/test-t013-step1-20261118-160326.log
+    Ran 75 tests in 1.087s
+    OK
+    [This command modified 1 file you've previously read: campusmap/tests/test_layout.py. Call Read before editing.]
+  ── Thought for 6ms
+    Hmm, test_landmarks_per_floor is supposed to fail, but it passed, so it may be comparing sets. The spec says to update it, which I'll do in step 3. The room list markup tests should still pass since the template hasn't changed. Next, I'm working out the reasons.
+
+── Assistant ───────────────────────────────────────────────
+Шаг 1 готов: 75 тестов OK. Шаг 2: причины изменений.
+
+── Explored 1 file, ran 1 command ──────────────────────────
+  ── Read schedule/models.py
+  ── Ran python3 - <<'EOF' import pathlib def rep(path, old, new):     p=pathlib.Path(path); s=p.read_text(); assert s.count(old)==1,(path,old); p.write_text(s.replace(old,new)) rep("schedule/models.py",'    reason = models.CharField("причина", max_length=200)\n','    reason = models.CharField("причина", max_length=200, blank=True)\n') rep("schedule/models.py",'''            models.CheckConstraint(                 condition=~models.Q(reason=""), name="schedule_change_reason_required"             ), ''','') rep("notifications/sources.py","            body=obj.reason,","            body=\"\",") rep("schedule/templates/schedule/includes/lesson_item.html","{% endif %}. Причина: {{ item.change.reason }}</p>","{% endif %}</p>") EOF source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/ui.sqlite3" && python manage.py makemigrations schedule --name lessonchange_reason_optional && cat schedule/migrations/0005_lessonchange_reason_optional.py && ruff format schedule/migrations/0005_lessonchange_reason_optional.py && ruff check schedule/migrations/0005_lessonchange_reason_optional.py schedule/models.py notifications/sources.py (2s)
+    $ python3 - <<'EOF'
+  import pathlib
+  def rep(path, old, new):
+      p=pathlib.Path(path); s=p.read_text(); assert s.count(old)==1,(path,old); p.write_text(s.replace(old,new))
+  rep("schedule/models.py",'    reason = models.CharField("причина", max_length=200)\n','    reason = models.CharField("причина", max_length=200, blank=True)\n')
+  rep("schedule/models.py",'''            models.CheckConstraint(
+                  condition=~models.Q(reason=""), name="schedule_change_reason_required"
+              ),
+  ''','')
+  rep("notifications/sources.py","            body=obj.reason,","            body=\"\",")
+  rep("schedule/templates/schedule/includes/lesson_item.html","{% endif %}. Причина: {{ item.change.reason }}</p>","{% endif %}</p>")
+  EOF
+  source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/ui.sqlite3" && python manage.py makemigrations schedule --name lessonchange_reason_optional && cat schedule/migrations/0005_lessonchange_reason_optional.py && ruff format schedule/migrations/0005_lessonchange_reason_optional.py && ruff check schedule/migrations/0005_lessonchange_reason_optional.py schedule/models.py notifications/sources.py
+    Migrations for 'schedule':
+      schedule/migrations/0005_lessonchange_reason_optional.py
+        - Remove constraint schedule_change_reason_required from model lessonchange
+        ~ Alter field reason on lessonchange
+    # Generated by Django 5.2.19 on 2026-11-18 13:03
+
+    from django.db import migrations, models
+
+
+    class Migration(migrations.Migration):
+
+        dependencies = [
+            ('schedule', '0004_lessonchange_updated_at'),
+        ]
+
+        operations = [
+            migrations.RemoveConstraint(
+                model_name='lessonchange',
+                name='schedule_change_reason_required',
+            ),
+            migrations.AlterField(
+                model_name='lessonchange',
+                name='reason',
+                field=models.CharField(blank=True, max_length=200, verbose_name='причина'),
+            ),
+        ]
+    1 file reformatted
+    All checks passed!
+
+── Assistant ───────────────────────────────────────────────
+Миграция создана. Обновляю тесты по причинам.
+
+── Explored 2 searches, 2 files, ran 3 commands ────────────
+  ── Searched for def test_blank_reason in schedule/tests/test_validation.py
+  ── Searched for class ChangeRenderingTests\|def test_change_rendering\|class ScheduleUiFixTests\|def test_change_label_no_space_before_period in schedule/tests/test_views.py
+  ── Read schedule/tests/test_views.py
+  ── Thought for 3s
+    I'm checking which reasons can safely be used in the ScheduleUiFixTests assertions. "Перенос" also appears as a discipline name there, so asserting it absent would be unreliable. I'll use the ChangeRenderingTests reasons for the staff week test instead, since they're unique.
+
+    I'll keep the test reasons to ones that appear nowhere else, like "Ремонт" and "Болезнь" and "Причина", since "Перенос" collides with a discipline name. For the today-page test, the simplest setup is a cancelled lesson on Wednesday 11-18 in ChangeRenderingTests, using a distinctive reason like "Секретная отмена".
+  ── Ran python3 - <<'EOF' import pathlib def rep(path, old, new):     p=pathlib.Path(path); s=p.read_text(); assert s.count(old)==1,(path,old); p.write_text(s.replace(old,new)) rep("schedule/tests/test_views.py","""        for reason in (             "Преподаватель на конференции",             "Перенос по просьбе",             "Ремонт в аудитории",             "Болезнь преподавателя",         ):             self.assertIn(reason, content) ""","""        # TASK-013: change reasons are no longer shown (AC12).         for reason in (             "Преподаватель на конференции",             "Перенос по просьбе",             "Ремонт в аудитории",             "Болезнь преподавателя",         ):             self.assertNotIn(reason, content)         self.assertNotIn("Причина", content) """) rep("schedule/tests/test_views.py","""        self.assertIn("Воронцова", content) class ScheduleUiFixTests(""","""        self.assertIn("Воронцова", content)     def test_today_page_hides_reason(self):         lesson = make_lesson(             [self.group], 2, 3, self.room, discipline=make_discipline("Сегодняшняя")         )         save_lesson_change(             LessonChange(                 weekly_lesson=lesson,                 original_date=date(2026, 11, 18),                 kind=ChangeKind.CANCELLED,                 reason="Секретная отмена",             )         )         self.client.force_login(self.student)         content = self.client.get("/schedule/").content.decode()         self.assertIn("Сегодняшняя", content)         self.assertIn('<p class="lesson-change">Отменено</p>', content)         self.assertNotIn("Секретная отмена", content) class ScheduleUiFixTests(""") rep("schedule/tests/test_views.py","""    def test_change_label_no_space_before_period(self):         self.client.force_login(self.student)         content = self.client.get("/schedule/week/2026-11-16/").content.decode()         self.assertIn("Отменено. Причина:", content)         self.assertIn("Замена аудитории. Причина:", content)         self.assertIn("Замена преподавателя. Причина:", content)         self.assertIn("). Причина:", content)  # moved-out         self.assertIn("пара. Причина:", content)  # moved-in         self.assertNotIn(" . Причина", content) ""","""    # TASK-013: the change label stands alone, without the reason and the period (D11).     def test_change_labels_without_reason(self):         self.client.force_login(self.student)         content = self.client.get("/schedule/week/2026-11-16/").content.decode()         self.assertIn('<p class="lesson-change">Отменено</p>', content)         self.assertIn('<p class="lesson-change">Замена аудитории</p>', content)         self.assertIn('<p class="lesson-change">Замена преподавателя</p>', content)         self.assertRegex(content, r'<p class="lesson-change">Перенесено на [^<]*\\)</p>')         self.assertRegex(content, r'<p class="lesson-change">Перенесено с [^<]*пара</p>')         self.assertNotIn("Причина", content)     def test_staff_week_hides_reason(self):         staff = make_staff("sfr", self.faculty)         self.client.force_login(staff)         content = self.client.get(f"/staff/schedule/{self.group.pk}/2026-11-16/").content.decode()         self.assertIn("Отменено", content)         for reason in ("Ремонт", "Болезнь", "Причина"):             self.assertNotIn(reason, content) """) rep("schedule/tests/test_validation.py","""    def test_blank_reason(self):         lesson = self._lesson(weekday=0)         with self.assertRaises(ValidationError) as cm:             save_lesson_change(                 LessonChange(                     weekly_lesson=lesson,                     original_date=date(2026, 11, 16),                     kind=ChangeKind.CANCELLED,                     reason="",                 )             )         self.assertIn("reason", cm.exception.message_dict) ""","""    # TASK-013: the reason is optional now (AC13).     def test_blank_reason_allowed(self):         lesson = self._lesson(weekday=0)         change = save_lesson_change(             LessonChange(                 weekly_lesson=lesson,                 original_date=date(2026, 11, 16),                 kind=ChangeKind.CANCELLED,                 reason="",             )         )         self.assertEqual(LessonChange.objects.get(pk=change.pk).reason, "") """) rep("schedule/tests/test_validation.py","""    def test_blank_reason_violates_constraint(self):         lesson = self._lesson()         with self.assertRaises(IntegrityError):             with transaction.atomic():                 LessonChange.objects.create(                     weekly_lesson=lesson,                     original_date=date(2026, 11, 16),                     kind=ChangeKind.CANCELLED,                     reason="",                 )""","""    # TASK-013: the constraint schedule_change_reason_required is removed (AC13).     def test_blank_reason_saved_in_db(self):         lesson = self._lesson()         with transaction.atomic():             change = LessonChange.objects.create(                 weekly_lesson=lesson,                 original_date=date(2026, 11, 16),                 kind=ChangeKind.CANCELLED,                 reason="",             )         self.assertEqual(change.reason, "")""") EOF sed -n 395,410p schedule/tests/test_validation.py; grep -n "class LessonChangeSourceTests" -A40 notifications/tests/test_feed.py | grep -n "def \|reason\|title" | head -20 (1s)
+    $ python3 - <<'EOF'
+  import pathlib
+  def rep(path, old, new):
+      p=pathlib.Path(path); s=p.read_text(); assert s.count(old)==1,(path,old); p.write_text(s.replace(old,new))
+  rep("schedule/tests/test_views.py","""        for reason in (
+              "Преподаватель на конференции",
+              "Перенос по просьбе",
+              "Ремонт в аудитории",
+              "Болезнь преподавателя",
+          ):
+              self.assertIn(reason, content)
+  ""","""        # TASK-013: change reasons are no longer shown (AC12).
+          for reason in (
+              "Преподаватель на конференции",
+              "Перенос по просьбе",
+              "Ремонт в аудитории",
+              "Болезнь преподавателя",
+          ):
+              self.assertNotIn(reason, content)
+          self.assertNotIn("Причина", content)
+  """)
+  rep("schedule/tests/test_views.py","""        self.assertIn("Воронцова", content)
+
+
+  class ScheduleUiFixTests(""","""        self.assertIn("Воронцова", content)
+
+      def test_today_page_hides_reason(self):
+          lesson = make_lesson(
+              [self.group], 2, 3, self.room, discipline=make_discipline("Сегодняшняя")
+          )
+          save_lesson_change(
+              LessonChange(
+                  weekly_lesson=lesson,
+                  original_date=date(2026, 11, 18),
+                  kind=ChangeKind.CANCELLED,
+                  reason="Секретная отмена",
+              )
+          )
+          self.client.force_login(self.student)
+          content = self.client.get("/schedule/").content.decode()
+          self.assertIn("Сегодняшняя", content)
+          self.assertIn('<p class="lesson-change">Отменено</p>', content)
+          self.assertNotIn("Секретная отмена", content)
+
+
+  class ScheduleUiFixTests(""")
+  rep("schedule/tests/test_views.py","""    def test_change_label_no_space_before_period(self):
+          self.client.force_login(self.student)
+          content = self.client.get("/schedule/week/2026-11-16/").content.decode()
+          self.assertIn("Отменено. Причина:", content)
+          self.assertIn("Замена аудитории. Причина:", content)
+          self.assertIn("Замена преподавателя. Причина:", content)
+          self.assertIn("). Причина:", content)  # moved-out
+          self.assertIn("пара. Причина:", content)  # moved-in
+          self.assertNotIn(" . Причина", content)
+  ""","""    # TASK-013: the change label stands alone, without the reason and the period (D11).
+      def test_change_labels_without_reason(self):
+          self.client.force_login(self.student)
+          content = self.client.get("/schedule/week/2026-11-16/").content.decode()
+          self.assertIn('<p class="lesson-change">Отменено</p>', content)
+          self.assertIn('<p class="lesson-change">Замена аудитории</p>', content)
+          self.assertIn('<p class="lesson-change">Замена преподавателя</p>', content)
+          self.assertRegex(content, r'<p class="lesson-change">Перенесено на [^<]*\\)</p>')
+          self.assertRegex(content, r'<p class="lesson-change">Перенесено с [^<]*пара</p>')
+          self.assertNotIn("Причина", content)
+
+      def test_staff_week_hides_reason(self):
+          staff = make_staff("sfr", self.faculty)
+          self.client.force_login(staff)
+          content = self.client.get(f"/staff/schedule/{self.group.pk}/2026-11-16/").content.decode()
+          self.assertIn("Отменено", content)
+          for reason in ("Ремонт", "Болезнь", "Причина"):
+              self.assertNotIn(reason, content)
+  """)
+  rep("schedule/tests/test_validation.py","""    def test_blank_reason(self):
+          lesson = self._lesson(weekday=0)
+          with self.assertRaises(ValidationError) as cm:
+              save_lesson_change(
+                  LessonChange(
+                      weekly_lesson=lesson,
+                      original_date=date(2026, 11, 16),
+                      kind=ChangeKind.CANCELLED,
+                      reason="",
+                  )
+              )
+          self.assertIn("reason", cm.exception.message_dict)
+  ""","""    # TASK-013: the reason is optional now (AC13).
+      def test_blank_reason_allowed(self):
+          lesson = self._lesson(weekday=0)
+          change = save_lesson_change(
+              LessonChange(
+                  weekly_lesson=lesson,
+                  original_date=date(2026, 11, 16),
+                  kind=ChangeKind.CANCELLED,
+                  reason="",
+              )
+          )
+          self.assertEqual(LessonChange.objects.get(pk=change.pk).reason, "")
+  """)
+  rep("schedule/tests/test_validation.py","""    def test_blank_reason_violates_constraint(self):
+          lesson = self._lesson()
+          with self.assertRaises(IntegrityError):
+              with transaction.atomic():
+                  LessonChange.objects.create(
+                      weekly_lesson=lesson,
+                      original_date=date(2026, 11, 16),
+                      kind=ChangeKind.CANCELLED,
+                      reason="",
+                  )""","""    # TASK-013: the constraint schedule_change_reason_required is removed (AC13).
+      def test_blank_reason_saved_in_db(self):
+          lesson = self._lesson()
+          with transaction.atomic():
+              change = LessonChange.objects.create(
+                  weekly_lesson=lesson,
+                  original_date=date(2026, 11, 16),
+                  kind=ChangeKind.CANCELLED,
+                  reason="",
+              )
+          self.assertEqual(change.reason, "")""")
+  EOF
+  sed -n 395,410p schedule/tests/test_validation.py; grep -n "class LessonChangeSourceTests" -A40 notifications/tests/test_feed.py | grep -n "def \|reason\|title" | head -20
+    weekly_lesson=lesson,
+                    original_date=date(2026, 11, 16),
+                    kind=ChangeKind.CANCELLED,
+                    reason="",
+                )
+            self.assertEqual(change.reason, "")
+    5:191-    def setUpTestData(cls):
+    11:197-    def _lesson(self, weekday=2, groups=None):
+    14:200-    def test_cancelled_title_and_week_link(self):
+    18:204-                weekly_lesson=lesson, original_date=D, kind=ChangeKind.CANCELLED, reason="Причина"
+    23:209-        self.assertIn("Отмена занятия", item.title)
+    26:212-    def test_moved_title_mentions_new_date_and_room(self):
+    36:222-                reason="Причина",
+    40:226-        self.assertIn("Перенос занятия", item.title)
+    41:227-        self.assertIn("12.11", item.title)
+  ── Read notifications/tests/test_feed.py
+  ── Ran python3 - <<'EOF' import pathlib def rep(path, old, new):     p=pathlib.Path(path); s=p.read_text(); assert s.count(old)==1,(path,old); p.write_text(s.replace(old,new)) rep("notifications/tests/test_feed.py","""        self.assertEqual(item.url, reverse("schedule:week_of", kwargs={"day": D}))     def test_moved_title_mentions_new_date_and_room(self):""","""        self.assertEqual(item.url, reverse("schedule:week_of", kwargs={"day": D}))     def test_change_item_has_no_body(self):         lesson = self._lesson()         save_lesson_change(             LessonChange(                 weekly_lesson=lesson,                 original_date=D,                 kind=ChangeKind.CANCELLED,                 reason="Скрытая причина",             )         )         item = next(i for i in build_feed(_ctx(self.w.ax)) if i.kind == "lesson_change")         self.assertEqual(item.body, "")         self.assertTrue(item.title.startswith("Отмена занятия:"), item.title)     def test_moved_title_mentions_new_date_and_room(self):""") rep("notifications/tests/test_views.py","""    def test_section_anchors(self):         content = self._get().content.decode()         self.assertIn('<section id="deadlines" aria-labelledby="deadlines-title">', content)         self.assertIn('<section id="feed" aria-labelledby="feed-title">', content) ""","""    def test_section_anchors(self):         content = self._get().content.decode()         self.assertIn('<section id="deadlines" aria-labelledby="deadlines-title">', content)         self.assertIn('<section id="feed" aria-labelledby="feed-title">', content)     def test_change_reason_not_shown(self):         room = make_room("room-101")         lesson = make_lesson(             [self.w.gx1], weekday=2, slot=1, room=room, discipline=make_discipline("Логика")         )         save_lesson_change(             LessonChange(                 weekly_lesson=lesson,                 original_date=date(2026, 11, 11),                 kind=ChangeKind.CANCELLED,                 reason="Секретная причина",             )         )         content = self._get().content.decode()         self.assertIn("Отмена занятия: Логика", content)         self.assertNotIn("Секретная причина", content) """) rep("core/tests/test_home.py","""    def test_other_group_lessons_hidden(self):""","""    def test_lessons_card_hides_reason(self):         save_lesson_change(             LessonChange(                 weekly_lesson=self.lesson_a,                 original_date=TODAY,                 kind=ChangeKind.CANCELLED,                 reason="Болезнь",             )         )         content = self._content()         self.assertIn("отменено", content)         self.assertNotIn("Ремонт", content)         self.assertNotIn("Болезнь", content)     def test_other_group_lessons_hidden(self):""") EOF grep -n "def to_item" -A16 notifications/sources.py | grep -n "title" | head -3; grep -n "NOW =" notifications/tests/test_views.py (1s)
+    $ python3 - <<'EOF'
+  import pathlib
+  def rep(path, old, new):
+      p=pathlib.Path(path); s=p.read_text(); assert s.count(old)==1,(path,old); p.write_text(s.replace(old,new))
+  rep("notifications/tests/test_feed.py","""        self.assertEqual(item.url, reverse("schedule:week_of", kwargs={"day": D}))
+
+      def test_moved_title_mentions_new_date_and_room(self):""","""        self.assertEqual(item.url, reverse("schedule:week_of", kwargs={"day": D}))
+
+      def test_change_item_has_no_body(self):
+          lesson = self._lesson()
+          save_lesson_change(
+              LessonChange(
+                  weekly_lesson=lesson,
+                  original_date=D,
+                  kind=ChangeKind.CANCELLED,
+                  reason="Скрытая причина",
+              )
+          )
+          item = next(i for i in build_feed(_ctx(self.w.ax)) if i.kind == "lesson_change")
+          self.assertEqual(item.body, "")
+          self.assertTrue(item.title.startswith("Отмена занятия:"), item.title)
+
+      def test_moved_title_mentions_new_date_and_room(self):""")
+  rep("notifications/tests/test_views.py","""    def test_section_anchors(self):
+          content = self._get().content.decode()
+          self.assertIn('<section id="deadlines" aria-labelledby="deadlines-title">', content)
+          self.assertIn('<section id="feed" aria-labelledby="feed-title">', content)
+  ""","""    def test_section_anchors(self):
+          content = self._get().content.decode()
+          self.assertIn('<section id="deadlines" aria-labelledby="deadlines-title">', content)
+          self.assertIn('<section id="feed" aria-labelledby="feed-title">', content)
+
+      def test_change_reason_not_shown(self):
+          room = make_room("room-101")
+          lesson = make_lesson(
+              [self.w.gx1], weekday=2, slot=1, room=room, discipline=make_discipline("Логика")
+          )
+          save_lesson_change(
+              LessonChange(
+                  weekly_lesson=lesson,
+                  original_date=date(2026, 11, 11),
+                  kind=ChangeKind.CANCELLED,
+                  reason="Секретная причина",
+              )
+          )
+          content = self._get().content.decode()
+          self.assertIn("Отмена занятия: Логика", content)
+          self.assertNotIn("Секретная причина", content)
+  """)
+  rep("core/tests/test_home.py","""    def test_other_group_lessons_hidden(self):""","""    def test_lessons_card_hides_reason(self):
+          save_lesson_change(
+              LessonChange(
+                  weekly_lesson=self.lesson_a,
+                  original_date=TODAY,
+                  kind=ChangeKind.CANCELLED,
+                  reason="Болезнь",
+              )
+          )
+          content = self._content()
+          self.assertIn("отменено", content)
+          self.assertNotIn("Ремонт", content)
+          self.assertNotIn("Болезнь", content)
+
+      def test_other_group_lessons_hidden(self):""")
+  EOF
+  grep -n "def to_item" -A16 notifications/sources.py | grep -n "title" | head -3; grep -n "NOW =" notifications/tests/test_views.py
+    25:124-            title=obj.title,
+    39:145-        title = STATUS_TITLES.get(obj.to_status, "").format(name=name)
+    40:146-        if not title:
+    25:NOW = "2026-11-11 12:00"
+  ── Thought for 5ms
+    I need to check the title format for the lesson cancellation, specifically whether the "Отмена занятия: Логика" assumption holds. After that I'll run the tests.
+  ── Ran source .venv/bin/activate && F="schedule/tests/test_views.py schedule/tests/test_validation.py notifications/tests/test_feed.py notifications/tests/test_views.py core/tests/test_home.py"; ruff check ${=F} && ruff format ${=F}; L="$TMPDIR/test-t013-step2-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"; python manage.py test schedule notifications core.tests.test_home --parallel 1 > "$L" 2>&1; echo $L; grep -E "^(Ran|OK|FAILED)" $L; grep -E "^(FAIL|ERROR):" -A15 $L | head -60 (1m 5s)
+    $ source .venv/bin/activate && F="schedule/tests/test_views.py schedule/tests/test_validation.py notifications/tests/test_feed.py notifications/tests/test_views.py core/tests/test_home.py"; ruff check ${=F} && ruff format ${=F}; L="$TMPDIR/test-t013-step2-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"; python manage.py test schedule notifications core.tests.test_home --parallel 1 > "$L" 2>&1; echo $L; grep -E "^(Ran|OK|FAILED)" $L; grep -E "^(FAIL|ERROR):" -A15 $L | head -60
+    All checks passed!
+    5 files left unchanged
+    /tmp/claude-501/test-t013-step2-20261118-160426.log
+    Ran 338 tests in 62.930s
+    OK
+  ── Thought for 5ms
+    I've confirmed the unused-import check is clean: ruff passed, and the ValidationError and IntegrityError imports are still used elsewhere in the file. Next I'll move on to the map look and read the current map CSS in base.css and theme.css.
+
+── Assistant ───────────────────────────────────────────────
+Шаг 2 готов: 338 тестов OK. Шаг 3: внешний вид карты.
+
+── Explored 1 search, 2 files, ran 4 commands ──────────────
+  ── Searched for map in static/css/tokens.css
+  ── Read static/css/base.css
+  ── Thought for 2s
+    I'm checking the existing CSS test, which expects the map highlight rule to appear in base.css with the generic highlight variable. The spec has the rule using the highlight-text variable instead, and Spec D6 says base.css should hold only layout, so I'm weighing whether that fill rule belongs there at all.
+
+    I'm settling the base.css question: the test needs the `.map-current .map-room-label` selector in base.css, so I'll give it a font-weight there and leave the fill to the theme, with the test accepting either file for the highlight-text variable.
+  ── Ran python3 - <<'EOF' import pathlib p=pathlib.Path("static/css/base.css"); s=p.read_text() i=s.index(".map-outline,\n.map-room rect,"); j=s.index(".floor-switcher ul,\n.map-legend,") s=s[:i]+'''/* Map shapes: layout only (sizes, dash arrays). Colours are in theme.css. */ .map-outline, .map-room rect, .map-room polygon, .map-landmark rect, .map-landmark polygon, .map-service rect, .map-service polygon, .map-corridor {   stroke-width: 2; } .map-landmark rect, .map-landmark polygon {   stroke-dasharray: 8 4;   stroke-linecap: butt; } .map-service rect, .map-service polygon {   stroke-dasharray: 2 4; } .map-current rect, .map-current polygon {   stroke-width: 6;   stroke-dasharray: none; } .map-room-label {   font-size: 20px; } .map-landmark-label {   font-size: 15px; } .map-service-label {   font-size: 15px; } .map-current .map-room-label {   font-weight: 700; } /* Hidden SVG with the hatch pattern; not display: none, so the pattern still renders. */ .map-defs {   position: absolute;   width: 0;   height: 0;   overflow: hidden; } '''+s[j:] s=s.replace(""".petition > a, .chat-dialogs li > a, .student-list a, .group-list a, .map-room-list a {""",""".petition > a, .chat-dialogs li > a, .student-list a, .group-list a {""") s=s.replace(""".map-room-list {   display: flex;   flex-wrap: wrap;   gap: 0 var(--space-3); }""",""".map-room-list {   display: grid;   grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));   gap: 0.75rem;   margin: var(--space-2) 6px var(--space-4); } .map-room-btn {   display: flex;   align-items: center;   justify-content: center;   min-height: 2.75rem; } .map-room-off {   display: block;   margin-top: 0.5rem;   font-size: 0.875rem; }""") p.write_text(s) p=pathlib.Path("static/css/theme.css"); s=p.read_text() i=s.index("/* Map (AC15)"); j=s.index(".floor-current {") s=s[:i]+'''/* Map (TASK-013 D6): rooms solid light, landmarks dashed yellow, services dotted lilac + hatch.    The current room is orange with a thick light frame and a dark number (not hue alone). */ .map-outline {   fill: none;   stroke: var(--color-field-border); } .map-corridor {   fill: var(--color-map-corridor-fill);   stroke: var(--color-border); } .map-room rect, .map-room polygon {   fill: var(--color-map-room-fill);   stroke: var(--color-map-room-stroke); } .map-landmark rect, .map-landmark polygon {   fill: var(--color-map-room-fill);   stroke: var(--color-map-landmark); } .map-service rect, .map-service polygon {   fill: url(#map-hatch);   stroke: var(--color-map-service); } .map-hatch-bg {   fill: var(--color-map-room-fill); } .map-hatch-line {   fill: var(--color-map-hatch); } .map-room-label {   fill: var(--color-text); } .map-landmark-label {   fill: var(--color-map-landmark); } .map-service-label {   fill: var(--color-map-service);   paint-order: stroke;   stroke: var(--color-map-label-halo);   stroke-width: 4px;   stroke-linejoin: round; } .map-current rect, .map-current polygon {   fill: var(--color-map-highlight-fill);   stroke: var(--color-map-highlight);   stroke-width: 6; } .map-current .map-room-label {   fill: var(--color-map-highlight-text);   font-weight: 700; } /* Room list buttons: the current room gets the primary (orange) button look. */ a.map-current.map-room-btn {   border-color: var(--color-orange-edge);   background: linear-gradient(     180deg,     var(--color-orange-light) 0%,     var(--color-orange) 55%,     var(--color-orange-dark) 100%   );   color: var(--color-on-accent); } .map-room-off {   color: var(--color-muted); } '''+s[j:] p.write_text(s) p=pathlib.Path("static/css/tokens.css"); s=p.read_text() old='''  --color-map-highlight: #ffd25e;   --color-map-highlight-fill: rgba(255, 210, 94, 0.22);   --color-map-room-fill: rgba(36, 22, 78, 0.88);   --color-map-corridor-fill: rgba(90, 63, 163, 0.35); ''' assert old in s s=s.replace(old,'''  --color-map-highlight: #ffd98a;   --color-map-highlight-fill: #ff9f2e;   --color-map-highlight-text: #2b1300;   --color-map-room-fill: rgba(36, 22, 78, 0.88);   --color-map-corridor-fill: rgba(90, 63, 163, 0.35);   --color-map-room-stroke: #f3ecff;   --color-map-landmark: #ffd25e;   --color-map-service: #b8a6e8;   --color-map-hatch: #5a3fa3;   --color-map-label-halo: #170d33;   --color-scroll-thumb: #b8a6e8;   --color-scroll-thumb-hover: #ff9f2e; ''') p.write_text(s) EOF grep -n "map" campusmap/templates/campusmap/map.html | head -5 (1s)
+    $ python3 - <<'EOF'
+  import pathlib
+  p=pathlib.Path("static/css/base.css"); s=p.read_text()
+  i=s.index(".map-outline,\n.map-room rect,"); j=s.index(".floor-switcher ul,\n.map-legend,")
+  s=s[:i]+'''/* Map shapes: layout only (sizes, dash arrays). Colours are in theme.css. */
+  .map-outline,
+  .map-room rect,
+  .map-room polygon,
+  .map-landmark rect,
+  .map-landmark polygon,
+  .map-service rect,
+  .map-service polygon,
+  .map-corridor {
+    stroke-width: 2;
+  }
+
+  .map-landmark rect,
+  .map-landmark polygon {
+    stroke-dasharray: 8 4;
+    stroke-linecap: butt;
+  }
+
+  .map-service rect,
+  .map-service polygon {
+    stroke-dasharray: 2 4;
+  }
+
+  .map-current rect,
+  .map-current polygon {
+    stroke-width: 6;
+    stroke-dasharray: none;
+  }
+
+  .map-room-label {
+    font-size: 20px;
+  }
+
+  .map-landmark-label {
+    font-size: 15px;
+  }
+
+  .map-service-label {
+    font-size: 15px;
+  }
+
+  .map-current .map-room-label {
+    font-weight: 700;
+  }
+
+  /* Hidden SVG with the hatch pattern; not display: none, so the pattern still renders. */
+  .map-defs {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+  }
+
+  '''+s[j:]
+  s=s.replace(""".petition > a,
+  .chat-dialogs li > a,
+  .student-list a,
+  .group-list a,
+  .map-room-list a {""",""".petition > a,
+  .chat-dialogs li > a,
+  .student-list a,
+  .group-list a {""")
+  s=s.replace(""".map-room-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 var(--space-3);
+  }""",""".map-room-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
+    gap: 0.75rem;
+    margin: var(--space-2) 6px var(--space-4);
+  }
+
+  .map-room-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.75rem;
+  }
+
+  .map-room-off {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+  }""")
+  p.write_text(s)
+
+  p=pathlib.Path("static/css/theme.css"); s=p.read_text()
+  i=s.index("/* Map (AC15)"); j=s.index(".floor-current {")
+  s=s[:i]+'''/* Map (TASK-013 D6): rooms solid light, landmarks dashed yellow, services dotted lilac + hatch.
+     The current room is orange with a thick light frame and a dark number (not hue alone). */
+  .map-outline {
+    fill: none;
+    stroke: var(--color-field-border);
+  }
+
+  .map-corridor {
+    fill: var(--color-map-corridor-fill);
+    stroke: var(--color-border);
+  }
+
+  .map-room rect,
+  .map-room polygon {
+    fill: var(--color-map-room-fill);
+    stroke: var(--color-map-room-stroke);
+  }
+
+  .map-landmark rect,
+  .map-landmark polygon {
+    fill: var(--color-map-room-fill);
+    stroke: var(--color-map-landmark);
+  }
+
+  .map-service rect,
+  .map-service polygon {
+    fill: url(#map-hatch);
+    stroke: var(--color-map-service);
+  }
+
+  .map-hatch-bg {
+    fill: var(--color-map-room-fill);
+  }
+
+  .map-hatch-line {
+    fill: var(--color-map-hatch);
+  }
+
+  .map-room-label {
+    fill: var(--color-text);
+  }
+
+  .map-landmark-label {
+    fill: var(--color-map-landmark);
+  }
+
+  .map-service-label {
+    fill: var(--color-map-service);
+    paint-order: stroke;
+    stroke: var(--color-map-label-halo);
+    stroke-width: 4px;
+    stroke-linejoin: round;
+  }
+
+  .map-current rect,
+  .map-current polygon {
+    fill: var(--color-map-highlight-fill);
+    stroke: var(--color-map-highlight);
+    stroke-width: 6;
+  }
+
+  .map-current .map-room-label {
+    fill: var(--color-map-highlight-text);
+    font-weight: 700;
+  }
+
+  /* Room list buttons: the current room gets the primary (orange) button look. */
+  a.map-current.map-room-btn {
+    border-color: var(--color-orange-edge);
+    background: linear-gradient(
+      180deg,
+      var(--color-orange-light) 0%,
+      var(--color-orange) 55%,
+      var(--color-orange-dark) 100%
+    );
+    color: var(--color-on-accent);
+  }
+
+  .map-room-off {
+    color: var(--color-muted);
+  }
+
+  '''+s[j:]
+  p.write_text(s)
+
+  p=pathlib.Path("static/css/tokens.css"); s=p.read_text()
+  old='''  --color-map-highlight: #ffd25e;
+    --color-map-highlight-fill: rgba(255, 210, 94, 0.22);
+    --color-map-room-fill: rgba(36, 22, 78, 0.88);
+    --color-map-corridor-fill: rgba(90, 63, 163, 0.35);
+  '''
+  assert old in s
+  s=s.replace(old,'''  --color-map-highlight: #ffd98a;
+    --color-map-highlight-fill: #ff9f2e;
+    --color-map-highlight-text: #2b1300;
+    --color-map-room-fill: rgba(36, 22, 78, 0.88);
+    --color-map-corridor-fill: rgba(90, 63, 163, 0.35);
+    --color-map-room-stroke: #f3ecff;
+    --color-map-landmark: #ffd25e;
+    --color-map-service: #b8a6e8;
+    --color-map-hatch: #5a3fa3;
+    --color-map-label-halo: #170d33;
+    --color-scroll-thumb: #b8a6e8;
+    --color-scroll-thumb-hover: #ff9f2e;
+  ''')
+  p.write_text(s)
+  EOF
+  grep -n "map" campusmap/templates/campusmap/map.html | head -5
+    17:  <svg class="map-svg" viewBox="0 0 {{ plan.width }} {{ plan.height }}" role="img" aria-labelledby="map-title">
+    18:    <title id="map-title">Схема, {{ plan.floor }} этаж</title>
+    19:    <rect class="map-outline" x="{{ plan.outline.x }}" y="{{ plan.outline.y }}" width="{{ plan.outline.width }}" height="{{ plan.outline.height }}"/>
+    20:    <rect class="map-corridor" x="{{ plan.corridor.x }}" y="{{ plan.corridor.y }}" width="{{ plan.corridor.width }}" height="{{ plan.corridor.height }}"/>
+    22:    <g class="map-{{ s.kind }}{% if s.is_current %} map-current{% endif %}"{% if s.is_current %} aria-current="location"{% endif %}>
+  ── Thought for 5ms
+    I'm keeping the map-current rule as it is, since the current is always a room and the dash setting does no harm. The legend swatch background is fine as written. What's left is the template work: adding the hatch defs ahead of the floor switcher inside the else branch, updating the legend text, and revising the room list.
+  ── Ran python3 - <<'EOF' import pathlib def rep(path, old, new):     p=pathlib.Path(path); s=p.read_text(); assert s.count(old)==1,(path,old); p.write_text(s.replace(old,new)) P="campusmap/templates/campusmap/map.html" rep(P,"""{% else %}   <nav class="floor-switcher" aria-label="Этажи">""","""{% else %}   <svg class="map-defs" width="0" height="0" aria-hidden="true" focusable="false"><defs><pattern id="map-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect class="map-hatch-bg" width="8" height="8"/><rect class="map-hatch-line" width="2" height="8"/></pattern></defs></svg>   <nav class="floor-switcher" aria-label="Этажи">""") rep(P,"Вход, лестница, деканат, библиотека, столовая","Вход, лестницы, деканат, библиотека, столовая") rep(P,"Служебные помещения: гардероб, туалеты, кафедра и другие","Служебные помещения: гардероб, туалет, охрана, кафедра и другие") rep(P,"""    <li><a href="{{ r.url }}"{% if r.is_current %} class="map-current" aria-current="location"{% endif %}>{{ r.number }}</a>{% if not r.on_map %} — нет на схеме{% endif %}</li>""","""    <li><a class="btn map-room-btn{% if r.is_current %} map-current{% endif %}" href="{{ r.url }}"{% if r.is_current %} aria-current="location"{% endif %}>{{ r.number }}</a>{% if not r.on_map %} <span class="map-room-off">нет на схеме</span>{% endif %}</li>""") EOF grep -n "def test_room_opens_its_floor_and_is_highlighted\|def test_room_on_plan_by_number\|def test_room_not_on_plan_listed\|def test_floor_without_plan\|def test_landmarks_per_floor\|def _svg_part\|class " campusmap/tests/test_views.py (1s)
+    $ python3 - <<'EOF'
+  import pathlib
+  def rep(path, old, new):
+      p=pathlib.Path(path); s=p.read_text(); assert s.count(old)==1,(path,old); p.write_text(s.replace(old,new))
+  P="campusmap/templates/campusmap/map.html"
+  rep(P,"""{% else %}
+    <nav class="floor-switcher" aria-label="Этажи">""","""{% else %}
+    <svg class="map-defs" width="0" height="0" aria-hidden="true" focusable="false"><defs><pattern id="map-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect class="map-hatch-bg" width="8" height="8"/><rect class="map-hatch-line" width="2" height="8"/></pattern></defs></svg>
+    <nav class="floor-switcher" aria-label="Этажи">""")
+  rep(P,"Вход, лестница, деканат, библиотека, столовая","Вход, лестницы, деканат, библиотека, столовая")
+  rep(P,"Служебные помещения: гардероб, туалеты, кафедра и другие","Служебные помещения: гардероб, туалет, охрана, кафедра и другие")
+  rep(P,"""    <li><a href="{{ r.url }}"{% if r.is_current %} class="map-current" aria-current="location"{% endif %}>{{ r.number }}</a>{% if not r.on_map %} — нет на схеме{% endif %}</li>""","""    <li><a class="btn map-room-btn{% if r.is_current %} map-current{% endif %}" href="{{ r.url }}"{% if r.is_current %} aria-current="location"{% endif %}>{{ r.number }}</a>{% if not r.on_map %} <span class="map-room-off">нет на схеме</span>{% endif %}</li>""")
+  EOF
+  grep -n "def test_room_opens_its_floor_and_is_highlighted\|def test_room_on_plan_by_number\|def test_room_not_on_plan_listed\|def test_floor_without_plan\|def test_landmarks_per_floor\|def _svg_part\|class " campusmap/tests/test_views.py
+    12:def _svg_part(content: str) -> str:
+    22:class MapAccessTests(TestCase):
+    70:class MapViewTests(TestCase):
+    111:    def test_room_opens_its_floor_and_is_highlighted(self):
+    128:    def test_room_on_plan_by_number(self):
+    133:    def test_room_not_on_plan_listed(self):
+    140:    def test_floor_without_plan(self):
+    160:    def test_landmarks_per_floor(self):
+    223:class MapQueryTests(TestCase):
+    263:class MapNavTests(TestCase):
+  ── Read campusmap/tests/test_views.py
+  ── Thought for 5ms
+    I'm checking that the SVG selector in test_svg_scales matches the main map element and not the defs one, which is fine. Then I'm moving on to update the tests, and test_room_opens still expects the "map-current" count to be 2.
+  ── Ran python3 - <<'EOF' import pathlib def rep(path, old, new):     p=pathlib.Path(path); s=p.read_text(); assert s.count(old)==1,(path,old); p.write_text(s.replace(old,new)) P="campusmap/tests/test_views.py" rep(P,"""        self.assertIn('href="/map/room/room-402/" class="map-current"', content)         self.assertEqual(content.count("map-current"), 2)""","""        # TASK-013: the room list entry is a pixel button (D8).         self.assertIn(             '<a class="btn map-room-btn map-current" href="/map/room/room-402/" '             'aria-current="location">402</a>',             content,         )         self.assertEqual(content.count("map-current"), 2)""") rep(P,"""        self.assertNotIn("114</a> — нет на схеме", content)         self.assertIn("<title>Аудитория 114</title>", content)""","""        # TASK-013: room list buttons; the note is a separate span (D8).         self.assertIn(             '<a class="btn map-room-btn map-current" href="/map/room/room-114/" '             'aria-current="location">114</a></li>',             content,         )         self.assertIn("<title>Аудитория 114</title>", content)""") rep(P,"""        self.assertIn("199</a> — нет на схеме", content)         self.assertIn('<title id="map-title">Схема, 1 этаж</title>', content)         self.assertNotIn("map-current", _svg_part(content))         self.assertIn('href="/map/room/room-199/" class="map-current"', content)""","""        # TASK-013: room list buttons; the note is a separate span (D8).         self.assertIn(             '<a class="btn map-room-btn map-current" href="/map/room/room-199/" '             'aria-current="location">199</a> <span class="map-room-off">нет на схеме</span>',             content,         )         self.assertIn('<title id="map-title">Схема, 1 этаж</title>', content)         self.assertNotIn("map-current", _svg_part(content))""") rep(P,"""        self.assertIn("501</a> — нет на схеме", content)""","""        # TASK-013: room list buttons; the note is a separate span (D8).         self.assertIn(             '<a class="btn map-room-btn" href="/map/room/room-501/">501</a> '             '<span class="map-room-off">нет на схеме</span>',             content,         )""") rep(P,"""        f1 = _svg_part(self.client.get("/map/floor/1/").content.decode())         self.assertEqual(set(_landmark_labels(f1)), {"Лестница", "Вход", "Столовая"})         f2 = _svg_part(self.client.get("/map/floor/2/").content.decode())         self.assertEqual(set(_landmark_labels(f2)), {"Лестница", "Деканат"})         f4 = _svg_part(self.client.get("/map/floor/4/").content.decode())         self.assertEqual(set(_landmark_labels(f4)), {"Лестница"})""","""        # TASK-013: two staircases per floor; plan order on floor 1.         f1 = _svg_part(self.client.get("/map/floor/1/").content.decode())         self.assertEqual(_landmark_labels(f1), ["Лестница", "Лестница", "Вход", "Столовая"])         f2 = _svg_part(self.client.get("/map/floor/2/").content.decode())         self.assertEqual(set(_landmark_labels(f2)), {"Лестница", "Деканат"})         self.assertEqual(_landmark_labels(f2).count("Лестница"), 2)         f4 = _svg_part(self.client.get("/map/floor/4/").content.decode())         self.assertEqual(_landmark_labels(f4), ["Лестница", "Лестница"])     def test_room_list_buttons(self):         content = self.client.get("/map/floor/2/").content.decode()         start = content.index('<ul class="map-room-list">')         rooms = content[start:]         links = re.findall(r"<a ([^>]*)>", rooms[: rooms.rindex("</ul>")])         self.assertTrue(links)         for attrs in links:             self.assertTrue(attrs.startswith('class="btn map-room-btn"'), attrs)         self.assertNotIn('aria-current="location"', content)     def test_hatch_pattern_defined(self):         content = self.client.get("/map/").content.decode()         self.assertEqual(content.count('<pattern id="map-hatch"'), 1)         defs = content[content.index('<svg class="map-defs"') :]         defs = defs[: defs.index(">")]         self.assertIn('aria-hidden="true"', defs)     def test_no_corridor_label(self):         for floor in (1, 2, 3, 4):             Room.objects.get_or_create(code=f"room-{floor}01", floor=floor, number=f"{floor}01")             svg = _svg_part(self.client.get(f"/map/floor/{floor}/").content.decode())             with self.subTest(floor=floor):                 self.assertEqual(svg.count("<text "), svg.count('<g class="map-'))                 self.assertNotIn("Коридор", svg)     def test_map_queries_constant(self):         url = "/map/room/room-402/"         with CaptureQueriesContext(connection) as before:             self.client.get(url)         for n in range(1, 6):             Room.objects.create(code=f"room-30{n}", floor=3, number=f"30{n}")         with CaptureQueriesContext(connection) as after:             self.client.get(url)         self.assertEqual(len(before.captured_queries), len(after.captured_queries))         self.assertEqual(len(before.captured_queries), 7)""") EOF source .venv/bin/activate && ruff check campusmap/tests/test_views.py && ruff format campusmap/tests/test_views.py && L="$TMPDIR/test-t013-map-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"; python manage.py test campusmap --parallel 1 > "$L" 2>&1; echo $L; grep -E "^(Ran|OK|FAILED)" $L; grep -E "^(FAIL|ERROR):" -A20 $L | head -60 (3s)
+    $ python3 - <<'EOF'
+  import pathlib
+  def rep(path, old, new):
+      p=pathlib.Path(path); s=p.read_text(); assert s.count(old)==1,(path,old); p.write_text(s.replace(old,new))
+  P="campusmap/tests/test_views.py"
+  rep(P,"""        self.assertIn('href="/map/room/room-402/" class="map-current"', content)
+          self.assertEqual(content.count("map-current"), 2)""","""        # TASK-013: the room list entry is a pixel button (D8).
+          self.assertIn(
+              '<a class="btn map-room-btn map-current" href="/map/room/room-402/" '
+              'aria-current="location">402</a>',
+              content,
+          )
+          self.assertEqual(content.count("map-current"), 2)""")
+  rep(P,"""        self.assertNotIn("114</a> — нет на схеме", content)
+          self.assertIn("<title>Аудитория 114</title>", content)""","""        # TASK-013: room list buttons; the note is a separate span (D8).
+          self.assertIn(
+              '<a class="btn map-room-btn map-current" href="/map/room/room-114/" '
+              'aria-current="location">114</a></li>',
+              content,
+          )
+          self.assertIn("<title>Аудитория 114</title>", content)""")
+  rep(P,"""        self.assertIn("199</a> — нет на схеме", content)
+          self.assertIn('<title id="map-title">Схема, 1 этаж</title>', content)
+          self.assertNotIn("map-current", _svg_part(content))
+          self.assertIn('href="/map/room/room-199/" class="map-current"', content)""","""        # TASK-013: room list buttons; the note is a separate span (D8).
+          self.assertIn(
+              '<a class="btn map-room-btn map-current" href="/map/room/room-199/" '
+              'aria-current="location">199</a> <span class="map-room-off">нет на схеме</span>',
+              content,
+          )
+          self.assertIn('<title id="map-title">Схема, 1 этаж</title>', content)
+          self.assertNotIn("map-current", _svg_part(content))""")
+  rep(P,"""        self.assertIn("501</a> — нет на схеме", content)""","""        # TASK-013: room list buttons; the note is a separate span (D8).
+          self.assertIn(
+              '<a class="btn map-room-btn" href="/map/room/room-501/">501</a> '
+              '<span class="map-room-off">нет на схеме</span>',
+              content,
+          )""")
+  rep(P,"""        f1 = _svg_part(self.client.get("/map/floor/1/").content.decode())
+          self.assertEqual(set(_landmark_labels(f1)), {"Лестница", "Вход", "Столовая"})
+          f2 = _svg_part(self.client.get("/map/floor/2/").content.decode())
+          self.assertEqual(set(_landmark_labels(f2)), {"Лестница", "Деканат"})
+          f4 = _svg_part(self.client.get("/map/floor/4/").content.decode())
+          self.assertEqual(set(_landmark_labels(f4)), {"Лестница"})""","""        # TASK-013: two staircases per floor; plan order on floor 1.
+          f1 = _svg_part(self.client.get("/map/floor/1/").content.decode())
+          self.assertEqual(_landmark_labels(f1), ["Лестница", "Лестница", "Вход", "Столовая"])
+          f2 = _svg_part(self.client.get("/map/floor/2/").content.decode())
+          self.assertEqual(set(_landmark_labels(f2)), {"Лестница", "Деканат"})
+          self.assertEqual(_landmark_labels(f2).count("Лестница"), 2)
+          f4 = _svg_part(self.client.get("/map/floor/4/").content.decode())
+          self.assertEqual(_landmark_labels(f4), ["Лестница", "Лестница"])
+
+      def test_room_list_buttons(self):
+          content = self.client.get("/map/floor/2/").content.decode()
+          start = content.index('<ul class="map-room-list">')
+          rooms = content[start:]
+          links = re.findall(r"<a ([^>]*)>", rooms[: rooms.rindex("</ul>")])
+          self.assertTrue(links)
+          for attrs in links:
+              self.assertTrue(attrs.startswith('class="btn map-room-btn"'), attrs)
+          self.assertNotIn('aria-current="location"', content)
+
+      def test_hatch_pattern_defined(self):
+          content = self.client.get("/map/").content.decode()
+          self.assertEqual(content.count('<pattern id="map-hatch"'), 1)
+          defs = content[content.index('<svg class="map-defs"') :]
+          defs = defs[: defs.index(">")]
+          self.assertIn('aria-hidden="true"', defs)
+
+      def test_no_corridor_label(self):
+          for floor in (1, 2, 3, 4):
+              Room.objects.get_or_create(code=f"room-{floor}01", floor=floor, number=f"{floor}01")
+              svg = _svg_part(self.client.get(f"/map/floor/{floor}/").content.decode())
+              with self.subTest(floor=floor):
+                  self.assertEqual(svg.count("<text "), svg.count('<g class="map-'))
+                  self.assertNotIn("Коридор", svg)
+
+      def test_map_queries_constant(self):
+          url = "/map/room/room-402/"
+          with CaptureQueriesContext(connection) as before:
+              self.client.get(url)
+          for n in range(1, 6):
+              Room.objects.create(code=f"room-30{n}", floor=3, number=f"30{n}")
+          with CaptureQueriesContext(connection) as after:
+              self.client.get(url)
+          self.assertEqual(len(before.captured_queries), len(after.captured_queries))
+          self.assertEqual(len(before.captured_queries), 7)""")
+  EOF
+  source .venv/bin/activate && ruff check campusmap/tests/test_views.py && ruff format campusmap/tests/test_views.py && L="$TMPDIR/test-t013-map-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"; python manage.py test campusmap --parallel 1 > "$L" 2>&1; echo $L; grep -E "^(Ran|OK|FAILED)" $L; grep -E "^(FAIL|ERROR):" -A20 $L | head -60
+    All checks passed!
+    1 file left unchanged
+    /tmp/claude-501/test-t013-map-20261118-160627.log
+    Ran 45 tests in 0.854s
+    FAILED (failures=1)
+    FAIL: test_landmarks_per_floor (campusmap.tests.test_views.MapViewTests.test_landmarks_per_floor)
+    ----------------------------------------------------------------------
+    Traceback (most recent call last):
+      File "~/hackatonproject/campusmap/tests/test_views.py", line 182, in test_landmarks_per_floor
+        self.assertEqual(_landmark_labels(f1), ["Лестница", "Лестница", "Вход", "Столовая"])
+    AssertionError: Lists differ: ['Лестница', 'Лестница', 'Столовая', 'Вход'] != ['Лестница', 'Лестница', 'Вход', 'Столовая']
+
+    First differing element 2:
+    'Столовая'
+    'Вход'
+
+    - ['Лестница', 'Лестница', 'Столовая', 'Вход']
+    ?                                    --------
+
+    + ['Лестница', 'Лестница', 'Вход', 'Столовая']
+    ?                          ++++++++
+
+
+    ----------------------------------------------------------------------
+    Ran 45 tests in 0.854s
+    [This command modified 1 file you've previously read: campusmap/tests/test_views.py. Call Read before editing.]
+  ── Thought for 778ms
+    The spec says to follow plan order, but plan order puts Столовая (west wing) ahead of Вход, so the spec's expected list doesn't match. Plan order is the source of truth here, so I'll fix the test to match it and flag the spec inconsistency in REPORT. The failure at about 16:06 MSK goes in the report too.
+  ── Thought for 4ms
+    Тест карты падает из-за порядка точек: спецификация ждёт «Вход, Столовая», а план (D4) — «Столовая, Вход». Сверяю ожидание с планом и отмечу расхождение в отчёте.
+  ── Ran python3 - <<'EOF' import pathlib p=pathlib.Path("campusmap/tests/test_views.py"); s=p.read_text() old='''        self.assertEqual(_landmark_labels(f1), ["Лестница", "Лестница", "Вход", "Столовая"])''' assert old in s s=s.replace(old,'''        self.assertEqual(_landmark_labels(f1), ["Лестница", "Лестница", "Столовая", "Вход"])''') p.write_text(s) EOF source .venv/bin/activate && L="$TMPDIR/test-t013-map-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"; python manage.py test campusmap --parallel 1 > "$L" 2>&1; echo $L; grep -E "^(Ran|OK|FAILED)" $L (3s)
+    $ python3 - <<'EOF'
+  import pathlib
+  p=pathlib.Path("campusmap/tests/test_views.py"); s=p.read_text()
+  old='''        self.assertEqual(_landmark_labels(f1), ["Лестница", "Лестница", "Вход", "Столовая"])'''
+  assert old in s
+  s=s.replace(old,'''        self.assertEqual(_landmark_labels(f1), ["Лестница", "Лестница", "Столовая", "Вход"])''')
+  p.write_text(s)
+  EOF
+  source .venv/bin/activate && L="$TMPDIR/test-t013-map-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"; python manage.py test campusmap --parallel 1 > "$L" 2>&1; echo $L; grep -E "^(Ran|OK|FAILED)" $L
+    /tmp/claude-501/test-t013-map-20261118-160636.log
+    Ran 45 tests in 0.874s
+    OK
+  ── Thought for 13s
+    I'm moving on to the CSS test updates now, covering the map highlight rule, the design tokens, and the external URL regex, plus new tests. After that comes step 4, the file input, header, and scrollbar. I'll start with the CSS for step 4 and handle the tests together afterward.
+
+    I'm working out the file input sizing next: the button and the "No file chosen" text are tight at 360px, so I'm shrinking the button's font and considering a slightly smaller input font, and I'll note that change.
+
+    I'm checking whether the header fits at 1024px. With the title on one line and the current gaps, the nav needs about 581px but only has about 489px, so it won't fit. Switching the title to two lines, tightening the nav gaps to 12px, and dropping the header gap to 16px leaves enough room, about 593px against 557px needed.
+
+    I'm checking the header at the narrower widths: the staff nav, with eight items and seven gaps of 12px, comes to about 596px, which leaves plenty of room once the notification button is excluded. At 1280px everything clearly fits. I'm also deciding to keep the site title on two lines at all widths and to tighten the nav gap to 0.75rem, with the header items vertically centered.
+
+    I'm turning to the scrollbar now, which is the last piece of step 4, and I'll follow the CSS spec from D14.
+
+── Assistant ───────────────────────────────────────────────
+Тесты карты OK. Теперь поле файла, широкая шапка и полоса прокрутки (шаг 4).
+
+── Explored 1 search, 1 file, ran 2 commands ───────────────
+  ── Searched for file in static/css/theme.css
+  ── Read static/css/base.css
+  ── Thought for 3ms
+    I'm setting the nav list margin to 0 at wide widths, since its default top margin isn't wanted there. I'm also dropping the inline display rule for the title line so it stacks at every size, and widening the header gap and nav list gap at the 48rem breakpoint.
+  ── Ran python3 - <<'EOF' import pathlib def rep(path, old, new):     p=pathlib.Path(path); s=p.read_text(); assert s.count(old)==1,(path,old); p.write_text(s.replace(old,new)) B="static/css/base.css" rep(B,"""@media (min-width: 48rem) {   .site-header {     flex-wrap: nowrap;   }   .site-brand {     flex: none;   }   .site-title-line {     display: inline;   }   .site-nav--wide {     flex: 1 1 auto;     min-width: 0;   }   .site-nav--wide .site-nav-list {     margin: 0;     gap: 0 var(--space-3);   } ""","""/* Wide header (TASK-013 D12): the title stays on two lines at every width and the gaps    are smaller, so brand, every nav item and the notifications button fit on one line    at 1024 px (student with "Чат (99+)" and the "50+" chip; staff with 8 items). */ @media (min-width: 48rem) {   .site-header {     flex-wrap: nowrap;     gap: var(--space-3);   }   .site-brand {     flex: none;   }   .site-nav--wide {     flex: 1 1 auto;     min-width: 0;   }   .site-nav--wide .site-nav-list {     align-items: center;     margin: 0;     gap: 0 0.75rem;   } """) rep(B,""".form input[type="file"] {   padding: 6px; } input[type="file"]::file-selector-button {   min-height: 2.75rem;   margin-right: var(--space-3);   padding: 0 var(--space-3); }""","""/* File input (TASK-013 D13): full width; a compact button leaves room for the native text. */ .form input[type="file"] {   display: block;   box-sizing: border-box;   width: 100%;   padding: 6px;   font-size: 0.875rem; } input[type="file"]::file-selector-button {   min-height: 2.75rem;   margin-right: var(--space-2);   padding: 0 var(--space-2); }""") EOF sed -n 205,235p static/css/theme.css (1s)
+    $ python3 - <<'EOF'
+  import pathlib
+  def rep(path, old, new):
+      p=pathlib.Path(path); s=p.read_text(); assert s.count(old)==1,(path,old); p.write_text(s.replace(old,new))
+  B="static/css/base.css"
+  rep(B,"""@media (min-width: 48rem) {
+    .site-header {
+      flex-wrap: nowrap;
+    }
+
+    .site-brand {
+      flex: none;
+    }
+
+    .site-title-line {
+      display: inline;
+    }
+
+    .site-nav--wide {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .site-nav--wide .site-nav-list {
+      margin: 0;
+      gap: 0 var(--space-3);
+    }
+  ""","""/* Wide header (TASK-013 D12): the title stays on two lines at every width and the gaps
+     are smaller, so brand, every nav item and the notifications button fit on one line
+     at 1024 px (student with "Чат (99+)" and the "50+" chip; staff with 8 items). */
+  @media (min-width: 48rem) {
+    .site-header {
+      flex-wrap: nowrap;
+      gap: var(--space-3);
+    }
+
+    .site-brand {
+      flex: none;
+    }
+
+    .site-nav--wide {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .site-nav--wide .site-nav-list {
+      align-items: center;
+      margin: 0;
+      gap: 0 0.75rem;
+    }
+  """)
+  rep(B,""".form input[type="file"] {
+    padding: 6px;
+  }
+
+  input[type="file"]::file-selector-button {
+    min-height: 2.75rem;
+    margin-right: var(--space-3);
+    padding: 0 var(--space-3);
+  }""","""/* File input (TASK-013 D13): full width; a compact button leaves room for the native text. */
+  .form input[type="file"] {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    padding: 6px;
+    font-size: 0.875rem;
+  }
+
+  input[type="file"]::file-selector-button {
+    min-height: 2.75rem;
+    margin-right: var(--space-2);
+    padding: 0 var(--space-2);
+  }""")
+  EOF
+  sed -n 205,235p static/css/theme.css
+    text-decoration: underline;
+      cursor: pointer;
+    }
+
+    /* Panel button (D6). */
+    .btn,
+    .site-menu-toggle,
+    input[type="file"]::file-selector-button {
+      border: var(--frame-width) solid var(--color-frame);
+      border-radius: 0;
+      background: var(--color-panel);
+      box-shadow:
+        0 0 0 var(--frame-width) var(--color-frame-gap),
+        0 0 0 calc(2 * var(--frame-width)) var(--color-frame);
+      font-family: var(--font-pixel);
+      font-size: var(--font-size-button);
+      line-height: var(--line-height-pixel);
+      color: var(--color-text);
+      text-decoration: none;
+    }
+
+    .btn:hover,
+    .site-menu-toggle:hover {
+      border-color: var(--color-field-border);
+    }
+
+    input[type="file"]::file-selector-button {
+      cursor: pointer;
+    }
+
+    /* Primary button (D6). */
+  ── Thought for 3ms
+    I'm checking whether the box-shadow on the file selector button gets clipped inside the input, since the frame showed before and the 6px padding should fit it. I'm adding a theme rule for the file selector button with a pointer cursor and the tag font size, then I'll handle the scrollbar rules next.
+  ── Ran python3 - <<'EOF' import pathlib def rep(path, old, new):     p=pathlib.Path(path); s=p.read_text(); assert s.count(old)==1,(path,old); p.write_text(s.replace(old,new)) T="static/css/theme.css" rep(T,"""input[type="file"]::file-selector-button {   cursor: pointer; }""","""input[type="file"]::file-selector-button {   font-size: var(--font-size-tag);   cursor: pointer; }""") p=pathlib.Path(T); s=p.read_text().rstrip("\n") s+=''' /* Scrollbars (TASK-013 D14): thin, square, transparent track, lilac thumb, orange on hover.    With a fine pointer the thumb is hidden until the pointer is over the page or the area. */ html {   scrollbar-width: thin;   scrollbar-color: var(--color-scroll-thumb) transparent; } * {   scrollbar-width: thin; } ::-webkit-scrollbar {   width: 8px;   height: 8px; } ::-webkit-scrollbar-track {   background: transparent; } ::-webkit-scrollbar-thumb {   background: var(--color-scroll-thumb);   border-radius: 0; } ::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:active {   background: var(--color-scroll-thumb-hover); } @media (hover: hover) and (pointer: fine) {   html {     scrollbar-color: transparent transparent;   }   html:hover {     scrollbar-color: var(--color-scroll-thumb) transparent;   }   ::-webkit-scrollbar-thumb {     background: transparent;   }   :hover::-webkit-scrollbar-thumb {     background: var(--color-scroll-thumb);   }   ::-webkit-scrollbar-thumb:hover,   ::-webkit-scrollbar-thumb:active {     background: var(--color-scroll-thumb-hover);   } } ''' p.write_text(s) EOF grep -nE '#[0-9a-fA-F]{3,8}\b|\b(rgb|rgba|hsl|hsla)\(' static/css/base.css static/css/theme.css; echo ok (1s)
+    $ python3 - <<'EOF'
+  import pathlib
+  def rep(path, old, new):
+      p=pathlib.Path(path); s=p.read_text(); assert s.count(old)==1,(path,old); p.write_text(s.replace(old,new))
+  T="static/css/theme.css"
+  rep(T,"""input[type="file"]::file-selector-button {
+    cursor: pointer;
+  }""","""input[type="file"]::file-selector-button {
+    font-size: var(--font-size-tag);
+    cursor: pointer;
+  }""")
+  p=pathlib.Path(T); s=p.read_text().rstrip("\n")
+  s+='''
+
+  /* Scrollbars (TASK-013 D14): thin, square, transparent track, lilac thumb, orange on hover.
+     With a fine pointer the thumb is hidden until the pointer is over the page or the area. */
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-scroll-thumb) transparent;
+  }
+
+  * {
+    scrollbar-width: thin;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-scroll-thumb);
+    border-radius: 0;
+  }
+
+  ::-webkit-scrollbar-thumb:hover,
+  ::-webkit-scrollbar-thumb:active {
+    background: var(--color-scroll-thumb-hover);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    html {
+      scrollbar-color: transparent transparent;
+    }
+
+    html:hover {
+      scrollbar-color: var(--color-scroll-thumb) transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: transparent;
+    }
+
+    :hover::-webkit-scrollbar-thumb {
+      background: var(--color-scroll-thumb);
+    }
+
+    ::-webkit-scrollbar-thumb:hover,
+    ::-webkit-scrollbar-thumb:active {
+      background: var(--color-scroll-thumb-hover);
+    }
+  }
+  '''
+  p.write_text(s)
+  EOF
+  grep -nE '#[0-9a-fA-F]{3,8}\b|\b(rgb|rgba|hsl|hsla)\(' static/css/base.css static/css/theme.css; echo ok
+    ok
+  ── Thought for 7ms
+    I'm noting a Chromium caveat: when the standard scrollbar-color and scrollbar-width properties are set, the ::-webkit-scrollbar rules get ignored from Chrome 121 on, which is acceptable since I'm using the standard properties. I also checked that the html:hover selector fires whenever the pointer is anywhere in the window, which is fine. Next I'm starting the server for a visual check, which needs a fresh temp database with the new migration, so I'll delete the old UI database file from TMPDIR and recreate it.
+
+    I'm seeding the fresh database with 51 announcements and 100 staff chat messages for student1 in room 199, then writing a shell script to do it.
+
+── Assistant ───────────────────────────────────────────────
+Запускаю сервер на новой временной БД с данными для проверки шапки (50+ и 99+).
+
+── Created 1 file, ran 3 commands ──────────────────────────
+  ── Created /tmp/claude-501/ui/seed13.py +41
+    --- /dev/null
+    +++ b/tmp/claude-501/ui/seed13.py
+    +from django.contrib.auth import BACKEND_SESSION_KEY, HASH_SESSION_KEY, SESSION_KEY, get_user_model
+    +from django.contrib.sessions.backends.db import SessionStore
+    +from django.utils import timezone
+    +
+    +from chat.models import AuthorRole, Dialog, Message
+    +from notifications.models import Announcement, Audience
+    +from university.models import Room
+    +
+    +U = get_user_model()
+    +staff = U.objects.get(username="staff1")
+    +student = U.objects.get(username="student1")
+    +
+    +Room.objects.get_or_create(code="room-199", defaults={"floor": 1, "number": "199"})
+    +Room.objects.get_or_create(code="room-210", defaults={"floor": 2, "number": "210"})
+    +
+    +now = timezone.now()
+    +for i in range(51):
+    +    Announcement.objects.create(
+    +        author=staff,
+    +        audience=Audience.UNIVERSITY,
+    +        title=f"Тестовое объявление {i}",
+    +        body="Проверка счётчика.",
+    +        published_at=now,
+    +        is_published=True,
+    +    )
+    +dialog, _ = Dialog.objects.get_or_create(student=student.student_profile)
+    +last = None
+    +for i in range(100):
+    +    last = Message.objects.create(
+    +        dialog=dialog, author=staff, author_role=AuthorRole.STAFF, text=f"Сообщение {i}", created_at=now
+    +    )
+    +Dialog.objects.filter(pk=dialog.pk).update(last_message_at=now, last_message_id=last.pk)
+    +
+    +for name in ["student1", "student2", "staff1"]:
+    +    u = U.objects.get(username=name)
+    +    s = SessionStore()
+    +    s[SESSION_KEY] = str(u.pk)
+    +    s[BACKEND_SESSION_KEY] = "django.contrib.auth.backends.ModelBackend"
+    +    s[HASH_SESSION_KEY] = u.get_session_auth_hash()
+    +    s.create()
+    +    print(name, s.session_key)
+  ── Ran source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/ui13.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/ui-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && python manage.py migrate -v0 && python manage.py seed_demo 2>&1 | tail -1 && python manage.py shell < $TMPDIR/ui/seed13.py 2>&1 | grep -v imported | tee $TMPDIR/ui/sessions13.txt (5s)
+    $ source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/ui13.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/ui-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && python manage.py migrate -v0 && python manage.py seed_demo 2>&1 | tail -1 && python manage.py shell < $TMPDIR/ui/seed13.py 2>&1 | grep -v imported | tee $TMPDIR/ui/sessions13.txt
+    Chat ready: 3 dialogs, 8 messages.
+
+    student1 f26xn3s6af9jgdpk6qtjghhvy9atk4um
+    student2 xpmb4h1p20h1x1pya459ayd1nx3z4ooj
+    staff1 64k5k3i0pn482rw9sfx7skwzktqza0r9
+  ── Ran source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/ui13.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/ui-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && python manage.py runserver 127.0.0.1:8770 --noreload > $TMPDIR/ui-server.log 2>&1 (2s)
+    $ source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/ui13.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/ui-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && python manage.py runserver 127.0.0.1:8770 --noreload > $TMPDIR/ui-server.log 2>&1
+    Command running in background with ID: bouh0l6by. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/bouh0l6by.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran bb browser-automation open --backend local --machine host_cuvmpv75p3 --headless --json 2>&1 | tail -1 (3s)
+    $ bb browser-automation open --backend local --machine host_cuvmpv75p3 --headless --json 2>&1 | tail -1
+    {"id":"10ac9b56-d0f4-4001-871d-ac012f397c46","threadId":"thr_pgcwc2dwnn","hostId":"host_cuvmpv75p3","backend":"local","state":"ready","createdAt":1795007258908,"expiresAt":1795009058908,"previewDirective":"::browser-preview{session=\"10ac9b56-d0f4-4001-871d-ac012f397c46\"}"}
+
+── Assistant ───────────────────────────────────────────────
+::browser-preview{session="10ac9b56-d0f4-4001-871d-ac012f397c46"}
+
+── Ran 1 command, explored 4 files ─────────────────────────
+  ── Ran cd /tmp/claude-501/ui && python3 - <<'EOF' import pathlib p=pathlib.Path("/tmp/claude-501/ui/run.sh"); s=p.read_text() s=s.replace("S=480b382f-b4a0-44a7-a232-16ca65458821","S=10ac9b56-d0f4-4001-871d-ac012f397c46") s=s.replace('student1:"jfqddtt8vmcbn5cadej2r1iatkutcujk",student2:"dqtmzdvpehrpvj8tdqyb7a8dwy51bnj2",staff1:"7wziiz5smqscytpctpx17tkbsejj5ra3"','student1:"f26xn3s6af9jgdpk6qtjghhvy9atk4um",student2:"xpmb4h1p20h1x1pya459ayd1nx3z4ooj",staff1:"64k5k3i0pn482rw9sfx7skwzktqza0r9"') p.write_text(s) EOF grep -c "10ac9b56" /tmp/claude-501/ui/run.sh; /tmp/claude-501/ui/run.sh 'const r=[]; for (const f of [1,2,3,4]) { r.push(await go("student1","/map/floor/"+f+"/",360)); await p.evaluate(()=>document.querySelector(".map-svg").scrollIntoView()); await shot(false);} return r.map(x=>[x.url,x.sw]);' (2s)
+    $ cd /tmp/claude-501/ui && python3 - <<'EOF'
+  import pathlib
+  p=pathlib.Path("/tmp/claude-501/ui/run.sh"); s=p.read_text()
+  s=s.replace("S=480b382f-b4a0-44a7-a232-16ca65458821","S=10ac9b56-d0f4-4001-871d-ac012f397c46")
+  s=s.replace('student1:"jfqddtt8vmcbn5cadej2r1iatkutcujk",student2:"dqtmzdvpehrpvj8tdqyb7a8dwy51bnj2",staff1:"7wziiz5smqscytpctpx17tkbsejj5ra3"','student1:"f26xn3s6af9jgdpk6qtjghhvy9atk4um",student2:"xpmb4h1p20h1x1pya459ayd1nx3z4ooj",staff1:"64k5k3i0pn482rw9sfx7skwzktqza0r9"')
+  p.write_text(s)
+  EOF
+  grep -c "10ac9b56" /tmp/claude-501/ui/run.sh; /tmp/claude-501/ui/run.sh 'const r=[]; for (const f of [1,2,3,4]) { r.push(await go("student1","/map/floor/"+f+"/",360)); await p.evaluate(()=>document.querySelector(".map-svg").scrollIntoView()); await shot(false);} return r.map(x=>[x.url,x.sw]);'
+    1
+    [
+      [
+        "/map/floor/1/",
+        360
+      ],
+      [
+        "/map/floor/2/",
+        360
+      ],
+      [
+        "/map/floor/3/",
+        360
+      ],
+      [
+        "/map/floor/4/",
+        360
+      ]
+    ]
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007268916-1.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007269037-2.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007269121-3.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007269193-4.jpg 360 780
+    Shell cwd was reset to ~/hackatonproject
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007268916-1.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007269037-2.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007269121-3.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007269193-4.jpg
+  ── Thought for 117ms
+    The hatch shows up clearly, and the labels with their halos are easy to read, including "Охрана" and "Гардероб." Next I'm checking the highlights and the room list at 360 and 1024 pixels wide.
+
+── Assistant ───────────────────────────────────────────────
+Все четыре этажа читаются: штриховка, пунктир, подписи видны. Проверяю подсветку и сетку кнопок.
+
+── Ran 1 command, explored 4 files ─────────────────────────
+  ── Ran /tmp/claude-501/ui/run.sh 'const r=[]; r.push(await go("student1","/map/room/room-101/",360)); await p.evaluate(()=>document.querySelector(".map-svg").scrollIntoView()); await shot(false); r.push(await go("student1","/map/room/room-210/",360)); await p.evaluate(()=>document.querySelector(".map-svg").scrollIntoView()); await shot(false); r.push(await go("student1","/map/room/room-199/",360)); await p.evaluate(()=>document.querySelector(".map-room-list").scrollIntoView()); await shot(false); r.push(await p.$$eval(".map-room-btn", as=>{const h=as.map(a=>Math.round(a.getBoundingClientRect().height)); const w=as.map(a=>Math.round(a.getBoundingClientRect().width)); return [Math.min(...h), Math.min(...w), as.length]})); r.push(await go("student1","/map/room/room-402/",1024,768)); await shot(true); return r;' (2s)
+    $ /tmp/claude-501/ui/run.sh 'const r=[]; r.push(await go("student1","/map/room/room-101/",360)); await p.evaluate(()=>document.querySelector(".map-svg").scrollIntoView()); await shot(false); r.push(await go("student1","/map/room/room-210/",360)); await p.evaluate(()=>document.querySelector(".map-svg").scrollIntoView()); await shot(false); r.push(await go("student1","/map/room/room-199/",360)); await p.evaluate(()=>document.querySelector(".map-room-list").scrollIntoView()); await shot(false); r.push(await p.$$eval(".map-room-btn", as=>{const h=as.map(a=>Math.round(a.getBoundingClientRect().height)); const w=as.map(a=>Math.round(a.getBoundingClientRect().width)); return [Math.min(...h), Math.min(...w), as.length]})); r.push(await go("student1","/map/room/room-402/",1024,768)); await shot(true); return r;'
+    [
+      {
+        "url": "/map/room/room-101/",
+        "sw": 360,
+        "cw": 360,
+        "h": 2382,
+        "title": "Карта"
+      },
+      {
+        "url": "/map/room/room-210/",
+        "sw": 360,
+        "cw": 360,
+        "h": 2382,
+        "title": "Карта"
+      },
+      {
+        "url": "/map/room/room-199/",
+        "sw": 360,
+        "cw": 360,
+        "h": 2382,
+        "title": "Карта"
+      },
+      [
+        44,
+        97,
+        40
+      ],
+      {
+        "url": "/map/room/room-402/",
+        "sw": 1024,
+        "cw": 1024,
+        "h": 2727,
+        "title": "Карта"
+      }
+    ]
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007282420-5.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007282502-6.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007282571-7.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007282680-8.jpg 901 2400
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007282420-5.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007282502-6.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007282571-7.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007282680-8.jpg
+  ── Thought
+    The header looks right on one line at 1024, with the 50+ badge and the Чат (99+) label fitting. The full-page screenshot was scaled down, so that is likely why it appeared on one line. Next I need to measure the header numbers at 1024 and 1280 for both student and staff, then check the file input at 360, the scrollbar, the schedule pages, home, and the feed.
+
+── Assistant ───────────────────────────────────────────────
+Подсветка и сетка кнопок в порядке. Меряю шапку на 1024 и 1280 px.
+
+── Created 1 file, ran 1 command, explored 2 files ─────────
+  ── Created /tmp/claude-501/ui/header.js +32
+    --- /dev/null
+    +++ b/tmp/claude-501/ui/header.js
+    +const r = [];
+    +const measure = () => p.evaluate(() => {
+    +  const lis = [...document.querySelectorAll(".site-nav--wide li")];
+    +  const tops = [...new Set(lis.map((e) => Math.round(e.getBoundingClientRect().top)))];
+    +  const c = (el) => { const b = el.getBoundingClientRect(); return Math.round(b.top + b.height / 2); };
+    +  const notif = document.querySelector(".site-notif");
+    +  const minH = Math.min(...[...document.querySelectorAll(".site-nav--wide a, .site-nav--wide button")].map((e) => Math.round(e.getBoundingClientRect().height)));
+    +  const fs = getComputedStyle(document.querySelector(".site-nav--wide a")).fontSize;
+    +  return {
+    +    items: lis.length,
+    +    tops,
+    +    liCentre: c(lis[0]),
+    +    notifCentre: notif ? c(notif) : null,
+    +    chip: notif?.querySelector(".site-notif-count")?.textContent,
+    +    chat: lis.map((e) => e.textContent.trim()).find((t) => t.startsWith("Чат")),
+    +    minTapHeight: minH,
+    +    navFont: fs,
+    +    sw: document.documentElement.scrollWidth,
+    +    headerH: Math.round(document.querySelector(".site-header").getBoundingClientRect().height),
+    +  };
+    +});
+    +for (const [w, h] of [[1024, 768], [1280, 800]]) {
+    +  for (const u of ["student1", "staff1"]) {
+    +    await go(u, "/profile/", w, h);
+    +    r.push([u, w, await measure()]);
+    +  }
+    +}
+    +await go("student1", "/profile/", 1024, 768);
+    +await shot(false);
+    +await go("staff1", "/profile/", 1024, 768);
+    +await shot(false);
+    +return r;
+  ── Ran /tmp/claude-501/ui/run.sh /tmp/claude-501/ui/header.js (2s)
+    $ /tmp/claude-501/ui/run.sh /tmp/claude-501/ui/header.js
+    [
+      [
+        "student1",
+        1024,
+        {
+          "items": 7,
+          "tops": [
+            30
+          ],
+          "liCentre": 52,
+          "notifCentre": 52,
+          "chip": ", непрочитанных: 50+",
+          "chat": "Чат (99+)",
+          "minTapHeight": 44,
+          "navFont": "16px",
+          "sw": 1024,
+          "headerH": 108
+        }
+      ],
+      [
+        "staff1",
+        1024,
+        {
+          "items": 8,
+          "tops": [
+            24
+          ],
+          "liCentre": 46,
+          "notifCentre": null,
+          "chat": "Чаты",
+          "minTapHeight": 44,
+          "navFont": "16px",
+          "sw": 1024,
+          "headerH": 96
+        }
+      ],
+      [
+        "student1",
+        1280,
+        {
+          "items": 7,
+          "tops": [
+            30
+          ],
+          "liCentre": 52,
+          "notifCentre": 52,
+          "chip": ", непрочитанных: 50+",
+          "chat": "Чат (99+)",
+          "minTapHeight": 44,
+          "navFont": "16px",
+          "sw": 1280,
+          "headerH": 108
+        }
+      ],
+      [
+        "staff1",
+        1280,
+        {
+          "items": 8,
+          "tops": [
+            24
+          ],
+          "liCentre": 46,
+          "notifCentre": null,
+          "chat": "Чаты",
+          "minTapHeight": 44,
+          "navFont": "16px",
+          "sw": 1280,
+          "headerH": 96
+        }
+      ]
+    ]
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007299596-9.jpg 1024 768
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007299684-10.jpg 1024 768
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007299596-9.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007299684-10.jpg
+  ── Thought for 5ms
+    Next I'm checking the file input at 360px, the schedule in today and week views at 360 and 1024, and the staff group in week view at 1024. I also need the home and feed pages at 360, the scrollbar at 1024 with and without hover, the 768 header between 48 and 64rem for overflow, and a scroll-width check on every page at 360 and 1024, including the map floors.
+
+── Assistant ───────────────────────────────────────────────
+Шапка в одну строку: студент и сотрудник, 1024 и 1280 px. Проверяю поле файла и страницы с изменениями.
+
+── Created 1 file, ran 3 commands, explored 6 files ────────
+  ── Created /tmp/claude-501/ui/pages13.js +25
+    --- /dev/null
+    +++ b/tmp/claude-501/ui/pages13.js
+    +const r = [];
+    +r.push(await go("student1", "/requests/new/3/", 360));
+    +r.push(await p.evaluate(() => {
+    +  const input = document.querySelector('.form input[type="file"]');
+    +  const form = document.querySelector("form.form");
+    +  const cs = getComputedStyle(form);
+    +  const content = form.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    +  input.scrollIntoView({ block: "center" });
+    +  return { inputWidth: Math.round(input.getBoundingClientRect().width), formContentWidth: Math.round(content) };
+    +}));
+    +await shot(false);
+    +r.push(await go("student1", "/schedule/week/", 360));
+    +await p.evaluate(() => document.querySelector(".lesson-change").scrollIntoView({ block: "center" }));
+    +await shot(false);
+    +r.push(await go("student1", "/", 360));
+    +await p.evaluate(() => document.querySelector("#home-lessons").scrollIntoView());
+    +await shot(false);
+    +r.push(await go("student1", "/notifications/", 360));
+    +await p.evaluate(() => {
+    +  const items = [...document.querySelectorAll(".feed-item")];
+    +  const ch = items.find((i) => i.textContent.includes("занятия"));
+    +  (ch || items[0]).scrollIntoView({ block: "start" });
+    +});
+    +await shot(false);
+    +return r;
+  ── Ran /tmp/claude-501/ui/run.sh /tmp/claude-501/ui/pages13.js (2s)
+    $ /tmp/claude-501/ui/run.sh /tmp/claude-501/ui/pages13.js
+    [
+      {
+        "url": "/requests/new/3/",
+        "sw": 360,
+        "cw": 360,
+        "h": 1005,
+        "title": "Цифровой деканат будущего"
+      },
+      {
+        "inputWidth": 278,
+        "formContentWidth": 278
+      },
+      {
+        "url": "/schedule/week/",
+        "sw": 360,
+        "cw": 360,
+        "h": 2842,
+        "title": "Цифровой деканат будущего"
+      },
+      {
+        "url": "/",
+        "sw": 360,
+        "cw": 360,
+        "h": 1309,
+        "title": "Цифровой деканат будущего"
+      },
+      {
+        "url": "/notifications/",
+        "sw": 360,
+        "cw": 360,
+        "h": 10068,
+        "title": "Уведомления"
+      }
+    ]
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007313016-11.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007313113-12.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007313212-13.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007313313-14.jpg 360 780
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007313016-11.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007313113-12.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007313212-13.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007313313-14.jpg
+  ── Thought for 2s
+    I'm thinking the test announcements are flooding the feed and pushing lesson change items out, so I'll check the feed as student2 and look for the "Расписание" item, though with 51 announcements against a limit of 50 those changes might get dropped. I'm considering temporarily unpublishing the test announcements as a workaround.
+
+    Next I'm deleting the "Тестовое объявление" announcements from the temp DB, since the server doesn't cache anything, so the database change will show up directly. I'll do that after the header checks, which are already done.
+  ── Thought
+    Поле файла теперь занимает всю ширину (278 из 278 px), и текст «No file chosen» виден целиком. Далее удаляю тестовые объявления из временной БД, чтобы в ленте появились изменения расписания.
+  ── Ran source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/ui13.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/ui-private" && python manage.py shell -c " from notifications.models import Announcement print(Announcement.objects.filter(title__startswith='Тестовое объявление').delete()) " 2>&1 | tail -1; /tmp/claude-501/ui/run.sh 'const r=[]; r.push(await go("student1","/notifications/",360)); r.push(await p.evaluate(()=>{const items=[...document.querySelectorAll(".feed-item")].filter(i=>i.querySelector(".feed-meta").textContent.includes("Расписание")); items[0]?.scrollIntoView({block:"start"}); return items.map(i=>[i.querySelector("h3").textContent.trim(), i.querySelectorAll("p").length]);})); await shot(false); r.push(await go("staff1","/staff/schedule/1/",1024,768)); await p.evaluate(()=>document.querySelector(".lesson-change").scrollIntoView({block:"center"})); await shot(false); r.push(await go("student1","/schedule/",1024,768)); await shot(false); return r;' (2s)
+    $ source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/ui13.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/ui-private" && python manage.py shell -c "
+  from notifications.models import Announcement
+  print(Announcement.objects.filter(title__startswith='Тестовое объявление').delete())
+  " 2>&1 | tail -1; /tmp/claude-501/ui/run.sh 'const r=[]; r.push(await go("student1","/notifications/",360)); r.push(await p.evaluate(()=>{const items=[...document.querySelectorAll(".feed-item")].filter(i=>i.querySelector(".feed-meta").textContent.includes("Расписание")); items[0]?.scrollIntoView({block:"start"}); return items.map(i=>[i.querySelector("h3").textContent.trim(), i.querySelectorAll("p").length]);})); await shot(false); r.push(await go("staff1","/staff/schedule/1/",1024,768)); await p.evaluate(()=>document.querySelector(".lesson-change").scrollIntoView({block:"center"})); await shot(false); r.push(await go("student1","/schedule/",1024,768)); await shot(false); return r;'
+    (51, {'notifications.Announcement': 51})
+    [
+      {
+        "url": "/notifications/",
+        "sw": 360,
+        "cw": 360,
+        "h": 9018,
+        "title": "Уведомления"
+      },
+      [],
+      {
+        "url": "/staff/schedule/1/",
+        "sw": 1024,
+        "cw": 1024,
+        "h": 2527,
+        "title": "Цифровой деканат будущего"
+      },
+      {
+        "url": "/schedule/",
+        "sw": 1024,
+        "cw": 1024,
+        "h": 768,
+        "title": "Цифровой деканат будущего"
+      }
+    ]
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007330056-15.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007330138-16.jpg 1024 768
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007330221-17.jpg 1024 768
+  ── Thought for 5ms
+    The feed is still at 9018 items, and the 100 chat messages seem to be what's flooding it, since each message probably creates its own feed entry. I'll delete the test chat messages ("Сообщение N") as well, then check the count again.
+  ── Ran source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/ui13.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/ui-private" && python manage.py shell -c " from chat.models import Message, Dialog from django.db.models import Max print(Message.objects.filter(text__startswith='Сообщение ').delete()) for d in Dialog.objects.all():     last=d.messages.order_by('-created_at','-pk').first() if hasattr(d,'messages') else None     if last: Dialog.objects.filter(pk=d.pk).update(last_message_at=last.created_at,last_message_id=last.pk) " 2>&1 | tail -1; /tmp/claude-501/ui/run.sh 'const r=[]; r.push(await go("student1","/notifications/",360)); r.push(await p.evaluate(()=>{const items=[...document.querySelectorAll(".feed-item")].filter(i=>i.querySelector(".feed-meta").textContent.includes("Расписание")); items[0]?.scrollIntoView({block:"start"}); return items.map(i=>[i.querySelector("h3").textContent.trim(), i.querySelectorAll("p").length]);})); await shot(false); return r;' (1s)
+    $ source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/ui13.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/ui-private" && python manage.py shell -c "
+  from chat.models import Message, Dialog
+  from django.db.models import Max
+  print(Message.objects.filter(text__startswith='Сообщение ').delete())
+  for d in Dialog.objects.all():
+      last=d.messages.order_by('-created_at','-pk').first() if hasattr(d,'messages') else None
+      if last: Dialog.objects.filter(pk=d.pk).update(last_message_at=last.created_at,last_message_id=last.pk)
+  " 2>&1 | tail -1; /tmp/claude-501/ui/run.sh 'const r=[]; r.push(await go("student1","/notifications/",360)); r.push(await p.evaluate(()=>{const items=[...document.querySelectorAll(".feed-item")].filter(i=>i.querySelector(".feed-meta").textContent.includes("Расписание")); items[0]?.scrollIntoView({block:"start"}); return items.map(i=>[i.querySelector("h3").textContent.trim(), i.querySelectorAll("p").length]);})); await shot(false); return r;'
+    (100, {'chat.Message': 100})
+    [
+      {
+        "url": "/notifications/",
+        "sw": 360,
+        "cw": 360,
+        "h": 4969,
+        "title": "Уведомления"
+      },
+      [
+        [
+          "Замена преподавателя: Введение в цифровую дипломатию, 18.11, 2 пара → Шестакова Л. П.",
+          1
+        ],
+        [
+          "Замена аудитории: Английский язык, 19.11, 3 пара → ауд. 402",
+          1
+        ],
+        [
+          "Перенос занятия: Анализ данных на Python, 17.11, 3 пара → 19.11, 5 пара",
+          1
+        ]
+      ]
+    ]
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007337445-18.jpg 360 780
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007337445-18.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007330138-16.jpg
+  ── Thought for 1s
+    I'm checking the feed change items, and there's only a single meta paragraph with no body, which is fine. I'm wondering why the cancelled class "Отмена занятия" isn't in that list, but it may just be that only three of the eight changes fall in this week.
+
+    Next I'm planning a scrollbar check at 1024px: comparing screenshots with the mouse away from the page against ones with it over the page. Headless screenshots often don't render scrollbars, so I'm thinking about reading the computed scrollbar-color on the html element in both states instead.
+
+    I'm going to test whether hovering over the page changes the scrollbar color, by moving the mouse onto the page and reading the computed style, then checking the state with no mouse movement. I'll also take a screenshot to see whether a scrollbar shows up at all.
+
+── Assistant ───────────────────────────────────────────────
+Лента: у изменений расписания нет текста причины. Проверяю полосу прокрутки на 1024 px.
+
+── Ran 4 commands, explored 2 files ────────────────────────
+  ── Ran /tmp/claude-501/ui/run.sh 'const r=[]; await go("student1","/schedule/week/",1024,768); await p.mouse.move(1023,767); await p.mouse.move(0,0); const st=()=>p.evaluate(()=>({hoverMatch:matchMedia("(hover: hover) and (pointer: fine)").matches, htmlHover:document.documentElement.matches(":hover"), color:getComputedStyle(document.documentElement).scrollbarColor, width:getComputedStyle(document.documentElement).scrollbarWidth, inner:window.innerWidth, client:document.documentElement.clientWidth})); r.push(["start",await st()]); await p.evaluate(()=>{document.documentElement.dispatchEvent(new MouseEvent("mouseout"))}); await p.mouse.move(500,400); r.push(["over",await st()]); await shot(false); return r;' (1s)
+    $ /tmp/claude-501/ui/run.sh 'const r=[]; await go("student1","/schedule/week/",1024,768); await p.mouse.move(1023,767); await p.mouse.move(0,0); const st=()=>p.evaluate(()=>({hoverMatch:matchMedia("(hover: hover) and (pointer: fine)").matches, htmlHover:document.documentElement.matches(":hover"), color:getComputedStyle(document.documentElement).scrollbarColor, width:getComputedStyle(document.documentElement).scrollbarWidth, inner:window.innerWidth, client:document.documentElement.clientWidth})); r.push(["start",await st()]); await p.evaluate(()=>{document.documentElement.dispatchEvent(new MouseEvent("mouseout"))}); await p.mouse.move(500,400); r.push(["over",await st()]); await shot(false); return r;'
+    [
+      [
+        "start",
+        {
+          "hoverMatch": true,
+          "htmlHover": true,
+          "color": "rgb(184, 166, 232) rgba(0, 0, 0, 0)",
+          "width": "thin",
+          "inner": 1024,
+          "client": 1024
+        }
+      ],
+      [
+        "over",
+        {
+          "hoverMatch": true,
+          "htmlHover": true,
+          "color": "rgb(184, 166, 232) rgba(0, 0, 0, 0)",
+          "width": "thin",
+          "inner": 1024,
+          "client": 1024
+        }
+      ]
+    ]
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007351226-19.jpg 1024 768
+  ── Thought for 2s
+    I'm working out how to check the "away" state in a headless browser, where the pointer can't leave the viewport and the html element stays hovered. I'm considering injecting a CSSOM check to confirm the media rule exists, or using CDP emulation to force a non-hover state, and I'm also thinking about opening a fresh page with no mouse movement so htmlHover starts out false.
+
+    I'm thinking about opening a new page and evaluating before any mouse events fire, though the mouse position may persist in Chromium. I could also try moving the pointer to (-10, -10) to see if that registers as leaving the viewport.
+  ── Ran /tmp/claude-501/ui/run.sh 'const r=[]; await go("student1","/schedule/week/",1024,768); const st=()=>p.evaluate(()=>({htmlHover:document.documentElement.matches(":hover"), color:getComputedStyle(document.documentElement).scrollbarColor})); await p.mouse.move(-5,-5); r.push(["outside",await st()]); await p.mouse.move(400,300); r.push(["inside",await st()]); await p.mouse.move(-5,300); r.push(["outside again",await st()]); return r;' (1s)
+    $ /tmp/claude-501/ui/run.sh 'const r=[]; await go("student1","/schedule/week/",1024,768); const st=()=>p.evaluate(()=>({htmlHover:document.documentElement.matches(":hover"), color:getComputedStyle(document.documentElement).scrollbarColor})); await p.mouse.move(-5,-5); r.push(["outside",await st()]); await p.mouse.move(400,300); r.push(["inside",await st()]); await p.mouse.move(-5,300); r.push(["outside again",await st()]); return r;'
+    [
+      [
+        "outside",
+        {
+          "htmlHover": false,
+          "color": "rgba(0, 0, 0, 0) rgba(0, 0, 0, 0)"
+        }
+      ],
+      [
+        "inside",
+        {
+          "htmlHover": true,
+          "color": "rgb(184, 166, 232) rgba(0, 0, 0, 0)"
+        }
+      ],
+      [
+        "outside again",
+        {
+          "htmlHover": false,
+          "color": "rgba(0, 0, 0, 0) rgba(0, 0, 0, 0)"
+        }
+      ]
+    ]
+  ── Thought for 575ms
+    Headless Chrome uses overlay scrollbars, so they won't show up in the render, and I'll note that in the report. I can't change that default, so I'm moving on. Next I need to check the 768px range for horizontal overflow in the header, then sweep the remaining pages at 360px and 1024px, especially the map pages. After that comes updating test_css, test_design, and the README, and a full verification pass.
+  ── Thought for 5ms
+    Скроллбар без указателя прозрачный, а с указателем сиреневый, как в D14. Далее проверяю горизонтальную прокрутку на всех страницах.
+  ── Ran /tmp/claude-501/ui/run.sh 'const r=[]; const S=["/","/profile/","/schedule/","/schedule/week/","/grades/","/requests/","/requests/new/3/","/notifications/","/chat/","/map/floor/1/","/map/floor/2/","/map/floor/3/","/map/floor/4/","/map/room/room-101/","/map/room/room-402/","/map/room/room-210/","/map/room/room-199/"]; for (const w of [320,360,768,1024,1280]) for (const u of S){ const x=await go("student1",u,w,768); r.push([w,u,x.sw]); } const T=["/","/profile/","/staff/schedule/1/","/staff/requests/","/staff/announcements/","/staff/chats/","/staff/students/","/map/"]; for (const w of [320,360,768,1024,1280]) for (const u of T){ const x=await go("staff1",u,w,768); r.push([w,"staff"+u,x.sw]); } return r.filter(x=>x[2]!=x[0]).concat([["checked",r.length]]);' (6s)
+    $ /tmp/claude-501/ui/run.sh 'const r=[]; const S=["/","/profile/","/schedule/","/schedule/week/","/grades/","/requests/","/requests/new/3/","/notifications/","/chat/","/map/floor/1/","/map/floor/2/","/map/floor/3/","/map/floor/4/","/map/room/room-101/","/map/room/room-402/","/map/room/room-210/","/map/room/room-199/"]; for (const w of [320,360,768,1024,1280]) for (const u of S){ const x=await go("student1",u,w,768); r.push([w,u,x.sw]); } const T=["/","/profile/","/staff/schedule/1/","/staff/requests/","/staff/announcements/","/staff/chats/","/staff/students/","/map/"]; for (const w of [320,360,768,1024,1280]) for (const u of T){ const x=await go("staff1",u,w,768); r.push([w,"staff"+u,x.sw]); } return r.filter(x=>x[2]!=x[0]).concat([["checked",r.length]]);'
+    [
+      [
+        "checked",
+        125
+      ]
+    ]
+  ── Thought for 6ms
+    I'm satisfied with the overall result, so now I want to check the header at 768px wide. I'll look at the screenshot to see whether the text wrapping there is acceptable.
+  ── Ran /tmp/claude-501/ui/run.sh 'await go("student1","/map/room/room-101/",768,768); await shot(false); await go("student1","/map/room/room-101/",1024,768); await p.evaluate(()=>document.querySelector(".map-room-list").scrollIntoView({block:"center"})); await shot(false); return 1;' (1s)
+    $ /tmp/claude-501/ui/run.sh 'await go("student1","/map/room/room-101/",768,768); await shot(false); await go("student1","/map/room/room-101/",1024,768); await p.evaluate(()=>document.querySelector(".map-room-list").scrollIntoView({block:"center"})); await shot(false); return 1;'
+    1
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007375186-20.jpg 768 768
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007375251-21.jpg 1024 768
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007375186-20.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-1795007375251-21.jpg
+  ── Thought for 125ms
+    The header can wrap at 768px since that's under the 64rem breakpoint, so that's fine. Next I'm turning to the tests, updating test_css and test_design and the README.
+
+── Assistant ───────────────────────────────────────────────
+Визуально всё в порядке. Обновляю тесты CSS/дизайна и README.
+
+── Explored 1 file, ran 2 commands ─────────────────────────
+  ── Read README.md
+  ── Ran python3 - <<'EOF' import pathlib p=pathlib.Path("README.md"); s=p.read_text() i=s.index("## Map\n"); j=s.index("## Chat\n") s=s[:i]+'''## Map Students and staff: `/map/` (lowest floor with rooms), `/map/floor/<n>/` (a specific floor, 404 when no room is on it) and `/map/room/<code>/` (a room's floor with that room highlighted). The map is one fictional building drawn as an inline SVG with portrait floor plans for floors 1–4 in `university/building.py`. Each floor has a vertical corridor in the middle, rooms of different sizes on both sides, and service spaces (no free space except the corridor). Plans: - Every floor has two staircases: «Лестница» at the top and at the bottom end of the corridor. - «Вход» is on floor 1 only, in the east wing next to the corridor. «Охрана» (a small post) and   «Гардероб» are next to the entrance and open onto it. - One toilet per floor, all in one riser: «Туалет М» on floors 1 and 3, «Туалет Ж» on floors 2 and 4. - Access rule: every room shares a wall of at least `DOOR_MIN` = 24 units (about 1 m, a door)   with the corridor, except the inner room 211, reached through room 210. Every other space   except the staircases opens onto the corridor or the entrance. - Room 210 is the only L-shaped space (`<polygon>`). A room appears on the plan when its number is a slot on its floor's plan (no admin placement; to add a room to the plan, change the code). Rooms elsewhere (or floors 5–9, which have no plan) show «нет на схеме». Non-teaching spaces — landmarks («Лестница», «Вход», «Столовая», «Деканат», «Библиотека») and services («Гардероб», «Туалет М», «Туалет Ж», «Кафедра», «Медпункт», «Охрана», «Архив») — are drawn always; the legend explains the three kinds. A room number is exactly three digits (`NNN`) and its first digit must equal the floor (1–9). Look: rooms have a solid light frame; landmarks a dashed yellow frame and label; service spaces a dotted lilac frame, a diagonal hatch and a lilac label with a dark halo. The highlighted room (class `map-current`) is orange with a thick light frame and a dark number. Under the map, every floor lists its rooms as a grid of pixel buttons; the current room's button is orange. '''+s[j:] p.write_text(s) EOF grep -n "def test_map_highlight_rule" -A6 core/tests/test_css.py (1s)
+    $ python3 - <<'EOF'
+  import pathlib
+  p=pathlib.Path("README.md"); s=p.read_text()
+  i=s.index("## Map\n"); j=s.index("## Chat\n")
+  s=s[:i]+'''## Map
+
+  Students and staff: `/map/` (lowest floor with rooms), `/map/floor/<n>/`
+  (a specific floor, 404 when no room is on it) and `/map/room/<code>/` (a room's
+  floor with that room highlighted). The map is one fictional building drawn as an
+  inline SVG with portrait floor plans for floors 1–4 in `university/building.py`.
+  Each floor has a vertical corridor in the middle, rooms of different sizes on
+  both sides, and service spaces (no free space except the corridor).
+
+  Plans:
+  - Every floor has two staircases: «Лестница» at the top and at the bottom end of the corridor.
+  - «Вход» is on floor 1 only, in the east wing next to the corridor. «Охрана» (a small post) and
+    «Гардероб» are next to the entrance and open onto it.
+  - One toilet per floor, all in one riser: «Туалет М» on floors 1 and 3, «Туалет Ж» on floors 2 and 4.
+  - Access rule: every room shares a wall of at least `DOOR_MIN` = 24 units (about 1 m, a door)
+    with the corridor, except the inner room 211, reached through room 210. Every other space
+    except the staircases opens onto the corridor or the entrance.
+  - Room 210 is the only L-shaped space (`<polygon>`).
+
+  A room appears on the plan when its number is a slot on its floor's plan (no
+  admin placement; to add a room to the plan, change the code). Rooms elsewhere
+  (or floors 5–9, which have no plan) show «нет на схеме». Non-teaching spaces —
+  landmarks («Лестница», «Вход», «Столовая», «Деканат», «Библиотека») and
+  services («Гардероб», «Туалет М», «Туалет Ж», «Кафедра», «Медпункт», «Охрана»,
+  «Архив») — are drawn always; the legend explains the three kinds. A room number
+  is exactly three digits (`NNN`) and its first digit must equal the floor (1–9).
+
+  Look: rooms have a solid light frame; landmarks a dashed yellow frame and label;
+  service spaces a dotted lilac frame, a diagonal hatch and a lilac label with a dark
+  halo. The highlighted room (class `map-current`) is orange with a thick light frame
+  and a dark number. Under the map, every floor lists its rooms as a grid of pixel
+  buttons; the current room's button is orange.
+
+  '''+s[j:]
+  p.write_text(s)
+  EOF
+  grep -n "def test_map_highlight_rule" -A6 core/tests/test_css.py
+    19:    def test_map_highlight_rule(self):
+    20-        base_css = (Path(settings.BASE_DIR) / "static/css/base.css").read_text()
+    21-        tokens = (Path(settings.BASE_DIR) / "static/css/tokens.css").read_text()
+    22-        self.assertIn(".map-current .map-room-label", base_css)
+    23-        self.assertIn("var(--color-map-highlight)", base_css)
+    24-        self.assertIn("--color-map-highlight", tokens)
+    25-
+  ── Thought for 5ms
+    I'm checking the README's phrasing, since it says "every room shares..." and I want to use "Every floor has two staircases" in the test instead. I'm also confirming that the AC18 map is the only change reason to account for. Then I'll update test_css and test_design.
+  ── Ran python3 - <<'EOF' import pathlib def rep(path, old, new):     p=pathlib.Path(path); s=p.read_text(); assert s.count(old)==1,(path,old); p.write_text(s.replace(old,new)) rep("core/tests/test_css.py","""        self.assertIn(".map-current .map-room-label", base_css)         self.assertIn("var(--color-map-highlight)", base_css)         self.assertIn("--color-map-highlight", tokens) ""","""        self.assertIn(".map-current .map-room-label", base_css)         # TASK-013: the highlight colours moved to theme.css; the number uses the dark         # "on accent" token on the orange fill (D5, D6).         self.assertIn("--color-map-highlight:", tokens)         self.assertRegex(tokens, r"--color-map-highlight-fill:\\s*#ff9f2e;")         self.assertRegex(tokens, r"--color-map-highlight-text:\\s*#2b1300;")         theme = (Path(settings.BASE_DIR) / "static/css/theme.css").read_text()         label_rules = [             body             for css in (base_css, theme)             for sel, body in re.findall(r"([^{}]+)\\{([^{}]*)\\}", css)             if ".map-current .map-room-label" in sel         ]         self.assertTrue(any("var(--color-map-highlight-text)" in b for b in label_rules)) """) p=pathlib.Path("core/tests/test_css.py"); s=p.read_text() if "import re\n" not in s:     s=s.replace('"""Tests for the layout (base) stylesheet."""\n\n','"""Tests for the layout (base) stylesheet."""\n\nimport re\n',1) p.write_text(s) D="core/tests/test_design.py" rep(D,"""    "color-map-room-fill",     "font-body",""","""    "color-map-room-fill",     # TASK-013: final map look and scrollbar tokens (D5).     "color-map-highlight-text",     "color-map-corridor-fill",     "color-map-room-stroke",     "color-map-landmark",     "color-map-service",     "color-map-hatch",     "color-map-label-halo",     "color-scroll-thumb",     "color-scroll-thumb-hover",     "font-body",""") rep(D,"""                for match in re.finditer(r"url\\(", css):                     self.assertRegex(css[match.start() :], r'^url\\("?\\.\\./')""","""                # TASK-013: fragment URLs (the inline SVG hatch pattern) are allowed (D6).                 for match in re.finditer(r"url\\(", css):                     self.assertRegex(css[match.start() :], r'^url\\("?(\\.\\./|#)')""") rep(D,"""    def test_body_font_for_text(self):""","""    def test_map_highlight_final(self):         rules = _rules(_read("static/css/theme.css"))         found = False         for sel, body in rules:             parts = {s.strip() for s in sel.split(",")}             if parts & {".map-current rect", ".map-current polygon"}:                 width = re.search(r"stroke-width:\\s*(\\d+)", body)                 if "fill: var(--color-map-highlight-fill)" in body and width:                     found = int(width.group(1)) >= 4         self.assertTrue(found)     def test_map_kinds_distinct(self):         theme = _read("static/css/theme.css")         self.assertIn("var(--color-map-landmark)", _rule_bodies(theme, ".map-landmark rect"))         service = _rule_bodies(theme, ".map-service rect")         self.assertIn("url(#map-hatch)", service)         self.assertIn("var(--color-map-service)", service)         service_label = _rule_bodies(theme, ".map-service-label")         landmark_label = _rule_bodies(theme, ".map-landmark-label")         self.assertIn("paint-order: stroke", service_label)         def fill(body):             return re.search(r"(?<![-\\w])fill:\\s*([^;]+);", body).group(1)         self.assertNotEqual(fill(service_label), fill(landmark_label))     def test_file_input_full_width(self):         base = _read("static/css/base.css")         self.assertIn("width: 100%", _rule_bodies(base, '.form input[type="file"]'))     def test_scrollbar_rules(self):         theme = _read("static/css/theme.css")         for needle in (             "scrollbar-width: thin",             "scrollbar-color: var(--color-scroll-thumb)",             "::-webkit-scrollbar-thumb",             "var(--color-scroll-thumb-hover)",             "@media (hover: hover) and (pointer: fine)",         ):             self.assertIn(needle, theme)         for path in sorted(CSS.glob("*.css")):             css = path.read_text(encoding="utf-8")             with self.subTest(file=path.name):                 self.assertNotIn("scrollbar-width: none", css)                 for sel, body in _rules(css):                     if "scrollbar" in sel:                         self.assertNotRegex(body, r"display:\\s*none")                         radius = re.search(r"border-radius:\\s*([^;]+);", body)                         if radius:                             self.assertRegex(radius.group(1).strip(), r"^0(px)?$")     def test_body_font_for_text(self):""") rep(D,"""        self.assertIn("The logo and the favicon are our own pixel drawing", readme) ""","""        self.assertIn("The logo and the favicon are our own pixel drawing", readme)     def test_map_section_current(self):         readme = _read("README.md")         start = readme.index("## Map\\n")         section = readme[start : readme.index("\\n## ", start + 1)]         for needle in ("Туалет М", "Туалет Ж", "Вход", "Every floor has two staircases"):             self.assertIn(needle, section)         self.assertNotIn("Склад", section) """) EOF source .venv/bin/activate && ruff check core/tests/test_css.py core/tests/test_design.py && ruff format core/tests/test_css.py core/tests/test_design.py && L="$TMPDIR/test-t013-core-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"; python manage.py test core campusmap university --parallel 1 > "$L" 2>&1; echo $L; grep -E "^(Ran|OK|FAILED)" $L; grep -E "^(FAIL|ERROR):" -A15 $L | head -50 (6s)
+    $ python3 - <<'EOF'
+  import pathlib
+  def rep(path, old, new):
+      p=pathlib.Path(path); s=p.read_text(); assert s.count(old)==1,(path,old); p.write_text(s.replace(old,new))
+  rep("core/tests/test_css.py","""        self.assertIn(".map-current .map-room-label", base_css)
+          self.assertIn("var(--color-map-highlight)", base_css)
+          self.assertIn("--color-map-highlight", tokens)
+  ""","""        self.assertIn(".map-current .map-room-label", base_css)
+          # TASK-013: the highlight colours moved to theme.css; the number uses the dark
+          # "on accent" token on the orange fill (D5, D6).
+          self.assertIn("--color-map-highlight:", tokens)
+          self.assertRegex(tokens, r"--color-map-highlight-fill:\\s*#ff9f2e;")
+          self.assertRegex(tokens, r"--color-map-highlight-text:\\s*#2b1300;")
+          theme = (Path(settings.BASE_DIR) / "static/css/theme.css").read_text()
+          label_rules = [
+              body
+              for css in (base_css, theme)
+              for sel, body in re.findall(r"([^{}]+)\\{([^{}]*)\\}", css)
+              if ".map-current .map-room-label" in sel
+          ]
+          self.assertTrue(any("var(--color-map-highlight-text)" in b for b in label_rules))
+  """)
+  p=pathlib.Path("core/tests/test_css.py"); s=p.read_text()
+  if "import re\n" not in s:
+      s=s.replace('"""Tests for the layout (base) stylesheet."""\n\n','"""Tests for the layout (base) stylesheet."""\n\nimport re\n',1)
+  p.write_text(s)
+
+  D="core/tests/test_design.py"
+  rep(D,"""    "color-map-room-fill",
+      "font-body",""","""    "color-map-room-fill",
+      # TASK-013: final map look and scrollbar tokens (D5).
+      "color-map-highlight-text",
+      "color-map-corridor-fill",
+      "color-map-room-stroke",
+      "color-map-landmark",
+      "color-map-service",
+      "color-map-hatch",
+      "color-map-label-halo",
+      "color-scroll-thumb",
+      "color-scroll-thumb-hover",
+      "font-body",""")
+  rep(D,"""                for match in re.finditer(r"url\\(", css):
+                      self.assertRegex(css[match.start() :], r'^url\\("?\\.\\./')""","""                # TASK-013: fragment URLs (the inline SVG hatch pattern) are allowed (D6).
+                  for match in re.finditer(r"url\\(", css):
+                      self.assertRegex(css[match.start() :], r'^url\\("?(\\.\\./|#)')""")
+  rep(D,"""    def test_body_font_for_text(self):""","""    def test_map_highlight_final(self):
+          rules = _rules(_read("static/css/theme.css"))
+          found = False
+          for sel, body in rules:
+              parts = {s.strip() for s in sel.split(",")}
+              if parts & {".map-current rect", ".map-current polygon"}:
+                  width = re.search(r"stroke-width:\\s*(\\d+)", body)
+                  if "fill: var(--color-map-highlight-fill)" in body and width:
+                      found = int(width.group(1)) >= 4
+          self.assertTrue(found)
+
+      def test_map_kinds_distinct(self):
+          theme = _read("static/css/theme.css")
+          self.assertIn("var(--color-map-landmark)", _rule_bodies(theme, ".map-landmark rect"))
+          service = _rule_bodies(theme, ".map-service rect")
+          self.assertIn("url(#map-hatch)", service)
+          self.assertIn("var(--color-map-service)", service)
+          service_label = _rule_bodies(theme, ".map-service-label")
+          landmark_label = _rule_bodies(theme, ".map-landmark-label")
+          self.assertIn("paint-order: stroke", service_label)
+
+          def fill(body):
+              return re.search(r"(?<![-\\w])fill:\\s*([^;]+);", body).group(1)
+
+          self.assertNotEqual(fill(service_label), fill(landmark_label))
+
+      def test_file_input_full_width(self):
+          base = _read("static/css/base.css")
+          self.assertIn("width: 100%", _rule_bodies(base, '.form input[type="file"]'))
+
+      def test_scrollbar_rules(self):
+          theme = _read("static/css/theme.css")
+          for needle in (
+              "scrollbar-width: thin",
+              "scrollbar-color: var(--color-scroll-thumb)",
+              "::-webkit-scrollbar-thumb",
+              "var(--color-scroll-thumb-hover)",
+              "@media (hover: hover) and (pointer: fine)",
+          ):
+              self.assertIn(needle, theme)
+          for path in sorted(CSS.glob("*.css")):
+              css = path.read_text(encoding="utf-8")
+              with self.subTest(file=path.name):
+                  self.assertNotIn("scrollbar-width: none", css)
+                  for sel, body in _rules(css):
+                      if "scrollbar" in sel:
+                          self.assertNotRegex(body, r"display:\\s*none")
+                          radius = re.search(r"border-radius:\\s*([^;]+);", body)
+                          if radius:
+                              self.assertRegex(radius.group(1).strip(), r"^0(px)?$")
+
+      def test_body_font_for_text(self):""")
+  rep(D,"""        self.assertIn("The logo and the favicon are our own pixel drawing", readme)
+  ""","""        self.assertIn("The logo and the favicon are our own pixel drawing", readme)
+
+      def test_map_section_current(self):
+          readme = _read("README.md")
+          start = readme.index("## Map\\n")
+          section = readme[start : readme.index("\\n## ", start + 1)]
+          for needle in ("Туалет М", "Туалет Ж", "Вход", "Every floor has two staircases"):
+              self.assertIn(needle, section)
+          self.assertNotIn("Склад", section)
+  """)
+  EOF
+  source .venv/bin/activate && ruff check core/tests/test_css.py core/tests/test_design.py && ruff format core/tests/test_css.py core/tests/test_design.py && L="$TMPDIR/test-t013-core-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"; python manage.py test core campusmap university --parallel 1 > "$L" 2>&1; echo $L; grep -E "^(Ran|OK|FAILED)" $L; grep -E "^(FAIL|ERROR):" -A15 $L | head -50
+    All checks passed!
+    2 files left unchanged
+    /tmp/claude-501/test-t013-core-20261118-161011.log
+    Ran 223 tests in 3.767s
+    OK
+    [This command modified 1 file you've previously read: core/tests/test_design.py. Call Read before editing.]
+  ── Thought for 1s
+    The test run reported 223 passing in 3.7 seconds, and the core suite includes the design manifest check that runs collectstatic, so that looks fine. Now I'm checking the map-kinds test, which splits a multi-line selector list on commas and is getting a stray newline in the second selector.
+
+    The selector check in _rule_bodies matches the first item exactly, since the whole selector was already stripped, so it passes. Next I'm running the full verification, including the migration against the before database, in the background.
+
+── Assistant ───────────────────────────────────────────────
+Тесты core/campusmap/university OK (223). Запускаю полную проверку, в том числе миграцию на БД, засеянной до изменений.
+
+── Created 1 file, ran 4 commands ──────────────────────────
+  ── Created /tmp/claude-501/ui/verify13.sh +30
+    --- /dev/null
+    +++ b/tmp/claude-501/ui/verify13.sh
+    +#!/bin/zsh
+    +# Full TASK-013 verification. Temporary files only.
+    +cd ~/hackatonproject
+    +source .venv/bin/activate
+    +T=/tmp/claude-501
+    +export PRIVATE_MEDIA_ROOT="$T/t013-private" DEMO_PASSWORD='Local-Demo-Pass-2026!'
+    +{
+    +  echo "== check"; python manage.py check
+    +  echo "== deploy"; DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop python manage.py check --deploy --fail-level WARNING
+    +  echo "== makemigrations"; python manage.py makemigrations --check --dry-run
+    +  echo "== yaml"; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))" && echo yaml ok
+    +  echo "== before-db: HEAD archive, migrate + seed"
+    +  mkdir -p "$T/t013-before"
+    +  git archive HEAD | tar -x -C "$T/t013-before"
+    +  (cd "$T/t013-before" && DEBUG=true SECRET_KEY=dummy-secret-key-for-local-migration-check-0123456789abcdef DATABASE_URL="sqlite:///$T/t013-before.sqlite3" python manage.py migrate -v0 && DEBUG=true SECRET_KEY=dummy-secret-key-for-local-migration-check-0123456789abcdef DATABASE_URL="sqlite:///$T/t013-before.sqlite3" python manage.py seed_demo | tail -1)
+    +  echo "== before-db: migrate with changes, seed twice"
+    +  DATABASE_URL="sqlite:///$T/t013-before.sqlite3" python manage.py migrate
+    +  DATABASE_URL="sqlite:///$T/t013-before.sqlite3" python manage.py seed_demo | tail -1
+    +  DATABASE_URL="sqlite:///$T/t013-before.sqlite3" python manage.py seed_demo | tail -1
+    +  DATABASE_URL="sqlite:///$T/t013-before.sqlite3" python manage.py shell -c "from schedule.models import LessonChange; from university.models import Room; print('changes', LessonChange.objects.count(), 'blank reasons', LessonChange.objects.filter(reason='').count(), 'rooms', Room.objects.count())"
+    +  echo "== fresh-db: migrate, seed twice"
+    +  DATABASE_URL="sqlite:///$T/t013-fresh.sqlite3" python manage.py migrate -v0 && DATABASE_URL="sqlite:///$T/t013-fresh.sqlite3" python manage.py seed_demo | tail -1 && DATABASE_URL="sqlite:///$T/t013-fresh.sqlite3" python manage.py seed_demo | tail -1
+    +} > "$T/verify13-checks.log" 2>&1
+    +L="$T/test-full13-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"
+    +python manage.py test --parallel 1 > "$L" 2>&1
+    +M="$T/test-midnight13-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"
+    +python scripts/run_tests_at.py 2026-11-19T00:00:00 > "$M" 2>&1
+    +echo "$L $M"
+    +grep -E "^(Ran|OK|FAILED)" "$L" "$M"
+    +grep -E "^(FAIL|ERROR):" "$L" "$M" | head
+  ── Ran zsh /tmp/claude-501/ui/verify13.sh
+    $ zsh /tmp/claude-501/ui/verify13.sh
+    Command running in background with ID: bk6ipc774. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/bk6ipc774.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Thought for 3ms
+    I'm running ruff across the task's Python files and checking git status. I also want to do the D11 template check, look through the staff group list, save the screenshots, and confirm there are no leftover `reason` references in the templates.
+  ── Ran source .venv/bin/activate && git status --short && ruff check university/building.py university/tests/test_building.py campusmap/tests/test_layout.py campusmap/tests/test_views.py schedule/models.py schedule/migrations/0005_lessonchange_reason_optional.py notifications/sources.py schedule/tests/test_validation.py schedule/tests/test_views.py notifications/tests/test_feed.py notifications/tests/test_views.py core/tests/test_home.py core/tests/test_css.py core/tests/test_design.py && ruff format --check university/building.py university/tests/test_building.py campusmap/tests/test_layout.py campusmap/tests/test_views.py schedule/models.py schedule/migrations/0005_lessonchange_reason_optional.py notifications/sources.py schedule/tests/test_validation.py schedule/tests/test_views.py notifications/tests/test_feed.py notifications/tests/test_views.py core/tests/test_home.py core/tests/test_css.py core/tests/test_design.py; grep -rn "reason" --include='*.html' . | grep -v .venv | grep -v docs
+    $ source .venv/bin/activate && git status --short && ruff check university/building.py university/tests/test_building.py campusmap/tests/test_layout.py campusmap/tests/test_views.py schedule/models.py schedule/migrations/0005_lessonchange_reason_optional.py notifications/sources.py schedule/tests/test_validation.py schedule/tests/test_views.py notifications/tests/test_feed.py notifications/tests/test_views.py core/tests/test_home.py core/tests/test_css.py core/tests/test_design.py && ruff format --check university/building.py university/tests/test_building.py campusmap/tests/test_layout.py campusmap/tests/test_views.py schedule/models.py schedule/migrations/0005_lessonchange_reason_optional.py notifications/sources.py schedule/tests/test_validation.py schedule/tests/test_views.py notifications/tests/test_feed.py notifications/tests/test_views.py core/tests/test_home.py core/tests/test_css.py core/tests/test_design.py; grep -rn "reason" --include='*.html' . | grep -v .venv | grep -v docs
+    M README.md
+     M campusmap/templates/campusmap/map.html
+     M campusmap/tests/test_layout.py
+     M campusmap/tests/test_views.py
+     M core/tests/test_css.py
+     M core/tests/test_design.py
+     M core/tests/test_home.py
+     M notifications/sources.py
+     M notifications/tests/test_feed.py
+     M notifications/tests/test_views.py
+     M plan.md
+     M schedule/models.py
+     M schedule/templates/schedule/includes/lesson_item.html
+     M schedule/tests/test_validation.py
+     M schedule/tests/test_views.py
+     M static/css/base.css
+     M static/css/theme.css
+     M static/css/tokens.css
+     M university/building.py
+     M university/tests/test_building.py
+    ?? docs/tasks/TASK-013.md
+    ?? schedule/migrations/0005_lessonchange_reason_optional.py
+    All checks passed!
+    14 files already formatted
+  ── Thought
+    I've confirmed everything matches the spec's file list, and plan.md belongs to the team lead. Next I'll copy the screenshots, close the browser, and stop the server now that verification is done.
+  ── Ran mkdir -p /tmp/claude-501/ui/shots13 && cp /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-*.jpg /tmp/claude-501/ui/shots13/ && ls /tmp/claude-501/ui/shots13 | wc -l; bb browser-automation close 10ac9b56-d0f4-4001-871d-ac012f397c46 --json 2>&1 | grep -o '"state":"[a-z]*"' (4s)
+    $ mkdir -p /tmp/claude-501/ui/shots13 && cp /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-HZkUpi/db-5XC5oF/tmp/shot-*.jpg /tmp/claude-501/ui/shots13/ && ls /tmp/claude-501/ui/shots13 | wc -l; bb browser-automation close 10ac9b56-d0f4-4001-871d-ac012f397c46 --json 2>&1 | grep -o '"state":"[a-z]*"'
+    21
+    "state":"closed"
+  ── Ran pkill -f "runserver 127.0.0.1:8770"; sleep 1; pgrep -f "runserver 127.0.0.1:8770" || echo stopped (Outside of sandbox) (5s)
+    $ pkill -f "runserver 127.0.0.1:8770"; sleep 1; pgrep -f "runserver 127.0.0.1:8770" || echo stopped
+    stopped
+
+── Assistant ───────────────────────────────────────────────
+Сервер и браузер закрыты (код 144 означает, что сервер остановил я). Жду окончания полной проверки.
+
+── Created /tmp/claude-501/ui/report13.md +59 ──────────────
+  --- /dev/null
+  +++ b/tmp/claude-501/ui/report13.md
+  +[TASK-013] UI coder -> Reviewer: REPORT
+  +Spec: docs/tasks/TASK-013.md.
+  +
+  +## What was done
+  +1. Plans (D4): `university/building.py` plan block replaced verbatim from the spec (STAIRS_BOTTOM, TOILET, DOOR_MIN, INNER_ROOMS; BOTTOM_CENTRE removed). Docstring unchanged (it does not name the canteen).
+  +2. Reasons (D10, D11): `LessonChange.reason` `blank=True`, constraint removed, migration `schedule/migrations/0005_lessonchange_reason_optional.py` (generated by makemigrations, ruff-formatted; RemoveConstraint + AlterField, depends on 0004). `lesson_item.html`: `{% endif %}</p>` (no reason, no period). `notifications/sources.py`: `body=""`. Admin, demo seeds untouched.
+  +3. Map look (D5–D9): tokens per D5 (+ scroll tokens); base.css keeps only map layout (stroke widths, dash arrays 8 4 / 2 4, label sizes, `.map-defs`, `.map-room-list` grid, `.map-room-btn`, `.map-room-off`); theme.css has the colours (rooms solid light, landmarks dashed yellow, services `url(#map-hatch)` + dotted lilac + label halo, current room orange fill / #ffd98a frame width 6 / dark bold number, orange current room button). Old `a.map-current` rules and the `.map-room-list a` / flex rules removed. `map.html`: hidden hatch defs SVG before the floor switcher, legend texts (D9), room list markup (D8).
+  +4. Small fixes: file input full width (D13: `display:block; box-sizing:border-box; width:100%`, compact selector button with `--font-size-tag`); wide header one line (D12); scrollbars (D14, rules as in the spec).
+  +5. README "## Map" rewritten (two staircases, entrance, Охрана/Гардероб, one toilet per floor, access rule, services without «Склад», the map look).
+  +
+  +## Changed files
+  +university/building.py, university/tests/test_building.py, campusmap/templates/campusmap/map.html, campusmap/tests/test_layout.py, campusmap/tests/test_views.py, schedule/models.py, schedule/migrations/0005_lessonchange_reason_optional.py (new), schedule/templates/schedule/includes/lesson_item.html, schedule/tests/test_validation.py, schedule/tests/test_views.py, notifications/sources.py, notifications/tests/test_feed.py, notifications/tests/test_views.py, core/tests/test_home.py, core/tests/test_css.py, core/tests/test_design.py, static/css/tokens.css, static/css/base.css, static/css/theme.css, README.md.
+  +Unexpected changes: none. (`plan.md` is the Team lead's uncommitted file; I did not touch it. `docs/tasks/TASK-013.md` is the Planner's spec.)
+  +
+  +## Deviations from the spec (please check)
+  +1. `campusmap/tests/test_views.py::test_landmarks_per_floor`: the spec says the floor-1 list "in plan order" is `["Лестница", "Лестница", "Вход", "Столовая"]`, but the D4 plan order is Столовая (west wing) before Вход (east wing). The test asserts the real plan order `["Лестница", "Лестница", "Столовая", "Вход"]`. First run failed on this (see Test runs).
+  +2. D12 (wide header): I used two of the allowed means — the site title stays on two lines at all widths (the `≥48rem` `display: inline` rule for `.site-title-line` is removed) and smaller gaps (header gap 1rem, nav gap 0.75rem); nav items centred vertically. Nav font stays 16 px, nothing hidden, no markup change.
+  +3. D13: besides the button changes, the file input itself has `font-size: 0.875rem`, so the native text ("No file chosen" / the longer Russian "Файл не выбран") has more room at 360 px.
+  +4. `ScheduleUiFixTests::test_staff_week_hides_reason` checks "Ремонт", "Болезнь" and "Причина" only: this class's other reasons ("Отмена", "Перенос") are also substrings of its discipline names ("Отмен", "Перенос"), so they cannot be asserted absent. `test_today_page_hides_reason` (in `ChangeRenderingTests`) creates its own cancelled lesson today with the reason "Секретная отмена".
+  +5. `test_map_queries_constant` lives in `MapViewTests` (student) and creates rooms 301–305 on floor 3 (not on floor 4, so the URL and highlight stay the same).
+  +
+  +## Tests changed (each with `# TASK-013:`)
+  +Per the Test plan: test_building (rewritten checks), test_layout (`test_clamped_labels_exactly`, `test_polygon_points_string`), campusmap test_views (4 room-list tests, `test_landmarks_per_floor`), schedule test_validation (2 renamed), schedule test_views (`test_change_rendering`, `test_change_label_no_space_before_period` → `test_change_labels_without_reason`), test_css (`test_map_highlight_rule`), test_design (`TokenTests` list, `test_css_has_no_external_urls`). New: building helpers + 8 tests, 5 map view tests, `test_today_page_hides_reason`, `test_staff_week_hides_reason`, `test_change_item_has_no_body`, `test_change_reason_not_shown`, `test_lessons_card_hides_reason`, 4 ThemeRuleTests, `test_map_section_current`.
+  +
+  +## Test runs (Moscow time)
+  +RESULTS_PLACEHOLDER
+  +
+  +## Visual self-check (temp DB `$TMPDIR/ui13.sqlite3`, port 8770, headless Chromium; student1, staff1)
+  +Horizontal scroll: none in 125 checks (student 17 pages incl. all 4 floors, highlights 101/402/210/199; staff 8 pages; at 320, 360, 768, 1024, 1280).
+  +
+  +| Page | Viewport | Result |
+  +|---|---|---|
+  +| /map/floor/1..4 | 360, 1024 | ok: two staircases, Вход east, Охрана+Гардероб (clamped labels legible), one toilet per floor, hatch visible, halo keeps service labels readable |
+  +| /map/room/room-101, room-402 | 360, 1024 | orange fill, thick light frame, dark bold number |
+  +| /map/room/room-210 | 360 | polygon highlight ok, 211 untouched |
+  +| Room list (199 not on plan) | 360, 1024 | grid of buttons, min 97×44 px at 360; current orange; "нет на схеме" on its own line |
+  +| /schedule/, /schedule/week/ | 360, 1024 | labels only ("Отменено", "Замена …", "Перенесено …"), no reasons |
+  +| Staff group week | 1024 | same |
+  +| Home "Занятия" | 360 | ok, no reasons |
+  +| /notifications/ | 360 | lesson-change items have only meta + title (1 `<p>`, no body) |
+  +| Request form file input | 360, 1024 | input width 278 px = form content width 278 px; "No file chosen" fully visible (Chromium, en locale) |
+  +| Wide header | 1024×768, 1280×800 | see below |
+  +| Scrollbar | 1024 | see below |
+  +
+  +Wide header (AC15), `.site-nav--wide li` tops / centres:
+  +- student (chip "50+", "Чат (99+)", 7 items) 1024: tops {30} (one line), first li centre 52, `.site-notif` centre 52 (Δ 0); 1280: same.
+  +- staff (8 items) 1024: tops {24}; 1280: tops {24}.
+  +- Nav font 16 px, smallest nav tap target 44 px, scrollWidth = viewport. At 768 px the nav wraps to two lines (allowed below 64rem).
+  +
+  +Scrollbar (AC16): computed `scrollbar-width: thin`; pointer outside the page → `scrollbar-color: transparent transparent`; pointer over the page → `rgb(184,166,232) transparent`; back outside → transparent again. Headless Chromium draws overlay scrollbars, so the bar itself is not visible in screenshots; Safari not checked (spec risk).
+  +
+  +Screenshots: /tmp/claude-501/ui/shots13/ (21 JPEGs: 4 floors at 360, highlights 101/210/199-list at 360, floor 4 full page at 1024, headers 1024 student/staff, form, week, home, feed, staff week, 768 header, room list 1024).
+  +
+  +## New colour pairs
+  +None beyond the spec's Contrast table (room-button current state uses the primary gradient with `--color-on-accent`, 6.27:1 min).
+  +
+  +## What remains
+  +- Safari scrollbar behaviour (only Chromium available).
+  +- Reason-only admin edits still mark a change unread (spec Risks, out of scope).
+
+── Assistant ───────────────────────────────────────────────
+Отчёт подготовлен. Monitor сообщит, когда закончится полная проверка.
+
+── Кодер интерфейса assigned to Кодер (DeepSeek) ───────────
+  Thread assigned to parent
+
+── Кодер интерфейса released from Кодер (DeepSeek) ─────────
+  Thread released from parent
+
+── Explored 1 file, ran 1 command ──────────────────────────
+  ── Read /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/bk6ipc774.output
+  ── Ran python3 - <<'EOF' import pathlib p=pathlib.Path("/tmp/claude-501/ui/report13.md"); s=p.read_text() s=s.replace("RESULTS_PLACEHOLDER","""- FAILED once: `campusmap.tests.test_views.MapViewTests.test_landmarks_per_floor` at ~16:06 MSK (log /tmp/claude-501/test-t013-map-20261118-160627.log): `AssertionError: Lists differ: ['Лестница', 'Лестница', 'Столовая', 'Вход'] != ['Лестница', 'Лестница', 'Вход', 'Столовая']`. Cause: the order in the spec's test plan vs the D4 plan order (Deviation 1). Re-run after the fix: 45 OK (16:06 MSK). - Step 1 `test university campusmap`: 75 OK (16:03). Step 2 `test schedule notifications core.tests.test_home`: 338 OK (16:04). `test core campusmap university`: 223 OK (16:10). - Full `python manage.py test --parallel 1`: **Ran 1072 tests, OK** (16:10–16:13 MSK), log /tmp/claude-501/test-full13-20261118-161047.log. Baseline 1051 → 1072. - `scripts/run_tests_at.py 2026-11-19T00:00:00`: **Ran 1072 tests, OK** (16:13–16:15 MSK), log /tmp/claude-501/test-midnight13-20261118-161317.log. - `check`: no issues; `check --deploy --fail-level WARNING` (CI env): no issues (1 silenced); `makemigrations --check --dry-run`: No changes detected; ci.yml YAML ok. Log /tmp/claude-501/verify13-checks.log. - Migration on a DB seeded before the change (`git archive HEAD` copy in $TMPDIR, migrate + seed_demo there; then migrate in the project): OK; `seed_demo` twice OK; 8 changes, 0 blank reasons, 39 rooms. Fresh DB: migrate + seed_demo twice OK. - `ruff check` / `ruff format --check` on the 14 Python files of this task: passed.""") p.write_text(s) EOF bb thread tell thr_cpuae9aqw3 --message-file /tmp/claude-501/ui/report13.md 2>&1 | tail -1
+    $ python3 - <<'EOF'
+  import pathlib
+  p=pathlib.Path("/tmp/claude-501/ui/report13.md"); s=p.read_text()
+  s=s.replace("RESULTS_PLACEHOLDER","""- FAILED once: `campusmap.tests.test_views.MapViewTests.test_landmarks_per_floor` at ~16:06 MSK (log /tmp/claude-501/test-t013-map-20261118-160627.log): `AssertionError: Lists differ: ['Лестница', 'Лестница', 'Столовая', 'Вход'] != ['Лестница', 'Лестница', 'Вход', 'Столовая']`. Cause: the order in the spec's test plan vs the D4 plan order (Deviation 1). Re-run after the fix: 45 OK (16:06 MSK).
+  - Step 1 `test university campusmap`: 75 OK (16:03). Step 2 `test schedule notifications core.tests.test_home`: 338 OK (16:04). `test core campusmap university`: 223 OK (16:10).
+  - Full `python manage.py test --parallel 1`: **Ran 1072 tests, OK** (16:10–16:13 MSK), log /tmp/claude-501/test-full13-20261118-161047.log. Baseline 1051 → 1072.
+  - `scripts/run_tests_at.py 2026-11-19T00:00:00`: **Ran 1072 tests, OK** (16:13–16:15 MSK), log /tmp/claude-501/test-midnight13-20261118-161317.log.
+  - `check`: no issues; `check --deploy --fail-level WARNING` (CI env): no issues (1 silenced); `makemigrations --check --dry-run`: No changes detected; ci.yml YAML ok. Log /tmp/claude-501/verify13-checks.log.
+  - Migration on a DB seeded before the change (`git archive HEAD` copy in $TMPDIR, migrate + seed_demo there; then migrate in the project): OK; `seed_demo` twice OK; 8 changes, 0 blank reasons, 39 rooms. Fresh DB: migrate + seed_demo twice OK.
+  - `ruff check` / `ruff format --check` on the 14 Python files of this task: passed.""")
+  p.write_text(s)
+  EOF
+  bb thread tell thr_cpuae9aqw3 --message-file /tmp/claude-501/ui/report13.md 2>&1 | tail -1
+    Thread thr_cpuae9aqw3 steered
+    [This command modified 1 file you've previously read: ../../../tmp/claude-501/ui/report13.md. Call Read before editing.]
+
+── Assistant ───────────────────────────────────────────────
+TASK-013 готова, отчёт отправлен Ревьюеру (@thread:thr_cpuae9aqw3). Полный прогон: 1072 теста OK, было 1051. Прогон с часами на полночь тоже прошёл.
+
+**Что сделано:**
+- **Планы этажей** заменены точными данными из спецификации:
+  - на каждом этаже две лестницы;
+  - «Склад» убран;
+  - «Вход» перенесён к восточной стене, рядом с ним «Охрана» и «Гардероб»;
+  - на каждом этаже один туалет («М» на этажах 1 и 3, «Ж» на этажах 2 и 4);
+  - у каждой аудитории есть дверь в коридор, кроме внутренней 211.
+- **Карта:**
+  - выбранная аудитория оранжевая, со светлой толстой рамкой и тёмным номером;
+  - ориентиры обведены жёлтым пунктиром;
+  - служебные помещения заштрихованы, их подписи читаются благодаря тёмному контуру;
+  - список аудиторий теперь сетка кнопок 44 px.
+- **Причины изменений в расписании** больше не видны нигде. Поле стало необязательным, добавлена миграция `0005`. Миграция проверена на базе, заполненной до изменений: данные целы.
+- **Мелкие исправления:**
+  - поле файла на 360 px занимает всю ширину формы, текст «No file chosen» не обрезается;
+  - шапка на 1024 и 1280 px умещается в одну строку: у студента со счётчиками «50+» и «Чат (99+)» и у сотрудника с 8 пунктами;
+  - полоса прокрутки тонкая и квадратная. Бегунок появляется, когда указатель над страницей.
+- **README:** раздел «## Map» переписан.
+
+**Одно расхождение со спецификацией.** Один тест упал один раз (около 16:06 по Москве). Спецификация ждала на 1-м этаже порядок «Вход, Столовая». В данных плана из той же спецификации порядок обратный: «Столовая, Вход». Я привёл тест к реальному порядку плана, после этого он проходит. В отчёте я описал это и ещё четыре мелких решения, чтобы Ревьюер их проверил.
+
+**Что не проверено:** полосу прокрутки на снимках не видно, потому что браузер без окна рисует её поверх страницы. Её поведение я проверил по вычисленным стилям. В Safari я ничего не проверял: доступен только Chromium.
+
+Тестовый сервер я опять останавливал командой без песочницы: песочница не показывает процессы из других команд. Сервер и браузер закрыты. Жду ответа Ревьюера.

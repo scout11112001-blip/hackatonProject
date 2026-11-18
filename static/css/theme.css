@@ -229,6 +229,7 @@ input[type="file"]::file-selector-button {
 }
 
 input[type="file"]::file-selector-button {
+  font-size: var(--font-size-tag);
   cursor: pointer;
 }
 
@@ -531,8 +532,10 @@ td {
   padding: var(--space-2);
 }
 
-/* Map (AC15): readable on the dark sky; the current room is marked by stroke, fill and label. */
+/* Map (TASK-013 D6): rooms solid light, landmarks dashed yellow, services dotted lilac + hatch.
+   The current room is orange with a thick light frame and a dark number (not hue alone). */
 .map-outline {
+  fill: none;
   stroke: var(--color-field-border);
 }
 
@@ -544,24 +547,43 @@ td {
 .map-room rect,
 .map-room polygon {
   fill: var(--color-map-room-fill);
-  stroke: var(--color-text);
+  stroke: var(--color-map-room-stroke);
 }
 
 .map-landmark rect,
-.map-landmark polygon,
+.map-landmark polygon {
+  fill: var(--color-map-room-fill);
+  stroke: var(--color-map-landmark);
+}
+
 .map-service rect,
 .map-service polygon {
+  fill: url(#map-hatch);
+  stroke: var(--color-map-service);
+}
+
+.map-hatch-bg {
   fill: var(--color-map-room-fill);
-  stroke: var(--color-muted);
+}
+
+.map-hatch-line {
+  fill: var(--color-map-hatch);
 }
 
 .map-room-label {
   fill: var(--color-text);
 }
 
-.map-landmark-label,
+.map-landmark-label {
+  fill: var(--color-map-landmark);
+}
+
 .map-service-label {
-  fill: var(--color-muted);
+  fill: var(--color-map-service);
+  paint-order: stroke;
+  stroke: var(--color-map-label-halo);
+  stroke-width: 4px;
+  stroke-linejoin: round;
 }
 
 .map-current rect,
@@ -572,13 +594,24 @@ td {
 }
 
 .map-current .map-room-label {
-  fill: var(--color-map-highlight);
+  fill: var(--color-map-highlight-text);
   font-weight: 700;
 }
 
-a.map-current {
-  font-weight: 700;
-  text-decoration-thickness: 3px;
+/* Room list buttons: the current room gets the primary (orange) button look. */
+a.map-current.map-room-btn {
+  border-color: var(--color-orange-edge);
+  background: linear-gradient(
+    180deg,
+    var(--color-orange-light) 0%,
+    var(--color-orange) 55%,
+    var(--color-orange-dark) 100%
+  );
+  color: var(--color-on-accent);
+}
+
+.map-room-off {
+  color: var(--color-muted);
 }
 
 .floor-current {
@@ -597,4 +630,57 @@ a.map-current {
 
 .day--today {
   border-color: var(--color-heading);
+}
+
+/* Scrollbars (TASK-013 D14): thin, square, transparent track, lilac thumb, orange on hover.
+   With a fine pointer the thumb is hidden until the pointer is over the page or the area. */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scroll-thumb) transparent;
+}
+
+* {
+  scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-scroll-thumb);
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:active {
+  background: var(--color-scroll-thumb-hover);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html {
+    scrollbar-color: transparent transparent;
+  }
+
+  html:hover {
+    scrollbar-color: var(--color-scroll-thumb) transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: transparent;
+  }
+
+  :hover::-webkit-scrollbar-thumb {
+    background: var(--color-scroll-thumb);
+  }
+
+  ::-webkit-scrollbar-thumb:hover,
+  ::-webkit-scrollbar-thumb:active {
+    background: var(--color-scroll-thumb-hover);
+  }
 }

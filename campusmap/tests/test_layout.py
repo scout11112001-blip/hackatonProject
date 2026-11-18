@@ -44,21 +44,23 @@ class LayoutTests(SimpleTestCase):
 
     def test_clamped_labels_exactly(self):
         clamped = set()
+        lengths = []
         for floor in range(1, 5):
             plan = floor_plan(floor, None)
             for shape in plan.shapes:
                 if shape.text_length is not None:
                     clamped.add((floor, shape.label))
+                    lengths.append((floor, shape.label, shape.text_length))
+        # TASK-013: two staircases per floor; Охрана and Гардероб are small rooms by the entrance.
         self.assertEqual(
             clamped,
-            {
-                (1, "Лестница"),
-                (2, "Лестница"),
-                (3, "Лестница"),
-                (4, "Лестница"),
-                (1, "Гардероб"),
-            },
+            {(f, "Лестница") for f in range(1, 5)} | {(1, "Охрана"), (1, "Гардероб")},
         )
+        for floor in range(1, 5):
+            stairs = [n for f, label, n in lengths if f == floor and label == "Лестница"]
+            self.assertEqual(stairs, [56, 56], f"floor {floor}")
+        self.assertIn((1, "Охрана", 56), lengths)
+        self.assertIn((1, "Гардероб", 72), lengths)
         for floor in range(1, 5):
             plan = floor_plan(floor, None)
             for shape in plan.shapes:
@@ -67,9 +69,10 @@ class LayoutTests(SimpleTestCase):
 
     def test_polygon_points_string(self):
         self.assertEqual(svg_points(((4, 452), (164, 452))), "4,452 164,452")
-        plan = floor_plan(1, None)
-        canteen = next(s for s in plan.shapes if s.label == "Столовая")
-        self.assertTrue(canteen.points.startswith("4,452 "))
+        # TASK-013: the canteen is a rectangle now; room 210 is the only polygon.
+        plan = floor_plan(2, None)
+        room = next(s for s in plan.shapes if s.label == "210")
+        self.assertEqual(room.points, "236,188 396,188 396,316 316,316 316,412 236,412")
 
     def test_coordinates_are_integers(self):
         rects = [OUTLINE, CORRIDOR]

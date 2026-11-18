@@ -29,10 +29,18 @@
   --color-focus: #ffd25e;
   --color-star-yellow: #ffe9a8;
   --color-star-lilac: #d9c8ff;
-  --color-map-highlight: #ffd25e;
-  --color-map-highlight-fill: rgba(255, 210, 94, 0.22);
+  --color-map-highlight: #ffd98a;
+  --color-map-highlight-fill: #ff9f2e;
+  --color-map-highlight-text: #2b1300;
   --color-map-room-fill: rgba(36, 22, 78, 0.88);
   --color-map-corridor-fill: rgba(90, 63, 163, 0.35);
+  --color-map-room-stroke: #f3ecff;
+  --color-map-landmark: #ffd25e;
+  --color-map-service: #b8a6e8;
+  --color-map-hatch: #5a3fa3;
+  --color-map-label-halo: #170d33;
+  --color-scroll-thumb: #b8a6e8;
+  --color-scroll-thumb-hover: #ff9f2e;
 
   --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-pixel: "Press Start 2P", ui-monospace, monospace;

@@ -215,7 +215,7 @@ class LessonChangeSource(FeedSource):
             tag=self.tag,
             timestamp=obj.updated_at,
             title=title,
-            body=obj.reason,
+            body="",
             url=reverse("schedule:week_of", kwargs={"day": affected_day}),
         )
 

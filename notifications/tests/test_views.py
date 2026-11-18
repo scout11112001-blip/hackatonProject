@@ -473,6 +473,23 @@ class FeedViewTests(FrozenClockMixin, TestCase):
         self.assertIn('<section id="deadlines" aria-labelledby="deadlines-title">', content)
         self.assertIn('<section id="feed" aria-labelledby="feed-title">', content)
 
+    def test_change_reason_not_shown(self):
+        room = make_room("room-101")
+        lesson = make_lesson(
+            [self.w.gx1], weekday=2, slot=1, room=room, discipline=make_discipline("Логика")
+        )
+        save_lesson_change(
+            LessonChange(
+                weekly_lesson=lesson,
+                original_date=date(2026, 11, 11),
+                kind=ChangeKind.CANCELLED,
+                reason="Секретная причина",
+            )
+        )
+        content = self._get().content.decode()
+        self.assertIn("Отмена занятия: Логика", content)
+        self.assertNotIn("Секретная причина", content)
+
     def test_body_escaped_and_line_breaks_kept(self):
         make_announcement(
             self.w.sx, audience=Audience.UNIVERSITY, body="<b>жирный</b>\nвторая строка"

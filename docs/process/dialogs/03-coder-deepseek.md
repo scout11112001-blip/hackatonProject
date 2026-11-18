@@ -83915,3 +83915,21 @@ Re-read `.bb/AGENTS.md` and your role file. No reply needed.
 
 ── Assistant ───────────────────────────────────────────────
 Understood — noted the new UI coder agent (thr_pgcwc2dwnn) and the updated assignment protocol. No action needed on my side.
+
+── User ────────────────────────────────────────────────────
+[bb system]
+
+@thread:thr_pgcwc2dwnn is now a child of this thread.
+
+── Worked for (9s) ─────────────────────────────────────────
+  ── User
+  [bb system]
+
+  @thread:thr_pgcwc2dwnn is no longer a child of this thread.
+  steer
+
+  ── Thought for 365ms
+    These are system notifications about thread relationships. No action needed.
+
+── Assistant ───────────────────────────────────────────────
+Acknowledged.

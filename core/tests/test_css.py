@@ -1,5 +1,6 @@
 """Tests for the layout (base) stylesheet."""
 
+import re
 from pathlib import Path
 
 from django.conf import settings
@@ -20,8 +21,19 @@ class BaseCssTests(SimpleTestCase):
         base_css = (Path(settings.BASE_DIR) / "static/css/base.css").read_text()
         tokens = (Path(settings.BASE_DIR) / "static/css/tokens.css").read_text()
         self.assertIn(".map-current .map-room-label", base_css)
-        self.assertIn("var(--color-map-highlight)", base_css)
-        self.assertIn("--color-map-highlight", tokens)
+        # TASK-013: the highlight colours moved to theme.css; the number uses the dark
+        # "on accent" token on the orange fill (D5, D6).
+        self.assertIn("--color-map-highlight:", tokens)
+        self.assertRegex(tokens, r"--color-map-highlight-fill:\s*#ff9f2e;")
+        self.assertRegex(tokens, r"--color-map-highlight-text:\s*#2b1300;")
+        theme = (Path(settings.BASE_DIR) / "static/css/theme.css").read_text()
+        label_rules = [
+            body
+            for css in (base_css, theme)
+            for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css)
+            if ".map-current .map-room-label" in sel
+        ]
+        self.assertTrue(any("var(--color-map-highlight-text)" in b for b in label_rules))
 
     def test_compact_nav_rules(self):
         base_css = (Path(settings.BASE_DIR) / "static/css/base.css").read_text()

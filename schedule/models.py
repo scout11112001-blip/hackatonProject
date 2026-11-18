@@ -125,7 +125,7 @@ class LessonChange(models.Model):
         related_name="+",
         verbose_name="новый преподаватель",
     )
-    reason = models.CharField("причина", max_length=200)
+    reason = models.CharField("причина", max_length=200, blank=True)
     created_at = models.DateTimeField("создано", auto_now_add=True)
     updated_at = models.DateTimeField("изменено", auto_now=True)
     seed_key = models.SlugField(
@@ -142,9 +142,6 @@ class LessonChange(models.Model):
             models.UniqueConstraint(
                 fields=["weekly_lesson", "original_date"],
                 name="schedule_change_one_per_occurrence",
-            ),
-            models.CheckConstraint(
-                condition=~models.Q(reason=""), name="schedule_change_reason_required"
             ),
             models.UniqueConstraint(
                 fields=["seed_key"],

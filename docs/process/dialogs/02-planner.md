@@ -17257,3 +17257,1329 @@ EOF
 - Главная сейчас делает 10 запросов к базе. После добавления занятий будет 14, тест проверяет это число.
 
 Жду вопросов UI-кодера.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-013] Team lead -> Planner: TASK
+Approved by the user. Write the spec `docs/tasks/TASK-013.md` and hand it to the UI coder.
+Assignee: UI coder (thr_pgcwc2dwnn)
+
+## Context
+Done: TASK-001..012. The map v2 (TASK-010) is a fixed per-floor plan in `university/building.py` (vertical corridor `CORRIDOR`, stairs `STAIRS` at the top, `BOTTOM_CENTRE` at the bottom, rooms/landmarks/service spaces, full-coverage test), drawn by `campusmap` (layout, view, template) in the TASK-012 "night pixel" theme. The user reviewed the map and the schedule in the browser and asked for the changes below. Demo room numbers used by the schedule (101, 114, 205, 212, 308, 315, 402) must keep their numbers. Apply your "Feasibility check" and "Test plan" sections.
+
+## A. Floor plans (`university/building.py` data + tests), user decisions
+1. Remove every "Склад" space on all floors (storage is in the basement, not on the plan).
+2. Two staircases on every floor: the existing one at the top end of the corridor and a second one at the bottom end of the corridor (where "Склад" is now on floors 2-4). Staircases are vertical shafts: both are at the same coordinates on every floor. On floor 1 the bottom end is currently the entrance ("Вход"): move the entrance to another place next to the corridor (choose and justify) so the second staircase fits; the entrance must stay on floor 1 only.
+3. "Гардероб" must not be inside the canteen: make it a separate space next to the entrance; "Столовая" no longer has the wardrobe cut-out.
+4. "Охрана" becomes much smaller (a small post next to the entrance); give the freed area to a room or another space.
+5. Access rule (new, tested on every floor): every room shares a wall segment with the corridor, except room 211 (user decision: a small inner room of 210 is plausible). Every landmark and service space shares a wall segment with the corridor or with the entrance space. Today's violations: rooms 103, 108 (floor 1), 302 (floor 3), 403 (floor 4), and "Гардероб", "Охрана" (floor 1). Re-place them (rooms keep their numbers; split along the corridor, not across the depth of the wing).
+6. Toilets: exactly one per floor, labelled "Туалет М" or "Туалет Ж", alternating by floor (1 М, 2 Ж, 3 М, 4 Ж); keep them at the same position on every floor (one riser) if the layout allows.
+7. Keep all existing rules: no free space except the corridor (coverage/no-overlap test), integer geometry, room numbers NNN with the floor digit, all plan rooms seeded by `seed_demo`, the schedule's demo rooms unchanged. If a room disappears from the plan, check that no demo data or test uses it.
+
+## B. Map page look (agreed earlier, plan.md 6c)
+1. Highlighted room (final look, replaces the temporary red number): the room shape is filled with the theme's orange accent with a light pixel frame, the number in the dark "on accent" colour (as the orange button); visible without colour alone (the frame is thicker); keep the `map-current` class and the accessible name.
+2. Landmarks vs service spaces clearly different (not only by dash pattern): e.g. landmarks with a yellow label and dashed frame, service spaces with a muted lilac label and a hatch/dotted fill; the legend shows exactly these styles; rooms, landmarks and service spaces stay readable on the dark background.
+3. No corridor label (user decision): the corridor stays unlabelled.
+4. The room list under the map: larger tap targets (at least 44 px), e.g. pixel buttons in a grid per floor; the current room marked there too.
+
+## C. Schedule: do not show change reasons (user decision)
+Remove the reason text of lesson changes (cancel, move, room change, teacher change) from every page that shows it: schedule today/week (student and staff), the home "Сегодня" card, the notifications feed items. Keep the change itself visible ("Отменено", "Перенесено с …", "замена преподавателя", the new room). Keep the `LessonChange.reason` field in the database and the admin, but make it optional (blank allowed; migration) because it is no longer shown. Update tests that expect the reason text.
+
+## D. Small fixes from the TASK-012 review
+1. Request form: the native file input text is cut ("No …sen" at 360 px): give the file input the full width of the form so the browser's own text is not truncated (its language follows the browser; no JS).
+2. At 1024 px the wide nav wraps "Выйти" onto a second line when the notifications chip is shown: make the wide header fit on one line at 1024 px for students and staff (e.g. smaller gaps, or "Выйти" next to the notifications button).
+
+3. Themed scrollbar (user request): thin pixel-style scrollbar in the theme colours (square thumb, no border-radius; e.g. lilac thumb, orange on hover, dark/transparent track) for the page and for scrollable blocks, with standard properties (`scrollbar-width: thin; scrollbar-color`) plus `::-webkit-scrollbar` rules for Safari. "Disappearing": on touch devices and macOS the system overlay scrollbar already hides itself - only colour it; on desktop browsers with classic scrollbars make the thumb transparent until the pointer is over the page/scroll area (CSS only, no JS; keep it usable: the thumb appears on hover and while dragging). Keyboard/page scrolling unaffected; do not hide scrollbars completely.
+
+## Out of scope
+Zoom, route finding, several buildings, a separate "news only" page, new features.
+
+## Verification
+All existing verification commands pass (check, deploy check, makemigrations --check, test with the output saved to a file, `scripts/run_tests_at.py` at a Moscow midnight boundary, ruff only on the task files, CI YAML), `seed_demo` twice on a temporary database, migration on a database seeded before the change. The UI coder's visual self-check covers all 4 map floors (360 and 1024 px), a highlighted room on floors 1 and 4, the room list, the schedule week/today pages, the home page, the request form and the wide header. The Team lead checks the same pages.
+
+── Thought for 16ms ────────────────────────────────────────
+  I'm starting with a broad survey before touching anything: checking git status, reading building.py, and reviewing the campusmap layout, template, and CSS as they stand after TASK-012. I also want to look at the existing building tests, how schedule reasons are displayed, how the notifications sources handle the reason, and the LessonChange.reason field.
+
+── Assistant ───────────────────────────────────────────────
+Начал TASK-013 (планы этажей, вид карты, причины изменений, мелкие правки). Изучаю текущий код.
+
+── Ran 1 command, explored 3 files, 2 searches ─────────────
+  ── Ran git status --short && git log --oneline -5 && wc -l university/building.py campusmap/*.py campusmap/templates/campusmap/map.html static/css/*.css && ls university/tests campusmap/tests
+    $ git status --short && git log --oneline -5 && wc -l university/building.py campusmap/*.py campusmap/templates/campusmap/map.html static/css/*.css && ls university/tests campusmap/tests
+    M plan.md
+    775c082 TASK-012: night pixel design for all pages
+    59481cf Design: approved mockup and Press Start 2P font (OFL) for TASK-012
+    9fe9da5 Team: add the UI coder agent (Claude Opus) for visual tasks
+    7fbeaa5 Plan: code on GitHub, CI green on SQLite and PostgreSQL
+    951dc45 TASK-011: production readiness (gunicorn, deploy templates, PostgreSQL CI, runbook)
+         167 university/building.py
+           0 campusmap/__init__.py
+           7 campusmap/apps.py
+          84 campusmap/layout.py
+          10 campusmap/urls.py
+          73 campusmap/views.py
+          45 campusmap/templates/campusmap/map.html
+         855 static/css/base.css
+         600 static/css/theme.css
+          59 static/css/tokens.css
+        1900 total
+    campusmap/tests:
+    __init__.py
+    __pycache__
+    test_layout.py
+    test_views.py
+
+    university/tests:
+    __init__.py
+    __pycache__
+    test_admin.py
+    test_building.py
+    test_models.py
+  ── Read university/building.py
+  ── Thought for 9ms
+    I'm going to check the existing tests for the building code, then look at the map template, the map styles in the theme base, and the campusmap views. After that I'll review the reason displays.
+  ── Read university/tests/test_building.py
+  ── Thought for 7ms
+    I'm turning to the map styling now, looking at the CSS in base.css and theme.css after TASK-012.
+  ── Searched for map\|floor-switcher\|legend in static/css/tokens.css
+  ── Read static/css/base.css
+  ── Thought for 7ms
+    I'm checking the map tests in campusmap, both the views and the layout, plus the CSS tests that touch the map highlight. After that I'll look at how the reason gets displayed, so I'm grepping for "reason" in the templates and notifications code.
+  ── Searched for reason\|Причина in .
+  ── Thought for 8ms
+    I need to drop the database constraint that requires a reason for schedule changes, since the migration has to remove it. Next I'll check the model code around lines 99 to 160 and the sources file near 200 to 230, then look at the admin and schedule forms to see whether staff can create these changes. I'll grep for any forms that reference LessonChange.
+
+── Assistant ───────────────────────────────────────────────
+Изучаю, где показывается причина изменения: в шаблоне занятия, в ленте уведомлений и в ограничении базы.
+
+── Explored 3 files, 2 searches ────────────────────────────
+  ── Read schedule/models.py
+  ── Thought for 1s
+    I'm settling the feed: the body for a lesson change will be set to empty, since the feed template only shows the body when it exists. The reason stays stored for admin, so the model's reason field becomes optional and the required-reason constraint goes, with migration 0005 handling both. The demo seed keeps its reasons too, and I'm treating that part as settled.
+
+    I'm also checking whether the lesson_compact include in the notification home still shows the reason after the TASK-012 commit. Then I'll grep the tests for the reason strings and the constraint name, since any that expect them will need updating.
+  ── Searched for Причина\|reason_required\|\.body\b\|body= in */tests
+  ── Searched for reason in */tests
+  ── Read schedule/tests/test_validation.py
+  ── Thought for 8ms
+    I'm also wondering whether a notifications feed test checks that the body matches the reason. I'll grep for "body" near the lesson change in test_feed, where line 329 has "Новая причина", and look at lines 320 to 340.
+  ── Read notifications/tests/test_feed.py
+  ── Thought for 1m 18s
+    The reason-only edit would still bump updated_at and mark the item unread even though nothing visible changed after reasons are hidden, so I'll note that as a minor risk rather than change the behaviour here. Now I'm turning to the floor plans, which are the core of the work, and sketching new layouts against an outline spanning x 4 to 396 and y 4 to 644.
+
+    Now I'm working out the floor plan geometry. The corridor runs between the top and bottom staircases, so each wing room has to share a wall segment with it, and the corner rooms have to reach past the corridor's ends.
+
+    Now I'm deciding how to place the entrance on the first floor: I'm considering a full-width vestibule strip on the left wing's outer wall, with the cloakroom and a security post beside it, and every room still needs a shared wall with the corridor.
+
+    Now I'm looking at the right wing's bottom section, where I'd place the entrance hall at y 476 to 572 so it touches the corridor along its full span. Below that, the corner area can hold a cloakroom and a smaller security post, both sharing the entrance's bottom wall. The security post comes out much narrower than the old full-width one.
+
+    I'm weighing a narrow 48-unit security post against the label width: "Охрана" at that font size would get squeezed badly, so the post needs a different arrangement than a tight corner box.
+
+    I'm weighing the security post's size against its label: at 48 wide, "Охрана" would be cramped, so I'm trying 80 wide for it and giving the cloakroom the remaining width, though the cloakroom label is still a bit tight. Another option is splitting the strip by height instead, so both rooms keep a usable width.
+
+    Now I'm sizing the security post and the wardrobe in the bottom corner. At 64 wide the "Охрана" label would be a bit cramped, but the wardrobe can take the rest of the freed width, so it gets 96. Once the old storeroom is removed, its space folds into the entrance hall, and I'm checking where the medical room above lands.
+
+    Now I'm going through the right wing's floor 1 layout, since room 108 currently sits off the corridor and needs to be rearranged. The right wing has to fit 106, 107, 108, 114, the department room, the medical room, the entrance hall, and the wardrobe and security post in the bottom row, all within the 640-unit height.
+
+    Now I'm sizing the right wing's floor 1 rooms against the 640-unit height, and I'm settling on a minimum shared wall of about 24 units so each room gets a real door. Room 106 would take the top strip down to y 112, with 107, 108, and 114 stacked beneath it.
+
+    Now I'm sketching the left wing's floor 1 rooms next, with 101 through 105, the restrooms, and the cafeteria all needing a shared wall with the corridor.
+
+    Now I'm settling the left wing's floor 1 layout: the cafeteria takes the full-width bottom strip, since it no longer needs a cutout, and the rooms above it get stacked down the corridor.
+
+    Now I'm settling the left wing's toilet spot, a 48-unit strip just above the cafeteria, and checking that the column heights add up to the full 640 units. I'm also considering putting the toilet at one shared position on every floor, so the risers line up.
+
+    Now I'm weighing the toilet's position: it has to touch the corridor, so I'm considering a 48-unit strip at y 404 to 452 on the left wing, which would leave a 192-unit block below it for the remaining rooms on that floor.
+
+    I'm settling the minimum shared wall at 24 units so each door has real room, which means the bottom rooms on the left wing have to start at or above y 548. Checking floor 2 next, I see room 206 only touches the corridor for 8 units, so it fails that rule too and needs to be re-laid along with everything else.
+
+    I'm settling on a 24-unit minimum shared wall so each door has room, and I'll note that as a design decision for the lead. Now I'm laying out the second floor's left wing, with the toilet at the same spot as on the first floor, but I'm running out of room for the tenth room.
+
+    Now I'm settling the second floor's left wing: the dean's office grows to about 132 units tall, the 201 through 205 rooms get roughly 64 to 72 units each, and the toilet keeps the same spot as on the first floor, with room 206 below it.
+
+    Still sorting out the floor 2 layout: below the toilet there's 192 units that each room has to touch the corridor along, which gives me two spaces stacked there. Above the toilet I'm still short a space, so I'm wondering whether the toilet should move somewhere else entirely, maybe into a bottom corner.
+
+    Now I'm weighing a toilet at y 404 to 452 on every floor, with the rest of the left wing split above and below it, and I'm checking whether the space below it can be two rooms that each touch the corridor.
+
+    Now I'm checking the right wing of floor 1: I'm stacking 106, 107, 108, and 114 down from the top, then Кафедра and Медпункт, with the entrance hall and the guard post and wardrobe filling the bottom, which adds up to the full 640 units. I'm also wondering whether the entrance hall belongs on the right side or over by the canteen on the left.
+
+    Now I'm working out the second floor's left wing around the toilet, which sits at the same spot as on the first floor. Above it the rooms stack down from the dean's office, and below it I'm trying to fit 206 plus one more space, then checking how the right wing balances against that.
+
+    Now I'm checking the right wing's bottom block on the second floor, which still has about 112 units left after the rooms above it are placed. I'm weighing whether the extra space should go to a new room or whether 206 should shift over to fill it.
+
+    I'm checking the second floor's right wing now, where the rooms on the right side still need to fill the full height. Once the left-side rooms are placed, the remaining bottom block on the right is what I need to resolve.
+
+    Now I'm weighing whether to keep 212's footprint and give the leftover bottom block on floor 2's right wing to a separate service room, or to stretch 212 down to fill the space.
+
+    I'm settling the floor 2 right wing with the room 206 block filling the lower left, and Кафедра taking the bottom of the right side. Now I'm working through floor 3's left wing, beginning with rooms 301 through 305 and the toilet block.
+
+    Now I'm laying out floor 3's right wing, with the library at the top and room 315 taking the bottom block, so I'm checking that the shared walls with the corridor stay above 24 units.
+
+    Now I'm working through floor 4's left wing, placing rooms 401 through 405 above the toilet and putting 406 just below it, with the shared walls still clearing the 24-unit minimum.
+
+    Now I'm checking the floor 4 left wing: room 406 gets the full bottom block below the toilet, while the rooms above it keep their spacing. The left wings are coming out very uniform across floors, so I'm considering varying a few of the room heights to bring back the variety the original layout had.
+
+    I'm settling the right side of floor 4 next, with the stair sections given matching names on every floor, and I'm checking whether the left-wing room heights should vary from floor to floor to keep the plans distinct.
+
+    Now I'm settling the stair spaces: I'll rename the bottom one to STAIRS_BOTTOM at the same spot and give both stair blocks the label "Лестница", accepting that the text gets squeezed a little to fit.
+
+    Now I'm assigning landmarks and service spaces to each floor: the stairs everywhere, plus the entrance, canteen and library on the floors where they sit, with the toilet, department office, pharmacy and archive placed in the remaining spots.
+
+    Now I'm checking the legend wording and the landmark and service lists, then running a geometry check for coverage, overlaps, the 24-unit door rule (except room 211), and that every landmark and service touches the corridor or the entrance.
+
+    Now I'm checking the 210 and 211 footprints against the corridor: 210's left edge runs the full height of the corridor, and 211 is the one room allowed to sit without a 24-unit door share because it only touches 210. Room counts per floor still total 39 with no room removed, so the demo data should be unaffected.
+
+    Next I'm checking whether anything else in the project refers to "Склад", "Туалеты", or "Гардероб", since I've renamed and repositioned those spaces, and I'll grep the campusmap views and tests for those labels.
+
+── Assistant ───────────────────────────────────────────────
+Изучил причины изменений. Теперь проектирую новые планы этажей и проверяю геометрию скриптом.
+
+── Explored 1 search, 1 file, ran 2 commands ───────────────
+  ── Searched for Склад\|Туалет\|Гардероб\|Охрана\|BOTTOM_CENTRE\|Вход\|Столовая\|Медпункт in .
+  ── Read campusmap/tests/test_layout.py
+  ── Thought for 16s
+    I'm weighing whether to leave the 210 coordinates alone to avoid changing the polygon test at the views. The old right floor 2 entry, 207, only overlaps the wall by 16 units, so a strict 24-unit door rule would force it to change. I'm considering a looser rule: any shared wall segment counts, plus a separate door threshold of 16.
+
+    I'm checking the door threshold against the old floor 2 entries: 207 overlaps the wall by only 16 units, so a 24-unit minimum would push it into changing too. A roughly 1 m door at this scale fits 24 units, so I'll use that and accept the fixes to 207, 206, and 308. The 210 polygon can stay as it is, since the right-side rooms still line up around it. Next I need to recompute which floor 1 labels get clamped, because that affects the clamped-labels test, and confirm every shape is at least 48 tall.
+
+    I'm laying out the floor 1 right-wing rooms now, from 106 through the entrance, plus a small post and a cloakroom at the bottom. Then I'll check the left side of floor 1 as well.
+
+    Next I'm settling the floor 1 left-wing widths: 101 runs to 116, 102 takes 80 units, 103 takes 64, and 104 and 105 take 72 each, so the run reaches the toilet at 404 with the total still adding up.
+
+    I'm laying out floor 2's right-wing rooms now, 207 through the 212 and the Кафедра at the end, which works out to about 640 units in total. Then floor 3 on the left, with 301 through 305, a toilet, and 306 and 308 at the far end.
+
+    I'm settling the floor 3 left-wing widths now: 301 takes 120 units, 302 and 303 take 64 each, 304 takes 80, and 305 takes 72, which brings that run to the toilet at 404 and keeps it adding up. The right side of floor 3 stays as it was, with the library, 310, 312, the Кафедра and 315.
+
+    I'm keeping floor 4's right wing as it is, since the Архив at 548–644 already shares a 24-unit wall, and I'll put 406 in the big room at 452–644. The toilet riser is the same Rect(4, 404, 160, 48) on every floor, so that's consistent. Next I'll write the check script.
+  ── Ran mkdir -p "$TMPDIR/t013" && sed -n 1,40p ~/hackatonproject/campusmap/tests/test_layout.py (1s)
+    $ mkdir -p "$TMPDIR/t013" && sed -n 1,40p ~/hackatonproject/campusmap/tests/test_layout.py
+    from django.test import SimpleTestCase
+
+    from campusmap.layout import (
+        LABEL_PADDING,
+        LANDMARK_LABEL_SIZE,
+        ROOM_LABEL_SIZE,
+        VIEWBOX_HEIGHT,
+        VIEWBOX_WIDTH,
+        estimated_label_width,
+        floor_plan,
+        label_size,
+        svg_points,
+    )
+    from university.building import CORRIDOR, FLOOR_PLANS, OUTLINE
+    from university.models import Room
+
+
+    class LayoutTests(SimpleTestCase):
+        def test_viewbox_portrait(self):
+            self.assertEqual(VIEWBOX_WIDTH, 400)
+            self.assertEqual(VIEWBOX_HEIGHT, 648)
+            self.assertGreater(VIEWBOX_HEIGHT, VIEWBOX_WIDTH)
+
+        def test_room_label_size_unchanged(self):
+            self.assertEqual(ROOM_LABEL_SIZE, 20)
+            self.assertEqual(LANDMARK_LABEL_SIZE, 15)
+            self.assertGreaterEqual(ROOM_LABEL_SIZE * 328 / VIEWBOX_WIDTH, 16)
+            self.assertGreaterEqual(LANDMARK_LABEL_SIZE * 328 / VIEWBOX_WIDTH, 12)
+
+        def test_labels_fit_with_padding(self):
+            for floor in range(1, 5):
+                plan = floor_plan(floor, None)
+                self.assertIsNotNone(plan)
+                for shape in plan.shapes:
+                    size = label_size(shape.kind)
+                    estimated = estimated_label_width(shape.label, size)
+                    used = min(estimated, shape.text_length or 10**6)
+                    self.assertLessEqual(
+                        used,
+                        shape.rect.width - 2 * LABEL_PADDING,
+  ── Thought for 4ms
+    Next I'm drafting the candidate plan and putting together a checker to test it.
+  ── Ran cat > "$TMPDIR/t013/plan.py" <<'EOF' """Candidate TASK-013 floor plans + checks. Run: python plan.py""" from dataclasses import dataclass @dataclass(frozen=True) class Rect:     x:int; y:int; width:int; height:int     @property     def area(self): return self.width*self.height ROOM,LANDMARK,SERVICE="room","landmark","service" @dataclass(frozen=True) class Space:     kind:str; label:str; parts:tuple; points:tuple=() OUTLINE=Rect(4,4,392,640); CORRIDOR=Rect(164,84,72,488) STAIRS=Rect(164,4,72,80); STAIRS_BOTTOM=Rect(164,572,72,72) TOILET=Rect(4,404,160,48) def L(y0,y1): return (4,y0,160,y1-y0) def R(y0,y1): return (236,y0,160,y1-y0) def room(n,*a): return Space(ROOM,n,(Rect(*a),)) def lm(n,*a): return Space(LANDMARK,n,(Rect(*a),)) def sv(n,*a): return Space(SERVICE,n,(Rect(*a),)) ST=(Space(LANDMARK,"Лестница",(STAIRS,)),Space(LANDMARK,"Лестница",(STAIRS_BOTTOM,))) def toilet(f): return Space(SERVICE,"Туалет М" if f%2 else "Туалет Ж",(TOILET,)) P={ 1:ST+(toilet(1),  room("101",*L(4,116)),room("102",*L(116,196)),room("103",*L(196,260)),room("104",*L(260,332)),room("105",*L(332,404)),  lm("Столовая",*L(452,644)),  room("106",*R(4,112)),room("107",*R(112,184)),room("108",*R(184,256)),room("114",*R(256,364)),  sv("Кафедра",*R(364,436)),sv("Медпункт",*R(436,500)),lm("Вход",*R(500,572)),  sv("Охрана",236,572,64,72),sv("Гардероб",300,572,96,72)), 2:ST+(toilet(2),  lm("Деканат",*L(4,124)),room("201",*L(124,196)),room("202",*L(196,260)),room("203",*L(260,332)),room("205",*L(332,404)),  room("206",*L(452,644)),  room("207",*R(4,112)),room("208",*R(112,188)),  Space(ROOM,"210",(Rect(236,188,160,128),Rect(236,316,80,96)),((236,188),(396,188),(396,316),(316,316),(316,412),(236,412))),  room("211",316,316,80,96),room("212",*R(412,532)),sv("Кафедра",*R(532,644))), 3:ST+(toilet(3),  room("301",*L(4,124)),room("302",*L(124,188)),room("303",*L(188,252)),room("304",*L(252,332)),room("305",*L(332,404)),  room("306",*L(452,548)),room("308",*L(548,644)),  lm("Библиотека",*R(4,204)),room("310",*R(204,308)),room("312",*R(308,428)),sv("Кафедра",*R(428,532)),room("315",*R(532,644))), 4:ST+(toilet(4),  room("401",*L(4,132)),room("402",*L(132,204)),room("403",*L(204,268)),room("404",*L(268,332)),room("405",*L(332,404)),  room("406",*L(452,644)),  room("407",*R(4,116)),room("408",*R(116,212)),room("409",*R(212,356)),sv("Кафедра",*R(356,452)),room("410",*R(452,548)),sv("Архив",*R(548,644))), } def inter(a,b):     w=min(a.x+a.width,b.x+b.width)-max(a.x,b.x); h=min(a.y+a.height,b.y+b.height)-max(a.y,b.y)     return w*h if w>0 and h>0 else 0 def shared(a,b):     """Length of the common boundary of two non-overlapping rects."""     if a.x+a.width==b.x or b.x+b.width==a.x:         return max(0,min(a.y+a.height,b.y+b.height)-max(a.y,b.y))     if a.y+a.height==b.y or b.y+b.height==a.y:         return max(0,min(a.x+a.width,b.x+b.width)-max(a.x,b.x))     return 0 def shared_space(s,rects): return max(shared(p,r) for p in s.parts for r in rects) DOOR=24 ok=True for f,sp in P.items():     parts=[p for s in sp for p in s.parts]     assert sum(p.area for p in parts)==OUTLINE.area-CORRIDOR.area,(f,sum(p.area for p in parts))     for i,a in enumerate(parts):         assert inter(a,CORRIDOR)==0         for b in parts[i+1:]: assert inter(a,b)==0,(f,a,b)     entr=[p for s in sp if s.label=="Вход" for p in s.parts]     for s in sp:         c=shared_space(s,[CORRIDOR])         if s.kind==ROOM:             if s.label=="211": continue             if c<DOOR: ok=False; print("ROOM VIOLATION",f,s.label,c)         else:             e=shared_space(s,entr) if entr else 0             if max(c,e)<DOOR and s.parts[0] not in (STAIRS,STAIRS_BOTTOM): ok=False; print("SPACE VIOLATION",f,s.label,c,e)     rooms=[s.label for s in sp if s.kind==ROOM]     print(f,len(rooms),sorted(rooms),'| other',[s.label for s in sp if s.kind!=ROOM])     # stairs touch corridor     for st in (STAIRS,STAIRS_BOTTOM): assert shared(st,CORRIDOR)==72     # label clamp (layout rule)     for s in sp:         size=20 if s.kind==ROOM else 15; w=(len(s.label)*13*size+19)//20; avail=s.parts[0].width-16         if w>avail: print('  clamped',f,s.label,w,avail, 'ratio %.2f'%(avail/w))         if s.parts[0].height<48: print('  LOW',f,s.label) print('ALL OK' if ok else 'VIOLATIONS') # current-plan violations for reference EOF python3 "$TMPDIR/t013/plan.py"
+    $ cat > "$TMPDIR/t013/plan.py" <<'EOF'
+  """Candidate TASK-013 floor plans + checks. Run: python plan.py"""
+  from dataclasses import dataclass
+  @dataclass(frozen=True)
+  class Rect:
+      x:int; y:int; width:int; height:int
+      @property
+      def area(self): return self.width*self.height
+  ROOM,LANDMARK,SERVICE="room","landmark","service"
+  @dataclass(frozen=True)
+  class Space:
+      kind:str; label:str; parts:tuple; points:tuple=()
+  OUTLINE=Rect(4,4,392,640); CORRIDOR=Rect(164,84,72,488)
+  STAIRS=Rect(164,4,72,80); STAIRS_BOTTOM=Rect(164,572,72,72)
+  TOILET=Rect(4,404,160,48)
+  def L(y0,y1): return (4,y0,160,y1-y0)
+  def R(y0,y1): return (236,y0,160,y1-y0)
+  def room(n,*a): return Space(ROOM,n,(Rect(*a),))
+  def lm(n,*a): return Space(LANDMARK,n,(Rect(*a),))
+  def sv(n,*a): return Space(SERVICE,n,(Rect(*a),))
+  ST=(Space(LANDMARK,"Лестница",(STAIRS,)),Space(LANDMARK,"Лестница",(STAIRS_BOTTOM,)))
+  def toilet(f): return Space(SERVICE,"Туалет М" if f%2 else "Туалет Ж",(TOILET,))
+  P={
+  1:ST+(toilet(1),
+   room("101",*L(4,116)),room("102",*L(116,196)),room("103",*L(196,260)),room("104",*L(260,332)),room("105",*L(332,404)),
+   lm("Столовая",*L(452,644)),
+   room("106",*R(4,112)),room("107",*R(112,184)),room("108",*R(184,256)),room("114",*R(256,364)),
+   sv("Кафедра",*R(364,436)),sv("Медпункт",*R(436,500)),lm("Вход",*R(500,572)),
+   sv("Охрана",236,572,64,72),sv("Гардероб",300,572,96,72)),
+  2:ST+(toilet(2),
+   lm("Деканат",*L(4,124)),room("201",*L(124,196)),room("202",*L(196,260)),room("203",*L(260,332)),room("205",*L(332,404)),
+   room("206",*L(452,644)),
+   room("207",*R(4,112)),room("208",*R(112,188)),
+   Space(ROOM,"210",(Rect(236,188,160,128),Rect(236,316,80,96)),((236,188),(396,188),(396,316),(316,316),(316,412),(236,412))),
+   room("211",316,316,80,96),room("212",*R(412,532)),sv("Кафедра",*R(532,644))),
+  3:ST+(toilet(3),
+   room("301",*L(4,124)),room("302",*L(124,188)),room("303",*L(188,252)),room("304",*L(252,332)),room("305",*L(332,404)),
+   room("306",*L(452,548)),room("308",*L(548,644)),
+   lm("Библиотека",*R(4,204)),room("310",*R(204,308)),room("312",*R(308,428)),sv("Кафедра",*R(428,532)),room("315",*R(532,644))),
+  4:ST+(toilet(4),
+   room("401",*L(4,132)),room("402",*L(132,204)),room("403",*L(204,268)),room("404",*L(268,332)),room("405",*L(332,404)),
+   room("406",*L(452,644)),
+   room("407",*R(4,116)),room("408",*R(116,212)),room("409",*R(212,356)),sv("Кафедра",*R(356,452)),room("410",*R(452,548)),sv("Архив",*R(548,644))),
+  }
+  def inter(a,b):
+      w=min(a.x+a.width,b.x+b.width)-max(a.x,b.x); h=min(a.y+a.height,b.y+b.height)-max(a.y,b.y)
+      return w*h if w>0 and h>0 else 0
+  def shared(a,b):
+      """Length of the common boundary of two non-overlapping rects."""
+      if a.x+a.width==b.x or b.x+b.width==a.x:
+          return max(0,min(a.y+a.height,b.y+b.height)-max(a.y,b.y))
+      if a.y+a.height==b.y or b.y+b.height==a.y:
+          return max(0,min(a.x+a.width,b.x+b.width)-max(a.x,b.x))
+      return 0
+  def shared_space(s,rects): return max(shared(p,r) for p in s.parts for r in rects)
+  DOOR=24
+  ok=True
+  for f,sp in P.items():
+      parts=[p for s in sp for p in s.parts]
+      assert sum(p.area for p in parts)==OUTLINE.area-CORRIDOR.area,(f,sum(p.area for p in parts))
+      for i,a in enumerate(parts):
+          assert inter(a,CORRIDOR)==0
+          for b in parts[i+1:]: assert inter(a,b)==0,(f,a,b)
+      entr=[p for s in sp if s.label=="Вход" for p in s.parts]
+      for s in sp:
+          c=shared_space(s,[CORRIDOR])
+          if s.kind==ROOM:
+              if s.label=="211": continue
+              if c<DOOR: ok=False; print("ROOM VIOLATION",f,s.label,c)
+          else:
+              e=shared_space(s,entr) if entr else 0
+              if max(c,e)<DOOR and s.parts[0] not in (STAIRS,STAIRS_BOTTOM): ok=False; print("SPACE VIOLATION",f,s.label,c,e)
+      rooms=[s.label for s in sp if s.kind==ROOM]
+      print(f,len(rooms),sorted(rooms),'| other',[s.label for s in sp if s.kind!=ROOM])
+      # stairs touch corridor
+      for st in (STAIRS,STAIRS_BOTTOM): assert shared(st,CORRIDOR)==72
+      # label clamp (layout rule)
+      for s in sp:
+          size=20 if s.kind==ROOM else 15; w=(len(s.label)*13*size+19)//20; avail=s.parts[0].width-16
+          if w>avail: print('  clamped',f,s.label,w,avail, 'ratio %.2f'%(avail/w))
+          if s.parts[0].height<48: print('  LOW',f,s.label)
+  print('ALL OK' if ok else 'VIOLATIONS')
+  # current-plan violations for reference
+  EOF
+  python3 "$TMPDIR/t013/plan.py"
+    1 9 ['101', '102', '103', '104', '105', '106', '107', '108', '114'] | other ['Лестница', 'Лестница', 'Туалет М', 'Столовая', 'Кафедра', 'Медпункт', 'Вход', 'Охрана', 'Гардероб']
+      clamped 1 Лестница 78 56 ratio 0.72
+      clamped 1 Лестница 78 56 ratio 0.72
+      clamped 1 Охрана 59 48 ratio 0.81
+    2 10 ['201', '202', '203', '205', '206', '207', '208', '210', '211', '212'] | other ['Лестница', 'Лестница', 'Туалет Ж', 'Деканат', 'Кафедра']
+      clamped 2 Лестница 78 56 ratio 0.72
+      clamped 2 Лестница 78 56 ratio 0.72
+    3 10 ['301', '302', '303', '304', '305', '306', '308', '310', '312', '315'] | other ['Лестница', 'Лестница', 'Туалет М', 'Библиотека', 'Кафедра']
+      clamped 3 Лестница 78 56 ratio 0.72
+      clamped 3 Лестница 78 56 ratio 0.72
+    4 10 ['401', '402', '403', '404', '405', '406', '407', '408', '409', '410'] | other ['Лестница', 'Лестница', 'Туалет Ж', 'Кафедра', 'Архив']
+      clamped 4 Лестница 78 56 ratio 0.72
+      clamped 4 Лестница 78 56 ratio 0.72
+    ALL OK
+
+── Assistant ───────────────────────────────────────────────
+You've hit your 5-hour limit · resets 4:40am (America/Los_Angeles)
+
+── Error ───────────────────────────────────────────────────
+  Provider rate limit reached
+  You've hit your 5-hour limit · resets 4:40am (America/Los_Angeles)
+
+── Thought for 2s ──────────────────────────────────────────
+  I'm weighing the widths for the two columns: Охрана at 72 and Гардероб at 88 would leave both nearly unclamped, with only minor clamping on each.
+
+  I'm checking the plan's violations against my rule, with the door width at 24, to see whether 207, 206 and 308 belong on the lead's list too. I'll import the real building module rather than rebuild the classes in my script.
+
+── Assistant ───────────────────────────────────────────────
+Охрана выходит слишком узкой для подписи. Подгоняю ширину и сверяю нарушения в текущих планах.
+
+── Ran 5 commands, explored 1 search, 3 files ──────────────
+  ── Ran sed -i '' 's/sv("Охрана",236,572,64,72),sv("Гардероб",300,572,96,72)/sv("Охрана",236,572,72,72),sv("Гардероб",308,572,88,72)/' "$TMPDIR/t013/plan.py" && python3 "$TMPDIR/t013/plan.py" | grep -e clamped -e OK -e VIOL | grep -v Лестница; cat > "$TMPDIR/t013/current.py" <<'EOF' import sys; sys.path.insert(0,'.') from university.building import FLOOR_PLANS, CORRIDOR, ROOM def shared(a,b):     if a.x+a.width==b.x or b.x+b.width==a.x: return max(0,min(a.y+a.height,b.y+b.height)-max(a.y,b.y))     if a.y+a.height==b.y or b.y+b.height==a.y: return max(0,min(a.x+a.width,b.x+b.width)-max(a.x,b.x))     return 0 for f,sp in FLOOR_PLANS.items():     entr=[p for s in sp if s.label=="Вход" for p in s.parts]     for s in sp:         c=max(shared(p,CORRIDOR) for p in s.parts); e=max([shared(p,r) for p in s.parts for r in entr] or [0])         if max(c,e)<24 and s.label not in ("Лестница",): print(f,s.kind,s.label,'corridor',c,'entrance',e) EOF python3 "$TMPDIR/t013/current.py" (error)
+    $ sed -i '' 's/sv("Охрана",236,572,64,72),sv("Гардероб",300,572,96,72)/sv("Охрана",236,572,72,72),sv("Гардероб",308,572,88,72)/' "$TMPDIR/t013/plan.py" && python3 "$TMPDIR/t013/plan.py" | grep -e clamped -e OK -e VIOL | grep -v Лестница; cat > "$TMPDIR/t013/current.py" <<'EOF'
+  import sys; sys.path.insert(0,'.')
+  from university.building import FLOOR_PLANS, CORRIDOR, ROOM
+  def shared(a,b):
+      if a.x+a.width==b.x or b.x+b.width==a.x: return max(0,min(a.y+a.height,b.y+b.height)-max(a.y,b.y))
+      if a.y+a.height==b.y or b.y+b.height==a.y: return max(0,min(a.x+a.width,b.x+b.width)-max(a.x,b.x))
+      return 0
+  for f,sp in FLOOR_PLANS.items():
+      entr=[p for s in sp if s.label=="Вход" for p in s.parts]
+      for s in sp:
+          c=max(shared(p,CORRIDOR) for p in s.parts); e=max([shared(p,r) for p in s.parts for r in entr] or [0])
+          if max(c,e)<24 and s.label not in ("Лестница",): print(f,s.kind,s.label,'corridor',c,'entrance',e)
+  EOF
+  python3 "$TMPDIR/t013/current.py"
+    Exit code 1
+      clamped 1 Охрана 59 56 ratio 0.95
+      clamped 1 Гардероб 78 72 ratio 0.92
+    ALL OK
+    Traceback (most recent call last):
+      File "/tmp/claude-501/t013/current.py", line 2, in <module>
+        from university.building import FLOOR_PLANS, CORRIDOR, ROOM
+      File "~/hackatonproject/./university/building.py", line 155, in <module>
+        def plan_for(floor: int) -> tuple[Space, ...] | None:
+    TypeError: unsupported operand type(s) for |: 'types.GenericAlias' and 'NoneType'
+    exit 1
+  ── Ran .venv/bin/python "$TMPDIR/t013/current.py"
+    $ .venv/bin/python "$TMPDIR/t013/current.py"
+    1 room 103 corridor 0 entrance 0
+    1 service Гардероб corridor 0 entrance 0
+    1 room 108 corridor 0 entrance 0
+    2 room 206 corridor 8 entrance 0
+    2 room 207 corridor 16 entrance 0
+    2 room 211 corridor 0 entrance 0
+    3 room 302 corridor 0 entrance 0
+    3 room 308 corridor 16 entrance 0
+    4 room 403 corridor 0 entrance 0
+  ── Thought for 33s
+    I'm noting that the guard room on floor 1 touches the entrance along a 72-unit edge, which doesn't count as a violation under the corridor-or-entrance rule. The lead flagged it anyway, though it's going to move regardless. My stricter threshold of 24 also catches three more cases, 206, 207, and 308, so I'll record those. Next I'm turning to the map's highlight style: an orange fill and a light pixel frame.
+
+    I'm settling the map's highlight style next: an orange fill with a light pixel frame and a thicker stroke, with the label in the on-accent colour, which gives about 8.57 contrast. For landmarks and services I'm working out distinct label colours and frame or hatch treatments, and I've hit a snag: the hatch pattern needs a CSS `url(#...)` reference that the existing URL test would reject.
+
+    I'm weighing whether the CSS hatch fill can use a `url(#map-hatch)` fragment reference, since the URL test only permits relative paths. Allowing in-document fragment refs looks like the cleaner fix. The pattern itself would live in a `<defs>` block, with its stroke colour driven from theme tokens. I still need to check whether the legend swatches can reference that pattern on floors that have no main SVG.
+
+    Now I'm settling on the room-list layout: pixel buttons in a grid per floor, each at least 44 px, with the current room marked in orange as the primary style. Rooms not on the plan will keep their text inside the button.
+
+    Next I'm checking the reasons section: the lesson item template appends ". Причина: ..." after the cancellation text, and I need to watch that period. I'll also confirm that the room-list markup matches what the tests expect, especially the "нет на схеме" note and the corridor-label assertion.
+
+    I'm checking the reason handling for lesson cancellations: the period before "Причина" goes away, so the text ends at "Отменено". The feed will send an empty body for lesson changes. I'm making the reason field optional with a new migration that drops the constraint, and the seed data keeps its reasons. I still need to look at the admin to confirm the blank reason is allowed in the form, and update the two tests that currently expect a blank reason to fail.
+
+    Next I'm checking for any other place the lesson change reason gets displayed, including the staff week view and the notifications feed, and looking at whether the model's string representation includes it.
+
+    I'm checking the file input styling next, since the native "no file chosen" text gets cut off at 360 px, probably because the button's large font takes up the width. I want to look at the current CSS rule for file inputs before deciding whether full width and a smaller button font are enough. I also still need to check that the wide header fits on one line at 1024 px for both students and staff, including the "50+" chip case.
+
+    I'm checking the header at 1024 px by measuring whether every nav item sits on the same line, including the chat count badge. Then I want to see the current wide-header markup and CSS from the earlier task. After that I'll look at the scrollbar styling, since the thin scrollbar seems to disappear on desktop.
+
+    I'm working out how to keep the scrollbar visible on desktop: hiding it until the pointer is over the page or a scrollable block, with the colours applied only on pointer-capable devices. I still need to find which elements on the page actually scroll.
+
+    Next I'm checking the scrollbar's webkit fallbacks: thin thumb and track styling, with a muted thumb on hover and an orange one when it's dragged. I'm also noting that Chrome ignores those `::-webkit-scrollbar` rules once the standard `scrollbar-color` is set, so I'll keep both in place for Safari.
+
+    I'm checking the scrollbar's contrast against the dark track, and the lilac thumb clears the non-text 3:1 threshold on both background shades. Next I'm going through keyboard focus behaviour.
+
+    I'm checking the CSS tests next, specifically whether the map highlight rule in test_css.py and the theme test in test_design will still hold if the label colour changes. The catch is that the label has to go dark on the orange fill, so the current `fill: var(--color-map-highlight)` rule conflicts with that. Both tests will need updating.
+
+    Next I'm pulling up the current header markup, the map highlight test, the file input styling, the admin reason field, and the room-list tests that mention the schedule note.
+  ── Thought for 9ms
+    Новые планы прошли все проверки, а сейчас я смотрю CSS-тесты карты, шапку и поле файла.
+  ── Searched for map in core/tests/test_design.py
+  ── Thought for 3s
+    I'm checking whether Django's manifest storage rewrites `url(#map-hatch)` references in CSS, since fragment-only URLs might be passed through unchanged.
+
+    I'm confirming that Django's URL converter leaves fragment-only references alone: it returns early for URLs without a path once the fragment is stripped. I plan to verify that with a quick prototype alongside the migration, and then I'll move on to the test file's URL regex, the base template header, the file input CSS, and the admin.
+  ── Read core/tests/test_design.py
+  ── Read static/css/base.css
+  ── Thought for 9s
+    I'm sizing the header at 1024px wide, which leaves 976px of content after the side padding. The brand name and logo take roughly 222px, and the seven student nav items at 16px come to about 700px with their gaps.
+
+    Now I'm checking whether the header fits at 1024px: the brand, the nav items and the notifications button add up to about 1170px, more than the 976px available. I'm considering a smaller nav font, tighter gaps, or a two-line title to make it fit.
+
+    I'm planning the self-check for the header: confirming that all the wide nav items sit on the same top line and that the notifications button is vertically centred against them. I still need to look up CHAT_BADGE_CAP to work out the worst-case badge width.
+  ── Read chat/constants.py
+  ── Thought for 17s
+    I'm checking which elements on the page can actually scroll, and so far the only scroll container is the page itself, since the dropdown and the map SVG aren't scrollable. I'm also looking at whether `scrollbar-color` gets inherited, which would let me set it once on `html` and have it cover every scroll container, while `scrollbar-width` doesn't inherit and would need its own rule.
+
+    I'm settling on the CSS shape: set `scrollbar-width: thin` with a generic `*` rule since no scroll areas exist yet, and put the color on `html` because it inherits. For hover-only thumbs I'd make the track transparent by default and reveal it on `html:hover` inside a fine-pointer media query. I'm not sure how macOS overlay scrollbars react to `scrollbar-color`, and Safari's `::-webkit-scrollbar` changes things too, but the headless Chromium tests can settle that.
+
+    I'm working out how Safari's `::-webkit-scrollbar` pseudo-elements would interact with the hover rule, since the root viewport scrollbar is awkward to target with state selectors. Chromium headless can't verify Safari, and Chrome ignores the webkit pseudo-elements once `scrollbar-color` is set, so for Safari I'll keep it simple and just color the thumb without the hide-until-hover behavior.
+
+    I'm weighing whether webkit's `::-webkit-scrollbar` base pseudo is needed at all, since thumb-only rules do nothing without it. Defining it on macOS Safari would drop the overlay style and show a classic bar, so I'm considering a hover-reveal inside the fine-pointer query as the fallback.
+
+    Still working out the Safari webkit rules, mainly whether a `:hover` state on `html` can drive the thumb visibility for the viewport scrollbar, and I can't verify that here, so I'll treat it as best-effort and lean on the Chromium tests.
+
+    I'm moving on to the migration prototype: running it against the temp database seeded before the TASK-013 change, to see whether the schema change applies cleanly to existing data.
+
+    I'm going to make a temporary copy of the project, leaving out the virtualenv and the database, so I can try the schema change without touching the real files. In that copy I'll edit the model, generate the migration, and apply it to a copy of the seeded database, then run the seed twice. I'll also run the full test suite there against the new plans to see which tests break and need updating.
+  ── Thought for 3ms
+    Шапка на 1024 px не влезает в строку: бренд, семь пунктов меню и кнопка дают около 1170 px при 976 доступных, и это исправит UI-кодер. Далее проверю миграцию и новые планы на копии проекта.
+  ── Ran P="$TMPDIR/t013/proj" && rm -rf "$P" && mkdir -p "$P" && git ls-files -z | xargs -0 -I{} rsync -R "{}" "$P/" 2>/dev/null; ls "$P" | head -30; test -f "$P/db.sqlite3" && echo "DB COPIED (unexpected)" (3s, error)
+    $ P="$TMPDIR/t013/proj" && rm -rf "$P" && mkdir -p "$P" && git ls-files -z | xargs -0 -I{} rsync -R "{}" "$P/" 2>/dev/null; ls "$P" | head -30; test -f "$P/db.sqlite3" && echo "DB COPIED (unexpected)"
+    Exit code 1
+    CHANGELOG.md
+    README.md
+    academics
+    accounts
+    campusmap
+    chat
+    config
+    core
+    deploy
+    docs
+    manage.py
+    notifications
+    opencode.json
+    petitions
+    plan.md
+    pyproject.toml
+    requirements-dev.txt
+    requirements.txt
+    schedule
+    scripts
+    static
+    templates
+    university
+    exit 1
+  ── Thought for 4ms
+    Checking that the `rm -rf` only touched my own temp directory, which is fine. Next I'll edit the schedule model and its constraint in the copy, regenerate migrations, update the lesson item template and feed sources, then run the tests to see what breaks.
+  ── Ran P="$TMPDIR/t013/proj" && cd "$P" && python3 - <<'EOF' import re,pathlib m=pathlib.Path('schedule/models.py'); s=m.read_text() s=s.replace('reason = models.CharField("причина", max_length=200)','reason = models.CharField("причина", max_length=200, blank=True)') s=re.sub(r'\n            models\.CheckConstraint\(\n                condition=~models\.Q\(reason=""\), name="schedule_change_reason_required"\n            \),','',s) m.write_text(s) t=pathlib.Path('schedule/templates/schedule/includes/lesson_item.html'); x=t.read_text() x=x.replace('{% endif %}. Причина: {{ item.change.reason }}</p>','{% endif %}</p>'); t.write_text(x) f=pathlib.Path('notifications/sources.py'); y=f.read_text(); y=y.replace('body=obj.reason,','body="",'); f.write_text(y) EOF grep -n "reason" schedule/models.py schedule/templates/schedule/includes/lesson_item.html notifications/sources.py; source ~/hackatonproject/.venv/bin/activate && DEBUG=true python manage.py makemigrations schedule --name lessonchange_reason_optional 2>&1 | tail -4 && cat schedule/migrations/0005_lessonchange_reason_optional.py
+    $ P="$TMPDIR/t013/proj" && cd "$P" && python3 - <<'EOF'
+  import re,pathlib
+  m=pathlib.Path('schedule/models.py'); s=m.read_text()
+  s=s.replace('reason = models.CharField("причина", max_length=200)','reason = models.CharField("причина", max_length=200, blank=True)')
+  s=re.sub(r'\n            models\.CheckConstraint\(\n                condition=~models\.Q\(reason=""\), name="schedule_change_reason_required"\n            \),','',s)
+  m.write_text(s)
+  t=pathlib.Path('schedule/templates/schedule/includes/lesson_item.html'); x=t.read_text()
+  x=x.replace('{% endif %}. Причина: {{ item.change.reason }}</p>','{% endif %}</p>'); t.write_text(x)
+  f=pathlib.Path('notifications/sources.py'); y=f.read_text(); y=y.replace('body=obj.reason,','body="",'); f.write_text(y)
+  EOF
+  grep -n "reason" schedule/models.py schedule/templates/schedule/includes/lesson_item.html notifications/sources.py; source ~/hackatonproject/.venv/bin/activate && DEBUG=true python manage.py makemigrations schedule --name lessonchange_reason_optional 2>&1 | tail -4 && cat schedule/migrations/0005_lessonchange_reason_optional.py
+    schedule/models.py:128:    reason = models.CharField("причина", max_length=200, blank=True)
+    Migrations for 'schedule':
+      schedule/migrations/0005_lessonchange_reason_optional.py
+        - Remove constraint schedule_change_reason_required from model lessonchange
+        ~ Alter field reason on lessonchange
+    # Generated by Django 5.2.19 on 2026-11-18 12:47
+
+    from django.db import migrations, models
+
+
+    class Migration(migrations.Migration):
+
+        dependencies = [
+            ('schedule', '0004_lessonchange_updated_at'),
+        ]
+
+        operations = [
+            migrations.RemoveConstraint(
+                model_name='lessonchange',
+                name='schedule_change_reason_required',
+            ),
+            migrations.AlterField(
+                model_name='lessonchange',
+                name='reason',
+                field=models.CharField(blank=True, max_length=200, verbose_name='причина'),
+            ),
+        ]
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 618ms
+    Having confirmed the grep found no "reason" lines, the replacements look clean. Next I'm writing the new building data section to swap into the FLOOR_PLANS in the copy, generating it straight from the candidate structure. I'll author the module text directly, which doubles as the exact data for the spec, and reuse that same text in the
+
+    Next I'm writing out the spec, using the same data block I just authored.
+  ── Thought for 6ms
+    Миграция простая: снимаю ограничение и разрешаю пустое поле. Сейчас подставлю новые планы в копию и проверю, какие тесты упадут.
+  ── Ran P="$TMPDIR/t013/proj" && cat > "$TMPDIR/t013/plans_block.py" <<'EOF' VIEWBOX_WIDTH = 400 VIEWBOX_HEIGHT = 648 OUTLINE = Rect(4, 4, 392, 640) CORRIDOR = Rect(164, 84, 72, 488) STAIRS = Rect(164, 4, 72, 80) STAIRS_BOTTOM = Rect(164, 572, 72, 72) TOILET = Rect(4, 404, 160, 48) DOOR_MIN = 24  # shortest shared wall that counts as access (a door) INNER_ROOMS = frozenset({"211"})  # rooms reached through another room def _r(x: int, y: int, w: int, h: int) -> tuple[Rect, ...]:     return (Rect(x, y, w, h),) def _room(number: str, x: int, y: int, w: int, h: int) -> Space:     return Space(ROOM, number, _r(x, y, w, h)) def _landmark(label: str, x: int, y: int, w: int, h: int) -> Space:     return Space(LANDMARK, label, _r(x, y, w, h)) def _service(label: str, x: int, y: int, w: int, h: int) -> Space:     return Space(SERVICE, label, _r(x, y, w, h)) def _stairs() -> tuple[Space, Space]:     return (         Space(LANDMARK, "Лестница", (STAIRS,)),         Space(LANDMARK, "Лестница", (STAIRS_BOTTOM,)),     ) def _toilet(floor: int) -> Space:     return Space(SERVICE, "Туалет М" if floor % 2 == 1 else "Туалет Ж", (TOILET,)) FLOOR_PLANS: dict[int, tuple[Space, ...]] = {     1: (         *_stairs(),         _toilet(1),         _room("101", 4, 4, 160, 112),         _room("102", 4, 116, 160, 80),         _room("103", 4, 196, 160, 64),         _room("104", 4, 260, 160, 72),         _room("105", 4, 332, 160, 72),         _landmark("Столовая", 4, 452, 160, 192),         _room("106", 236, 4, 160, 108),         _room("107", 236, 112, 160, 72),         _room("108", 236, 184, 160, 72),         _room("114", 236, 256, 160, 108),         _service("Кафедра", 236, 364, 160, 72),         _service("Медпункт", 236, 436, 160, 64),         _landmark("Вход", 236, 500, 160, 72),         _service("Охрана", 236, 572, 72, 72),         _service("Гардероб", 308, 572, 88, 72),     ),     2: (         *_stairs(),         _toilet(2),         _landmark("Деканат", 4, 4, 160, 120),         _room("201", 4, 124, 160, 72),         _room("202", 4, 196, 160, 64),         _room("203", 4, 260, 160, 72),         _room("205", 4, 332, 160, 72),         _room("206", 4, 452, 160, 192),         _room("207", 236, 4, 160, 108),         _room("208", 236, 112, 160, 76),         Space(             ROOM,             "210",             (Rect(236, 188, 160, 128), Rect(236, 316, 80, 96)),             ((236, 188), (396, 188), (396, 316), (316, 316), (316, 412), (236, 412)),         ),         _room("211", 316, 316, 80, 96),         _room("212", 236, 412, 160, 120),         _service("Кафедра", 236, 532, 160, 112),     ),     3: (         *_stairs(),         _toilet(3),         _room("301", 4, 4, 160, 120),         _room("302", 4, 124, 160, 64),         _room("303", 4, 188, 160, 64),         _room("304", 4, 252, 160, 80),         _room("305", 4, 332, 160, 72),         _room("306", 4, 452, 160, 96),         _room("308", 4, 548, 160, 96),         _landmark("Библиотека", 236, 4, 160, 200),         _room("310", 236, 204, 160, 104),         _room("312", 236, 308, 160, 120),         _service("Кафедра", 236, 428, 160, 104),         _room("315", 236, 532, 160, 112),     ),     4: (         *_stairs(),         _toilet(4),         _room("401", 4, 4, 160, 128),         _room("402", 4, 132, 160, 72),         _room("403", 4, 204, 160, 64),         _room("404", 4, 268, 160, 64),         _room("405", 4, 332, 160, 72),         _room("406", 4, 452, 160, 192),         _room("407", 236, 4, 160, 112),         _room("408", 236, 116, 160, 96),         _room("409", 236, 212, 160, 144),         _service("Кафедра", 236, 356, 160, 96),         _room("410", 236, 452, 160, 96),         _service("Архив", 236, 548, 160, 96),     ), } EOF cd "$P" && python3 - <<EOF import pathlib,re b=pathlib.Path('university/building.py'); s=b.read_text() start=s.index('VIEWBOX_WIDTH = 400'); end=s.index('def plan_for') s=s[:start]+pathlib.Path('$TMPDIR/t013/plans_block.py').read_text()+'\n\n'+s[end:] b.write_text(s) EOF source ~/hackatonproject/.venv/bin/activate && ruff format --check university/building.py; ruff check university/building.py | tail -1; python -c " import sys; sys.path.insert(0,'.') import django,os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings'); os.environ['DEBUG']='true'; django.setup() from university.building import * from campusmap.layout import floor_plan for f in range(1,5):     p=floor_plan(f,None); print(f,[ (s.label,s.text_length) for s in p.shapes if s.text_length]) "
+    $ P="$TMPDIR/t013/proj" && cat > "$TMPDIR/t013/plans_block.py" <<'EOF'
+  VIEWBOX_WIDTH = 400
+  VIEWBOX_HEIGHT = 648
+  OUTLINE = Rect(4, 4, 392, 640)
+  CORRIDOR = Rect(164, 84, 72, 488)
+  STAIRS = Rect(164, 4, 72, 80)
+  STAIRS_BOTTOM = Rect(164, 572, 72, 72)
+  TOILET = Rect(4, 404, 160, 48)
+  DOOR_MIN = 24  # shortest shared wall that counts as access (a door)
+  INNER_ROOMS = frozenset({"211"})  # rooms reached through another room
+
+
+  def _r(x: int, y: int, w: int, h: int) -> tuple[Rect, ...]:
+      return (Rect(x, y, w, h),)
+
+
+  def _room(number: str, x: int, y: int, w: int, h: int) -> Space:
+      return Space(ROOM, number, _r(x, y, w, h))
+
+
+  def _landmark(label: str, x: int, y: int, w: int, h: int) -> Space:
+      return Space(LANDMARK, label, _r(x, y, w, h))
+
+
+  def _service(label: str, x: int, y: int, w: int, h: int) -> Space:
+      return Space(SERVICE, label, _r(x, y, w, h))
+
+
+  def _stairs() -> tuple[Space, Space]:
+      return (
+          Space(LANDMARK, "Лестница", (STAIRS,)),
+          Space(LANDMARK, "Лестница", (STAIRS_BOTTOM,)),
+      )
+
+
+  def _toilet(floor: int) -> Space:
+      return Space(SERVICE, "Туалет М" if floor % 2 == 1 else "Туалет Ж", (TOILET,))
+
+
+  FLOOR_PLANS: dict[int, tuple[Space, ...]] = {
+      1: (
+          *_stairs(),
+          _toilet(1),
+          _room("101", 4, 4, 160, 112),
+          _room("102", 4, 116, 160, 80),
+          _room("103", 4, 196, 160, 64),
+          _room("104", 4, 260, 160, 72),
+          _room("105", 4, 332, 160, 72),
+          _landmark("Столовая", 4, 452, 160, 192),
+          _room("106", 236, 4, 160, 108),
+          _room("107", 236, 112, 160, 72),
+          _room("108", 236, 184, 160, 72),
+          _room("114", 236, 256, 160, 108),
+          _service("Кафедра", 236, 364, 160, 72),
+          _service("Медпункт", 236, 436, 160, 64),
+          _landmark("Вход", 236, 500, 160, 72),
+          _service("Охрана", 236, 572, 72, 72),
+          _service("Гардероб", 308, 572, 88, 72),
+      ),
+      2: (
+          *_stairs(),
+          _toilet(2),
+          _landmark("Деканат", 4, 4, 160, 120),
+          _room("201", 4, 124, 160, 72),
+          _room("202", 4, 196, 160, 64),
+          _room("203", 4, 260, 160, 72),
+          _room("205", 4, 332, 160, 72),
+          _room("206", 4, 452, 160, 192),
+          _room("207", 236, 4, 160, 108),
+          _room("208", 236, 112, 160, 76),
+          Space(
+              ROOM,
+              "210",
+              (Rect(236, 188, 160, 128), Rect(236, 316, 80, 96)),
+              ((236, 188), (396, 188), (396, 316), (316, 316), (316, 412), (236, 412)),
+          ),
+          _room("211", 316, 316, 80, 96),
+          _room("212", 236, 412, 160, 120),
+          _service("Кафедра", 236, 532, 160, 112),
+      ),
+      3: (
+          *_stairs(),
+          _toilet(3),
+          _room("301", 4, 4, 160, 120),
+          _room("302", 4, 124, 160, 64),
+          _room("303", 4, 188, 160, 64),
+          _room("304", 4, 252, 160, 80),
+          _room("305", 4, 332, 160, 72),
+          _room("306", 4, 452, 160, 96),
+          _room("308", 4, 548, 160, 96),
+          _landmark("Библиотека", 236, 4, 160, 200),
+          _room("310", 236, 204, 160, 104),
+          _room("312", 236, 308, 160, 120),
+          _service("Кафедра", 236, 428, 160, 104),
+          _room("315", 236, 532, 160, 112),
+      ),
+      4: (
+          *_stairs(),
+          _toilet(4),
+          _room("401", 4, 4, 160, 128),
+          _room("402", 4, 132, 160, 72),
+          _room("403", 4, 204, 160, 64),
+          _room("404", 4, 268, 160, 64),
+          _room("405", 4, 332, 160, 72),
+          _room("406", 4, 452, 160, 192),
+          _room("407", 236, 4, 160, 112),
+          _room("408", 236, 116, 160, 96),
+          _room("409", 236, 212, 160, 144),
+          _service("Кафедра", 236, 356, 160, 96),
+          _room("410", 236, 452, 160, 96),
+          _service("Архив", 236, 548, 160, 96),
+      ),
+  }
+  EOF
+  cd "$P" && python3 - <<EOF
+  import pathlib,re
+  b=pathlib.Path('university/building.py'); s=b.read_text()
+  start=s.index('VIEWBOX_WIDTH = 400'); end=s.index('def plan_for')
+  s=s[:start]+pathlib.Path('$TMPDIR/t013/plans_block.py').read_text()+'\n\n'+s[end:]
+  b.write_text(s)
+  EOF
+  source ~/hackatonproject/.venv/bin/activate && ruff format --check university/building.py; ruff check university/building.py | tail -1; python -c "
+  import sys; sys.path.insert(0,'.')
+  import django,os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings'); os.environ['DEBUG']='true'; django.setup()
+  from university.building import *
+  from campusmap.layout import floor_plan
+  for f in range(1,5):
+      p=floor_plan(f,None); print(f,[ (s.label,s.text_length) for s in p.shapes if s.text_length])
+  "
+    1 file already formatted
+    All checks passed!
+    1 [('Лестница', 56), ('Лестница', 56), ('Охрана', 56), ('Гардероб', 72)]
+    2 [('Лестница', 56), ('Лестница', 56)]
+    3 [('Лестница', 56), ('Лестница', 56)]
+    4 [('Лестница', 56), ('Лестница', 56)]
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 5ms
+    I'm checking whether the copy needs a .env, since the settings might require SECRET_KEY, but DEBUG=true seems to cover it. Next I'll run the full test suite in the copy with DEBUG=true, using a sqlite db.sqlite3 there and an in-memory test database, and save the log.
+
+── Assistant ───────────────────────────────────────────────
+Подписи помещаются, сжатие небольшое. Запускаю все тесты на копии с новыми планами и миграцией.
+
+── Ran 3 commands, explored 1 search ───────────────────────
+  ── Ran cd "$TMPDIR/t013/proj" && source ~/hackatonproject/.venv/bin/activate && export DEBUG=true SECRET_KEY=proto-only-secret-key-0123456789abcdefghijklmnopqrstuvwxyz DATABASE_URL="sqlite:///$TMPDIR/t013/proto.sqlite3" && LOG="$TMPDIR/test-t013-proto-$(date +%Y%m%d-%H%M%S).log" && python manage.py test --parallel 1 2>&1 | tee "$LOG" | grep -E "^(FAIL|ERROR):|^Ran|^OK|^FAILED"; echo "$LOG"; TZ=Europe/Moscow date (2m 31s)
+    $ cd "$TMPDIR/t013/proj" && source ~/hackatonproject/.venv/bin/activate && export DEBUG=true SECRET_KEY=proto-only-secret-key-0123456789abcdefghijklmnopqrstuvwxyz DATABASE_URL="sqlite:///$TMPDIR/t013/proto.sqlite3" && LOG="$TMPDIR/test-t013-proto-$(date +%Y%m%d-%H%M%S).log" && python manage.py test --parallel 1 2>&1 | tee "$LOG" | grep -E "^(FAIL|ERROR):|^Ran|^OK|^FAILED"; echo "$LOG"; TZ=Europe/Moscow date
+    ERROR: university.tests.test_building (unittest.loader._FailedTest.university.tests.test_building)
+    FAIL: test_blank_reason_violates_constraint (schedule.tests.test_validation.LessonChangeDBConstraintTests.test_blank_reason_violates_constraint)
+    FAIL: test_blank_reason (schedule.tests.test_validation.LessonChangeRuleTests.test_blank_reason)
+    FAIL: test_change_rendering (schedule.tests.test_views.ChangeRenderingTests.test_change_rendering)
+    FAIL: test_change_label_no_space_before_period (schedule.tests.test_views.ScheduleUiFixTests.test_change_label_no_space_before_period)
+    FAIL: test_clamped_labels_exactly (campusmap.tests.test_layout.LayoutTests.test_clamped_labels_exactly)
+    FAIL: test_polygon_points_string (campusmap.tests.test_layout.LayoutTests.test_polygon_points_string)
+    Ran 1043 tests in 149.265s
+    FAILED (failures=6, errors=1)
+    /tmp/claude-501/test-t013-proto-20261118-044726.log
+    Wed Nov 18 15:49:57 MSK 2026
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 518ms
+    I expect several tests to fail: the building test import over BOTTOM_CENTRE, the reason tests, the clamp set, and the canteen polygon. I'll start by looking at test_change_label_no_space_before_period.
+  ── Thought for 6ms
+    Семь тестов упали, и все ожидаемо: старые планы, обязательная причина и старый список подписей. Сейчас разберу один незнакомый тест.
+  ── Searched for def test_change_label_no_space_before_period in schedule/tests/test_views.py
+  ── Thought for 617ms
+    Rendering is working, so next I'm moving on to migration. I'll copy the t012 database, which was seeded before the change and sits at schedule 0004, run the migration against the copy, seed it twice, and check the counts, then test seeding with the new plan.
+  ── Thought for 6ms
+    Новая разметка расписания корректно показывает «Отменено» без причины. Далее проверю миграцию на базе, заполненной до изменений, и повторный запуск `seed_demo`.
+  ── Ran cd "$TMPDIR/t013/proj" && source ~/hackatonproject/.venv/bin/activate && cp "$TMPDIR/t012/db.sqlite3" "$TMPDIR/t013/preseeded.sqlite3" && export DEBUG=true SECRET_KEY=proto-only-secret-key-0123456789abcdefghijklmnopqrstuvwxyz DATABASE_URL="sqlite:///$TMPDIR/t013/preseeded.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t013/private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && python manage.py showmigrations schedule | tail -2 && python manage.py migrate 2>&1 | tail -2 && python manage.py seed_demo 2>&1 | tail -3 && python manage.py seed_demo 2>&1 | tail -1 && python manage.py shell -c " from schedule.models import LessonChange; from university.models import Room print('changes', LessonChange.objects.count(), 'blank reasons', LessonChange.objects.filter(reason='').count(), 'rooms', Room.objects.count()) from university.building import all_plan_rooms print('plan rooms missing in DB', [n for f,n in all_plan_rooms() if not Room.objects.filter(number=n).exists()]) c=LessonChange.objects.first(); c.reason=''; c.full_clean(); c.save(); print('blank reason saved ok') " 2>&1 | tail -3; python manage.py makemigrations --check --dry-run | tail -1 (6s)
+    $ cd "$TMPDIR/t013/proj" && source ~/hackatonproject/.venv/bin/activate && cp "$TMPDIR/t012/db.sqlite3" "$TMPDIR/t013/preseeded.sqlite3" && export DEBUG=true SECRET_KEY=proto-only-secret-key-0123456789abcdefghijklmnopqrstuvwxyz DATABASE_URL="sqlite:///$TMPDIR/t013/preseeded.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t013/private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && python manage.py showmigrations schedule | tail -2 && python manage.py migrate 2>&1 | tail -2 && python manage.py seed_demo 2>&1 | tail -3 && python manage.py seed_demo 2>&1 | tail -1 && python manage.py shell -c "
+  from schedule.models import LessonChange; from university.models import Room
+  print('changes', LessonChange.objects.count(), 'blank reasons', LessonChange.objects.filter(reason='').count(), 'rooms', Room.objects.count())
+  from university.building import all_plan_rooms
+  print('plan rooms missing in DB', [n for f,n in all_plan_rooms() if not Room.objects.filter(number=n).exists()])
+  c=LessonChange.objects.first(); c.reason=''; c.full_clean(); c.save(); print('blank reason saved ok')
+  " 2>&1 | tail -3; python manage.py makemigrations --check --dry-run | tail -1
+    [X] 0004_lessonchange_updated_at
+     [ ] 0005_lessonchange_reason_optional
+    Running migrations:
+      Applying schedule.0005_lessonchange_reason_optional... OK
+    Requests ready: 4 types, 0 requests, 0 attachments.
+    Notifications ready: 0 announcements.
+    Chat ready: 0 dialogs, 0 messages.
+    Chat ready: 0 dialogs, 0 messages.
+    changes 8 blank reasons 0 rooms 39
+    plan rooms missing in DB []
+    blank reason saved ok
+    No changes detected
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 515ms
+    I'm also checking the manifest storage with a `url(#map-hatch)` reference. I'm going to test it in the copy by adding a fill rule to theme.css and rerunning collectstatic with the manifest, since that should be quick.
+  ── Thought for 4ms
+    Миграция и повторный `seed_demo` проходят нормально. Дальше проверю, что сборка статики не падает на `url(#map-hatch)`, штриховке служебных помещений.
+  ── Ran cd "$TMPDIR/t013/proj" && source ~/hackatonproject/.venv/bin/activate && printf '\n.map-service rect { fill: url(#map-hatch); }\n' >> static/css/theme.css && export DEBUG=true SECRET_KEY=proto-only-secret-key-0123456789abcdefghijklmnopqrstuvwxyz && python manage.py shell -c " import tempfile,json,pathlib,os from django.conf import settings; from django.core.management import call_command; from django.test.utils import override_settings root=tempfile.mkdtemp(dir=os.environ['TMPDIR']) with override_settings(STATIC_ROOT=root, STORAGES={**settings.STORAGES,'staticfiles':{'BACKEND':'whitenoise.storage.CompressedManifestStaticFilesStorage'}}):     call_command('collectstatic', interactive=False, verbosity=0) m=json.loads(pathlib.Path(root,'staticfiles.json').read_text())['paths'] t=pathlib.Path(root,m['css/theme.css']).read_text(); print([l for l in t.splitlines() if 'map-hatch' in l]) " 2>&1 | tail -1 (1s)
+    $ cd "$TMPDIR/t013/proj" && source ~/hackatonproject/.venv/bin/activate && printf '\n.map-service rect { fill: url(#map-hatch); }\n' >> static/css/theme.css && export DEBUG=true SECRET_KEY=proto-only-secret-key-0123456789abcdefghijklmnopqrstuvwxyz && python manage.py shell -c "
+  import tempfile,json,pathlib,os
+  from django.conf import settings; from django.core.management import call_command; from django.test.utils import override_settings
+  root=tempfile.mkdtemp(dir=os.environ['TMPDIR'])
+  with override_settings(STATIC_ROOT=root, STORAGES={**settings.STORAGES,'staticfiles':{'BACKEND':'whitenoise.storage.CompressedManifestStaticFilesStorage'}}):
+      call_command('collectstatic', interactive=False, verbosity=0)
+  m=json.loads(pathlib.Path(root,'staticfiles.json').read_text())['paths']
+  t=pathlib.Path(root,m['css/theme.css']).read_text(); print([l for l in t.splitlines() if 'map-hatch' in l])
+  " 2>&1 | tail -1
+    ['.map-service rect { fill: url(#map-hatch); }']
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 3ms
+    I'm going to run the full test suite on the current tree as a baseline, since only plan.md is modified and that's allowed. It may take around 150 seconds, so I'm weighing whether to run it in the foreground or in the background while I write the spec.
+
+── Assistant ───────────────────────────────────────────────
+Сборка статики оставляет `url(#map-hatch)` как есть. Запускаю базовый прогон тестов на рабочем дереве.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran source .venv/bin/activate && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && ruff check . | tail -1 && ruff format --check . | tail -1 && LOG="$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log" && python manage.py test --parallel 1 2>&1 | tee "$LOG" | grep -E "^(FAIL|ERROR):|^Ran|^OK|^FAILED"; echo "$LOG"; TZ=Europe/Moscow date (8m 9s)
+    $ source .venv/bin/activate && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && ruff check . | tail -1 && ruff format --check . | tail -1 && LOG="$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log" && python manage.py test --parallel 1 2>&1 | tee "$LOG" | grep -E "^(FAIL|ERROR):|^Ran|^OK|^FAILED"; echo "$LOG"; TZ=Europe/Moscow date
+    System check identified no issues (0 silenced).
+    No changes detected
+    All checks passed!
+    189 files already formatted
+    Ran 1051 tests in 150.203s
+    OK
+    /tmp/claude-501/test-20261118-045027.log
+    Wed Nov 18 15:58:35 MSK 2026
+  ── Thought for 17s
+    I'm checking that the full suite now reports 1051 tests, up from the 1043 the prototype ran, since about eight tests were skipped when the test module failed to import. Next I want to look at the campusmap room list markup tests, the current-room highlight in the test view, and the legend tests. I also need to confirm the per-floor landmark set for floor 1 is unchanged.
+
+    Still updating the room list markup and its tests, plus the current-room style.
+
+    I'm now settling the colour tokens for the map highlight: the current-room fill becomes the orange, and the label on it will use a dark text colour, with the old map-highlight names kept or updated in the design test.
+
+    I'm settling the highlight tokens now: the room fill gets its own orange token, the frame takes a lighter shade, and the label text gets a dark colour. The remaining question is whether the base stylesheet's label rule still matches what the CSS test looks for, since it checks for the highlight variable by name.
+
+    I'm going to settle the map colour tests too, since the current CSS test checks for the old highlight variable by its exact form. I'll need to update that test to match the new tokens, and I still have to check contrast on the frame and landmark labels against the room fill.
+
+    I'm now working out the contrast for the service-room label, which sits over the diagonal hatch, so I'm considering a thin panel-coloured stroke behind the text to keep it readable. I still need to compute the actual ratio of the muted lilac against the hatch line colour.
+
+    I'm now checking how the landmark frames should look: a dashed light-yellow stroke would sit fine against the dark room panels, since it's the neighbouring rooms that set the contrast, not the orange fill. Next I want to work out the ratio of the muted lilac label text against the hatch line colour.
+
+── Assistant ───────────────────────────────────────────────
+Базовый прогон: 1051 тест, все прошли. Считаю контраст для новых цветов карты.
+
+── Ran 1 command, explored 1 file ──────────────────────────
+  ── Ran cat >> "$TMPDIR/t012/contrast.py" <<'EOF' print('=== t013') P=worst_panel for n,f,b in [('on-accent on orange','#2b1300','#ff9f2e'),('frame #ffd98a vs orange','#ffd98a','#ff9f2e'),('muted vs hatch line #5a3fa3','#b8a6e8','#5a3fa3'),('heading vs hatch line','#ffd25e','#5a3fa3'),('thumb muted vs darkest sky','#b8a6e8','#120a2a'),('thumb muted vs lightest sky','#b8a6e8','#4b2a86'),('thumb orange vs lightest sky','#ff9f2e','#4b2a86')]:     print(f"{n:32} {cr(hx(f),hx(b)):.2f}") for n,f in [('frame #ffd98a','#ffd98a'),('heading','#ffd25e'),('muted','#b8a6e8'),('orange fill','#ff9f2e'),('text','#f3ecff')]:     print(f"{n:16} vs panel {cr(hx(f),P):.2f}  vs darkest sky {cr(hx(f),hx('#120a2a')):.2f}") EOF python3 "$TMPDIR/t012/contrast.py" | sed -n '/=== t013/,$p'
+    $ cat >> "$TMPDIR/t012/contrast.py" <<'EOF'
+  print('=== t013')
+  P=worst_panel
+  for n,f,b in [('on-accent on orange','#2b1300','#ff9f2e'),('frame #ffd98a vs orange','#ffd98a','#ff9f2e'),('muted vs hatch line #5a3fa3','#b8a6e8','#5a3fa3'),('heading vs hatch line','#ffd25e','#5a3fa3'),('thumb muted vs darkest sky','#b8a6e8','#120a2a'),('thumb muted vs lightest sky','#b8a6e8','#4b2a86'),('thumb orange vs lightest sky','#ff9f2e','#4b2a86')]:
+      print(f"{n:32} {cr(hx(f),hx(b)):.2f}")
+  for n,f in [('frame #ffd98a','#ffd98a'),('heading','#ffd25e'),('muted','#b8a6e8'),('orange fill','#ff9f2e'),('text','#f3ecff')]:
+      print(f"{n:16} vs panel {cr(hx(f),P):.2f}  vs darkest sky {cr(hx(f),hx('#120a2a')):.2f}")
+  EOF
+  python3 "$TMPDIR/t012/contrast.py" | sed -n '/=== t013/,$p'
+    === t013
+    on-accent on orange              8.57
+    frame #ffd98a vs orange          1.52
+    muted vs hatch line #5a3fa3      3.61
+    heading vs hatch line            5.47
+    thumb muted vs darkest sky       8.76
+    thumb muted vs lightest sky      4.89
+    thumb orange vs lightest sky     5.19
+    frame #ffd98a    vs panel 11.45  vs darkest sky 14.10
+    heading          vs panel 10.78  vs darkest sky 13.27
+    muted            vs panel 7.12  vs darkest sky 8.76
+    orange fill      vs panel 7.55  vs darkest sky 9.30
+    text             vs panel 13.45  vs darkest sky 16.56
+  ── Thought for 513ms
+    Text on top of a hatch line drops to 3.61:1 contrast, below the 4.5 target, so I'll give the service labels a dark halo using a paint-order stroke in the frame-gap color. Muted text on that halo comes out at 8.46:1, which passes. Next I'm going to look at the campus map view tests covering the room list and highlight, lines 100 to 150.
+  ── Thought for 4ms
+    Подпись на штриховке без подложки дает контраст 3,61 при норме 4,5, поэтому у подписей служебных помещений будет тёмный контур; сейчас смотрю тесты списка аудиторий.
+  ── Read campusmap/tests/test_views.py
+  ── Thought for 27s
+    I'm going to adjust the count check, since the map-current class now shows up in more places. Room links will carry a new class layout, so the existing tests that look for the old href and class string will need updating. I'll keep the attribute order the same to limit how much has to change.
+
+    I'm switching the room links to the new `btn map-room-btn map-current` markup and planning a grid of pixel buttons per floor. The hatch pattern and legend swatches will only render in the floors branch, so their ids won't clash, and the legend text gets updated too.
+
+    I'm also updating the README's Map section: the canteen L-shape description and the services list need changes, and I'm dropping Склад, renaming Туалеты to Туалет М/Ж, and noting the two staircases and the access rule. Next I'm checking why the file input on the narrow layout gets cut off, since base.css already sets its padding and full width, so the truncation is probably the button and label text overflowing the input width.
+
+    I'm working through why the file input gets cut off at the narrow width: the button and the "No file chosen" text don't fit in the remaining space. I'm weighing a smaller button font, tighter padding, or reworking the button's layout, and I'll leave the final fix to the UI pass, checked against a 360px screenshot.
+
+    I'm deciding where the shared-wall helper should live, leaning toward keeping it in the tests rather than adding it to building.py, and I'll note the Russian Chrome button and placeholder labels for the file-input check.
+
+    I'm settling on where the remaining constants go: the door and inner-room rules stay in building.py as data, since the tests depend on them, while the bottom-centre value is dropped because nothing else uses it. The floor layout and the shape kinds stay as they are, and the legend has to show exactly the three styles: dashed yellow for landmarks, hatched for services, and solid for rooms.
+
+    I'm skipping a fourth legend entry for the current room, since adding it would change the `map-current` count the tests check. Next I'm going through the feed: lesson-change items get an empty body, so the template's `{% if item.body %}` check should hide the reason, and a test can confirm the reason text doesn't show on the feed page. I'm also checking whether the reason appears anywhere else, like the staff schedule or home view, and it looks like the shared lesson item is the only place.
+
+    I'm checking where else the reason text might surface, and so far it only appears in the shared lesson item, so hiding it there covers the feed and staff views. Admin still lists the reason, which is fine. I also notice that a reason-only edit bumps the change's update time, so it would show as unread with nothing visible changed. I don't want to touch that here, so I'll flag it for the lead.
+
+    I'm moving on to the scrollbar styling now, setting a thin thumb colour that turns orange on hover, with a transparent track. I'll check that theme.css uses the thin width and colour properties, keeps the scrollbar corners square, and only shows the coloured thumb on pointer devices that support hover.
+
+    Next I'm checking that the CSS has no `display: none` or `scrollbar-width: none` rules hiding the scrollbars entirely. I also need to loosen the external-URL test so it accepts `url(#...)` references, and I'll measure the query count on the room page to confirm it stays flat as rooms are added.
+
+    I'm measuring how many database queries the /map/ page runs as a student, using the test database, to confirm the count holds steady.
+
+── Assistant ───────────────────────────────────────────────
+Перед спецификацией меряю число запросов страницы карты.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran source .venv/bin/activate && export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t012/db.sqlite3" && python manage.py shell -c " from django.test.utils import CaptureQueriesContext, setup_test_environment; setup_test_environment() from django.conf import settings; settings.ALLOWED_HOSTS=['testserver'] from django.db import connection; from django.test import Client; from accounts.models import User for u in ('student1','staff1'):     c=Client(); c.force_login(User.objects.get(username=u))     for url in ('/map/','/map/room/room-402/'):         with CaptureQueriesContext(connection) as q: r=c.get(url)         print(u,url,r.status_code,len(q)) " 2>&1 | tail -4
+    $ source .venv/bin/activate && export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t012/db.sqlite3" && python manage.py shell -c "
+  from django.test.utils import CaptureQueriesContext, setup_test_environment; setup_test_environment()
+  from django.conf import settings; settings.ALLOWED_HOSTS=['testserver']
+  from django.db import connection; from django.test import Client; from accounts.models import User
+  for u in ('student1','staff1'):
+      c=Client(); c.force_login(User.objects.get(username=u))
+      for url in ('/map/','/map/room/room-402/'):
+          with CaptureQueriesContext(connection) as q: r=c.get(url)
+          print(u,url,r.status_code,len(q))
+  " 2>&1 | tail -4
+    student1 /map/ 200 7
+    student1 /map/room/room-402/ 200 7
+    staff1 /map/ 200 3
+    staff1 /map/room/room-402/ 200 3
+  ── Thought for 6ms
+    The student's seven queries break down as session, user, badge, chat, and rooms, with three for staff, so I'll check that adding rooms keeps the count at seven. Next I'm writing the spec, keeping it focused, and it's around 16:00 MSK.
+
+── Assistant ───────────────────────────────────────────────
+Данных хватает. Пишу спецификацию `docs/tasks/TASK-013.md`.
+
+── Created 1 file ──────────────────────────────────────────
+  ── Created docs/tasks/TASK-013.md +455
+    --- /dev/null
+    +++ b~/hackatonproject/docs/tasks/TASK-013.md
+    +# TASK-013: Floor plans v3, final map look, no change reasons, small UI fixes
+    +
+    +Assignee: **UI coder** (thr_pgcwc2dwnn). Request: Team lead, approved by the user.
+    +
+    +## Goal
+    +
+    +1. Make the floor plans plausible: two staircases, no storage rooms, a separate wardrobe and a small security post at a moved entrance, one toilet per floor (М/Ж alternating), and a door from every room to the corridor.
+    +2. Give the map its final look: an orange highlighted room, distinct landmarks and service spaces, a room list of pixel buttons.
+    +3. Stop showing the reasons of lesson changes anywhere. The field stays in the database and the admin and becomes optional.
+    +4. Fix three small UI defects: the file input text is cut, the wide header wraps at 1024 px, and the scrollbar is not themed.
+    +
+    +## Acceptance criteria
+    +
+    +Floor plans (`university/building.py`):
+    +- AC1. No space is labelled "Склад" on any floor.
+    +- AC2. Every floor has exactly two "Лестница" landmarks: one at `STAIRS` `Rect(164, 4, 72, 80)` (the top end of the corridor) and one at `STAIRS_BOTTOM` `Rect(164, 572, 72, 72)` (the bottom end). The constant `BOTTOM_CENTRE` is removed.
+    +- AC3. "Вход" exists only on floor 1. It is a landmark next to the corridor, at the outer east wall: `Rect(236, 500, 160, 72)` (D1).
+    +- AC4. "Гардероб" (`Rect(308, 572, 88, 72)`) and "Охрана" (`Rect(236, 572, 72, 72)`) on floor 1 are separate service spaces next to the entrance. "Охрана" has 45% of its old area (5184 instead of 11520). "Столовая" is one rectangle `Rect(4, 452, 160, 192)`, not a polygon. The only multi-part space left is room 210.
+    +- AC5. **Access rule.** Every room shares a wall of at least `DOOR_MIN = 24` units with the corridor, except the rooms in `INNER_ROOMS = {"211"}`. Every landmark and service space, except the two staircases, shares a wall of at least 24 units with the corridor or with the "Вход" space (D2).
+    +- AC6. Toilets: exactly one service space per floor whose label starts with "Туалет". It is "Туалет М" on floors 1 and 3 and "Туалет Ж" on floors 2 and 4. All four are at the same `TOILET = Rect(4, 404, 160, 48)` (one riser).
+    +- AC7. The existing rules still hold: full coverage of outline minus corridor without overlaps, integer geometry, NNN room numbers with the floor digit, the same 39 room numbers (9/10/10/10), the demo rooms (101, 114, 205, 212, 308, 315, 402) on their floors, every shape at least 48 units high, room labels never clamped.
+    +
+    +Map page (`/map/…`):
+    +- AC8. Highlighted room: the shape is filled with the orange accent, has a light pixel frame (thicker than other frames) and the number in the dark "on accent" colour. The `map-current` class, `aria-current="location"` and the `<title>Аудитория NNN</title>` stay.
+    +- AC9. Landmarks have a yellow label and a dashed yellow frame. Service spaces have a muted lilac label, a dotted lilac frame and a diagonal hatch fill. Rooms have a solid light frame and a light label. The legend swatches use the same classes, so they show exactly these styles.
+    +- AC10. The corridor has no label (no `<text>` other than one per shape).
+    +- AC11. The room list under the map is a grid of pixel buttons per floor, each at least 44×44 px. The current room's button is marked (class `map-current`, `aria-current="location"`, orange like the highlight). Rooms not on a plan keep the note "нет на схеме".
+    +
+    +Change reasons:
+    +- AC12. No page shows a lesson change reason: schedule today/week (student), the staff group week, the home "Занятия" card and the notifications feed. The change itself stays visible ("Отменено", "Перенесено на …", "Перенесено с …", "Замена аудитории", "Замена преподавателя", the crossed-out old room or teacher and the new one).
+    +- AC13. `LessonChange.reason` is optional: `blank=True`, the check constraint `schedule_change_reason_required` is removed (migration `schedule/0005_lessonchange_reason_optional`). The admin still shows and edits the field. Demo seeds keep their reasons.
+    +
+    +Small fixes:
+    +- AC14. Request form at 360 px: the file input takes the full content width of the form, and the browser's own text next to the button ("No file chosen" / "Файл не выбран") is not cut.
+    +- AC15. At 1024 px and at 1280 px the wide header is one line: the brand, every wide nav item (including "Выйти") and, for students, the notifications button. Check for a student with the chip "50+" and the nav item "Чат (99+)", and for staff (8 nav items).
+    +- AC16. Thin square scrollbar in the theme colours for the page and any scroll container: standard `scrollbar-width: thin` and `scrollbar-color`, plus `::-webkit-scrollbar` rules. On devices with a fine pointer and hover, the thumb is transparent until the pointer is over the page or the scroll area, and it is visible while dragging. Scrollbars are never hidden completely (no `scrollbar-width: none`, no `display: none` on scrollbar pseudo-elements).
+    +
+    +General:
+    +- AC17. No new JavaScript, no new Python dependency, `static/js/chat.js` unchanged. All colours stay in `tokens.css` (TASK-012 AC1). Every new text/background pair meets WCAG AA (Contrast table).
+    +- AC18. README "## Map" describes the new plans: two staircases, the entrance, one toilet per floor, the access rule, and the services list without "Склад".
+    +
+    +## Out of scope
+    +
+    +Zoom, route finding, several buildings, a "news only" page, new features. Changes to the map view logic (`campusmap/views.py`) and to `campusmap/layout.py` (not needed: the layout reads the plans). Hiding a reason-only edit of a change from the unread counter (see Risks).
+    +
+    +## Design decisions
+    +
+    +- **D1. Entrance.** The bottom end of the corridor now holds the second staircase, so the entrance moves to the east wing, next to the corridor (`Rect(236, 500, 160, 72)`, the old "Склад" and lower "Медпункт" area). Visitors enter from the outer east wall straight into the corridor. The bottom-right corner below the entrance (y 572–644) is split into "Охрана" (a small post, 72 wide) and "Гардероб" (88 wide). Both open onto the entrance hall. The wardrobe is next to the entrance, not inside the canteen. The canteen takes the full bottom of the west wing.
+    +- **D2. Door rule.** "Shares a wall" means a common boundary segment of at least `DOOR_MIN = 24` user units. The corridor is 72 units wide (about 3 m), so 24 units is about 1 m: a door fits. A shorter contact (for example 8 or 16 units, as 206, 207 and 308 have today) is not a door. Under this rule the current plans also break it at rooms 206 (8 units), 207 and 308 (16 units). The new plans fix them as well. Rooms are split along the corridor: every space in a wing is a full-width horizontal strip, except the 210/211 pair (211 is the inner room of 210, a user decision) and the Охрана/Гардероб pair (they open onto the entrance).
+    +- **D3. Toilets in one riser.** `TOILET = Rect(4, 404, 160, 48)` on every floor. The label is "Туалет М" (odd floors) or "Туалет Ж" (even floors).
+    +- **D4. Plans (exact data; replace the plan part of `university/building.py` from `VIEWBOX_WIDTH = 400` up to `def plan_for`).** The checker script `$TMPDIR/t013/plan.py` (Planner's prototype) and the prototype test run below confirm coverage, no overlap, the door rule, labels and heights.
+    +
+    +```python
+    +VIEWBOX_WIDTH = 400
+    +VIEWBOX_HEIGHT = 648
+    +OUTLINE = Rect(4, 4, 392, 640)
+    +CORRIDOR = Rect(164, 84, 72, 488)
+    +STAIRS = Rect(164, 4, 72, 80)
+    +STAIRS_BOTTOM = Rect(164, 572, 72, 72)
+    +TOILET = Rect(4, 404, 160, 48)
+    +DOOR_MIN = 24  # shortest shared wall that counts as access (a door)
+    +INNER_ROOMS = frozenset({"211"})  # rooms reached through another room
+    +
+    +
+    +def _r(x: int, y: int, w: int, h: int) -> tuple[Rect, ...]:
+    +    return (Rect(x, y, w, h),)
+    +
+    +
+    +def _room(number: str, x: int, y: int, w: int, h: int) -> Space:
+    +    return Space(ROOM, number, _r(x, y, w, h))
+    +
+    +
+    +def _landmark(label: str, x: int, y: int, w: int, h: int) -> Space:
+    +    return Space(LANDMARK, label, _r(x, y, w, h))
+    +
+    +
+    +def _service(label: str, x: int, y: int, w: int, h: int) -> Space:
+    +    return Space(SERVICE, label, _r(x, y, w, h))
+    +
+    +
+    +def _stairs() -> tuple[Space, Space]:
+    +    return (
+    +        Space(LANDMARK, "Лестница", (STAIRS,)),
+    +        Space(LANDMARK, "Лестница", (STAIRS_BOTTOM,)),
+    +    )
+    +
+    +
+    +def _toilet(floor: int) -> Space:
+    +    return Space(SERVICE, "Туалет М" if floor % 2 == 1 else "Туалет Ж", (TOILET,))
+    +
+    +
+    +FLOOR_PLANS: dict[int, tuple[Space, ...]] = {
+    +    1: (
+    +        *_stairs(),
+    +        _toilet(1),
+    +        _room("101", 4, 4, 160, 112),
+    +        _room("102", 4, 116, 160, 80),
+    +        _room("103", 4, 196, 160, 64),
+    +        _room("104", 4, 260, 160, 72),
+    +        _room("105", 4, 332, 160, 72),
+    +        _landmark("Столовая", 4, 452, 160, 192),
+    +        _room("106", 236, 4, 160, 108),
+    +        _room("107", 236, 112, 160, 72),
+    +        _room("108", 236, 184, 160, 72),
+    +        _room("114", 236, 256, 160, 108),
+    +        _service("Кафедра", 236, 364, 160, 72),
+    +        _service("Медпункт", 236, 436, 160, 64),
+    +        _landmark("Вход", 236, 500, 160, 72),
+    +        _service("Охрана", 236, 572, 72, 72),
+    +        _service("Гардероб", 308, 572, 88, 72),
+    +    ),
+    +    2: (
+    +        *_stairs(),
+    +        _toilet(2),
+    +        _landmark("Деканат", 4, 4, 160, 120),
+    +        _room("201", 4, 124, 160, 72),
+    +        _room("202", 4, 196, 160, 64),
+    +        _room("203", 4, 260, 160, 72),
+    +        _room("205", 4, 332, 160, 72),
+    +        _room("206", 4, 452, 160, 192),
+    +        _room("207", 236, 4, 160, 108),
+    +        _room("208", 236, 112, 160, 76),
+    +        Space(
+    +            ROOM,
+    +            "210",
+    +            (Rect(236, 188, 160, 128), Rect(236, 316, 80, 96)),
+    +            ((236, 188), (396, 188), (396, 316), (316, 316), (316, 412), (236, 412)),
+    +        ),
+    +        _room("211", 316, 316, 80, 96),
+    +        _room("212", 236, 412, 160, 120),
+    +        _service("Кафедра", 236, 532, 160, 112),
+    +    ),
+    +    3: (
+    +        *_stairs(),
+    +        _toilet(3),
+    +        _room("301", 4, 4, 160, 120),
+    +        _room("302", 4, 124, 160, 64),
+    +        _room("303", 4, 188, 160, 64),
+    +        _room("304", 4, 252, 160, 80),
+    +        _room("305", 4, 332, 160, 72),
+    +        _room("306", 4, 452, 160, 96),
+    +        _room("308", 4, 548, 160, 96),
+    +        _landmark("Библиотека", 236, 4, 160, 200),
+    +        _room("310", 236, 204, 160, 104),
+    +        _room("312", 236, 308, 160, 120),
+    +        _service("Кафедра", 236, 428, 160, 104),
+    +        _room("315", 236, 532, 160, 112),
+    +    ),
+    +    4: (
+    +        *_stairs(),
+    +        _toilet(4),
+    +        _room("401", 4, 4, 160, 128),
+    +        _room("402", 4, 132, 160, 72),
+    +        _room("403", 4, 204, 160, 64),
+    +        _room("404", 4, 268, 160, 64),
+    +        _room("405", 4, 332, 160, 72),
+    +        _room("406", 4, 452, 160, 192),
+    +        _room("407", 236, 4, 160, 112),
+    +        _room("408", 236, 116, 160, 96),
+    +        _room("409", 236, 212, 160, 144),
+    +        _service("Кафедра", 236, 356, 160, 96),
+    +        _room("410", 236, 452, 160, 96),
+    +        _service("Архив", 236, 548, 160, 96),
+    +    ),
+    +}
+    +```
+    +  Keep the module docstring, `Rect`, `ROOM`/`LANDMARK`/`SERVICE`, `Space` and the three functions after `FLOOR_PLANS` unchanged. Update the docstring sentence about non-rectangular spaces if it names the canteen (it does not today). Room 210 keeps its old polygon (an existing view test checks it). The data is copied verbatim; it is formatted by ruff already (checked).
+    +- **D5. Map colour tokens** (`static/css/tokens.css`; replace the current map tokens):
+    +
+    +  | Token | Value | Use |
+    +  |---|---|---|
+    +  | `--color-map-highlight` | `#ffd98a` | light frame of the current room (stroke) |
+    +  | `--color-map-highlight-fill` | `#ff9f2e` | fill of the current room (the orange accent) |
+    +  | `--color-map-highlight-text` | `#2b1300` | number of the current room ("on accent") |
+    +  | `--color-map-room-fill` | `rgba(36, 22, 78, 0.88)` | unchanged |
+    +  | `--color-map-corridor-fill` | `rgba(90, 63, 163, 0.35)` | unchanged |
+    +  | `--color-map-room-stroke` | `#f3ecff` | room frame |
+    +  | `--color-map-landmark` | `#ffd25e` | landmark label and dashed frame |
+    +  | `--color-map-service` | `#b8a6e8` | service label and dotted frame |
+    +  | `--color-map-hatch` | `#5a3fa3` | hatch lines of service spaces |
+    +  | `--color-map-label-halo` | `#170d33` | dark outline behind service labels |
+    +  | `--color-scroll-thumb` | `#b8a6e8` | scrollbar thumb |
+    +  | `--color-scroll-thumb-hover` | `#ff9f2e` | scrollbar thumb on hover |
+    +
+    +  The track is `transparent` (a keyword, allowed outside tokens.css).
+    +- **D6. Map styles** (theme.css; base.css keeps only the layout, sizes and the dash arrays):
+    +  - Rooms: fill `--color-map-room-fill`, stroke `--color-map-room-stroke`, stroke-width 2, label `--color-text`.
+    +  - Landmarks: fill `--color-map-room-fill`, stroke `--color-map-landmark`, stroke-width 2, `stroke-dasharray: 8 4` (square dashes, `stroke-linecap: butt`), label `--color-map-landmark`.
+    +  - Services: fill `url(#map-hatch)`, stroke `--color-map-service`, stroke-width 2, `stroke-dasharray: 2 4`, label `--color-map-service` with `paint-order: stroke; stroke: var(--color-map-label-halo); stroke-width: 4px; stroke-linejoin: round` (D7).
+    +  - Current room (`.map-current rect`, `.map-current polygon`): fill `--color-map-highlight-fill`, stroke `--color-map-highlight`, stroke-width 6. `.map-current .map-room-label`: fill `--color-map-highlight-text`, bold. The thicker frame and the dark number mark the room without relying on hue.
+    +  - Corridor: as now (fill `--color-map-corridor-fill`), no label.
+    +  - Hatch pattern: in `campusmap/map.html`, inside the `{% else %}` branch (when floors exist) and before the floor switcher, add one hidden SVG:
+    +    ```html
+    +    <svg class="map-defs" width="0" height="0" aria-hidden="true" focusable="false"><defs><pattern id="map-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect class="map-hatch-bg" width="8" height="8"/><rect class="map-hatch-line" width="2" height="8"/></pattern></defs></svg>
+    +    ```
+    +    Theme: `.map-hatch-bg { fill: var(--color-map-room-fill); }`, `.map-hatch-line { fill: var(--color-map-hatch); }`. Layout (base.css): `.map-defs { position: absolute; width: 0; height: 0; overflow: hidden; }`. Do not use `display: none` on it (some browsers do not render patterns from a `display: none` SVG). The legend swatches use the same `url(#map-hatch)` through the `.map-service` class.
+    +  - Manifest storage leaves `url(#map-hatch)` unchanged (prototype below). Update the TASK-012 test that allows only `url("../…")` (see the Test plan).
+    +- **D7. Contrast of the map.** See the Contrast table. The muted lilac label over a hatch line gives only 3.61:1. The dark halo (`paint-order: stroke`) keeps the label at 8.46:1 against `#170d33`.
+    +- **D8. Room list markup** (`campusmap/map.html`):
+    +  ```django
+    +  <ul class="map-room-list">
+    +    {% for r in f.rooms %}
+    +    <li><a class="btn map-room-btn{% if r.is_current %} map-current{% endif %}" href="{{ r.url }}"{% if r.is_current %} aria-current="location"{% endif %}>{{ r.number }}</a>{% if not r.on_map %} <span class="map-room-off">нет на схеме</span>{% endif %}</li>
+    +    {% endfor %}
+    +  </ul>
+    +  ```
+    +  Layout: `.map-room-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr)); gap: 0.75rem; }` (the gap leaves room for the 6 px box-shadow frames); `.map-room-btn { display: flex; align-items: center; justify-content: center; min-height: 2.75rem; }`; `.map-room-off` small muted text on its own line under the button. Theme: `a.map-current.map-room-btn` gets the primary (orange) button look with `--color-on-accent` text. Remove the old `a.map-current` colour/underline rules and the old `.map-room-list a` and flex rules that conflict.
+    +- **D9. Legend text** (`campusmap/map.html`): landmarks "Вход, лестницы, деканат, библиотека, столовая"; services "Служебные помещения: гардероб, туалет, охрана, кафедра и другие". The room entry stays "Аудитория".
+    +- **D10. Change reasons.** Templates do not render `change.reason`. The feed item of a lesson change has an empty body (`body=""`), so the feed template shows no body paragraph. The admin is unchanged. The `reason` field stays (`max_length=200`, `blank=True`). Seed data keeps its reasons (visible in the admin).
+    +- **D11. Change labels after the reason is removed** (`schedule/includes/lesson_item.html`): the `<p class="lesson-change">` contains only the label, with no trailing period: "Отменено", "Перенесено на 19 ноября, 5 пара (16:15)", "Перенесено с 17 ноября, 1 пара", "Замена аудитории", "Замена преподавателя". Exact change: replace `{% endif %}. Причина: {{ item.change.reason }}</p>` with `{% endif %}</p>`. The compact include (home card) is unchanged: it shows no reason already.
+    +- **D12. Wide header at ≥ 1024 px.** The UI coder chooses how, within these limits: nav link text stays ≥ 0.9375rem (15 px) in the body font; tap targets stay ≥ 44 px high; nothing is hidden or truncated; no change to the nav markup in `site_nav_items.html` except CSS classes. Allowed means: smaller gaps, the site title on two lines at all widths (as on the phone), a smaller logo gap, moving "Выйти" visually next to the notifications button with CSS only. Below 64rem (1024 px) the header may wrap as today; the menu (< 48rem) is unchanged.
+    +- **D13. File input.** `.form input[type="file"]` is full width (`width: 100%`, `box-sizing: border-box`, `display: block`). Its `::file-selector-button` keeps the panel button look but uses smaller horizontal padding and margin so that the native text fits at 360 px. If the text still does not fit, the button may use `--font-size-tag`. Do not replace the native input (no JS, no label tricks).
+    +- **D14. Scrollbars** (theme.css; colours via tokens):
+    +  ```css
+    +  html { scrollbar-width: thin; scrollbar-color: var(--color-scroll-thumb) transparent; }
+    +  * { scrollbar-width: thin; }
+    +  ::-webkit-scrollbar { width: 8px; height: 8px; }
+    +  ::-webkit-scrollbar-track { background: transparent; }
+    +  ::-webkit-scrollbar-thumb { background: var(--color-scroll-thumb); border-radius: 0; }
+    +  ::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:active { background: var(--color-scroll-thumb-hover); }
+    +  @media (hover: hover) and (pointer: fine) {
+    +    html { scrollbar-color: transparent transparent; }
+    +    html:hover { scrollbar-color: var(--color-scroll-thumb) transparent; }
+    +    ::-webkit-scrollbar-thumb { background: transparent; }
+    +    :hover::-webkit-scrollbar-thumb { background: var(--color-scroll-thumb); }
+    +    ::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:active { background: var(--color-scroll-thumb-hover); }
+    +  }
+    +  ```
+    +  You may adjust selectors after checking in Chromium. Keep these properties: thin, square, transparent track, lilac thumb, orange on hover/active, hidden thumb only inside the `(hover: hover) and (pointer: fine)` query and shown on `:hover`. `scrollbar-color` is inherited, so scroll containers get it from `html`. There are no scroll containers today (`grep overflow static/css` finds none); if you add one, it gets the same rules. No transitions (TASK-012 D15).
+    +- **D15. Tests that assert old behaviour** are updated, each with a `# TASK-013: <reason>` comment (list in the Test plan). No other test may change without a reason in the REPORT.
+    +
+    +## Architecture / files
+    +
+    +- `university/building.py`: plan data (D4).
+    +- `university/tests/test_building.py`: rewritten checks (Test plan).
+    +- `campusmap/templates/campusmap/map.html`: hatch defs (D6), room list (D8), legend text (D9).
+    +- `campusmap/tests/test_layout.py`, `campusmap/tests/test_views.py`: updated and new tests.
+    +- `schedule/models.py`: `reason = models.CharField("причина", max_length=200, blank=True)`; remove the `CheckConstraint(condition=~models.Q(reason=""), name="schedule_change_reason_required")`.
+    +- New `schedule/migrations/0005_lessonchange_reason_optional.py`: create it with `python manage.py makemigrations schedule --name lessonchange_reason_optional`. Expected operations (prototype): `RemoveConstraint(model_name="lessonchange", name="schedule_change_reason_required")` and `AlterField(model_name="lessonchange", name="reason", field=models.CharField(blank=True, max_length=200, verbose_name="причина"))`, dependency `("schedule", "0004_lessonchange_updated_at")`. Run `ruff format` on the new migration file only.
+    +- `schedule/templates/schedule/includes/lesson_item.html`: D11.
+    +- `notifications/sources.py`: in `LessonChangeSource.to_item`, `body=obj.reason` → `body=""`.
+    +- `schedule/tests/test_validation.py`, `schedule/tests/test_views.py`, `notifications/tests/test_feed.py`, `notifications/tests/test_views.py`, `core/tests/test_home.py`: updated and new tests.
+    +- `static/css/tokens.css`, `static/css/base.css`, `static/css/theme.css`: D5, D6, D8, D12, D13, D14.
+    +- `core/tests/test_css.py`, `core/tests/test_design.py`: updated and new tests.
+    +- `README.md`: "## Map" section (AC18).
+    +
+    +No changes to `campusmap/layout.py`, `campusmap/views.py`, `schedule/admin.py`, `schedule/demo.py`, `university/models.py`, `static/js/`.
+    +
+    +## Functions
+    +
+    +There are no new production functions. The changes are data, templates, CSS and one model field. New test helpers (private, in `university/tests/test_building.py`):
+    +
+    +```python
+    +def _shared_wall(a: Rect, b: Rect) -> int:
+    +```
+    +- Length of the common boundary of two non-overlapping rectangles: if `a.x + a.width == b.x` or `b.x + b.width == a.x`, return `max(0, min(a.y + a.height, b.y + b.height) - max(a.y, b.y))`; elif `a.y + a.height == b.y` or `b.y + b.height == a.y`, return the same for x; else 0.
+    +- Unit tests: `test_shared_wall_helper` (side by side 40 units → 40; corner touch → 0; apart → 0; above/below with 24 overlap → 24).
+    +
+    +```python
+    +def _space_wall(space: Space, rects: list[Rect]) -> int:
+    +```
+    +- `max((_shared_wall(p, r) for p in space.parts for r in rects), default=0)`.
+    +
+    +## Pages to check visually (UI coder)
+    +
+    +| Page | Viewports | Role |
+    +|---|---|---|
+    +| `/map/floor/1/` … `/map/floor/4/` | 360×780, 1024×768 | student |
+    +| `/map/room/room-101/` (floor 1, highlight) and `/map/room/room-402/` (floor 4, highlight) | 360, 1024 | student |
+    +| `/map/room/room-210/` (polygon highlight) | 360 | student |
+    +| Room list under the map (grid, current room, a room not on the plan: create one on the temporary DB, for example 199) | 360, 1024 | student |
+    +| `/schedule/`, `/schedule/week/` with changes (demo data has 8 changes) | 360, 1024 | student |
+    +| Staff group week with changes | 1024 | staff |
+    +| `/` home "Занятия" card | 360 | student |
+    +| `/notifications/` (a lesson change item without a body) | 360 | student |
+    +| Request form with the file input (any `/requests/new/<id>/`) | 360 (Chromium), 1024 | student |
+    +| Wide header | 1024×768 and 1280×800 | student with "50+" and "Чат (99+)" (create unread items on the temporary DB or patch nothing: 51 announcements and 100 staff chat messages), staff |
+    +| Scrollbar: any long page, pointer over and away from the page | 1024 | student |
+    +
+    +Header check (AC15) in the browser: `new Set([...document.querySelectorAll('.site-nav--wide li')].map(e => Math.round(e.getBoundingClientRect().top))).size === 1`, and for students the vertical centre of `.site-notif` is within 8 px of the centre of the first `li`. Put the numbers in the REPORT.
+    +
+    +File input check (AC14): screenshot of the field at 360 px; the native text is fully visible. Put the input width and the form content width in the REPORT.
+    +
+    +## Contrast (new pairs; WCAG 2.x, panel composite `#29184f` = worst case)
+    +
+    +| Foreground | Background | Ratio | Need |
+    +|---|---|---|---|
+    +| highlight text `#2b1300` | highlight fill `#ff9f2e` | 8.57 | 4.5 |
+    +| highlight frame `#ffd98a` | room fill (panel) / darkest sky | 11.45 / 14.10 | 3 |
+    +| highlight fill `#ff9f2e` | room fill (panel) | 7.55 | 3 |
+    +| landmark `#ffd25e` | room fill (panel) / hatch line `#5a3fa3` | 10.78 / 5.47 | 4.5 |
+    +| service label `#b8a6e8` | room fill (panel) / halo `#170d33` | 7.12 / 8.46 | 4.5 |
+    +| (rejected without halo) service label | hatch line `#5a3fa3` | 3.61 | 4.5, fails |
+    +| room stroke/label `#f3ecff` | room fill (panel) | 13.45 | 4.5 |
+    +| scroll thumb `#b8a6e8` | lightest sky / darkest sky | 4.89 / 8.76 | 3 |
+    +| scroll thumb hover `#ff9f2e` | lightest sky | 5.19 | 3 |
+    +| on-accent `#2b1300` | orange room button (primary gradient) | 6.27 min | 4.5 |
+    +
+    +## Feasibility check
+    +
+    +1. Clean starting point: `git status --short` shows only ` M plan.md` (the Team lead's file; allowed). HEAD `775c082 TASK-012: night pixel design for all pages`.
+    +2. Referenced objects exist: `university/building.py` (`Rect`, `Space`, `FLOOR_PLANS`, `STAIRS`, `BOTTOM_CENTRE`, `plan_for`, `plan_room_numbers`, `all_plan_rooms`); `campusmap/layout.py:floor_plan`, `label_text_length`; `campusmap/templates/campusmap/map.html` (legend, room list); `schedule/models.py:128` (`reason`), `:147` (`schedule_change_reason_required`); `schedule/templates/schedule/includes/lesson_item.html:19` (`. Причина: {{ item.change.reason }}`); `notifications/sources.py:218` (`body=obj.reason`); `schedule/admin.py:49` (`reason` in `list_display`); CSS map rules at `static/css/base.css:243-335`, `:759`, `:827`, `static/css/theme.css:535-590`; file input rules `base.css:707-716`, `theme.css:212-231,467`; header rules `base.css:396-500`. `BOTTOM_CENTRE` is used only by `university/building.py` and `university/tests/test_building.py`. "Склад"/"Туалеты" appear only in `building.py` and README. `change.reason` is rendered only in `lesson_item.html`.
+    +3. New names are free: `STAIRS_BOTTOM`, `TOILET`, `DOOR_MIN`, `INNER_ROOMS`, `map-hatch`, `.map-defs`, `.map-room-btn`, `.map-room-off`, the D5 tokens, migration `0005_lessonchange_reason_optional` (latest is `0004_lessonchange_updated_at`).
+    +4. Data and migrations: `makemigrations --check --dry-run` clean before. Prototype in a temporary copy of the repository (`$TMPDIR/t013/proj`): `makemigrations` produced exactly the two operations above; a database seeded before the change (copy of the TASK-012 temporary DB) migrated OK; `seed_demo` ran twice; 8 changes, 0 blank reasons, 39 rooms, no plan room missing; a change saved with an empty reason after `full_clean()`; `makemigrations --check` clean after. All 39 plan room numbers stay the same, so no room disappears and no demo data or test loses a room.
+    +5. Tools: Python 3.12 `.venv`, Django 5.2.19, ruff 0.17.4 (the D4 block passes `ruff check` and `ruff format --check` in the copy). No new dependency.
+    +6. Framework capabilities: `CompressedManifestStaticFilesStorage` leaves fragment-only URLs alone: in the copy, `.map-service rect { fill: url(#map-hatch); }` came out of `collectstatic` unchanged. `paint-order`, `scrollbar-width`, `scrollbar-color` and `::-webkit-scrollbar` are CSS features of current browsers (Chromium supports all; Safari uses `::-webkit-scrollbar`). Headless Chromium is the only browser available for the self-check; Safari behaviour is a risk (below).
+    +7. Environment: no new env variables.
+    +8. Verification is runnable on the current tree: `check` (no issues), `makemigrations --check` (no changes), `ruff check .` (passed), `ruff format --check .` (189 files formatted), `python manage.py test --parallel 1`: **Ran 1051 tests, OK** (log `/tmp/claude-501/test-20261118-045027.log`, 2026-11-18 ~15:56 MSK). Prototype run with D4 plans + reason changes in the copy (log `/tmp/claude-501/test-t013-proto-20261118-044726.log`, ~15:47 MSK): the expected failures only — `university.tests.test_building` (import of `BOTTOM_CENTRE`), `test_blank_reason`, `test_blank_reason_violates_constraint`, `test_change_rendering`, `test_change_label_no_space_before_period`, `test_clamped_labels_exactly`, `test_polygon_points_string`. Map page queries (seeded temp DB): student 7, staff 3, same for `/map/` and `/map/room/room-402/`.
+    +9. Conflicts: none. D2 is stricter than "shares a wall" (≥ 24 units, a door). It also fixes 206, 207 and 308, which have 8–16 units of contact today. Rooms are not renumbered and no room is removed.
+    +10. Assumptions / blockers: none.
+    +
+    +## Test plan
+    +
+    +Test data uses the existing helpers; no test depends on `seed_demo` except the existing seed tests.
+    +
+    +### Traceability
+    +
+    +| AC | Tests |
+    +|---|---|
+    +| AC1 | `university/tests/test_building.py::FloorPlanTests::test_no_storage` |
+    +| AC2 | `::test_two_staircases_same_place` |
+    +| AC3 | `::test_entrance_only_on_floor_1` |
+    +| AC4 | `::test_wardrobe_and_security_next_to_entrance`, `::test_l_shapes_are_polygons_with_matching_area` (updated) |
+    +| AC5 | `::test_rooms_open_to_corridor`, `::test_other_spaces_open_to_corridor_or_entrance`, `::test_shared_wall_helper` |
+    +| AC6 | `::test_one_toilet_per_floor_in_one_riser` |
+    +| AC7 | existing `test_full_coverage_no_overlap`, `test_room_numbers`, `test_demo_rooms_on_plan`, `test_polygon_vertices_are_part_corners`, `test_all_plan_rooms_sorted`; `campusmap/tests/test_layout.py` (`test_labels_fit_with_padding`, `test_clamped_labels_exactly` updated, `test_coordinates_are_integers`) |
+    +| AC8 | `campusmap/tests/test_views.py::MapPageTests::test_room_opens_its_floor_and_is_highlighted` (updated), `test_highlight_has_accessible_name`; `core/tests/test_css.py::BaseCssTests::test_map_highlight_rule` (updated); `core/tests/test_design.py::ThemeRuleTests::test_map_highlight_not_hue_only` (unchanged, still passes) and `::test_map_highlight_final` (new) |
+    +| AC9 | `core/tests/test_design.py::ThemeRuleTests::test_map_kinds_distinct`; `campusmap/tests/test_views.py::MapPageTests::test_hatch_pattern_defined` |
+    +| AC10 | `campusmap/tests/test_views.py::MapPageTests::test_no_corridor_label` |
+    +| AC11 | `::test_room_list_buttons`, `test_room_not_on_plan_listed` (updated), `test_floor_without_plan` (updated), `test_room_on_plan_by_number` (updated) |
+    +| AC12 | `schedule/tests/test_views.py::ChangeRenderingTests::test_change_rendering` (updated), `ScheduleUiFixTests::test_change_labels_without_reason` (replaces `test_change_label_no_space_before_period`), `::test_staff_week_hides_reason`; `notifications/tests/test_feed.py::LessonChangeSourceTests::test_change_item_has_no_body`; `notifications/tests/test_views.py::FeedViewTests::test_change_reason_not_shown`; `core/tests/test_home.py::HomeStudentTests::test_lessons_card_hides_reason` |
+    +| AC13 | `schedule/tests/test_validation.py::LessonChangeRuleTests::test_blank_reason_allowed` (replaces `test_blank_reason`), `LessonChangeDBConstraintTests::test_blank_reason_saved_in_db` (replaces `test_blank_reason_violates_constraint`); `makemigrations --check` |
+    +| AC14 | `core/tests/test_design.py::ThemeRuleTests::test_file_input_full_width` + visual check |
+    +| AC15 | visual check (numbers in the REPORT) |
+    +| AC16 | `core/tests/test_design.py::ThemeRuleTests::test_scrollbar_rules` |
+    +| AC17 | existing `TokenTests`, `ExternalResourceTests` (one updated) |
+    +| AC18 | `core/tests/test_design.py::ReadmeTests::test_map_section_current` |
+    +
+    +### Access matrix
+    +
+    +No view, URL or permission changes. The existing access tests stay and must pass: `campusmap/tests/test_views.py::MapAccessTests` (anonymous 302, student 200, staff 200, superuser 200 as today), the schedule access tests and the notifications access tests. New: `campusmap/tests/test_views.py::MapPageTests::test_map_queries_constant` (below).
+    +
+    +### New and updated tests
+    +
+    +`university/tests/test_building.py` (import `STAIRS_BOTTOM`, `TOILET`, `DOOR_MIN`, `INNER_ROOMS` instead of `BOTTOM_CENTRE`):
+    +- `test_fixed_elements_same_on_every_floor` → rename `test_two_staircases_same_place`: on every floor exactly one space with `parts == (STAIRS,)` and one with `parts == (STAIRS_BOTTOM,)`, both `LANDMARK` "Лестница"; exactly two "Лестница" spaces; no part equals `CORRIDOR`.
+    +- `test_no_storage`: no label "Склад" on any floor.
+    +- `test_entrance_only_on_floor_1`: "Вход" is on floor 1 only, once, `LANDMARK`, parts `(Rect(236, 500, 160, 72),)`, and `_space_wall(entrance, [CORRIDOR]) >= DOOR_MIN`.
+    +- `test_w
+    …[11,318 more characters truncated]
+  ── Thought for 1s
+    I'm going to remove the stray `git stash list` line from the verification block, since it doesn't belong there. The `git archive HEAD` step is read-only and fine to keep, and with the changes still uncommitted, the current HEAD counts as the "before" state. Next I'm turning to the `test_room_on_plan_by_number` test.
+
+    I'm simplifying the `test_room_on_plan_by_number` assertion: on `/map/room/room-114/`, the 114 list item should simply not contain `map-room-off`, which is less clumsy than matching the current markup. I'll make both edits now.
+
+── Assistant ───────────────────────────────────────────────
+Убираю из спецификации две неудачные строки.
+
+── Edited 1 file ───────────────────────────────────────────
+  ── Edited docs/tasks/TASK-013.md +5 -5
+    --- a~/hackatonproject/docs/tasks/TASK-013.md
+    +++ b~/hackatonproject/docs/tasks/TASK-013.md
+    -# migration on a database seeded BEFORE the change (temporary files only):
+    -git stash list >/dev/null  # do NOT stash; instead build the "before" DB from HEAD in a temporary checkout:
+    -#   git worktree is not allowed for you; use: git archive HEAD | tar -x -C "$TMPDIR/t013-before"
+    -#   then in "$TMPDIR/t013-before": DATABASE_URL=sqlite:///$TMPDIR/t013-before.sqlite3 migrate + seed_demo,
+    -#   then in the project: DATABASE_URL=sqlite:///$TMPDIR/t013-before.sqlite3 python manage.py migrate, seed_demo twice
+    +# Migration on a database seeded BEFORE the change (temporary files only):
+    +#   mkdir -p "$TMPDIR/t013-before" && git archive HEAD | tar -x -C "$TMPDIR/t013-before"
+    +#   (cd "$TMPDIR/t013-before" && DATABASE_URL="sqlite:///$TMPDIR/t013-before.sqlite3" python manage.py migrate && DATABASE_URL="sqlite:///$TMPDIR/t013-before.sqlite3" python manage.py seed_demo)
+    +#   DATABASE_URL="sqlite:///$TMPDIR/t013-before.sqlite3" python manage.py migrate   # in the project, with your changes
+    +#   DATABASE_URL="sqlite:///$TMPDIR/t013-before.sqlite3" python manage.py seed_demo  # twice
+  ── Edited docs/tasks/TASK-013.md +1 -1
+    --- a~/hackatonproject/docs/tasks/TASK-013.md
+    +++ b~/hackatonproject/docs/tasks/TASK-013.md
+    -- `test_room_on_plan_by_number`: `assertNotIn('<a class="btn map-room-btn map-current" href="/map/room/room-114/" aria-current="location">114</a> <span class="map-room-off">', content)`.
+    +- `test_room_on_plan_by_number`: the list contains `<a class="btn map-room-btn map-current" href="/map/room/room-114/" aria-current="location">114</a></li>` (no "нет на схеме" note after it).
+  ── Thought for 1s
+    I need to confirm the `git archive` approach will actually run: the "before" copy has no `.env`, so DEBUG is unset and the app would drop into production mode and demand a SECRET_KEY. The UI coder's environment doesn't export DEBUG either, while the project directory's `.env` probably supplies it. I'm thinking about adding a note to export DEBUG=true and a dummy SECRET_KEY for that run.
+
+    I'll add a note to export DEBUG=true and a dummy SECRET_KEY for the before-directory commands, since that copy has no .env.
+  ── Edited docs/tasks/TASK-013.md +1
+    --- a~/hackatonproject/docs/tasks/TASK-013.md
+    +++ b~/hackatonproject/docs/tasks/TASK-013.md
+    +#   (the archive has no .env: run its commands with DEBUG=true SECRET_KEY=<any 50+ char dummy> DEMO_PASSWORD=... PRIVATE_MEDIA_ROOT="$TMPDIR/...")
+
+── Ran bb thread tell thr_pgcwc2dwnn --message-file - <<'EOF' [TASK-013] Planner -> UI coder: TASK Spec: docs/tasks/TASK-013.md. Design references: the TASK-012 theme (tokens.css/theme.css) and the orange primary button for the map highlight. Summary: - Floor plans: replace the plan data in university/building.py with the exact block in D4. It has two staircases, no "Склад", the entrance on the east side with Охрана + Гардероб next to it, one toilet per floor (М/Ж) in one riser, and a door of 24 units or more from every room to the corridor (except 211). Rewrite the building tests per the Test plan. - Map look (D5-D9): orange highlighted room with a light thick frame and a dark number; yellow dashed landmarks; hatched lilac service spaces (hidden <pattern id="map-hatch">, label halo); no corridor label; the room list as a grid of 44 px pixel buttons. - Change reasons are hidden everywhere. Model: reason blank=True; drop the constraint with migration schedule/0005_lessonchange_reason_optional. Feed body "". - Fixes: full-width file input (native text not cut at 360 px), a one-line wide header at 1024/1280 px (D12 limits), thin square scrollbar that shows on hover (D14). README "## Map". Visual acceptance: see "Pages to check visually". It covers all 4 floors at 360 and 1024, highlights on floors 1 and 4, the room list, schedule today/week, home, the feed, the request form, and the wide header with "50+" and "Чат (99+)" (report the measured tops). Baseline: 1051 tests OK (2026-11-18 ~15:56 MSK). EOF (1s)
+  $ bb thread tell thr_pgcwc2dwnn --message-file - <<'EOF'
+[TASK-013] Planner -> UI coder: TASK
+Spec: docs/tasks/TASK-013.md. Design references: the TASK-012 theme (tokens.css/theme.css) and the orange primary button for the map highlight.
+Summary:
+- Floor plans: replace the plan data in university/building.py with the exact block in D4. It has two staircases, no "Склад", the entrance on the east side with Охрана + Гардероб next to it, one toilet per floor (М/Ж) in one riser, and a door of 24 units or more from every room to the corridor (except 211). Rewrite the building tests per the Test plan.
+- Map look (D5-D9): orange highlighted room with a light thick frame and a dark number; yellow dashed landmarks; hatched lilac service spaces (hidden <pattern id="map-hatch">, label halo); no corridor label; the room list as a grid of 44 px pixel buttons.
+- Change reasons are hidden everywhere. Model: reason blank=True; drop the constraint with migration schedule/0005_lessonchange_reason_optional. Feed body "".
+- Fixes: full-width file input (native text not cut at 360 px), a one-line wide header at 1024/1280 px (D12 limits), thin square scrollbar that shows on hover (D14). README "## Map".
+Visual acceptance: see "Pages to check visually". It covers all 4 floors at 360 and 1024, highlights on floors 1 and 4, the room list, schedule today/week, home, the feed, the request form, and the wide header with "50+" and "Чат (99+)" (report the measured tops). Baseline: 1051 tests OK (2026-11-18 ~15:56 MSK).
+EOF
+  Thread thr_pgcwc2dwnn steered
+
+── Assistant ───────────────────────────────────────────────
+Я написал спецификацию [TASK-013](docs/tasks/TASK-013.md) и отправил её UI-кодеру. До изменений все 1051 тест прошли.
+
+**Планы этажей:**
+- Склады удалены. На каждом этаже две лестницы: у верхнего и у нижнего конца коридора.
+- Вход перенесён на восточную сторону первого этажа, к коридору. Рядом с ним отдельные «Охрана» (меньше вдвое с лишним) и «Гардероб». Столовая теперь простой прямоугольник, без выреза.
+- На каждом этаже один туалет: М на 1 и 3 этажах, Ж на 2 и 4. Все четыре стоят в одном месте плана.
+- Номера всех 39 аудиторий не изменились, поэтому демо-данные и расписание не затронуты.
+
+**Правило доступа строже, чем в запросе.** «Общая стена» засчитывается, только если её длина не меньше 24 единиц плана, это примерно 1 м, ширина двери. С таким правилом к вашему списку нарушений добавились аудитории 206, 207 и 308: сейчас они касаются коридора только на 8–16 единиц. Новые планы исправляют и их. Исключение одно — 211, внутренняя комната 210.
+
+**Вид карты:**
+- Выбранная аудитория залита оранжевым, у неё толстая светлая рамка и тёмный номер.
+- Ориентиры (вход, лестницы, деканат и другие) с жёлтыми подписями и пунктирной рамкой.
+- Служебные помещения со штриховкой и сиреневыми подписями. Штриховка делает подпись нечитаемой, поэтому подписи получают тёмный контур.
+- Под картой список аудиторий в виде сетки пиксельных кнопок высотой не меньше 44 px.
+
+**Причины изменений** больше нигде не показываются. Поле остаётся в базе и в админке, но становится необязательным. Для этого нужна миграция, которая снимает ограничение базы.
+
+**Мелкие правки:** поле выбора файла на всю ширину формы, шапка в одну строку на 1024 и 1280 px, тонкая квадратная полоса прокрутки, которая появляется при наведении.
+
+**Что я проверил заранее на временной копии проекта:**
+- Новые планы покрывают всю площадь без наложений и выполняют правило доступа.
+- Миграция проходит на базе, заполненной до изменений, а `seed_demo` можно запустить дважды подряд.
+- Сборка статики для сервера не ломает ссылку на штриховку.
+- При полном прогоне на копии упали только 7 тестов, которые ждут старое поведение. Спецификация перечисляет их правку.
+
+**Риски:**
+- Если в админке поменять только причину изменения, оно снова станет непрочитанным в ленте, хотя видимых отличий нет. В этой задаче я это не исправляю.
+- Полосу прокрутки в Safari UI-кодер проверить не может, у него есть только Chromium. Её стоит посмотреть вам.
+
+Жду вопросов UI-кодера.
+
+── User ────────────────────────────────────────────────────
+> Если в админке поменять только причину изменения, оно снова станет непрочитанным в ленте, хотя видимых отличий нет. В этой задаче я это не исправляю.
+
+Отправь информацию тимлиду. Скажи, что от меня, и это нужно включить в ближайший fix
+
+── Explored 1 search ───────────────────────────────────────
+  ── Thought for 2s
+    I'm going to send a REPORT to the team lead under TASK-013 and flag what I found. The key points are that LessonChange.updated_at is auto_now, and LessonChangeSource keys unread status off that same updated_at field. So a reason-only edit, whether in admin or through save_lesson_change, bumps the timestamp, which makes the item count as new again and raises the badge by one even though nothing visible changed. I'll also mention the existing notifications/tests/test_feed test.
+
+    I'm weighing a few fixes now: keep updated_at but bump it only when visible fields change, or add a separate visible_changed_at field. The existing test that asserts a reason-only edit makes an item new again will need to change either way. I also want to check how event_field is set on LessonChangeSource.
+  ── Searched for class LessonChangeSource in notifications/sources.py
+
+── Ran bb thread tell thr_4izdzwetb4 --message-file - <<'EOF' [TASK-013] Planner -> Team lead: REPORT From the user: include this defect in the nearest fix task (user request, verbatim intent: "это нужно включить в ближайший fix"). Defect: after TASK-013, lesson change reasons are hidden everywhere, but a reason-only edit still makes the change "new" again. - Facts: `schedule/models.py:130` `LessonChange.updated_at = DateTimeField(auto_now=True)`; `notifications/sources.py:186` `LessonChangeSource.event_field = "updated_at"` (unread = updated_at > seen_until). - Scenario: staff edits only `reason` in the admin (or via `save_lesson_change`) -> `updated_at` moves -> the feed item gets "Новое" and the badge +1, but the student sees no visible difference (the reason is no longer shown). - The existing test `notifications/tests/test_feed.py::test_edited_change_is_new_again` asserts exactly this behaviour with a reason-only edit; the fix must change it (use a visible field instead) and add a regression test "reason-only edit does not make the change unread". - Fix direction (my proposal, to be specified in the fix spec): bump the feed timestamp only when a visible field changes (kind, new_date, new_slot, new_room, new_teacher, original_date, weekly_lesson), e.g. a separate `changed_at` field set in `save_lesson_change`/admin save with a data migration copying `updated_at`, and `event_field = "changed_at"`. I recorded it under "Risks" in docs/tasks/TASK-013.md. Waiting for your TASK if you want it in TASK-013-FIX. EOF (1s)
+  $ bb thread tell thr_4izdzwetb4 --message-file - <<'EOF'
+[TASK-013] Planner -> Team lead: REPORT
+From the user: include this defect in the nearest fix task (user request, verbatim intent: "это нужно включить в ближайший fix").
+
+Defect: after TASK-013, lesson change reasons are hidden everywhere, but a reason-only edit still makes the change "new" again.
+- Facts: `schedule/models.py:130` `LessonChange.updated_at = DateTimeField(auto_now=True)`; `notifications/sources.py:186` `LessonChangeSource.event_field = "updated_at"` (unread = updated_at > seen_until).
+- Scenario: staff edits only `reason` in the admin (or via `save_lesson_change`) -> `updated_at` moves -> the feed item gets "Новое" and the badge +1, but the student sees no visible difference (the reason is no longer shown).
+- The existing test `notifications/tests/test_feed.py::test_edited_change_is_new_again` asserts exactly this behaviour with a reason-only edit; the fix must change it (use a visible field instead) and add a regression test "reason-only edit does not make the change unread".
+- Fix direction (my proposal, to be specified in the fix spec): bump the feed timestamp only when a visible field changes (kind, new_date, new_slot, new_room, new_teacher, original_date, weekly_lesson), e.g. a separate `changed_at` field set in `save_lesson_change`/admin save with a data migration copying `updated_at`, and `event_field = "changed_at"`.
+I recorded it under "Risks" in docs/tasks/TASK-013.md. Waiting for your TASK if you want it in TASK-013-FIX.
+EOF
+  Thread thr_4izdzwetb4 steered
+
+── Assistant ───────────────────────────────────────────────
+Я передал дефект тимлиду и указал, что просьба ваша и её нужно включить в ближайший fix.
+
+Суть дефекта: если в админке изменить только причину изменения занятия, у записи меняется время обновления. Лента уведомлений по этому времени снова считает изменение новым, хотя студент не видит никакой разницы.
+
+Что ещё есть в сообщении тимлиду:
+- **Где это в коде:** `schedule/models.py:130` и `notifications/sources.py:186`.
+- **Тест под замену:** `test_edited_change_is_new_again` сейчас проверяет именно такое поведение. В fix его нужно переделать и добавить тест: правка одной причины не делает изменение непрочитанным.
+- **Как исправить (мой вариант):** завести отдельное поле времени. Оно обновляется, только когда меняется то, что видит студент: вид изменения, дата, пара, аудитория или преподаватель.
+
+Когда тимлид пришлёт задачу, напишу спецификацию fix.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-013] Team lead -> Planner: ANSWER
+Yes: the reason-only edit defect goes into TASK-013-FIX (user decision). The TASK-013-FIX request comes after the TASK-013 APPROVE and commit, together with the review findings. No action now.
+
+── Assistant ───────────────────────────────────────────────
+Тимлид подтвердил: дефект с правкой причины войдёт в TASK-013-FIX. Запрос на fix он пришлёт после проверки и коммита TASK-013, вместе с замечаниями ревьюера. Сейчас делать ничего не нужно, жду вопросов UI-кодера по TASK-013.

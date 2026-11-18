@@ -354,19 +354,39 @@ class ChangeRenderingTests(FrozenClockMixin, TestCase):
         self.assertIn("Перенесено с", content)
         self.assertIn("Замена аудитории", content)
         self.assertIn("Замена преподавателя", content)
+        # TASK-013: change reasons are no longer shown (AC12).
         for reason in (
             "Преподаватель на конференции",
             "Перенос по просьбе",
             "Ремонт в аудитории",
             "Болезнь преподавателя",
         ):
-            self.assertIn(reason, content)
+            self.assertNotIn(reason, content)
+        self.assertNotIn("Причина", content)
         self.assertIn("<del", content)
         self.assertIn("<ins", content)
         self.assertIn('data-room-code="room-205"', content)  # new room number
         self.assertIn('<del class="room" data-room-code="room-101">', content)  # old room number
         self.assertIn("Лебедев", content)
         self.assertIn("Воронцова", content)
+
+    def test_today_page_hides_reason(self):
+        lesson = make_lesson(
+            [self.group], 2, 3, self.room, discipline=make_discipline("Сегодняшняя")
+        )
+        save_lesson_change(
+            LessonChange(
+                weekly_lesson=lesson,
+                original_date=date(2026, 11, 18),
+                kind=ChangeKind.CANCELLED,
+                reason="Секретная отмена",
+            )
+        )
+        self.client.force_login(self.student)
+        content = self.client.get("/schedule/").content.decode()
+        self.assertIn("Сегодняшняя", content)
+        self.assertIn('<p class="lesson-change">Отменено</p>', content)
+        self.assertNotIn("Секретная отмена", content)
 
 
 class ScheduleUiFixTests(FrozenClockMixin, TestCase):
@@ -440,15 +460,24 @@ class ScheduleUiFixTests(FrozenClockMixin, TestCase):
         self.assertIn('href="/staff/schedule/"', content)
         self.assertIn("К списку групп", content)
 
-    def test_change_label_no_space_before_period(self):
+    # TASK-013: the change label stands alone, without the reason and the period (D11).
+    def test_change_labels_without_reason(self):
         self.client.force_login(self.student)
         content = self.client.get("/schedule/week/2026-11-16/").content.decode()
-        self.assertIn("Отменено. Причина:", content)
-        self.assertIn("Замена аудитории. Причина:", content)
-        self.assertIn("Замена преподавателя. Причина:", content)
-        self.assertIn("). Причина:", content)  # moved-out
-        self.assertIn("пара. Причина:", content)  # moved-in
-        self.assertNotIn(" . Причина", content)
+        self.assertIn('<p class="lesson-change">Отменено</p>', content)
+        self.assertIn('<p class="lesson-change">Замена аудитории</p>', content)
+        self.assertIn('<p class="lesson-change">Замена преподавателя</p>', content)
+        self.assertRegex(content, r'<p class="lesson-change">Перенесено на [^<]*\)</p>')
+        self.assertRegex(content, r'<p class="lesson-change">Перенесено с [^<]*пара</p>')
+        self.assertNotIn("Причина", content)
+
+    def test_staff_week_hides_reason(self):
+        staff = make_staff("sfr", self.faculty)
+        self.client.force_login(staff)
+        content = self.client.get(f"/staff/schedule/{self.group.pk}/2026-11-16/").content.decode()
+        self.assertIn("Отменено", content)
+        for reason in ("Ремонт", "Болезнь", "Причина"):
+            self.assertNotIn(reason, content)
 
 
 class TeacherShortNameRenderTests(FrozenClockMixin, TestCase):
