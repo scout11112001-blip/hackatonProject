@@ -95327,3 +95327,559 @@ TASK-015 выполнена полностью по спецификации и 
 - AC9 grep → `GREP_CLEAN`; заголовки 0..20 без пропусков.
 
 `git status` точно совпал с ожиданием из спеки (`M plan.md` и `?? docs/tasks/TASK-015.md` — не мои, файлы Team lead/Planner). Жду вердикт Ревьюера.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_2imsg4kck2]
+
+[TASK-015-FIX] Planner -> Coder: TASK
+Spec: docs/tasks/TASK-015-FIX.md (base HEAD 915955f). Two small fixes, exact code in section 4.
+- F1/F2 petitions/tests/test_demo.py: replace _count_files with _demo_files (sorted PetitionAttachment file names, each exists in storage); test_idempotent compares that list and spies storage.save during the second seed (save.assert_not_called()). Do not change core/test_runner.py.
+- F3 deploy/backup.sh: add the comment line and `cd /` right after `umask 077`; nothing else changes; keep mode 755.
+- F4 core/tests/test_deploy.py: new ShellScriptTests.test_backup_runs_from_root_directory.
+Expected 1140 -> 1141 tests. Verification (section 8): `manage.py test --parallel 2` three times plus one serial run, each log saved; report paths and Moscow times. Do not touch plan.md.
+
+── Worked for (7m 37s) ─────────────────────────────────────
+  ── Ran 3 tools, edited 3 files, ran 7 commands
+    ── Read file read
+      # TASK-015-FIX: demo idempotency test independent of parallel workers; backup script works from any directory
+
+      Author: Planner. Assignee: Coder. Status: ready for implementation.
+      Base: HEAD 915955f (clean tree except the Team lead's `plan.md`; do not touch it).
+
+      ## 1. Goal
+
+      Two small defects found on 2026-11-20.
+
+      1. `petitions.tests.test_demo.PetitionsDemoTests.test_idempotent` fails sometimes under `--parallel`
+         (`(8, 17, 2, 3, 124) != (8, 17, 2, 3, 127)`). `_count_files()` walks the whole private storage root. The test
+         runner (TASK-013-FIX) gives all parallel workers one shared temporary root, so uploads from tests in other
+         workers change the count between "before" and "after".
+      2. `deploy/backup.sh` started by hand with `sudo -u deanery …/backup.sh` from `/root` creates both backup files,
+         then `find` fails ("Failed to restore initial working directory: /root: Permission denied") and the script
+         exits non-zero (`set -e`). Cron is not affected.
+
+      ### Acceptance criteria
+
+      | ID | Criterion |
+      |---|---|
+      | AC1 | `test_idempotent` uses only the demo's own files: the sorted list of `PetitionAttachment.file` names, each of which exists in the private storage. Files of other tests in the shared root do not change the result. |
+      | AC2 | `test_idempotent` still proves that a second `seed_petitions_demo` run creates no new files: the storage `save` is spied during the second run and is never called; the file list is the same before and after (3 files); the four row counts are the same. |
+      | AC3 | `core/test_runner.py` is not changed. No other test counts files across the whole storage root (verified, section 5 item 7). |
+      | AC4 | `deploy/backup.sh` runs `cd /` right after `umask 077`, before any other work, with a one-line comment. Everything else in the script is byte-identical. |
+      | AC5 | The runbook's manual backup command in step 14 "Backups" (`sudo -u "$APP_USER" /srv/deanery/app/deploy/backup.sh`) stays unchanged and valid; `docs/DEPLOY.md` is not changed. |
+      | AC6 | A deploy test checks that `cd /` comes before `pg_dump`, `tar -czf` and `find`. `bash -n` stays green. |
+      | AC7 | Full suite OK; `manage.py test --parallel 2` three times, each OK, logs saved; ruff clean. |
+
+      ## 2. Out of scope
+
+      - `core/test_runner.py` and the shared temporary root (per-worker roots are not needed).
+      - Any other line of `deploy/backup.sh` (`BACKUP_DIR`/`KEEP_DAYS` defaults, retention, names), the cron file,
+        `docs/DEPLOY.md`, application code.
+      - Other tests in `petitions/tests/test_demo.py`.
+
+      ## 3. Design decisions
+
+      - **D1. Demo files by reference, not by walk.** `_count_files()` is replaced by `_demo_files()`, which returns the
+        sorted `PetitionAttachment.objects.values_list("file", flat=True)` list and asserts each name exists in the
+        private storage. In `PetitionsDemoTests` all `PetitionAttachment` rows come from the demo (the test database is
+        per worker, only the file root is shared), so this is exactly the demo's file set. Comparing the list (not only
+        its length) also catches a re-seed that replaces a file.
+      - **D2. Spy on `storage.save` for "no new files".** The list alone cannot see an orphan file written without a
+        row. `store_attachment` (`petitions/files.py:80–87`) writes every attachment with
+        `get_private_storage().save(...)`, and `get_private_storage()` returns one module-level instance. So
+        `mock.patch.object(storage, "save", wraps=storage.save)` around the second run, then `save.assert_not_called()`,
+        proves no file is written by the re-seed, whatever other workers do (they are other processes with their own
+        instance). Mutation check (section 5 item 4): if a demo petition is deleted before the re-seed, the spy records
+        1 call.
+      - **D3. `cd /` at the start of `backup.sh`.** `find` saves and restores the start directory; when the app user
+        cannot read it (`/root`), GNU find fails. `/` is readable by everyone. All paths in the script are absolute
+        (`/etc/deanery/deanery.env`, default `BACKUP_DIR=/srv/deanery/backups`, `PRIVATE_MEDIA_ROOT` from the env file,
+        `tar -C "$(dirname …)"`), so the change of directory changes nothing else. `cd "$BACKUP_DIR"` is not used:
+        it would have to come after `mkdir -p` and would make a relative `BACKUP_DIR` wrong.
+      - **D4. Static test for the script.** The existing tests never execute `backup.sh` (it sources the fixed path
+        `/etc/deanery/deanery.env` and needs `pg_dump`), so the new test checks the line order. The run itself was
+        checked by hand (section 5 item 5).
+
+      ## 4. Files and functions
+
+      Change: `petitions/tests/test_demo.py`, `deploy/backup.sh`, `core/tests/test_deploy.py`. Nothing else.
+      Every "old" text below is an exact, unique match in HEAD 915955f.
+
+      ### F1. `petitions/tests/test_demo.py::PetitionsDemoTests._demo_files`
+
+      Replace the method `_count_files` (lines 35–40) with:
+
+      ```python
+          def _demo_files(self):
+              # TASK-015-FIX: only the demo's own files. Parallel workers share one storage
+              # root, so a walk over the whole root also counts other tests' uploads.
+              storage = get_private_storage()
+              names = sorted(PetitionAttachment.objects.values_list("file", flat=True))
+              for name in names:
+                  self.assertTrue(storage.exists(name), name)
+              return names
+      ```
+
+      ### F2. `petitions/tests/test_demo.py::PetitionsDemoTests.test_idempotent`
+
+      Replace the whole method (lines 106–122) with:
+
+      ```python
+          def test_idempotent(self):
+              before = (
+                  Petition.objects.count(),
+                  PetitionStatusChange.objects.count(),
+                  PetitionComment.objects.count(),
+                  PetitionAttachment.objects.count(),
+                  self._demo_files(),
+              )
+              storage = get_private_storage()
+              with mock.patch.object(storage, "save", wraps=storage.save) as save:
+                  seed_petitions_demo(D)
+              after = (
+                  Petition.objects.count(),
+                  PetitionStatusChange.objects.count(),
+                  PetitionComment.objects.count(),
+                  PetitionAttachment.objects.count(),
+                  self._demo_files(),
+              )
+              self.assertEqual(before, after)
+              self.assertEqual(len(before[-1]), 3)
+              save.assert_not_called()
+      ```
+
+      Imports stay as they are: `os` is still used by `test_command_output`; `mock` and `get_private_storage` are already
+      imported.
+
+      ### F3. `deploy/backup.sh`
+
+      After line 4 `umask 077` insert two lines, so lines 3–6 read:
+
+      ```bash
+      set -euo pipefail
+      umask 077
+      # Start from / so the script works from any directory (find restores the start directory).
+      cd /
+      ```
+
+      No other change. The file mode stays 755 (edit in place; do not recreate the file).
+
+      ### F4. `core/tests/test_deploy.py::ShellScriptTests.test_backup_runs_from_root_directory`
+
+      Insert this method in `ShellScriptTests`, directly before `test_manage_uses_env_file`:
+
+      ```python
+          def test_backup_runs_from_root_directory(self):
+              # TASK-015-FIX: "sudo -u <APP_USER> backup.sh" from /root failed in find.
+              lines = [line.strip() for line in _read(BACKUP_SH).splitlines()]
+              self.assertIn("cd /", lines)
+              cd_index = lines.index("cd /")
+              for command in ("pg_dump", "tar -czf", "find "):
+                  first = next(i for i, line in enumerate(lines) if line.startswith(command))
+                  self.assertLess(cd_index, first, command)
+      ```
+
+      `test_bash_syntax`, `test_scripts_executable` and `test_backup_rules` stay unchanged and must pass.
+
+      ## 5. Feasibility check
+
+      1. **Baseline** — HEAD 915955f = TASK-015 (1140 tests OK, as reported for TASK-015). After this fix: 1141 (+1,
+         F4; F1/F2 replace code inside an existing test).
+      2. **Change applied** — a copy of HEAD (`git archive HEAD | tar -x -C $TMPDIR/t015fixc`, no `.env`) with F1–F4
+         applied by a script that asserted each old text occurs exactly once. `ruff check .` → All checks passed;
+         `ruff format --check .` → 193 files already formatted; `bash -n deploy/backup.sh deploy/manage.sh` OK.
+      3. **Three `--parallel 2` runs** on the changed copy (DEBUG=true, dummy SECRET_KEY): each `Ran 1141 tests … OK`.
+         Logs: `$TMPDIR/test-t015fix-p2-run1-20261119-144549.log` (01:47 MSK 20.11), `…-run2-20261119-144708.log`
+         (01:48), `…-run3-20261119-144826.log` (01:49). No failure.
+      4. **The defect is reproduced and fixed deterministically** — a temporary subclass test (deleted afterwards)
+         wrote one foreign PDF into the shared root with plain `open()` (like another worker) just before the second
+         `seed_petitions_demo`. With the HEAD test: `AssertionError: Tuples differ: (8, 17, 2, 3, 3) != (8, 17, 2, 3, 4)`
+         — the same failure as the Reviewer's. With F1/F2: OK. Mutation check of the spy: deleting one demo petition
+         with a file before the re-seed → `save` called once (the spy works on the module-level storage instance).
+      5. **Backup script from an unreadable directory** — a copy of `backup.sh` with the env-file path pointed at a
+         temporary env file and a stub `pg_dump`, started from a directory with mode 111 (enter but not read):
+         HEAD version → both files created, then `find: -delete: forbidden when the current directory cannot be
+         opened`, exit 1 (macOS BSD find; GNU find on the server gives the reported message, same cause). With F3 →
+         `backup ok`, exit 0. Retention still works with F3: backup files dated 2026-11-01 were deleted, an unrelated
+         `keep.txt` with the same date stayed.
+      6. **Script semantics** — every path in `backup.sh` is absolute (D3); the runbook command in step 14 calls the
+         script by absolute path; cron calls it by absolute path. No change needed in `docs/DEPLOY.md` or the cron file.
+      7. **No other whole-root counters** — `grep` for `os.walk|rglob|listdir|scandir|glob(` and storage-root use in
+         every test module: only `petitions/tests/test_demo.py::_count_files` walks the storage root.
+         `petitions/tests/test_services.py:164` only checks a path prefix; `core/tests/test_storage.py` and
+         `petitions/tests/test_downloads.py:172` check settings/paths, not counts. OK.
+      8. **Runner unchanged** — `core/test_runner.py` is not touched; `core/tests/test_storage.py::TestRunnerTests`
+         passes in all three runs.
+      9. **No production code** — only two test files and one deploy script change; no migration; `manage.py check` and
+         `makemigrations --check` are unaffected.
+      10. **Safety** — `.env` never read (the copy had none); no git index command; temporary files only under
+          `$TMPDIR`; the project tree was not modified by this check.
+
+      ## 6. Implementation order
+
+      1. F1, F2 (`petitions/tests/test_demo.py`).
+      2. F3 (`deploy/backup.sh`), F4 (`core/tests/test_deploy.py`).
+      3. `ruff format petitions/tests/test_demo.py core/tests/test_deploy.py` (never on `docs/`), `ruff check .`.
+      4. Verification (section 8).
+
+      ## 7. Test plan
+
+      | AC | Test |
+      |---|---|
+      | AC1 | `petitions/tests/test_demo.py::PetitionsDemoTests::test_idempotent` (file list via `_demo_files`, each file exists) |
+      | AC2 | same test: equal tuples including the file list, `len == 3`, `save.assert_not_called()` |
+      | AC3 | review: `git diff --stat` shows no `core/test_runner.py`; `core/tests/test_storage.py::TestRunnerTests` unchanged and green |
+      | AC4 | `core/tests/test_deploy.py::ShellScriptTests::test_backup_runs_from_root_directory`, `ShellScriptTests::test_backup_rules` (unchanged fragments still present) |
+      | AC5 | `core/tests/test_deploy.py::RunbookTests` (unchanged, green); `git diff --stat` shows no `docs/DEPLOY.md` |
+      | AC6 | `ShellScriptTests::test_backup_runs_from_root_directory`, `ShellScriptTests::test_bash_syntax`, `ShellScriptTests::test_scripts_executable` |
+      | AC7 | section 8 |
+
+      Edge cases covered: a foreign file appears in the shared root during the test (D1, section 5 item 4); a re-seed
+      that writes an orphan file without a row (D2 spy); a re-seed that replaces a file (list comparison); the script
+      started from an unreadable directory (section 5 item 5). Access matrix, settings branches and query counts: not
+      applicable (tests and a shell script only).
+
+      Test count: 1140 → 1141.
+
+      ## 8. Verification (Coder, then Reviewer)
+
+      ```bash
+      for i in 1 2 3; do
+        .venv/bin/python manage.py test --parallel 2 2>&1 | tee "$TMPDIR/test-p2-run$i-$(date +%Y%m%d-%H%M%S).log" | tail -3
+      done
+      .venv/bin/python manage.py test 2>&1 | tee "$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log" | tail -3
+      .venv/bin/ruff check . && .venv/bin/ruff format --check .
+      bash -n deploy/backup.sh deploy/manage.sh
+      .venv/bin/gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application
+      .venv/bin/python manage.py check
+      .venv/bin/python manage.py makemigrations --check --dry-run
+      test -x deploy/backup.sh && echo EXEC_OK
+      git diff --stat
+      ```
+
+      Expected: every run `Ran 1141 tests … OK`; ruff clean; `EXEC_OK`; `git diff --stat` lists only
+      `core/tests/test_deploy.py`, `deploy/backup.sh`, `petitions/tests/test_demo.py` (and the Team lead's `plan.md`),
+      plus the new `docs/tasks/TASK-015-FIX.md`. Report the log paths and the Moscow time of each run; report any
+      failure with the test name and a traceback excerpt, even if a re-run passes.
+
+      ## 9. Risks
+
+      - **The spy depends on `store_attachment` using `get_private_storage()`** — true today (`petitions/files.py:80`).
+        If the storage call ever changes, the mutation check in section 5 item 4 shows how to re-verify.
+      - **GNU vs BSD find messages differ**; the fix removes the cause (unreadable start directory) for both.
+    ── Read file read
+      import os
+      from datetime import date
+      from io import StringIO
+      from unittest import mock
+
+      from django.core.management import call_command
+      from django.test import TestCase
+
+      from academics.demo import seed_academics_demo
+      from accounts.demo import seed_demo_data
+      from core.storage import get_private_storage
+      from core.testing import FrozenClockMixin
+      from petitions.demo import seed_petitions_demo
+      from petitions.models import (
+          Petition,
+          PetitionAttachment,
+          PetitionComment,
+          PetitionStatusChange,
+          RequestType,
+      )
+      from petitions.workflow import can_transition
+      from schedule.demo import seed_schedule_demo
+
+      PASSWORD = "Local-Demo-Pass-2026!"
+      D = date(2026, 11, 18)
+
+
+      class PetitionsDemoTests(FrozenClockMixin, TestCase):
+          def setUp(self):
+              seed_demo_data(PASSWORD)
+              seed_schedule_demo(D)
+              seed_academics_demo(D)
+              seed_petitions_demo(D)
+
+          def _count_files(self):
+              root = get_private_storage().location
+              count = 0
+              for _dirpath, _dirnames, filenames in os.walk(root):
+                  count += len(filenames)
+              return count
+
+          def test_types_exact(self):
+              # TASK-014: 3 new types
+              expected = {
+                  ("Справка об обучении", "certificate", 3, False, False),
+                  ("Справка для стипендиального отдела", "certificate", 3, True, False),
+                  ("Заявление на повторную промежуточную аттестацию", "application", 10, True, False),
+                  ("Заявление на академический отпуск", "application", 15, True, False),
+                  ("Справка в военкомат", "certificate", 3, True, False),
+                  ("Другая справка", "certificate", 5, True, True),
+                  ("Другое заявление", "application", 5, True, True),
+              }
+              types = RequestType.objects.all()
+              self.assertEqual(types.count(), 7)
+              for t in types:
+                  self.assertIn(
+                      (t.name, t.kind, t.processing_days, t.comment_required, t.subject_required),
+                      expected,
+                  )
+
+          def test_demo_subject_request(self):
+              p = Petition.objects.get(seed_key="p-8")
+              self.assertEqual(p.request_type.name, "Другая справка")
+              self.assertEqual(p.subject, "Справка о периоде обучения")
+              self.assertEqual(p.student.user.username, "student1")
+              self.assertEqual(p.display_name, "Другая справка: Справка о периоде обучения")
+              for other in Petition.objects.exclude(seed_key="p-8"):
+                  self.assertEqual(other.subject, "")
+              for t in RequestType.objects.filter(subject_required=True):
+                  self.assertTrue(t.comment_required)
+
+          def test_every_status_present(self):
+              statuses = set(Petition.objects.values_list("status", flat=True))
+              self.assertEqual(statuses, {"submitted", "in_progress", "ready", "issued", "rejected"})
+
+          def test_each_faculty_has_waiting_request(self):
+              for code in ("FDD", "FAE"):
+                  count = Petition.objects.filter(
+                      status="submitted", student__group__program__faculty__code=code
+                  ).count()
+                  self.assertGreaterEqual(count, 1)
+
+          def test_history_consistent(self):
+              for petition in Petition.objects.all():
+                  history = list(petition.history.order_by("created_at", "pk"))
+                  self.assertTrue(history)
+                  first = history[0]
+                  self.assertEqual(first.from_status, "")
+                  self.assertEqual(first.to_status, "submitted")
+                  self.assertEqual(first.actor, petition.student.user)
+                  for prev, cur in zip(history, history[1:], strict=False):
+                      self.assertEqual(cur.from_status, prev.to_status)
+                  self.assertEqual(history[-1].to_status, petition.status)
+                  for step in history:
+                      if step.from_status:
+                          self.assertTrue(can_transition(step.from_status, step.to_status))
+
+          def test_demo_files_private_and_valid(self):
+              atts = PetitionAttachment.objects.all()
+              self.assertEqual(atts.count(), 3)
+              for att in atts:
+                  self.assertRegex(att.file.name, r"^request_attachments/[0-9a-f]{2}/[0-9a-f]{32}\.pdf$")
+                  with att.file.open("rb") as fh:
+                      self.assertTrue(fh.read().startswith(b"%PDF-"))
+
+          def test_idempotent(self):
+              before = (
+                  Petition.objects.count(),
+                  PetitionStatusChange.objects.count(),
+                  PetitionComment.objects.count(),
+                  PetitionAttachment.objects.count(),
+                  self._count_files(),
+              )
+              seed_petitions_demo(D)
+              after = (
+                  Petition.objects.count(),
+                  PetitionStatusChange.objects.count(),
+                  PetitionComment.objects.count(),
+                  PetitionAttachment.objects.count(),
+                  self._count_files(),
+              )
+              self.assertEqual(before, after)
+
+          def test_command_output(self):
+              with mock.patch.dict(os.environ, {"DEMO_PASSWORD": PASSWORD}):
+                  out = StringIO()
+                  call_command("seed_demo", stdout=out)
+              self.assertIn("Requests ready: 7 types", out.getvalue())
+    ── Edited petitions/tests/test_demo.py +8 -6
+      --- a~/hackatonproject/petitions/tests/test_demo.py
+      +++ b~/hackatonproject/petitions/tests/test_demo.py
+      -    def _count_files(self):
+      -        root = get_private_storage().location
+      -        count = 0
+      -        for _dirpath, _dirnames, filenames in os.walk(root):
+      -            count += len(filenames)
+      -        return count
+      +    def _demo_files(self):
+      +        # TASK-015-FIX: only the demo's own files. Parallel workers share one storage
+      +        # root, so a walk over the whole root also counts other tests' uploads.
+      +        storage = get_private_storage()
+      +        names = sorted(PetitionAttachment.objects.values_list("file", flat=True))
+      +        for name in names:
+      +            self.assertTrue(storage.exists(name), name)
+      +        return names
+    ── Edited petitions/tests/test_demo.py +7 -3
+      --- a~/hackatonproject/petitions/tests/test_demo.py
+      +++ b~/hackatonproject/petitions/tests/test_demo.py
+      -            self._count_files(),
+      +            self._demo_files(),
+      -        seed_petitions_demo(D)
+      +        storage = get_private_storage()
+      +        with mock.patch.object(storage, "save", wraps=storage.save) as save:
+      +            seed_petitions_demo(D)
+      -            self._count_files(),
+      +            self._demo_files(),
+      +        self.assertEqual(len(before[-1]), 3)
+      +        save.assert_not_called()
+    ── Read file read
+      #!/usr/bin/env bash
+      # Daily backup: gzip-compressed pg_dump + tar.gz of PRIVATE_MEDIA_ROOT; keeps KEEP_DAYS days.
+      set -euo pipefail
+      umask 077
+      BACKUP_DIR="${BACKUP_DIR:-/srv/deanery/backups}"
+      KEEP_DAYS="${KEEP_DAYS:-7}"
+      set -a
+      . /etc/deanery/deanery.env
+      set +a
+      STAMP="$(date +%Y%m%d-%H%M%S)"
+      mkdir -p "$BACKUP_DIR"
+      pg_dump --no-owner --no-privileges "$DATABASE_URL" | gzip -9 > "$BACKUP_DIR/db-$STAMP.sql.gz"
+      tar -czf "$BACKUP_DIR/media-$STAMP.tar.gz" -C "$(dirname "$PRIVATE_MEDIA_ROOT")" "$(basename "$PRIVATE_MEDIA_ROOT")"
+      find "$BACKUP_DIR" -maxdepth 1 -type f \( -name 'db-*.sql.gz' -o -name 'media-*.tar.gz' \) -mtime +"$((KEEP_DAYS - 1))" -delete
+      echo "backup ok: $STAMP"
+    ── Edited deploy/backup.sh +2
+      --- a~/hackatonproject/deploy/backup.sh
+      +++ b~/hackatonproject/deploy/backup.sh
+      +# Start from / so the script works from any directory (find restores the start directory).
+      +cd /
+    ── Edited core/tests/test_deploy.py +9
+      --- a~/hackatonproject/core/tests/test_deploy.py
+      +++ b~/hackatonproject/core/tests/test_deploy.py
+      +    def test_backup_runs_from_root_directory(self):
+      +        # TASK-015-FIX: "sudo -u <APP_USER> backup.sh" from /root failed in find.
+      +        lines = [line.strip() for line in _read(BACKUP_SH).splitlines()]
+      +        self.assertIn("cd /", lines)
+      +        cd_index = lines.index("cd /")
+      +        for command in ("pg_dump", "tar -czf", "find "):
+      +            first = next(i for i, line in enumerate(lines) if line.startswith(command))
+      +            self.assertLess(cd_index, first, command)
+      +
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff format petitions/tests/test_demo.py core/tests/test_deploy.py && ruff check . 2>&1 | tail -2 && ruff format --check . 2>&1 | tail -1 && bash -n deploy/backup.sh deploy/manage.sh && echo "bash -n OK" && test -x deploy/backup.sh && echo EXEC_OK
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff format petitions/tests/test_demo.py core/tests/test_deploy.py && ruff check . 2>&1 | tail -2 && ruff format --check . 2>&1 | tail -1 && bash -n deploy/backup.sh deploy/manage.sh && echo "bash -n OK" && test -x deploy/backup.sh && echo EXEC_OK
+      2 files left unchanged
+      All checks passed!
+      193 files already formatted
+      bash -n OK
+      EXEC_OK
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && for i in 1 2 3; do   python manage.py test --parallel 2 2>&1 | tee "$TMPDIR/test-p2-run$i-$(date +%Y%m%d-%H%M%S).log" | tail -3 done (3m 55s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && for i in 1 2 3; do
+      python manage.py test --parallel 2 2>&1 | tee "$TMPDIR/test-p2-run$i-$(date +%Y%m%d-%H%M%S).log" | tail -3
+    done
+      Destroying test database for alias 'default'...
+      Destroying test database for alias 'default'...
+      Destroying test database for alias 'default'...
+      Destroying test database for alias 'default'...
+      Destroying test database for alias 'default'...
+      Destroying test database for alias 'default'...
+      Destroying test database for alias 'default'...
+      Destroying test database for alias 'default'...
+      Destroying test database for alias 'default'...
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test 2>&1 | tee "$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log" | tail -3 (2m 34s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test 2>&1 | tee "$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log" | tail -3
+      Requests ready: 7 types, 8 requests, 3 attachments.
+      Notifications ready: 9 announcements.
+      Chat ready: 3 dialogs, 8 messages.
+    ── Thought for 416ms
+      The serial run tail -3 shows seed output, not the "Ran N tests OK". Let me check the logs for the "Ran" lines.
+    ── Ran cd ~/hackatonproject && for f in $(ls -1t "$TMPDIR"/test-p2-run*.log "$TMPDIR"/test-2026*.log 2>/dev/null | head -4); do echo "=== $f ==="; grep -E "Ran |^OK|FAILED|ERROR:" "$f" | tail -3; done
+      $ cd ~/hackatonproject && for f in $(ls -1t "$TMPDIR"/test-p2-run*.log "$TMPDIR"/test-2026*.log 2>/dev/null | head -4); do echo "=== $f ==="; grep -E "Ran |^OK|FAILED|ERROR:" "$f" | tail -3; done
+      === /var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T//test-20261119-145537.log ===
+      Ran 1141 tests in 151.994s
+      OK
+      === /var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T//test-p2-run3-20261119-145416.log ===
+      Ran 1141 tests in 76.380s
+      OK
+      === /var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T//test-p2-run2-20261119-145258.log ===
+      Ran 1141 tests in 76.748s
+      OK
+      === /var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T//test-p2-run1-20261119-145139.log ===
+      Ran 1141 tests in 77.462s
+      OK
+    ── Thought for 518ms
+      All four runs OK: three --parallel 2 (1141 each) and one serial (1141). 
+
+      Now run remaining verification commands: gunicorn --check-config, manage.py check, makemigrations --check.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application && echo "gunicorn OK" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && git diff --stat (2s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application && echo "gunicorn OK" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && git diff --stat
+      gunicorn OK
+      System check identified no issues (0 silenced).
+      No changes detected
+       core/tests/test_deploy.py    |  9 +++++++++
+       deploy/backup.sh             |  2 ++
+       petitions/tests/test_demo.py | 24 +++++++++++++++---------
+       plan.md                      |  3 ++-
+       4 files changed, 28 insertions(+), 10 deletions(-)
+    ── Thought for 800ms
+      git diff --stat shows exactly:
+      - core/tests/test_deploy.py
+      - deploy/backup.sh
+      - petitions/tests/test_demo.py
+      - plan.md (Team lead's file)
+
+      Note: the spec says "git diff --stat lists only core/tests/test_deploy.py, deploy/backup.sh, petitions/tests/test_demo.py (and the Team lead's plan.md), plus the new docs/tasks/TASK-015-FIX.md". The new docs/tasks/TASK-015-FIX.md is untracked, so it doesn't appear in git diff --stat (which only shows tracked changes). That's fine — it's the spec file from Planner.
+
+      Let me verify git status to confirm untracked spec.
+    ── Ran cd ~/hackatonproject && git status --short && TZ=Europe/Moscow date '+%H:%M MSK %d.%m.%Y'
+      $ cd ~/hackatonproject && git status --short && TZ=Europe/Moscow date '+%H:%M MSK %d.%m.%Y'
+      M core/tests/test_deploy.py
+       M deploy/backup.sh
+       M petitions/tests/test_demo.py
+       M plan.md
+      ?? docs/tasks/TASK-015-FIX.md
+      01:58 MSK 20.11.2026
+    ── Ran cd ~/hackatonproject && bb thread tell thr_cpuae9aqw3 --message-file - <<'EOF' [TASK-015-FIX] Coder -> Reviewer: REPORT Spec: docs/tasks/TASK-015-FIX.md (base HEAD 915955f). ## What was done (F1-F4, exact spec code) - F1 `petitions/tests/test_demo.py`: `_count_files` -> `_demo_files` (sorted `PetitionAttachment.file` names, each asserted `storage.exists`). - F2 `test_idempotent`: compares full tuple incl. `_demo_files()`, asserts `len == 3`, and spies `storage.save` (wraps) during the second seed with `save.assert_not_called()`. - F3 `deploy/backup.sh`: added comment + `cd /` right after `umask 077`; mode stays 755 (edited in place). - F4 `core/tests/test_deploy.py`: new `ShellScriptTests.test_backup_runs_from_root_directory` (cd / before pg_dump/tar -czf/find). - `core/test_runner.py` NOT changed; `docs/DEPLOY.md` NOT changed. ## Verification (section 8) — all green - `manage.py test --parallel 2` x3 -> each **Ran 1141 tests … OK**:   - `$TMPDIR/test-p2-run1-20261119-145139.log` (01:52 MSK)   - `$TMPDIR/test-p2-run2-20261119-145258.log` (01:53 MSK)   - `$TMPDIR/test-p2-run3-20261119-145416.log` (01:55 MSK) - Serial `manage.py test` -> **Ran 1141 tests … OK**: `$TMPDIR/test-20261119-145537.log` (01:58 MSK). - `ruff check .` All checks passed; `ruff format --check .` 193 files formatted. - `bash -n deploy/backup.sh deploy/manage.sh` OK; `test -x deploy/backup.sh` -> EXEC_OK. - `gunicorn --check-config` exit 0; `manage.py check` no issues; `makemigrations --check` No changes. ## git diff --stat (only mine + Team lead's plan.md) ```  core/tests/test_deploy.py    |  9 +++++++++  deploy/backup.sh             |  2 ++  petitions/tests/test_demo.py | 24 +++++++++++++++---------  plan.md                      |  3 ++- ``` Untracked (not mine): `docs/tasks/TASK-015-FIX.md`. I did not touch `plan.md` or `core/test_runner.py`. EOF (3s)
+      $ cd ~/hackatonproject && bb thread tell thr_cpuae9aqw3 --message-file - <<'EOF'
+    [TASK-015-FIX] Coder -> Reviewer: REPORT
+    Spec: docs/tasks/TASK-015-FIX.md (base HEAD 915955f).
+
+    ## What was done (F1-F4, exact spec code)
+    - F1 `petitions/tests/test_demo.py`: `_count_files` -> `_demo_files` (sorted `PetitionAttachment.file` names, each asserted `storage.exists`).
+    - F2 `test_idempotent`: compares full tuple incl. `_demo_files()`, asserts `len == 3`, and spies `storage.save` (wraps) during the second seed with `save.assert_not_called()`.
+    - F3 `deploy/backup.sh`: added comment + `cd /` right after `umask 077`; mode stays 755 (edited in place).
+    - F4 `core/tests/test_deploy.py`: new `ShellScriptTests.test_backup_runs_from_root_directory` (cd / before pg_dump/tar -czf/find).
+    - `core/test_runner.py` NOT changed; `docs/DEPLOY.md` NOT changed.
+
+    ## Verification (section 8) — all green
+    - `manage.py test --parallel 2` x3 -> each **Ran 1141 tests … OK**:
+      - `$TMPDIR/test-p2-run1-20261119-145139.log` (01:52 MSK)
+      - `$TMPDIR/test-p2-run2-20261119-145258.log` (01:53 MSK)
+      - `$TMPDIR/test-p2-run3-20261119-145416.log` (01:55 MSK)
+    - Serial `manage.py test` -> **Ran 1141 tests … OK**: `$TMPDIR/test-20261119-145537.log` (01:58 MSK).
+    - `ruff check .` All checks passed; `ruff format --check .` 193 files formatted.
+    - `bash -n deploy/backup.sh deploy/manage.sh` OK; `test -x deploy/backup.sh` -> EXEC_OK.
+    - `gunicorn --check-config` exit 0; `manage.py check` no issues; `makemigrations --check` No changes.
+
+    ## git diff --stat (only mine + Team lead's plan.md)
+    ```
+     core/tests/test_deploy.py    |  9 +++++++++
+     deploy/backup.sh             |  2 ++
+     petitions/tests/test_demo.py | 24 +++++++++++++++---------
+     plan.md                      |  3 ++-
+    ```
+    Untracked (not mine): `docs/tasks/TASK-015-FIX.md`. I did not touch `plan.md` or `core/test_runner.py`.
+    EOF
+      Thread thr_cpuae9aqw3 steered
+
+── Assistant ───────────────────────────────────────────────
+TASK-015-FIX выполнена полностью и отправлена Ревьюеру.
+
+## Что сделано (F1–F4, дословно по спеке)
+
+- **F1** — `_count_files` → `_demo_files`: отсортированный список имён файлов демо-вложений, каждый проверяется через `storage.exists`.
+- **F2** — `test_idempotent` сравнивает полный кортеж (включая список файлов), `len == 3`, и «шпионит» за `storage.save` при втором сиде: `save.assert_not_called()`.
+- **F3** — `deploy/backup.sh`: комментарий + `cd /` сразу после `umask 077`; режим 755 сохранён.
+- **F4** — новый тест `test_backup_runs_from_root_directory` (проверка порядка `cd /` перед `pg_dump`/`tar -czf`/`find`).
+- `core/test_runner.py` и `docs/DEPLOY.md` **не тронуты**.
+
+## Проверка (раздел 8) — всё зелёное
+
+- `--parallel 2` ×3 → каждый **1141 тест OK**; серийный прогон → **1141 OK**.
+- Логи: `test-p2-run1/2/3-20261119-*.log` (01:52/01:53/01:55 MSK) и `test-20261119-145537.log` (01:58 MSK).
+- `ruff check`/`format --check` — чисто; `bash -n` OK; `EXEC_OK`; `gunicorn --check-config` exit 0; `check`/`makemigrations` — без замечаний.
+
+`git diff --stat` содержит только три целевых файла + `plan.md` (Team lead). Жду вердикт Ревьюера.

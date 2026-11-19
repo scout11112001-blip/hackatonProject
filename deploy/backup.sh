@@ -2,6 +2,8 @@
 # Daily backup: gzip-compressed pg_dump + tar.gz of PRIVATE_MEDIA_ROOT; keeps KEEP_DAYS days.
 set -euo pipefail
 umask 077
+# Start from / so the script works from any directory (find restores the start directory).
+cd /
 BACKUP_DIR="${BACKUP_DIR:-/srv/deanery/backups}"
 KEEP_DAYS="${KEEP_DAYS:-7}"
 set -a

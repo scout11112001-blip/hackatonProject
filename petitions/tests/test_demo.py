@@ -32,12 +32,14 @@ class PetitionsDemoTests(FrozenClockMixin, TestCase):
         seed_academics_demo(D)
         seed_petitions_demo(D)
 
-    def _count_files(self):
-        root = get_private_storage().location
-        count = 0
-        for _dirpath, _dirnames, filenames in os.walk(root):
-            count += len(filenames)
-        return count
+    def _demo_files(self):
+        # TASK-015-FIX: only the demo's own files. Parallel workers share one storage
+        # root, so a walk over the whole root also counts other tests' uploads.
+        storage = get_private_storage()
+        names = sorted(PetitionAttachment.objects.values_list("file", flat=True))
+        for name in names:
+            self.assertTrue(storage.exists(name), name)
+        return names
 
     def test_types_exact(self):
         # TASK-014: 3 new types
@@ -109,17 +111,21 @@ class PetitionsDemoTests(FrozenClockMixin, TestCase):
             PetitionStatusChange.objects.count(),
             PetitionComment.objects.count(),
             PetitionAttachment.objects.count(),
-            self._count_files(),
+            self._demo_files(),
         )
-        seed_petitions_demo(D)
+        storage = get_private_storage()
+        with mock.patch.object(storage, "save", wraps=storage.save) as save:
+            seed_petitions_demo(D)
         after = (
             Petition.objects.count(),
             PetitionStatusChange.objects.count(),
             PetitionComment.objects.count(),
             PetitionAttachment.objects.count(),
-            self._count_files(),
+            self._demo_files(),
         )
         self.assertEqual(before, after)
+        self.assertEqual(len(before[-1]), 3)
+        save.assert_not_called()
 
     def test_command_output(self):
         with mock.patch.dict(os.environ, {"DEMO_PASSWORD": PASSWORD}):

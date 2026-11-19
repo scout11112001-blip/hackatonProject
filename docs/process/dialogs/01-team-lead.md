@@ -21569,33 +21569,441 @@ TASK-015 одобрена. Проверяю её и делаю коммит, з�
 Да, имя сервера поменяй
 steer
 
-── Explored 1 file ─────────────────────────────────────────
+── Explored 1 file, ran 2 commands ─────────────────────────
   ── Read ~/.bb/thread-storage/thr_4izdzwetb4/Attachments/Screenshot-2026-11-19-at-14.32.31-1795127559691-no0kyf.png
   ── Thought for 3s
     The superuser account is set up with the user's email, stored in the database and kept out of the repo. The request didn't specify a role, which is fine. The screenshot only shows up as an attachment in the thread, so the log probably records a reference to it rather than its contents.
 
     Next I'm committing TASK-015 with the dialogs export and redaction, then pushing. After that I want to change the hostname to `deanery`, which the user approved, by updating it with hostnamectl and the 127.0.1.1 line in /etc/hosts. I also need to check whether cloud-init is present and could reset it on reboot, so I'll look at setting `preserve_hostname: true` in the 99-hostname config. Last, I'll update the server: pull, install dependencies, migrate, collect static files, run checks, restart, and seed the trial demo data for the TASK-014 types.
+  ── Ran O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)     t=t.replace('[id скрыт]','[id скрыт]')     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     t=t.replace('[IP пользователя скрыт]','[IP пользователя скрыт]')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~','[IP пользователя скрыт]') if k in t]     assert not bad,(f,bad)     assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f     assert not re.search(r'Demo-[0-9a-f]{12}',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF rm -rf "$O"; git add -A .env.production.example core deploy docs/DEPLOY.md docs/tasks/TASK-015.md docs/process CHANGELOG.md plan.md && git status --short | grep -v "^[AMD] "; echo staged (Outside of sandbox) (6s)
+    $ O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF'
+  import os,re,sys
+  d=sys.argv[1]; out='docs/process/dialogs'
+  for f in sorted(os.listdir(d)):
+      t=open(os.path.join(d,f),encoding='utf-8').read()
+      t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)
+      t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)
+      t=t.replace('[id скрыт]','[id скрыт]')
+      t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')
+      t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)
+      t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')
+      t=t.replace('[IP пользователя скрыт]','[IP пользователя скрыт]')
+      bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~','[IP пользователя скрыт]') if k in t]
+      assert not bad,(f,bad)
+      assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f
+      assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f
+      assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f
+      assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f
+      assert not re.search(r'Demo-[0-9a-f]{12}',t),f
+      open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
+  EOF
+  rm -rf "$O"; git add -A .env.production.example core deploy docs/DEPLOY.md docs/tasks/TASK-015.md docs/process CHANGELOG.md plan.md && git status --short | grep -v "^[AMD] "; echo staged
+    01-team-lead.md 2133 KB
+    02-planner.md 2086 KB
+    03-coder-deepseek.md 5743 KB
+    04-reviewer.md 1420 KB
+    05-ui-coder.md 687 KB
+    staged
+  ── Ran git commit -q -F - <<'EOF' TASK-015: deploy runbook for the new 2 vCPU / 2 GB server - docs/DEPLOY.md: no "swap first" step (only a memory and swap check), no   journald cap (deploy/journald/50-deanery.conf removed, systemd defaults),   no PostgreSQL "do not tune" warning; steps renumbered, Resources   recalculated. - gunicorn: 5 workers by default and in .env.production.example. - Process docs: CHANGELOG (repository public, server prepared), plan,   dialogs. Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com> EOF git log --oneline -1; git status --short | wc -l; GIT_TERMINAL_PROMPT=0 git push origin main 2>&1 | tail -2; git rev-list --count origin/main..main (Outside of sandbox) (6s)
+    $ git commit -q -F - <<'EOF'
+  TASK-015: deploy runbook for the new 2 vCPU / 2 GB server
 
-── Running O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)     t=t.replace('[id скрыт]','[id скрыт]')     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     t=t.replace('[IP пользователя скрыт]','[IP пользователя скрыт]')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~','[IP пользователя скрыт]') if k in t]     assert not bad,(f,bad)     assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f     assert not re.search(r'Demo-[0-9a-f]{12}',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF rm -rf "$O"; git add -A .env.production.example core deploy docs/DEPLOY.md docs/tasks/TASK-015.md docs/process CHANGELOG.md plan.md && git status --short | grep -v "^[AMD] "; echo staged (Outside of sandbox)
-  $ O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF'
-import os,re,sys
-d=sys.argv[1]; out='docs/process/dialogs'
-for f in sorted(os.listdir(d)):
-    t=open(os.path.join(d,f),encoding='utf-8').read()
-    t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)
-    t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)
-    t=t.replace('[id скрыт]','[id скрыт]')
-    t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')
-    t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)
-    t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')
-    t=t.replace('[IP пользователя скрыт]','[IP пользователя скрыт]')
-    bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~','[IP пользователя скрыт]') if k in t]
-    assert not bad,(f,bad)
-    assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f
-    assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f
-    assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f
-    assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f
-    assert not re.search(r'Demo-[0-9a-f]{12}',t),f
-    open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
+  - docs/DEPLOY.md: no "swap first" step (only a memory and swap check), no
+    journald cap (deploy/journald/50-deanery.conf removed, systemd defaults),
+    no PostgreSQL "do not tune" warning; steps renumbered, Resources
+    recalculated.
+  - gunicorn: 5 workers by default and in .env.production.example.
+  - Process docs: CHANGELOG (repository public, server prepared), plan,
+    dialogs.
+
+  Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+  EOF
+  git log --oneline -1; git status --short | wc -l; GIT_TERMINAL_PROMPT=0 git push origin main 2>&1 | tail -2; git rev-list --count origin/main..main
+    915955f TASK-015: deploy runbook for the new 2 vCPU / 2 GB server
+           0
+    To https://github.com/[логин скрыт]/hackatonProject.git
+       ca9f30b..915955f  main -> main
+    0
+
+── Assistant ───────────────────────────────────────────────
+Коммит и push готовы. Меняю имя сервера и обновляю на нём код.
+
+── Ran 5 commands, created 1 file ──────────────────────────
+  ── Ran ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 ' set -e OLD=$(hostname -f 2>/dev/null || hostname) echo "old: $(hostname) / $OLD" grep -n "127.0.1.1\|$(hostname)" /etc/hosts || true [ -d /etc/cloud ] && grep -rn "preserve_hostname\|manage_etc_hosts" /etc/cloud/cloud.cfg /etc/cloud/cloud.cfg.d/ 2>/dev/null | head -5 ' 2>&1 (Outside of sandbox) (5s)
+    $ ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 '
+  set -e
+  OLD=$(hostname -f 2>/dev/null || hostname)
+  echo "old: $(hostname) / $OLD"
+  grep -n "127.0.1.1\|$(hostname)" /etc/hosts || true
+  [ -d /etc/cloud ] && grep -rn "preserve_hostname\|manage_etc_hosts" /etc/cloud/cloud.cfg /etc/cloud/cloud.cfg.d/ 2>/dev/null | head -5
+  ' 2>&1
+    old: [логин скрыт].example.com / [логин скрыт].example.com
+    2:127.0.1.1 [логин скрыт].example.com
+    10:136.148.83.222 [логин скрыт].example.com [логин скрыт]
+    /etc/cloud/cloud.cfg:15:preserve_hostname: false
+    /etc/cloud/cloud.cfg.d/99-installer.cfg:6:      preserve_hostname: true\nresize_rootfs: false\nssh_pwauth: true\nusers:\n- gecos:\
+  ── Thought for 4s
+    I'm checking whether cloud-init could reset the hostname on boot, since cloud.cfg has preserve_hostname set to false and the /etc/hosts file still has two lines with the old name. I also want to see if cloud-init manages /etc/hosts at all, and I'm planning a drop-in file that sets preserve_hostname to true. I'm not sure yet whether the embedded content in 99-installer.cfg is actually active or just a string inside some datasource config.
+
+    I'm planning to put the new hostname file in a name that sorts after 99-installer.cfg, so it wins whatever that file sets. Then I'll run hostnamectl to set the hostname to deanery, use sed to swap the old name in /etc/hosts after backing it up, and restart systemd-journald so it picks up the change.
+  ── Ran ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 ' set -e cp -p /etc/hosts /root/hosts.bak-20261120 hostnamectl set-hostname deanery sed -i -E "s/^127\.0\.1\.1[[:space:]].*/127.0.1.1 deanery/; s/^(136\.148\.83\.222)[[:space:]].*/\1 deanery/" /etc/hosts printf "# Keep the hostname set by the admin (deanery); do not take it from the provider metadata.\npreserve_hostname: true\n" > /etc/cloud/cloud.cfg.d/99-zz-deanery-hostname.cfg systemctl restart systemd-journald echo "now: $(hostname) / $(hostname -f)"; grep -n "deanery\|scout" /etc/hosts sudo -u deanery true && echo "sudo ok (no resolve warning above)" logger -t deanery-check "hostname changed"; journalctl -t deanery-check -n 1 --no-pager -q ' 2>&1 (Outside of sandbox) (4s)
+    $ ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 '
+  set -e
+  cp -p /etc/hosts /root/hosts.bak-20261120
+  hostnamectl set-hostname deanery
+  sed -i -E "s/^127\.0\.1\.1[[:space:]].*/127.0.1.1 deanery/; s/^(136\.148\.83\.222)[[:space:]].*/\1 deanery/" /etc/hosts
+  printf "# Keep the hostname set by the admin (deanery); do not take it from the provider metadata.\npreserve_hostname: true\n" > /etc/cloud/cloud.cfg.d/99-zz-deanery-hostname.cfg
+  systemctl restart systemd-journald
+  echo "now: $(hostname) / $(hostname -f)"; grep -n "deanery\|scout" /etc/hosts
+  sudo -u deanery true && echo "sudo ok (no resolve warning above)"
+  logger -t deanery-check "hostname changed"; journalctl -t deanery-check -n 1 --no-pager -q
+  ' 2>&1
+    now: deanery / deanery
+    2:127.0.1.1 deanery
+    10:136.148.83.222 deanery
+    sudo ok (no resolve warning above)
+    Nov 20 01:35:45 deanery deanery-check[2229]: hostname changed
+  ── Thought for 6ms
+    I'm deciding to delete the hosts backup, since its old hostname is the only thing it holds and I'll verify the new setup first. Next comes the server code update: pull, install, migrate, collect static files, run the deploy check, restart, and then seed the demo data on the trial server with the TASK-014 types and petition p-8. I'm also checking whether the journald file needs removing, though it was never installed.
+  ── Ran ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=30 root@136.148.83.222 ' set -e rm -f /root/hosts.bak-20261120 cd /srv/deanery APP_USER=deanery; DOMAIN=digital-student-services.ru M="sudo -u $APP_USER /srv/deanery/app/deploy/manage.sh" sudo -u "$APP_USER" git -C /srv/deanery/app pull -q --ff-only && sudo -u "$APP_USER" git -C /srv/deanery/app log --oneline -1 sudo -u "$APP_USER" /srv/deanery/venv/bin/pip install -q -r /srv/deanery/app/requirements.txt $M migrate --noinput 2>&1 | tail -3 $M collectstatic --noinput 2>&1 | tail -1 $M check --deploy --fail-level WARNING systemctl restart deanery && sleep 4 && systemctl is-active deanery $M seed_demo 2>&1 | grep -E "Requests|Schedule" curl -s -H "Host: $DOMAIN" http://127.0.0.1:8000/health/; echo ls /etc/systemd/journald.conf.d/ 2>/dev/null || echo "no journald override (as planned)" ' 2>&1 (Outside of sandbox) (21s)
+    $ ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=30 root@136.148.83.222 '
+  set -e
+  rm -f /root/hosts.bak-20261120
+  cd /srv/deanery
+  APP_USER=deanery; DOMAIN=digital-student-services.ru
+  M="sudo -u $APP_USER /srv/deanery/app/deploy/manage.sh"
+  sudo -u "$APP_USER" git -C /srv/deanery/app pull -q --ff-only && sudo -u "$APP_USER" git -C /srv/deanery/app log --oneline -1
+  sudo -u "$APP_USER" /srv/deanery/venv/bin/pip install -q -r /srv/deanery/app/requirements.txt
+  $M migrate --noinput 2>&1 | tail -3
+  $M collectstatic --noinput 2>&1 | tail -1
+  $M check --deploy --fail-level WARNING
+  systemctl restart deanery && sleep 4 && systemctl is-active deanery
+  $M seed_demo 2>&1 | grep -E "Requests|Schedule"
+  curl -s -H "Host: $DOMAIN" http://127.0.0.1:8000/health/; echo
+  ls /etc/systemd/journald.conf.d/ 2>/dev/null || echo "no journald override (as planned)"
+  ' 2>&1
+    915955f TASK-015: deploy runbook for the new 2 vCPU / 2 GB server
+      Apply all migrations: academics, accounts, admin, auth, chat, contenttypes, notifications, petitions, schedule, sessions, university
+    Running migrations:
+      Applying petitions.0003_subject... OK
+    2 static files copied to '/srv/deanery/app/staticfiles', 132 unmodified, 372 post-processed.
+    System check identified no issues (1 silenced).
+    active
+    Schedule ready: 39 rooms, 6 teachers, 6 disciplines, 18 weekly lessons, 8 changes.
+    Requests ready: 7 types, 1 requests, 0 attachments.
+    {"status": "ok"}
+    no journald override (as planned)
+  ── Thought for 5ms
+    I'm also running a DNS check now, since the earlier 8.8.8.8 query timed out, possibly because of the VPN. I'll try the system's default resolver with dig against digital-student-services.ru, and I'm drafting the TASK-015-FIX alongside it.
+  ── Ran dig +short A digital-student-services.ru 2>&1 | head -3; whois digital-student-services.ru 2>/dev/null | grep -E -i "^(domain|state|nserver|created)" | head -5 (Outside of sandbox) (22s)
+    $ dig +short A digital-student-services.ru 2>&1 | head -3; whois digital-student-services.ru 2>/dev/null | grep -E -i "^(domain|state|nserver|created)" | head -5
+    ;; connection timed out; no servers could be reached
+    domain:       RU
+    nserver:      A.DNS.RIPN.NET 193.232.128.6 2001:678:17:0:193:232:128:6
+    nserver:      B.DNS.RIPN.NET 194.85.252.62 2001:678:16:0:194:85:252:62
+    nserver:      C.TLD-SERVERS.RU 194.190.122.17 2a09:bd00:1:0:194:190:122:17
+    nserver:      D.DNS.RIPN.NET 194.190.124.17 2001:678:18:0:194:190:124:17
+  ── Created ~/.bb/thread-storage/thr_4izdzwetb4/TASK-015-FIX.txt +16
+    --- /dev/null
+    +++ b~/.bb/thread-storage/thr_4izdzwetb4/TASK-015-FIX.txt
+    +[TASK-015-FIX] Team lead -> Planner: TASK
+    +Approved by the user. Write the spec `docs/tasks/TASK-015-FIX.md` and hand it to the Coder (DeepSeek, thr_ng6cbgatm6).
+    +
+    +## Context
+    +TASK-015 committed (915955f). Two small defects found by the Reviewer and the Team lead on 20.11. Apply your "Feasibility check" and "Test plan" sections.
+    +
+    +## Items
+    +1. Flaky test under `--parallel` (Reviewer, 20.11 01:27 MSK): `petitions.tests.test_demo.PetitionsDemoTests.test_idempotent`, `petitions/tests/test_demo.py:122 self.assertEqual(before, after)`, `AssertionError: Tuples differ: (8, 17, 2, 3, 124) != (8, 17, 2, 3, 127)` (element 4 = `_count_files()`).
+    +   - Cause: `core/test_runner.py` (TASK-013-FIX) gives all parallel workers one shared temporary PRIVATE_MEDIA_ROOT; `_count_files()` (test_demo.py:35) walks the whole root, so uploads from tests in other workers change the count between "before" and "after".
+    +   - Required (Team lead recommendation, option A): the test counts only the demo's own files (e.g. the files referenced by the demo's `PetitionAttachment` rows and that they exist on disk), so it is independent of other workers; it still proves that a second `seed_petitions_demo` run creates no new files. Do not change the test runner. Check that no other test counts files across the whole storage root.
+    +2. `deploy/backup.sh` fails when started by hand from a directory the app user cannot read (Team lead, server 20.11 01:24 MSK): `sudo -u deanery /srv/deanery/app/deploy/backup.sh` run from `/root` creates both backup files, then `find` exits with `find: Failed to restore initial working directory: /root: Permission denied`, so the script exits non-zero (set -e). Cron is not affected (it starts in the app user's home).
+    +   - Required: the script works from any current directory (e.g. `cd "$BACKUP_DIR"` or `cd /` before the work); the runbook's manual backup command in "Backups" stays valid. Keep everything else in the script unchanged.
+    +   - Tests: extend the existing deploy tests (bash -n stays; a check that the script changes directory before `find`, or a run in a temp directory if the existing tests already execute the script).
+    +
+    +## Verification
+    +All existing verification commands, plus `python manage.py test --parallel 2` run 3 times with the output saved to files (no failure of test_idempotent).
+  ── Ran .venv/bin/python - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() old='Суперпользователя создаёт пользователь.' assert s.count(old)==1 s=s.replace(old,'Суперпользователь пробной базы создан пользователем 20.11 (на итоговой базе 22.11 — создать снова). Имя сервера — `deanery` (20.11). Код на сервере — 915955f.') open(p,'w',encoding='utf-8').write(s) EOF git status --short (1s)
+    $ .venv/bin/python - <<'EOF'
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  old='Суперпользователя создаёт пользователь.'
+  assert s.count(old)==1
+  s=s.replace(old,'Суперпользователь пробной базы создан пользователем 20.11 (на итоговой базе 22.11 — создать снова). Имя сервера — `deanery` (20.11). Код на сервере — 915955f.')
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  git status --short
+    M plan.md
+
+── Assistant ───────────────────────────────────────────────
+TASK-015 закрыта, коммит `915955f` отправлен на GitHub. Имя сервера поменял, код на сервере обновлён.
+
+**TASK-015.** Ревьюер одобрил её с первого раунда. Мой прогон: 1140 тестов, параллельный и обычный, ошибок нет. В `docs/DEPLOY.md` больше нет настроек под старый маленький сервер. Процессов gunicorn теперь 5.
+
+**Сервер:**
+- Имя теперь `deanery`. Это закреплено и в настройках хостинга (cloud-init), поэтому после перезагрузки имя не вернётся. Ваш логин GitHub из имени и из `/etc/hosts` убран.
+- Код обновлён до последней версии. Миграция заявок прошла, на пробной базе появились 3 новых вида заявок. Проверка `check --deploy` прошла, `/health/` отвечает `ok`.
+- Суперпользователь `admin` создан, вижу по скриншоту.
+
+**Домен.** В реестре `.ru` его пока нет, ждём регистрацию. Когда он появится, добавьте запись `A` → `136.148.83.222`. Дальше я выпущу сертификат и настрою nginx.
+
+**Сбой теста у Ревьюера.** В его первом прогоне, 20.11 в 01:27 по Москве, упал тест `petitions.tests.test_demo.PetitionsDemoTests.test_idempotent`:
+```
+petitions/tests/test_demo.py:122  self.assertEqual(before, after)
+AssertionError: Tuples differ: (8, 17, 2, 3, 124) != (8, 17, 2, 3, 127)
+```
+Причина не в TASK-015. При параллельном запуске все процессы тестов пишут файлы в одну временную папку, а этот тест считает файлы во всей папке. Если другой процесс в этот момент загрузит файл, счёт не сходится. Повторный прогон у Ревьюера и оба моих прогона прошли. Такой сбой может повториться и в CI на GitHub.
+
+**Черновик TASK-015-FIX (исполнитель — Кодер на DeepSeek):**
+1. Тест считает только файлы демо-данных, а не всю папку. Рекомендую исправить: иначе CI иногда будет красным без причины.
+2. Ручной запуск резервной копии из чужой папки (`/root`) заканчивается ошибкой `find`, хотя файлы копии создаются. Рекомендую исправить: скрипт сначала переходит в свою папку.
+
+Отправлять TASK-015-FIX?
+
+Сертификат я выпущу без почты. Вы не ответили на этот вопрос, поэтому беру вариант, который рекомендовал. Если хотите с почтой, скажите.
+
+── User ────────────────────────────────────────────────────
+Отправляй
+
+── Ran git status --short && bb thread tell thr_2imsg4kck2 --message-file - < ~/.bb/thread-storage/thr_4izdzwetb4/TASK-015-FIX.txt && .venv/bin/python - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() row=[l for l in s.split('\n') if l.startswith('| TASK-015 |')][0] new='| TASK-015-FIX | Нестабильный тест `test_idempotent` при параллельном запуске; резервная копия запускается вручную из любой папки (исполнитель — Кодер на DeepSeek) | В работе |' assert s.count(row)==1 s=s.replace(row, row+'\n'+new) s=s.replace('TASK-015 закрыта 20.11, код отправлен на GitHub.','TASK-015 закрыта 20.11, код отправлен на GitHub. TASK-015-FIX в работе.') open(p,'w',encoding='utf-8').write(s) EOF grep -c "TASK-015-FIX" plan.md (2s)
+  $ git status --short && bb thread tell thr_2imsg4kck2 --message-file - < ~/.bb/thread-storage/thr_4izdzwetb4/TASK-015-FIX.txt && .venv/bin/python - <<'EOF'
+p='plan.md'
+s=open(p,encoding='utf-8').read()
+row=[l for l in s.split('\n') if l.startswith('| TASK-015 |')][0]
+new='| TASK-015-FIX | Нестабильный тест `test_idempotent` при параллельном запуске; резервная копия запускается вручную из любой папки (исполнитель — Кодер на DeepSeek) | В работе |'
+assert s.count(row)==1
+s=s.replace(row, row+'\n'+new)
+s=s.replace('TASK-015 закрыта 20.11, код отправлен на GitHub.','TASK-015 закрыта 20.11, код отправлен на GitHub. TASK-015-FIX в работе.')
+open(p,'w',encoding='utf-8').write(s)
 EOF
-rm -rf "$O"; git add -A .env.production.example core deploy docs/DEPLOY.md docs/tasks/TASK-015.md docs/process CHANGELOG.md plan.md && git status --short | grep -v "^[AMD] "; echo staged
+grep -c "TASK-015-FIX" plan.md
+  M plan.md
+  Thread thr_2imsg4kck2 steered
+  2
+
+── Assistant ───────────────────────────────────────────────
+Я отправил TASK-015-FIX Планировщику, исполнитель — Кодер на DeepSeek. В задаче 2 пункта:
+1. Тест `test_idempotent` будет считать только файлы демо-данных, и параллельный запуск перестанет его ломать. Кодер должен прогнать тесты параллельно 3 раза подряд без сбоев.
+2. Резервную копию можно будет запустить вручную из любой папки.
+
+В `plan.md` задача отмечена как «В работе».
+
+Когда Ревьюер одобрит её, я проверю, сделаю коммит, push и обновлю сервер. Параллельно слежу за доменом. Когда он появится в DNS, выпущу сертификат.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_cpuae9aqw3]
+
+[TASK-015-FIX] Reviewer -> Team lead: APPROVE
+
+Spec: docs/tasks/TASK-015-FIX.md (base 915955f). Round 1. Changes are uncommitted. The diff touches only petitions/tests/test_demo.py, deploy/backup.sh (mode 755 kept) and core/tests/test_deploy.py, plus your plan.md and the untracked spec. core/test_runner.py, docs/DEPLOY.md and the cron file are unchanged. F1-F4 match the spec code exactly.
+
+## Mutations (in a temp copy)
+- A foreign PDF written into the shared storage root right before the re-seed: test_idempotent OK. This is the case that used to fail.
+- A demo petition with a file deleted before the re-seed: test_idempotent FAILS (the file list differs).
+- An orphan storage.save() with no row during the re-seed: FAILS on the spy only ("Expected 'save' to not have been called. Called 1 times."). So the spy works by itself.
+- `cd /` removed from backup.sh: test_backup_runs_from_root_directory FAILS.
+- `cd /` moved after find: test_backup_runs_from_root_directory FAILS ("16 not less than 12 : pg_dump").
+
+## backup.sh, real run
+Setup: a stub pg_dump and a temp env file, started from a directory with mode 111.
+- HEAD version: both backup files created, then "find: -delete: forbidden when the current directory cannot be opened", exit 1.
+- New version: "backup ok", exit 0. A backup file dated 2026-11-01 was deleted; an unrelated keep.txt with the same date stayed.
+
+## Runs (all OK, no failures)
+- --parallel 2, run 1, 01:58 MSK 20.11 ($TMPDIR/test-t015fix-rev-p2-run1-20261119-145839.log): Ran 1141 tests ... OK
+- --parallel 2, run 2, 02:00 MSK ($TMPDIR/test-t015fix-rev-p2-run2-20261119-150003.log): Ran 1141 tests ... OK
+- --parallel 2, run 3, 02:01 MSK ($TMPDIR/test-t015fix-rev-p2-run3-20261119-150120.log): Ran 1141 tests ... OK
+- --parallel (default), 02:02 MSK ($TMPDIR/test-t015fix-rev-par-20261119-150237.log): Ran 1141 tests ... OK
+- ruff check and format --check OK (193 files); bash -n OK.
+- No leftover test-private-media-* temp dirs.
+
+plan.md is modified in the tree (your file) — remember it in the commit.
+
+── Assistant ───────────────────────────────────────────────
+TASK-015-FIX одобрена. Проверяю её, затем делаю коммит, push и обновляю сервер.
+
+── Ran 6 commands ──────────────────────────────────────────
+  ── Ran git status --short && git diff deploy/backup.sh && git diff petitions/tests/test_demo.py | head -60
+    $ git status --short && git diff deploy/backup.sh && git diff petitions/tests/test_demo.py | head -60
+    M core/tests/test_deploy.py
+     M deploy/backup.sh
+     M petitions/tests/test_demo.py
+     M plan.md
+    ?? docs/tasks/TASK-015-FIX.md
+    diff --git a/deploy/backup.sh b/deploy/backup.sh
+    index fd268b5..f1c97d4 100755
+    --- a/deploy/backup.sh
+    +++ b/deploy/backup.sh
+    @@ -2,6 +2,8 @@
+     # Daily backup: gzip-compressed pg_dump + tar.gz of PRIVATE_MEDIA_ROOT; keeps KEEP_DAYS days.
+     set -euo pipefail
+     umask 077
+    +# Start from / so the script works from any directory (find restores the start directory).
+    +cd /
+     BACKUP_DIR="${BACKUP_DIR:-/srv/deanery/backups}"
+     KEEP_DAYS="${KEEP_DAYS:-7}"
+     set -a
+    diff --git a/petitions/tests/test_demo.py b/petitions/tests/test_demo.py
+    index 2253b62..9906ef1 100644
+    --- a/petitions/tests/test_demo.py
+    +++ b/petitions/tests/test_demo.py
+    @@ -32,12 +32,14 @@ class PetitionsDemoTests(FrozenClockMixin, TestCase):
+             seed_academics_demo(D)
+             seed_petitions_demo(D)
+     
+    -    def _count_files(self):
+    -        root = get_private_storage().location
+    -        count = 0
+    -        for _dirpath, _dirnames, filenames in os.walk(root):
+    -            count += len(filenames)
+    -        return count
+    +    def _demo_files(self):
+    +        # TASK-015-FIX: only the demo's own files. Parallel workers share one storage
+    +        # root, so a walk over the whole root also counts other tests' uploads.
+    +        storage = get_private_storage()
+    +        names = sorted(PetitionAttachment.objects.values_list("file", flat=True))
+    +        for name in names:
+    +            self.assertTrue(storage.exists(name), name)
+    +        return names
+     
+         def test_types_exact(self):
+             # TASK-014: 3 new types
+    @@ -109,17 +111,21 @@ class PetitionsDemoTests(FrozenClockMixin, TestCase):
+                 PetitionStatusChange.objects.count(),
+                 PetitionComment.objects.count(),
+                 PetitionAttachment.objects.count(),
+    -            self._count_files(),
+    +            self._demo_files(),
+             )
+    -        seed_petitions_demo(D)
+    +        storage = get_private_storage()
+    +        with mock.patch.object(storage, "save", wraps=storage.save) as save:
+    +            seed_petitions_demo(D)
+             after = (
+                 Petition.objects.count(),
+                 PetitionStatusChange.objects.count(),
+                 PetitionComment.objects.count(),
+                 PetitionAttachment.objects.count(),
+    -            self._count_files(),
+    +            self._demo_files(),
+             )
+             self.assertEqual(before, after)
+    +        self.assertEqual(len(before[-1]), 3)
+    +        save.assert_not_called()
+     
+         def test_command_output(self):
+             with mock.patch.dict(os.environ, {"DEMO_PASSWORD": PASSWORD}):
+  ── Thought for 12ms
+    I'm making sure the patch on `storage.save` will actually work, since `get_private_storage()` has to hand back the same cached instance on each call, and the reviewer's mutation check already showed the spy catches an orphaned call. Next I'll run the checks and tests, both parallel twice and serial, then commit and push, update the server for the `backup.sh` changes, and run the backup by hand from `/root` to confirm it works.
+  ── Ran . .venv/bin/activate && L="$TMPDIR/test-lead15fix-$(date +%Y%m%d-%H%M%S).log" && echo "$L" > "$TMPDIR/lead15fixlog" && { python manage.py check; DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ python manage.py check --deploy --fail-level WARNING; echo "deploy-check=$?"; python manage.py makemigrations --check --dry-run; echo "makemigrations=$?"; ruff check . && ruff format --check .; echo "ruff=$?"; bash -n deploy/backup.sh deploy/manage.sh; echo "bash-n=$?"; for r in 1 2; do python manage.py test --parallel 2 2>&1; echo "parallel$r=$?"; done; python scripts/run_tests_at.py 2026-11-21T00:00:00 2>&1; echo "midnight=$?"; } > "$L" 2>&1; TZ=Europe/Moscow date; grep -E "^(Ran|OK|FAILED)|=[0-9a-z-]+$|^FAIL:|^ERROR:" "$L"
+    $ . .venv/bin/activate && L="$TMPDIR/test-lead15fix-$(date +%Y%m%d-%H%M%S).log" && echo "$L" > "$TMPDIR/lead15fixlog" && { python manage.py check; DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ python manage.py check --deploy --fail-level WARNING; echo "deploy-check=$?"; python manage.py makemigrations --check --dry-run; echo "makemigrations=$?"; ruff check . && ruff format --check .; echo "ruff=$?"; bash -n deploy/backup.sh deploy/manage.sh; echo "bash-n=$?"; for r in 1 2; do python manage.py test --parallel 2 2>&1; echo "parallel$r=$?"; done; python scripts/run_tests_at.py 2026-11-21T00:00:00 2>&1; echo "midnight=$?"; } > "$L" 2>&1; TZ=Europe/Moscow date; grep -E "^(Ran|OK|FAILED)|=[0-9a-z-]+$|^FAIL:|^ERROR:" "$L"
+    Command running in background with ID: b8n3liy28. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/b253eb8a-83a9-41db-914f-dac833630714/tasks/b8n3liy28.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran dig +short A digital-student-services.ru 2>&1 | head -2; host -t A digital-student-services.ru 2>&1 | head -2; whois digital-student-services.ru 2>/dev/null | grep -E -i "^(domain|state|nserver|created)" | head -5 (Outside of sandbox) (36s)
+    $ dig +short A digital-student-services.ru 2>&1 | head -2; host -t A digital-student-services.ru 2>&1 | head -2; whois digital-student-services.ru 2>/dev/null | grep -E -i "^(domain|state|nserver|created)" | head -5
+    ;; connection timed out; no servers could be reached
+    ;; connection timed out; no servers could be reached
+    domain:       RU
+    nserver:      A.DNS.RIPN.NET 193.232.128.6 2001:678:17:0:193:232:128:6
+    nserver:      B.DNS.RIPN.NET 194.85.252.62 2001:678:16:0:194:85:252:62
+    nserver:      C.TLD-SERVERS.RU 194.190.122.17 2a09:bd00:1:0:194:190:122:17
+    nserver:      D.DNS.RIPN.NET 194.190.124.17 2001:678:18:0:194:190:124:17
+  ── Thought for 8ms
+    The Mac's DNS lookups are timing out, probably because of the VPN. I'll run the same check from the server over SSH instead, and I'll come back to the Mac side later.
+  ── Ran ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 'resolvectl query digital-student-services.ru 2>&1 | head -3; getent hosts digital-student-services.ru || echo "no A record yet"' 2>&1 (Outside of sandbox) (2s, error)
+    $ ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 'resolvectl query digital-student-services.ru 2>&1 | head -3; getent hosts digital-student-services.ru || echo "no A record yet"' 2>&1
+    Exit code 255
+    Connection closed by 136.148.83.222 port 22
+    exit 255
+  ── Thought for 8ms
+    The connection was dropped by the server, and my first guess is the VPN, since the route runs through utun4 and this worked over the VPN before. It could also be sshd throttling me after the failed attempts, so I'll retry once after a short pause.
+  ── Ran sleep 5; route -n get 136.148.83.222 2>/dev/null | grep interface; ssh -v -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 'echo ok; hostname' 2>&1 | grep -E "^ok|^deanery|Connection|banner|kex_exchange|Authenticated|closed|refused|timed out" | head -8 (Outside of sandbox) (8s)
+    $ sleep 5; route -n get 136.148.83.222 2>/dev/null | grep interface; ssh -v -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 'echo ok; hostname' 2>&1 | grep -E "^ok|^deanery|Connection|banner|kex_exchange|Authenticated|closed|refused|timed out" | head -8
+    interface: utun4
+    debug1: Connection established.
+    kex_exchange_identification: Connection closed by remote host
+    Connection closed by 136.148.83.222 port 22
+  ── Thought for 2s
+    The connection is being closed by the remote side before the SSH banner arrives, which is the same symptom I saw with the old server when VPN interception was the cause. This time traffic is routed through utun4 with the VPN on, and it worked through the VPN earlier today, so I'm wondering whether the VPN exit can no longer reach the server, or whether the server is throttling or dropping connections, possibly sshd's MaxStartups limit under brute-force attempts.
+
+    Since the VPN route is the common factor, I'm considering whether the server is rate-limiting with sshd's MaxStartups under brute-force traffic, or whether the hosting provider's anti-DDoS is dropping the connection. Before I settle on a diagnosis, I'll retry a few times with short delays.
+  ── Ran for i in 1 2 3 4; do r=$(ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 'echo ok' 2>&1 | tail -1); echo "$i: $r"; [ "$r" = ok ] && break; sleep 8; done; /usr/bin/nc -vz -G 5 136.148.83.222 47321 2>&1 | tail -1 (Outside of sandbox) (16s)
+    $ for i in 1 2 3 4; do r=$(ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 'echo ok' 2>&1 | tail -1); echo "$i: $r"; [ "$r" = ok ] && break; sleep 8; done; /usr/bin/nc -vz -G 5 136.148.83.222 47321 2>&1 | tail -1
+    1: Connection closed by 136.148.83.222 port 22
+    2: ok
+    Connection to 136.148.83.222 port 47321 [tcp/*] succeeded!
+  ── Thought for 11ms
+    A port 47321 check that "succeeded" points to the VPN intercepting the connection, since ufw would otherwise drop it. That suggests the intermittent failures are on the VPN side, and the connection works on a retry. I'll proceed, but I want to check DNS from the server and the sshd MaxStartups setting in the logs to confirm.
+
+── Assistant ───────────────────────────────────────────────
+Тесты TASK-015-FIX идут. Пока проверяю домен с сервера. SSH один раз оборвался, со второй попытки вошёл.
+
+── Running 3 commands ──────────────────────────────────────
+  ── Ran ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 'getent hosts digital-student-services.ru || echo "no A record yet"; journalctl -u ssh --since "-15min" --no-pager -q | grep -c -i "maxstartups\|drop connection"; journalctl -u ssh --since "-15min" --no-pager -q | grep -oE "from [0-9.]+" | sort | uniq -c | sort -rn | head -3' 2>&1 (Outside of sandbox) (5s)
+    $ ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 'getent hosts digital-student-services.ru || echo "no A record yet"; journalctl -u ssh --since "-15min" --no-pager -q | grep -c -i "maxstartups\|drop connection"; journalctl -u ssh --since "-15min" --no-pager -q | grep -oE "from [0-9.]+" | sort | uniq -c | sort -rn | head -3' 2>&1
+    no A record yet
+    0
+         65 from 222.210.35.197
+          6 from 138.68.47.164
+          2 from [IP пользователя скрыт]
+  ── Thought for 9ms
+    The drop came before the traffic reached the server, on the VPN path, not from any throttling there. That's enough to report to the user in a short note. I'll wait for the tests to finish before saying more.
+  ── Ran L=$(cat $TMPDIR/lead15fixlog); for i in $(seq 1 58); do grep -q "^midnight=" "$L" && break; sleep 10; done; grep -E "^(Ran|OK|FAILED)|=[0-9a-z-]+$|^FAIL:|^ERROR:" "$L"; TZ=Europe/Moscow date (3m 51s)
+    $ L=$(cat $TMPDIR/lead15fixlog); for i in $(seq 1 58); do grep -q "^midnight=" "$L" && break; sleep 10; done; grep -E "^(Ran|OK|FAILED)|=[0-9a-z-]+$|^FAIL:|^ERROR:" "$L"; TZ=Europe/Moscow date
+    deploy-check=0
+    makemigrations=0
+    ruff=0
+    bash-n=0
+    Ran 1141 tests in 77.737s
+    OK
+    parallel1=0
+    Ran 1141 tests in 77.839s
+    OK
+    parallel2=0
+    Ran 1141 tests in 153.641s
+    OK
+    midnight=0
+    Fri Nov 20 02:09:12 MSK 2026
+  ── Running .venv/bin/python - <<'EOF' p='CHANGELOG.md' s=open(p,encoding='utf-8').read() anchor='## 2026-11-20\n### TASK-015:' entry='''## 2026-11-20 ### TASK-015-FIX: стабильный тест демо-заявок; резервная копия из любой папки - `test_idempotent` проверяет только файлы демо-заявок, а не всю общую временную папку параллельных процессов; повторный запуск `seed_petitions_demo` не сохраняет новых файлов (проверка вызовов). - `deploy/backup.sh` начинает работу с `cd /`: ручной запуск из любой папки (например, `/root`) больше не падает на `find`. - Исполнитель — Кодер на DeepSeek. Ревью: 1 раунд, без замечаний; у Ревьюера 4 параллельных прогона, у тимлида 2 параллельных и прогон на границе полуночи — без сбоев. Всего тестов: 1141. ### TASK-015:''' assert s.count(anchor)==1 s=s.replace(anchor, entry) open(p,'w',encoding='utf-8').write(s) p='plan.md' s=open(p,encoding='utf-8').read() row=[l for l in s.split('\n') if l.startswith('| TASK-015-FIX |')][0] assert row.endswith('| В работе |') s=s.replace(row, row[:-len('| В работе |')]+'| Готово |') s=s.replace('TASK-015 закрыта 20.11, код отправлен на GitHub. TASK-015-FIX в работе.','TASK-015 и TASK-015-FIX закрыты 20.11, код на GitHub и на сервере.') open(p,'w',encoding='utf-8').write(s) EOF O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)     t=t.replace('[id скрыт]','[id скрыт]')     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     t=t.replace('[IP пользователя скрыт]','[IP пользователя скрыт]')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~','[IP пользователя скрыт]') if k in t]     assert not bad,(f,bad)     assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f     assert not re.search(r'Demo-[0-9a-f]{12}',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF rm -rf "$O"
+    $ .venv/bin/python - <<'EOF'
+  p='CHANGELOG.md'
+  s=open(p,encoding='utf-8').read()
+  anchor='## 2026-11-20\n### TASK-015:'
+  entry='''## 2026-11-20
+  ### TASK-015-FIX: стабильный тест демо-заявок; резервная копия из любой папки
+  - `test_idempotent` проверяет только файлы демо-заявок, а не всю общую временную папку параллельных процессов; повторный запуск `seed_petitions_demo` не сохраняет новых файлов (проверка вызовов).
+  - `deploy/backup.sh` начинает работу с `cd /`: ручной запуск из любой папки (например, `/root`) больше не падает на `find`.
+  - Исполнитель — Кодер на DeepSeek. Ревью: 1 раунд, без замечаний; у Ревьюера 4 параллельных прогона, у тимлида 2 параллельных и прогон на границе полуночи — без сбоев. Всего тестов: 1141.
+
+  ### TASK-015:'''
+  assert s.count(anchor)==1
+  s=s.replace(anchor, entry)
+  open(p,'w',encoding='utf-8').write(s)
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  row=[l for l in s.split('\n') if l.startswith('| TASK-015-FIX |')][0]
+  assert row.endswith('| В работе |')
+  s=s.replace(row, row[:-len('| В работе |')]+'| Готово |')
+  s=s.replace('TASK-015 закрыта 20.11, код отправлен на GitHub. TASK-015-FIX в работе.','TASK-015 и TASK-015-FIX закрыты 20.11, код на GitHub и на сервере.')
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF'
+  import os,re,sys
+  d=sys.argv[1]; out='docs/process/dialogs'
+  for f in sorted(os.listdir(d)):
+      t=open(os.path.join(d,f),encoding='utf-8').read()
+      t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)
+      t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)
+      t=t.replace('[id скрыт]','[id скрыт]')
+      t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')
+      t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)
+      t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')
+      t=t.replace('[IP пользователя скрыт]','[IP пользователя скрыт]')
+      bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~','[IP пользователя скрыт]') if k in t]
+      assert not bad,(f,bad)
+      assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f
+      assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f
+      assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f
+      assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f
+      assert not re.search(r'Demo-[0-9a-f]{12}',t),f
+      open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
+  EOF
+  rm -rf "$O"

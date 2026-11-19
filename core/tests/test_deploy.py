@@ -301,6 +301,15 @@ class ShellScriptTests(SimpleTestCase):
         ):
             self.assertIn(fragment, backup)
 
+    def test_backup_runs_from_root_directory(self):
+        # TASK-015-FIX: "sudo -u <APP_USER> backup.sh" from /root failed in find.
+        lines = [line.strip() for line in _read(BACKUP_SH).splitlines()]
+        self.assertIn("cd /", lines)
+        cd_index = lines.index("cd /")
+        for command in ("pg_dump", "tar -czf", "find "):
+            first = next(i for i, line in enumerate(lines) if line.startswith(command))
+            self.assertLess(cd_index, first, command)
+
     def test_manage_uses_env_file(self):
         manage = _read(MANAGE_SH)
         self.assertIn(". /etc/deanery/deanery.env", manage)
