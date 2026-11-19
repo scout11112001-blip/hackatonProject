@@ -10,8 +10,10 @@ from django.db import models
 from core.clock import now
 from core.storage import get_private_storage
 from petitions.files import attachment_upload_to
+from petitions.terms import term_label
 
 MAX_COMMENT_LENGTH = 2000
+SUBJECT_MAX_LENGTH = 150
 
 
 class RequestKind(models.TextChoices):
@@ -41,6 +43,7 @@ class RequestType(models.Model):
     comment_hint = models.CharField(
         "подсказка к комментарию", max_length=255, blank=True, default=""
     )
+    subject_required = models.BooleanField("нужно поле «Тип»", default=False)
     is_active = models.BooleanField("доступна для подачи", default=True)
 
     class Meta:
@@ -49,7 +52,11 @@ class RequestType(models.Model):
             models.CheckConstraint(
                 condition=models.Q(processing_days__gte=1) & models.Q(processing_days__lte=60),
                 name="petitions_type_days_1_60",
-            )
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(subject_required=True, comment_required=False),
+                name="petitions_type_subject_needs_comment",
+            ),
         ]
         verbose_name = "вид заявки"
         verbose_name_plural = "виды заявок"
@@ -57,10 +64,18 @@ class RequestType(models.Model):
     def __str__(self) -> str:
         return self.name
 
+    @property
+    def term_label(self) -> str:
+        return term_label(self.processing_days)
+
     def clean(self):
         super().clean()
         if self.comment_required and not self.comment_hint:
             raise ValidationError("Для обязательного комментария заполните подсказку.")
+        if self.subject_required and not self.comment_required:
+            raise ValidationError(
+                "Если нужно поле «Тип», комментарий тоже должен быть обязательным."
+            )
 
 
 class Petition(models.Model):
@@ -74,6 +89,7 @@ class Petition(models.Model):
     request_type = models.ForeignKey(
         RequestType, on_delete=models.PROTECT, related_name="petitions", verbose_name="вид заявки"
     )
+    subject = models.CharField("тип", max_length=SUBJECT_MAX_LENGTH, blank=True, default="")
     comment = models.TextField("комментарий", blank=True, default="", max_length=MAX_COMMENT_LENGTH)
     status = models.CharField(
         "статус", max_length=16, choices=PetitionStatus.choices, default=PetitionStatus.SUBMITTED
@@ -103,6 +119,12 @@ class Petition(models.Model):
 
     def __str__(self) -> str:
         return f"{self.request_type} — {self.student} ({self.get_status_display()})"
+
+    @property
+    def display_name(self) -> str:
+        if self.subject:
+            return f"{self.request_type.name}: {self.subject}"
+        return self.request_type.name
 
     @property
     def short_id(self) -> str:

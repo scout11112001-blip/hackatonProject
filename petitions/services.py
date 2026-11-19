@@ -13,6 +13,7 @@ from core.storage import get_private_storage
 from petitions.files import store_attachment, validate_attachments
 from petitions.models import (
     MAX_COMMENT_LENGTH,
+    SUBJECT_MAX_LENGTH,
     Petition,
     PetitionComment,
     PetitionStatus,
@@ -56,8 +57,10 @@ def submit_petition(
     request_type: object,
     comment: str,
     uploads: list,
+    subject: str = "",
 ) -> Petition:
     comment = (comment or "").strip()
+    subject = " ".join((subject or "").split()) if request_type.subject_required else ""
     errors: list[str] = []
     if not request_type.is_active:
         errors.append("Этот вид заявки сейчас недоступен.")
@@ -65,6 +68,10 @@ def submit_petition(
         errors.append("Комментарий слишком длинный.")
     if request_type.comment_required and not comment:
         errors.append("Для этой заявки комментарий обязателен.")
+    if request_type.subject_required and not subject:
+        errors.append("Укажите, что именно нужно.")
+    if len(subject) > SUBJECT_MAX_LENGTH:
+        errors.append("Поле «Тип» слишком длинное.")
     try:
         validate_attachments(uploads)
     except ValidationError as exc:
@@ -88,6 +95,7 @@ def submit_petition(
             petition = Petition.objects.create(
                 student=student,
                 request_type=request_type,
+                subject=subject,
                 comment=comment,
                 status=SUBMITTED,
                 created_at=now,

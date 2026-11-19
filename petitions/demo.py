@@ -38,6 +38,7 @@ REQUEST_TYPES = [
         False,
         "Можно указать, куда нужна справка.",
         "Справка, подтверждающая факт обучения в университете.",
+        False,
     ),
     (
         "Справка для стипендиального отдела",
@@ -46,6 +47,7 @@ REQUEST_TYPES = [
         True,
         "Обязательно укажите причину обращения.",
         "Справка для оформления стипендий и иных выплат.",
+        False,
     ),
     (
         "Заявление на повторную промежуточную аттестацию",
@@ -54,6 +56,7 @@ REQUEST_TYPES = [
         True,
         "Обязательно укажите причину обращения.",
         "Заявление о повторной сдаче промежуточной аттестации.",
+        False,
     ),
     (
         "Заявление на академический отпуск",
@@ -62,6 +65,34 @@ REQUEST_TYPES = [
         True,
         "Обязательно укажите причину обращения.",
         "Заявление о предоставлении академического отпуска.",
+        False,
+    ),
+    (
+        "Справка в военкомат",
+        "certificate",
+        3,
+        True,
+        "Укажите военкомат.",
+        "Справка для военного комиссариата.",
+        False,
+    ),
+    (
+        "Другая справка",
+        "certificate",
+        5,
+        True,
+        "Опишите, что нужно и для чего.",
+        "Если нужной справки нет в списке.",
+        True,
+    ),
+    (
+        "Другое заявление",
+        "application",
+        5,
+        True,
+        "Опишите, что нужно и для чего.",
+        "Если нужного заявления нет в списке.",
+        True,
     ),
 ]
 
@@ -130,13 +161,22 @@ PETITIONS = [
         "comment": "Для назначения социальной стипендии.",
         "staff_comment": ("staff2", "Проверяем данные о стипендии."),
     },
+    {
+        "seed_key": "p-8",
+        "student": "student1",
+        "type": "Другая справка",
+        "subject": "Справка о периоде обучения",
+        "age": 3,
+        "path": ["submitted", "in_progress"],
+        "comment": "Нужна для оформления визы, с указанием дат начала и окончания обучения.",
+    },
 ]
 
 
 def seed_petitions_demo(today: date) -> PetitionsSeedSummary:
     with transaction.atomic():
         types = {}
-        for name, kind, days, required, hint, description in REQUEST_TYPES:
+        for name, kind, days, required, hint, description, subject_required in REQUEST_TYPES:
             types[name], _ = RequestType.objects.update_or_create(
                 name=name,
                 defaults={
@@ -145,6 +185,7 @@ def seed_petitions_demo(today: date) -> PetitionsSeedSummary:
                     "comment_required": required,
                     "comment_hint": hint,
                     "description": description,
+                    "subject_required": subject_required,
                     "is_active": True,
                 },
             )
@@ -173,6 +214,7 @@ def seed_petitions_demo(today: date) -> PetitionsSeedSummary:
             petition = Petition.objects.create(
                 student=student,
                 request_type=rtype,
+                subject=seed.get("subject", ""),
                 comment=seed["comment"],
                 status=path[-1],
                 created_at=created_at,

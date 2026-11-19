@@ -608,3 +608,213 @@ class QueryCountTests(FrozenClockMixin, TestCase):
         for i in range(5):
             store_attachment(self.petition, ContentFile(b"%PDF-1.4\n%%EOF"), f"f{i}.pdf", 12)
         self.assertEqual(self._num_queries(url), n1)
+
+    def test_lists_constant_with_subject(self):
+        catch_all = make_type(
+            name="Другая справка", days=5, comment_required=True, hint="h", subject_required=True
+        )
+        self.client.force_login(self.student.user)
+        url = reverse("petitions:my_list")
+        n1 = self._num_queries(url)
+        for _ in range(5):
+            p = make_petition(self.student, catch_all)
+            p.subject = "Справка о периоде"
+            p.save(update_fields=["subject"])
+        self.assertEqual(self._num_queries(url), n1)
+
+        self.client.force_login(self.staff)
+        url2 = reverse("petitions:staff_queue")
+        n2 = self._num_queries(url2)
+        for _ in range(5):
+            p = make_petition(self.student, catch_all)
+            p.subject = "Справка о периоде"
+            p.save(update_fields=["subject"])
+        self.assertEqual(self._num_queries(url2), n2)
+
+
+class SubjectFormTests(FrozenClockMixin, TestCase):
+    def setUp(self):
+        self.fac = make_faculty("FX")
+        self.group = make_group(self.fac, "GX")
+        self.student = make_student("a", self.group, "SA").student_profile
+        self.catch_all = make_type(
+            name="Другая справка",
+            days=5,
+            comment_required=True,
+            hint="Опишите, что нужно и для чего.",
+            subject_required=True,
+        )
+        self.military = make_type(
+            name="Справка в военкомат", comment_required=True, hint="Укажите военкомат."
+        )
+        self.ordinary = make_type()
+        self.client.force_login(self.student.user)
+
+    def test_field_shown_only_with_flag(self):
+        catch_url = reverse("petitions:submit", args=[self.catch_all.pk])
+        content = self.client.get(catch_url).content.decode()
+        self.assertIn('name="subject"', content)
+        self.assertIn('maxlength="150"', content)
+        self.assertIn("Тип", content)
+        self.assertLess(content.index('name="subject"'), content.index('name="comment"'))
+
+        for t in (self.ordinary, self.military):
+            url = reverse("petitions:submit", args=[t.pk])
+            content = self.client.get(url).content.decode()
+            self.assertNotIn('name="subject"', content)
+
+    def test_subject_required_errors(self):
+        url = reverse("petitions:submit", args=[self.catch_all.pk])
+        for subject in ("", "   "):
+            with self.subTest(subject=subject):
+                resp = self.client.post(url, {"subject": subject, "comment": "к"})
+                self.assertEqual(resp.status_code, 200)
+                self.assertIn("Укажите, что именно нужно.", resp.content.decode())
+                self.assertEqual(Petition.objects.count(), 0)
+        with self.subTest(subject="151"):
+            resp = self.client.post(url, {"subject": "а" * 151, "comment": "к"})
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("errorlist", resp.content.decode())
+            self.assertEqual(Petition.objects.count(), 0)
+
+    def test_subject_150_ok_and_normalised(self):
+        url = reverse("petitions:submit", args=[self.catch_all.pk])
+        resp = self.client.post(url, {"subject": "  " + "а" * 150 + "  ", "comment": "к"})
+        self.assertEqual(resp.status_code, 302)
+        petition = Petition.objects.get()
+        self.assertEqual(len(petition.subject), 150)
+        self.assertEqual(petition.subject, "а" * 150)
+        self.assertIn("submitted", resp["Location"])
+
+    def test_comment_required_for_catch_all(self):
+        url = reverse("petitions:submit", args=[self.catch_all.pk])
+        resp = self.client.post(url, {"subject": "Справка о периоде обучения", "comment": ""})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("Обязательное поле.", resp.content.decode())
+        self.assertEqual(Petition.objects.count(), 0)
+
+    def test_military_comment_required(self):
+        url = reverse("petitions:submit", args=[self.military.pk])
+        get_content = self.client.get(url).content.decode()
+        self.assertIn("Укажите военкомат.", get_content)
+        resp = self.client.post(url, {"comment": ""})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("Обязательное поле.", resp.content.decode())
+        self.assertEqual(Petition.objects.count(), 0)
+
+    def test_subject_ignored_for_other_types(self):
+        url = reverse("petitions:submit", args=[self.ordinary.pk])
+        resp = self.client.post(url, {"subject": "X", "comment": ""})
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(Petition.objects.get().subject, "")
+
+
+class CatalogTermTests(TestCase):
+    def setUp(self):
+        self.fac = make_faculty("FX")
+        self.group = make_group(self.fac, "GX")
+        self.student = make_student("a", self.group, "SA").student_profile
+        self.client.force_login(self.student.user)
+
+    def test_term_wording(self):
+        for days in (1, 3, 5, 21):
+            make_type(name=f"Тип {days}", days=days)
+        content = self.client.get(reverse("petitions:catalog")).content.decode()
+        self.assertIn("Срок: до 1 рабочего дня", content)
+        self.assertIn("Срок: до 3 рабочих дней", content)
+        self.assertIn("Срок: до 5 рабочих дней", content)
+        self.assertIn("Срок: до 21 рабочего дня", content)
+        self.assertNotIn("раб. дн.", content)
+
+    def test_catch_all_last(self):
+        make_type(name="Справка об обучении", kind="certificate", days=3)
+        make_type(
+            name="Другая справка",
+            kind="certificate",
+            days=5,
+            comment_required=True,
+            hint="h",
+            subject_required=True,
+        )
+        make_type(name="Заявление об отпуске", kind="application", days=10)
+        make_type(
+            name="Другое заявление",
+            kind="application",
+            days=5,
+            comment_required=True,
+            hint="h",
+            subject_required=True,
+        )
+        content = self.client.get(reverse("petitions:catalog")).content.decode()
+        self.assertLess(content.index("Справка об обучении"), content.index("Другая справка"))
+        self.assertLess(content.index("Заявление об отпуске"), content.index("Другое заявление"))
+
+
+class SubjectDisplayTests(FrozenClockMixin, TestCase):
+    def setUp(self):
+        self.fac = make_faculty("FX")
+        self.fac_y = make_faculty("FY")
+        self.group = make_group(self.fac, "GX")
+        self.group_y = make_group(self.fac_y, "GY")
+        self.student = make_student("a", self.group, "SA").student_profile
+        self.student_b = make_student("b", self.group_y, "SB").student_profile
+        self.staff = make_staff("sx", self.fac)
+        self.catch_all = make_type(
+            name="Другая справка",
+            days=5,
+            comment_required=True,
+            hint="h",
+            subject_required=True,
+        )
+        self.petition = make_petition(self.student, self.catch_all)
+        self.petition.subject = "Справка <b>о периоде</b>"
+        self.petition.save(update_fields=["subject"])
+        self.escaped = "Другая справка: Справка &lt;b&gt;о периоде&lt;/b&gt;"
+
+    def test_student_list_and_detail(self):
+        self.client.force_login(self.student.user)
+        content = self.client.get(reverse("petitions:my_list")).content.decode()
+        self.assertIn(self.escaped, content)
+        self.assertNotIn("<b>о периоде</b>", content)
+        detail = self.client.get(
+            reverse("petitions:detail", args=[self.petition.public_id])
+        ).content.decode()
+        self.assertIn(self.escaped, detail)
+        self.assertNotIn("<b>о периоде</b>", detail)
+
+    def test_staff_queue_and_detail(self):
+        self.client.force_login(self.staff)
+        queue = self.client.get(reverse("petitions:staff_queue")).content.decode()
+        self.assertIn(self.escaped, queue)
+        detail = self.client.get(
+            reverse("petitions:staff_detail", args=[self.petition.public_id])
+        ).content.decode()
+        self.assertIn(self.escaped, detail)
+
+    def test_submitted_page(self):
+        self.client.force_login(self.student.user)
+        url = reverse("petitions:submit", args=[self.catch_all.pk])
+        resp = self.client.post(url, {"subject": "Справка о периоде", "comment": "к"})
+        self.assertEqual(resp.status_code, 302)
+        submitted = self.client.get(resp["Location"])
+        self.assertIn("Другая справка: Справка о периоде", submitted.content.decode())
+
+    def test_other_student_cannot_see_subject(self):
+        self.client.force_login(self.student_b.user)
+        self.assertEqual(
+            self.client.get(
+                reverse("petitions:detail", args=[self.petition.public_id])
+            ).status_code,
+            404,
+        )
+        content = self.client.get(reverse("petitions:my_list")).content.decode()
+        self.assertNotIn("Справка &lt;b&gt;о периоде&lt;/b&gt;", content)
+        self.assertNotIn(str(self.petition.short_id), content)
+
+    def test_plain_type_unchanged(self):
+        plain = make_type(name="Справка об обучении")
+        make_petition(self.student, plain)
+        self.client.force_login(self.student.user)
+        content = self.client.get(reverse("petitions:my_list")).content.decode()
+        self.assertIn("Справка об обучении", content)
+        self.assertNotIn("Справка об обучении:", content)

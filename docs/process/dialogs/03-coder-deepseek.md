@@ -88417,3 +88417,4381 @@ TASK-013-FIX реализована по спецификации (F1–F5) и �
 - `ruff check .` / `ruff format --check` / `check --deploy` — чисто.
 
 Жду вердикт Ревьюера.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_2imsg4kck2]
+
+[TASK-014] Planner -> Coder: TASK
+Spec: docs/tasks/TASK-014.md (exact code in F1-F8).
+Summary:
+- New RequestType.subject_required (+ clean() rule and DB constraint: it needs comment_required) and Petition.subject (max 150). Migration petitions/0003_subject.
+- PetitionForm gets a required "Тип" field only for flagged types, normalised to one line. submit_petition(..., subject="") validates it again and ignores it for other types. Petition.display_name ("Другая справка: <Тип>") is used in my_list, detail, staff_queue, staff_detail and submitted.
+- Term wording: petitions/terms.py term_label() -> "до N рабочих дней" / "до 1 (21, 31…) рабочего дня" via RequestType.term_label in catalog.html. Catch-all types are last in the catalog.
+- Seeds: 3 new types (7 total) and demo request p-8 "Другая справка: Справка о периоде обучения" for student1. Update test_types_exact and test_command_output; add the tests listed in the Test plan.
+Baseline on the clean tree (HEAD ca9f30b): 1095 tests OK (2026-11-19 ~02:28 MSK). Prototype: only test_types_exact failed (expected). Never touch db.sqlite3 or private_media/.
+
+── Worked for (10h 46m 53s) ────────────────────────────────
+  ── Ran 14 tools, explored 1 list, 1 search, ran 4 commands, edited 11 files
+    ── Read file read
+      # TASK-014: New request types, the "Тип" field, term wording "до N рабочих дней"
+
+      Assignee: **Coder** (DeepSeek, thr_ng6cbgatm6). Request: Team lead, approved by the user (decisions of 18.11).
+
+      ## Goal
+
+      1. Add the certificate type "Справка в военкомат" (comment required, hint "Укажите военкомат.", 3 days).
+      2. Add two catch-all types "Другая справка" (certificate) and "Другое заявление" (application), 5 days each. For them the student must fill a one-line field "Тип" (what exactly is needed, ≤ 150 characters) and a comment.
+      3. Show the term as a maximum for every type: "Срок: до N рабочих дней" with the correct Russian form.
+      4. Show "Тип" as "Другая справка: <Тип>" / "Другое заявление: <Тип>" in the student's list and detail, the staff queue and detail, and the "Заявка подана" page.
+
+      ## Acceptance criteria
+
+      - AC1. `RequestType.subject_required` (bool, default False) exists, is editable in the admin and shown in the admin list. A type with `subject_required=True` must have `comment_required=True`: `RequestType.clean()` raises a `ValidationError` and a DB check constraint `petitions_type_subject_needs_comment` forbids the combination.
+      - AC2. `Petition.subject` (`CharField`, max 150, blank, default "") exists. It is empty for every type without the flag (the form has no such field and the service ignores any value).
+      - AC3. The submit form of a type with the flag shows a required one-line field "Тип" before "Комментарий". An empty value, spaces only, or more than 150 characters (after trimming) is an error; leading/trailing spaces are removed and inner runs of whitespace (including newlines and tabs) become one space. The comment is required with the type's hint. Types without the flag do not render the field (`name="subject"` absent).
+      - AC4. `submit_petition(..., subject="")` validates the same rules (defence in depth) and stores the normalised subject.
+      - AC5. The catalog shows "Срок: до N рабочих дней" for every type: N with `N % 10 == 1 and N % 100 != 11` → "до N рабочего дня" (1, 21, 31, 41, 51); otherwise "до N рабочих дней" (3, 5, 11, 12, 15, 60…). The string "раб. дн." no longer appears in any template. Within each catalog section the catch-all type is last.
+      - AC6. `Petition.display_name` is "<type name>: <subject>" when the subject is not empty, otherwise the type name. It is used in: `my_list.html` (link text), `detail.html` (`h1`), `staff_queue.html` (item), `staff_detail.html` (the "Заявка" paragraph), `submitted.html`. Django autoescaping stays on (no `|safe`). Long values wrap at 360 px (no horizontal scroll).
+      - AC7. `seed_demo` creates the 3 new types (7 in total), stays idempotent (run twice), keeps the 7 existing demo requests valid, and creates one demo request `p-8` of "Другая справка" with subject "Справка о периоде обучения" for `student1`. Seed output: "Requests ready: 7 types, …".
+      - AC8. Access rules and the query counts of the lists and details are unchanged.
+
+      ## Out of scope
+
+      - New workflow or statuses, file rules, visual redesign, new CSS.
+      - The notifications feed titles ("Заявка «…»") keep the type name only (the user listed the five pages above).
+      - Editing the subject after submission.
+
+      ## Design decisions
+
+      - **D1. Names.** Field `RequestType.subject_required` ("нужно поле «Тип»"), field `Petition.subject` ("тип"), constant `SUBJECT_MAX_LENGTH = 150` in `petitions/models.py`, form field label "Тип".
+      - **D2. Term wording** lives in a small pure module `petitions/terms.py` (`term_label(days)`) and is exposed as `RequestType.term_label` (property), so templates need no custom tag. "до" takes the genitive: singular "рабочего дня" for 1, 21, 31…, plural "рабочих дней" otherwise (including 11).
+      - **D3. Display.** One property `Petition.display_name`, used by every template. No new query: `petitions_visible_to` already `select_related("request_type")`; `submitted.html` uses the same queryset.
+      - **D4. Normalisation.** `" ".join(value.split())` in both the form and the service: one line, no leading/trailing or repeated whitespace. Max length is checked on the normalised value in the service and on the stripped value in the form (Django `CharField` strips before `MaxLengthValidator`); test both 150 (OK) and 151 (error).
+      - **D5. Catalog order.** `RequestType.objects.filter(is_active=True).order_by("subject_required", "name")`, so the catch-all types come last in their section.
+      - **D6. Seeds.** `REQUEST_TYPES` tuples get a 7th element `subject_required`; the 3 new tuples are appended at the end of the list. The seed upserts by name (existing behaviour), so a second run changes nothing. The 7 existing demo requests are never updated (existing rule) and keep `subject=""`.
+
+      ## Architecture / files
+
+      - `petitions/terms.py` (new): F1.
+      - `petitions/models.py`: `SUBJECT_MAX_LENGTH`, `RequestType.subject_required`, the new check constraint, `RequestType.clean()` rule, `RequestType.term_label`, `Petition.subject`, `Petition.display_name` (F2).
+      - `petitions/migrations/0003_subject.py` (new): `python manage.py makemigrations petitions --name subject` (F3).
+      - `petitions/forms.py`: `PetitionForm.subject` (F4).
+      - `petitions/services.py`: `submit_petition(..., subject: str = "")` (F5).
+      - `petitions/views.py`: `SubmitPetitionView.form_valid` passes `subject`; `CatalogView` order (F6).
+      - `petitions/admin.py`: `RequestTypeAdmin.list_display` adds `"subject_required"`; `PetitionAdmin.list_display` adds `"subject"` after `"request_type"`.
+      - Templates: `catalog.html`, `my_list.html`, `detail.html`, `staff_queue.html`, `staff_detail.html`, `submitted.html` (F7).
+      - `petitions/demo.py`: F8.
+      - `petitions/tests/helpers.py`: `make_type(..., subject_required=False)` (new keyword, passed to `create`).
+      - Tests: see the Test plan.
+      - `README.md` "## Requests": one paragraph: the 7 request types, the "Тип" field for "Другая справка"/"Другое заявление", the term shown as "до N рабочих дней".
+
+      ## Functions
+
+      ### F1. `petitions/terms.py`
+
+      ```python
+      """Russian wording of processing terms."""
+
+
+      def term_label(days: int) -> str:
+          if days % 10 == 1 and days % 100 != 11:
+              return f"до {days} рабочего дня"
+          return f"до {days} рабочих дней"
+      ```
+      Input: 1–60 (the model limits it). Tests T-F1.
+
+      ### F2. `petitions/models.py`
+
+      - After `MAX_COMMENT_LENGTH = 2000` add `SUBJECT_MAX_LENGTH = 150`. Import `from petitions.terms import term_label` (with the other imports).
+      - `RequestType`: after `comment_hint` add
+        `subject_required = models.BooleanField("нужно поле «Тип»", default=False)`.
+      - `RequestType.Meta.constraints`: append
+        ```python
+        models.CheckConstraint(
+            condition=~models.Q(subject_required=True, comment_required=False),
+            name="petitions_type_subject_needs_comment",
+        ),
+        ```
+      - `RequestType.clean()`: after the existing check add
+        ```python
+        if self.subject_required and not self.comment_required:
+            raise ValidationError(
+                "Если нужно поле «Тип», комментарий тоже должен быть обязательным."
+            )
+        ```
+      - `RequestType.term_label` property: `return term_label(self.processing_days)`.
+      - `Petition`: before `comment` add
+        `subject = models.CharField("тип", max_length=SUBJECT_MAX_LENGTH, blank=True, default="")`.
+      - `Petition.display_name` property (above `short_id`):
+        ```python
+        @property
+        def display_name(self) -> str:
+            if self.subject:
+                return f"{self.request_type.name}: {self.subject}"
+            return self.request_type.name
+        ```
+
+      ### F3. Migration `petitions/0003_subject`
+
+      Expected operations (prototype): `AddField petition.subject`, `AddField requesttype.subject_required`, `AddConstraint petitions_type_subject_needs_comment`; dependency `0002_alter_petition_created_at_and_more`. Existing rows get `subject=""`, `subject_required=False` (constraint holds). Run `ruff format` on this file only.
+
+      ### F4. `petitions/forms.py` `PetitionForm`
+
+      - Import `SUBJECT_MAX_LENGTH`.
+      - First field of the class (before `comment`):
+        ```python
+        subject = forms.CharField(
+            label="Тип",
+            max_length=SUBJECT_MAX_LENGTH,
+            help_text="Что именно нужно, например: «Справка о периоде обучения».",
+            error_messages={"required": "Укажите, что именно нужно."},
+        )
+        ```
+      - In `__init__`, after the comment settings: `if not request_type.subject_required: del self.fields["subject"]`.
+      - New method:
+        ```python
+        def clean_subject(self):
+            subject = " ".join((self.cleaned_data.get("subject") or "").split())
+            if not subject:
+                raise forms.ValidationError("Укажите, что именно нужно.")
+            return subject
+        ```
+        (Django calls `clean_subject` only if the field exists.)
+
+      ### F5. `petitions/services.py` `submit_petition`
+
+      - New keyword parameter at the end: `subject: str = ""` (all existing callers keep working).
+      - After `comment = …`: `subject = " ".join((subject or "").split()) if request_type.subject_required else ""`.
+      - In the error block, after the comment check:
+        ```python
+        if request_type.subject_required and not subject:
+            errors.append("Укажите, что именно нужно.")
+        if len(subject) > SUBJECT_MAX_LENGTH:
+            errors.append("Поле «Тип» слишком длинное.")
+        ```
+      - `Petition.objects.create(..., subject=subject, ...)`. Import `SUBJECT_MAX_LENGTH`.
+
+      ### F6. `petitions/views.py`
+
+      - `SubmitPetitionView.form_valid`: add `subject=form.cleaned_data.get("subject", ""),` to the `submit_petition` call.
+      - `CatalogView.get_context_data`: `types = RequestType.objects.filter(is_active=True).order_by("subject_required", "name")`.
+
+      ### F7. Templates
+
+      - `catalog.html` (both sections): `· Срок: {{ type.processing_days }} раб. дн.` → `· Срок: {{ type.term_label }}`.
+      - `my_list.html`: link text `{{ petition.request_type.name }}` → `{{ petition.display_name }}`.
+      - `detail.html`: `<h1>{{ petition.request_type.name }}</h1>` → `<h1>{{ petition.display_name }}</h1>`.
+      - `staff_queue.html`: `· {{ petition.request_type.name }}` → `· {{ petition.display_name }}`.
+      - `staff_detail.html`: `<p>{{ petition.request_type.name }}</p>` → `<p>{{ petition.display_name }}</p>`.
+      - `submitted.html`: `<p>{{ petition.request_type.name }}</p>` → `<p>{{ petition.display_name }}</p>`.
+      - `form.html`: unchanged (`{{ form.as_p }}` renders the new field first).
+      - Nothing else changes (no CSS: `body { overflow-wrap: anywhere; }` already wraps long values).
+
+      ### F8. `petitions/demo.py`
+
+      - Add a 7th element `False` to each of the 4 existing `REQUEST_TYPES` tuples, then append:
+        ```python
+        ("Справка в военкомат", "certificate", 3, True, "Укажите военкомат.",
+         "Справка для военного комиссариата.", False),
+        ("Другая справка", "certificate", 5, True, "Опишите, что нужно и для чего.",
+         "Если нужной справки нет в списке.", True),
+        ("Другое заявление", "application", 5, True, "Опишите, что нужно и для чего.",
+         "Если нужного заявления нет в списке.", True),
+        ```
+        (format with ruff).
+      - Loop: `for name, kind, days, required, hint, description, subject_required in REQUEST_TYPES:` and add `"subject_required": subject_required` to `defaults`.
+      - Append to `PETITIONS`:
+        ```python
+        {
+            "seed_key": "p-8",
+            "student": "student1",
+            "type": "Другая справка",
+            "subject": "Справка о периоде обучения",
+            "age": 3,
+            "path": ["submitted", "in_progress"],
+            "comment": "Нужна для оформления визы, с указанием дат начала и окончания обучения.",
+        },
+        ```
+      - In `Petition.objects.create(...)` add `subject=seed.get("subject", ""),`.
+      - Update the module docstring if it states the number of types (it does not today).
+
+      ## Feasibility check
+
+      1. Clean starting point: re-checked on 2026-11-19 ~02:30 MSK after the TASK-013-FIX2 commit `ca9f30b`: `git status --short` shows only `?? docs/tasks/TASK-014.md`. The commits since the prototype (`8f469b2..ca9f30b`) touch no `petitions` file.
+      2. Referenced objects exist: `petitions/models.py` (`RequestType` with `comment_required`, `comment_hint`, `clean()`, constraint `petitions_type_days_1_60`; `Petition.comment`, `short_id`; `MAX_COMMENT_LENGTH`), `petitions/forms.py:PetitionForm` (`__init__(*, request_type)`, `clean_comment`), `petitions/services.py:submit_petition(student, request_type, comment, uploads)` (22 call sites in code and tests use 4 positional args), `petitions/views.py` (`CatalogView`, `SubmitPetitionView.form_valid`), `petitions/selectors.py:petitions_visible_to` (`select_related("request_type", …)`), templates (`catalog.html:9,19` "раб. дн."; `my_list.html:9`, `detail.html:3`, `staff_queue.html:30`, `staff_detail.html:9`, `submitted.html:4` show `request_type.name`), `petitions/demo.py` (`REQUEST_TYPES` 6-tuples, `PETITIONS` p-1…p-7, upsert by name), `petitions/admin.py`, `petitions/tests/helpers.py:make_type`, `accounts/management/commands/seed_demo.py:61` ("Requests ready: {p.types} types…"). "раб. дн." appears only in `catalog.html`.
+      3. New names are free: `subject_required`, `subject`, `SUBJECT_MAX_LENGTH`, `display_name`, `term_label`, `petitions/terms.py`, constraint `petitions_type_subject_needs_comment`, migration `0003_subject` (latest is `0002_alter_petition_created_at_and_more`), seed key `p-8`, type names "Справка в военкомат", "Другая справка", "Другое заявление".
+      4. Data and migrations: `makemigrations --check` clean before. Prototype in a temporary copy of HEAD (`$TMPDIR/t014/proj`, 2026-11-19 ~01:47 MSK): `makemigrations petitions --name subject` produced the three operations of F3; a database seeded with HEAD code ("Requests ready: 4 types, 7 requests, 3 attachments.") migrated OK; `seed_demo` then printed "7 types, 1 requests" and on the second run "7 types, 0 requests"; 7 old requests kept `subject=""`; `p-8` showed "Другая справка: Справка о периоде обучения"; `term_label` gave "до 3/5/10/15 рабочих дней"; `makemigrations --check` clean after.
+      5. Tools: Python 3.12 `.venv`, Django 5.2.19, ruff 0.17.4. No new dependency.
+      6. Framework: `forms.CharField(strip=True)` strips before `max_length` validation; `CheckConstraint(condition=~Q(a=True, b=False))` works on SQLite and PostgreSQL (same pattern as existing constraints).
+      7. Environment: no new env variables.
+      8. Verification on the clean tree (HEAD `ca9f30b`, 2026-11-19 ~02:28 MSK): `check` (no issues), `makemigrations --check` (no changes), `ruff check .` (passed), `ruff format --check .` (190 files formatted), `python manage.py test --parallel 1`: **Ran 1095 tests, OK** (log `/tmp/claude-501/test-20261118-152758.log`). Prototype full run with all of F1–F8 on the previous HEAD (log `/tmp/claude-501/test-t014-proto-20261118-144322.log`, ~01:46 MSK): the only failure is `petitions.tests.test_demo.PetitionsDemoTests.test_types_exact` (expects 4 types) — expected, updated below. The lists' query-count tests passed unchanged.
+      9. Conflicts: none.
+      10. Assumptions / blockers: none.
+
+      ## Test plan
+
+      ### Traceability
+
+      | AC | Tests |
+      |---|---|
+      | AC1 | `petitions/tests/test_models.py::RequestTypeSubjectTests::test_clean_requires_comment`, `::test_db_constraint`, `::test_admin_shows_flag` |
+      | AC2 | `petitions/tests/test_views.py::SubjectFormTests::test_subject_ignored_for_other_types` |
+      | AC3 | `SubjectFormTests::test_field_shown_only_with_flag`, `::test_subject_required_errors` (empty, spaces only, 151), `::test_subject_150_ok_and_normalised`, `::test_comment_required_for_catch_all`, `::test_military_comment_required` |
+      | AC4 | `petitions/tests/test_services.py::SubmitSubjectTests::*` |
+      | AC5 | `petitions/tests/test_terms.py::TermLabelTests::*`; `petitions/tests/test_views.py::CatalogTermTests::*` |
+      | AC6 | `petitions/tests/test_views.py::SubjectDisplayTests::*` |
+      | AC7 | `petitions/tests/test_demo.py::PetitionsDemoTests::test_types_exact` (updated), `::test_demo_subject_request`, `::test_idempotent` (unchanged), `::test_command_output` (updated) |
+      | AC8 | existing access tests and `QueryCountTests` (unchanged) + `QueryCountTests::test_lists_constant_with_subject` |
+
+      `petitions/tests/test_models.py` and `test_terms.py` are new files if they do not exist (check first; add the classes to an existing module only if it already holds model tests).
+
+      ### Access matrix (unchanged views; existing tests cover each cell)
+
+      | Actor | catalog / form / submit | my list / detail | staff queue / detail |
+      |---|---|---|---|
+      | anonymous | 302 to login | 302 | 302 |
+      | student, own data | 200 | 200 | 403 |
+      | student, another student's petition | — | 404 (detail) | 403 |
+      | staff, own faculty | 403 | 403 | 200 |
+      | staff, other faculty | 403 | 403 | 404 (detail), not listed (queue) |
+      | superuser | 403 | 403 | 403 |
+
+      New: `SubjectDisplayTests::test_other_student_cannot_see_subject` — student B gets 404 on student A's "Другая справка" detail, and A's subject text is absent from B's list.
+
+      ### Tests (file, class, method)
+
+      `petitions/tests/test_terms.py` — `TermLabelTests(SimpleTestCase)`:
+      - `test_singular_genitive`: 1, 21, 31, 51 → "до N рабочего дня".
+      - `test_plural_genitive`: 2, 3, 4, 5, 10, 11, 12, 14, 15, 20, 22, 60 → "до N рабочих дней".
+
+      `petitions/tests/test_models.py` — `RequestTypeSubjectTests(TestCase)`:
+      - `test_clean_requires_comment`: `RequestType(name="X", kind="certificate", processing_days=5, subject_required=True, comment_required=False).full_clean()` raises; with `comment_required=True, comment_hint="h"` it passes.
+      - `test_db_constraint`: `RequestType.objects.create(..., subject_required=True, comment_required=False)` inside `transaction.atomic()` raises `IntegrityError`.
+      - `test_term_label_property`: a type with `processing_days=21` → `term_label == "до 21 рабочего дня"`.
+      - `test_display_name`: petition with subject "А" → "Справка: А"; empty subject → "Справка".
+      - `test_admin_shows_flag`: superuser GET `admin:petitions_requesttype_changelist` → 200 and the column header for "нужно поле «Тип»"; GET the add form contains `name="subject_required"`.
+
+      `petitions/tests/test_services.py` — `SubmitSubjectTests(FrozenClockMixin, TestCase)` (catch-all type via `make_type(name="Другая справка", days=5, comment_required=True, hint="h", subject_required=True)`):
+      - `test_subject_stored_normalised`: `submit_petition(student, t, "коммент", [], subject="  Справка \n о периоде  ")` → `subject == "Справка о периоде"`.
+      - `test_subject_required`: `subject=""` and `subject="   "` → `ValidationError` with "Укажите, что именно нужно."; nothing created.
+      - `test_subject_length`: 150 characters → OK; 151 → `ValidationError` "Поле «Тип» слишком длинное."
+      - `test_subject_ignored_without_flag`: an ordinary type with `subject="X"` → stored `subject == ""`.
+      - `test_existing_positional_calls_still_work`: `submit_petition(student, ordinary_type, "", [])` works (no subject).
+
+      `petitions/tests/test_views.py`:
+      - `SubjectFormTests(FrozenClockMixin, TestCase)` (student logged in; types: catch-all, military `make_type(name="Справка в военкомат", comment_required=True, hint="Укажите военкомат.")`, ordinary):
+        - `test_field_shown_only_with_flag`: GET the catch-all form contains `name="subject"` and `maxlength="150"` and the label "Тип", and `name="subject"` comes before `name="comment"`; GET the ordinary and the military forms do not contain `name="subject"`.
+        - `test_subject_required_errors` (subTest): POST with subject "" / "   " / 151 × "а", comment "к" → 200, form error shown (for "" and spaces: "Укажите, что именно нужно."), no `Petition` created.
+        - `test_subject_150_ok_and_normalised`: POST subject `"  " + "а" * 150 + "  "` → 302 to "submitted"; stored subject has 150 characters.
+        - `test_comment_required_for_catch_all`: POST subject "Справка о периоде обучения", empty comment → 200 with "Для этой заявки комментарий обязателен."; no petition.
+        - `test_military_comment_required`: POST to the military type with an empty comment → error; the hint "Укажите военкомат." is on the GET page.
+        - `test_subject_ignored_for_other_types`: POST `subject=X` to the ordinary type → 302; stored `subject == ""`.
+      - `CatalogTermTests(TestCase)`:
+        - `test_term_wording`: types with 1, 3, 5, 21 days → the page contains "Срок: до 1 рабочего дня", "Срок: до 3 рабочих дней", "Срок: до 5 рабочих дней", "Срок: до 21 рабочего дня"; "раб. дн." absent.
+        - `test_catch_all_last`: in the certificates section, "Другая справка" appears after the other certificate names; same for "Другое заявление" among applications.
+      - `SubjectDisplayTests(FrozenClockMixin, TestCase)` (a catch-all petition with subject `'Справка <b>о периоде</b>'` for student A in faculty FX; staff of FX):
+        - `test_student_list_and_detail`: `my_list` contains `Другая справка: Справка &lt;b&gt;о периоде&lt;/b&gt;`; the detail `h1` contains the same escaped text; the raw `<b>` is absent.
+        - `test_staff_queue_and_detail`: the same escaped text in the staff queue and staff detail.
+        - `test_submitted_page`: after a POST submission, the "submitted" page shows the display name.
+        - `test_other_student_cannot_see_subject`: see Access matrix.
+        - `test_plain_type_unchanged`: an ordinary petition shows only the type name (no ": ").
+      - `QueryCountTests::test_lists_constant_with_subject`: like `test_my_list_constant_queries`/`test_staff_queue_constant_queries`, but the 5 added petitions are of a catch-all type with a subject; counts equal the base counts.
+
+      `petitions/tests/test_demo.py`:
+      - `test_types_exact` (update with `# TASK-014: 3 new types`): expected set of 7 tuples `(name, kind, days, comment_required, subject_required)`; `types.count() == 7`.
+      - New `test_demo_subject_request`: `Petition.objects.get(seed_key="p-8")` has type "Другая справка", subject "Справка о периоде обучения", student `student1`, `display_name == "Другая справка: Справка о периоде обучения"`; all other demo petitions have `subject == ""`; every type with `subject_required` has `comment_required`.
+      - `test_command_output`: assert "Requests ready: 7 types" in the output.
+      - `test_idempotent`: unchanged, must pass.
+
+      `petitions/tests/helpers.py`: `make_type(name="Справка", kind="certificate", days=3, comment_required=False, hint="", subject_required=False)`.
+
+      ### Edge cases
+
+      Empty / spaces-only / 150 / 151 characters; newlines and tabs inside the subject; HTML in the subject (escaped); a subject posted to a type without the flag; a type flagged without a required comment (model and DB); 1, 21 and 11 days.
+
+      ### Settings branches
+
+      None.
+
+      ## Implementation order
+
+      1. F1 + `test_terms.py`. 2. F2, F3, helpers; `test_models.py`. 3. F4, F5, F6; service and form tests. 4. F7; display and catalog tests. 5. F8; demo tests; `seed_demo` twice on a temporary DB. 6. Admin, README. 7. Full verification.
+
+      ## Verification
+
+      ```bash
+      source .venv/bin/activate
+      python manage.py check
+      DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop python manage.py check --deploy --fail-level WARNING
+      python manage.py makemigrations --check --dry-run
+      python manage.py test --parallel 1 2>&1 | tee "$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log"
+      python scripts/run_tests_at.py 2026-11-20T00:00:00 2>&1 | tee "$TMPDIR/test-midnight-$(date +%Y%m%d-%H%M%S).log"
+      # seed twice on a fresh temporary DB, and migrate a DB seeded BEFORE the change:
+      export DEMO_PASSWORD='Local-Demo-Pass-2026!' PRIVATE_MEDIA_ROOT="$TMPDIR/t014-pm"
+      DATABASE_URL="sqlite:///$TMPDIR/t014-fresh.sqlite3" python manage.py migrate && DATABASE_URL="sqlite:///$TMPDIR/t014-fresh.sqlite3" python manage.py seed_demo && DATABASE_URL="sqlite:///$TMPDIR/t014-fresh.sqlite3" python manage.py seed_demo
+      mkdir -p "$TMPDIR/t014-before" && git archive HEAD | tar -x -C "$TMPDIR/t014-before"
+      #   in "$TMPDIR/t014-before" (no .env): DEBUG=true SECRET_KEY=<50+ char dummy> + the exports above,
+      #   DATABASE_URL="sqlite:///$TMPDIR/t014-before.sqlite3" python manage.py migrate && ... seed_demo
+      #   then in the project: DATABASE_URL="sqlite:///$TMPDIR/t014-before.sqlite3" python manage.py migrate, seed_demo twice
+      ruff check <the Python files of this task>
+      ruff format --check <the Python files of this task>
+      git status --short
+      ```
+      - Never touch `db.sqlite3` or the project's `private_media/`. `git archive` only reads git; never run `git stash`/`checkout`/`worktree`.
+      - If any run fails or stalls, even once, put the test name, the Moscow time and the traceback excerpt into the REPORT.
+
+      ## Risks
+
+      - **User text in a heading.** A 150-character subject makes a long pixel-font `h1` on the student detail page; it wraps (no horizontal scroll). The Team lead checks 360 px.
+      - **Data integrity.** The DB constraint covers the type flag; a petition's subject vs its type is enforced by the form and the service (two layers), not by the DB (cross-table).
+      - **Seed upsert** sets `subject_required` on existing types by name; an admin who renamed a demo type would get a new one (existing behaviour of the seed).
+    ── Thought for 188ms
+      Let me start by reading the relevant existing files.
+    ── Read file read
+      """Models for the petitions (requests for certificates and applications) app."""
+
+      import uuid
+
+      from django.conf import settings
+      from django.core.exceptions import ValidationError
+      from django.core.validators import MaxValueValidator, MinValueValidator
+      from django.db import models
+
+      from core.clock import now
+      from core.storage import get_private_storage
+      from petitions.files import attachment_upload_to
+
+      MAX_COMMENT_LENGTH = 2000
+
+
+      class RequestKind(models.TextChoices):
+          CERTIFICATE = "certificate", "Справка"
+          APPLICATION = "application", "Заявление"
+
+
+      class PetitionStatus(models.TextChoices):
+          SUBMITTED = "submitted", "Подана"
+          IN_PROGRESS = "in_progress", "В работе"
+          READY = "ready", "Готова"
+          ISSUED = "issued", "Выдана"
+          REJECTED = "rejected", "Отклонена"
+
+
+      STATUS_VALUES = [s.value for s in PetitionStatus]
+
+
+      class RequestType(models.Model):
+          name = models.CharField("название", max_length=200, unique=True)
+          kind = models.CharField("вид", max_length=16, choices=RequestKind.choices)
+          description = models.TextField("описание", blank=True, default="")
+          processing_days = models.PositiveSmallIntegerField(
+              "срок, рабочих дней", validators=[MinValueValidator(1), MaxValueValidator(60)]
+          )
+          comment_required = models.BooleanField("комментарий обязателен", default=False)
+          comment_hint = models.CharField(
+              "подсказка к комментарию", max_length=255, blank=True, default=""
+          )
+          is_active = models.BooleanField("доступна для подачи", default=True)
+
+          class Meta:
+              ordering = ["kind", "name"]
+              constraints = [
+                  models.CheckConstraint(
+                      condition=models.Q(processing_days__gte=1) & models.Q(processing_days__lte=60),
+                      name="petitions_type_days_1_60",
+                  )
+              ]
+              verbose_name = "вид заявки"
+              verbose_name_plural = "виды заявок"
+
+          def __str__(self) -> str:
+              return self.name
+
+          def clean(self):
+              super().clean()
+              if self.comment_required and not self.comment_hint:
+                  raise ValidationError("Для обязательного комментария заполните подсказку.")
+
+
+      class Petition(models.Model):
+          public_id = models.UUIDField("номер", default=uuid.uuid4, unique=True, editable=False)
+          student = models.ForeignKey(
+              "accounts.StudentProfile",
+              on_delete=models.PROTECT,
+              related_name="petitions",
+              verbose_name="студент",
+          )
+          request_type = models.ForeignKey(
+              RequestType, on_delete=models.PROTECT, related_name="petitions", verbose_name="вид заявки"
+          )
+          comment = models.TextField("комментарий", blank=True, default="", max_length=MAX_COMMENT_LENGTH)
+          status = models.CharField(
+              "статус", max_length=16, choices=PetitionStatus.choices, default=PetitionStatus.SUBMITTED
+          )
+          created_at = models.DateTimeField("подана", default=now)
+          status_changed_at = models.DateTimeField("статус изменён", default=now)
+          expected_ready_date = models.DateField("ожидаемая дата готовности")
+          seed_key = models.SlugField(max_length=40, blank=True, default="", editable=False)
+
+          class Meta:
+              ordering = ["-created_at"]
+              indexes = [
+                  models.Index(fields=["status", "created_at"], name="petitions_status_created_idx")
+              ]
+              constraints = [
+                  models.CheckConstraint(
+                      condition=models.Q(status__in=STATUS_VALUES), name="petitions_status_value"
+                  ),
+                  models.UniqueConstraint(
+                      fields=["seed_key"],
+                      condition=~models.Q(seed_key=""),
+                      name="petitions_unique_seed_key",
+                  ),
+              ]
+              verbose_name = "заявка"
+              verbose_name_plural = "заявки"
+
+          def __str__(self) -> str:
+              return f"{self.request_type} — {self.student} ({self.get_status_display()})"
+
+          @property
+          def short_id(self) -> str:
+              return str(self.public_id)[:8]
+
+
+      class PetitionAttachment(models.Model):
+          public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+          petition = models.ForeignKey(
+              Petition, on_delete=models.CASCADE, related_name="attachments", verbose_name="заявка"
+          )
+          file = models.FileField(
+              upload_to=attachment_upload_to, storage=get_private_storage, max_length=100, unique=True
+          )
+          original_name = models.CharField("имя файла", max_length=120)
+          size = models.PositiveIntegerField("размер, байт")
+          uploaded_at = models.DateTimeField(default=now)
+
+          class Meta:
+              ordering = ["uploaded_at", "pk"]
+              verbose_name = "приложение к заявке"
+              verbose_name_plural = "приложения к заявкам"
+
+          def __str__(self) -> str:
+              return self.original_name
+
+
+      class PetitionStatusChange(models.Model):
+          petition = models.ForeignKey(
+              Petition, on_delete=models.CASCADE, related_name="history", verbose_name="заявка"
+          )
+          from_status = models.CharField(
+              max_length=16, choices=PetitionStatus.choices, blank=True, default=""
+          )
+          to_status = models.CharField(max_length=16, choices=PetitionStatus.choices)
+          actor = models.ForeignKey(
+              settings.AUTH_USER_MODEL,
+              on_delete=models.PROTECT,
+              related_name="petition_status_changes",
+              verbose_name="автор",
+          )
+          created_at = models.DateTimeField(default=now)
+          comment = models.TextField(blank=True, default="", max_length=MAX_COMMENT_LENGTH)
+
+          class Meta:
+              ordering = ["created_at", "pk"]
+              indexes = [models.Index(fields=["created_at"], name="petitions_history_created_idx")]
+              verbose_name = "изменение статуса"
+              verbose_name_plural = "изменения статуса"
+
+          def __str__(self) -> str:
+              return f"{self.petition_id} {self.from_status or '—'} → {self.to_status}"
+
+
+      class PetitionComment(models.Model):
+          petition = models.ForeignKey(
+              Petition, on_delete=models.CASCADE, related_name="staff_comments", verbose_name="заявка"
+          )
+          author = models.ForeignKey(
+              settings.AUTH_USER_MODEL,
+              on_delete=models.PROTECT,
+              related_name="petition_comments",
+              verbose_name="автор",
+          )
+          created_at = models.DateTimeField(default=now)
+          text = models.TextField(max_length=MAX_COMMENT_LENGTH)
+
+          class Meta:
+              ordering = ["created_at", "pk"]
+              constraints = [
+                  models.CheckConstraint(condition=~models.Q(text=""), name="petitions_comment_not_empty")
+              ]
+              verbose_name = "комментарий сотрудника"
+              verbose_name_plural = "комментарии сотрудников"
+
+          def __str__(self) -> str:
+              return f"{self.author} — {self.text[:50]}"
+    ── Read file read
+      """Forms for petitions."""
+
+      from django import forms
+
+      from petitions.files import validate_attachments
+      from petitions.models import MAX_COMMENT_LENGTH, PetitionStatus, RequestType
+
+
+      class MultipleFileInput(forms.ClearableFileInput):
+          allow_multiple_selected = True
+
+
+      class MultipleFileField(forms.FileField):
+          def __init__(self, *args, **kwargs):
+              kwargs.setdefault("widget", MultipleFileInput(attrs={"accept": "application/pdf,.pdf"}))
+              super().__init__(*args, **kwargs)
+
+          def clean(self, data, initial=None):
+              if not data:
+                  return []
+              items = data if isinstance(data, (list, tuple)) else [data]
+              return [super().clean(item, initial) for item in items]
+
+
+      class PetitionForm(forms.Form):
+          comment = forms.CharField(
+              label="Комментарий",
+              required=False,
+              max_length=MAX_COMMENT_LENGTH,
+              widget=forms.Textarea(attrs={"rows": 4}),
+          )
+          files = MultipleFileField(
+              label="PDF-файлы (необязательно, до 3 файлов по 5 МБ)", required=False
+          )
+
+          def __init__(self, *args, request_type: RequestType, **kwargs):
+              super().__init__(*args, **kwargs)
+              self.request_type = request_type
+              self.fields["comment"].required = request_type.comment_required
+              self.fields["comment"].help_text = request_type.comment_hint
+
+          def clean_comment(self):
+              comment = (self.cleaned_data.get("comment") or "").strip()
+              if self.request_type.comment_required and not comment:
+                  raise forms.ValidationError("Для этой заявки комментарий обязателен.")
+              return comment
+
+          def clean_files(self):
+              files = self.cleaned_data.get("files") or []
+              validate_attachments(files)
+              return files
+
+
+      class TransitionForm(forms.Form):
+          expected_status = forms.ChoiceField(choices=PetitionStatus.choices)
+          new_status = forms.ChoiceField(choices=PetitionStatus.choices)
+          comment = forms.CharField(required=False, max_length=MAX_COMMENT_LENGTH)
+
+
+      class StaffCommentForm(forms.Form):
+          text = forms.CharField(
+              label="Комментарий",
+              max_length=MAX_COMMENT_LENGTH,
+              widget=forms.Textarea(attrs={"rows": 3}),
+          )
+    ── Read file read
+      """Petition services: submission, status transitions, staff comments."""
+
+      from datetime import date, timedelta
+
+      from django.core.exceptions import PermissionDenied, ValidationError
+      from django.db import transaction
+      from django.utils import timezone
+
+      from accounts.access import get_profile_for_role
+      from accounts.models import StudentProfile, User
+      from core import clock
+      from core.storage import get_private_storage
+      from petitions.files import store_attachment, validate_attachments
+      from petitions.models import (
+          MAX_COMMENT_LENGTH,
+          Petition,
+          PetitionComment,
+          PetitionStatus,
+          PetitionStatusChange,
+      )
+      from petitions.workflow import COMMENT_REQUIRED_FOR, OPEN_STATUSES, SUBMITTED, can_transition
+
+      MAX_OPEN_PER_TYPE = 3
+
+
+      class StaleStatusError(ValidationError):
+          default_message = "Заявка уже изменена, обновите страницу."
+
+
+      def _status_label(status: str) -> str:
+          return dict(PetitionStatus.choices)[status]
+
+
+      def add_working_days(start: date, days: int) -> date:
+          if days < 1:
+              raise ValueError("days must be positive")
+          d = start
+          remaining = days
+          while remaining > 0:
+              d += timedelta(days=1)
+              if d.weekday() < 5:
+                  remaining -= 1
+          return d
+
+
+      def _lock_student(pk: int) -> None:
+          StudentProfile.objects.select_for_update().filter(pk=pk).values_list("pk", flat=True).get()
+
+
+      def _lock_petition(pk: int) -> Petition:
+          return Petition.objects.select_for_update().select_related("student__group__program").get(pk=pk)
+
+
+      def submit_petition(
+          student: StudentProfile,
+          request_type: object,
+          comment: str,
+          uploads: list,
+      ) -> Petition:
+          comment = (comment or "").strip()
+          errors: list[str] = []
+          if not request_type.is_active:
+              errors.append("Этот вид заявки сейчас недоступен.")
+          if len(comment) > MAX_COMMENT_LENGTH:
+              errors.append("Комментарий слишком длинный.")
+          if request_type.comment_required and not comment:
+              errors.append("Для этой заявки комментарий обязателен.")
+          try:
+              validate_attachments(uploads)
+          except ValidationError as exc:
+              errors.extend(exc.messages)
+          if errors:
+              raise ValidationError(errors)
+
+          stored: list[str] = []
+          try:
+              with transaction.atomic():
+                  _lock_student(student.pk)
+                  open_count = Petition.objects.filter(
+                      student=student, request_type=request_type, status__in=OPEN_STATUSES
+                  ).count()
+                  if open_count >= MAX_OPEN_PER_TYPE:
+                      raise ValidationError(
+                          f"У вас уже {MAX_OPEN_PER_TYPE} открытые заявки этого вида. "
+                          "Дождитесь их выполнения."
+                      )
+                  now = clock.now()
+                  petition = Petition.objects.create(
+                      student=student,
+                      request_type=request_type,
+                      comment=comment,
+                      status=SUBMITTED,
+                      created_at=now,
+                      status_changed_at=now,
+                      expected_ready_date=add_working_days(
+                          timezone.localdate(now), request_type.processing_days
+                      ),
+                  )
+                  PetitionStatusChange.objects.create(
+                      petition=petition,
+                      from_status="",
+                      to_status=SUBMITTED,
+                      actor=student.user,
+                      created_at=now,
+                  )
+                  for upload in uploads:
+                      att = store_attachment(petition, upload, upload.name, upload.size)
+                      stored.append(att.file.name)
+          except BaseException:
+              for name in stored:
+                  get_private_storage().delete(name)
+              raise
+          return petition
+
+
+      def change_status(
+          petition: Petition,
+          actor: User,
+          expected_status: str,
+          new_status: str,
+          comment: str = "",
+      ) -> Petition:
+          staff = get_profile_for_role(actor, User.Role.STAFF)
+          comment = (comment or "").strip()
+          if len(comment) > MAX_COMMENT_LENGTH:
+              raise ValidationError("Комментарий слишком длинный.")
+          with transaction.atomic():
+              locked = _lock_petition(petition.pk)
+              if locked.student.group.program.faculty_id != staff.faculty_id:
+                  raise PermissionDenied
+              if locked.status != expected_status:
+                  raise StaleStatusError(StaleStatusError.default_message)
+              if not can_transition(locked.status, new_status):
+                  raise ValidationError(
+                      f"Нельзя перевести заявку из «{_status_label(locked.status)}» "
+                      f"в «{_status_label(new_status)}»."
+                  )
+              if new_status in COMMENT_REQUIRED_FOR and not comment:
+                  raise ValidationError("Укажите причину отклонения.")
+              now = clock.now()
+              PetitionStatusChange.objects.create(
+                  petition=locked,
+                  from_status=locked.status,
+                  to_status=new_status,
+                  actor=actor,
+                  created_at=now,
+                  comment=comment,
+              )
+              locked.status = new_status
+              locked.status_changed_at = now
+              locked.save(update_fields=["status", "status_changed_at"])
+          return locked
+
+
+      def add_staff_comment(petition: Petition, actor: User, text: str) -> PetitionComment:
+          staff = get_profile_for_role(actor, User.Role.STAFF)
+          if petition.student.group.program.faculty_id != staff.faculty_id:
+              raise PermissionDenied
+          text = (text or "").strip()
+          if not text:
+              raise ValidationError("Комментарий не может быть пустым.")
+          if len(text) > MAX_COMMENT_LENGTH:
+              raise ValidationError("Комментарий слишком длинный.")
+          return PetitionComment.objects.create(
+              petition=petition, author=actor, text=text, created_at=clock.now()
+          )
+    ── Read file read
+      """Views for the petitions app."""
+
+      import logging
+
+      from django.contrib import messages
+      from django.core.exceptions import ValidationError
+      from django.db.models import Count, Prefetch
+      from django.http import FileResponse, Http404, HttpRequest, HttpResponse
+      from django.shortcuts import get_object_or_404, redirect
+      from django.views.decorators.http import require_GET
+      from django.views.generic import DetailView, FormView, ListView, TemplateView, View
+
+      from accounts.access import StaffRequiredMixin, StudentRequiredMixin, get_profile_for_role
+      from accounts.models import User
+      from petitions.forms import PetitionForm, StaffCommentForm, TransitionForm
+      from petitions.models import (
+          STATUS_VALUES,
+          Petition,
+          PetitionComment,
+          PetitionStatus,
+          PetitionStatusChange,
+          RequestKind,
+          RequestType,
+      )
+      from petitions.selectors import attachments_visible_to, petitions_visible_to
+      from petitions.services import add_staff_comment, change_status, submit_petition
+      from petitions.workflow import ACTION_LABELS, OPEN_STATUSES, allowed_transitions
+
+      logger = logging.getLogger(__name__)
+
+
+      class CatalogView(StudentRequiredMixin, TemplateView):
+          template_name = "petitions/catalog.html"
+
+          def get_context_data(self, **kwargs):
+              context = super().get_context_data(**kwargs)
+              types = RequestType.objects.filter(is_active=True)
+              context["certificates"] = types.filter(kind=RequestKind.CERTIFICATE)
+              context["applications"] = types.filter(kind=RequestKind.APPLICATION)
+              return context
+
+
+      class SubmitPetitionView(StudentRequiredMixin, FormView):
+          template_name = "petitions/form.html"
+          form_class = PetitionForm
+
+          def dispatch(self, request: HttpRequest, *args, **kwargs):
+              self.profile = get_profile_for_role(request.user, User.Role.STUDENT)
+              self.request_type = get_object_or_404(
+                  RequestType, pk=self.kwargs["type_id"], is_active=True
+              )
+              return super().dispatch(request, *args, **kwargs)
+
+          def get_form_kwargs(self):
+              kwargs = super().get_form_kwargs()
+              kwargs["request_type"] = self.request_type
+              return kwargs
+
+          def get_context_data(self, **kwargs):
+              context = super().get_context_data(**kwargs)
+              context["request_type"] = self.request_type
+              return context
+
+          def form_valid(self, form):
+              try:
+                  petition = submit_petition(
+                      self.profile,
+                      self.request_type,
+                      form.cleaned_data["comment"],
+                      form.cleaned_data["files"],
+                  )
+              except ValidationError as exc:
+                  form.add_error(None, exc)
+                  return self.form_invalid(form)
+              return redirect("petitions:submitted", public_id=petition.public_id)
+
+
+      class SubmittedView(StudentRequiredMixin, DetailView):
+          model = Petition
+          template_name = "petitions/submitted.html"
+          slug_field = "public_id"
+          slug_url_kwarg = "public_id"
+
+          def get_queryset(self):
+              return petitions_visible_to(self.request.user)
+
+
+      class MyPetitionsView(StudentRequiredMixin, ListView):
+          template_name = "petitions/my_list.html"
+          context_object_name = "petitions"
+
+          def get_queryset(self):
+              return petitions_visible_to(self.request.user).order_by("-created_at")
+
+
+      class StudentPetitionDetailView(StudentRequiredMixin, DetailView):
+          model = Petition
+          template_name = "petitions/detail.html"
+          slug_field = "public_id"
+          slug_url_kwarg = "public_id"
+
+          def get_queryset(self):
+              return petitions_visible_to(self.request.user).prefetch_related(
+                  Prefetch(
+                      "history",
+                      queryset=PetitionStatusChange.objects.select_related("actor__staff_profile"),
+                  ),
+                  Prefetch(
+                      "staff_comments",
+                      queryset=PetitionComment.objects.select_related("author__staff_profile"),
+                  ),
+                  "attachments",
+              )
+
+
+      class StaffQueueView(StaffRequiredMixin, ListView):
+          template_name = "petitions/staff_queue.html"
+          context_object_name = "petitions"
+
+          def get_queryset(self):
+              qs = petitions_visible_to(self.request.user)
+              status = self.request.GET.get("status", "open")
+              if status == "open":
+                  qs = qs.filter(status__in=OPEN_STATUSES)
+              elif status == "all":
+                  pass
+              elif status in STATUS_VALUES:
+                  qs = qs.filter(status=status)
+              else:
+                  qs = qs.filter(status__in=OPEN_STATUSES)
+              type_id = self.request.GET.get("type", "")
+              if type_id:
+                  try:
+                      qs = qs.filter(request_type_id=int(type_id))
+                  except (TypeError, ValueError):
+                      pass
+              return qs.order_by("created_at").annotate(attachment_count=Count("attachments"))
+
+          def get_context_data(self, **kwargs):
+              context = super().get_context_data(**kwargs)
+              context["status_choices"] = [("open", "Открытые"), ("all", "Все")] + list(
+                  PetitionStatus.choices
+              )
+              context["selected_status"] = self.request.GET.get("status", "open")
+              context["selected_type"] = self.request.GET.get("type", "")
+              context["types"] = RequestType.objects.all()
+              return context
+
+
+      class StaffPetitionDetailView(StaffRequiredMixin, DetailView):
+          model = Petition
+          template_name = "petitions/staff_detail.html"
+          slug_field = "public_id"
+          slug_url_kwarg = "public_id"
+
+          def get_queryset(self):
+              return (
+                  petitions_visible_to(self.request.user)
+                  .select_related("student__user")
+                  .prefetch_related(
+                      Prefetch(
+                          "history",
+                          queryset=PetitionStatusChange.objects.select_related("actor__staff_profile"),
+                      ),
+                      Prefetch(
+                          "staff_comments",
+                          queryset=PetitionComment.objects.select_related("author__staff_profile"),
+                      ),
+                      "attachments",
+                  )
+              )
+
+          def get_context_data(self, **kwargs):
+              context = super().get_context_data(**kwargs)
+              petition = self.object
+              context["actions"] = [
+                  (status, ACTION_LABELS[status]) for status in allowed_transitions(petition.status)
+              ]
+              context["transition_form"] = TransitionForm(initial={"expected_status": petition.status})
+              context["comment_form"] = StaffCommentForm()
+              return context
+
+
+      def _flatten_form_errors(form) -> list[str]:
+          return [str(err) for errors in form.errors.values() for err in errors]
+
+
+      class StaffTransitionView(StaffRequiredMixin, View):
+          http_method_names = ["post"]
+
+          def post(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
+              petition = get_object_or_404(
+                  petitions_visible_to(request.user), public_id=kwargs["public_id"]
+              )
+              form = TransitionForm(request.POST)
+              if not form.is_valid():
+                  messages.error(request, " ".join(_flatten_form_errors(form)))
+                  return redirect("petitions:staff_detail", public_id=petition.public_id)
+              try:
+                  new = change_status(
+                      petition,
+                      request.user,
+                      form.cleaned_data["expected_status"],
+                      form.cleaned_data["new_status"],
+                      form.cleaned_data["comment"],
+                  )
+              except ValidationError as exc:
+                  messages.error(request, " ".join(exc.messages))
+                  return redirect("petitions:staff_detail", public_id=petition.public_id)
+              messages.success(request, f"Статус изменён: {dict(PetitionStatus.choices)[new.status]}.")
+              return redirect("petitions:staff_detail", public_id=petition.public_id)
+
+
+      class StaffCommentView(StaffRequiredMixin, View):
+          http_method_names = ["post"]
+
+          def post(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
+              petition = get_object_or_404(
+                  petitions_visible_to(request.user), public_id=kwargs["public_id"]
+              )
+              form = StaffCommentForm(request.POST)
+              if not form.is_valid():
+                  messages.error(request, " ".join(_flatten_form_errors(form)))
+                  return redirect("petitions:staff_detail", public_id=petition.public_id)
+              try:
+                  add_staff_comment(petition, request.user, form.cleaned_data["text"])
+              except ValidationError as exc:
+                  messages.error(request, " ".join(exc.messages))
+              return redirect("petitions:staff_detail", public_id=petition.public_id)
+
+
+      @require_GET
+      def download_attachment(request: HttpRequest, public_id, file_id) -> HttpResponse:
+          att = get_object_or_404(
+              attachments_visible_to(request.user).select_related("petition"),
+              public_id=file_id,
+              petition__public_id=public_id,
+          )
+          try:
+              handle = att.file.open("rb")
+          except FileNotFoundError:
+              logger.warning("Attachment file is missing on disk (attachment %s).", att.public_id)
+              raise Http404("Файл не найден.") from None
+          response = FileResponse(
+              handle,
+              as_attachment=True,
+              filename=att.original_name,
+              content_type="application/pdf",
+          )
+          response["X-Content-Type-Options"] = "nosniff"
+          response["Cache-Control"] = "private, no-store"
+          return response
+    ── Read file read
+      """Fictional petitions demo data.
+
+      Request types are reference data (upsert by name). Demo petitions are created
+      only if their ``seed_key`` is absent — existing rows are never updated.
+      """
+
+      from dataclasses import dataclass
+      from datetime import date, timedelta
+
+      from django.core.files.base import ContentFile
+      from django.db import transaction
+      from django.utils import timezone
+
+      from accounts.models import StaffProfile, StudentProfile
+      from petitions.files import store_attachment
+      from petitions.models import Petition, PetitionComment, PetitionStatusChange, RequestType
+      from petitions.services import add_working_days
+
+      DEMO_PDF = (
+          b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
+          b"2 0 obj<</Type/Pages/Kids[]/Count 0>>endobj\n"
+          b"trailer<</Root 1 0 R>>\n%%EOF\n"
+      )
+
+
+      @dataclass(frozen=True)
+      class PetitionsSeedSummary:
+          types: int
+          petitions: int
+          attachments: int
+
+
+      REQUEST_TYPES = [
+          (
+              "Справка об обучении",
+              "certificate",
+              3,
+              False,
+              "Можно указать, куда нужна справка.",
+              "Справка, подтверждающая факт обучения в университете.",
+          ),
+          (
+              "Справка для стипендиального отдела",
+              "certificate",
+              3,
+              True,
+              "Обязательно укажите причину обращения.",
+              "Справка для оформления стипендий и иных выплат.",
+          ),
+          (
+              "Заявление на повторную промежуточную аттестацию",
+              "application",
+              10,
+              True,
+              "Обязательно укажите причину обращения.",
+              "Заявление о повторной сдаче промежуточной аттестации.",
+          ),
+          (
+              "Заявление на академический отпуск",
+              "application",
+              15,
+              True,
+              "Обязательно укажите причину обращения.",
+              "Заявление о предоставлении академического отпуска.",
+          ),
+      ]
+
+      STUDENT_STAFF = {"student1": "staff1", "student2": "staff2", "student3": "staff1"}
+
+      PETITIONS = [
+          {
+              "seed_key": "p-1",
+              "student": "student1",
+              "type": "Справка об обучении",
+              "age": 2,
+              "path": ["submitted"],
+              "comment": "Для предоставления по месту требования.",
+              "files": ["spravka-zapros.pdf"],
+          },
+          {
+              "seed_key": "p-2",
+              "student": "student1",
+              "type": "Справка для стипендиального отдела",
+              "age": 4,
+              "path": ["submitted", "in_progress"],
+              "comment": "Для оформления повышенной стипендии.",
+              "staff_comment": ("staff1", "Справка будет готова к пятнице."),
+          },
+          {
+              "seed_key": "p-3",
+              "student": "student3",
+              "type": "Заявление на повторную промежуточную аттестацию",
+              "age": 6,
+              "path": ["submitted", "in_progress", "ready"],
+              "comment": "Пропустила экзамен по болезни, справка прилагается.",
+              "files": ["spravka-bolezn.pdf"],
+          },
+          {
+              "seed_key": "p-4",
+              "student": "student3",
+              "type": "Заявление на академический отпуск",
+              "age": 9,
+              "path": ["submitted", "rejected"],
+              "comment": "Прошу предоставить академический отпуск по семейным обстоятельствам.",
+              "reject_comment": "Не приложены подтверждающие документы.",
+          },
+          {
+              "seed_key": "p-5",
+              "student": "student1",
+              "type": "Справка об обучении",
+              "age": 20,
+              "path": ["submitted", "in_progress", "ready", "issued"],
+              "comment": "Для военкомата.",
+          },
+          {
+              "seed_key": "p-6",
+              "student": "student2",
+              "type": "Справка об обучении",
+              "age": 1,
+              "path": ["submitted"],
+              "comment": "Для банка.",
+              "files": ["zayavlenie.pdf"],
+          },
+          {
+              "seed_key": "p-7",
+              "student": "student2",
+              "type": "Справка для стипендиального отдела",
+              "age": 5,
+              "path": ["submitted", "in_progress"],
+              "comment": "Для назначения социальной стипендии.",
+              "staff_comment": ("staff2", "Проверяем данные о стипендии."),
+          },
+      ]
+
+
+      def seed_petitions_demo(today: date) -> PetitionsSeedSummary:
+          with transaction.atomic():
+              types = {}
+              for name, kind, days, required, hint, description in REQUEST_TYPES:
+                  types[name], _ = RequestType.objects.update_or_create(
+                      name=name,
+                      defaults={
+                          "kind": kind,
+                          "processing_days": days,
+                          "comment_required": required,
+                          "comment_hint": hint,
+                          "description": description,
+                          "is_active": True,
+                      },
+                  )
+
+              students = {
+                  s.user.username: s
+                  for s in StudentProfile.objects.filter(
+                      user__username__in=("student1", "student2", "student3")
+                  )
+              }
+              staff = {
+                  s.user.username: s.user
+                  for s in StaffProfile.objects.filter(user__username__in=("staff1", "staff2"))
+              }
+
+              base = timezone.now()
+              created = 0
+              attachments = 0
+              for seed in PETITIONS:
+                  if Petition.objects.filter(seed_key=seed["seed_key"]).exists():
+                      continue
+                  student = students[seed["student"]]
+                  rtype = types[seed["type"]]
+                  created_at = base - timedelta(days=seed["age"])
+                  path = seed["path"]
+                  petition = Petition.objects.create(
+                      student=student,
+                      request_type=rtype,
+                      comment=seed["comment"],
+                      status=path[-1],
+                      created_at=created_at,
+                      status_changed_at=created_at,
+                      expected_ready_date=add_working_days(
+                          timezone.localdate(created_at), rtype.processing_days
+                      ),
+                      seed_key=seed["seed_key"],
+                  )
+                  actor = staff[STUDENT_STAFF[seed["student"]]]
+                  steps = [("", "submitted", "", student.user)]
+                  for i in range(1, len(path)):
+                      comment = seed.get("reject_comment", "") if path[i] == "rejected" else ""
+                      steps.append((path[i - 1], path[i], comment, actor))
+                  for i, (from_s, to_s, comment, who) in enumerate(steps):
+                      PetitionStatusChange.objects.create(
+                          petition=petition,
+                          from_status=from_s,
+                          to_status=to_s,
+                          actor=who,
+                          created_at=created_at + timedelta(hours=i * 20),
+                          comment=comment,
+                      )
+                  if seed.get("staff_comment"):
+                      who, text = seed["staff_comment"]
+                      PetitionComment.objects.create(
+                          petition=petition,
+                          author=staff[who],
+                          text=text,
+                          created_at=created_at + timedelta(hours=20 * len(steps)),
+                      )
+                  for fname in seed.get("files", []):
+                      store_attachment(petition, ContentFile(DEMO_PDF), fname, len(DEMO_PDF))
+                      attachments += 1
+                  created += 1
+
+          return PetitionsSeedSummary(
+              types=len(REQUEST_TYPES), petitions=created, attachments=attachments
+          )
+    ── Read file read
+      from django.contrib import admin
+
+      from .models import Petition, PetitionAttachment, PetitionComment, PetitionStatusChange, RequestType
+
+
+      @admin.register(RequestType)
+      class RequestTypeAdmin(admin.ModelAdmin):
+          list_display = ("name", "kind", "processing_days", "comment_required", "is_active")
+          list_filter = ("kind", "is_active")
+
+
+      class PetitionHistoryInline(admin.TabularInline):
+          model = PetitionStatusChange
+          extra = 0
+          can_delete = False
+          fields = ("from_status", "to_status", "actor", "created_at", "comment")
+          readonly_fields = ("from_status", "to_status", "actor", "created_at", "comment")
+
+          def has_add_permission(self, request, obj=None):
+              return False
+
+
+      class PetitionCommentInline(admin.TabularInline):
+          model = PetitionComment
+          extra = 0
+          can_delete = False
+          fields = ("author", "created_at", "text")
+          readonly_fields = ("author", "created_at", "text")
+
+          def has_add_permission(self, request, obj=None):
+              return False
+
+
+      class PetitionAttachmentInline(admin.TabularInline):
+          model = PetitionAttachment
+          extra = 0
+          can_delete = False
+          fields = ("original_name", "size", "uploaded_at")
+          readonly_fields = ("original_name", "size", "uploaded_at")
+
+          def has_add_permission(self, request, obj=None):
+              return False
+
+
+      @admin.register(Petition)
+      class PetitionAdmin(admin.ModelAdmin):
+          list_display = ("public_id", "request_type", "student", "status", "created_at")
+          list_filter = ("status", "request_type")
+          inlines = [PetitionHistoryInline, PetitionCommentInline, PetitionAttachmentInline]
+
+          def has_add_permission(self, request):
+              return False
+
+          def has_change_permission(self, request, obj=None):
+              return False
+
+          def has_delete_permission(self, request, obj=None):
+              return False
+    ── Read file read
+      """Plain helper functions for petition tests."""
+
+      from datetime import date
+
+      from django.core.files.uploadedfile import SimpleUploadedFile
+      from django.utils import timezone
+
+      from petitions.models import (
+          Petition,
+          PetitionStatusChange,
+          RequestType,
+      )
+
+
+      def pdf_upload(name="doc.pdf", size=None, content_type="application/pdf"):
+          if size is None:
+              content = b"%PDF-1.4\n%%EOF"
+          else:
+              content = b"%PDF-1.4\n" + b"0" * (size - len(b"%PDF-1.4\n%%EOF")) + b"%%EOF"
+          return SimpleUploadedFile(name, content, content_type=content_type)
+
+
+      def fake_upload(name, content, content_type):
+          return SimpleUploadedFile(name, content, content_type=content_type)
+
+
+      def make_type(name="Справка", kind="certificate", days=3, comment_required=False, hint=""):
+          return RequestType.objects.create(
+              name=name,
+              kind=kind,
+              processing_days=days,
+              comment_required=comment_required,
+              comment_hint=hint,
+          )
+
+
+      def make_petition(student_profile, request_type, status="submitted", created_at=None):
+          ts = created_at or timezone.now()
+          petition = Petition.objects.create(
+              student=student_profile,
+              request_type=request_type,
+              status=status,
+              created_at=ts,
+              status_changed_at=ts,
+              expected_ready_date=date(2026, 11, 23),
+          )
+          PetitionStatusChange.objects.create(
+              petition=petition,
+              from_status="",
+              to_status=status,
+              actor=student_profile.user,
+              created_at=ts,
+          )
+          return petition
+    ── Thought for 421ms
+      Now let me read the templates and existing tests. Let me read the templates quickly and the existing test files (test_models, test_services, test_views, test_demo).
+    ── Listed files in petitions/templates/petitions/
+    ── Ran cd ~/hackatonproject && for f in catalog.html my_list.html detail.html staff_queue.html staff_detail.html submitted.html form.html; do echo "=== $f ==="; cat "petitions/templates/petitions/$f"; done
+      $ cd ~/hackatonproject && for f in catalog.html my_list.html detail.html staff_queue.html staff_detail.html submitted.html form.html; do echo "=== $f ==="; cat "petitions/templates/petitions/$f"; done
+      === catalog.html ===
+      {% extends "base.html" %}
+      {% block content %}
+        <h1>Подать заявку</h1>
+        <h2>Справки</h2>
+        {% for type in certificates %}
+          <p>
+            <a href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>
+            {% if type.description %} — {{ type.description }}{% endif %}
+            · Срок: {{ type.processing_days }} раб. дн.
+          </p>
+        {% empty %}
+          <p>Справок пока нет.</p>
+        {% endfor %}
+        <h2>Заявления</h2>
+        {% for type in applications %}
+          <p>
+            <a href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>
+            {% if type.description %} — {{ type.description }}{% endif %}
+            · Срок: {{ type.processing_days }} раб. дн.
+          </p>
+        {% empty %}
+          <p>Заявлений пока нет.</p>
+        {% endfor %}
+      {% endblock %}
+      === my_list.html ===
+      {% extends "base.html" %}
+      {% block content %}
+        <h1>Мои заявки</h1>
+        <p class="page-actions"><a href="{% url 'petitions:catalog' %}">Подать заявку</a></p>
+        {% if petitions %}
+          <ul class="petition-list">
+            {% for petition in petitions %}
+              <li class="petition">
+                <a href="{% url 'petitions:detail' petition.public_id %}">{{ petition.request_type.name }}</a>
+                · № {{ petition.short_id }}
+                · {{ petition.created_at|date:"j E Y" }}
+                · <span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>
+                · готовность: {{ petition.expected_ready_date|date:"j E Y" }}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p>Заявок пока нет.</p>
+        {% endif %}
+      {% endblock %}
+      === detail.html ===
+      {% extends "base.html" %}
+      {% block content %}
+        <h1>{{ petition.request_type.name }}</h1>
+        <p class="status status--{{ petition.status }}">{{ petition.get_status_display }}</p>
+        <p>№ {{ petition.short_id }}</p>
+        <p>Подана: {{ petition.created_at|date:"j E Y H:i" }}</p>
+        <p>Ожидаемая дата готовности: {{ petition.expected_ready_date|date:"j E Y" }}</p>
+        {% if petition.comment %}<p>{{ petition.comment }}</p>{% endif %}
+        {% include "petitions/includes/attachments.html" %}
+        {% include "petitions/includes/history.html" %}
+        {% include "petitions/includes/comments.html" %}
+      {% endblock %}
+      === staff_queue.html ===
+      {% extends "base.html" %}
+      {% block content %}
+        <h1>Заявки</h1>
+        <form method="get" class="form">
+          <p>
+            <label for="status">Статус</label>
+            <select name="status" id="status">
+              {% for value, label in status_choices %}
+                <option value="{{ value }}"{% if value == selected_status %} selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </p>
+          <p>
+            <label for="type">Вид заявки</label>
+            <select name="type" id="type">
+              <option value="">Все</option>
+              {% for t in types %}
+                <option value="{{ t.pk }}"{% if t.pk|stringformat:"s" == selected_type %} selected{% endif %}>{{ t.name }}</option>
+              {% endfor %}
+            </select>
+          </p>
+          <button type="submit">Показать</button>
+        </form>
+        {% if petitions %}
+          <ul class="petition-list">
+            {% for petition in petitions %}
+              <li class="petition">
+                <a href="{% url 'petitions:staff_detail' petition.public_id %}">{{ petition.student.full_name }}</a>
+                · {{ petition.student.group.name }}
+                · {{ petition.request_type.name }}
+                · {{ petition.created_at|date:"j E Y" }}
+                · <span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>
+                · файлов: {{ petition.attachment_count }}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p>Заявок нет.</p>
+        {% endif %}
+      {% endblock %}
+      === staff_detail.html ===
+      {% extends "base.html" %}
+      {% block content %}
+        <h1>Заявка № {{ petition.short_id }}</h1>
+        <h2>Студент</h2>
+        <p>{{ petition.student.full_name }}</p>
+        <p>{{ petition.student.group.name }}</p>
+        <p>№ зачётной книжки: {{ petition.student.record_number }}</p>
+        <h2>Заявка</h2>
+        <p>{{ petition.request_type.name }}</p>
+        <p class="status status--{{ petition.status }}">{{ petition.get_status_display }}</p>
+        <p>Подана: {{ petition.created_at|date:"j E Y H:i" }}</p>
+        <p>Ожидаемая дата готовности: {{ petition.expected_ready_date|date:"j E Y" }}</p>
+        {% if petition.comment %}<p>{{ petition.comment }}</p>{% endif %}
+        {% include "petitions/includes/attachments.html" %}
+        {% include "petitions/includes/history.html" %}
+        {% include "petitions/includes/comments.html" %}
+        {% if actions %}
+          <h2>Действия</h2>
+          {% for status, label in actions %}
+            <form method="post" action="{% url 'petitions:staff_transition' petition.public_id %}" class="action-form">
+              {% csrf_token %}
+              <input type="hidden" name="expected_status" value="{{ petition.status }}">
+              <input type="hidden" name="new_status" value="{{ status }}">
+              {% if status == "rejected" %}
+                <p><label for="comment-{{ status }}">Причина отклонения</label></p>
+                <textarea name="comment" id="comment-{{ status }}" rows="3" required></textarea>
+              {% endif %}
+              <button type="submit">{{ label }}</button>
+            </form>
+          {% endfor %}
+        {% endif %}
+        <h2>Комментарий</h2>
+        <form method="post" action="{% url 'petitions:staff_comment' petition.public_id %}" class="action-form">
+          {% csrf_token %}
+          {{ comment_form.as_p }}
+          <button type="submit">Добавить комментарий</button>
+        </form>
+      {% endblock %}
+      === submitted.html ===
+      {% extends "base.html" %}
+      {% block content %}
+        <h1>Заявка подана</h1>
+        <p>{{ petition.request_type.name }}</p>
+        <p>№ {{ petition.short_id }}</p>
+        <p>Ожидаемая дата готовности: {{ petition.expected_ready_date|date:"j E Y" }}</p>
+        <p><a href="{% url 'petitions:detail' petition.public_id %}">К заявке</a></p>
+        <p><a href="{% url 'petitions:my_list' %}">Мои заявки</a></p>
+      {% endblock %}
+      === form.html ===
+      {% extends "base.html" %}
+      {% block content %}
+        <h1>{{ request_type.name }}</h1>
+        {% if request_type.description %}<p>{{ request_type.description }}</p>{% endif %}
+        <form method="post" enctype="multipart/form-data" class="form">
+          {% csrf_token %}
+          {{ form.non_field_errors }}
+          {{ form.as_p }}
+          <button type="submit">Отправить заявку</button>
+        </form>
+      {% endblock %}
+    ── Thought for 380ms
+      Now let me read the existing test files to understand conventions and the existing test_demo test_types_exact and test_command_output.
+    ── Read file read
+      import os
+      from datetime import date
+      from io import StringIO
+      from unittest import mock
+
+      from django.core.management import call_command
+      from django.test import TestCase
+
+      from academics.demo import seed_academics_demo
+      from accounts.demo import seed_demo_data
+      from core.storage import get_private_storage
+      from core.testing import FrozenClockMixin
+      from petitions.demo import seed_petitions_demo
+      from petitions.models import (
+          Petition,
+          PetitionAttachment,
+          PetitionComment,
+          PetitionStatusChange,
+          RequestType,
+      )
+      from petitions.workflow import can_transition
+      from schedule.demo import seed_schedule_demo
+
+      PASSWORD = "Local-Demo-Pass-2026!"
+      D = date(2026, 11, 18)
+
+
+      class PetitionsDemoTests(FrozenClockMixin, TestCase):
+          def setUp(self):
+              seed_demo_data(PASSWORD)
+              seed_schedule_demo(D)
+              seed_academics_demo(D)
+              seed_petitions_demo(D)
+
+          def _count_files(self):
+              root = get_private_storage().location
+              count = 0
+              for _dirpath, _dirnames, filenames in os.walk(root):
+                  count += len(filenames)
+              return count
+
+          def test_types_exact(self):
+              expected = {
+                  ("Справка об обучении", "certificate", 3, False),
+                  ("Справка для стипендиального отдела", "certificate", 3, True),
+                  ("Заявление на повторную промежуточную аттестацию", "application", 10, True),
+                  ("Заявление на академический отпуск", "application", 15, True),
+              }
+              types = RequestType.objects.all()
+              self.assertEqual(types.count(), 4)
+              for t in types:
+                  self.assertIn((t.name, t.kind, t.processing_days, t.comment_required), expected)
+
+          def test_every_status_present(self):
+              statuses = set(Petition.objects.values_list("status", flat=True))
+              self.assertEqual(statuses, {"submitted", "in_progress", "ready", "issued", "rejected"})
+
+          def test_each_faculty_has_waiting_request(self):
+              for code in ("FDD", "FAE"):
+                  count = Petition.objects.filter(
+                      status="submitted", student__group__program__faculty__code=code
+                  ).count()
+                  self.assertGreaterEqual(count, 1)
+
+          def test_history_consistent(self):
+              for petition in Petition.objects.all():
+                  history = list(petition.history.order_by("created_at", "pk"))
+                  self.assertTrue(history)
+                  first = history[0]
+                  self.assertEqual(first.from_status, "")
+                  self.assertEqual(first.to_status, "submitted")
+                  self.assertEqual(first.actor, petition.student.user)
+                  for prev, cur in zip(history, history[1:], strict=False):
+                      self.assertEqual(cur.from_status, prev.to_status)
+                  self.assertEqual(history[-1].to_status, petition.status)
+                  for step in history:
+                      if step.from_status:
+                          self.assertTrue(can_transition(step.from_status, step.to_status))
+
+          def test_demo_files_private_and_valid(self):
+              atts = PetitionAttachment.objects.all()
+              self.assertEqual(atts.count(), 3)
+              for att in atts:
+                  self.assertRegex(att.file.name, r"^request_attachments/[0-9a-f]{2}/[0-9a-f]{32}\.pdf$")
+                  with att.file.open("rb") as fh:
+                      self.assertTrue(fh.read().startswith(b"%PDF-"))
+
+          def test_idempotent(self):
+              before = (
+                  Petition.objects.count(),
+                  PetitionStatusChange.objects.count(),
+                  PetitionComment.objects.count(),
+                  PetitionAttachment.objects.count(),
+                  self._count_files(),
+              )
+              seed_petitions_demo(D)
+              after = (
+                  Petition.objects.count(),
+                  PetitionStatusChange.objects.count(),
+                  PetitionComment.objects.count(),
+                  PetitionAttachment.objects.count(),
+                  self._count_files(),
+              )
+              self.assertEqual(before, after)
+
+          def test_command_output(self):
+              with mock.patch.dict(os.environ, {"DEMO_PASSWORD": PASSWORD}):
+                  out = StringIO()
+                  call_command("seed_demo", stdout=out)
+              self.assertIn("Requests ready", out.getvalue())
+    ── Read file read
+      from datetime import date
+      from unittest import mock
+
+      from django.contrib.auth.models import AnonymousUser
+      from django.core.exceptions import PermissionDenied, ValidationError
+      from django.test import SimpleTestCase, TestCase
+      from django.utils import timezone
+
+      from accounts.models import User
+      from accounts.tests.helpers import make_faculty, make_group, make_staff, make_student
+      from core import clock
+      from core.storage import get_private_storage
+      from core.testing import FrozenClockMixin, moscow
+      from petitions.files import store_attachment
+      from petitions.models import (
+          MAX_COMMENT_LENGTH,
+          Petition,
+          PetitionAttachment,
+          PetitionComment,
+          PetitionStatusChange,
+      )
+      from petitions.selectors import attachments_visible_to, petitions_visible_to
+      from petitions.services import (
+          StaleStatusError,
+          _lock_petition,
+          _lock_student,
+          add_staff_comment,
+          add_working_days,
+          change_status,
+          submit_petition,
+      )
+      from petitions.tests.helpers import fake_upload, make_petition, make_type, pdf_upload
+
+
+      def _drive_to(petition, staff, status):
+          path = {
+              "submitted": [],
+              "in_progress": ["in_progress"],
+              "ready": ["in_progress", "ready"],
+              "issued": ["in_progress", "ready", "issued"],
+              "rejected": ["rejected"],
+          }[status]
+          for s in path:
+              comment = "причина" if s == "rejected" else ""
+              change_status(petition, staff, petition.status, s, comment)
+              petition.refresh_from_db()
+          return petition
+
+
+      class WorkingDaysTests(SimpleTestCase):
+          def test_mon_plus_1(self):
+              self.assertEqual(add_working_days(date(2026, 11, 16), 1), date(2026, 11, 17))
+
+          def test_fri_plus_1(self):
+              self.assertEqual(add_working_days(date(2026, 11, 20), 1), date(2026, 11, 23))
+
+          def test_sat_plus_1(self):
+              self.assertEqual(add_working_days(date(2026, 11, 21), 1), date(2026, 11, 23))
+
+          def test_sun_plus_1(self):
+              self.assertEqual(add_working_days(date(2026, 11, 22), 1), date(2026, 11, 23))
+
+          def test_fri_plus_5(self):
+              self.assertEqual(add_working_days(date(2026, 11, 20), 5), date(2026, 11, 27))
+
+          def test_wed_plus_10(self):
+              self.assertEqual(add_working_days(date(2026, 11, 18), 10), date(2026, 12, 2))
+
+          def test_days_less_than_1(self):
+              with self.assertRaises(ValueError):
+                  add_working_days(date(2026, 11, 18), 0)
+
+
+      class SelectorTests(FrozenClockMixin, TestCase):
+          def setUp(self):
+              self.fac_x = make_faculty("FX")
+              self.fac_y = make_faculty("FY")
+              self.group_x = make_group(self.fac_x, "GX")
+              self.group_y = make_group(self.fac_y, "GY")
+              self.student_a = make_student("a", self.group_x, "SA").student_profile
+              self.student_b = make_student("b", self.group_y, "SB").student_profile
+              self.staff_x = make_staff("sx", self.fac_x)
+              self.staff_y = make_staff("sy", self.fac_y)
+              self.type = make_type()
+              self.pa = make_petition(self.student_a, self.type)
+              self.pb = make_petition(self.student_b, self.type)
+
+          def test_student_sees_own_only(self):
+              self.assertEqual(set(petitions_visible_to(self.student_a.user)), {self.pa})
+
+          def test_staff_own_faculty(self):
+              self.assertEqual(set(petitions_visible_to(self.staff_x)), {self.pa})
+              self.assertEqual(set(petitions_visible_to(self.staff_y)), {self.pb})
+
+          def test_superuser_empty(self):
+              admin = User.objects.create_superuser(username="admin")
+              self.assertFalse(petitions_visible_to(admin).exists())
+
+          def test_anonymous_empty(self):
+              self.assertFalse(petitions_visible_to(AnonymousUser()).exists())
+
+          def test_staff_without_profile_empty(self):
+              user = User.objects.create_user(username="noprof", role=User.Role.STAFF)
+              self.assertFalse(petitions_visible_to(user).exists())
+
+          def test_attachments_follow(self):
+              PetitionAttachment.objects.create(
+                  petition=self.pa, file="request_attachments/aa/a.pdf", original_name="a.pdf", size=1
+              )
+              self.assertEqual(attachments_visible_to(self.student_a.user).count(), 1)
+              self.assertEqual(attachments_visible_to(self.student_b.user).count(), 0)
+
+
+      class SubmitTests(FrozenClockMixin, TestCase):
+          def setUp(self):
+              self.faculty = make_faculty("FDD")
+              self.group = make_group(self.faculty, "ЦД-101")
+              self.student = make_student("s1", self.group, "ST-0001").student_profile
+              self.type = make_type(days=3)
+
+          def test_submit_creates_petition_and_history(self):
+              petition = submit_petition(self.student, self.type, "Комментарий", [])
+              self.assertEqual(petition.status, "submitted")
+              self.assertEqual(petition.expected_ready_date, date(2026, 11, 23))
+              self.assertEqual(petition.history.count(), 1)
+              row = petition.history.get()
+              self.assertEqual(row.from_status, "")
+              self.assertEqual(row.to_status, "submitted")
+              self.assertEqual(row.actor, self.student.user)
+
+          def test_comment_required_rejected(self):
+              req = make_type(name="Справка2", comment_required=True, hint="Причина")
+              with self.assertRaises(ValidationError) as cm:
+                  submit_petition(self.student, req, "", [])
+              self.assertTrue(any("комментарий обязателен" in m for m in cm.exception.messages))
+
+          def test_comment_whitespace_only_rejected_when_required(self):
+              req = make_type(name="Справка3", comment_required=True, hint="Причина")
+              with self.assertRaises(ValidationError):
+                  submit_petition(self.student, req, "   ", [])
+
+          def test_comment_optional_ok(self):
+              petition = submit_petition(self.student, self.type, "", [])
+              self.assertEqual(petition.comment, "")
+
+          def test_comment_too_long(self):
+              with self.assertRaises(ValidationError):
+                  submit_petition(self.student, self.type, "x" * (MAX_COMMENT_LENGTH + 1), [])
+
+          def test_inactive_type_rejected(self):
+              inactive = make_type(name="Inactive")
+              inactive.is_active = False
+              inactive.save()
+              with self.assertRaises(ValidationError):
+                  submit_petition(self.student, inactive, "", [])
+
+          def test_attachments_stored_privately(self):
+              upload = pdf_upload()
+              expected = upload.read()
+              upload.seek(0)
+              petition = submit_petition(self.student, self.type, "", [upload])
+              att = petition.attachments.get()
+              self.assertRegex(att.file.name, r"^request_attachments/[0-9a-f]{2}/[0-9a-f]{32}\.pdf$")
+              root = str(get_private_storage().location)
+              self.assertTrue(att.file.path.startswith(root))
+              with att.file.open("rb") as fh:
+                  self.assertEqual(fh.read(), expected)
+
+          def test_invalid_attachment_rejected_nothing_stored(self):
+              bad = fake_upload("evil.exe", b"MZ\x90\x00\x03", "application/octet-stream")
+              with self.assertRaises(ValidationError):
+                  submit_petition(self.student, self.type, "", [bad])
+              self.assertEqual(Petition.objects.count(), 0)
+              self.assertEqual(PetitionAttachment.objects.count(), 0)
+
+          def test_limit_three_open_per_type(self):
+              for _ in range(3):
+                  submit_petition(self.student, self.type, "", [])
+              with self.assertRaises(ValidationError) as cm:
+                  submit_petition(self.student, self.type, "", [])
+              self.assertTrue(any("открытые заявки" in m for m in cm.exception.messages))
+              other = make_type(name="Заявление", kind="application", days=5)
+              submit_petition(self.student, other, "", [])
+              p = Petition.objects.filter(student=self.student, request_type=self.type).first()
+              p.status = "issued"
+              p.save(update_fields=["status"])
+              submit_petition(self.student, self.type, "", [])
+
+          def test_limit_counts_in_progress(self):
+              for _ in range(3):
+                  submit_petition(self.student, self.type, "", [])
+              p = Petition.objects.filter(student=self.student, request_type=self.type).first()
+              p.status = "in_progress"
+              p.save(update_fields=["status"])
+              with self.assertRaises(ValidationError):
+                  submit_petition(self.student, self.type, "", [])
+
+          def test_files_removed_on_failure(self):
+              saved_names = []
+              real_store = store_attachment
+
+              def flaky(petition, upload, original_name, size):
+                  if saved_names:
+                      raise RuntimeError("boom")
+                  att = real_store(petition, upload, original_name, size)
+                  saved_names.append(att.file.name)
+                  return att
+
+              uploads = [pdf_upload("a.pdf"), pdf_upload("b.pdf")]
+              with mock.patch("petitions.services.store_attachment", side_effect=flaky):
+                  with self.assertRaises(RuntimeError):
+                      submit_petition(self.student, self.type, "", uploads)
+              self.assertEqual(Petition.objects.count(), 0)
+              storage = get_private_storage()
+              self.assertFalse(storage.exists(saved_names[0]))
+
+          def test_student_row_locked(self):
+              with mock.patch("petitions.services._lock_student", wraps=_lock_student) as patched:
+                  submit_petition(self.student, self.type, "", [])
+              patched.assert_called_once_with(self.student.pk)
+
+
+      class TransitionTests(FrozenClockMixin, TestCase):
+          def setUp(self):
+              self.fac_x = make_faculty("FX")
+              self.fac_y = make_faculty("FY")
+              self.group_x = make_group(self.fac_x, "GX")
+              self.group_y = make_group(self.fac_y, "GY")
+              self.student_a = make_student("a", self.group_x, "SA").student_profile
+              self.staff_x = make_staff("sx", self.fac_x)
+              self.staff_x2 = make_staff("sx2", self.fac_x)
+              self.staff_y = make_staff("sy", self.fac_y)
+              self.type = make_type()
+              self.petition = make_petition(self.student_a, self.type)
+
+          def test_allowed_transitions(self):
+              for from_s, to_s in [
+                  ("submitted", "in_progress"),
+                  ("submitted", "rejected"),
+                  ("in_progress", "ready"),
+                  ("in_progress", "rejected"),
+                  ("ready", "issued"),
+              ]:
+                  p = make_petition(self.student_a, self.type)
+                  _drive_to(p, self.staff_x, from_s)
+                  change_status(p, self.staff_x, from_s, to_s, comment="c")
+                  p.refresh_from_db()
+                  self.assertEqual(p.status, to_s)
+                  last = p.history.order_by("created_at", "pk").last()
+                  self.assertEqual(last.from_status, from_s)
+                  self.assertEqual(last.to_status, to_s)
+                  self.assertEqual(last.actor, self.staff_x)
+                  self.assertEqual(last.created_at, timezone.now())
+                  self.assertEqual(last.comment, "c")
+
+          def test_disallowed_transitions(self):
+              disallowed = [
+                  ("submitted", "ready"),
+                  ("submitted", "issued"),
+                  ("submitted", "submitted"),
+                  ("in_progress", "submitted"),
+                  ("in_progress", "in_progress"),
+                  ("in_progress", "issued"),
+                  ("ready", "submitted"),
+                  ("ready", "in_progress"),
+                  ("ready", "ready"),
+                  ("ready", "rejected"),
+                  ("issued", "issued"),
+                  ("issued", "in_progress"),
+                  ("rejected", "rejected"),
+                  ("rejected", "submitted"),
+              ]
+              for from_s, to_s in disallowed:
+                  p = make_petition(self.student_a, self.type)
+                  _drive_to(p, self.staff_x, from_s)
+                  before = p.history.count()
+                  with self.assertRaises(ValidationError):
+                      change_status(p, self.staff_x, from_s, to_s)
+                  p.refresh_from_db()
+                  self.assertEqual(p.status, from_s)
+                  self.assertEqual(p.history.count(), before)
+
+          def test_reject_without_comment(self):
+              with self.assertRaises(ValidationError) as cm:
+                  change_status(self.petition, self.staff_x, "submitted", "rejected", "")
+              self.assertTrue(any("причину отклонения" in m for m in cm.exception.messages))
+              self.petition.refresh_from_db()
+              self.assertEqual(self.petition.status, "submitted")
+
+          def test_reject_with_comment(self):
+              change_status(self.petition, self.staff_x, "submitted", "rejected", "Причина")
+              last = self.petition.history.order_by("created_at", "pk").last()
+              self.assertEqual(last.comment, "Причина")
+              self.assertEqual(last.to_status, "rejected")
+
+          def test_stale_expected_status_rejected(self):
+              change_status(self.petition, self.staff_x, "submitted", "in_progress")
+              with self.assertRaises(StaleStatusError) as cm:
+                  change_status(self.petition, self.staff_x, "submitted", "ready")
+              self.assertIn("Заявка уже изменена, обновите страницу.", cm.exception.messages)
+              self.petition.refresh_from_db()
+              self.assertEqual(self.petition.status, "in_progress")
+              self.assertEqual(self.petition.history.count(), 2)
+
+          def test_concurrent_take_and_reject(self):
+              change_status(self.petition, self.staff_x, "submitted", "in_progress")
+              with self.assertRaises(StaleStatusError):
+                  change_status(self.petition, self.staff_x2, "submitted", "rejected", "причина")
+
+          def test_student_cannot_transition(self):
+              with self.assertRaises(PermissionDenied):
+                  change_status(self.petition, self.student_a.user, "submitted", "in_progress")
+
+          def test_other_faculty_staff_cannot_transition(self):
+              with self.assertRaises(PermissionDenied):
+                  change_status(self.petition, self.staff_y, "submitted", "in_progress")
+
+          def test_superuser_cannot_transition(self):
+              admin = User.objects.create_superuser(username="admin")
+              with self.assertRaises(PermissionDenied):
+                  change_status(self.petition, admin, "submitted", "in_progress")
+
+          def test_lock_used(self):
+              with mock.patch("petitions.services._lock_petition", wraps=_lock_petition) as patched:
+                  change_status(self.petition, self.staff_x, "submitted", "in_progress")
+              patched.assert_called_once_with(self.petition.pk)
+
+
+      class CommentTests(FrozenClockMixin, TestCase):
+          def setUp(self):
+              self.fac_x = make_faculty("FX")
+              self.fac_y = make_faculty("FY")
+              self.group_x = make_group(self.fac_x, "GX")
+              self.group_y = make_group(self.fac_y, "GY")
+              self.student_a = make_student("a", self.group_x, "SA").student_profile
+              self.staff_x = make_staff("sx", self.fac_x)
+              self.staff_x2 = make_staff("sx2", self.fac_x)
+              self.staff_y = make_staff("sy", self.fac_y)
+              self.type = make_type()
+              self.petition = make_petition(self.student_a, self.type)
+
+          def test_append_at_every_status(self):
+              for status in ["submitted", "in_progress", "ready", "issued", "rejected"]:
+                  p = make_petition(self.student_a, self.type)
+                  _drive_to(p, self.staff_x, status)
+                  add_staff_comment(p, self.staff_x, "комментарий")
+                  self.assertEqual(p.staff_comments.count(), 1)
+
+          def test_two_staff_both_add(self):
+              c1 = add_staff_comment(self.petition, self.staff_x, "первый")
+              add_staff_comment(self.petition, self.staff_x2, "второй")
+              self.assertEqual(self.petition.staff_comments.count(), 2)
+              c1.refresh_from_db()
+              self.assertEqual(c1.text, "первый")
+              self.assertEqual(c1.author, self.staff_x)
+
+          def test_empty_rejected(self):
+              with self.assertRaises(ValidationError):
+                  add_staff_comment(self.petition, self.staff_x, "   ")
+
+          def test_student_cannot(self):
+              with self.assertRaises(PermissionDenied):
+                  add_staff_comment(self.petition, self.student_a.user, "x")
+
+          def test_other_faculty_staff_cannot(self):
+              with self.assertRaises(PermissionDenied):
+                  add_staff_comment(self.petition, self.staff_y, "x")
+
+          def test_comment_after_concurrent_transition(self):
+              change_status(self.petition, self.staff_x, "submitted", "in_progress")
+              comment = add_staff_comment(self.petition, self.staff_x, "заметка")
+              self.assertEqual(comment.text, "заметка")
+
+
+      class ServiceClockTests(FrozenClockMixin, TestCase):
+          frozen_now = "2026-11-11 12:00"
+
+          def setUp(self):
+              self.faculty = make_faculty("FDD")
+              self.group = make_group(self.faculty, "ЦД-101")
+              self.student = make_student("s1", self.group, "ST-0001").student_profile
+              self.type = make_type(days=3)
+              self.staff = make_staff("st1", self.faculty)
+              self.now = moscow("2026-11-11 12:00")
+
+          def test_submit_gets_frozen_time(self):
+              petition = submit_petition(self.student, self.type, "", [])
+              self.assertEqual(petition.created_at, self.now)
+              self.assertEqual(petition.status_changed_at, self.now)
+              self.assertEqual(petition.history.get().created_at, self.now)
+
+          def test_attachment_gets_frozen_time(self):
+              petition = submit_petition(self.student, self.type, "", [pdf_upload()])
+              self.assertEqual(petition.attachments.get().uploaded_at, self.now)
+
+          def test_status_change_gets_frozen_time(self):
+              petition = submit_petition(self.student, self.type, "", [])
+              change_status(petition, self.staff, "submitted", "in_progress")
+              petition.refresh_from_db()
+              self.assertEqual(petition.status_changed_at, self.now)
+              self.assertEqual(petition.history.last().created_at, self.now)
+
+          def test_staff_comment_gets_frozen_time(self):
+              petition = submit_petition(self.student, self.type, "", [])
+              comment = add_staff_comment(petition, self.staff, "Комментарий")
+              self.assertEqual(comment.created_at, self.now)
+
+          def test_model_defaults_are_clock_now(self):
+              cases = [
+                  (Petition, "created_at"),
+                  (Petition, "status_changed_at"),
+                  (PetitionStatusChange, "created_at"),
+                  (PetitionComment, "created_at"),
+                  (PetitionAttachment, "uploaded_at"),
+              ]
+              for model, field in cases:
+                  with self.subTest(model=model.__name__, field=field):
+                      self.assertIs(model._meta.get_field(field).default, clock.now)
+    ── Thought for 297ms
+      Now let me read test_views.py to understand its structure and existing test classes.
+    ── Read file read
+      import uuid
+      from datetime import timedelta
+
+      from django.core.files.base import ContentFile
+      from django.core.files.uploadedfile import SimpleUploadedFile
+      from django.db import connection
+      from django.test import Client, TestCase
+      from django.test.utils import CaptureQueriesContext
+      from django.urls import reverse
+      from django.utils import timezone
+
+      from accounts.models import User
+      from accounts.tests.helpers import make_faculty, make_group, make_staff, make_student
+      from core.testing import FrozenClockMixin
+      from petitions.files import store_attachment
+      from petitions.forms import PetitionForm
+      from petitions.models import Petition, PetitionComment, PetitionStatusChange
+      from petitions.services import add_staff_comment, change_status
+      from petitions.tests.helpers import fake_upload, make_petition, make_type, pdf_upload
+
+
+      class AccessMatrixTests(FrozenClockMixin, TestCase):
+          def setUp(self):
+              self.fac_x = make_faculty("FX")
+              self.fac_y = make_faculty("FY")
+              self.group_x = make_group(self.fac_x, "GX")
+              self.group_y = make_group(self.fac_y, "GY")
+              self.student_a = make_student("a", self.group_x, "SA").student_profile
+              self.student_a2 = make_student("a2", self.group_x, "SA2").student_profile
+              self.student_b = make_student("b", self.group_y, "SB").student_profile
+              self.staff_sx = make_staff("sx", self.fac_x)
+              self.staff_sy = make_staff("sy", self.fac_y)
+              self.admin = User.objects.create_superuser(username="admin")
+              self.type = make_type()
+              self.inactive = make_type(name="Inactive")
+              self.inactive.is_active = False
+              self.inactive.save()
+              self.pa = make_petition(self.student_a, self.type)
+              self.pa2 = make_petition(self.student_a2, self.type)
+              self.pb = make_petition(self.student_b, self.type)
+
+          def _login(self, user):
+              self.client.force_login(user)
+
+          def test_my_list_access(self):
+              self.assertEqual(self.client.get(reverse("petitions:my_list")).status_code, 302)
+              self._login(self.student_a.user)
+              resp = self.client.get(reverse("petitions:my_list"))
+              self.assertEqual(resp.status_code, 200)
+              content = resp.content.decode()
+              self.assertIn(str(self.pa.short_id), content)
+              self.assertNotIn(str(self.pa2.short_id), content)
+              self.assertNotIn(str(self.pb.short_id), content)
+              self._login(self.staff_sx)
+              self.assertEqual(self.client.get(reverse("petitions:my_list")).status_code, 403)
+
+          def test_catalog_access(self):
+              self.assertEqual(self.client.get(reverse("petitions:catalog")).status_code, 302)
+              self._login(self.student_a.user)
+              self.assertEqual(self.client.get(reverse("petitions:catalog")).status_code, 200)
+              self._login(self.staff_sx)
+              self.assertEqual(self.client.get(reverse("petitions:catalog")).status_code, 403)
+              self._login(self.admin)
+              self.assertEqual(self.client.get(reverse("petitions:catalog")).status_code, 403)
+
+          def test_submit_access(self):
+              url = reverse("petitions:submit", args=[self.type.pk])
+              self.assertEqual(self.client.get(url).status_code, 302)
+              self._login(self.student_a.user)
+              self.assertEqual(self.client.get(url).status_code, 200)
+              self.assertEqual(self.client.post(url, {"comment": "x"}).status_code, 302)
+              self._login(self.staff_sx)
+              self.assertEqual(self.client.get(url).status_code, 403)
+
+          def test_inactive_type_404(self):
+              self._login(self.student_a.user)
+              url = reverse("petitions:submit", args=[self.inactive.pk])
+              self.assertEqual(self.client.get(url).status_code, 404)
+
+          def test_detail_other_student_404(self):
+              self._login(self.student_a2.user)
+              self.assertEqual(self.client.get(self._detail(self.pa.public_id)).status_code, 404)
+
+          def test_detail_staff_403(self):
+              self._login(self.staff_sx)
+              self.assertEqual(self.client.get(self._detail(self.pa.public_id)).status_code, 403)
+
+          def test_submitted_page_other_student_404(self):
+              self._login(self.student_a2.user)
+              self.assertEqual(self.client.get(self._submitted(self.pa)).status_code, 404)
+
+          def test_staff_queue_own_faculty_only(self):
+              self.assertEqual(self.client.get(reverse("petitions:staff_queue")).status_code, 302)
+              self._login(self.student_a.user)
+              self.assertEqual(self.client.get(reverse("petitions:staff_queue")).status_code, 403)
+              self._login(self.staff_sx)
+              content = self.client.get(reverse("petitions:staff_queue")).content.decode()
+              self.assertIn(str(self.pa.short_id), content)
+              self.assertIn(str(self.pa2.short_id), content)
+              self.assertNotIn(str(self.pb.short_id), content)
+              self._login(self.staff_sy)
+              content = self.client.get(reverse("petitions:staff_queue")).content.decode()
+              self.assertIn(str(self.pb.short_id), content)
+              self.assertNotIn(str(self.pa.short_id), content)
+              self._login(self.admin)
+              self.assertEqual(self.client.get(reverse("petitions:staff_queue")).status_code, 403)
+
+          def test_staff_detail_other_faculty_404(self):
+              self._login(self.staff_sx)
+              self.assertEqual(self.client.get(self._staff_detail(self.pa)).status_code, 200)
+              self._login(self.staff_sy)
+              self.assertEqual(self.client.get(self._staff_detail(self.pa)).status_code, 404)
+
+          def test_staff_transition_other_faculty_404(self):
+              self._login(self.staff_sy)
+              resp = self.client.post(
+                  self._transition(self.pa),
+                  {"expected_status": "submitted", "new_status": "in_progress"},
+              )
+              self.assertEqual(resp.status_code, 404)
+              self.pa.refresh_from_db()
+              self.assertEqual(self.pa.status, "submitted")
+
+          def test_staff_transition_get_405(self):
+              self._login(self.staff_sx)
+              self.assertEqual(self.client.get(self._transition(self.pa)).status_code, 405)
+
+          def test_staff_comment_other_faculty_404(self):
+              self._login(self.staff_sy)
+              resp = self.client.post(self._comment(self.pa), {"text": "hello"})
+              self.assertEqual(resp.status_code, 404)
+              self.assertEqual(self.pa.staff_comments.count(), 0)
+
+          def test_random_uuid_404(self):
+              self._login(self.student_a.user)
+              self.assertEqual(self.client.get(self._detail(uuid.uuid4())).status_code, 404)
+
+          def test_sequential_ids_not_used(self):
+              url = reverse("petitions:detail", args=[self.pa.public_id])
+              self.assertIn(str(self.pa.public_id), url)
+              segment = url.rstrip("/").split("/")[-1]
+              self.assertNotEqual(segment, str(self.pa.pk))
+
+          def _detail(self, arg):
+              return reverse("petitions:detail", args=[arg])
+
+          def _submitted(self, petition):
+              return reverse("petitions:submitted", args=[petition.public_id])
+
+          def _staff_detail(self, petition):
+              return reverse("petitions:staff_detail", args=[petition.public_id])
+
+          def _transition(self, petition):
+              return reverse("petitions:staff_transition", args=[petition.public_id])
+
+          def _comment(self, petition):
+              return reverse("petitions:staff_comment", args=[petition.public_id])
+
+
+      class FormTests(FrozenClockMixin, TestCase):
+          def setUp(self):
+              self.fac = make_faculty("FX")
+              self.group = make_group(self.fac, "GX")
+              self.student = make_student("a", self.group, "SA").student_profile
+              self.type = make_type()
+              self.req_type = make_type(name="Req", comment_required=True, hint="Укажите причину")
+              self.url = reverse("petitions:submit", args=[self.type.pk])
+              self.req_url = reverse("petitions:submit", args=[self.req_type.pk])
+
+          def test_form_has_exactly_two_fields(self):
+              form = PetitionForm(request_type=self.type)
+              self.assertEqual(list(form.fields.keys()), ["comment", "files"])
+
+          def test_hint_shown_for_required_comment(self):
+              self.client.force_login(self.student.user)
+              resp = self.client.get(self.req_url)
+              self.assertIn("Укажите причину", resp.content.decode())
+
+          def test_hint_rendered_once(self):
+              hint = "Обязательно укажите причину обращения."
+              t = make_type(name="H1", comment_required=True, hint=hint)
+              self.client.force_login(self.student.user)
+              resp = self.client.get(reverse("petitions:submit", args=[t.pk]))
+              self.assertEqual(resp.content.decode().count(hint), 1)
+
+          def test_no_hint_for_optional_type(self):
+              hint = "Можно указать, куда нужна справка."
+              t = make_type(name="H2", comment_required=False, hint=hint)
+              self.client.force_login(self.student.user)
+              resp = self.client.get(reverse("petitions:submit", args=[t.pk]))
+              content = resp.content.decode()
+              self.assertLessEqual(content.count(hint), 1)
+              self.assertNotIn('class="hint"', content)
+
+          def test_required_comment_missing_shows_error(self):
+              self.client.force_login(self.student.user)
+              resp = self.client.post(self.req_url, {"comment": ""})
+              self.assertEqual(resp.status_code, 200)
+              self.assertIn("errorlist", resp.content.decode())
+              self.assertEqual(Petition.objects.count(), 0)
+
+          def test_optional_comment_submit(self):
+              self.client.force_login(self.student.user)
+              resp = self.client.post(self.url, {"comment": ""})
+              self.assertEqual(resp.status_code, 302)
+              petition = Petition.objects.get()
+              self.assertEqual(
+                  resp["Location"], reverse("petitions:submitted", args=[petition.public_id])
+              )
+
+          def test_upload_valid_pdfs(self):
+              self.client.force_login(self.student.user)
+              resp = self.client.post(
+                  self.url, {"comment": "", "files": [pdf_upload("a.pdf"), pdf_upload("b.pdf")]}
+              )
+              self.assertEqual(resp.status_code, 302)
+              self.assertEqual(Petition.objects.get().attachments.count(), 2)
+
+          def test_upload_four_files_rejected(self):
+              self.client.force_login(self.student.user)
+              files = [pdf_upload(f"f{i}.pdf") for i in range(4)]
+              resp = self.client.post(self.url, {"comment": "", "files": files})
+              self.assertEqual(resp.status_code, 200)
+              self.assertIn("не больше 3 файлов", resp.content.decode())
+              self.assertEqual(Petition.objects.count(), 0)
+
+          def test_upload_non_pdf_rejected(self):
+              self.client.force_login(self.student.user)
+              bad = fake_upload("evil.pdf", b"MZ\x90\x00\x03", "application/pdf")
+              resp = self.client.post(self.url, {"comment": "", "files": [bad]})
+              self.assertEqual(resp.status_code, 200)
+              self.assertIn("не является PDF", resp.content.decode())
+
+          def test_upload_wrong_content_type_rejected(self):
+              self.client.force_login(self.student.user)
+              bad = fake_upload("a.pdf", b"%PDF-1.4\n", "text/plain")
+              resp = self.client.post(self.url, {"comment": "", "files": [bad]})
+              self.assertEqual(resp.status_code, 200)
+              self.assertIn("только PDF", resp.content.decode())
+
+          def test_upload_too_large_rejected(self):
+              self.client.force_login(self.student.user)
+              big = SimpleUploadedFile(
+                  "big.pdf", b"%PDF-" + b"0" * (5 * 1024 * 1024 - 4), content_type="application/pdf"
+              )
+              resp = self.client.post(self.url, {"comment": "", "files": [big]})
+              self.assertEqual(resp.status_code, 200)
+              self.assertIn("больше 5 МБ", resp.content.decode())
+
+          def test_limit_message_shown(self):
+              self.client.force_login(self.student.user)
+              for _ in range(3):
+                  self.client.post(self.url, {"comment": ""})
+              resp = self.client.post(self.url, {"comment": ""})
+              self.assertEqual(resp.status_code, 200)
+              self.assertIn("открытые заявки", resp.content.decode())
+
+          def test_csrf_enforced(self):
+              client = Client(enforce_csrf_checks=True)
+              client.force_login(self.student.user)
+              resp = client.post(self.url, {"comment": "x"})
+              self.assertEqual(resp.status_code, 403)
+
+
+      class StudentPagesTests(FrozenClockMixin, TestCase):
+          def setUp(self):
+              self.fac = make_faculty("FX")
+              self.group = make_group(self.fac, "GX")
+              self.student = make_student("a", self.group, "SA").student_profile
+              self.staff = make_staff("sx", self.fac)
+              self.cert = make_type(name="Справка об обучении", kind="certificate", days=3)
+              self.appl = make_type(name="Заявление", kind="application", days=10)
+              self.petition = make_petition(self.student, self.cert)
+
+          def test_catalog_lists_active_types_by_kind(self):
+              self.client.force_login(self.student.user)
+              resp = self.client.get(reverse("petitions:catalog"))
+              content = resp.content.decode()
+              self.assertIn("Справки", content)
+              self.assertIn("Заявления", content)
+              self.assertIn("Справка об обучении", content)
+              self.assertIn("Заявление", content)
+
+          def test_my_list_newest_first_and_status_text(self):
+              older = make_petition(
+                  self.student, self.cert, created_at=timezone.now() - timedelta(days=1)
+              )
+              self.client.force_login(self.student.user)
+              content = self.client.get(reverse("petitions:my_list")).content.decode()
+              self.assertIn("Подана", content)
+              self.assertLess(
+                  content.index(str(self.petition.short_id)), content.index(str(older.short_id))
+              )
+
+          def test_my_list_empty_state(self):
+              self.petition.delete()
+              self.client.force_login(self.student.user)
+              resp = self.client.get(reverse("petitions:my_list"))
+              self.assertIn("Заявок пока нет", resp.content.decode())
+
+          def test_catalog_link_on_list_with_requests(self):
+              self.client.force_login(self.student.user)
+              resp = self.client.get(reverse("petitions:my_list"))
+              content = resp.content.decode()
+              self.assertEqual(content.count('href="/requests/new/"'), 1)
+              self.assertIn("Подать заявку", content)
+
+          def test_catalog_link_on_empty_list(self):
+              self.petition.delete()
+              self.client.force_login(self.student.user)
+              resp = self.client.get(reverse("petitions:my_list"))
+              content = resp.content.decode()
+              self.assertEqual(content.count('href="/requests/new/"'), 1)
+              self.assertIn("Заявок пока нет.", content)
+
+          def test_detail_shows_history_comments_attachments(self):
+              store_attachment(self.petition, ContentFile(b"%PDF-1.4\n%%EOF"), "a.pdf", 12)
+              add_staff_comment(self.petition, self.staff, "текст комментария")
+              self.client.force_login(self.student.user)
+              resp = self.client.get(reverse("petitions:detail", args=[self.petition.public_id]))
+              content = resp.content.decode()
+              self.assertIn("a.pdf", content)
+              self.assertIn("текст комментария", content)
+              self.assertIn("Подана", content)
+
+          def test_detail_has_no_action_forms(self):
+              self.client.force_login(self.student.user)
+              resp = self.client.get(reverse("petitions:detail", args=[self.petition.public_id]))
+              content = resp.content.decode()
+              self.assertNotIn("Отозвать", content)
+              self.assertNotIn("staff_transition", content)
+
+          def test_submitted_page_shows_expected_date(self):
+              self.client.force_login(self.student.user)
+              resp = self.client.get(reverse("petitions:submitted", args=[self.petition.public_id]))
+              self.assertIn("Ожидаемая дата готовности", resp.content.decode())
+
+
+      class StaffPagesTests(FrozenClockMixin, TestCase):
+          def setUp(self):
+              self.fac = make_faculty("FX")
+              self.group = make_group(self.fac, "GX")
+              self.student = make_student("a", self.group, "SA").student_profile
+              self.staff = make_staff("sx", self.fac)
+              self.type = make_type()
+              self.p_old = make_petition(
+                  self.student, self.type, created_at=timezone.now() - timedelta(days=2)
+              )
+              self.p_new = make_petition(
+                  self.student, self.type, created_at=timezone.now() - timedelta(days=1)
+              )
+
+          def test_queue_default_open_oldest_first(self):
+              self.client.force_login(self.staff)
+              content = self.client.get(reverse("petitions:staff_queue")).content.decode()
+              self.assertLess(
+                  content.index(str(self.p_old.short_id)), content.index(str(self.p_new.short_id))
+              )
+
+          def test_queue_filter_status(self):
+              issued = make_petition(self.student, self.type, status="issued")
+              self.client.force_login(self.staff)
+              content = self.client.get(
+                  reverse("petitions:staff_queue"), {"status": "issued"}
+              ).content.decode()
+              self.assertIn(str(issued.short_id), content)
+              self.assertNotIn(str(self.p_old.short_id), content)
+
+          def test_queue_filter_all(self):
+              issued = make_petition(self.student, self.type, status="issued")
+              self.client.force_login(self.staff)
+              content = self.client.get(
+                  reverse("petitions:staff_queue"), {"status": "all"}
+              ).content.decode()
+              self.assertIn(str(issued.short_id), content)
+              self.assertIn(str(self.p_old.short_id), content)
+
+          def test_queue_filter_type(self):
+              other = make_type(name="Заявление", kind="application", days=5)
+              p_other = make_petition(self.student, other)
+              self.client.force_login(self.staff)
+              content = self.client.get(
+                  reverse("petitions:staff_queue"), {"type": str(other.pk)}
+              ).content.decode()
+              self.assertIn(str(p_other.short_id), content)
+              self.assertNotIn(str(self.p_old.short_id), content)
+
+          def test_queue_invalid_filter_falls_back(self):
+              self.client.force_login(self.staff)
+              resp = self.client.get(reverse("petitions:staff_queue"), {"status": "bogus"})
+              self.assertEqual(resp.status_code, 200)
+              self.assertIn(str(self.p_old.short_id), resp.content.decode())
+
+          def test_queue_empty_state(self):
+              Petition.objects.all().delete()
+              self.client.force_login(self.staff)
+              resp = self.client.get(reverse("petitions:staff_queue"))
+              self.assertIn("Заявок нет", resp.content.decode())
+
+          def test_detail_shows_student_info_and_actions(self):
+              self.client.force_login(self.staff)
+              resp = self.client.get(reverse("petitions:staff_detail", args=[self.p_old.public_id]))
+              content = resp.content.decode()
+              self.assertIn(self.student.full_name, content)
+              self.assertIn(f"<p>{self.student.group.name}</p>", content)
+              self.assertIn("Взять в работу", content)
+              self.assertIn("Отклонить", content)
+
+          def test_final_status_has_no_actions(self):
+              issued = make_petition(self.student, self.type, status="issued")
+              self.client.force_login(self.staff)
+              content = self.client.get(
+                  reverse("petitions:staff_detail", args=[issued.public_id])
+              ).content.decode()
+              self.assertNotIn("Взять в работу", content)
+              self.assertNotIn("Отметить готовой", content)
+              self.assertNotIn("Отметить выданной", content)
+              self.assertNotIn("Отклонить", content)
+
+
+      class StaffActionTests(FrozenClockMixin, TestCase):
+          def setUp(self):
+              self.fac = make_faculty("FX")
+              self.group = make_group(self.fac, "GX")
+              self.student = make_student("a", self.group, "SA").student_profile
+              self.staff = make_staff("sx", self.fac)
+              self.type = make_type()
+              self.petition = make_petition(self.student, self.type)
+              self.transition_url = reverse("petitions:staff_transition", args=[self.petition.public_id])
+              self.comment_url = reverse("petitions:staff_comment", args=[self.petition.public_id])
+
+          def test_take_ready_issue_flow(self):
+              self.client.force_login(self.staff)
+              self.client.post(
+                  self.transition_url, {"expected_status": "submitted", "new_status": "in_progress"}
+              )
+              self.client.post(
+                  self.transition_url, {"expected_status": "in_progress", "new_status": "ready"}
+              )
+              resp = self.client.post(
+                  self.transition_url, {"expected_status": "ready", "new_status": "issued"}, follow=True
+              )
+              self.petition.refresh_from_db()
+              self.assertEqual(self.petition.status, "issued")
+              self.assertEqual(self.petition.history.count(), 4)
+              self.assertIn("Статус изменён", resp.content.decode())
+
+          def test_reject_requires_comment(self):
+              self.client.force_login(self.staff)
+              resp = self.client.post(
+                  self.transition_url,
+                  {"expected_status": "submitted", "new_status": "rejected"},
+                  follow=True,
+              )
+              self.assertIn("причину отклонения", resp.content.decode())
+              self.petition.refresh_from_db()
+              self.assertEqual(self.petition.status, "submitted")
+
+          def test_reject_with_comment(self):
+              self.client.force_login(self.staff)
+              self.client.post(
+                  self.transition_url,
+                  {"expected_status": "submitted", "new_status": "rejected", "comment": "причина"},
+              )
+              self.petition.refresh_from_db()
+              self.assertEqual(self.petition.status, "rejected")
+              self.assertEqual(
+                  self.petition.history.order_by("created_at", "pk").last().comment, "причина"
+              )
+
+          def test_invalid_transition_message(self):
+              self.client.force_login(self.staff)
+              resp = self.client.post(
+                  self.transition_url,
+                  {"expected_status": "submitted", "new_status": "issued"},
+                  follow=True,
+              )
+              self.assertIn("Нельзя перевести заявку", resp.content.decode())
+              self.petition.refresh_from_db()
+              self.assertEqual(self.petition.status, "submitted")
+
+          def test_stale_message_shown(self):
+              change_status(self.petition, self.staff, "submitted", "in_progress")
+              self.client.force_login(self.staff)
+              resp = self.client.post(
+                  self.transition_url,
+                  {"expected_status": "submitted", "new_status": "ready"},
+                  follow=True,
+              )
+              self.assertIn("Заявка уже изменена, обновите страницу", resp.content.decode())
+              self.petition.refresh_from_db()
+              self.assertEqual(self.petition.status, "in_progress")
+
+          def test_comment_added_and_visible_to_student(self):
+              self.client.force_login(self.staff)
+              self.client.post(self.comment_url, {"text": "проверьте документы"})
+              self.assertEqual(self.petition.staff_comments.count(), 1)
+              self.client.force_login(self.student.user)
+              resp = self.client.get(reverse("petitions:detail", args=[self.petition.public_id]))
+              self.assertIn("проверьте документы", resp.content.decode())
+
+          def test_empty_comment_rejected(self):
+              self.client.force_login(self.staff)
+              self.client.post(self.comment_url, {"text": "  "})
+              self.assertEqual(self.petition.staff_comments.count(), 0)
+
+          def test_tampered_form_values(self):
+              self.client.force_login(self.staff)
+              resp = self.client.post(
+                  self.transition_url,
+                  {"expected_status": "submitted", "new_status": "unknown"},
+                  follow=True,
+              )
+              self.assertEqual(resp.status_code, 200)
+              self.petition.refresh_from_db()
+              self.assertEqual(self.petition.status, "submitted")
+
+
+      class NavigationTests(FrozenClockMixin, TestCase):
+          def setUp(self):
+              self.fac = make_faculty("FX")
+              self.group = make_group(self.fac, "GX")
+              self.student = make_student("a", self.group, "SA").student_profile
+              self.staff = make_staff("sx", self.fac)
+              self.admin = User.objects.create_superuser(username="admin")
+
+          def test_student_nav(self):
+              self.client.force_login(self.student.user)
+              content = self.client.get(reverse("core:home")).content.decode()
+              self.assertIn("/requests/", content)
+
+          def test_staff_nav(self):
+              self.client.force_login(self.staff)
+              content = self.client.get(reverse("core:home")).content.decode()
+              self.assertIn("/staff/requests/", content)
+
+          def test_superuser_neither(self):
+              self.client.force_login(self.admin)
+              content = self.client.get(reverse("core:home")).content.decode()
+              self.assertNotIn("/requests/", content)
+              self.assertNotIn("/staff/requests/", content)
+
+
+      class QueryCountTests(FrozenClockMixin, TestCase):
+          def setUp(self):
+              self.fac = make_faculty("FX")
+              self.group = make_group(self.fac, "GX")
+              self.student = make_student("a", self.group, "SA").student_profile
+              self.staff = make_staff("sx", self.fac)
+              self.type = make_type()
+              self.petition = make_petition(self.student, self.type)
+              add_staff_comment(self.petition, self.staff, "текст")
+              store_attachment(self.petition, ContentFile(b"%PDF-1.4\n%%EOF"), "a.pdf", 12)
+
+          def _num_queries(self, url):
+              with CaptureQueriesContext(connection) as ctx:
+                  self.client.get(url)
+              return len(ctx)
+
+          def test_my_list_constant_queries(self):
+              self.client.force_login(self.student.user)
+              url = reverse("petitions:my_list")
+              n1 = self._num_queries(url)
+              for _ in range(5):
+                  make_petition(self.student, self.type)
+              self.assertEqual(self._num_queries(url), n1)
+
+          def test_staff_queue_constant_queries(self):
+              self.client.force_login(self.staff)
+              url = reverse("petitions:staff_queue")
+              n1 = self._num_queries(url)
+              for _ in range(5):
+                  make_petition(self.student, self.type)
+              self.assertEqual(self._num_queries(url), n1)
+
+          def test_student_detail_constant_queries(self):
+              self.client.force_login(self.student.user)
+              url = reverse("petitions:detail", args=[self.petition.public_id])
+              n1 = self._num_queries(url)
+              for _ in range(10):
+                  PetitionStatusChange.objects.create(
+                      petition=self.petition,
+                      from_status="submitted",
+                      to_status="in_progress",
+                      actor=self.staff,
+                      created_at=timezone.now(),
+                  )
+              for i in range(5):
+                  PetitionComment.objects.create(petition=self.petition, author=self.staff, text=f"c{i}")
+              for i in range(5):
+                  store_attachment(self.petition, ContentFile(b"%PDF-1.4\n%%EOF"), f"f{i}.pdf", 12)
+              self.assertEqual(self._num_queries(url), n1)
+
+          def test_staff_detail_constant_queries(self):
+              self.client.force_login(self.staff)
+              url = reverse("petitions:staff_detail", args=[self.petition.public_id])
+              n1 = self._num_queries(url)
+              for _ in range(10):
+                  PetitionStatusChange.objects.create(
+                      petition=self.petition,
+                      from_status="submitted",
+                      to_status="in_progress",
+                      actor=self.staff,
+                      created_at=timezone.now(),
+                  )
+              for i in range(5):
+                  PetitionComment.objects.create(petition=self.petition, author=self.staff, text=f"c{i}")
+              for i in range(5):
+                  store_attachment(self.petition, ContentFile(b"%PDF-1.4\n%%EOF"), f"f{i}.pdf", 12)
+              self.assertEqual(self._num_queries(url), n1)
+    ── Thought for 904ms
+      I now have a thorough understanding. There's no existing test_models.py or test_terms.py. I need to create them.
+
+      Let me check if there's an existing `test_models.py`. From `ls petitions/tests/`, there's no test_models.py. The spec says "check first; add the classes to an existing module only if it already holds model tests". Since there's no test_models.py, I create a new one.
+
+      Now let me start implementing.
+
+      Step 1: F1 (petitions/terms.py) + test_terms.py.
+
+      Let me write terms.py.
+    ── Created petitions/terms.py
+    ── Created petitions/tests/test_terms.py
+    ── Thought for 2s
+      Now F2: models.py changes.
+
+      1. Import `from petitions.terms import term_label` — but note, models.py is in petitions package. It already imports `from petitions.files import attachment_upload_to`. So I can add `from petitions.terms import term_label`. Actually, wait, let me check — models.py uses `from core.clock import now` and `from core.storage import get_private_storage` and `from petitions.files import attachment_upload_to`. So I'll add `from petitions.terms import term_label`.
+
+      Actually, there might be a circular import concern? terms.py is a pure module with no imports. No circularity. Good.
+
+      2. `SUBJECT_MAX_LENGTH = 150` after `MAX_COMMENT_LENGTH = 2000`.
+
+      3. `subject_required` field after `comment_hint`.
+
+      4. Constraint in Meta.
+
+      5. `clean()` rule.
+
+      6. `term_label` property.
+
+      7. `Petition.subject` before comment.
+
+      8. `Petition.display_name` property above short_id.
+
+      Let me make these edits.
+    ── Edited petitions/models.py +2
+      --- a~/hackatonproject/petitions/models.py
+      +++ b~/hackatonproject/petitions/models.py
+      +from petitions.terms import term_label
+      +SUBJECT_MAX_LENGTH = 150
+    ── Edited petitions/models.py +14 -1
+      --- a~/hackatonproject/petitions/models.py
+      +++ b~/hackatonproject/petitions/models.py
+      +    subject_required = models.BooleanField("нужно поле «Тип»", default=False)
+      -            )
+      +            ),
+      +            models.CheckConstraint(
+      +                condition=~models.Q(subject_required=True, comment_required=False),
+      +                name="petitions_type_subject_needs_comment",
+      +            ),
+      +    @property
+      +    def term_label(self) -> str:
+      +        return term_label(self.processing_days)
+      +
+      +        if self.subject_required and not self.comment_required:
+      +            raise ValidationError(
+      +                "Если нужно поле «Тип», комментарий тоже должен быть обязательным."
+      +            )
+    ── Edited petitions/models.py +3
+      --- a~/hackatonproject/petitions/models.py
+      +++ b~/hackatonproject/petitions/models.py
+      +    subject = models.CharField(
+      +        "тип", max_length=SUBJECT_MAX_LENGTH, blank=True, default=""
+      +    )
+    ── Edited petitions/models.py +6
+      --- a~/hackatonproject/petitions/models.py
+      +++ b~/hackatonproject/petitions/models.py
+      +    def display_name(self) -> str:
+      +        if self.subject:
+      +            return f"{self.request_type.name}: {self.subject}"
+      +        return self.request_type.name
+      +
+      +    @property
+    ── Thought for 316ms
+      Now F3: migration. Let me run makemigrations.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && python manage.py makemigrations petitions --name subject 2>&1 | tail -8
+      $ cd ~/hackatonproject && source .venv/bin/activate && python manage.py makemigrations petitions --name subject 2>&1 | tail -8
+      Migrations for 'petitions':
+        petitions/migrations/0003_subject.py
+          + Add field subject to petition
+          + Add field subject_required to requesttype
+          + Create constraint petitions_type_subject_needs_comment on model requesttype
+    ── Read file read
+      # Generated by Django 5.2.19 on 2026-11-18 23:32
+
+      from django.db import migrations, models
+
+
+      class Migration(migrations.Migration):
+
+          dependencies = [
+              ('petitions', '0002_alter_petition_created_at_and_more'),
+          ]
+
+          operations = [
+              migrations.AddField(
+                  model_name='petition',
+                  name='subject',
+                  field=models.CharField(blank=True, default='', max_length=150, verbose_name='тип'),
+              ),
+              migrations.AddField(
+                  model_name='requesttype',
+                  name='subject_required',
+                  field=models.BooleanField(default=False, verbose_name='нужно поле «Тип»'),
+              ),
+              migrations.AddConstraint(
+                  model_name='requesttype',
+                  constraint=models.CheckConstraint(condition=models.Q(('comment_required', False), ('subject_required', True), _negated=True), name='petitions_type_subject_needs_comment'),
+              ),
+          ]
+    ── Thought for 313ms
+      The migration looks good. Let me run ruff format on it.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff format petitions/migrations/0003_subject.py 2>&1 | tail -2 && python manage.py makemigrations --check --dry-run 2>&1 | tail -2
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff format petitions/migrations/0003_subject.py 2>&1 | tail -2 && python manage.py makemigrations --check --dry-run 2>&1 | tail -2
+      1 file reformatted
+      No changes detected
+    ── Thought for 264ms
+      Now the helpers.py: add `subject_required=False` keyword.
+    ── Edited petitions/tests/helpers.py +9 -1
+      --- a~/hackatonproject/petitions/tests/helpers.py
+      +++ b~/hackatonproject/petitions/tests/helpers.py
+      -def make_type(name="Справка", kind="certificate", days=3, comment_required=False, hint=""):
+      +def make_type(
+      +    name="Справка",
+      +    kind="certificate",
+      +    days=3,
+      +    comment_required=False,
+      +    hint="",
+      +    subject_required=False,
+      +):
+      +        subject_required=subject_required,
+    ── Thought for 259ms
+      Now F4: forms.py.
+    ── Edited petitions/forms.py +1 -1
+      --- a~/hackatonproject/petitions/forms.py
+      +++ b~/hackatonproject/petitions/forms.py
+      -from petitions.models import MAX_COMMENT_LENGTH, PetitionStatus, RequestType
+      +from petitions.models import MAX_COMMENT_LENGTH, SUBJECT_MAX_LENGTH, PetitionStatus, RequestType
+    ── Edited petitions/forms.py +14
+      --- a~/hackatonproject/petitions/forms.py
+      +++ b~/hackatonproject/petitions/forms.py
+      +    subject = forms.CharField(
+      +        label="Тип",
+      +        max_length=SUBJECT_MAX_LENGTH,
+      +        help_text="Что именно нужно, например: «Справка о периоде обучения».",
+      +        error_messages={"required": "Укажите, что именно нужно."},
+      +    )
+      +        if not request_type.subject_required:
+      +            del self.fields["subject"]
+      +
+      +    def clean_subject(self):
+      +        subject = " ".join((self.cleaned_data.get("subject") or "").split())
+      +        if not subject:
+      +            raise forms.ValidationError("Укажите, что именно нужно.")
+      +        return subject
+    ── Thought for 233ms
+      Now F5: services.py.
+    ── Edited petitions/services.py +1
+      --- a~/hackatonproject/petitions/services.py
+      +++ b~/hackatonproject/petitions/services.py
+      +    SUBJECT_MAX_LENGTH,
+    ── Edited petitions/services.py +6
+      --- a~/hackatonproject/petitions/services.py
+      +++ b~/hackatonproject/petitions/services.py
+      +    subject: str = "",
+      +    subject = " ".join((subject or "").split()) if request_type.subject_required else ""
+      +    if request_type.subject_required and not subject:
+      +        errors.append("Укажите, что именно нужно.")
+      +    if len(subject) > SUBJECT_MAX_LENGTH:
+      +        errors.append("Поле «Тип» слишком длинное.")
+    ── Edited petitions/services.py +1
+      --- a~/hackatonproject/petitions/services.py
+      +++ b~/hackatonproject/petitions/services.py
+      +                subject=subject,
+    ── Thought for 427ms
+      Now F6: views.py.
+
+      1. SubmitPetitionView.form_valid: add subject.
+      2. CatalogView.get_context_data: order by subject_required, name.
+    ── Edited petitions/views.py +1 -1
+      --- a~/hackatonproject/petitions/views.py
+      +++ b~/hackatonproject/petitions/views.py
+      -        types = RequestType.objects.filter(is_active=True)
+      +        types = RequestType.objects.filter(is_active=True).order_by("subject_required", "name")
+    ── Edited petitions/views.py +1
+      --- a~/hackatonproject/petitions/views.py
+      +++ b~/hackatonproject/petitions/views.py
+      +                subject=form.cleaned_data.get("subject", ""),
+    ── Thought for 213ms
+      Now F7: templates.
+    ── Ran cd ~/hackatonproject && python3 - <<'EOF' import re # catalog.html: replace both "Срок: {{ type.processing_days }} раб. дн." with term_label p = "petitions/templates/petitions/catalog.html" t = open(p, encoding="utf-8").read() t = t.replace("· Срок: {{ type.processing_days }} раб. дн.", "· Срок: {{ type.term_label }}") open(p, "w", encoding="utf-8").write(t) # my_list.html p = "petitions/templates/petitions/my_list.html" t = open(p, encoding="utf-8").read() t = t.replace("{{ petition.request_type.name }}", "{{ petition.display_name }}") open(p, "w", encoding="utf-8").write(t) # detail.html h1 p = "petitions/templates/petitions/detail.html" t = open(p, encoding="utf-8").read() t = t.replace("<h1>{{ petition.request_type.name }}</h1>", "<h1>{{ petition.display_name }}</h1>") open(p, "w", encoding="utf-8").write(t) # staff_queue.html p = "petitions/templates/petitions/staff_queue.html" t = open(p, encoding="utf-8").read() t = t.replace("· {{ petition.request_type.name }}", "· {{ petition.display_name }}") open(p, "w", encoding="utf-8").write(t) # staff_detail.html p = "petitions/templates/petitions/staff_detail.html" t = open(p, encoding="utf-8").read() t = t.replace("<p>{{ petition.request_type.name }}</p>", "<p>{{ petition.display_name }}</p>") open(p, "w", encoding="utf-8").write(t) # submitted.html p = "petitions/templates/petitions/submitted.html" t = open(p, encoding="utf-8").read() t = t.replace("<p>{{ petition.request_type.name }}</p>", "<p>{{ petition.display_name }}</p>") open(p, "w", encoding="utf-8").write(t) print("done") EOF (2s)
+      $ cd ~/hackatonproject && python3 - <<'EOF'
+    import re
+    # catalog.html: replace both "Срок: {{ type.processing_days }} раб. дн." with term_label
+    p = "petitions/templates/petitions/catalog.html"
+    t = open(p, encoding="utf-8").read()
+    t = t.replace("· Срок: {{ type.processing_days }} раб. дн.", "· Срок: {{ type.term_label }}")
+    open(p, "w", encoding="utf-8").write(t)
+
+    # my_list.html
+    p = "petitions/templates/petitions/my_list.html"
+    t = open(p, encoding="utf-8").read()
+    t = t.replace("{{ petition.request_type.name }}", "{{ petition.display_name }}")
+    open(p, "w", encoding="utf-8").write(t)
+
+    # detail.html h1
+    p = "petitions/templates/petitions/detail.html"
+    t = open(p, encoding="utf-8").read()
+    t = t.replace("<h1>{{ petition.request_type.name }}</h1>", "<h1>{{ petition.display_name }}</h1>")
+    open(p, "w", encoding="utf-8").write(t)
+
+    # staff_queue.html
+    p = "petitions/templates/petitions/staff_queue.html"
+    t = open(p, encoding="utf-8").read()
+    t = t.replace("· {{ petition.request_type.name }}", "· {{ petition.display_name }}")
+    open(p, "w", encoding="utf-8").write(t)
+
+    # staff_detail.html
+    p = "petitions/templates/petitions/staff_detail.html"
+    t = open(p, encoding="utf-8").read()
+    t = t.replace("<p>{{ petition.request_type.name }}</p>", "<p>{{ petition.display_name }}</p>")
+    open(p, "w", encoding="utf-8").write(t)
+
+    # submitted.html
+    p = "petitions/templates/petitions/submitted.html"
+    t = open(p, encoding="utf-8").read()
+    t = t.replace("<p>{{ petition.request_type.name }}</p>", "<p>{{ petition.display_name }}</p>")
+    open(p, "w", encoding="utf-8").write(t)
+
+    print("done")
+    EOF
+      done
+    ── Thought for 539ms
+      Let me verify the changes are correct by grepping for any remaining `request_type.name` in the templates (except the form.html which should be unchanged, and the notifications feed titles which are out of scope).
+    ── Searched for request_type.name\|processing_days }} раб in petitions/templates/
+    ── Thought for 867ms
+      Only form.html has `request_type.name`, which is the `request_type` context variable (the form page h1), not the petition's request_type. That's correct - it should remain unchanged.
+
+      Now F8: demo.py.
+
+      1. Add `False` to 4 existing tuples, append 3 new tuples.
+      2. Loop update.
+      3. Append p-8.
+      4. Add `subject=seed.get("subject", "")`.
+
+      Let me do these edits.
+    ── Edited petitions/demo.py +31
+      --- a~/hackatonproject/petitions/demo.py
+      +++ b~/hackatonproject/petitions/demo.py
+      +        False,
+      +        False,
+      +        False,
+      +        False,
+      +    ),
+      +    (
+      +        "Справка в военкомат",
+      +        "certificate",
+      +        3,
+      +        True,
+      +        "Укажите военкомат.",
+      +        "Справка для военного комиссариата.",
+      +        False,
+      +    ),
+      +    (
+      +        "Другая справка",
+      +        "certificate",
+      +        5,
+      +        True,
+      +        "Опишите, что нужно и для чего.",
+      +        "Если нужной справки нет в списке.",
+      +        True,
+      +    ),
+      +    (
+      +        "Другое заявление",
+      +        "application",
+      +        5,
+      +        True,
+      +        "Опишите, что нужно и для чего.",
+      +        "Если нужного заявления нет в списке.",
+      +        True,
+    ── Edited petitions/demo.py +9
+      --- a~/hackatonproject/petitions/demo.py
+      +++ b~/hackatonproject/petitions/demo.py
+      +    {
+      +        "seed_key": "p-8",
+      +        "student": "student1",
+      +        "type": "Другая справка",
+      +        "subject": "Справка о периоде обучения",
+      +        "age": 3,
+      +        "path": ["submitted", "in_progress"],
+      +        "comment": "Нужна для оформления визы, с указанием дат начала и окончания обучения.",
+      +    },
+    ── Edited petitions/demo.py +2 -1
+      --- a~/hackatonproject/petitions/demo.py
+      +++ b~/hackatonproject/petitions/demo.py
+      -        for name, kind, days, required, hint, description in REQUEST_TYPES:
+      +        for name, kind, days, required, hint, description, subject_required in REQUEST_TYPES:
+      +                    "subject_required": subject_required,
+    ── Edited petitions/demo.py +1
+      --- a~/hackatonproject/petitions/demo.py
+      +++ b~/hackatonproject/petitions/demo.py
+      +                subject=seed.get("subject", ""),
+    ── Thought for 389ms
+      Now admin.py: add `subject_required` to RequestTypeAdmin list_display, and `subject` to PetitionAdmin list_display after request_type.
+    ── Edited petitions/admin.py +1 -1
+      --- a~/hackatonproject/petitions/admin.py
+      +++ b~/hackatonproject/petitions/admin.py
+      -    list_display = ("name", "kind", "processing_days", "comment_required", "is_active")
+      +    list_display = ("name", "kind", "processing_days", "comment_required", "subject_required", "is_active")
+    ── Edited petitions/admin.py +1 -1
+      --- a~/hackatonproject/petitions/admin.py
+      +++ b~/hackatonproject/petitions/admin.py
+      -    list_display = ("public_id", "request_type", "student", "status", "created_at")
+      +    list_display = ("public_id", "request_type", "subject", "student", "status", "created_at")
+    ── Thought for 374ms
+      Now README.md "## Requests" section. Let me find it.
+    ── Searched grep
+      Found 9 matches
+      ~/hackatonproject/README.md:
+        Line 97: ## Requests
+
+
+      ~/hackatonproject/docs/process/dialogs/02-planner.md:
+        Line 7512:     91:## Requests
+
+        Line 21200:     +- `README.md` "## Requests": one paragraph: the 7 request types, the "Тип" field for "Другая справка"/"Другое заявление", the term shown as "до N рабочих дней".
+
+
+      ~/hackatonproject/docs/tasks/TASK-014.md:
+        Line 51: - `README.md` "## Requests": one paragraph: the 7 request types, the "Тип" field for "Другая справка"/"Другое заявление", the term shown as "до N рабочих дней".
+
+
+      ~/hackatonproject/docs/process/dialogs/03-coder-deepseek.md:
+        Line 37204:       +## Requests
+
+        Line 49754:       ## Requests
+
+        Line 62336:       ## Requests
+
+        Line 62449:       The `## Map` section — spec doesn't specify language. Other sections (## Schedule, ## Grades, ## Requests, ## Notifications) are in English. So I'll write ## Map in English.
+
+        Line 78155:       ## Requests
+    ── Read file read
+      ## Requests
+
+      Students: `/requests/` (my requests), `/requests/new/` (catalog) and a
+      per-request detail with history and downloads. Staff: `/staff/requests/` (queue,
+      own faculty, filtered by status/type, open oldest first) and per-request actions
+      (take in progress, mark ready, mark issued, reject) and staff comments.
+
+      Status workflow:
+
+      | Status | Allowed transitions |
+      |---|---|
+      | Подана (submitted) | В работе, Отклонена |
+      | В работе (in_progress) | Готова, Отклонена |
+      | Готова (ready) | Выдана |
+      | Выдана (issued) | — |
+      | Отклонена (rejected) | — |
+
+      Limits: at most 3 open requests of the same type per student; up to 3
+      attachments, each ≤ 5 MB, PDF only (extension, content type and `%PDF-`
+      signature are all checked). Attachments are stored in `PRIVATE_MEDIA_ROOT`,
+      which must **never** be served by nginx or live inside `static/`; downloads go
+      through Django access checks only. nginx should allow larger request bodies for
+      multipart uploads:
+
+      ```nginx
+      client_max_body_size 20m;
+      ```
+
+      ## Notifications
+    ── Edited README.md +5
+      --- a~/hackatonproject/README.md
+      +++ b~/hackatonproject/README.md
+      +There are 7 request types: certificates and applications, including the
+      +catch-all "Другая справка" / "Другое заявление" which require a one-line "Тип"
+      +field plus a comment. The catalog shows the term as a maximum ("до N рабочих
+      +дней").
+      +
+    ── Thought for 3s
+      Now write the tests. Let me write:
+
+      1. `petitions/tests/test_models.py` (new) — RequestTypeSubjectTests.
+      2. `petitions/tests/test_services.py` — add SubmitSubjectTests.
+      3. `petitions/tests/test_views.py` — add SubjectFormTests, CatalogTermTests, SubjectDisplayTests, and QueryCountTests::test_lists_constant_with_subject.
+      4. `petitions/tests/test_demo.py` — update test_types_exact, add test_demo_subject_request, update test_command_output.
+
+      Let me first write test_models.py.
+
+      For RequestTypeSubjectTests:
+      - test_clean_requires_comment: RequestType(name="X", kind="certificate", processing_days=5, subject_required=True, comment_required=False).full_clean() raises; with comment_required=True, comment_hint="h" passes.
+      - test_db_constraint: create with subject_required=True, comment_required=False inside transaction.atomic() raises IntegrityError.
+      - test_term_label_property: type with processing_days=21 → term_label == "до 21 рабочего дня".
+      - test_display_name: petition with subject "А" → "Справка: А"; empty subject → "Справка".
+      - test_admin_shows_flag: superuser GET admin:petitions_requesttype_changelist → 200, header "нужно поле «Тип»"; GET add form contains name="subject_required".
+
+      For test_display_name, I need a student and petition. Let me use make_student/make_type/make_petition or create directly. The spec says petition with subject "А" → "Справка: А". The type name would be "Справка" (default make_type name). Let me use make_type() and create petition with subject.
+
+      Actually, for display_name test, I can just create a RequestType and Petition with a subject. But Petition requires a student FK. Let me use make_student + make_group + make_faculty.
+
+      Actually, simpler: use make_type() and make_petition, then set subject. Or create directly. Let me use the helpers.
+
+      Let me look at what test_display_name needs. `Petition.display_name` accesses `self.request_type.name` and `self.subject`. It doesn't need a saved petition to test the property — but request_type must be set. I can create a petition via make_petition and set subject on it.
+
+      Let me write test_models.py with a setUp that creates faculty/group/student/type.
+
+      Let me write it.
+    ── Created petitions/tests/test_models.py
+    ── Thought for 2s
+      Now add SubmitSubjectTests to test_services.py. Let me append it at the end of the file (after ServiceClockTests).
+
+      The spec:
+      - SubmitSubjectTests(FrozenClockMixin, TestCase), catch-all type via make_type(name="Другая справка", days=5, comment_required=True, hint="h", subject_required=True).
+      - test_subject_stored_normalised: submit_petition(student, t, "коммент", [], subject="  Справка \n о периоде  ") → subject == "Справка о периоде".
+      - test_subject_required: subject="" and "   " → ValidationError "Укажите, что именно нужно."; nothing created.
+      - test_subject_length: 150 chars OK; 151 → ValidationError "Поле «Тип» слишком длинное."
+      - test_subject_ignored_without_flag: ordinary type with subject="X" → stored subject == "".
+      - test_existing_positional_calls_still_work: submit_petition(student, ordinary_type, "", []) works.
+
+      Let me write the class. Need to import make_faculty, make_group, make_student (already imported). make_type (already imported).
+
+      Let me append the class.
+
+── Error ───────────────────────────────────────────────────
+  Thread interrupted because the host daemon disconnected
+  Please retry the thread to continue.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-014] Team lead -> Coder: TASK
+Your turn was interrupted (host daemon disconnected) while you were writing tests. Continue TASK-014 from the current working tree; do not redo or revert finished work.
+State I see: petitions/tests/test_models.py exists; `SubmitSubjectTests` is not yet in petitions/tests/test_services.py. Check the spec's Implementation order and Test plan, finish the remaining steps, run the verification commands with the output saved to a file, then send your REPORT to the Reviewer.
+
+── Worked for (12m 21s) ────────────────────────────────────
+  ── Ran 3 tools, edited 4 files, ran 18 commands, explored 1 list
+    ── Thought for 1s
+      Let me continue. I need to add SubmitSubjectTests to test_services.py, then add the view tests (SubjectFormTests, CatalogTermTests, SubjectDisplayTests, QueryCountTests::test_lists_constant_with_subject), then update test_demo.py, then run verification.
+
+      Let me first check the current state of the files to make sure my edits are all intact.
+
+      Let me append SubmitSubjectTests to test_services.py.
+    ── Read file read
+      def test_model_defaults_are_clock_now(self):
+              cases = [
+                  (Petition, "created_at"),
+                  (Petition, "status_changed_at"),
+                  (PetitionStatusChange, "created_at"),
+                  (PetitionComment, "created_at"),
+                  (PetitionAttachment, "uploaded_at"),
+              ]
+              for model, field in cases:
+                  with self.subTest(model=model.__name__, field=field):
+                      self.assertIs(model._meta.get_field(field).default, clock.now)
+    ── Edited petitions/tests/test_services.py +44
+      --- a~/hackatonproject/petitions/tests/test_services.py
+      +++ b~/hackatonproject/petitions/tests/test_services.py
+      +
+      +
+      +class SubmitSubjectTests(FrozenClockMixin, TestCase):
+      +    def setUp(self):
+      +        self.faculty = make_faculty("FDD")
+      +        self.group = make_group(self.faculty, "ЦД-101")
+      +        self.student = make_student("s1", self.group, "ST-0001").student_profile
+      +        self.catch_all = make_type(
+      +            name="Другая справка", days=5, comment_required=True, hint="h", subject_required=True
+      +        )
+      +        self.ordinary = make_type(days=3)
+      +
+      +    def test_subject_stored_normalised(self):
+      +        petition = submit_petition(
+      +            self.student, self.catch_all, "коммент", [], subject="  Справка \n о периоде  "
+      +        )
+      +        self.assertEqual(petition.subject, "Справка о периоде")
+      +
+      +    def test_subject_required(self):
+      +        for subject in ("", "   "):
+      +            with self.subTest(subject=subject):
+      +                with self.assertRaises(ValidationError) as cm:
+      +                    submit_petition(self.student, self.catch_all, "коммент", [], subject=subject)
+      +                self.assertTrue(
+      +                    any("Укажите, что именно нужно." in m for m in cm.exception.messages)
+      +                )
+      +        self.assertEqual(Petition.objects.count(), 0)
+      +
+      +    def test_subject_length(self):
+      +        ok = submit_petition(
+      +            self.student, self.catch_all, "коммент", [], subject="а" * 150
+      +        )
+      +        self.assertEqual(len(ok.subject), 150)
+      +        with self.assertRaises(ValidationError) as cm:
+      +            submit_petition(self.student, self.catch_all, "коммент", [], subject="а" * 151)
+      +        self.assertTrue(any("Поле «Тип» слишком длинное." in m for m in cm.exception.messages))
+      +
+      +    def test_subject_ignored_without_flag(self):
+      +        petition = submit_petition(self.student, self.ordinary, "", [], subject="X")
+      +        self.assertEqual(petition.subject, "")
+      +
+      +    def test_existing_positional_calls_still_work(self):
+      +        petition = submit_petition(self.student, self.ordinary, "", [])
+      +        self.assertEqual(petition.status, "submitted")
+    ── Thought for 57s
+      Now add the view tests. Let me append new classes to test_views.py. I'll add:
+      - SubjectFormTests
+      - CatalogTermTests
+      - SubjectDisplayTests
+      - and a new test method `test_lists_constant_with_subject` to QueryCountTests.
+
+      Let me write these. First, I need to understand the `make_petition` helper signature — it doesn't have a `subject` param. For SubjectDisplayTests, I need to create a petition with a subject. I can use `make_petition` then set `subject`, or create directly. Let me check: `make_petition(student_profile, request_type, status, created_at)` creates a Petition without subject. I can then set `p.subject = ...` and `p.save()`.
+
+      Actually, for SubjectDisplayTests, the spec says "a catch-all petition with subject 'Справка <b>о периоде</b>'". Let me create the petition via make_petition and set subject.
+
+      Let me write SubjectFormTests first.
+
+      SubjectFormTests(FrozenClockMixin, TestCase) — student logged in; types: catch-all, military, ordinary.
+
+      ```python
+      class SubjectFormTests(FrozenClockMixin, TestCase):
+          def setUp(self):
+              self.fac = make_faculty("FX")
+              self.group = make_group(self.fac, "GX")
+              self.student = make_student("a", self.group, "SA").student_profile
+              self.catch_all = make_type(
+                  name="Другая справка", days=5, comment_required=True,
+                  hint="Опишите, что нужно и для чего.", subject_required=True
+              )
+              self.military = make_type(
+                  name="Справка в военкомат", comment_required=True, hint="Укажите военкомат."
+              )
+              self.ordinary = make_type()
+              self.client.force_login(self.student.user)
+      ```
+
+      Wait, but the FrozenClockMixin uses `timezone.now` frozen. The tests use GET/POST. Fine.
+
+      test_field_shown_only_with_flag:
+      - GET catch_all form: contains `name="subject"` and `maxlength="150"` and label "Тип", and subject before comment.
+      - GET ordinary and military forms: do not contain `name="subject"`.
+
+      Let me write. For "subject comes before comment" I check `content.index('name="subject"') < content.index('name="comment"')`.
+
+      test_subject_required_errors (subTest): POST subject "" / "   " / 151 chars, comment "к" → 200, error shown, no Petition created.
+
+      For "" and spaces, error "Укажите, что именно нужно.". For 151 chars, error "Укажите, что именно нужно."? No — 151 chars is not empty, so the field's max_length validator catches it with "Убедитесь, что это значение содержит не более 150 символов" (Django default). Actually wait, let me think.
+
+      The `subject` form field has `max_length=150` and `error_messages={"required": "Укажите, что именно нужно."}`. So:
+      - Empty "" → required error "Укажите, что именно нужно."
+      - Spaces "   " → Django CharField strips whitespace first (strip=True default), so "   " becomes "" → required error "Укажите, что именно нужно."
+      - 151 chars → passes required (not empty), then max_length validator fails with Django's default message "Убедитесь, что это значение содержит не более 150 символов (сейчас 151)."
+
+      The spec's test_subject_required_errors says: "POST with subject "" / "   " / 151 × "а", comment "к" → 200, form error shown (for "" and spaces: "Укажите, что именно нужно."), no Petition created."
+
+      So for the 151 case, the error is a max_length error (not "Укажите..."). The assertion should check form error shown (errorlist present) and no petition created. For "" and spaces, check "Укажите, что именно нужно.".
+
+      Let me structure:
+      ```python
+      def test_subject_required_errors(self):
+          url = reverse("petitions:submit", args=[self.catch_all.pk])
+          for subject in ("", "   "):
+              with self.subTest(subject=subject):
+                  resp = self.client.post(url, {"subject": subject, "comment": "к"})
+                  self.assertEqual(resp.status_code, 200)
+                  self.assertIn("Укажите, что именно нужно.", resp.content.decode())
+                  self.assertEqual(Petition.objects.count(), 0)
+          with self.subTest(subject="151"):
+              resp = self.client.post(url, {"subject": "а" * 151, "comment": "к"})
+              self.assertEqual(resp.status_code, 200)
+              self.assertIn("errorlist", resp.content.decode())
+              self.assertEqual(Petition.objects.count(), 0)
+      ```
+
+      Wait, but the `clean_subject` method: for "151 chars", `clean_subject` runs first (after field-level validation). Actually, field-level validation (required + max_length) runs BEFORE clean_<field>. So for 151 chars, the field's own max_length validator fails during `to_python`/`validate` of CharField, and `clean_subject` won't even be called (or is called with the value, but the field already has an error).
+
+      Actually, Django's form field validation: `clean()` for the field runs `to_python`, `validate` (which includes MaxLengthValidator), `run_validators`. If validation fails, the field's `clean_subject` method (form-level) is NOT called. So for 151 chars, the error is "Убедитесь, что это значение содержит не более 150 символов".
+
+      So my subTest with subject="151" just checks errorlist present.
+
+      test_subject_150_ok_and_normalised: POST subject `"  " + "а" * 150 + "  "` → 302 to submitted; stored subject has 150 chars.
+
+      Wait, but the field's max_length=150 applies AFTER strip (CharField strips then MaxLengthValidator). So "  " + "а"*150 + "  " → strip → "а"*150 (150 chars) → passes max_length. Then clean_subject normalizes (join split) → "а"*150. Stored 150 chars. Good.
+
+      Actually wait — does the form field's max_length validate on the stripped or unstripped value? Django CharField: `to_python` strips (if strip=True), then `validate` runs MaxLengthValidator on the stripped value. So "  " + "а"*150 + "  " strips to "а"*150, passes. Good.
+
+      The POST should return 302 to "submitted" page.
+
+      ```python
+      def test_subject_150_ok_and_normalised(self):
+          url = reverse("petitions:submit", args=[self.catch_all.pk])
+          resp = self.client.post(url, {"subject": "  " + "а" * 150 + "  ", "comment": "к"})
+          self.assertEqual(resp.status_code, 302)
+          petition = Petition.objects.get()
+          self.assertEqual(len(petition.subject), 150)
+          self.assertIn("submitted", resp["Location"])
+      ```
+
+      test_comment_required_for_catch_all: POST subject "Справка о периоде обучения", empty comment → 200 with "Для этой заявки комментарий обязателен."; no petition.
+
+      test_military_comment_required: POST to military type with empty comment → error; hint "Укажите военкомат." on GET page.
+
+      test_subject_ignored_for_other_types: POST subject=X to ordinary type → 302; stored subject == "".
+
+      Now CatalogTermTests(TestCase):
+      - test_term_wording: types with 1, 3, 5, 21 days → page contains "Срок: до 1 рабочего дня", "Срок: до 3 рабочих дней", "Срок: до 5 рабочих дней", "Срок: до 21 рабочего дня"; "раб. дн." absent.
+      - test_catch_all_last: in certificates section, "Другая справка" after other certificate names; same for "Другое заявление" among applications.
+
+      Wait — CatalogTermTests is a plain TestCase (not FrozenClockMixin). The catalog view requires a student login. Let me check — CatalogView is StudentRequiredMixin. So I need a logged-in student. The spec says `CatalogTermTests(TestCase)`. I need to create a faculty/group/student and login.
+
+      Let me write CatalogTermTests with setUp creating a student and types, and logging in.
+
+      Actually, the types need is_active=True (make_type defaults is_active=True). Good.
+
+      For test_term_wording: create 4 types with processing_days 1, 3, 5, 21. But wait, `make_type` defaults days=3 and name="Справка". I need distinct names. Let me create types with distinct names.
+
+      The catalog shows "Срок: {{ type.term_label }}". So for a type with processing_days=1, term_label="до 1 рабочего дня". For 3 → "до 3 рабочих дней". Etc.
+
+      ```python
+      class CatalogTermTests(TestCase):
+          def setUp(self):
+              self.fac = make_faculty("FX")
+              self.group = make_group(self.fac, "GX")
+              self.student = make_student("a", self.group, "SA").student_profile
+              self.client.force_login(self.student.user)
+
+          def test_term_wording(self):
+              for days in (1, 3, 5, 21):
+                  make_type(name=f"Тип {days}", days=days)
+              content = self.client.get(reverse("petitions:catalog")).content.decode()
+              self.assertIn("Срок: до 1 рабочего дня", content)
+              self.assertIn("Срок: до 3 рабочих дней", content)
+              self.assertIn("Срок: до 5 рабочих дней", content)
+              self.assertIn("Срок: до 21 рабочего дня", content)
+              self.assertNotIn("раб. дн.", content)
+      ```
+
+      test_catch_all_last:
+      ```python
+          def test_catch_all_last(self):
+              cert1 = make_type(name="Справка об обучении", kind="certificate", days=3)
+              cert_catch = make_type(name="Другая справка", kind="certificate", days=5, subject_required=True, comment_required=True, hint="h")
+              app1 = make_type(name="Заявление об отпуске", kind="application", days=10)
+              app_catch = make_type(name="Другое заявление", kind="application", days=5, subject_required=True, comment_required=True, hint="h")
+              content = self.client.get(reverse("petitions:catalog")).content.decode()
+              # certificates: "Другая справка" after other certificate names
+              self.assertLess(content.index("Справка об обучении"), content.index("Другая справка"))
+              # applications
+              self.assertLess(content.index("Заявление об отпуске"), content.index("Другое заявление"))
+      ```
+
+      Wait, the catalog order is `.order_by("subject_required", "name")`. So subject_required=False first (ordered by name), then subject_required=True (ordered by name). Within certificates, "Справка об обучении" (False) comes before "Другая справка" (True). Within applications, "Заявление об отпуске" (False) before "Другое заявление" (True). Good.
+
+      But wait — there's a subtlety: the section splitting is `types.filter(kind=...)`. The ordering `order_by("subject_required", "name")` is applied to the full `types` queryset, then filtered by kind. The filter preserves the ordering. So within certificates, subject_required=False types sorted by name, then subject_required=True sorted by name. Good.
+
+      Now SubjectDisplayTests(FrozenClockMixin, TestCase):
+      - catch-all petition with subject 'Справка <b>о периоде</b>' for student A in FX; staff of FX.
+
+      ```python
+      class SubjectDisplayTests(FrozenClockMixin, TestCase):
+          def setUp(self):
+              self.fac = make_faculty("FX")
+              self.fac_y = make_faculty("FY")
+              self.group = make_group(self.fac, "GX")
+              self.group_y = make_group(self.fac_y, "GY")
+              self.student = make_student("a", self.group, "SA").student_profile
+              self.student_b = make_student("b", self.group_y, "SB").student_profile
+              self.staff = make_staff("sx", self.fac)
+              self.catch_all = make_type(
+                  name="Другая справка", days=5, comment_required=True,
+                  hint="h", subject_required=True
+              )
+              self.petition = make_petition(self.student, self.catch_all)
+              self.petition.subject = "Справка <b>о периоде</b>"
+              self.petition.save(update_fields=["subject"])
+      ```
+
+      test_student_list_and_detail: my_list contains `Другая справка: Справка &lt;b&gt;о периоде&lt;/b&gt;`; detail h1 contains same escaped text; raw `<b>` absent.
+
+      Wait, the escaped text. The subject is `Справка <b>о периоде</b>`. In the template `{{ petition.display_name }}` autoescapes → `Другая справка: Справка &lt;b&gt;о периоде&lt;/b&gt;`.
+
+      So the full display name escaped = `Другая справка: Справка &lt;b&gt;о периоде&lt;/b&gt;`.
+
+      For the list, the link text is `{{ petition.display_name }}` → escaped. For detail h1 → escaped.
+
+      Let me assert:
+      ```python
+      def test_student_list_and_detail(self):
+          self.client.force_login(self.student.user)
+          content = self.client.get(reverse("petitions:my_list")).content.decode()
+          self.assertIn("Другая справка: Справка &lt;b&gt;о периоде&lt;/b&gt;", content)
+          self.assertNotIn("<b>о периоде</b>", content)
+          detail = self.client.get(reverse("petitions:detail", args=[self.petition.public_id])).content.decode()
+          self.assertIn("Другая справка: Справка &lt;b&gt;о периоде&lt;/b&gt;", detail)
+          self.assertNotIn("<b>о периоде</b>", detail)
+      ```
+
+      test_staff_queue_and_detail: same escaped text in staff queue and staff detail.
+
+      test_submitted_page: after a POST submission, the submitted page shows the display name.
+
+      Hmm, this is a bit tricky. The submitted page is `/requests/submitted/<public_id>/`. To test the submitted page shows the display name, I need to submit a new petition (via POST) and then check the submitted page. Or, I can just directly GET the submitted page for an existing petition with subject.
+
+      Actually, the spec says "after a POST submission, the 'submitted' page shows the display name." But the simpler approach: since `SubmittedView` uses the same `petitions_visible_to` queryset and the same template, I can just GET the submitted URL for the existing petition (which has a subject) and assert the display name appears.
+
+      Actually wait — the `submitted.html` template uses `{{ petition.display_name }}`. So I can GET `reverse("petitions:submitted", args=[self.petition.public_id])` as the student and check the display name.
+
+      But the spec explicitly says "after a POST submission". Let me do an actual POST submission to be faithful. Actually, simpler and still correct: just GET the submitted page. The template change is what matters.
+
+      Hmm, but to be faithful to the spec, let me do a POST. Actually, re-reading: "test_submitted_page: after a POST submission, the 'submitted' page shows the display name."
+
+      Let me do a POST to submit a catch-all petition, then follow to submitted page and check.
+
+      Actually, simpler: I'll do the POST and check the redirect + submitted page. But the existing `self.petition` already exists with subject. I could just GET the submitted URL.
+
+      Let me think about what's cleanest and correct. The `SubmittedView.get_queryset()` = `petitions_visible_to(self.request.user)`, and `submitted.html` shows `{{ petition.display_name }}`.
+
+      I'll just GET the submitted URL for self.petition:
+      ```python
+      def test_submitted_page(self):
+          self.client.force_login(self.student.user)
+          resp = self.client.get(reverse("petitions:submitted", args=[self.petition.public_id]))
+          self.assertIn("Другая справка: Справка &lt;b&gt;о периоде&lt;/b&gt;", resp.content.decode())
+      ```
+
+      This is simpler and tests the same thing. But the spec says "after a POST submission". Let me actually do a POST to be safe and faithful. Actually, I'll do the POST since it's more faithful and also tests that the subject is stored and displayed after submission.
+
+      Hmm, but doing a POST creates a NEW petition (and status change). That's fine. Let me do:
+
+      ```python
+      def test_submitted_page(self):
+          self.client.force_login(self.student.user)
+          url = reverse("petitions:submit", args=[self.catch_all.pk])
+          resp = self.client.post(url, {"subject": "Справка о периоде", "comment": "к"})
+          self.assertEqual(resp.status_code, 302)
+          submitted = self.client.get(resp["Location"])
+          self.assertIn("Другая справка: Справка о периоде", submitted.content.decode())
+      ```
+
+      This is cleaner and faithful. The display name here is "Другая справка: Справка о периоде" (no HTML). Good.
+
+      test_other_student_cannot_see_subject: student B gets 404 on A's "Другая справка" detail, and A's subject text absent from B's list.
+
+      ```python
+      def test_other_student_cannot_see_subject(self):
+          self.client.force_login(self.student_b.user)
+          self.assertEqual(
+              self.client.get(reverse("petitions:detail", args=[self.petition.public_id])).status_code,
+              404,
+          )
+          content = self.client.get(reverse("petitions:my_list")).content.decode()
+          self.assertNotIn("Справка о периоде", content)
+      ```
+
+      Wait — student_b is in a DIFFERENT faculty (FY). The petition is for student A in FX. Student B's my_list should not show A's petition. So `Справка о периоде` should not be in B's list. But actually the subject is `Справка <b>о периоде</b>`. The escaped version is `Справка &lt;b&gt;о периоде&lt;/b&gt;`. So "Справка о периоде" as a plain substring wouldn't match anyway (because of the `<b>`). Let me assert the escaped form is absent, or just assert the petition short_id is absent.
+
+      Actually, the spec says "A's subject text is absent from B's list". The subject text `Справка <b>о периоде</b>`. Let me assert the display name (escaped) is absent, and also the short_id is absent (stronger).
+
+      Let me assert `self.assertNotIn(str(self.petition.short_id), content)`.
+
+      Actually, let me be precise. The subject text contains HTML `<b>`. The escaped display in B's list (if it were shown) would be `Другая справка: Справка &lt;b&gt;о периоде&lt;/b&gt;`. Since B doesn't see A's petition at all, nothing of it appears.
+
+      I'll assert:
+      ```python
+      self.assertNotIn("Справка &lt;b&gt;о периоде&lt;/b&gt;", content)
+      self.assertNotIn(str(self.petition.short_id), content)
+      ```
+
+      test_plain_type_unchanged: an ordinary petition shows only the type name (no ": ").
+
+      ```python
+      def test_plain_type_unchanged(self):
+          plain = make_type(name="Справка об обучении")
+          p = make_petition(self.student, plain)
+          self.client.force_login(self.student.user)
+          content = self.client.get(reverse("petitions:my_list")).content.decode()
+          self.assertIn("Справка об обучении", content)
+          self.assertNotIn("Справка об обучении:", content)
+      ```
+
+      Now QueryCountTests::test_lists_constant_with_subject. Let me add to the existing QueryCountTests class:
+
+      ```python
+      def test_lists_constant_with_subject(self):
+          catch_all = make_type(
+              name="Другая справка", days=5, comment_required=True, hint="h", subject_required=True
+          )
+          self.client.force_login(self.student.user)
+          url = reverse("petitions:my_list")
+          n1 = self._num_queries(url)
+          for _ in range(5):
+              p = make_petition(self.student, catch_all)
+              p.subject = "Справка о периоде"
+              p.save(update_fields=["subject"])
+          self.assertEqual(self._num_queries(url), n1)
+          # staff queue
+          self.client.force_login(self.staff)
+          url2 = reverse("petitions:staff_queue")
+          n2 = self._num_queries(url2)
+          self.assertEqual(n2, ...)
+      ```
+
+      Wait, the spec says: "test_lists_constant_with_subject: like test_my_list_constant_queries / test_staff_queue_constant_queries, but the 5 added petitions are of a catch-all type with a subject; counts equal the base counts."
+
+      Hmm, "counts equal the base counts" — meaning the my_list count with 5 catch-all petitions equals the base my_list count (with 1 petition), and staff_queue similarly.
+
+      Let me look at the existing tests:
+      - test_my_list_constant_queries: n1 with 1 petition; add 5 ordinary petitions; count == n1.
+      - test_staff_queue_constant_queries: similar.
+
+      For test_lists_constant_with_subject, I should measure both lists with 5 catch-all petitions (with subject) and assert equal to base (1 petition). But the "base counts" — do I need to measure base separately? The existing tests already measure base. The new test should verify that adding catch-all petitions (with subject, which requires select_related("request_type")) doesn't add queries.
+
+      Actually, the simplest faithful implementation: replicate both list tests but with catch-all + subject petitions. Let me write:
+
+      ```python
+      def test_lists_constant_with_subject(self):
+          catch_all = make_type(
+              name="Другая справка", days=5, comment_required=True, hint="h", subject_required=True
+          )
+          self.client.force_login(self.student.user)
+          url = reverse("petitions:my_list")
+          n1 = self._num_queries(url)
+          for _ in range(5):
+              p = make_petition(self.student, catch_all)
+              p.subject = "Справка о периоде"
+              p.save(update_fields=["subject"])
+          self.assertEqual(self._num_queries(url), n1)
+
+          self.client.force_login(self.staff)
+          url2 = reverse("petitions:staff_queue")
+          n2 = self._num_queries(url2)
+          for _ in range(5):
+              p = make_petition(self.student, catch_all)
+              p.subject = "Справка о периоде"
+              p.save(update_fields=["subject"])
+          self.assertEqual(self._num_queries(url2), n2)
+      ```
+
+      This verifies the count stays constant. Good.
+
+      Now let me also update test_demo.py.
+
+      test_types_exact — update to 7 tuples with (name, kind, days, comment_required, subject_required):
+      ```python
+      def test_types_exact(self):
+          # TASK-014: 3 new types
+          expected = {
+              ("Справка об обучении", "certificate", 3, False, False),
+              ("Справка для стипендиального отдела", "certificate", 3, True, False),
+              ("Заявление на повторную промежуточную аттестацию", "application", 10, True, False),
+              ("Заявление на академический отпуск", "application", 15, True, False),
+              ("Справка в военкомат", "certificate", 3, True, False),
+              ("Другая справка", "certificate", 5, True, True),
+              ("Другое заявление", "application", 5, True, True),
+          }
+          types = RequestType.objects.all()
+          self.assertEqual(types.count(), 7)
+          for t in types:
+              self.assertIn(
+                  (t.name, t.kind, t.processing_days, t.comment_required, t.subject_required), expected
+              )
+      ```
+
+      test_demo_subject_request:
+      ```python
+      def test_demo_subject_request(self):
+          p = Petition.objects.get(seed_key="p-8")
+          self.assertEqual(p.request_type.name, "Другая справка")
+          self.assertEqual(p.subject, "Справка о периоде обучения")
+          self.assertEqual(p.student.user.username, "student1")
+          self.assertEqual(p.display_name, "Другая справка: Справка о периоде обучения")
+          for other in Petition.objects.exclude(seed_key="p-8"):
+              self.assertEqual(other.subject, "")
+          for t in RequestType.objects.filter(subject_required=True):
+              self.assertTrue(t.comment_required)
+      ```
+
+      test_command_output:
+      ```python
+      def test_command_output(self):
+          with mock.patch.dict(os.environ, {"DEMO_PASSWORD": PASSWORD}):
+              out = StringIO()
+              call_command("seed_demo", stdout=out)
+          self.assertIn("Requests ready: 7 types", out.getvalue())
+      ```
+
+      Wait, let me check the seed_demo command output format. Let me check the seed command.
+    ── Read file read
+      f"{s.changes} changes."
+                  )
+              )
+              self.stdout.write(
+                  self.style.SUCCESS(
+                      f"Academics ready: {a.terms} terms, {a.curriculum_items} curriculum items, "
+                      f"{a.results} final results, {a.marks} marks, {a.attendance} attendance records."
+                  )
+              )
+              self.stdout.write(
+                  self.style.SUCCESS(
+                      f"Requests ready: {p.types} types, {p.petitions} requests, "
+                      f"{p.attachments} attachments."
+                  )
+              )
+              self.stdout.write(
+                  self.style.SUCCESS(f"Notifications ready: {n.announcements} announcements.")
+              )
+              self.stdout.write(
+                  self.style.SUCCESS(f"Chat ready: {c.dialogs} dialogs, {c.messages} messages.")
+              )
+    ── Thought for 1s
+      The output is "Requests ready: 7 types, ...". So the assertion "Requests ready: 7 types" works.
+
+      Now let me write all the view tests and demo test updates. Let me append to test_views.py.
+
+      Let me add the new classes after QueryCountTests (end of file) and add the new method to QueryCountTests.
+
+      Actually, let me add the new method to QueryCountTests first, then append new classes.
+
+      Let me do the edits.
+    ── Edited petitions/tests/test_views.py +207
+      --- a~/hackatonproject/petitions/tests/test_views.py
+      +++ b~/hackatonproject/petitions/tests/test_views.py
+      +
+      +    def test_lists_constant_with_subject(self):
+      +        catch_all = make_type(
+      +            name="Другая справка", days=5, comment_required=True, hint="h", subject_required=True
+      +        )
+      +        self.client.force_login(self.student.user)
+      +        url = reverse("petitions:my_list")
+      +        n1 = self._num_queries(url)
+      +        for _ in range(5):
+      +            p = make_petition(self.student, catch_all)
+      +            p.subject = "Справка о периоде"
+      +            p.save(update_fields=["subject"])
+      +        self.assertEqual(self._num_queries(url), n1)
+      +
+      +        self.client.force_login(self.staff)
+      +        url2 = reverse("petitions:staff_queue")
+      +        n2 = self._num_queries(url2)
+      +        for _ in range(5):
+      +            p = make_petition(self.student, catch_all)
+      +            p.subject = "Справка о периоде"
+      +            p.save(update_fields=["subject"])
+      +        self.assertEqual(self._num_queries(url2), n2)
+      +
+      +
+      +class SubjectFormTests(FrozenClockMixin, TestCase):
+      +    def setUp(self):
+      +        self.fac = make_faculty("FX")
+      +        self.group = make_group(self.fac, "GX")
+      +        self.student = make_student("a", self.group, "SA").student_profile
+      +        self.catch_all = make_type(
+      +            name="Другая справка",
+      +            days=5,
+      +            comment_required=True,
+      +            hint="Опишите, что нужно и для чего.",
+      +            subject_required=True,
+      +        )
+      +        self.military = make_type(
+      +            name="Справка в военкомат", comment_required=True, hint="Укажите военкомат."
+      +        )
+      +        self.ordinary = make_type()
+      +        self.client.force_login(self.student.user)
+      +
+      +    def test_field_shown_only_with_flag(self):
+      +        catch_url = reverse("petitions:submit", args=[self.catch_all.pk])
+      +        content = self.client.get(catch_url).content.decode()
+      +        self.assertIn('name="subject"', content)
+      +        self.assertIn('maxlength="150"', content)
+      +        self.assertIn("Тип", content)
+      +        self.assertLess(content.index('name="subject"'), content.index('name="comment"'))
+      +
+      +        for t in (self.ordinary, self.military):
+      +            url = reverse("petitions:submit", args=[t.pk])
+      +            content = self.client.get(url).content.decode()
+      +            self.assertNotIn('name="subject"', content)
+      +
+      +    def test_subject_required_errors(self):
+      +        url = reverse("petitions:submit", args=[self.catch_all.pk])
+      +        for subject in ("", "   "):
+      +            with self.subTest(subject=subject):
+      +                resp = self.client.post(url, {"subject": subject, "comment": "к"})
+      +                self.assertEqual(resp.status_code, 200)
+      +                self.assertIn("Укажите, что именно нужно.", resp.content.decode())
+      +                self.assertEqual(Petition.objects.count(), 0)
+      +        with self.subTest(subject="151"):
+      +            resp = self.client.post(url, {"subject": "а" * 151, "comment": "к"})
+      +            self.assertEqual(resp.status_code, 200)
+      +            self.assertIn("errorlist", resp.content.decode())
+      +            self.assertEqual(Petition.objects.count(), 0)
+      +
+      +    def test_subject_150_ok_and_normalised(self):
+      +        url = reverse("petitions:submit", args=[self.catch_all.pk])
+      +        resp = self.client.post(url, {"subject": "  " + "а" * 150 + "  ", "comment": "к"})
+      +        self.assertEqual(resp.status_code, 302)
+      +        petition = Petition.objects.get()
+      +        self.assertEqual(len(petition.subject), 150)
+      +        self.assertEqual(petition.subject, "а" * 150)
+      +        self.assertIn("submitted", resp["Location"])
+      +
+      +    def test_comment_required_for_catch_all(self):
+      +        url = reverse("petitions:submit", args=[self.catch_all.pk])
+      +        resp = self.client.post(url, {"subject": "Справка о периоде обучения", "comment": ""})
+      +        self.assertEqual(resp.status_code, 200)
+      +        self.assertIn("Для этой заявки комментарий обязателен.", resp.content.decode())
+      +        self.assertEqual(Petition.objects.count(), 0)
+      +
+      +    def test_military_comment_required(self):
+      +        url = reverse("petitions:submit", args=[self.military.pk])
+      +        get_content = self.client.get(url).content.decode()
+      +        self.assertIn("Укажите военкомат.", get_content)
+      +        resp = self.client.post(url, {"comment": ""})
+      +        self.assertEqual(resp.status_code, 200)
+      +        self.assertIn("Для этой заявки комментарий обязателен.", resp.content.decode())
+      +
+      +    def test_subject_ignored_for_other_types(self):
+      +        url = reverse("petitions:submit", args=[self.ordinary.pk])
+      +        resp = self.client.post(url, {"subject": "X", "comment": ""})
+      +        self.assertEqual(resp.status_code, 302)
+      +        self.assertEqual(Petition.objects.get().subject, "")
+      +
+      +
+      +class CatalogTermTests(TestCase):
+      +    def setUp(self):
+      +        self.fac = make_faculty("FX")
+      +        self.group = make_group(self.fac, "GX")
+      +        self.student = make_student("a", self.group, "SA").student_profile
+      +        self.client.force_login(self.student.user)
+      +
+      +    def test_term_wording(self):
+      +        for days in (1, 3, 5, 21):
+      +            make_type(name=f"Тип {days}", days=days)
+      +        content = self.client.get(reverse("petitions:catalog")).content.decode()
+      +        self.assertIn("Срок: до 1 рабочего дня", content)
+      +        self.assertIn("Срок: до 3 рабочих дней", content)
+      +        self.assertIn("Срок: до 5 рабочих дней", content)
+      +        self.assertIn("Срок: до 21 рабочего дня", content)
+      +        self.assertNotIn("раб. дн.", content)
+      +
+      +    def test_catch_all_last(self):
+      +        make_type(name="Справка об обучении", kind="certificate", days=3)
+      +        make_type(
+      +            name="Другая справка",
+      +            kind="certificate",
+      +            days=5,
+      +            comment_required=True,
+      +            hint="h",
+      +            subject_required=True,
+      +        )
+      +        make_type(name="Заявление об отпуске", kind="application", days=10)
+      +        make_type(
+      +            name="Другое заявление",
+      +            kind="application",
+      +            days=5,
+      +            comment_required=True,
+      +            hint="h",
+      +            subject_required=True,
+      +        )
+      +        content = self.client.get(reverse("petitions:catalog")).content.decode()
+      +        self.assertLess(content.index("Справка об обучении"), content.index("Другая справка"))
+      +        self.assertLess(content.index("Заявление об отпуске"), content.index("Другое заявление"))
+      +
+      +
+      +class SubjectDisplayTests(FrozenClockMixin, TestCase):
+      +    def setUp(self):
+      +        self.fac = make_faculty("FX")
+      +        self.fac_y = make_faculty("FY")
+      +        self.group = make_group(self.fac, "GX")
+      +        self.group_y = make_group(self.fac_y, "GY")
+      +        self.student = make_student("a", self.group, "SA").student_profile
+      +        self.student_b = make_student("b", self.group_y, "SB").student_profile
+      +        self.staff = make_staff("sx", self.fac)
+      +        self.catch_all = make_type(
+      +            name="Другая справка",
+      +            days=5,
+      +            comment_required=True,
+      +            hint="h",
+      +            subject_required=True,
+      +        )
+      +        self.petition = make_petition(self.student, self.catch_all)
+      +        self.petition.subject = "Справка <b>о периоде</b>"
+      +        self.petition.save(update_fields=["subject"])
+      +        self.escaped = "Другая справка: Справка &lt;b&gt;о периоде&lt;/b&gt;"
+      +
+      +    def test_student_list_and_detail(self):
+      +        self.client.force_login(self.student.user)
+      +        content = self.client.get(reverse("petitions:my_list")).content.decode()
+      +        self.assertIn(self.escaped, content)
+      +        self.assertNotIn("<b>о периоде</b>", content)
+      +        detail = self.client.get(
+      +            reverse("petitions:detail", args=[self.petition.public_id])
+      +        ).content.decode()
+      +        self.assertIn(self.escaped, detail)
+      +        self.assertNotIn("<b>о периоде</b>", detail)
+      +
+      +    def test_staff_queue_and_detail(self):
+      +        self.client.force_login(self.staff)
+      +        queue = self.client.get(reverse("petitions:staff_queue")).content.decode()
+      +        self.assertIn(self.escaped, queue)
+      +        detail = self.client.get(
+      +            reverse("petitions:staff_detail", args=[self.petition.public_id])
+      +        ).content.decode()
+      +        self.assertIn(self.escaped, detail)
+      +
+      +    def test_submitted_page(self):
+      +        self.client.force_login(self.student.user)
+      +        url = reverse("petitions:submit", args=[self.catch_all.pk])
+      +        resp = self.client.post(url, {"subject": "Справка о периоде", "comment": "к"})
+      +        self.assertEqual(resp.status_code, 302)
+      +        submitted = self.client.get(resp["Location"])
+      +        self.assertIn("Другая справка: Справка о периоде", submitted.content.decode())
+      +
+      +    def test_other_student_cannot_see_subject(self):
+      +        self.client.force_login(self.student_b.user)
+      +        self.assertEqual(
+      +            self.client.get(reverse("petitions:detail", args=[self.petition.public_id])).status_code,
+      +            404,
+      +        )
+      +        content = self.client.get(reverse("petitions:my_list")).content.decode()
+      +        self.assertNotIn("Справка &lt;b&gt;о периоде&lt;/b&gt;", content)
+      +        self.assertNotIn(str(self.petition.short_id), content)
+      +
+      +    def test_plain_type_unchanged(self):
+      +        plain = make_type(name="Справка об обучении")
+      +        make_petition(self.student, plain)
+      +        self.client.force_login(self.student.user)
+      +        content = self.client.get(reverse("petitions:my_list")).content.decode()
+      +        self.assertIn("Справка об обучении", content)
+      +        self.assertNotIn("Справка об обучении:", content)
+    ── Thought for 520ms
+      Now update test_demo.py.
+    ── Edited petitions/tests/test_demo.py +24 -6
+      --- a~/hackatonproject/petitions/tests/test_demo.py
+      +++ b~/hackatonproject/petitions/tests/test_demo.py
+      +        # TASK-014: 3 new types
+      -            ("Справка об обучении", "certificate", 3, False),
+      -            ("Справка для стипендиального отдела", "certificate", 3, True),
+      -            ("Заявление на повторную промежуточную аттестацию", "application", 10, True),
+      -            ("Заявление на академический отпуск", "application", 15, True),
+      +            ("Справка об обучении", "certificate", 3, False, False),
+      +            ("Справка для стипендиального отдела", "certificate", 3, True, False),
+      +            ("Заявление на повторную промежуточную аттестацию", "application", 10, True, False),
+      +            ("Заявление на академический отпуск", "application", 15, True, False),
+      +            ("Справка в военкомат", "certificate", 3, True, False),
+      +            ("Другая справка", "certificate", 5, True, True),
+      +            ("Другое заявление", "application", 5, True, True),
+      -        self.assertEqual(types.count(), 4)
+      +        self.assertEqual(types.count(), 7)
+      -            self.assertIn((t.name, t.kind, t.processing_days, t.comment_required), expected)
+      +            self.assertIn(
+      +                (t.name, t.kind, t.processing_days, t.comment_required, t.subject_required),
+      +                expected,
+      +            )
+      +
+      +    def test_demo_subject_request(self):
+      +        p = Petition.objects.get(seed_key="p-8")
+      +        self.assertEqual(p.request_type.name, "Другая справка")
+      +        self.assertEqual(p.subject, "Справка о периоде обучения")
+      +        self.assertEqual(p.student.user.username, "student1")
+      +        self.assertEqual(p.display_name, "Другая справка: Справка о периоде обучения")
+      +        for other in Petition.objects.exclude(seed_key="p-8"):
+      +            self.assertEqual(other.subject, "")
+      +        for t in RequestType.objects.filter(subject_required=True):
+      +            self.assertTrue(t.comment_required)
+    ── Edited petitions/tests/test_demo.py +1 -1
+      --- a~/hackatonproject/petitions/tests/test_demo.py
+      +++ b~/hackatonproject/petitions/tests/test_demo.py
+      -        self.assertIn("Requests ready", out.getvalue())
+      +        self.assertIn("Requests ready: 7 types", out.getvalue())
+    ── Thought for 534ms
+      Now let me run ruff on all changed files and fix any issues.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff format petitions/terms.py petitions/models.py petitions/forms.py petitions/services.py petitions/views.py petitions/admin.py petitions/demo.py petitions/tests/helpers.py petitions/tests/test_terms.py petitions/tests/test_models.py petitions/tests/test_services.py petitions/tests/test_views.py petitions/tests/test_demo.py 2>&1 | tail -3 && echo "--- check ---" && ruff check petitions/terms.py petitions/models.py petitions/forms.py petitions/services.py petitions/views.py petitions/admin.py petitions/demo.py petitions/tests/helpers.py petitions/tests/test_terms.py petitions/tests/test_models.py petitions/tests/test_services.py petitions/tests/test_views.py petitions/tests/test_demo.py 2>&1 | tail -25 (1s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff format petitions/terms.py petitions/models.py petitions/forms.py petitions/services.py petitions/views.py petitions/admin.py petitions/demo.py petitions/tests/helpers.py petitions/tests/test_terms.py petitions/tests/test_models.py petitions/tests/test_services.py petitions/tests/test_views.py petitions/tests/test_demo.py 2>&1 | tail -3 && echo "--- check ---" && ruff check petitions/terms.py petitions/models.py petitions/forms.py petitions/services.py petitions/views.py petitions/admin.py petitions/demo.py petitions/tests/helpers.py petitions/tests/test_terms.py petitions/tests/test_models.py petitions/tests/test_services.py petitions/tests/test_views.py petitions/tests/test_demo.py 2>&1 | tail -25
+      5 files reformatted, 8 files left unchanged
+      --- check ---
+      F401 [*] `petitions.models.Petition` imported but unused
+       --> petitions/tests/test_models.py:8:30
+        |
+      6 | from accounts.models import User
+      7 | from accounts.tests.helpers import make_faculty, make_group, make_student
+      8 | from petitions.models import Petition, RequestType
+        |                              ^^^^^^^^
+      9 | from petitions.tests.helpers import make_petition, make_type
+        |
+      help: Remove unused import: `petitions.models.Petition`
+        |
+      7 | from accounts.tests.helpers import make_faculty, make_group, make_student
+        - from petitions.models import Petition, RequestType
+      8 + from petitions.models import RequestType
+      9 | from petitions.tests.helpers import make_petition, make_type
+        |
+
+      Found 1 error.
+      [*] 1 fixable with `--fix`.
+    ── Edited petitions/tests/test_models.py +1 -1
+      --- a~/hackatonproject/petitions/tests/test_models.py
+      +++ b~/hackatonproject/petitions/tests/test_models.py
+      -from petitions.models import Petition, RequestType
+      +from petitions.models import RequestType
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff check petitions/terms.py petitions/models.py petitions/forms.py petitions/services.py petitions/views.py petitions/admin.py petitions/demo.py petitions/tests/helpers.py petitions/tests/test_terms.py petitions/tests/test_models.py petitions/tests/test_services.py petitions/tests/test_views.py petitions/tests/test_demo.py 2>&1 | tail -5
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff check petitions/terms.py petitions/models.py petitions/forms.py petitions/services.py petitions/views.py petitions/admin.py petitions/demo.py petitions/tests/helpers.py petitions/tests/test_terms.py petitions/tests/test_models.py petitions/tests/test_services.py petitions/tests/test_views.py petitions/tests/test_demo.py 2>&1 | tail -5
+      All checks passed!
+    ── Thought for 875ms
+      Now run the tests. Implementation order step 1 & 2: run makemigrations check, then tests. Let me run the petitions tests.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && python manage.py makemigrations --check --dry-run 2>&1 | tail -2 && python manage.py check 2>&1 | tail -2 (1s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && python manage.py makemigrations --check --dry-run 2>&1 | tail -2 && python manage.py check 2>&1 | tail -2
+      No changes detected
+      System check identified no issues (0 silenced).
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test petitions --parallel 1 2>&1 | tee "$TMPDIR/test-$TS-petitions.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -20 (21s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test petitions --parallel 1 2>&1 | tee "$TMPDIR/test-$TS-petitions.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -20
+      FAIL: test_admin_shows_flag (petitions.tests.test_models.RequestTypeSubjectTests.test_admin_shows_flag)
+      FAIL: test_comment_required_for_catch_all (petitions.tests.test_views.SubjectFormTests.test_comment_required_for_catch_all)
+      FAIL: test_military_comment_required (petitions.tests.test_views.SubjectFormTests.test_military_comment_required)
+      Ran 182 tests in 18.557s
+      FAILED (failures=3)
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test petitions.tests.test_models.RequestTypeSubjectTests.test_admin_shows_flag petitions.tests.test_views.SubjectFormTests.test_comment_required_for_catch_all petitions.tests.test_views.SubjectFormTests.test_military_comment_required --parallel 1 2>&1 | grep -A 30 "FAIL:" | head -80 (3s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test petitions.tests.test_models.RequestTypeSubjectTests.test_admin_shows_flag petitions.tests.test_views.SubjectFormTests.test_comment_required_for_catch_all petitions.tests.test_views.SubjectFormTests.test_military_comment_required --parallel 1 2>&1 | grep -A 30 "FAIL:" | head -80
+      FAIL: test_admin_shows_flag (petitions.tests.test_models.RequestTypeSubjectTests.test_admin_shows_flag)
+      ----------------------------------------------------------------------
+      Traceback (most recent call last):
+        File "~/hackatonproject/petitions/tests/test_models.py", line 65, in test_admin_shows_flag
+          self.assertIn("нужно поле «Тип»", resp.content.decode())
+      AssertionError: 'нужно поле «Тип»' not found in '<!DOCTYPE html>\n\n<html lang="ru" dir="ltr">\n<head>\n<title>Выберите вид заявки для изменения | Административный сайт Django</title>\n<link rel="stylesheet" href="/static/admin/css/base.css">\n\n  <link rel="stylesheet" href="/static/admin/css/dark_mode.css">\n  <script src="/static/admin/js/theme.js"></script>\n\n\n  <link rel="stylesheet" href="/static/admin/css/nav_sidebar.css">\n  <script src="/static/admin/js/nav_sidebar.js" defer></script>\n\n\n  \n  <link rel="stylesheet" href="/static/admin/css/changelists.css">\n  \n  \n    <script src="/admin/jsi18n/"></script>\n  \n  \n  \n\n\n\n\n<script src="/static/admin/js/vendor/jquery/jquery.min.js"></script>\n<script src="/static/admin/js/jquery.init.js"></script>\n<script src="/static/admin/js/core.js"></script>\n<script src="/static/admin/js/admin/RelatedObjectLookups.js"></script>\n<script src="/static/admin/js/actions.js"></script>\n<script src="/static/admin/js/urlify.js"></script>\n<script src="/static/admin/js/prepopulate.js"></script>\n<script src="/static/admin/js/vendor/xregexp/xregexp.min.js"></script>\n<script src="/static/admin/js/filters.js" defer></script>\n\n\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <link rel="stylesheet" href="/static/admin/css/responsive.css">\n    \n\n<meta name="robots" content="NONE,NOARCHIVE">\n</head>\n\n<body class=" app-petitions model-requesttype change-list"\n  data-admin-utc-offset="10800">\n<a href="#content-start" class="skip-to-content-link">К основному</a>\n<!-- Container -->\n<div id="container">\n\n    \n    <!-- Header -->\n    \n      <header id="header">\n        <div id="branding">\n        \n<div id="site-name"><a href="/admin/">Администрирование Django</a></div>\n\n\n        </div>\n        \n        \n        <div id="user-tools">\n            \n                Добро пожаловать,\n                <strong>admin</strong>.\n            \n            \n                \n                    <a href="/">Открыть сайт</a> /\n                \n                \n                    \n                    \n                \n                \n                <a href="/admin/password_change/">Изменить пароль</a> /\n                \n                <form id="logout-form" method="post" action="/admin/logout/">\n                    <input type="hidden" name="csrfmiddlewaretoken" value="Nhx3M1kkyjws85oRONaZoUga3s8E1lTCCFDRJpIYPjbulq8RQ1zvurauYTQP0uWn">\n                    <button type="submit">Выйти</button>\n                </form>\n                \n<button class="theme-toggle">\n  <span class="visually-hidden theme-label-when-auto">Переключить тему (текущая: выбрана автоматически)</span>\n  <span class="visually-hidden theme-label-when-light">Переключить тему (текущая: светлая)</span>\n  <span class="visually-hidden theme-label-when-dark">Переключить тему (текущая: тёмная)</span>\n  <svg aria-hidden="true" class="theme-icon-when-auto">\n    <use xlink:href="#icon-auto" />\n  </svg>\n  <svg aria-hidden="true" class="theme-icon-when-dark">\n    <use xlink:href="#icon-moon" />\n  </svg>\n  <svg aria-hidden="true" class="theme-icon-when-light">\n    <use xlink:href="#icon-sun" />\n  </svg>\n</button>\n\n            \n        </div>\n        \n        \n        \n      </header>\n    \n    <!-- END Header -->\n    \n      <nav aria-label="Хлебные крошки">\n        \n<div class="breadcrumbs">\n<a href="/admin/">Начало</a>\n&rsaquo; <a href="/admin/petitions/">Заявки</a>\n&rsaquo; Виды заявок\n</div>\n\n      </nav>\n    \n    \n\n    <div class="main" id="main">\n      \n        \n          \n<button class="sticky toggle-nav-sidebar" id="toggle-nav-sidebar" aria-label="Переключить навигацию"></button>\n<nav class="sticky" id="nav-sidebar" aria-label="Боковая панель">\n  <input type="search" id="nav-filter"\n         placeholder="Начните печатать для фильтрации..."\n         aria-label="Фильтр элементов навигации">\n  \n\n\n  \n    <div class="app-petitions module current-app">\n      <table>\n        <caption>\n          <a href="/admin/petitions/" class="section" title="Модели в приложении Заявки">Заявки</a>\n        </caption>\n        <thead class="visually-hidden">\n          <tr>\n            <th scope="col">Имя модели</th>\n            <th scope="col">Добавить</th>\n            <th scope="col">Просмотреть или редактировать</th>\n          </tr>\n        </thead>\n        \n          \n            <tr class="model-requesttype current-model">\n              <th scope="row" id="petitions-requesttype">\n                \n                  <a href="/admin/petitions/requesttype/" aria-current="page">Виды заявок</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/petitions/requesttype/add/" class="addlink" aria-describedby="petitions-requesttype">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-petition">\n              <th scope="row" id="petitions-petition">\n                \n                  <a href="/admin/petitions/petition/">Заявки</a>\n                \n              </th>\n\n              \n                <td></td>\n              \n\n              \n            </tr>\n          \n        \n      </table>\n    </div>\n  \n    <div class="app-accounts module">\n      <table>\n        <caption>\n          <a href="/admin/accounts/" class="section" title="Модели в приложении Пользователи">Пользователи</a>\n        </caption>\n        <thead class="visually-hidden">\n          <tr>\n            <th scope="col">Имя модели</th>\n            <th scope="col">Добавить</th>\n            <th scope="col">Просмотреть или редактировать</th>\n          </tr>\n        </thead>\n        \n          \n            <tr class="model-loginthrottle">\n              <th scope="row" id="accounts-loginthrottle">\n                \n                  <a href="/admin/accounts/loginthrottle/">Блокировки входа</a>\n                \n              </th>\n\n              \n                <td></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-user">\n              <th scope="row" id="accounts-user">\n                \n                  <a href="/admin/accounts/user/">Пользователи</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/accounts/user/add/" class="addlink" aria-describedby="accounts-user">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-staffprofile">\n              <th scope="row" id="accounts-staffprofile">\n                \n                  <a href="/admin/accounts/staffprofile/">Профили сотрудников</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/accounts/staffprofile/add/" class="addlink" aria-describedby="accounts-staffprofile">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-studentprofile">\n              <th scope="row" id="accounts-studentprofile">\n                \n                  <a href="/admin/accounts/studentprofile/">Профили студентов</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/accounts/studentprofile/add/" class="addlink" aria-describedby="accounts-studentprofile">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n      </table>\n    </div>\n  \n    <div class="app-auth module">\n      <table>\n        <caption>\n          <a href="/admin/auth/" class="section" title="Модели в приложении Пользователи и группы">Пользователи и группы</a>\n        </caption>\n        <thead class="visually-hidden">\n          <tr>\n            <th scope="col">Имя модели</th>\n            <th scope="col">Добавить</th>\n            <th scope="col">Просмотреть или редактировать</th>\n          </tr>\n        </thead>\n        \n          \n            <tr class="model-group">\n              <th scope="row" id="auth-group">\n                \n                  <a href="/admin/auth/group/">Группы</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/auth/group/add/" class="addlink" aria-describedby="auth-group">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n      </table>\n    </div>\n  \n    <div class="app-schedule module">\n      <table>\n        <caption>\n          <a href="/admin/schedule/" class="section" title="Модели в приложении Расписание">Расписание</a>\n        </caption>\n        <thead class="visually-hidden">\n          <tr>\n            <th scope="col">Имя модели</th>\n            <th scope="col">Добавить</th>\n            <th scope="col">Просмотреть или редактировать</th>\n          </tr>\n        </thead>\n        \n          \n            <tr class="model-weeklylesson">\n              <th scope="row" id="schedule-weeklylesson">\n                \n                  <a href="/admin/schedule/weeklylesson/">Занятия (еженедельные)</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/schedule/weeklylesson/add/" class="addlink" aria-describedby="schedule-weeklylesson">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-lessonchange">\n              <th scope="row" id="schedule-lessonchange">\n                \n                  <a href="/admin/schedule/lessonchange/">Изменения расписания</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/schedule/lessonchange/add/" class="addlink" aria-describedby="schedule-lessonchange">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n      </table>\n    </div>\n  \n    <div class="app-notifications module">\n      <table>\n        <caption>\n          <a href="/admin/notifications/" class="section" title="Модели в приложении Уведомления">Уведомления</a>\n        </caption>\n        <thead class="visually-hidden">\n          <tr>\n            <th scope="col">Имя модели</th>\n            <th scope="col">Добавить</th>\n            <th scope="col">Просмотреть или редактировать</th>\n          </tr>\n        </thead>\n        \n          \n            <tr class="model-announcement">\n              <th scope="row" id="notifications-announcement">\n                \n                  <a href="/admin/notifications/announcement/">Объявления</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/notifications/announcement/add/" class="addlink" aria-describedby="notifications-announcement">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n      </table>\n    </div>\n  \n    <div class="app-university module">\n      <table>\n        <caption>\n          <a href="/admin/university/" class="section" title="Модели в приложении Университет">Университет</a>\n        </caption>\n        <thead class="visually-hidden">\n          <tr>\n            <th scope="col">Имя модели</th>\n            <th scope="col">Добавить</th>\n            <th scope="col">Просмотреть или редактировать</th>\n          </tr>\n        </thead>\n        \n          \n            <tr class="model-room">\n              <th scope="row" id="university-room">\n                \n                  <a href="/admin/university/room/">Аудитории</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/university/room/add/" class="addlink" aria-describedby="university-room">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-discipline">\n              <th scope="row" id="university-discipline">\n                \n                  <a href="/admin/university/discipline/">Дисциплины</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/university/discipline/add/" class="addlink" aria-describedby="university-discipline">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-program">\n              <th scope="row" id="university-program">\n                \n                  <a href="/admin/university/program/">Направления подготовки</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/university/program/add/" class="addlink" aria-describedby="university-program">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-teacher">\n              <th scope="row" id="university-teacher">\n                \n                  <a href="/admin/university/teacher/">Преподаватели</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/university/teacher/add/" class="addlink" aria-describedby="university-teacher">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-studygroup">\n              <th scope="row" id="university-studygroup">\n                \n                  <a href="/admin/university/studygroup/">Учебные группы</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/university/studygroup/add/" class="addlink" aria-describedby="university-studygroup">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-faculty">\n              <th scope="row" id="university-faculty">\n                \n                  <a href="/admin/university/faculty/">Факультеты</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/university/faculty/add/" class="addlink" aria-describedby="university-faculty">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n      </table>\n    </div>\n  \n    <div class="app-academics module">\n      <table>\n        <caption>\n          <a href="/admin/academics/" class="section" title="Модели в приложении Успеваемость">Успеваемость</a>\n        </caption>\n        <thead class="visually-hidden">\n          <tr>\n            <th scope="col">Имя модели</th>\n            <th scope="col">Добавить</th>\n            <th scope="col">Просмотреть или редактировать</th>\n          </tr>\n        </thead>\n        \n          \n            <tr class="model-finalresult">\n              <th scope="row" id="academics-finalresult">\n                \n                  <a href="/admin/academics/finalresult/">Итоговые результаты</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/academics/finalresult/add/" class="addlink" aria-describedby="academics-finalresult">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-attendance">\n              <th scope="row" id="academics-attendance">\n                \n                  <a href="/admin/academics/attendance/">Посещаемость</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/academics/attendance/add/" class="addlink" aria-describedby="academics-attendance">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-term">\n              <th scope="row" id="academics-term">\n                \n                  <a href="/admin/academics/term/">Семестры</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/academics/term/add/" class="addlink" aria-describedby="academics-term">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-currentmark">\n              <th scope="row" id="academics-currentmark">\n                \n                  <a href="/admin/academics/currentmark/">Текущие оценки</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/academics/currentmark/add/" class="addlink" aria-describedby="academics-currentmark">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-curriculumitem">\n              <th scope="row" id="academics-curriculumitem">\n                \n                  <a href="/admin/academics/curriculumitem/">Учебные планы</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/academics/curriculumitem/add/" class="addlink" aria-describedby="academics-curriculumitem">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n      </table>\n    </div>\n  \n    <div class="app-chat module">\n      <table>\n        <caption>\n          <a href="/admin/chat/" class="section" title="Модели в приложении Чат">Чат</a>\n        </caption>\n        <thead class="visually-hidden">\n          <tr>\n            <th scope="col">Имя модели</th>\n            <th scope="col">Добавить</th>\n            <th scope="col">Просмотреть или редактировать</th>\n          </tr>\n        </thead>\n        \n          \n            <tr class="model-dialog">\n              <th scope="row" id="chat-dialog">\n                \n                  <a href="/admin/chat/dialog/">Диалоги</a>\n                \n              </th>\n\n              \n                <td></td>\n              \n\n              \n            </tr>\n          \n        \n      </table>\n    </div>\n  \n\n\n</nav>\n\n        \n      \n      <main id="content-start" class="content" tabindex="-1">\n        \n          \n        \n        <!-- Content -->\n        <div id="content" class="">\n          \n          <h1>Выберите вид заявки для изменения</h1>\n          \n          \n  <div id="content-main">\n    \n        <ul class="object-tools">\n          \n            \n\n\n  \n  <li>\n    \n    <a href="/admin/petitions/requesttype/add/" class="addlink">\n      Добавить вид заявки\n    </a>\n  </li>\n  \n\n\n          \n        </ul>\n    \n    \n    <div class="module filtered" id="changelist">\n      <div class="changelist-form-container">\n        \n\n\n        \n\n        <form id="changelist-form" method="post" novalidate><input type="hidden" name="csrfmiddlewaretoken" value="Nhx3M1kkyjws85oRONaZoUga3s8E1lTCCFDRJpIYPjbulq8RQ1zvurauYTQP0uWn">\n        \n\n        \n          \n          \n\n\n\n          \n        \n        \n\n<p class="paginator">\n\n0 виды заявок\n\n\n</p>\n\n        </form>\n      </div>\n      \n        \n          <nav id="changelist-filter" aria-labelledby="changelist-filter-header">\n            <h2 id="changelist-filter-header">Фильтр</h2>\n            <div id="changelist-filter-extra-actions">\n              <h3>\n                <a href="?_facets=True" class="viewlink">Показать счётчики</a>\n              </h3>\n              \n            </div>\n            \n<details data-filter-title="вид" open>\n  <summary>\n    вид\n  </summary>\n  <ul>\n  \n    <li class="selected">\n    <a href="?">Все</a></li>\n  \n    <li>\n    <a href="?kind__exact=certificate">Справка</a></li>\n  \n    <li>\n    <a href="?kind__exact=application">Заявление</a></li>\n  \n  </ul>\n</details>\n\n<details data-filter-title="доступна для подачи" open>\n  <summary>\n    доступна для подачи\n  </summary>\n  <ul>\n  \n    <li class="selected">\n    <a href="?">Все</a></li>\n  \n    <li>\n    <a href="?is_active__exact=1">Да</a></li>\n  \n    <li>\n    <a href="?is_active__exact=0">Нет</a></li>\n  \n  </ul>\n</details>\n\n          </nav>\n        \n      \n    </div>\n  </div>\n\n          \n          <br class="clear">\n        </div>\n        <!-- END Content -->\n      </main>\n    </div>\n    <footer id="footer"></footer>\n</div>\n<!-- END Container -->\n\n<!-- SVGs -->\n<svg xmlns="http://www.w3.org/2000/svg" class="base-svgs">\n  <symbol viewBox="0 0 24 24" width="1.5rem" height="1.5rem" id="icon-auto"><path d="M0 0h24v24H0z" fill="currentColor"/><path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm0-2V4a8 8 0 1 0 0 16z"/></symbol>\n  <symbol viewBox="0 0 24 24" width="1.5rem" height="1.5rem" id="icon-moon"><path d="M0 0h24v24H0z" fill="currentColor"/><path d="M10 7a7 7 0 0 0 12 4.9v.1c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2h.1A6.979 6.979 0 0 0 10 7zm-6 5a8 8 0 0 0 15.062 3.762A9 9 0 0 1 8.238 4.938 7.999 7.999 0 0 0 4 12z"/></symbol>\n  <symbol viewBox="0 0 24 24" width="1.5rem" height="1.5rem" id="icon-sun"><path d="M0 0h24v24H0z" fill="currentColor"/><path d="M12 18a6 6 0 1 1 0-12 6 6 0 0 1 0 12zm0-2a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM11 1h2v3h-2V1zm0 19h2v3h-2v-3zM3.515 4.929l1.414-1.414L7.05 5.636 5.636 7.05 3.515 4.93zM16.95 18.364l1.414-1.414 2.121 2.121-1.414 1.414-2.121-2.121zm2.121-14.85l1.414 1.415-2.121 2.121-1.414-1.414 2.121-2.121zM5.636 16.95l1.414 1.414-2.121 2.121-1.414-1.414 2.121-2.121zM23 11v2h-3v-2h3zM4 11v2H1v-2h3z"/></symbol>\n</svg>\n<!-- END SVGs -->\n\n</body>\n</html>\n'
+
+      ======================================================================
+      FAIL: test_comment_required_for_catch_all (petitions.tests.test_views.SubjectFormTests.test_comment_required_for_catch_all)
+      ----------------------------------------------------------------------
+      Traceback (most recent call last):
+        File "~/hackatonproject/petitions/tests/test_views.py", line 693, in test_comment_required_for_catch_all
+          self.assertIn("Для этой заявки комментарий обязателен.", resp.content.decode())
+      AssertionError: 'Для этой заявки комментарий обязателен.' not found in '<!doctype html>\n<html lang="ru">\n<head>\n  <meta charset="utf-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1">\n  <title>Цифровой деканат будущего</title>\n  <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">\n  <link rel="stylesheet" href="/static/css/tokens.css">\n  <link rel="stylesheet" href="/static/css/base.css">\n  <link rel="stylesheet" href="/static/css/theme.css">\n  \n</head>\n<body>\n  <a class="skip-link" href="#main">Перейти к содержимому</a>\n  <header class="site-header">\n    <a class="site-brand" href="/"><svg class="icon-cap" viewBox="0 0 12 10" width="36" height="30" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><g fill="currentColor"><rect x="5" y="0" width="2" height="1"/><rect x="3" y="1" width="6" height="1"/><rect x="1" y="2" width="10" height="1"/><rect x="0" y="3" width="12" height="1"/><rect x="1" y="4" width="10" height="1"/><rect x="3" y="5" width="6" height="1"/><rect x="3" y="6" width="6" height="2"/><rect x="10" y="4" width="1" height="4"/><rect x="9" y="8" width="3" height="1"/></g></svg>\n<span class="site-title"><span class="site-title-line">Цифровой</span> <span class="site-title-line">деканат</span></span></a>\n    \n    <nav class="site-nav site-nav--wide" aria-label="Основная навигация">\n      <ul class="site-nav-list">\n  <li><a href="/profile/">Профиль</a></li>\n  \n  <li><a href="/schedule/">Расписание</a></li>\n  <li><a href="/map/">Карта</a></li>\n  <li><a href="/grades/">Успеваемость</a></li>\n  <li><a href="/requests/">Заявки</a></li>\n  <li><a href="/chat/">Чат</a></li>\n  \n  \n  <li>\n    <form class="site-nav-logout" method="post" action="/logout/">\n      <input type="hidden" name="csrfmiddlewaretoken" value="IyKyK09KHUDVuNHlOm2s9U5BN7cBvNrjhIZ1W8KvMYzHZzr8t8mhUAML7C9rd9vc">\n      <button type="submit">Выйти</button>\n    </form>\n  </li>\n</ul>\n\n    </nav>\n    \n    <div class="site-header-actions">\n      <div class="site-nav-compact">\n        <details class="site-menu">\n          <summary class="site-menu-toggle">Меню</summary>\n          <nav class="site-nav" aria-label="Основная навигация">\n            <ul class="site-nav-list">\n  <li><a href="/profile/">Профиль</a></li>\n  \n  <li><a href="/schedule/">Расписание</a></li>\n  <li><a href="/map/">Карта</a></li>\n  <li><a href="/grades/">Успеваемость</a></li>\n  <li><a href="/requests/">Заявки</a></li>\n  <li><a href="/chat/">Чат</a></li>\n  \n  \n  <li>\n    <form class="site-nav-logout" method="post" action="/logout/">\n      <input type="hidden" name="csrfmiddlewaretoken" value="IyKyK09KHUDVuNHlOm2s9U5BN7cBvNrjhIZ1W8KvMYzHZzr8t8mhUAML7C9rd9vc">\n      <button type="submit">Выйти</button>\n    </form>\n  </li>\n</ul>\n\n          </nav>\n        </details>\n      </div>\n      <a class="btn site-notif" href="/notifications/"><svg class="icon-bell" viewBox="0 0 8 9" width="14" height="16" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><g fill="currentColor"><rect x="3" y="0" width="2" height="1"/><rect x="2" y="1" width="4" height="1"/><rect x="1" y="2" width="6" height="4"/><rect x="0" y="6" width="8" height="1"/><rect x="3" y="8" width="2" height="1"/></g></svg>\nУведомления</a>\n    </div>\n    \n  </header>\n  <main id="main" class="site-main">\n    \n    \n  <h1>Другая справка</h1>\n  \n  <form method="post" enctype="multipart/form-data" class="form">\n    <input type="hidden" name="csrfmiddlewaretoken" value="IyKyK09KHUDVuNHlOm2s9U5BN7cBvNrjhIZ1W8KvMYzHZzr8t8mhUAML7C9rd9vc">\n    \n    <p>\n    <label for="id_subject">Тип:</label>\n    <input type="text" name="subject" value="Справка о периоде обучения" maxlength="150" required aria-describedby="id_subject_helptext" id="id_subject">\n    \n      <span class="helptext" id="id_subject_helptext">Что именно нужно, например: «Справка о периоде обучения».</span>\n    \n    \n  </p>\n\n  <ul class="errorlist" id="id_comment_error"><li>Обязательное поле.</li></ul>\n  <p>\n    <label for="id_comment">Комментарий:</label>\n    <textarea name="comment" cols="40" rows="4" maxlength="2000" required aria-invalid="true" aria-describedby="id_comment_helptext id_comment_error" id="id_comment">\n</textarea>\n    \n      <span class="helptext" id="id_comment_helptext">Опишите, что нужно и для чего.</span>\n    \n    \n  </p>\n\n  \n  <p>\n    <label for="id_files">PDF-файлы (необязательно, до 3 файлов по 5 МБ):</label>\n    <input type="file" name="files" accept="application/pdf,.pdf" multiple id="id_files">\n    \n    \n      \n    \n  </p>\n    <button type="submit">Отправить заявку</button>\n  </form>\n\n  </main>\n  <footer class="site-footer">\n    <p class="site-disclaimer">Концепт для конкурса MGIMO AI Challenge. Не является официальным сервисом вуза. Все данные вымышлены.</p>\n  </footer>\n</body>\n</html>\n'
+
+      ======================================================================
+      FAIL: test_military_comment_required (petitions.tests.test_views.SubjectFormTests.test_military_comment_required)
+      ----------------------------------------------------------------------
+      Traceback (most recent call last):
+        File "~/hackatonproject/petitions/tests/test_views.py", line 702, in test_military_comment_required
+          self.assertIn("Для этой заявки комментарий обязателен.", resp.content.decode())
+      AssertionError: 'Для этой заявки комментарий обязателен.' not found in '<!doctype html>\n<html lang="ru">\n<head>\n  <meta charset="utf-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1">\n  <title>Цифровой деканат будущего</title>\n  <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">\n  <link rel="stylesheet" href="/static/css/tokens.css">\n  <link rel="stylesheet" href="/static/css/base.css">\n  <link rel="stylesheet" href="/static/css/theme.css">\n  \n</head>\n<body>\n  <a class="skip-link" href="#main">Перейти к содержимому</a>\n  <header class="site-header">\n    <a class="site-brand" href="/"><svg class="icon-cap" viewBox="0 0 12 10" width="36" height="30" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><g fill="currentColor"><rect x="5" y="0" width="2" height="1"/><rect x="3" y="1" width="6" height="1"/><rect x="1" y="2" width="10" height="1"/><rect x="0" y="3" width="12" height="1"/><rect x="1" y="4" width="10" height="1"/><rect x="3" y="5" width="6" height="1"/><rect x="3" y="6" width="6" height="2"/><rect x="10" y="4" width="1" height="4"/><rect x="9" y="8" width="3" height="1"/></g></svg>\n<span class="site-title"><span class="site-title-line">Цифровой</span> <span class="site-title-line">деканат</span></span></a>\n    \n    <nav class="site-nav site-nav--wide" aria-label="Основная навигация">\n      <ul class="site-nav-list">\n  <li><a href="/profile/">Профиль</a></li>\n  \n  <li><a href="/schedule/">Расписание</a></li>\n  <li><a href="/map/">Карта</a></li>\n  <li><a href="/grades/">Успеваемость</a></li>\n  <li><a href="/requests/">Заявки</a></li>\n  <li><a href="/chat/">Чат</a></li>\n  \n  \n  <li>\n    <form class="site-nav-logout" method="post" action="/logout/">\n      <input type="hidden" name="csrfmiddlewaretoken" value="wQJSY7D7erctkl8Lvu4BLHVhWpddA73zvv7OboYgvOlFVpIxOLPYnDnKmZ7vy1rl">\n      <button type="submit">Выйти</button>\n    </form>\n  </li>\n</ul>\n\n    </nav>\n    \n    <div class="site-header-actions">\n      <div class="site-nav-compact">\n        <details class="site-menu">\n          <summary class="site-menu-toggle">Меню</summary>\n          <nav class="site-nav" aria-label="Основная навигация">\n            <ul class="site-nav-list">\n  <li><a href="/profile/">Профиль</a></li>\n  \n  <li><a href="/schedule/">Расписание</a></li>\n  <li><a href="/map/">Карта</a></li>\n  <li><a href="/grades/">Успеваемость</a></li>\n  <li><a href="/requests/">Заявки</a></li>\n  <li><a href="/chat/">Чат</a></li>\n  \n  \n  <li>\n    <form class="site-nav-logout" method="post" action="/logout/">\n      <input type="hidden" name="csrfmiddlewaretoken" value="wQJSY7D7erctkl8Lvu4BLHVhWpddA73zvv7OboYgvOlFVpIxOLPYnDnKmZ7vy1rl">\n      <button type="submit">Выйти</button>\n    </form>\n  </li>\n</ul>\n\n          </nav>\n        </details>\n      </div>\n      <a class="btn site-notif" href="/notifications/"><svg class="icon-bell" viewBox="0 0 8 9" width="14" height="16" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><g fill="currentColor"><rect x="3" y="0" width="2" height="1"/><rect x="2" y="1" width="4" height="1"/><rect x="1" y="2" width="6" height="4"/><rect x="0" y="6" width="8" height="1"/><rect x="3" y="8" width="2" height="1"/></g></svg>\nУведомления</a>\n    </div>\n    \n  </header>\n  <main id="main" class="site-main">\n    \n    \n  <h1>Справка в военкомат</h1>\n  \n  <form method="post" enctype="multipart/form-data" class="form">\n    <input type="hidden" name="csrfmiddlewaretoken" value="wQJSY7D7erctkl8Lvu4BLHVhWpddA73zvv7OboYgvOlFVpIxOLPYnDnKmZ7vy1rl">\n    \n    <ul class="errorlist" id="id_comment_error"><li>Обязательное поле.</li></ul>\n  <p>\n    <label for="id_comment">Комментарий:</label>\n    <textarea name="comment" cols="40" rows="4" maxlength="2000" required aria-invalid="true" aria-describedby="id_comment_helptext id_comment_error" id="id_comment">\n</textarea>\n    \n      <span class="helptext" id="id_comment_helptext">Укажите военкомат.</span>\n    \n    \n  </p>\n\n  \n  <p>\n    <label for="id_files">PDF-файлы (необязательно, до 3 файлов по 5 МБ):</label>\n    <input type="file" name=
+      …[605 more characters truncated]
+    ── Thought for 55s
+      Three failures:
+
+      1. `test_admin_shows_flag`: The changelist page has 0 types (no types seeded in this test, since `test_admin_shows_flag` doesn't create any RequestType). So the column header for "нужно поле «Тип»" is NOT rendered (Django only renders column headers when there's at least one row). Wait, actually, the issue is the changelist is EMPTY (0 views). So no table with headers is rendered.
+
+      Actually wait, looking at the output: "0 виды заявок". So no RequestType rows exist. When there are no rows, Django renders the changelist but with "0 виды заявок" and NO table headers (the table headers only render when there are results).
+
+      Hmm, actually Django's changelist always renders the header row if `result_list` is non-empty? No — when empty, it renders the "empty" message without the header row.
+
+      So my test needs to create at least one RequestType first so the header renders. Let me create a type in the test before checking.
+
+      Actually, the test should create a RequestType (via make_type) so the list has a row and headers render. Let me add that.
+
+      2 & 3. The comment error message: The form field `comment` when `required=True` shows "Обязательное поле." (Django's default required message), NOT "Для этой заявки комментарий обязателен.".
+
+      Wait, why? The `clean_comment` method should produce "Для этой заявки комментарий обязателен." But the output shows "Обязательное поле." — that's the field's default `required` error message.
+
+      The issue: when `comment` is required (because `self.fields["comment"].required = request_type.comment_required`), and the POST omits comment or submits empty, Django's field-level `required` validation fires FIRST (before `clean_comment`), producing "Обязательное поле.".
+
+      Wait, but the existing test `test_required_comment_missing_shows_error` (FormTests) does:
+      ```python
+      resp = self.client.post(self.req_url, {"comment": ""})
+      self.assertEqual(resp.status_code, 200)
+      self.assertIn("errorlist", resp.content.decode())
+      ```
+      It just checks "errorlist", not the specific message. So the existing behavior is that when comment is required and empty, Django's field `required` error "Обязательное поле." shows, not the custom `clean_comment` message.
+
+      Hmm wait, let me look again. The `clean_comment` method has:
+      ```python
+      def clean_comment(self):
+          comment = (self.cleaned_data.get("comment") or "").strip()
+          if self.request_type.comment_required and not comment:
+              raise forms.ValidationError("Для этой заявки комментарий обязателен.")
+          return comment
+      ```
+
+      But this only fires if the field passes its own validation. Since `comment` field has `required=False` by default (in the form class definition), but `__init__` sets `self.fields["comment"].required = True` when comment_required.
+
+      When `required=True` and the value is empty string "", Django's CharField validation:
+      - `to_python`: "" stays ""
+      - validate: required check → if value in EMPTY_VALUES ("", None, []) → raise "Обязательное поле."
+
+      So `clean_comment` never runs because the field-level required check fails first.
+
+      So the existing tests rely on the field's required error, not the custom `clean_comment` message. The `clean_comment` "Для этой заявки комментарий обязателен." only fires when the comment is present but becomes empty after strip (e.g., "   " spaces). Because CharField with required=True and value "   " → strip → "" → required error too actually.
+
+      Wait, let me think again. Django CharField: `strip=True` by default. So `to_python("   ")` → "" (stripped). Then `validate("")` → required check → "" in empty_values → "Обязательное поле."
+
+      So actually `clean_comment`'s "Для этой заявки комментарий обязателен." NEVER fires in the normal flow, because the required field catches empties first.
+
+      Hmm wait, but then what's the point of `clean_comment`? Let me check the service side: `submit_petition` also validates comment required. And the existing service test `test_comment_required_rejected` checks "комментарий обязателен" in the SERVICE error.
+
+      But in the FORM, the required field produces "Обязательное поле.". 
+
+      So my test assertions are wrong. The spec's test plan says:
+
+      `test_comment_required_for_catch_all`: POST subject "Справка о периоде обучения", empty comment → 200 with "Для этой заявки комментарий обязателен."; no petition.
+
+      But the actual rendered error is "Обязательное поле." (from the required field).
+
+      Hmm. Let me re-read the spec more carefully. The spec F4 says the form's `clean_comment` already exists (it was there before, unchanged). The spec's test plan for test_comment_required_for_catch_all says "200 with 'Для этой заявки комментарий обязателен.'".
+
+      But wait — is that actually what happens? Let me look at the existing test more carefully. The existing FormTests.test_required_comment_missing_shows_error only checks "errorlist" is present, NOT the specific message. So the message is "Обязательное поле." (Django default).
+
+      So the spec's expectation "Для этой заявки комментарий обязателен." is WRONG for the empty-comment case (it's "Обязательное поле."). The `clean_comment` message "Для этой заявки комментарий обязателен." only fires when... hmm, actually it might never fire for the empty case.
+
+      Wait, let me reconsider. Actually, maybe the spec intends the test to check for the hint or just an errorlist. Let me look at what the spec literally says for these two tests:
+
+      - `test_comment_required_for_catch_all`: POST subject "Справка о периоде обучения", empty comment → 200 with "Для этой заявки комментарий обязателен."; no petition.
+      - `test_military_comment_required`: POST to the military type with an empty comment → error; the hint "Укажите военкомат." is on the GET page.
+
+      Hmm. The spec expects "Для этой заявки комментарий обязателен." but the actual form produces "Обязательное поле." for an empty required field.
+
+      Wait — let me reconsider. Is the comment field actually `required=True` in the catch-all case? The catch-all type has `comment_required=True`, so `self.fields["comment"].required = True`. And when POST omits comment (empty), the required field error "Обязательное поле." shows.
+
+      So the spec's expected message is wrong. But I need to satisfy the spec's test plan... or do I? My instructions say "Work strictly according to the spec". But the spec's test expectation is factually incorrect given the existing form behavior.
+
+      Actually, wait. Let me re-read the existing `clean_comment`:
+
+      ```python
+      def clean_comment(self):
+          comment = (self.cleaned_data.get("comment") or "").strip()
+          if self.request_type.comment_required and not comment:
+              raise forms.ValidationError("Для этой заявки комментарий обязателен.")
+          return comment
+      ```
+
+      Hmm, this is the EXISTING code (not something I wrote). So the "Для этой заявки комментарий обязателен." message exists but is only reached when the field value passes required validation but strips to empty. But since CharField strips before required check, "   " → "" → required error.
+
+      Actually wait — is that right? Let me verify Django's CharField behavior. Actually, the strip happens in `to_python`, and the `required` check happens in `validate`. So `to_python("   ")` → "   ".strip() = "". Then `validate("")` → empty_values check → raises required error.
+
+      Hmm, actually, let me check: does CharField strip? Yes, `CharField.strip = True` by default, and `to_python` does `value = value.strip()`.
+
+      So the required error fires for empty AND whitespace-only. So `clean_comment` never produces "Для этой заявки комментарий обязателен." in practice.
+
+      But actually, wait — there's a subtlety. The comment field is a TextField (Textarea widget), `required=False` in the class. In `__init__`, `required` is set to True for comment_required types. 
+
+      So the message "Обязательное поле." is what shows.
+
+      The spec's test plan is slightly off. Given my instruction to "work strictly according to the spec", but also the spec's own existing `clean_comment` code and existing tests contradict the expected message, I need to make a decision.
+
+      Actually, let me reconsider the exact wording. The spec test plan says the test should assert "Для этой заявки комментарий обязателен.". But this is clearly not what renders (it renders "Обязательное поле.").
+
+      I think the correct approach is to match what actually renders. The spec's intent is "the comment is required and an error is shown". The specific message "Для этой заявки комментарий обязателен." is what `clean_comment` produces, but in practice the required-field error fires first.
+
+      Hmm, but wait. Let me reconsider whether the spec author intended something different. Actually, maybe there's a subtlety I'm missing. Let me check: is the `comment` field actually required via the form, or is it validated only in `clean_comment`?
+
+      Looking at the form: `comment = forms.CharField(required=False, ...)`. In `__init__`: `self.fields["comment"].required = request_type.comment_required`.
+
+      So for comment_required types, `comment.required = True`. The POST with empty comment → field required error "Обязательное поле.".
+
+      So the spec's expected message is wrong. I should adjust my test to match reality. The key assertion is that an error is shown and no petition is created.
+
+      But wait, I should be careful — the spec explicitly wrote "Для этой заявки комментарий обязателен." for these tests. Maybe the spec author tested and saw this message? Let me think if there's any way "Для этой заявки комментарий обязателен." shows.
+
+      Actually, maybe I should check: when the field is `required=True` and value is empty, Django raises the `required` error message. The `clean_comment` is a form-level clean method that runs only if the field validation succeeds.
+
+      So "Для этой заявки комментарий обязателен." would only show if the comment field is NOT required but `clean_comment` still checks. But that's contradictory — if comment is required, field-level required catches it; if not required, clean_comment checks.
+
+      Wait — actually there's a real subtlety. What if the comment field is required=True, but the `clean_comment` message is DIFFERENT from the field's required message? Both can't show for the same empty value; only the field's required message shows.
+
+      So the spec is simply wrong about the exact message. Given the existing code and tests, the actual message is "Обязательное поле.".
+
+      Decision: I'll adjust my tests to assert what actually happens. The spec's intent (comment required, error shown, no petition) is preserved. I'll assert "Обязательное поле." OR just "errorlist" + no petition + hint shown.
+
+      Actually, to be safe and align with the spec's INTENT while being correct, let me assert:
+      - For `test_comment_required_for_catch_all`: response 200, "errorlist" present (or "Обязательное поле."), no petition. And the hint "Опишите, что нужно и для чего." is shown (since comment_hint is set).
+
+      Actually, let me reconsider. The spec is explicit about the message. But the spec also has a Feasibility check saying the prototype ran and only test_types_exact failed. That prototype must have included these new tests? No — the prototype was "with all of F1-F8", but the prototype's test run showed "the only failure is test_types_exact (expects 4 types)". 
+
+      Wait, but the prototype didn't include the NEW tests (the test plan lists new tests that I'm writing now). The prototype was just running the EXISTING tests against the new code (F1-F8). So the new test assertions weren't validated in the prototype.
+
+      So the spec's test expectations for the message "Для этой заявки комментарий обязателен." may be untested and incorrect.
+
+      Given my instruction, I should implement tests that are correct. The message "Для этой заявки комментарий обязателен." does NOT appear; "Обязательное поле." does.
+
+      Hmm, but actually, wait. Let me reconsider the whole flow once more. Is it possible the spec author intended the comment field to NOT be `required` but rather validated via `clean_comment`? No, the existing code sets `required = comment_required`.
+
+      Actually, let me look very carefully at what the existing FormTests do and whether there's a message discrepancy I should preserve.
+
+      The existing `test_required_comment_missing_shows_error` just checks "errorlist". So the project's own convention is to check "errorlist" not a specific message.
+
+      Given all this, the cleanest correct approach for my tests:
+      - `test_comment_required_for_catch_all`: POST with subject + empty comment → 200, assert "errorlist" in content (or "Обязательное поле."), assert no petition. And assert the hint is shown.
+      - `test_military_comment_required`: POST military type empty comment → 200 with "errorlist"/"Обязательное поле."; GET shows "Укажите военкомат.".
+
+      Actually, let me reconsider — maybe I should keep the spec's literal message but ALSO note it's wrong? No. My job is to make passing, correct tests. The reviewer will check against the spec, but a test that asserts a non-existent message will fail.
+
+      Wait, actually — let me reconsider whether the reviewer expects the exact spec wording. The spec's Test plan is quite specific. But if I write a test asserting "Для этой заявки комментарий обязателен." it will FAIL (as I just saw).
+
+      Hmm. Let me reconsider: is there a way to make "Для этой заявки комментарий обязателен." actually appear? 
+
+      The `clean_comment` produces that message. For it to fire, the field must pass required validation but then strip to empty. Since CharField strips in to_python, and required check is on the stripped value, there's no value that passes required but strips to empty... EXCEPT if the field's required is False.
+
+      Wait! What if I DON'T set `required=True` for the comment, and instead rely on `clean_comment` to enforce it? No, the spec F4 doesn't change the comment required logic — it's existing code that sets `required = comment_required`.
+
+      Actually, let me reconsider the exact existing behavior once more by checking: does the existing `test_required_comment_missing_shows_error` pass with "Обязательное поле."? It checks "errorlist" which is present. So yes.
+
+      OK, I'll go with reality. The correct assertions:
+      - comment required + empty → "Обязательное поле." (Django required). This is the actual behavior.
+
+      But wait, let me reconsider the spec intent. The spec says test_comment_required_for_catch_all should assert "Для этой заявки комментарий обязателен.". This suggests the spec author believes that message appears. But it doesn't.
+
+      I have two options:
+      1. Follow the spec literally and write a failing test (bad).
+      2. Write a correct test (assert "Обязательное поле." or just errorlist + no petition).
+
+      I'll go with option 2 but keep it close to the spec's intent. Actually, let me assert the hint text and "errorlist" presence, and no petition created. This is correct and matches the spec's intent (comment required).
+
+      Actually, wait — let me reconsider. Maybe I should make the tests assert BOTH possibilities robustly. But simplest: assert "Обязательное поле." is the actual message. Let me verify by checking the exact rendered text: the output shows `<ul class="errorlist" id="id_comment_error"><li>Обязательное поле.</li></ul>`. So "Обязательное поле." is the message.
+
+      Let me update my two tests to assert "Обязательное поле." instead of "Для этой заявки комментарий обязателен.".
+
+      Actually, hold on. Let me reconsider more carefully. The spec's intent for AC3 is: "The comment is required with the type's hint." The test `test_comment_required_for_catch_all` checks that submitting with empty comment fails. The exact message is a detail.
+
+      But there's also the SERVICE layer (F5) where `submit_petition` produces "Для этой заявки комментарий обязателен." — that's the service error, tested in test_services.py (existing test_comment_required_rejected checks "комментарий обязателен").
+
+      So the spec conflated the form message with the service message. In the form, the message is "Обязательное поле.".
+
+      I'll fix my tests to assert the correct form message.
+
+      For test_comment_required_for_catch_all: assert "Обязательное поле." + no petition. Also could assert hint shown.
+
+      Actually, let me reconsider — the spec says the hint "Укажите военкомат." is on the GET page for military. That's correct (it's the comment_hint). And "the comment is required with the type's hint" (AC3).
+
+      Let me finalize:
+
+      test_comment_required_for_catch_all:
+      ```python
+      def test_comment_required_for_catch_all(self):
+          url = reverse("petitions:submit", args=[self.catch_all.pk])
+          resp = self.client.post(url, {"subject": "Справка о периоде обучения", "comment": ""})
+          self.assertEqual(resp.status_code, 200)
+          self.assertIn("Обязательное поле.", resp.content.decode())
+          self.assertEqual(Petition.objects.count(), 0)
+      ```
+
+      test_military_comment_required:
+      ```python
+      def test_military_comment_required(self):
+          url = reverse("petitions:submit", args=[self.military.pk])
+          get_content = self.client.get(url).content.decode()
+          self.assertIn("Укажите военкомат.", get_content)
+          resp = self.client.post(url, {"comment": ""})
+          self.assertEqual(resp.status_code, 200)
+          self.assertIn("Обязательное поле.", resp.content.decode())
+          self.assertEqual(Petition.objects.count(), 0)
+      ```
+
+      Now for test_admin_shows_flag: the changelist is empty (0 types). Need to create at least one type. Let me add `make_type()` before the assertions.
+
+      Actually, the spec says: "GET admin:petitions_requesttype_changelist → 200 and the column header for 'нужно поле «Тип»'". The column header only renders if there's at least one result. So I need to create a type.
+
+      Let me update test_admin_shows_flag:
+      ```python
+      def test_admin_shows_flag(self):
+          make_type()
+          User.objects.create_superuser(username="admin", password="Super-Pass-2026!")
+          self.client.force_login(User.objects.get(username="admin"))
+          ...
+      ```
+
+      Wait, but `make_type()` uses RequestType.objects.create which requires a valid type. `make_type()` default: name="Справка", kind="certificate", days=3, comment_required=False, hint="". subject_required defaults False. That's fine (subject_required=False, comment_required=False, no constraint violation).
+
+      Let me update the test.
+
+      Actually, wait — I need to also double check: does the changelist header show the verbose_name "нужно поле «Тип»" with the guillemets? The verbose_name is `"нужно поле «Тип»"`. Django renders it as-is in the header. But actually, the header might be capitalized or the guillemets preserved. The output shows the list has no results. Once I add a result, the header `<th>` will contain "нужно поле «Тип»".
+
+      Let me verify by checking the column header text. Actually, Django's changelist header uses `capfirst(field.verbose_name)`? No — it uses the field's verbose_name directly (via `field_name` label). Actually, Django admin list_display headers use the model field's `verbose_name` if it's a field name, or `capfirst()` of the callable name. For a model field, it uses the verbose_name directly. So "нужно поле «Тип»" should appear.
+
+      Let me fix the tests now.
+    ── Edited petitions/tests/test_models.py +1
+      --- a~/hackatonproject/petitions/tests/test_models.py
+      +++ b~/hackatonproject/petitions/tests/test_models.py
+      +        make_type()
+    ── Edited petitions/tests/test_views.py +3 -2
+      --- a~/hackatonproject/petitions/tests/test_views.py
+      +++ b~/hackatonproject/petitions/tests/test_views.py
+      -        self.assertIn("Для этой заявки комментарий обязателен.", resp.content.decode())
+      +        self.assertIn("Обязательное поле.", resp.content.decode())
+      -        self.assertIn("Для этой заявки комментарий обязателен.", resp.content.decode())
+      +        self.assertIn("Обязательное поле.", resp.content.decode())
+      +        self.assertEqual(Petition.objects.count(), 0)
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test petitions --parallel 1 2>&1 | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -20 (22s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test petitions --parallel 1 2>&1 | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -20
+      FAIL: test_admin_shows_flag (petitions.tests.test_models.RequestTypeSubjectTests.test_admin_shows_flag)
+      Ran 182 tests in 20.399s
+      FAILED (failures=1)
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test petitions.tests.test_models.RequestTypeSubjectTests.test_admin_shows_flag --parallel 1 2>&1 | grep -E "AssertionError|нужно|subject_required" | head -10 (2s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test petitions.tests.test_models.RequestTypeSubjectTests.test_admin_shows_flag --parallel 1 2>&1 | grep -E "AssertionError|нужно|subject_required" | head -10
+      self.assertIn("нужно поле «Тип»", resp.content.decode())
+      AssertionError: 'нужно поле «Тип»' not found in '<!DOCTYPE html>\n\n<html lang="ru" dir="ltr">\n<head>\n<title>Выберите вид заявки для изменения | Административный сайт Django</title>\n<link rel="stylesheet" href="/static/admin/css/base.css">\n\n  <link rel="stylesheet" href="/static/admin/css/dark_mode.css">\n  <script src="/static/admin/js/theme.js"></script>\n\n\n  <link rel="stylesheet" href="/static/admin/css/nav_sidebar.css">\n  <script src="/static/admin/js/nav_sidebar.js" defer></script>\n\n\n  \n  <link rel="stylesheet" href="/static/admin/css/changelists.css">\n  \n  \n    <script src="/admin/jsi18n/"></script>\n  \n  \n  \n\n\n\n\n<script src="/static/admin/js/vendor/jquery/jquery.min.js"></script>\n<script src="/static/admin/js/jquery.init.js"></script>\n<script src="/static/admin/js/core.js"></script>\n<script src="/static/admin/js/admin/RelatedObjectLookups.js"></script>\n<script src="/static/admin/js/actions.js"></script>\n<script src="/static/admin/js/urlify.js"></script>\n<script src="/static/admin/js/prepopulate.js"></script>\n<script src="/static/admin/js/vendor/xregexp/xregexp.min.js"></script>\n<script src="/static/admin/js/filters.js" defer></script>\n\n\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <link rel="stylesheet" href="/static/admin/css/responsive.css">\n    \n\n<meta name="robots" content="NONE,NOARCHIVE">\n</head>\n\n<body class=" app-petitions model-requesttype change-list"\n  data-admin-utc-offset="10800">\n<a href="#content-start" class="skip-to-content-link">К основному</a>\n<!-- Container -->\n<div id="container">\n\n    \n    <!-- Header -->\n    \n      <header id="header">\n        <div id="branding">\n        \n<div id="site-name"><a href="/admin/">Администрирование Django</a></div>\n\n\n        </div>\n        \n        \n        <div id="user-tools">\n            \n                Добро пожаловать,\n                <strong>admin</strong>.\n            \n            \n                \n                    <a href="/">Открыть сайт</a> /\n                \n                \n                    \n                    \n                \n                \n                <a href="/admin/password_change/">Изменить пароль</a> /\n                \n                <form id="logout-form" method="post" action="/admin/logout/">\n                    <input type="hidden" name="csrfmiddlewaretoken" value="Br4ZcpfxWRyYp9yONudCIYaEjztlO2L18vvrgQQeMh583bQL9cfFySdHFY2WsVNN">\n                    <button type="submit">Выйти</button>\n                </form>\n                \n<button class="theme-toggle">\n  <span class="visually-hidden theme-label-when-auto">Переключить тему (текущая: выбрана автоматически)</span>\n  <span class="visually-hidden theme-label-when-light">Переключить тему (текущая: светлая)</span>\n  <span class="visually-hidden theme-label-when-dark">Переключить тему (текущая: тёмная)</span>\n  <svg aria-hidden="true" class="theme-icon-when-auto">\n    <use xlink:href="#icon-auto" />\n  </svg>\n  <svg aria-hidden="true" class="theme-icon-when-dark">\n    <use xlink:href="#icon-moon" />\n  </svg>\n  <svg aria-hidden="true" class="theme-icon-when-light">\n    <use xlink:href="#icon-sun" />\n  </svg>\n</button>\n\n            \n        </div>\n        \n        \n        \n      </header>\n    \n    <!-- END Header -->\n    \n      <nav aria-label="Хлебные крошки">\n        \n<div class="breadcrumbs">\n<a href="/admin/">Начало</a>\n&rsaquo; <a href="/admin/petitions/">Заявки</a>\n&rsaquo; Виды заявок\n</div>\n\n      </nav>\n    \n    \n\n    <div class="main" id="main">\n      \n        \n          \n<button class="sticky toggle-nav-sidebar" id="toggle-nav-sidebar" aria-label="Переключить навигацию"></button>\n<nav class="sticky" id="nav-sidebar" aria-label="Боковая панель">\n  <input type="search" id="nav-filter"\n         placeholder="Начните печатать для фильтрации..."\n         aria-label="Фильтр элементов навигации">\n  \n\n\n  \n    <div class="app-petitions module current-app">\n      <table>\n        <caption>\n          <a href="/admin/petitions/" class="section" title="Модели в приложении Заявки">Заявки</a>\n        </caption>\n        <thead class="visually-hidden">\n          <tr>\n            <th scope="col">Имя модели</th>\n            <th scope="col">Добавить</th>\n            <th scope="col">Просмотреть или редактировать</th>\n          </tr>\n        </thead>\n        \n          \n            <tr class="model-requesttype current-model">\n              <th scope="row" id="petitions-requesttype">\n                \n                  <a href="/admin/petitions/requesttype/" aria-current="page">Виды заявок</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/petitions/requesttype/add/" class="addlink" aria-describedby="petitions-requesttype">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-petition">\n              <th scope="row" id="petitions-petition">\n                \n                  <a href="/admin/petitions/petition/">Заявки</a>\n                \n              </th>\n\n              \n                <td></td>\n              \n\n              \n            </tr>\n          \n        \n      </table>\n    </div>\n  \n    <div class="app-accounts module">\n      <table>\n        <caption>\n          <a href="/admin/accounts/" class="section" title="Модели в приложении Пользователи">Пользователи</a>\n        </caption>\n        <thead class="visually-hidden">\n          <tr>\n            <th scope="col">Имя модели</th>\n            <th scope="col">Добавить</th>\n            <th scope="col">Просмотреть или редактировать</th>\n          </tr>\n        </thead>\n        \n          \n            <tr class="model-loginthrottle">\n              <th scope="row" id="accounts-loginthrottle">\n                \n                  <a href="/admin/accounts/loginthrottle/">Блокировки входа</a>\n                \n              </th>\n\n              \n                <td></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-user">\n              <th scope="row" id="accounts-user">\n                \n                  <a href="/admin/accounts/user/">Пользователи</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/accounts/user/add/" class="addlink" aria-describedby="accounts-user">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-staffprofile">\n              <th scope="row" id="accounts-staffprofile">\n                \n                  <a href="/admin/accounts/staffprofile/">Профили сотрудников</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/accounts/staffprofile/add/" class="addlink" aria-describedby="accounts-staffprofile">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-studentprofile">\n              <th scope="row" id="accounts-studentprofile">\n                \n                  <a href="/admin/accounts/studentprofile/">Профили студентов</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/accounts/studentprofile/add/" class="addlink" aria-describedby="accounts-studentprofile">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n      </table>\n    </div>\n  \n    <div class="app-auth module">\n      <table>\n        <caption>\n          <a href="/admin/auth/" class="section" title="Модели в приложении Пользователи и группы">Пользователи и группы</a>\n        </caption>\n        <thead class="visually-hidden">\n          <tr>\n            <th scope="col">Имя модели</th>\n            <th scope="col">Добавить</th>\n            <th scope="col">Просмотреть или редактировать</th>\n          </tr>\n        </thead>\n        \n          \n            <tr class="model-group">\n              <th scope="row" id="auth-group">\n                \n                  <a href="/admin/auth/group/">Группы</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/auth/group/add/" class="addlink" aria-describedby="auth-group">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n      </table>\n    </div>\n  \n    <div class="app-schedule module">\n      <table>\n        <caption>\n          <a href="/admin/schedule/" class="section" title="Модели в приложении Расписание">Расписание</a>\n        </caption>\n        <thead class="visually-hidden">\n          <tr>\n            <th scope="col">Имя модели</th>\n            <th scope="col">Добавить</th>\n            <th scope="col">Просмотреть или редактировать</th>\n          </tr>\n        </thead>\n        \n          \n            <tr class="model-weeklylesson">\n              <th scope="row" id="schedule-weeklylesson">\n                \n                  <a href="/admin/schedule/weeklylesson/">Занятия (еженедельные)</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/schedule/weeklylesson/add/" class="addlink" aria-describedby="schedule-weeklylesson">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-lessonchange">\n              <th scope="row" id="schedule-lessonchange">\n                \n                  <a href="/admin/schedule/lessonchange/">Изменения расписания</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/schedule/lessonchange/add/" class="addlink" aria-describedby="schedule-lessonchange">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n      </table>\n    </div>\n  \n    <div class="app-notifications module">\n      <table>\n        <caption>\n          <a href="/admin/notifications/" class="section" title="Модели в приложении Уведомления">Уведомления</a>\n        </caption>\n        <thead class="visually-hidden">\n          <tr>\n            <th scope="col">Имя модели</th>\n            <th scope="col">Добавить</th>\n            <th scope="col">Просмотреть или редактировать</th>\n          </tr>\n        </thead>\n        \n          \n            <tr class="model-announcement">\n              <th scope="row" id="notifications-announcement">\n                \n                  <a href="/admin/notifications/announcement/">Объявления</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/notifications/announcement/add/" class="addlink" aria-describedby="notifications-announcement">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n      </table>\n    </div>\n  \n    <div class="app-university module">\n      <table>\n        <caption>\n          <a href="/admin/university/" class="section" title="Модели в приложении Университет">Университет</a>\n        </caption>\n        <thead class="visually-hidden">\n          <tr>\n            <th scope="col">Имя модели</th>\n            <th scope="col">Добавить</th>\n            <th scope="col">Просмотреть или редактировать</th>\n          </tr>\n        </thead>\n        \n          \n            <tr class="model-room">\n              <th scope="row" id="university-room">\n                \n                  <a href="/admin/university/room/">Аудитории</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/university/room/add/" class="addlink" aria-describedby="university-room">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-discipline">\n              <th scope="row" id="university-discipline">\n                \n                  <a href="/admin/university/discipline/">Дисциплины</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/university/discipline/add/" class="addlink" aria-describedby="university-discipline">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-program">\n              <th scope="row" id="university-program">\n                \n                  <a href="/admin/university/program/">Направления подготовки</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/university/program/add/" class="addlink" aria-describedby="university-program">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-teacher">\n              <th scope="row" id="university-teacher">\n                \n                  <a href="/admin/university/teacher/">Преподаватели</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/university/teacher/add/" class="addlink" aria-describedby="university-teacher">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-studygroup">\n              <th scope="row" id="university-studygroup">\n                \n                  <a href="/admin/university/studygroup/">Учебные группы</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/university/studygroup/add/" class="addlink" aria-describedby="university-studygroup">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-faculty">\n              <th scope="row" id="university-faculty">\n                \n                  <a href="/admin/university/faculty/">Факультеты</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/university/faculty/add/" class="addlink" aria-describedby="university-faculty">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n      </table>\n    </div>\n  \n    <div class="app-academics module">\n      <table>\n        <caption>\n          <a href="/admin/academics/" class="section" title="Модели в приложении Успеваемость">Успеваемость</a>\n        </caption>\n        <thead class="visually-hidden">\n          <tr>\n            <th scope="col">Имя модели</th>\n            <th scope="col">Добавить</th>\n            <th scope="col">Просмотреть или редактировать</th>\n          </tr>\n        </thead>\n        \n          \n            <tr class="model-finalresult">\n              <th scope="row" id="academics-finalresult">\n                \n                  <a href="/admin/academics/finalresult/">Итоговые результаты</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/academics/finalresult/add/" class="addlink" aria-describedby="academics-finalresult">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-attendance">\n              <th scope="row" id="academics-attendance">\n                \n                  <a href="/admin/academics/attendance/">Посещаемость</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/academics/attendance/add/" class="addlink" aria-describedby="academics-attendance">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-term">\n              <th scope="row" id="academics-term">\n                \n                  <a href="/admin/academics/term/">Семестры</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/academics/term/add/" class="addlink" aria-describedby="academics-term">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-currentmark">\n              <th scope="row" id="academics-currentmark">\n                \n                  <a href="/admin/academics/currentmark/">Текущие оценки</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/academics/currentmark/add/" class="addlink" aria-describedby="academics-currentmark">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n          \n            <tr class="model-curriculumitem">\n              <th scope="row" id="academics-curriculumitem">\n                \n                  <a href="/admin/academics/curriculumitem/">Учебные планы</a>\n                \n              </th>\n\n              \n                <td><a href="/admin/academics/curriculumitem/add/" class="addlink" aria-describedby="academics-curriculumitem">Добавить</a></td>\n              \n\n              \n            </tr>\n          \n        \n      </table>\n    </div>\n  \n    <div class="app-chat module">\n      <table>\n        <caption>\n          <a href="/admin/chat/" class="section" title="Модели в приложении Чат">Чат</a>\n        </caption>\n        <thead class="visually-hidden">\n          <tr>\n            <th scope="col">Имя модели</th>\n            <th scope="col">Добавить</th>\n            <th scope="col">Просмотреть или редактировать</th>\n          </tr>\n        </thead>\n        \n          \n            <tr class="model-dialog">\n              <th scope="row" id="chat-dialog">\n                \n                  <a href="/admin/chat/dialog/">Диалоги</a>\n                \n              </th>\n\n              \n                <td></td>\n              \n\n              \n            </tr>\n          \n        \n      </table>\n    </div>\n  \n\n\n</nav>\n\n        \n      \n      <main id="content-start" class="content" tabindex="-1">\n        \n          \n        \n        <!-- Content -->\n        <div id="content" class="">\n          \n          <h1>Выберите вид заявки для изменения</h1>\n          \n          \n  <div id="content-main">\n    \n        <ul class="object-tools">\n          \n            \n\n\n  \n  <li>\n    \n    <a href="/admin/petitions/requesttype/add/" class="addlink">\n      Добавить вид заявки\n    </a>\n  </li>\n  \n\n\n          \n        </ul>\n    \n    \n    <div class="module filtered" id="changelist">\n      <div class="changelist-form-container">\n        \n\n\n        \n\n        <form id="changelist-form" method="post" novalidate><input type="hidden" name="csrfmiddlewaretoken" value="Br4ZcpfxWRyYp9yONudCIYaEjztlO2L18vvrgQQeMh583bQL9cfFySdHFY2WsVNN">\n        \n\n        \n          \n<div class="actions">\n  \n    \n    <label>Действие: <select name="action" required>\n  <option value="" selected>---------</option>\n\n  <option value="delete_selected">Удалить выбранные виды заявок</option>\n\n</select></label><input type="hidden" name="select_across" value="0" class="select-across">\n    \n    \n    <button type="submit" class="button" title="Выполнить выбранное действие" name="index" value="0">Выполнить</button>\n    \n    \n    \n        <span class="action-counter" data-actions-icnt="1">Выбрано 0 объектов из 1 </span>\n        \n    \n    \n  \n</div>\n\n          \n\n\n<div class="results">\n<table id="result_list">\n<thead>\n<tr>\n\n<th scope="col" class="action-checkbox-column">\n   \n   <div class="text"><span><input type="checkbox" id="action-toggle" aria-label="Выбрать все объекты на этой странице, чтобы применить к ним действие"></span></div>\n   <div class="clear"></div>\n</th>\n<th scope="col" class="sortable column-name sorted ascending">\n   \n       <div class="sortoptions">\n         <a class="sortremove" href="?o=2" title="Удалить из сортировки"></a>\n         <span class="sortpriority" title="Приоритет сортировки: 2">2</span>\n         <a href="?o=2.-1" class="toggle ascending" title="Сортировать в другом направлении"></a>\n       </div>\n   \n   <div class="text"><a href="?o=-1.2">Название</a></div>\n   <div class="clear"></div>\n</th>\n<th scope="col" class="sortable column-kind sorted ascending">\n   \n       <div class="sortoptions">\n         <a class="sortremove" href="?o=1" title="Удалить из сортировки"></a>\n         <span class="sortpriority" title="Приоритет сортировки: 1">1</span>\n         <a href="?o=-2.1" class="toggle ascending" title="Сортировать в другом направлении"></a>\n       </div>\n   \n   <div class="text"><a href="?o=-2.1">Вид</a></div>\n   <div class="clear"></div>\n</th>\n<th scope="col" class="sortable column-processing_days">\n   \n   <div class="text"><a href="?o=3.2.1">Срок, рабочих дней</a></div>\n   <div class="clear"></div>\n</th>\n<th scope="col" class="sortable column-comment_required">\n   \n   <div class="text"><a href="?o=4.2.1">Комментарий обязателен</a></div>\n   <div class="clear"></div>\n</th>\n<th scope="col" class="sortable column-subject_required">\n   \n   <div class="text"><a href="?o=5.2.1">Нужно поле «Тип»</a></div>\n   <div class="clear"></div>\n</th>\n<th scope="col" class="sortable column-is_active">\n   \n   <div class="text"><a href="?o=6.2.1">Доступна для подачи</a></div>\n   <div class="clear"></div>\n</th>\n</tr>\n</thead>\n<tbody>\n\n\n<tr><td class="action-checkbox"><input type="checkbox" name="_selected_action" value="1" class="action-select" aria-label="Выбрать этот объект, чтобы применить к нему действие - Справка"></td><th class="field-name"><a href="/admin/petitions/requesttype/1/change/">Справка</a></th><td class="field-kind">Справка</td><td class="field-processing_days">3</td><td class="field-comment_required"><img src="/static/admin/img/icon-no.svg" alt="False"></td><td class="field-subject_required"><img src="/static/admin/img/icon-no.svg" alt="False"></td><td class="field-is_active"><img src="/static/admin/img/icon-yes.svg" alt="True"></td></tr>\n\n</tbody>\n</table>\n</div>\n\n\n          \n        \n        \n\n<p class="paginator">\n\n1 вид заявки\n\n\n</p>\n\n        </form>\n      </div>\n      \n        \n          <nav id="changelist-filter" aria-labelledby="changelist-filter-header">\n            <h2 id="changelist-filter-header">Фильтр</h2>\n            <div id="changelist-filter-extra-actions">\n              <h3>\n                <a href="?_facets=True" class="viewlink">Показать счётчики</a>\n              </h3>\n              \n            </div>\n            \n<details data-filter-title="вид" open>\n  <summary>\n    вид\n  </summary>\n  <ul>\n  \n    <li class="selected">\n    <a href="?">Все</a></li>\n  \n    <li>\n    <a href="?kind__exact=certificate">Справка</a></li>\n  \n    <li>\n    <a href="?kind__exact=application">Заявление</a></li>\n  \n  </ul>\n</details>\n\n<details data-filter-title="доступна для подачи" open>\n  <summary>\n    доступна для подачи\n  </summary>\n  <ul>\n  \n    <li class="selected">\n    <a href="?">Все</a></li>\n  \n    <li>\n    <a href="?is_active__exact=1">Да</a></li>\n  \n    <li>\n    <a href="?is_active__exact=0">Нет</a></li>\n  \n  </ul>\n</details>\n\n          </nav>\n        \n      \n    </div>\n  </div>\n\n          \n          <br class="clear">\n        </div>\n        <!-- END Content -->\n      </main>\n    </div>\n    <footer id="footer"></footer>\n</div>\n<!-- END Container -->\n\n<!-- SVGs -->\n<svg xmlns="http://www.w3.org/2000/svg" class="base-svgs">\n  <symbol viewBox="0 0 24 24" width="1.5rem" height="1.5rem" id="icon-auto"><path d="M0 0h24v24H0z" fill="currentColor"/><path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm0-2V4a8 8 0 1 0 0 16z"/></symbol>\n  <symbol viewBox="0 0 24 24" width="1.5rem" height="1.5rem" id="icon-moon"><path d="M0 0h24v24H0z" fill="currentColor"/><path d="M10 7a7 7 0 0 0 12 4.9v.1c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2h.1A6.979 6.979 0 0 0 10 7zm-6 5a8 8 0 0 0 15.062 3.762A9 9 0 0 1 8.238 4.938 7.999 7.999 0 0 0 4 12z"/></symbol>\n  <symbol viewBox="0 0 24 24" width="1.5rem" height="1.5rem" id="icon-sun"><path d="M0 0h24v24H0z" fill="currentColor"/><path d="M12 18a6 6 0 1 1 0-12 6 6 0 0 1 0 12zm0-2a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM11 1h2v3h-2V1zm0 19h2v3h-2v-3zM3.515 4.929l1.414-1.414L7.05 5.636 5.636 7.05 3.515 4.93zM16.95 18.364l1.414-1.414 2.121 2.121-1.414 1.414-2.121-2.121zm2.121-14.85l1.414 1.415-2.121 2.121-1.414-1.414 2.121-2.121zM5.636 16.95l1.414 1.414-2.121 2.121-1.414-1.414 2.121-2.121zM23 11v2h-3v-2h3zM4 11v2H1v-2h3z"/></symbol>\n</svg>\n<!-- END SVGs -->\n\n</body>\n</html>\n'
+    ── Thought for 3s
+      The admin changelist capitalizes the verbose name: "Нужно поле «Тип»" (with capital "Н"). The header shows "Нужно поле «Тип»" not "нужно поле «Тип»". Django admin uses `capfirst` on the verbose_name for list_display headers.
+
+      So the header is "Нужно поле «Тип»". The spec says "the column header for 'нужно поле «Тип»'". The lowercase form appears on the ADD form (the field label), while the changelist header is capitalized.
+
+      Let me fix the assertion to "Нужно поле «Тип»" (capitalized) for the changelist.
+
+      Actually, let me be more careful. The changelist header shows "Нужно поле «Тип»". So assert that. And the add form has the field label "нужно поле «Тип»" (lowercase), but I'm asserting `name="subject_required"` there, which is fine.
+
+      Let me update the assertion.
+    ── Edited petitions/tests/test_models.py +1 -1
+      --- a~/hackatonproject/petitions/tests/test_models.py
+      +++ b~/hackatonproject/petitions/tests/test_models.py
+      -        self.assertIn("нужно поле «Тип»", resp.content.decode())
+      +        self.assertIn("Нужно поле «Тип»", resp.content.decode())
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test petitions --parallel 1 2>&1 | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -20 (21s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && python manage.py test petitions --parallel 1 2>&1 | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -20
+      Ran 182 tests in 19.281s
+      OK
+    ── Thought for 1s
+      All 182 petitions tests pass now. Let me run the full verification per the spec.
+
+      First, let me run ruff on all changed files (already done for petitions). Let me also run ruff check . (full) and ruff format --check.
+
+      Then run the full test suite serial, midnight, seed twice on fresh temp DB, and migrate a DB seeded before change.
+
+      Let me start.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff check . 2>&1 | tail -2 && ruff format --check . 2>&1 | tail -2 && python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))" && echo "yaml ok"
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff check . 2>&1 | tail -2 && ruff format --check . 2>&1 | tail -2 && python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))" && echo "yaml ok"
+      All checks passed!
+      193 files already formatted
+      yaml ok
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && python manage.py check 2>&1 | tail -1 && DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 (2s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && python manage.py check 2>&1 | tail -1 && DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1
+      System check identified no issues (0 silenced).
+      System check identified no issues (1 silenced).
+      No changes detected
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test --parallel 1 2>&1 | tee "$TMPDIR/test-$TS.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -20 (2m 35s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test --parallel 1 2>&1 | tee "$TMPDIR/test-$TS.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -20
+      Ran 1122 tests in 152.725s
+      OK
+    ── Thought for 2s
+      1122 tests OK (baseline 1095 + 27 new tests). Let me verify: new tests:
+      - test_terms.py: 2 tests
+      - test_models.py: 5 tests
+      - test_services.py SubmitSubjectTests: 5 tests
+      - test_views.py: SubjectFormTests (6), CatalogTermTests (2), SubjectDisplayTests (5), QueryCountTests::test_lists_constant_with_subject (1) = 14
+      - test_demo.py: test_demo_subject_request (1 new)
+
+      Total new = 2 + 5 + 5 + 14 + 1 = 27. 1095 + 27 = 1122. 
+
+      Now midnight run.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python scripts/run_tests_at.py 2026-11-20T00:00:00 2>&1 | tee "$TMPDIR/test-midnight-$TS.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -20 (2m 38s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python scripts/run_tests_at.py 2026-11-20T00:00:00 2>&1 | tee "$TMPDIR/test-midnight-$TS.log" | grep -E "Ran |OK|FAILED|ERROR|FAIL:" | tail -20
+      Ran 1122 tests in 155.722s
+      OK
+    ── Thought for 596ms
+      Now the seed tests. First, seed twice on a fresh temporary DB.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEMO_PASSWORD='Local-Demo-Pass-2026!' PRIVATE_MEDIA_ROOT="$TMPDIR/t014-pm" && rm -f "$TMPDIR/t014-fresh.sqlite3" && DATABASE_URL="sqlite:///$TMPDIR/t014-fresh.sqlite3" python manage.py migrate 2>&1 | tail -1 && DATABASE_URL="sqlite:///$TMPDIR/t014-fresh.sqlite3" python manage.py seed_demo 2>&1 | grep "Requests ready" && DATABASE_URL="sqlite:///$TMPDIR/t014-fresh.sqlite3" python manage.py seed_demo 2>&1 | grep "Requests ready" (7s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEMO_PASSWORD='Local-Demo-Pass-2026!' PRIVATE_MEDIA_ROOT="$TMPDIR/t014-pm" && rm -f "$TMPDIR/t014-fresh.sqlite3" && DATABASE_URL="sqlite:///$TMPDIR/t014-fresh.sqlite3" python manage.py migrate 2>&1 | tail -1 && DATABASE_URL="sqlite:///$TMPDIR/t014-fresh.sqlite3" python manage.py seed_demo 2>&1 | grep "Requests ready" && DATABASE_URL="sqlite:///$TMPDIR/t014-fresh.sqlite3" python manage.py seed_demo 2>&1 | grep "Requests ready"
+      Applying university.0004_remove_room_map_cell... OK
+      Requests ready: 7 types, 8 requests, 3 attachments.
+      Requests ready: 7 types, 0 requests, 0 attachments.
+    ── Thought for 5s
+      The fresh DB seed shows "7 types, 8 requests, 3 attachments" on first run (8 petitions now, including p-8) and "7 types, 0 requests, 0 attachments" on second run (idempotent). 
+
+      Wait, but the spec says "seed_demo then printed '7 types, 1 requests' and on the second run '7 types, 0 requests'". Hmm, the prototype said "1 requests" because on a DB seeded with HEAD (4 types, 7 requests), then applying the new code seed_demo creates 1 new request (p-8). But on a FRESH DB, it creates all 8 requests (7 old + p-8).
+
+      Actually, let me re-read the spec verification:
+      ```
+      DATABASE_URL="sqlite:///$TMPDIR/t014-fresh.sqlite3" python manage.py migrate && ... seed_demo && ... seed_demo
+      ```
+      This is on a FRESH DB. First seed creates 8 requests (p-1..p-8), second seed creates 0. My output matches: 8 then 0. Good.
+
+      Now the "before" migration test:
+      ```
+      mkdir -p "$TMPDIR/t014-before" && git archive HEAD | tar -x -C "$TMPDIR/t014-before"
+      # in t014-before: migrate + seed_demo (HEAD code has 4 types, 7 requests)
+      # then in project: migrate, seed_demo twice
+      ```
+
+      Let me do this. HEAD is the pre-TASK-014 commit (ca9f30b). The "before" copy has the old petitions (4 types, no subject field). Migrate there → 4 types, 7 requests. Then in project (with my new code), migrate → adds subject field, then seed_demo twice.
+
+      Let me run.
+    ── Ran cd ~/hackatonproject && rm -rf "$TMPDIR/t014-before" "$TMPDIR/t014-before.sqlite3" && mkdir -p "$TMPDIR/t014-before" && git archive HEAD | tar -x -C "$TMPDIR/t014-before" && echo "archive ok" && cd "$TMPDIR/t014-before" && DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop DEMO_PASSWORD='Local-Demo-Pass-2026!' PRIVATE_MEDIA_ROOT="$TMPDIR/t014-pm-before" DATABASE_URL="sqlite:///$TMPDIR/t014-before.sqlite3" ~/hackatonproject/.venv/bin/python manage.py migrate 2>&1 | tail -1 && DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop DEMO_PASSWORD='Local-Demo-Pass-2026!' PRIVATE_MEDIA_ROOT="$TMPDIR/t014-pm-before" DATABASE_URL="sqlite:///$TMPDIR/t014-before.sqlite3" ~/hackatonproject/.venv/bin/python manage.py seed_demo 2>&1 | grep "Requests ready" (6s)
+      $ cd ~/hackatonproject && rm -rf "$TMPDIR/t014-before" "$TMPDIR/t014-before.sqlite3" && mkdir -p "$TMPDIR/t014-before" && git archive HEAD | tar -x -C "$TMPDIR/t014-before" && echo "archive ok" && cd "$TMPDIR/t014-before" && DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop DEMO_PASSWORD='Local-Demo-Pass-2026!' PRIVATE_MEDIA_ROOT="$TMPDIR/t014-pm-before" DATABASE_URL="sqlite:///$TMPDIR/t014-before.sqlite3" ~/hackatonproject/.venv/bin/python manage.py migrate 2>&1 | tail -1 && DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop DEMO_PASSWORD='Local-Demo-Pass-2026!' PRIVATE_MEDIA_ROOT="$TMPDIR/t014-pm-before" DATABASE_URL="sqlite:///$TMPDIR/t014-before.sqlite3" ~/hackatonproject/.venv/bin/python manage.py seed_demo 2>&1 | grep "Requests ready"
+      archive ok
+        Applying university.0004_remove_room_map_cell... OK
+      Requests ready: 4 types, 7 requests, 3 attachments.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEMO_PASSWORD='Local-Demo-Pass-2026!' PRIVATE_MEDIA_ROOT="$TMPDIR/t014-pm-before" && DATABASE_URL="sqlite:///$TMPDIR/t014-before.sqlite3" python manage.py migrate 2>&1 | tail -2 && DATABASE_URL="sqlite:///$TMPDIR/t014-before.sqlite3" python manage.py seed_demo 2>&1 | grep "Requests ready" && DATABASE_URL="sqlite:///$TMPDIR/t014-before.sqlite3" python manage.py seed_demo 2>&1 | grep "Requests ready" (5s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEMO_PASSWORD='Local-Demo-Pass-2026!' PRIVATE_MEDIA_ROOT="$TMPDIR/t014-pm-before" && DATABASE_URL="sqlite:///$TMPDIR/t014-before.sqlite3" python manage.py migrate 2>&1 | tail -2 && DATABASE_URL="sqlite:///$TMPDIR/t014-before.sqlite3" python manage.py seed_demo 2>&1 | grep "Requests ready" && DATABASE_URL="sqlite:///$TMPDIR/t014-before.sqlite3" python manage.py seed_demo 2>&1 | grep "Requests ready"
+      Running migrations:
+        Applying petitions.0003_subject... OK
+      Requests ready: 7 types, 1 requests, 0 attachments.
+      Requests ready: 7 types, 0 requests, 0 attachments.
+    ── Thought for 2s
+      The migration on a pre-change DB:
+      - Migrate (HEAD code): 4 types, 7 requests.
+      - Then project migrate: applies 0003_subject (AddField subject, subject_required, constraint).
+      - seed_demo: "7 types, 1 requests" (creates p-8; 7 old requests keep subject="").
+      - seed_demo again: "7 types, 0 requests" (idempotent).
+
+      This matches the spec's prototype expectation exactly ("7 types, 1 requests" then "7 types, 0 requests").
+
+      Let me verify the old requests kept subject="" and p-8 has the correct subject. Actually, the test_demo_subject_request test already covers this, and it passed in the full suite. But let me do a quick sanity check on the migrated before-DB.
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && DATABASE_URL="sqlite:///$TMPDIR/t014-before.sqlite3" python manage.py shell -c " from petitions.models import Petition p8 = Petition.objects.get(seed_key='p-8') print('p-8:', p8.display_name, '| subject=', repr(p8.subject)) others = Petition.objects.exclude(seed_key='p-8') print('others with non-empty subject:', others.exclude(subject='').count()) " 2>&1 | tail -3 (2s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && DATABASE_URL="sqlite:///$TMPDIR/t014-before.sqlite3" python manage.py shell -c "
+    from petitions.models import Petition
+    p8 = Petition.objects.get(seed_key='p-8')
+    print('p-8:', p8.display_name, '| subject=', repr(p8.subject))
+    others = Petition.objects.exclude(seed_key='p-8')
+    print('others with non-empty subject:', others.exclude(subject='').count())
+    " 2>&1 | tail -3
+      p-8: Другая справка: Справка о периоде обучения | subject= 'Справка о периоде обучения'
+      others with non-empty subject: 0
+    ── Thought for 437ms
+      Everything checks out. Now let me do the final git status check.
+    ── Ran cd ~/hackatonproject && git status --short
+      $ cd ~/hackatonproject && git status --short
+      M README.md
+       M petitions/admin.py
+       M petitions/demo.py
+       M petitions/forms.py
+       M petitions/models.py
+       M petitions/services.py
+       M petitions/templates/petitions/catalog.html
+       M petitions/templates/petitions/detail.html
+       M petitions/templates/petitions/my_list.html
+       M petitions/templates/petitions/staff_detail.html
+       M petitions/templates/petitions/staff_queue.html
+       M petitions/templates/petitions/submitted.html
+       M petitions/tests/helpers.py
+       M petitions/tests/test_demo.py
+       M petitions/tests/test_services.py
+       M petitions/tests/test_views.py
+       M petitions/views.py
+      ?? docs/tasks/TASK-014.md
+      ?? petitions/migrations/0003_subject.py
+      ?? petitions/terms.py
+      ?? petitions/tests/test_models.py
+      ?? petitions/tests/test_terms.py
+    ── Thought for 5s
+      The git status shows exactly the expected files. Let me compare with the spec's Architecture/files list:
+
+      - petitions/terms.py (new) ✓
+      - petitions/models.py ✓
+      - petitions/migrations/0003_subject.py (new) ✓
+      - petitions/forms.py ✓
+      - petitions/services.py ✓
+      - petitions/views.py ✓
+      - petitions/admin.py ✓
+      - templates: catalog.html, my_list.html, detail.html, staff_queue.html, staff_detail.html, submitted.html ✓ (all 6)
+      - petitions/demo.py ✓
+      - petitions/tests/helpers.py ✓
+      - tests: test_models.py (new), test_terms.py (new), test_services.py, test_views.py, test_demo.py ✓
+      - README.md ✓
+
+      Not mine: docs/tasks/TASK-014.md (the spec, from Planner).
+
+      Note: `plan.md` is NOT showing in git status this time. Wait — earlier in TASK-013-FIX, plan.md showed as M. But now the working tree was reset to HEAD ca9f30b (which committed the TASK-013-FIX work including plan.md). So plan.md is clean now. Good.
+
+      No db.sqlite3 or private_media changes. Good.
+
+      Everything is complete. Let me verify there are no leftover temp dirs (not relevant for this task since we didn't change the test runner).
+
+      Actually, the spec verification doesn't mention private_media before/after diff for this task (that was TASK-013-FIX). This task's verification says "Never touch db.sqlite3 or private_media/". I used DATABASE_URL for all seed/migrate checks, so db.sqlite3 is untouched. And PRIVATE_MEDIA_ROOT was set to temp dirs. Good.
+
+      Let me also double-check I didn't accidentally leave any __pycache__ in the repo. The git status doesn't show any, so fine.
+
+      Now let me send the REPORT to the Reviewer.
+
+      Let me get the log filenames.
+    ── Listed files in $TMPDIR/test-*.log
+    ── Ran cd ~/hackatonproject && bb thread tell thr_cpuae9aqw3 --message-file - <<'EOF' [TASK-014] Coder -> Reviewer: REPORT Spec: docs/tasks/TASK-014.md (exact code in F1-F8). All 8 ACs implemented. ## What was done 1. AC1 — `petitions/models.py`: `RequestType.subject_required` (bool, default False), `clean()` rule ("Если нужно поле «Тип», комментарий тоже должен быть обязательным.") and DB check constraint `petitions_type_subject_needs_comment`. `petitions/admin.py` `list_display` adds `subject_required` (RequestType) and `subject` (Petition). 2. AC2 — `Petition.subject` (CharField max 150, blank, default ""). `SUBJECT_MAX_LENGTH = 150`. 3. AC3/AC4 — `petitions/forms.py` `PetitionForm.subject` (label "Тип", max 150, required; `clean_subject` normalises via `" ".join(split())` and re-checks empty); field removed when `subject_required` is False. `petitions/services.py` `submit_petition(..., subject="")` validates the same rules (defence in depth) and stores the normalised value; ignores it for non-flagged types. `petitions/views.py` passes `subject`. 4. AC5 — `petitions/terms.py` `term_label(days)` ("до N рабочего дня" for 1/21/31…; "до N рабочих дней" otherwise). `RequestType.term_label` property; `catalog.html` now uses `{{ type.term_label }}`. `CatalogView` orders `subject_required, name` so catch-all types are last. 5. AC6 — `Petition.display_name` ("<type>: <subject>" when subject set), used in `my_list.html`, `detail.html`, `staff_queue.html`, `staff_detail.html`, `submitted.html`. No `|safe`. 6. AC7 — `petitions/demo.py`: 3 new types (7 total), `p-8` "Другая справка: Справка о периоде обучения" for student1; upsert by name; seed idempotent. 7. AC8 — query counts unchanged (new `QueryCountTests::test_lists_constant_with_subject` passes). ## Tests — 1095 -> 1122 (27 new) `petitions` app: 182 tests OK. Serial full run and midnight run both **1122 OK**, no failures/stalls. ## Verification (all green) - `check` no issues; `check --deploy` no issues (1 silenced); `makemigrations --check` -> No changes. - `ruff check .` clean; `ruff format --check .` -> 193 files; yaml ok. - Seed on a fresh temp DB (`DATABASE_URL=sqlite:///$TMPDIR/t014-fresh.sqlite3`): first run "Requests ready: 7 types, 8 requests, 3 attachments.", second "7 types, 0 requests, 0 attachments.". - Migrate a DB seeded BEFORE the change: `git archive HEAD | tar -x` copy migrated+seeded (4 types, 7 requests), then project `migrate` applied `petitions/0003_subject`; `seed_demo` -> "7 types, 1 requests, 0 attachments." then "7 types, 0 requests, 0 attachments."; `p-8` display_name correct, all other rows `subject==""`. Logs: `$TMPDIR/test-20261119-150912.log` (1122), `test-midnight-20261119-151152.log` (1122), `test-20261119-150611-petitions.log` (182). ## git status (mine; no db.sqlite3/private_media touched) ```  M README.md  M petitions/admin.py  M petitions/demo.py  M petitions/forms.py  M petitions/models.py  M petitions/services.py  M petitions/templates/petitions/catalog.html  M petitions/templates/petitions/detail.html  M petitions/templates/petitions/my_list.html  M petitions/templates/petitions/staff_detail.html  M petitions/templates/petitions/staff_queue.html  M petitions/templates/petitions/submitted.html  M petitions/tests/helpers.py  M petitions/tests/test_demo.py  M petitions/tests/test_services.py  M petitions/tests/test_views.py  M petitions/views.py ?? petitions/migrations/0003_subject.py ?? petitions/terms.py ?? petitions/tests/test_models.py ?? petitions/tests/test_terms.py ``` Not mine: `docs/tasks/TASK-014.md` (the spec). One note for the Reviewer: the spec's Test plan expected the empty-comment form error text "Для этой заявки комментарий обязателен."; the form actually renders Django's required-field error "Обязательное поле." for an empty required comment (the custom message only exists in the service layer). I asserted the actual rendered text ("Обязательное поле.") in `test_comment_required_for_catch_all` / `test_military_comment_required`, and the admin changelist header renders "Нужно поле «Тип»" (capitalised) in `test_admin_shows_flag`. EOF (13s)
+      $ cd ~/hackatonproject && bb thread tell thr_cpuae9aqw3 --message-file - <<'EOF'
+    [TASK-014] Coder -> Reviewer: REPORT
+    Spec: docs/tasks/TASK-014.md (exact code in F1-F8). All 8 ACs implemented.
+
+    ## What was done
+    1. AC1 — `petitions/models.py`: `RequestType.subject_required` (bool, default False), `clean()` rule ("Если нужно поле «Тип», комментарий тоже должен быть обязательным.") and DB check constraint `petitions_type_subject_needs_comment`. `petitions/admin.py` `list_display` adds `subject_required` (RequestType) and `subject` (Petition).
+    2. AC2 — `Petition.subject` (CharField max 150, blank, default ""). `SUBJECT_MAX_LENGTH = 150`.
+    3. AC3/AC4 — `petitions/forms.py` `PetitionForm.subject` (label "Тип", max 150, required; `clean_subject` normalises via `" ".join(split())` and re-checks empty); field removed when `subject_required` is False. `petitions/services.py` `submit_petition(..., subject="")` validates the same rules (defence in depth) and stores the normalised value; ignores it for non-flagged types. `petitions/views.py` passes `subject`.
+    4. AC5 — `petitions/terms.py` `term_label(days)` ("до N рабочего дня" for 1/21/31…; "до N рабочих дней" otherwise). `RequestType.term_label` property; `catalog.html` now uses `{{ type.term_label }}`. `CatalogView` orders `subject_required, name` so catch-all types are last.
+    5. AC6 — `Petition.display_name` ("<type>: <subject>" when subject set), used in `my_list.html`, `detail.html`, `staff_queue.html`, `staff_detail.html`, `submitted.html`. No `|safe`.
+    6. AC7 — `petitions/demo.py`: 3 new types (7 total), `p-8` "Другая справка: Справка о периоде обучения" for student1; upsert by name; seed idempotent.
+    7. AC8 — query counts unchanged (new `QueryCountTests::test_lists_constant_with_subject` passes).
+
+    ## Tests — 1095 -> 1122 (27 new)
+    `petitions` app: 182 tests OK. Serial full run and midnight run both **1122 OK**, no failures/stalls.
+
+    ## Verification (all green)
+    - `check` no issues; `check --deploy` no issues (1 silenced); `makemigrations --check` -> No changes.
+    - `ruff check .` clean; `ruff format --check .` -> 193 files; yaml ok.
+    - Seed on a fresh temp DB (`DATABASE_URL=sqlite:///$TMPDIR/t014-fresh.sqlite3`): first run "Requests ready: 7 types, 8 requests, 3 attachments.", second "7 types, 0 requests, 0 attachments.".
+    - Migrate a DB seeded BEFORE the change: `git archive HEAD | tar -x` copy migrated+seeded (4 types, 7 requests), then project `migrate` applied `petitions/0003_subject`; `seed_demo` -> "7 types, 1 requests, 0 attachments." then "7 types, 0 requests, 0 attachments."; `p-8` display_name correct, all other rows `subject==""`.
+
+    Logs: `$TMPDIR/test-20261119-150912.log` (1122), `test-midnight-20261119-151152.log` (1122), `test-20261119-150611-petitions.log` (182).
+
+    ## git status (mine; no db.sqlite3/private_media touched)
+    ```
+     M README.md
+     M petitions/admin.py
+     M petitions/demo.py
+     M petitions/forms.py
+     M petitions/models.py
+     M petitions/services.py
+     M petitions/templates/petitions/catalog.html
+     M petitions/templates/petitions/detail.html
+     M petitions/templates/petitions/my_list.html
+     M petitions/templates/petitions/staff_detail.html
+     M petitions/templates/petitions/staff_queue.html
+     M petitions/templates/petitions/submitted.html
+     M petitions/tests/helpers.py
+     M petitions/tests/test_demo.py
+     M petitions/tests/test_services.py
+     M petitions/tests/test_views.py
+     M petitions/views.py
+    ?? petitions/migrations/0003_subject.py
+    ?? petitions/terms.py
+    ?? petitions/tests/test_models.py
+    ?? petitions/tests/test_terms.py
+    ```
+    Not mine: `docs/tasks/TASK-014.md` (the spec).
+
+    One note for the Reviewer: the spec's Test plan expected the empty-comment form error text "Для этой заявки комментарий обязателен."; the form actually renders Django's required-field error "Обязательное поле." for an empty required comment (the custom message only exists in the service layer). I asserted the actual rendered text ("Обязательное поле.") in `test_comment_required_for_catch_all` / `test_military_comment_required`, and the admin changelist header renders "Нужно поле «Тип»" (capitalised) in `test_admin_shows_flag`.
+    EOF
+      Thread thr_cpuae9aqw3 steered
+    ── Ran tool 0 todos (1s)
+      {"output":"[\n  {\n    \"content\": \"F1 terms.py + test_terms.py\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"F2/F3 models + migration + admin\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"F4/F5/F6 form + service + views\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"F7 templates + F8 demo + README\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Tests (models/services/views/demo) + full verification\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  }\n]","metadata":{"todos":[{"content":"F1 terms.py + test_terms.py","status":"completed","priority":"high"},{"content":"F2/F3 models + migration + admin","status":"completed","priority":"high"},{"content":"F4/F5/F6 form + service + views","status":"completed","priority":"high"},{"content":"F7 templates + F8 demo + README","status":"completed","priority":"high"},{"content":"Tests (models/services/views/demo) + full verification","status":"completed","priority":"high"}],"truncated":false}}
+
+── Assistant ───────────────────────────────────────────────
+TASK-014 реализована по спецификации (F1–F8) и отправлена Ревьюеру.
+
+## Что сделано
+
+1. **AC1** — `RequestType.subject_required` + правило `clean()` + DB-ограничение `petitions_type_subject_needs_comment`; в админке флаг и поле `subject` выведены в `list_display`.
+2. **AC2** — `Petition.subject` (max 150) + `SUBJECT_MAX_LENGTH = 150`.
+3. **AC3/AC4** — поле «Тип» в форме (показывается только для флаговых типов, нормализация в одну строку), плюс защита на уровне сервиса `submit_petition(..., subject="")`.
+4. **AC5** — `petitions/terms.py::term_label()` («до N рабочего дня/дней»), свойство `RequestType.term_label`, в каталоге catch-all типы последними.
+5. **AC6** — `Petition.display_name` во всех пяти шаблонах, автоэкранирование включено.
+6. **AC7** — 3 новых типа (всего 7), демо-заявка `p-8` «Другая справка: Справка о периоде обучения», идемпотентный seed.
+7. **AC8** — количество запросов неизменно.
+
+## Результаты
+
+- **1122 теста** (было 1095, +27): серийно и на границе полуночи — OK.
+- Миграция на базе, засеянной до изменения, работает; `seed_demo` дважды идемпотентен.
+- `ruff check`/`format --check`/`check --deploy` — чисто.
+
+В REPORT отдельно отметил два расхождения со спецификацией в текстах ошибок/заголовков (форма отдаёт «Обязательное поле.», заголовок админки «Нужно поле «Тип»»), чтобы Ревьюер был в курсе. Жду вердикт.

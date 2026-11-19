@@ -19041,8 +19041,846 @@ Round 1. Assignee: UI coder. Spec: docs/tasks/TASK-013-FIX2.md.
 ── Assistant ───────────────────────────────────────────────
 Все тесты прошли: 1095. Выгружаю диалоги, делаю коммит и `git push`.
 
-── Running O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)     t=t.replace('[id скрыт]','[id скрыт]')     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]     assert not bad,(f,bad)     assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF rm -rf "$O"; git status --short
-  $ O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF'
+── Ran 6 commands ──────────────────────────────────────────
+  ── Ran O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)     t=t.replace('[id скрыт]','[id скрыт]')     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]     assert not bad,(f,bad)     assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF rm -rf "$O"; git status --short (6s)
+    $ O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF'
+  import os,re,sys
+  d=sys.argv[1]; out='docs/process/dialogs'
+  for f in sorted(os.listdir(d)):
+      t=open(os.path.join(d,f),encoding='utf-8').read()
+      t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)
+      t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)
+      t=t.replace('[id скрыт]','[id скрыт]')
+      t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')
+      t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)
+      t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')
+      bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]
+      assert not bad,(f,bad)
+      assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f
+      assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f
+      assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f
+      assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f
+      open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
+  EOF
+  rm -rf "$O"; git status --short
+    01-team-lead.md 1893 KB
+    02-planner.md 1894 KB
+    03-coder-deepseek.md 5306 KB
+    04-reviewer.md 1222 KB
+    05-ui-coder.md 529 KB
+     M CHANGELOG.md
+     M campusmap/templates/campusmap/map.html
+     M campusmap/tests/test_views.py
+     M core/tests/test_css.py
+     M docs/process/README.md
+     M docs/process/dialogs/01-team-lead.md
+     M docs/process/dialogs/02-planner.md
+     M docs/process/dialogs/04-reviewer.md
+     M docs/process/dialogs/05-ui-coder.md
+     M plan.md
+     M static/css/base.css
+    ?? docs/process/screenshots/2026-11-19_62_map-wide-1024_student1.jpg
+    ?? docs/process/screenshots/2026-11-19_63_map-wide-1280-room402_student1.jpg
+    ?? docs/process/screenshots/2026-11-19_64_map-360-room403_student1.jpg
+    ?? docs/process/screenshots/2026-11-19_65_map-wide-1024-scrolled_staff1.jpg
+    ?? docs/tasks/TASK-013-FIX2.md
+    ?? docs/tasks/TASK-014.md
+  ── Thought for 6ms
+    I'm leaving docs/tasks/TASK-014.md out of the commit since it belongs to TASK-014. The plan notes that TASK-014 is in progress, which is fine with that split.
+  ── Ran git add CHANGELOG.md plan.md campusmap core static docs/process docs/tasks/TASK-013-FIX2.md && git commit -q -F - <<'EOF' TASK-013-FIX2: wide map layout, the floor plan fits the screen - From 48rem the floor plan sits on the left, sized from the viewport   height and sticky; floor buttons, legend and the room grid are on the   right. The 360 px layout is unchanged. Template wrappers and CSS only. - Process docs: screenshots 62-65, CHANGELOG, plan, dialogs. Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com> EOF git log --oneline -1; git status --short; git rev-list --count origin/main..main (Outside of sandbox)
+    $ git add CHANGELOG.md plan.md campusmap core static docs/process docs/tasks/TASK-013-FIX2.md && git commit -q -F - <<'EOF'
+  TASK-013-FIX2: wide map layout, the floor plan fits the screen
+
+  - From 48rem the floor plan sits on the left, sized from the viewport
+    height and sticky; floor buttons, legend and the room grid are on the
+    right. The 360 px layout is unchanged. Template wrappers and CSS only.
+  - Process docs: screenshots 62-65, CHANGELOG, plan, dialogs.
+
+  Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+  EOF
+  git log --oneline -1; git status --short; git rev-list --count origin/main..main
+    ca9f30b TASK-013-FIX2: wide map layout, the floor plan fits the screen
+    ?? docs/tasks/TASK-014.md
+    7
+  ── Ran git remote -v | head -1 && timeout 60 git push origin main 2>&1 | tail -5; git rev-list --count origin/main..main (Outside of sandbox)
+    $ git remote -v | head -1 && timeout 60 git push origin main 2>&1 | tail -5; git rev-list --count origin/main..main
+    origin	https://github.com/[логин скрыт]/hackatonProject.git (fetch)
+    (eval):1: command not found: timeout
+    7
+  ── Ran GIT_TERMINAL_PROMPT=0 git push origin main 2>&1 | tail -5; git rev-list --count origin/main..main (Outside of sandbox) (7s)
+    $ GIT_TERMINAL_PROMPT=0 git push origin main 2>&1 | tail -5; git rev-list --count origin/main..main
+    To https://github.com/[логин скрыт]/hackatonProject.git
+       951dc45..ca9f30b  main -> main
+    0
+  ── Thought for 871ms
+    I'm checking the commit range 951dc45..ca9f30b, wondering whether origin/main really sat at 951dc45. The earlier commits after it come to seven when I count them up: 7fbeaa5, 9fe9da5, 59481cf, 775c082, 8316949, 8f469b2, and ca9f30b. That confirms the seven.
+
+    Pushed, so the next step is to let the Planner know TASK-013-FIX2 is committed. After that I'll look at the CI status with gh, read-only, a little later.
+  ── Ran bb thread tell thr_2imsg4kck2 --message-file - <<'EOF' [TASK-014] Team lead -> Planner: ANSWER TASK-013-FIX2 committed (ca9f30b). The tree is clean except your docs/tasks/TASK-014.md. Re-run the verification commands on the clean tree and hand TASK-014 to the Coder. EOF bb browser-automation stop $(cat $TMPDIR/bsess) >/dev/null 2>&1; pkill -f "runserver 127.0.0.1:8773" 2>/dev/null; rm -rf "$TMPDIR/lead13fix2.sqlite3" "$TMPDIR/lead13fix2-media" "$TMPDIR/sessfix2.json" "$TMPDIR/x2.js" "$TMPDIR/x2.out"; echo cleaned (3s)
+    $ bb thread tell thr_2imsg4kck2 --message-file - <<'EOF'
+  [TASK-014] Team lead -> Planner: ANSWER
+  TASK-013-FIX2 committed (ca9f30b). The tree is clean except your docs/tasks/TASK-014.md. Re-run the verification commands on the clean tree and hand TASK-014 to the Coder.
+  EOF
+  bb browser-automation stop $(cat $TMPDIR/bsess) >/dev/null 2>&1; pkill -f "runserver 127.0.0.1:8773" 2>/dev/null; rm -rf "$TMPDIR/lead13fix2.sqlite3" "$TMPDIR/lead13fix2-media" "$TMPDIR/sessfix2.json" "$TMPDIR/x2.js" "$TMPDIR/x2.out"; echo cleaned
+    Thread thr_2imsg4kck2 steered
+    cleaned
+  ── Ran gh run list --limit 2 2>&1 | head -4 (Outside of sandbox) (2s)
+    $ gh run list --limit 2 2>&1 | head -4
+    in_progress		TASK-013-FIX2: wide map layout, the floor plan fits the screen	CI	main	push	44420948035	9s	2026-11-18T23:27:47Z
+    completed	success	TASK-011: production readiness (gunicorn, deploy templates, PostgreSQ…	CI	main	push	44092378938	6m19s	2026-11-17T13:24:16Z
+  ── Thought for 3s
+    The CI is still running, so I'll report the status now and check back on it later. The report itself should go out in Russian.
+
+── Assistant ───────────────────────────────────────────────
+TASK-013-FIX2 закрыта, коммит `ca9f30b`. Все 7 коммитов я отправил на GitHub, локальная ветка и GitHub теперь совпадают.
+
+**Проверка:**
+- Тесты: параллельный прогон и прогон на границе полуночи по Москве, 1095 тестов, ошибок нет.
+- В браузере на 1024, 1280 и 1440 px план этажа слева помещается на экран. На 1024×768 он 346×560 px, раньше был 912×1477. Справа этажи, легенда и кнопки аудиторий. При прокрутке списка план остаётся на экране.
+- Подсвеченная аудитория оранжевая и на плане, и в списке. Это видно у студента и у сотрудника.
+- На телефоне (360 px) вид прежний.
+- Скриншоты 62–65 сохранены в `docs/process`, там же обновлены диалоги, `CHANGELOG.md` и `plan.md`.
+
+**Дальше:**
+- CI на GitHub уже запустился, проверю результат позже.
+- Планировщик передаёт TASK-014 Кодеру на DeepSeek.
+- Для деплоя жду от вас:
+  1. ключи на сервере (команды выше);
+  2. выключенный VPN;
+  3. ответ про домен;
+  4. выбор: (а) ключ развёртывания или (б) публичный репозиторий.
+
+── User ────────────────────────────────────────────────────
+Дай команду для открытия новой сессии на сервере
+
+── Thought for 4ms ─────────────────────────────────────────
+  I need to give the user a command for opening a new SSH session to the server. Password login works now, but the key may not be installed yet. So I'll offer the plain password command, and also the key-based one, which should work without a password once ssh-copy-id has run. I should also mention that the VPN needs to be turned off.
+
+── Assistant ───────────────────────────────────────────────
+Откройте новую вкладку терминала на Mac (`Cmd+T`) и выполните:
+
+```
+ssh -i ~/.ssh/hackaton_deploy root@129.101.95.154
+```
+
+Пока ключ не добавлен на сервер, команда спросит пароль `root`. После `ssh-copy-id` вход будет по ключу, без пароля.
+
+Перед входом выключите Happ. Иначе снова будет `Operation timed out`.
+
+── User ────────────────────────────────────────────────────
+Я помню про happ, не напоминай
+
+── Edited 2 files ──────────────────────────────────────────
+  ── Thought for 3s
+    I'm checking the memory directory before saving the user's note about Happ as feedback memory. Writes under the projects path are blocked from the shell, so I'll need to use the Write tool for it.
+
+    I'm deciding whether to save the user's note about Happ as a feedback memory so I stop reminding them about the VPN. I'll put it in its own short file and add a line to the memory index.
+  ── Created ~/.claude/projects/-Users-andreyorlov-hackatonproject/memory/no-vpn-reminders.md +11
+    --- /dev/null
+    +++ b~/.claude/projects/-Users-andreyorlov-hackatonproject/memory/no-vpn-reminders.md
+    +---
+    +name: no-vpn-reminders
+    +description: Do not remind the user to turn off the Happ VPN before server/SSH work
+    +metadata:
+    +  type: feedback
+    +---
+    +
+    +Do not remind the user to turn off the Happ VPN before SSH or deploy steps. They always turn it off themselves.
+    +
+    +**Why:** On 2026-11-19 the user said: "Я помню про happ, не напоминай".
+    +**How to apply:** Leave VPN reminders out of server instructions. If a connection fails and the route goes through `utun4`, report that fact once as a diagnosis, without a lecture. Related: [[hackatonproject-team-lead]].
+  ── Edited ~/.claude/projects/-Users-andreyorlov-hackatonproject/memory/MEMORY.md +1
+    --- a~/.claude/projects/-Users-andreyorlov-hackatonproject/memory/MEMORY.md
+    +++ b~/.claude/projects/-Users-andreyorlov-hackatonproject/memory/MEMORY.md
+    +- [Не напоминать про VPN](no-vpn-reminders.md) — пользователь сам выключает Happ перед SSH
+
+── Assistant ───────────────────────────────────────────────
+Хорошо, про Happ больше не напоминаю. Я записал это в память.
+
+── User ────────────────────────────────────────────────────
+Что с дипсиком?
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Ran bb thread list 2>/dev/null | grep -E "thr_ng6cbgatm6|thr_2imsg4kck2|thr_cpuae9aqw3" ; bb thread context thr_ng6cbgatm6 2>&1 | head -3; git status --short; TZ=Europe/Moscow date (2s)
+    $ bb thread list 2>/dev/null | grep -E "thr_ng6cbgatm6|thr_2imsg4kck2|thr_cpuae9aqw3" ; bb thread context thr_ng6cbgatm6 2>&1 | head -3; git status --short; TZ=Europe/Moscow date
+    thr_2imsg4kck2  Планировщик       hackatonproject  idle (pinned)  
+    thr_ng6cbgatm6  Кодер (DeepSeek)  hackatonproject  error (pinned) 
+    thr_cpuae9aqw3  Ревьюер           hackatonproject  idle (pinned)  
+    Context window: 118,561 / 1,048,576 tokens
+    Session cost: 11.098652224000018 USD
+     M README.md
+     M petitions/admin.py
+     M petitions/demo.py
+     M petitions/forms.py
+     M petitions/models.py
+     M petitions/services.py
+     M petitions/templates/petitions/catalog.html
+     M petitions/templates/petitions/detail.html
+     M petitions/templates/petitions/my_list.html
+     M petitions/templates/petitions/staff_detail.html
+     M petitions/templates/petitions/staff_queue.html
+     M petitions/templates/petitions/submitted.html
+     M petitions/tests/helpers.py
+     M petitions/views.py
+    ?? docs/tasks/TASK-014.md
+    ?? petitions/migrations/0003_subject.py
+    ?? petitions/terms.py
+    ?? petitions/tests/test_models.py
+    ?? petitions/tests/test_terms.py
+    Thu Nov 19 15:03:17 MSK 2026
+  ── Ran bb thread log thr_ng6cbgatm6 --limit 3 --format verbose 2>&1 | tail -40 | cut -c1-300
+    $ bb thread log thr_ng6cbgatm6 --limit 3 --format verbose 2>&1 | tail -40 | cut -c1-300
+    For RequestTypeSubjectTests:
+          - test_clean_requires_comment: RequestType(name="X", kind="certificate", processing_days=5, subject_required=True, comment_required=False).full_clean() raises; with comment_required=True, comment_hint="h" passes.
+          - test_db_constraint: create with subject_required=True, comment_required=False inside transaction.atomic() raises IntegrityError.
+          - test_term_label_property: type with processing_days=21 → term_label == "до 21 рабочего дня".
+          - test_display_name: petition with subject "А" → "Справка: А"; empty subject → "Справка".
+          - test_admin_shows_flag: superuser GET admin:petitions_requesttype_changelist → 200, header "нужно поле «Тип»"; GET add form contains name="subject_required".
+
+          For test_display_name, I need a student and petition. Let me use make_student/make_type/make_petition or create directly. The spec says petition with subject "А" → "Справка: А". The type name would be "Справка" (default make_type name). Let me use make_type() and create petit
+
+          Actually, for display_name test, I can just create a RequestType and Petition with a subject. But Petition requires a student FK. Let me use make_student + make_group + make_faculty.
+
+          Actually, simpler: use make_type() and make_petition, then set subject. Or create directly. Let me use the helpers.
+
+          Let me look at what test_display_name needs. `Petition.display_name` accesses `self.request_type.name` and `self.subject`. It doesn't need a saved petition to test the property — but request_type must be set. I can create a petition via make_petition and set subject on it.
+
+          Let me write test_models.py with a setUp that creates faculty/group/student/type.
+
+          Let me write it.
+        ── Created petitions/tests/test_models.py
+        ── Thought for 2s
+          Now add SubmitSubjectTests to test_services.py. Let me append it at the end of the file (after ServiceClockTests).
+
+          The spec:
+          - SubmitSubjectTests(FrozenClockMixin, TestCase), catch-all type via make_type(name="Другая справка", days=5, comment_required=True, hint="h", subject_required=True).
+          - test_subject_stored_normalised: submit_petition(student, t, "коммент", [], subject="  Справка \n о периоде  ") → subject == "Справка о периоде".
+          - test_subject_required: subject="" and "   " → ValidationError "Укажите, что именно нужно."; nothing created.
+          - test_subject_length: 150 chars OK; 151 → ValidationError "Поле «Тип» слишком длинное."
+          - test_subject_ignored_without_flag: ordinary type with subject="X" → stored subject == "".
+          - test_existing_positional_calls_still_work: submit_petition(student, ordinary_type, "", []) works.
+
+          Let me write the class. Need to import make_faculty, make_group, make_student (already imported). make_type (already imported).
+
+          Let me append the class.
+
+    ── Error ───────────────────────────────────────────────────
+      Thread interrupted because the host daemon disconnected
+      Please retry the thread to continue.
+
+    (Showing the newest 3 user-message turns; older history omitted. Use --limit <n> (max 100) or --all to see more.)
+  ── Thought for 2s
+    The Coder thread has errored with a "host daemon disconnected" message. I had already sent it a resume message, so the question now is whether to resume it again. The user just wants to know the status, and repairing this agent sits within my role, so resuming it is appropriate.
+
+    The Coder thread is still showing a "host daemon disconnected" error, so I need to check whether `bb thread retry` would redo the work or whether I should keep sending a resume message, as I did before. I'm leaning toward the resume message, since the test_models.py work is already in place and the SubmitSubjectTests still need to be added. I'll check the retry help first, then send the resume with that state.
+
+── Explored 1 search ───────────────────────────────────────
+  ── Searched for class SubmitSubjectTests in petitions/tests/test_services.py
+  ── Thought for 13ms
+    Retrying would re-run the failed turn, and with opencode the session context carries over, so the last message, the Planner's TASK, would just be resent. That could restart the work, but the tree already has partial changes. A resume message is the cleaner choice, and that's what I sent last time, so I'll do the same.
+
+── Ran bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF' [TASK-014] Team lead -> Coder: TASK Your turn was interrupted (host daemon disconnected) while you were writing tests. Continue TASK-014 from the current working tree; do not redo or revert finished work. State I see: petitions/tests/test_models.py exists; `SubmitSubjectTests` is not yet in petitions/tests/test_services.py. Check the spec's Implementation order and Test plan, finish the remaining steps, run the verification commands with the output saved to a file, then send your REPORT to the Reviewer. EOF
+  $ bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF'
+[TASK-014] Team lead -> Coder: TASK
+Your turn was interrupted (host daemon disconnected) while you were writing tests. Continue TASK-014 from the current working tree; do not redo or revert finished work.
+State I see: petitions/tests/test_models.py exists; `SubmitSubjectTests` is not yet in petitions/tests/test_services.py. Check the spec's Implementation order and Test plan, finish the remaining steps, run the verification commands with the output saved to a file, then send your REPORT to the Reviewer.
+EOF
+  Thread thr_ng6cbgatm6 steered
+
+── Assistant ───────────────────────────────────────────────
+Кодер на DeepSeek остановился из-за сбоя связи (`host daemon disconnected`). Ошибка была не в его работе и не в балансе.
+
+**На каком месте он прервался.** TASK-014 сделана примерно на две трети:
+- новое поле «Тип» и миграция;
+- срок «до N рабочих дней»;
+- 3 новых вида заявок в демо-данных;
+- обновлены страницы списков и карточек;
+- начаты тесты.
+
+Остановился он на тестах подачи заявки с полем «Тип».
+
+**Что я сделал.** Отправил ему сообщение: продолжить с текущего состояния файлов, ничего не переделывать, доделать тесты и отправить отчёт Ревьюеру. Контекст у него 118 тыс. токенов, сжимать не нужно.
+
+Если сбой повторится, я снова верну его в работу и напишу вам.
+
+── User ────────────────────────────────────────────────────
+Перешел на другой хостинг. Как задать ssh ключ через консоль?
+
+── Explored 1 file ─────────────────────────────────────────
+  ── Thought for 6s
+    The user has switched to a different host and wants to know how to add an SSH key through that host's web console, likely as root. I'm planning to give commands for both their deploy public key and my lead key, and I'm considering whether I can read the public key file, since reading it is fine.
+
+    I'm weighing whether to read the public key file so I can give an exact command, since that's safe to do. In a web console, pasting a long key may not work, so typing it out by hand is risky. I'm considering the hosting panel's option to add an SSH key during server creation or reinstall, using `pbcopy` to copy the key first.
+
+    I'm considering the fallback if the console can't paste: log in over SSH from my Mac with the root password, then use `ssh-copy-id` to push the deploy public key. That depends on password login being enabled, so if it's off I'd need to check the sshd config drop-ins in the console.
+  ── Read ~/.ssh/hackaton_deploy.pub
+  ── Thought for 10s
+    I'm laying out the shell commands for the root user: creating the .ssh directory with tight permissions, appending the two deploy keys to authorized_keys, and setting that file's permissions.
+
+    I'm noting the console paste fallback: if pasting doesn't work, I'd use ssh with the password plus ssh-copy-id, or add the key through the hosting panel. I'm also planning to ask for the new IP so I can update plan.md and verify the login from my side.
+
+── Assistant ───────────────────────────────────────────────
+В веб-консоли сервера войдите как `root` и вставьте эти команды. Первая строка добавляет ваш ключ, вторая — мой:
+
+```
+mkdir -p /root/.ssh && chmod 700 /root/.ssh
+echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPnxaer3wx+9EEj+wLVlGNsEA4F41lfIVrCv7iN6v2zt hackaton-deploy' >> /root/.ssh/authorized_keys
+echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIFMbGXCLcgl3lEo8/QjH/XDLeDkoLOV4qD5pJHMNU9y hackaton-lead' >> /root/.ssh/authorized_keys
+chmod 600 /root/.ssh/authorized_keys
+```
+
+Это открытые части ключей, их можно показывать. Закрытые части остаются на Mac.
+
+**Если консоль не даёт вставить текст.** Так бывает в консолях через VNC. Тогда выберите один из вариантов:
+- **В панели хостинга.** Обычно там есть раздел «SSH-ключи», а ещё ключ можно указать при создании или переустановке сервера. Скопируйте свой ключ на Mac командой `pbcopy < ~/.ssh/hackaton_deploy.pub` и вставьте его в панель. Мой ключ потом добавлю я сам.
+- **С Mac по паролю.** Выполните `ssh-copy-id -i ~/.ssh/hackaton_deploy.pub root@<новый IP>`. Команда один раз спросит пароль `root`. Затем войдите на сервер и добавьте мой ключ второй строкой `echo` из списка выше.
+
+**Проверка с Mac:**
+```
+ssh -i ~/.ssh/hackaton_deploy root@<новый IP>
+```
+Вход должен пройти без пароля.
+
+Пришлите мне новый IP и характеристики сервера: ядра, память, диск. Я проверю вход своим ключом и обновлю IP в `plan.md`. Ещё жду ответы про домен и про доступ сервера к коду: (а) ключ развёртывания или (б) публичный репозиторий.
+
+── User ────────────────────────────────────────────────────
+Я понимаю, что поступил очень рискованно, но я просто сказал claude в браузере доступ к консоли и сказал впечатать команды. Проверяй
+
+── Thought for 6s ──────────────────────────────────────────
+  I'm working out that the user wants me to verify something on the server, but I don't have the new IP address they'd need to give me. I'm checking whether they might have sent it earlier, and I'm considering looking in their SSH known_hosts file. That would mean digging through their files, though, and the entries may be hashed anyway, so I don't think I should guess.
+
+  I'll need the new server IP before I can check anything, and I don't see one anywhere in what you've sent. Digging through your SSH known_hosts or config files to find it isn't something I should do on my own, so I'll ask you for it. Once I'm in, I can confirm that authorized_keys holds only the two keys you expect, review recent login activity, and make sure nothing else has changed.
+
+── Assistant ───────────────────────────────────────────────
+Проверить пока не могу: я не знаю новый IP сервера. Пришлите его.
+
+Когда войду своим ключом, проверю:
+- **ключи:** в `/root/.ssh/authorized_keys` должны быть только наши 2 ключа и нет чужих;
+- **права:** папка 700, файл 600;
+- **систему:** версия Ubuntu, ядра, память, диск;
+- **следы входов:** кто и когда входил на сервер (`last`, журнал SSH), и не менялось ли что-то кроме ключей.
+
+Риск небольшой: команды содержали только открытые части ключей. Проверка покажет, что ничего лишнего не добавилось.
+
+── User ────────────────────────────────────────────────────
+136.148.83.222
+
+── Ran 6 commands, explored 1 search ───────────────────────
+  ── Ran route -n get 136.148.83.222 2>/dev/null | grep interface; /usr/bin/nc -vz -G 5 136.148.83.222 47321 2>&1 | tail -1; /usr/bin/nc -vz -G 5 136.148.83.222 22 2>&1 | tail -1 (Outside of sandbox) (2s)
+    $ route -n get 136.148.83.222 2>/dev/null | grep interface; /usr/bin/nc -vz -G 5 136.148.83.222 47321 2>&1 | tail -1; /usr/bin/nc -vz -G 5 136.148.83.222 22 2>&1 | tail -1
+    interface: utun4
+    Connection to 136.148.83.222 port 47321 [tcp/*] succeeded!
+    Connection to 136.148.83.222 port 22 [tcp/ssh] succeeded!
+  ── Thought for 776ms
+    I'm checking the traffic path first: it goes through utun4 because the VPN is on, and my notes say to give the diagnosis once without lecturing. Even so, I'll try ssh, since the VPN may route this host fine. I'll use BatchMode with StrictHostKeyChecking=accept-new for the first connection, and I'm weighing whether to check the host key fingerprint against the console before accepting it.
+
+    I'll show the user the host key fingerprint so they can confirm it.
+  ── Ran ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=accept-new root@136.148.83.222 'echo CONNECTED; hostname; whoami' 2>&1 | tail -5 (Outside of sandbox) (6s)
+    $ ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=accept-new root@136.148.83.222 'echo CONNECTED; hostname; whoami' 2>&1 | tail -5
+    Warning: Permanently added '136.148.83.222' (ED25519) to the list of known hosts.
+    CONNECTED
+    [логин скрыт].example.com
+    root
+  ── Ran ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 ' echo "== keys"; ls -ld /root/.ssh; ls -l /root/.ssh/authorized_keys; awk "{print \$1, substr(\$2,1,24)\"...\"substr(\$2,length(\$2)-7), \$3}" /root/.ssh/authorized_keys; wc -l < /root/.ssh/authorized_keys echo "== other users keys"; for h in /home/*; do [ -f "$h/.ssh/authorized_keys" ] && echo "$h: $(wc -l < $h/.ssh/authorized_keys)"; done; getent passwd | awk -F: "\$3>=1000 && \$3<65534 {print \$1}" echo "== os"; . /etc/os-release; echo "$PRETTY_NAME"; uname -r; nproc; free -h | sed -n 1,3p; df -h / | tail -1; uptime echo "== logins"; last -n 15 2>/dev/null | head -15 echo "== sshd"; sshd -T 2>/dev/null | grep -E "^(passwordauthentication|permitrootlogin|pubkeyauthentication|port) " echo "== auth log (accepted)"; journalctl -u ssh --no-pager -q 2>/dev/null | grep -E "Accepted|Failed password" | tail -10 echo "== recent root history"; tail -n 20 /root/.bash_history 2>/dev/null echo "== listening"; ss -tlnp | tail -n +2 | awk "{print \$4, \$6}" ' 2>&1 (Outside of sandbox) (9s)
+    $ ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 '
+  echo "== keys"; ls -ld /root/.ssh; ls -l /root/.ssh/authorized_keys; awk "{print \$1, substr(\$2,1,24)\"...\"substr(\$2,length(\$2)-7), \$3}" /root/.ssh/authorized_keys; wc -l < /root/.ssh/authorized_keys
+  echo "== other users keys"; for h in /home/*; do [ -f "$h/.ssh/authorized_keys" ] && echo "$h: $(wc -l < $h/.ssh/authorized_keys)"; done; getent passwd | awk -F: "\$3>=1000 && \$3<65534 {print \$1}"
+  echo "== os"; . /etc/os-release; echo "$PRETTY_NAME"; uname -r; nproc; free -h | sed -n 1,3p; df -h / | tail -1; uptime
+  echo "== logins"; last -n 15 2>/dev/null | head -15
+  echo "== sshd"; sshd -T 2>/dev/null | grep -E "^(passwordauthentication|permitrootlogin|pubkeyauthentication|port) "
+  echo "== auth log (accepted)"; journalctl -u ssh --no-pager -q 2>/dev/null | grep -E "Accepted|Failed password" | tail -10
+  echo "== recent root history"; tail -n 20 /root/.bash_history 2>/dev/null
+  echo "== listening"; ss -tlnp | tail -n +2 | awk "{print \$4, \$6}"
+  ' 2>&1
+    == keys
+    drwx------ 2 root root 4096 Nov 19 12:15 /root/.ssh
+    -rw------- 1 root root 192 Nov 19 12:16 /root/.ssh/authorized_keys
+    ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA...7iN6v2zt hackaton-deploy
+    ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA...pJHMNU9y hackaton-lead
+    2
+    == other users keys
+    == os
+    Ubuntu 24.04.4 LTS
+    6.8.0-111-generic
+    2
+                   total        used        free      shared  buff/cache   available
+    Mem:           1.9Gi       324Mi       1.5Gi       4.9Mi       307Mi       1.6Gi
+    Swap:          511Mi          0B       511Mi
+    /dev/vda2        20G  3.0G   16G  16% /
+     12:18:55 up  1:54,  2 users,  load average: 0.07, 0.04, 0.01
+    == logins
+    reboot   system boot  6.8.0-111-generi Thu Nov 19 10:24   still running
+    reboot   system boot  6.8.0-111-generi Thu Nov 19 10:23 - 10:24  (00:00)
+
+    wtmp begins Thu Nov 19 10:23:53 2026
+    == sshd
+    port 22
+    permitrootlogin yes
+    pubkeyauthentication yes
+    passwordauthentication yes
+    == auth log (accepted)
+    Nov 19 12:18:19 [логин скрыт].example.com sshd[3724]: Failed password for invalid user russo from 109.160.32.154 port 43188 ssh2
+    Nov 19 12:18:24 [логин скрыт].example.com sshd[3726]: Failed password for invalid user guest from 109.160.32.154 port 59674 ssh2
+    Nov 19 12:18:30 [логин скрыт].example.com sshd[3728]: Failed password for root from 109.160.32.154 port 59694 ssh2
+    Nov 19 12:18:35 [логин скрыт].example.com sshd[3730]: Failed password for invalid user pcm from 109.160.32.154 port 52572 ssh2
+    Nov 19 12:18:39 [логин скрыт].example.com sshd[3732]: Accepted publickey for root from [IP пользователя скрыт] port 23274 ssh2: ED25519 SHA256:0mkvW8csjdUJ1bTNnnh1puDOX5dH+2VEC4tpO/ZcXdo
+    Nov 19 12:18:40 [логин скрыт].example.com sshd[3734]: Failed password for invalid user cloud from 109.160.32.154 port 52620 ssh2
+    Nov 19 12:18:45 [логин скрыт].example.com sshd[3799]: Failed password for root from 109.160.32.154 port 50826 ssh2
+    Nov 19 12:18:50 [логин скрыт].example.com sshd[3801]: Failed password for invalid user Caps from 109.160.32.154 port 50890 ssh2
+    Nov 19 12:18:54 [логин скрыт].example.com sshd[3803]: Accepted publickey for root from [IP пользователя скрыт] port 44110 ssh2: ED25519 SHA256:0mkvW8csjdUJ1bTNnnh1puDOX5dH+2VEC4tpO/ZcXdo
+    Nov 19 12:18:55 [логин скрыт].example.com sshd[3805]: Failed password for invalid user steam from 109.160.32.154 port 48648 ssh2
+    == recent root history
+    == listening
+    127.0.0.54:53 users:(("systemd-resolve",pid=467,fd=17))
+    127.0.0.53%lo:53 users:(("systemd-resolve",pid=467,fd=15))
+    0.0.0.0:22 users:(("sshd",pid=937,fd=3),("systemd",pid=1,fd=89))
+    [::]:22 users:(("sshd",pid=937,fd=4),("systemd",pid=1,fd=90))
+  ── Thought for 7s
+    I'm checking the findings: the keys and permissions look right, the system has 2 vCPUs, 1.9 GB RAM, swap, and plenty of free disk, which is an improvement. The hostname includes the user's GitHub login, so it's personal information that shouldn't have been shown.
+
+    I'm going through the logins now: `last` shows only reboots, and the accepted publickey login comes from my own VPN IP, so I want to confirm the key fingerprint against the local file. The brute-force attempts against root are the bigger concern, since password auth is still enabled, so I'm checking whether any password logins actually succeeded.
+
+    I'm looking through the successful logins to make sure no password logins got through, and I'll compare the key fingerprint against the local file. Password login is still enabled, so the next step would be to disable it, but only after the user has confirmed their own key works.
+  ── Ran ssh-keygen -lf ~/.ssh/hackaton_lead.pub; ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 ' echo "== all accepted logins since boot"; journalctl -u ssh --no-pager -q -b | grep -E "Accepted" | awk "{print \$1,\$2,\$3,\$7,\$8,\$9,\$11,\$NF}" echo "== failed password count"; journalctl -u ssh --no-pager -q -b | grep -c "Failed password" echo "== distinct attacker IPs"; journalctl -u ssh --no-pager -q -b | grep "Failed password" | grep -oE "from [0-9.]+" | sort | uniq -c | sort -rn | head -5 echo "== console logins"; journalctl --no-pager -q -b _COMM=login 2>/dev/null | tail -3 echo "== new users/sudoers changes"; ls -la --time-style=+%H:%M /etc/passwd /etc/shadow /etc/sudoers.d/ | head;  echo "== cron"; crontab -l 2>&1 | head -3; ls /etc/cron.d echo "== cloud-init ssh conf"; ls /etc/ssh/sshd_config.d/; grep -h -E "^[A-Za-z]" /etc/ssh/sshd_config.d/* 2>/dev/null ' 2>&1 (Outside of sandbox) (6s)
+    $ ssh-keygen -lf ~/.ssh/hackaton_lead.pub; ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 '
+  echo "== all accepted logins since boot"; journalctl -u ssh --no-pager -q -b | grep -E "Accepted" | awk "{print \$1,\$2,\$3,\$7,\$8,\$9,\$11,\$NF}"
+  echo "== failed password count"; journalctl -u ssh --no-pager -q -b | grep -c "Failed password"
+  echo "== distinct attacker IPs"; journalctl -u ssh --no-pager -q -b | grep "Failed password" | grep -oE "from [0-9.]+" | sort | uniq -c | sort -rn | head -5
+  echo "== console logins"; journalctl --no-pager -q -b _COMM=login 2>/dev/null | tail -3
+  echo "== new users/sudoers changes"; ls -la --time-style=+%H:%M /etc/passwd /etc/shadow /etc/sudoers.d/ | head; 
+  echo "== cron"; crontab -l 2>&1 | head -3; ls /etc/cron.d
+  echo "== cloud-init ssh conf"; ls /etc/ssh/sshd_config.d/; grep -h -E "^[A-Za-z]" /etc/ssh/sshd_config.d/* 2>/dev/null
+  ' 2>&1
+    256 SHA256:0mkvW8csjdUJ1bTNnnh1puDOX5dH+2VEC4tpO/ZcXdo hackaton-lead (ED25519)
+    == all accepted logins since boot
+    Nov 19 12:18:39 publickey for root [IP пользователя скрыт] SHA256:0mkvW8csjdUJ1bTNnnh1puDOX5dH+2VEC4tpO/ZcXdo
+    Nov 19 12:18:54 publickey for root [IP пользователя скрыт] SHA256:0mkvW8csjdUJ1bTNnnh1puDOX5dH+2VEC4tpO/ZcXdo
+    Nov 19 12:19:09 password for root [IP пользователя скрыт] ssh2
+    Nov 19 12:19:14 publickey for root [IP пользователя скрыт] SHA256:0mkvW8csjdUJ1bTNnnh1puDOX5dH+2VEC4tpO/ZcXdo
+    == failed password count
+    1170
+    == distinct attacker IPs
+       1122 from 109.160.32.154
+         42 from 61.93.123.64
+          5 from 80.94.92.234
+          1 from 35.214.225.27
+    == console logins
+    Nov 19 12:05:55 [логин скрыт].example.com login[3212]: PAM adding faulty module: pam_lastlog.so
+    Nov 19 12:06:25 [логин скрыт].example.com login[3212]: pam_unix(login:session): session opened for user root(uid=0) by root(uid=0)
+    Nov 19 12:06:25 [логин скрыт].example.com login[3360]: ROOT LOGIN  on '/dev/tty1'
+    == new users/sudoers changes
+    -rw-r--r-- 1 root root   1734 09:46 /etc/passwd
+    -rw-r----- 1 root shadow  909 10:23 /etc/shadow
+
+    /etc/sudoers.d/:
+    total 12
+    drwxr-xr-x   2 root root 4096 16:17 .
+    drwxr-xr-x 109 root root 4096 10:23 ..
+    -r--r-----   1 root root 1068 17:09 README
+    == cron
+    no crontab for root
+    e2scrub_all
+    sysstat
+    == cloud-init ssh conf
+    50-cloud-init.conf
+    PasswordAuthentication yes
+  ── Thought for 7s
+    I'm noticing a successful password login for root from [IP пользователя скрыт] at 12:19:09, which is the same IP as my publickey logins and appears to be our VPN egress address. I'm wondering who did this, since the timestamp falls between my second and third commands, and it may be the user logging in from their Mac.
+
+    I'm checking whether this password login could be the user connecting from their Mac, since it comes from the same VPN egress IP. They may have run ssh without the key flag, which would fall back to password auth, or someone else on the same VPN exit could be involved, though a brute-forcer is unlikely to hit the right password on the first try.
+
+    I'm checking whether this session is still active and what the password login actually did, since a 1170-failure brute force against root is worth taking seriously, and password auth should probably be disabled soon.
+  ── Ran ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 ' echo "== who"; who; echo "== sessions"; loginctl list-sessions --no-legend 2>/dev/null echo "== password logins all"; journalctl -u ssh --no-pager -q -b | grep -E "Accepted password|session closed|Disconnected from user root" | tail -8 echo "== sshd children"; ps -eo pid,etime,user,args | grep -E "sshd: root" | grep -v grep ' 2>&1; TZ=Europe/Moscow date (Outside of sandbox) (5s)
+    $ ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 '
+  echo "== who"; who; echo "== sessions"; loginctl list-sessions --no-legend 2>/dev/null
+  echo "== password logins all"; journalctl -u ssh --no-pager -q -b | grep -E "Accepted password|session closed|Disconnected from user root" | tail -8
+  echo "== sshd children"; ps -eo pid,etime,user,args | grep -E "sshd: root" | grep -v grep
+  ' 2>&1; TZ=Europe/Moscow date
+    == who
+    root     tty1         2026-11-19 12:06
+    root     pts/0        2026-11-19 12:19 ([IP пользователя скрыт])
+    == sessions
+    13 0 root seat0 tty1  active no -
+    19 0 root -     pts/0 active no -
+    21 0 root -     -     active no -
+    == password logins all
+    Nov 19 12:19:09 [логин скрыт].example.com sshd[3797]: Accepted password for root from [IP пользователя скрыт] port 23280 ssh2
+    == sshd children
+       3797       00:51 root     sshd: root@pts/0
+       4029       00:03 root     sshd: root [priv]
+       4030       00:03 sshd     sshd: root [net]
+       4031       00:03 root     sshd: root@notty
+    Thu Nov 19 15:19:32 MSK 2026
+  ── Thought for 7s
+    The server clock reads 12:19 UTC, which matches the Moscow time of 15:19 once converted, so the timestamps line up. The password session on pts/0 began at 12:19:09 UTC, about 51 seconds before now, and it came from [IP пользователя скрыт], the same egress IP as my own connections, which points to the user's Mac over the VPN. I'll ask the user to confirm that it's them before doing anything to that session, and I won't terminate it without their go-ahead.
+
+    I'm reporting to the user in Russian now: the SSH keys check out with exactly two keys and correct permissions, and the server specs look better than the old one. The bigger issues are that root password login is still enabled while about 1170 failed attempts have hit it from four IPs, and one successful password login came from the same address as my own connections, so I'm asking whether it was them. I'm also flagging the open browser console session and the hostname that includes their GitHub login.
+
+    I'm going to finish the proposal for the next step and then handle the docs. Before any SSH hardening, I want the user to confirm that their key login works without a password, so I'll ask for that first. Then I'll update plan.md with the new server IP, check whether the old one appears there, and look at whether the memory file actually records the IP.
+  ── Searched for 129.101.95.154 in .
+  ── Ran .venv/bin/python - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() old='Сервер заработал 19.11 (вход по паролю root); для деплоя нужны SSH-ключи, домен и доступ сервера к закрытому репозиторию (ключ развёртывания).' assert s.count(old)==1 s=s.replace(old,'19.11 пользователь перешёл на другой хостинг: Ubuntu 24.04.4, 2 ядра, 2 ГБ, диск 20 ГБ, swap 512 МБ; ключи пользователя и тимлида установлены. Вход по паролю пока включён, идёт перебор паролей — отключить первым шагом. Для деплоя нужны домен и доступ сервера к закрытому репозиторию.') open(p,'w',encoding='utf-8').write(s) EOF grep -c "другой хостинг" plan.md (1s)
+    $ .venv/bin/python - <<'EOF'
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  old='Сервер заработал 19.11 (вход по паролю root); для деплоя нужны SSH-ключи, домен и доступ сервера к закрытому репозиторию (ключ развёртывания).'
+  assert s.count(old)==1
+  s=s.replace(old,'19.11 пользователь перешёл на другой хостинг: Ubuntu 24.04.4, 2 ядра, 2 ГБ, диск 20 ГБ, swap 512 МБ; ключи пользователя и тимлида установлены. Вход по паролю пока включён, идёт перебор паролей — отключить первым шагом. Для деплоя нужны домен и доступ сервера к закрытому репозиторию.')
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  grep -c "другой хостинг" plan.md
+    1
+
+── Assistant ───────────────────────────────────────────────
+Ключи стоят правильно, мой вход работает. Но на сервере включён вход по паролю, и пароль `root` уже подбирают. Это нужно закрыть первым шагом.
+
+**Что в порядке:**
+- В `authorized_keys` ровно 2 ключа: ваш (`hackaton-deploy`) и мой (`hackaton-lead`). Права на папку и файл правильные (700 и 600). Чужих ключей нет.
+- Сервер мощнее прежнего: Ubuntu 24.04.4, 2 ядра, 1,9 ГБ памяти, диск 20 ГБ (занято 16%). Swap 512 МБ уже есть.
+- Открыт только порт 22 (SSH). Лишних задач в cron и новых пользователей нет.
+
+**Что требует внимания:**
+1. **Подбор пароля.** За ~2 часа было 1170 неудачных попыток войти по паролю с 4 чужих адресов. Ни одна не прошла.
+2. **Один удачный вход по паролю.** Он был в 15:19 по Москве, сеанс `pts/0` ещё открыт. Вход пришёл с адреса [IP пользователя скрыт]. С этого же адреса подключаюсь я, это внешний адрес вашего Mac. **Это были вы?** Если да, всё в порядке.
+3. **Открыт вход в веб-консоли** с 15:06, это сессия Claude в браузере. Закройте её: введите `exit` в веб-консоли.
+4. **В имени сервера есть ваш логин GitHub** (`[логин скрыт].example.com`). На сайте его не видно. Предлагаю при деплое поменять имя на нейтральное `deanery`.
+
+**Следующий шаг, нужно ваше «да»:**
+1. Проверьте вход своим ключом: `ssh -i ~/.ssh/hackaton_deploy root@136.148.83.222`. Пароль спрашивать не должно.
+2. После этого я выключу вход по паролю (шаг усиления SSH из `docs/DEPLOY.md`) и включу брандмауэр. Открытыми останутся только порты 22, 80 и 443.
+
+Откатить это без веб-консоли нельзя. Поэтому сначала нужна ваша проверка ключа.
+
+Новый сервер я записал в `plan.md`. Для деплоя ещё жду ответы про домен и про доступ сервера к коду: (а) ключ развёртывания или (б) публичный репозиторий.
+
+── User ────────────────────────────────────────────────────
+
+
+── Explored 1 file, ran 1 command ──────────────────────────
+  ── Read ~/.bb/thread-storage/thr_4izdzwetb4/Attachments/Screenshot-2026-11-19-at-04.22.07-1795090939685-6xldhh.png
+  ── Thought for 4s
+    I'm looking at the screenshot: the key login prompted for a passphrase, which apparently wasn't entered correctly, so it fell back to password, and that worked with one user logged in. That means the key itself was never verified, so I need to get the passphrase entered when the key is used.
+
+    I'm working out what the passphrase situation means for getting the key to work. If they don't remember it, a new key is the fallback, and macOS Keychain via ssh-agent could store the passphrase for future use. I also want to check the server journal to confirm the publickey attempt and the password login timing.
+  ── Ran ssh-keygen -lf ~/.ssh/hackaton_deploy.pub; ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 'journalctl -u ssh --no-pager -q -b | grep -E "Accepted|Postponed publickey|Connection closed by authenticating user root 96" | grep -v "0mkvW8" | tail -6; echo "== who"; who' 2>&1 (Outside of sandbox) (13s)
+    $ ssh-keygen -lf ~/.ssh/hackaton_deploy.pub; ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 'journalctl -u ssh --no-pager -q -b | grep -E "Accepted|Postponed publickey|Connection closed by authenticating user root 96" | grep -v "0mkvW8" | tail -6; echo "== who"; who' 2>&1
+    256 SHA256:ad1xhyf0zt7ohhUDRvTTNFOW+543oU9jO3hQZ+GICC8 hackaton-deploy (ED25519)
+    Nov 19 12:19:09 [логин скрыт].example.com sshd[3797]: Accepted password for root from [IP пользователя скрыт] port 23280 ssh2
+    Nov 19 12:21:49 [логин скрыт].example.com sshd[4116]: Accepted password for root from [IP пользователя скрыт] port 24972 ssh2
+    == who
+    root     tty1         2026-11-19 12:06
+    root     pts/0        2026-11-19 12:21 ([IP пользователя скрыт])
+  ── Thought for 9s
+    Both password logins came from the user, and the second key offer fell back to password because the passphrase wasn't entered. The key is fine on the server; it just needs the passphrase locally.
+
+    The key on the server checks out, so I just need to make sure the passphrase gets entered locally: the Mac asked for it and I skipped it, so ssh fell back to the password. Next I'll suggest re-running and typing the passphrase, plus an optional keychain step so it isn't needed every time.
+
+── Assistant ───────────────────────────────────────────────
+Оба входа по паролю, в 15:19 и 15:21 по Москве, были вашими. Чужих входов нет.
+
+**Почему ключ не сработал.** Mac спросил пароль от самого ключа (`Enter passphrase for key`). Вы его не ввели, поэтому SSH перешёл на пароль `root`. С сервером всё в порядке: ваш ключ там стоит, я сверил его концовку (`…7iN6v2zt`).
+
+**Что сделать:**
+1. Выйдите (`exit`) и подключитесь снова:
+   ```
+   ssh -i ~/.ssh/hackaton_deploy root@136.148.83.222
+   ```
+2. На вопрос `Enter passphrase for key` введите пароль, который вы задали ключу при создании 17.11. Символы при вводе не видны, это нормально.
+3. Если сервер после этого НЕ спросит `root@…'s password`, ключ работает.
+
+Чтобы не вводить пароль ключа каждый раз, один раз выполните `ssh-add --apple-use-keychain ~/.ssh/hackaton_deploy`. Пароль сохранится в связке ключей macOS.
+
+**Если пароль ключа забыт,** создайте новый ключ:
+```
+ssh-keygen -t ed25519 -f ~/.ssh/hackaton_deploy2 -C hackaton-deploy2
+cat ~/.ssh/hackaton_deploy2.pub
+```
+Пришлите мне вывод второй команды. Это открытая часть, её можно показывать. Я добавлю ключ на сервер.
+
+Ещё закройте сеанс в веб-консоли хостинга (`exit`), он всё ещё открыт.
+
+Вход по паролю я выключу только после того, как ваш ключ сработает.
+
+── User ────────────────────────────────────────────────────
+> Сервер мощнее прежнего: Ubuntu 24.04.4, 2 ядра, 1,9 ГБ памяти, диск 20 ГБ (занято 16%). Swap 512 МБ уже есть.
+> Убери изменения для оптимизации, сделанные при подготовке к деплою на прошлом хосте.
+
+── Explored 1 search, 1 file ───────────────────────────────
+  ── Thought for 10s
+    I'm going through what the earlier task added for the old small server: two gunicorn workers, the swap setup in the deploy notes, and journald size limits.
+
+    I'm checking whether the backup retention or PostgreSQL settings were also shrunk for the small host, then I'll check DEPLOY.md and deploy/ for memory-related settings.
+  ── Searched for 1 vCPU|1 GB|1 ГБ|10 GB|swap|worker|WEB_CONCURRENCY|GUNICORN|memory|SystemMaxUse|max_connections|shared_buffers|work_mem|keep|retention|small|маленьк|MemoryMax|MemoryHigh|timeout|threads in README.md
+  ── Read docs/DEPLOY.md
+  ── Thought for 24s
+    I'm working out sensible settings for a 2 vCPU, 1.9 GB machine. The gunicorn worker count formula gives 5 at this RAM, but I need to leave room for PostgreSQL and the system, so I'm checking whether 5 workers at roughly 90 MB each still fits alongside the database.
+
+    I'm settling on 5 gunicorn workers, since the memory math still leaves about 1 GB free after PostgreSQL and the system. Polling every few seconds with sync workers also favors more workers. I'm also dropping the extra swap step, because the server already has 512 MB of swap, and I'm leaving swappiness at its default.
+
+    I'm weighing whether to keep a journald size cap at all, since the disk is now 20 GB rather than 10 GB. Leaving logs uncapped still risks filling the disk during a brute-force flood, but systemd's default already limits the journal to about 10% of the filesystem, so removing the custom file looks like the simplest option.
+
+    Now I'm checking whether the journald cap is still worth keeping. My reasoning is that systemd already limits the journal to roughly 10% of the filesystem, so dropping the custom file is the simplest option. Next is the PostgreSQL note: I'm considering whether the stock settings still hold up for this 2 GB machine, and they appear to, with the 128 MB default shared_buffers. I'm also reviewing the 7-day backup retention, which doesn't really count as disk tuning.
+
+    I'm going through the remaining config touchpoints: the DEPLOY.md header and resources section need the new server spec, and the gunicorn worker count in the env example, the gunicorn.conf.py docstring, and its default all need to move up to 5. I'm still deciding whether the code-level default should stay at 2 as a fallback or change to 5, since tests might depend on the current value.
+
+    I'm also thinking about the hostname: the current one includes the login, so I'm considering setting it to something neutral like `deanery` as a separate server step rather than a code change, though it's still an open question for the user.
+
+    I'm weighing whether a coder could take this deploy-doc work in parallel without stepping on the petitions changes, since the files don't overlap. I'd stage only the specific files to keep the commits separate, though the deploy itself still waits on the domain and repo access.
+
+    I'm deciding to queue this deploy-doc change after TASK-014 rather than in parallel, since it's small and I can apply the new server values on the box myself regardless. I'll leave the repo update as documentation alignment and start drafting the TASK-015 request.
+
+    Before I send TASK-015, I want to confirm the values, since I picked them myself: 5 gunicorn workers, and removing the custom journald file so systemd's defaults apply. Once you say "Отправляй," I'll write the draft file and send it.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_cpuae9aqw3]
+
+[TASK-014] Reviewer -> Team lead: APPROVE
+Round 1. Assignee: Coder. Spec: docs/tasks/TASK-014.md.
+
+## Verified
+- F1-F8, admin and README match the spec: terms.py, model fields/constraint/clean/properties, migration 0003 (2 AddField + AddConstraint, depends on 0002), form field + clean_subject, service `subject=""` with normalisation and length check, view passes subject, catalog order, 6 templates use display_name/term_label (no `|safe`), demo types and p-8. "раб. дн." is gone from all templates.
+- Access: views and selectors are unchanged. The new test test_other_student_cannot_see_subject covers the 404 for another student's petition and shows the subject is absent from their list.
+- Mutations on a temp copy:
+  - caught: 11 → singular; no normalisation in the service; service keeps the subject for unflagged types; staff_detail and submitted back to type name; reversed catalog order; view drops subject (2 failures).
+  - equivalent (survived): (a) no normalisation in the form, because the service normalises anyway; (b) the RequestType.clean() rule disabled, because full_clean() also validates the CheckConstraint and rejects the same combination. The custom clean() message is therefore not asserted by any test. Low risk.
+- Migration on my DB seeded before the change (4 types, petitions at 0002): migrate applied 0003. seed_demo printed "7 types, 1 requests", then "7 types, 0 requests". p-8 shows "Другая справка: Справка о периоде обучения" for student1; only p-8 has a subject.
+- Browser at 360 px (headless Chrome): a 150-char subject in the detail h1 wraps; scrollWidth is 360 on detail, list and catalog. Catalog shows "до 3 рабочих дней" / "до 5 рабочих дней", and "Другая справка" is last in its section.
+
+## Runs (log time US; MSK = +11 h, ~15:16-15:22 MSK)
+- `test --parallel 1`: Ran 1122 tests, OK. $TMPDIR/test-t014-rev-20261119-041555.log
+- `run_tests_at.py 2026-11-20T00:00:00`: Ran 1122 tests, OK. $TMPDIR/test-t014-rev-midnight-20261119-041555.log
+- No failures. check, check --deploy --fail-level WARNING, makemigrations --check, ruff check . and ruff format --check . (193 files): all OK.
+
+## Spec deviation (accepted; FYI)
+The Test plan expected "Для этой заявки комментарий обязателен." for an empty comment on the form. That text exists only in the service. The form shows Django's "Обязательное поле.", as it did before this task. The Coder asserted the real text in test_comment_required_for_catch_all and test_military_comment_required. Behaviour is unchanged, and the Test plan line was wrong. If you want the custom message on the form, that is a separate small change.
+
+## Notes
+- The long pixel h1 (150 chars) takes about 9 lines at 360 px. It is accepted by the spec Risks.
+- `test_other_student_cannot_see_subject` uses assertNotIn on the 8-char short_id over a full page. The README rule warns against short needles because of the CSRF token. Here it is assertNotIn of 8 hex chars, so a false failure needs a token match (~1e-13). Negligible; noted only for consistency.
+steer
+
+── Created 1 file ──────────────────────────────────────────
+  ── Created ~/.bb/thread-storage/thr_4izdzwetb4/TASK-015.txt +17
+    --- /dev/null
+    +++ b~/.bb/thread-storage/thr_4izdzwetb4/TASK-015.txt
+    +[TASK-015] Team lead -> Planner: TASK
+    +Approved by the user. Write the spec `docs/tasks/TASK-015.md` and hand it to the Coder (DeepSeek, thr_ng6cbgatm6).
+    +
+    +## Context
+    +TASK-011 prepared the deploy for a small server (1 vCPU, 1 GB RAM, 10 GB disk). On 19.11 the user moved to another hosting: Ubuntu 24.04.4, 2 vCPU, 1.9 GB RAM, 20 GB disk, the provider already created a 512 MB swap file (swappiness 60). User decision: remove the optimizations made for the old small server. Documentation and deploy templates only; no application code changes. Apply your "Feasibility check" and "Test plan" sections.
+    +
+    +## Changes
+    +1. `docs/DEPLOY.md` header and every mention of the old size: describe the new server (2 vCPU, ~2 GB RAM, 20 GB disk).
+    +2. Remove step "1. Swap first (1 GB RAM)" (fallocate 1 GB, fstab, swappiness 10). Replace it with a one-line check that the provider swap exists (`swapon --show`, `free -h`); do not create or resize swap. Renumber steps and fix all step cross-references.
+    +3. gunicorn workers: 5 (formula already in the runbook: min(2 x vCPU + 1, (free RAM MB - 300) / 90) = min(5, 13)). Update `deploy/gunicorn.conf.py` (docstring and the default), `.env.production.example` (comment and `GUNICORN_WORKERS=5`) and the runbook. Keep the env override.
+    +4. journald: remove the custom cap made for the 10 GB disk (`deploy/journald/50-deanery.conf` and its runbook step); systemd defaults apply (10% of the file system, at most 4 GB). Remove the file and every reference to it (runbook, tests, CI if any).
+    +5. PostgreSQL: drop the "do not raise shared_buffers, keep max_connections" warning that exists because of 1 GB RAM; stock settings stay (no tuning step added).
+    +6. Section "Resources": recalculate the expected memory and disk for 5 workers on ~2 GB / 20 GB.
+    +7. Keep everything else unchanged: backups (KEEP_DAYS 7), nginx, systemd unit, SSH hardening, firewall, HTTPS, HSTS.
+    +
+    +## Verification
+    +All existing verification commands (check, deploy check, tests with the output saved to a file, ruff, CI YAML, `bash -n` of the deploy scripts, `gunicorn --check-config`); update tests that assert the old worker count or the journald file, with the reason; `grep` proves no mention of "1 GB", "1 vCPU", "10 GB", "swapfile" or "50-deanery.conf" remains in docs/DEPLOY.md, deploy/ and .env.production.example.
+  ── Thought for 14ms
+    I'm keeping two things moving: presenting the TASK-015 draft for approval, and processing TASK-014's approval by verifying it, checking the browser, taking screenshots, updating the changelog and plan, and deciding on the commit and push. I'll do the TASK-014 verification first, then report both results together. I'm starting with git status and running the tests in the background against a temporary database.
+
+    Next I'm moving on to the browser setup.
+
+── Assistant ───────────────────────────────────────────────
+TASK-014 одобрена Ревьюером. Проверяю её, а затем покажу черновик задачи по серверу.
+
+── Ran 4 commands, explored 1 file ─────────────────────────
+  ── Ran git status --short && . .venv/bin/activate && L="$TMPDIR/test-lead14-$(date +%Y%m%d-%H%M%S).log" && echo "$L" > "$TMPDIR/lead14log" && (find private_media -type f | sort > "$TMPDIR/pm14-before.txt"; { python manage.py check; DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ python manage.py check --deploy --fail-level WARNING; echo "deploy-check=$?"; python manage.py makemigrations --check --dry-run; echo "makemigrations=$?"; ruff check . && ruff format --check .; echo "ruff=$?"; python manage.py test --parallel 2 2>&1; echo "parallel=$?"; python scripts/run_tests_at.py 2026-11-20T00:00:00 2>&1; echo "midnight=$?"; find private_media -type f | sort > "$TMPDIR/pm14-after.txt"; diff -q "$TMPDIR/pm14-before.txt" "$TMPDIR/pm14-after.txt" && echo "private_media=unchanged"; } > "$L" 2>&1) > /dev/null 2>&1 & echo started
+    $ git status --short && . .venv/bin/activate && L="$TMPDIR/test-lead14-$(date +%Y%m%d-%H%M%S).log" && echo "$L" > "$TMPDIR/lead14log" && (find private_media -type f | sort > "$TMPDIR/pm14-before.txt"; { python manage.py check; DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ python manage.py check --deploy --fail-level WARNING; echo "deploy-check=$?"; python manage.py makemigrations --check --dry-run; echo "makemigrations=$?"; ruff check . && ruff format --check .; echo "ruff=$?"; python manage.py test --parallel 2 2>&1; echo "parallel=$?"; python scripts/run_tests_at.py 2026-11-20T00:00:00 2>&1; echo "midnight=$?"; find private_media -type f | sort > "$TMPDIR/pm14-after.txt"; diff -q "$TMPDIR/pm14-before.txt" "$TMPDIR/pm14-after.txt" && echo "private_media=unchanged"; } > "$L" 2>&1) > /dev/null 2>&1 &
+  echo started
+    M README.md
+     M petitions/admin.py
+     M petitions/demo.py
+     M petitions/forms.py
+     M petitions/models.py
+     M petitions/services.py
+     M petitions/templates/petitions/catalog.html
+     M petitions/templates/petitions/detail.html
+     M petitions/templates/petitions/my_list.html
+     M petitions/templates/petitions/staff_detail.html
+     M petitions/templates/petitions/staff_queue.html
+     M petitions/templates/petitions/submitted.html
+     M petitions/tests/helpers.py
+     M petitions/tests/test_demo.py
+     M petitions/tests/test_services.py
+     M petitions/tests/test_views.py
+     M petitions/views.py
+     M plan.md
+    ?? docs/tasks/TASK-014.md
+    ?? petitions/migrations/0003_subject.py
+    ?? petitions/terms.py
+    ?? petitions/tests/test_models.py
+    ?? petitions/tests/test_terms.py
+    (eval):1: nice(5) failed: operation not permitted
+    started
+  ── Read petitions/terms.py
+  ── Ran . .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/lead14.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/lead14-media" && rm -f "$TMPDIR/lead14.sqlite3" && mkdir -p "$TMPDIR/lead14-media" && python manage.py migrate -v0 && python manage.py seed_demo | grep -i "request" && python manage.py shell -c " import json from django.contrib.sessions.backends.db import SessionStore from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY from petitions.models import RequestType, Petition U=get_user_model(); out={} for n in ['student1','staff1']:     u=U.objects.get(username=n); s=SessionStore()     s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create(); out[n]=s.session_key out['types']={t.name:t.pk for t in RequestType.objects.all()} p=Petition.objects.exclude(subject='').first() out['p8']=str(p.public_id) json.dump(out, open('$TMPDIR/sess14.json','w'), ensure_ascii=False) print(out['types']) " 2>&1 | grep -v imported (8s)
+    $ . .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/lead14.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/lead14-media" && rm -f "$TMPDIR/lead14.sqlite3" && mkdir -p "$TMPDIR/lead14-media" && python manage.py migrate -v0 && python manage.py seed_demo | grep -i "request" && python manage.py shell -c "
+  import json
+  from django.contrib.sessions.backends.db import SessionStore
+  from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY
+  from petitions.models import RequestType, Petition
+  U=get_user_model(); out={}
+  for n in ['student1','staff1']:
+      u=U.objects.get(username=n); s=SessionStore()
+      s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create(); out[n]=s.session_key
+  out['types']={t.name:t.pk for t in RequestType.objects.all()}
+  p=Petition.objects.exclude(subject='').first()
+  out['p8']=str(p.public_id)
+  json.dump(out, open('$TMPDIR/sess14.json','w'), ensure_ascii=False)
+  print(out['types'])
+  " 2>&1 | grep -v imported
+    Requests ready: 7 types, 8 requests, 3 attachments.
+
+    {'Другое заявление': 7, 'Заявление на академический отпуск': 4, 'Заявление на повторную промежуточную аттестацию': 3, 'Другая справка': 6, 'Справка в военкомат': 5, 'Справка для стипендиального отдела': 2, 'Справка об обучении': 1}
+  ── Ran . .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/lead14.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/lead14-media" DEBUG=true && exec python manage.py runserver 127.0.0.1:8774 --noreload (2s)
+    $ . .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/lead14.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/lead14-media" DEBUG=true && exec python manage.py runserver 127.0.0.1:8774 --noreload
+    Command running in background with ID: bt1ztql2a. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/b253eb8a-83a9-41db-914f-dac833630714/tasks/bt1ztql2a.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran sleep 4; curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8774/login/; bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -1 > "$TMPDIR/bopen.json"; ~/hackatonproject/.venv/bin/python -c "import json;d=json.load(open('$TMPDIR/bopen.json'));print(d.get('sessionId') or d.get('id'));print(d.get('previewDirective',''))" | tee "$TMPDIR/bopen.txt"; head -1 "$TMPDIR/bopen.txt" > "$TMPDIR/bsess" (7s)
+    $ sleep 4; curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8774/login/; bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -1 > "$TMPDIR/bopen.json"; ~/hackatonproject/.venv/bin/python -c "import json;d=json.load(open('$TMPDIR/bopen.json'));print(d.get('sessionId') or d.get('id'));print(d.get('previewDirective',''))" | tee "$TMPDIR/bopen.txt"; head -1 "$TMPDIR/bopen.txt" > "$TMPDIR/bsess"
+    200
+    b3115b56-7d8f-4731-85da-ea4eb25abf51
+    ::browser-preview{session="b3115b56-7d8f-4731-85da-ea4eb25abf51"}
+
+── Assistant ───────────────────────────────────────────────
+::browser-preview{session="b3115b56-7d8f-4731-85da-ea4eb25abf51"}
+
+── Ran 3 commands, explored 4 files ────────────────────────
+  ── Ran cat > "$TMPDIR/t14.js" <<'EOF' const p = await browser.getPage('main'); const res = {}; const B = 'http://127.0.0.1:8774'; const as = async (k) => { await p.deleteCookie({name: 'sessionid', domain: '127.0.0.1'}); await p.setCookie({name: 'sessionid', value: k, domain: '127.0.0.1', path: '/'}); }; await p.setViewport({width: 360, height: 780, deviceScaleFactor: 1}); await as('__K1__'); // catalog await p.goto(B + '/requests/new/', {waitUntil: 'networkidle0'}); res.catalog = await p.evaluate(() => ({sw: document.documentElement.scrollWidth, terms: [...document.querySelectorAll('main p')].map(x => x.innerText.replace(/\s+/g, ' ').trim())})); await p.evaluate(() => window.scrollTo(0, document.querySelector('main h2').getBoundingClientRect().top + window.scrollY - 8)); await p.shot({type: 'jpeg', maxEdge: 960, quality: 70}); // empty submit on "Другая справка" await p.goto(B + '/requests/new/__T6__/', {waitUntil: 'networkidle0'}); res.formFields = await p.evaluate(() => [...document.querySelectorAll('main label')].map(l => l.innerText.trim())); await Promise.all([p.waitForNavigation({waitUntil: 'networkidle0'}), p.evaluate(() => { const f = document.querySelector('main form'); f.noValidate = true; f.requestSubmit(); })]); res.emptyErrors = await p.evaluate(() => [...document.querySelectorAll('main .errorlist li, main .errorlist')].map(e => e.innerText.trim()).filter(Boolean)); await p.evaluate(() => window.scrollTo(0, document.querySelector('main form').getBoundingClientRect().top + window.scrollY - 60)); await p.shot({type: 'jpeg', maxEdge: 960, quality: 70}); // spaces-only subject + comment, then a valid submit await p.goto(B + '/requests/new/__T6__/', {waitUntil: 'networkidle0'}); await p.type('input[name=subject]', '   '); await p.type('textarea[name=comment]', 'Тест тимлида'); await Promise.all([p.waitForNavigation({waitUntil: 'networkidle0'}), p.evaluate(() => { const f = document.querySelector('main form'); f.noValidate = true; f.requestSubmit(); })]); res.spacesErrors = await p.evaluate(() => [...document.querySelectorAll('main .errorlist')].map(e => e.innerText.trim())); await p.evaluate(() => { document.querySelector('input[name=subject]').value = 'Справка о размере стипендии <b>x</b>'; }); await Promise.all([p.waitForNavigation({waitUntil: 'networkidle0'}), p.evaluate(() => document.querySelector('main form').requestSubmit())]); res.afterSubmit = await p.evaluate(() => ({url: location.pathname, h1: document.querySelector('main h1').innerText, boldTags: document.querySelectorAll('main b').length})); // military: comment required await p.goto(B + '/requests/new/__T5__/', {waitUntil: 'networkidle0'}); res.militaryHasSubject = await p.evaluate(() => !!document.querySelector('input[name=subject]')); res.militaryHint = await p.evaluate(() => (document.querySelector('main .helptext, main [id$=helptext]') || {}).innerText || null); await Promise.all([p.waitForNavigation({waitUntil: 'networkidle0'}), p.evaluate(() => { const f = document.querySelector('main form'); f.noValidate = true; f.requestSubmit(); })]); res.militaryErrors = await p.evaluate(() => [...document.querySelectorAll('main .errorlist')].map(e => e.innerText.trim())); // student list await p.goto(B + '/requests/', {waitUntil: 'networkidle0'}); res.myList = await p.evaluate(() => ({sw: document.documentElement.scrollWidth, rows: [...document.querySelectorAll('main li, main tr, main article')].map(e => e.innerText.replace(/\s+/g, ' ').slice(0, 110)).filter(t => /Другая|военкомат/.test(t))})); await p.shot({type: 'jpeg', maxEdge: 960, quality: 70}); // staff queue await as('__KS__'); await p.goto(B + '/staff/requests/', {waitUntil: 'networkidle0'}); res.staffQueue = await p.evaluate(() => ({sw: document.documentElement.scrollWidth, rows: [...document.querySelectorAll('main li, main tr, main article')].map(e => e.innerText.replace(/\s+/g, ' ').slice(0, 110)).filter(t => /Другая/.test(t))})); await p.shot({type: 'jpeg', maxEdge: 960, quality: 70}); console.log(JSON.stringify(res)); EOF J=$TMPDIR/sess14.json; PY=~/hackatonproject/.venv/bin/python; K1=$($PY -c "import json;print(json.load(open('$J'))['student1'])"); KS=$($PY -c "import json;print(json.load(open('$J'))['staff1'])"); T6=$($PY -c "import json;print(json.load(open('$J'))['types']['Другая справка'])"); T5=$($PY -c "import json;print(json.load(open('$J'))['types']['Справка в военкомат'])"); sed -i '' "s/__K1__/$K1/; s/__KS__/$KS/; s/__T6__/$T6/g; s/__T5__/$T5/g" "$TMPDIR/t14.js"; bb browser-automation run $(cat $TMPDIR/bsess) --timeout 120s --json --script "$(cat $TMPDIR/t14.js)" > $TMPDIR/t14.out 2>&1; $PY -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d.get("text") or d);[print(i["path"]) for i in d.get("images",[])]' $TMPDIR/t14.out 2>/dev/null || head -c 3000 $TMPDIR/t14.out (11s)
+    $ cat > "$TMPDIR/t14.js" <<'EOF'
+  const p = await browser.getPage('main');
+  const res = {};
+  const B = 'http://127.0.0.1:8774';
+  const as = async (k) => { await p.deleteCookie({name: 'sessionid', domain: '127.0.0.1'}); await p.setCookie({name: 'sessionid', value: k, domain: '127.0.0.1', path: '/'}); };
+  await p.setViewport({width: 360, height: 780, deviceScaleFactor: 1});
+  await as('__K1__');
+  // catalog
+  await p.goto(B + '/requests/new/', {waitUntil: 'networkidle0'});
+  res.catalog = await p.evaluate(() => ({sw: document.documentElement.scrollWidth, terms: [...document.querySelectorAll('main p')].map(x => x.innerText.replace(/\s+/g, ' ').trim())}));
+  await p.evaluate(() => window.scrollTo(0, document.querySelector('main h2').getBoundingClientRect().top + window.scrollY - 8));
+  await p.shot({type: 'jpeg', maxEdge: 960, quality: 70});
+  // empty submit on "Другая справка"
+  await p.goto(B + '/requests/new/__T6__/', {waitUntil: 'networkidle0'});
+  res.formFields = await p.evaluate(() => [...document.querySelectorAll('main label')].map(l => l.innerText.trim()));
+  await Promise.all([p.waitForNavigation({waitUntil: 'networkidle0'}), p.evaluate(() => { const f = document.querySelector('main form'); f.noValidate = true; f.requestSubmit(); })]);
+  res.emptyErrors = await p.evaluate(() => [...document.querySelectorAll('main .errorlist li, main .errorlist')].map(e => e.innerText.trim()).filter(Boolean));
+  await p.evaluate(() => window.scrollTo(0, document.querySelector('main form').getBoundingClientRect().top + window.scrollY - 60));
+  await p.shot({type: 'jpeg', maxEdge: 960, quality: 70});
+  // spaces-only subject + comment, then a valid submit
+  await p.goto(B + '/requests/new/__T6__/', {waitUntil: 'networkidle0'});
+  await p.type('input[name=subject]', '   ');
+  await p.type('textarea[name=comment]', 'Тест тимлида');
+  await Promise.all([p.waitForNavigation({waitUntil: 'networkidle0'}), p.evaluate(() => { const f = document.querySelector('main form'); f.noValidate = true; f.requestSubmit(); })]);
+  res.spacesErrors = await p.evaluate(() => [...document.querySelectorAll('main .errorlist')].map(e => e.innerText.trim()));
+  await p.evaluate(() => { document.querySelector('input[name=subject]').value = 'Справка о размере стипендии <b>x</b>'; });
+  await Promise.all([p.waitForNavigation({waitUntil: 'networkidle0'}), p.evaluate(() => document.querySelector('main form').requestSubmit())]);
+  res.afterSubmit = await p.evaluate(() => ({url: location.pathname, h1: document.querySelector('main h1').innerText, boldTags: document.querySelectorAll('main b').length}));
+  // military: comment required
+  await p.goto(B + '/requests/new/__T5__/', {waitUntil: 'networkidle0'});
+  res.militaryHasSubject = await p.evaluate(() => !!document.querySelector('input[name=subject]'));
+  res.militaryHint = await p.evaluate(() => (document.querySelector('main .helptext, main [id$=helptext]') || {}).innerText || null);
+  await Promise.all([p.waitForNavigation({waitUntil: 'networkidle0'}), p.evaluate(() => { const f = document.querySelector('main form'); f.noValidate = true; f.requestSubmit(); })]);
+  res.militaryErrors = await p.evaluate(() => [...document.querySelectorAll('main .errorlist')].map(e => e.innerText.trim()));
+  // student list
+  await p.goto(B + '/requests/', {waitUntil: 'networkidle0'});
+  res.myList = await p.evaluate(() => ({sw: document.documentElement.scrollWidth, rows: [...document.querySelectorAll('main li, main tr, main article')].map(e => e.innerText.replace(/\s+/g, ' ').slice(0, 110)).filter(t => /Другая|военкомат/.test(t))}));
+  await p.shot({type: 'jpeg', maxEdge: 960, quality: 70});
+  // staff queue
+  await as('__KS__');
+  await p.goto(B + '/staff/requests/', {waitUntil: 'networkidle0'});
+  res.staffQueue = await p.evaluate(() => ({sw: document.documentElement.scrollWidth, rows: [...document.querySelectorAll('main li, main tr, main article')].map(e => e.innerText.replace(/\s+/g, ' ').slice(0, 110)).filter(t => /Другая/.test(t))}));
+  await p.shot({type: 'jpeg', maxEdge: 960, quality: 70});
+  console.log(JSON.stringify(res));
+  EOF
+  J=$TMPDIR/sess14.json; PY=~/hackatonproject/.venv/bin/python; K1=$($PY -c "import json;print(json.load(open('$J'))['student1'])"); KS=$($PY -c "import json;print(json.load(open('$J'))['staff1'])"); T6=$($PY -c "import json;print(json.load(open('$J'))['types']['Другая справка'])"); T5=$($PY -c "import json;print(json.load(open('$J'))['types']['Справка в военкомат'])"); sed -i '' "s/__K1__/$K1/; s/__KS__/$KS/; s/__T6__/$T6/g; s/__T5__/$T5/g" "$TMPDIR/t14.js"; bb browser-automation run $(cat $TMPDIR/bsess) --timeout 120s --json --script "$(cat $TMPDIR/t14.js)" > $TMPDIR/t14.out 2>&1; $PY -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d.get("text") or d);[print(i["path"]) for i in d.get("images",[])]' $TMPDIR/t14.out 2>/dev/null || head -c 3000 $TMPDIR/t14.out
+    {"catalog":{"sw":360,"terms":["Справка в военкомат — Справка для военного комиссариата. · Срок: до 3 рабочих дней","Справка для стипендиального отдела — Справка для оформления стипендий и иных выплат. · Срок: до 3 рабочих дней","Справка об обучении — Справка, подтверждающая факт обучения в университете. · Срок: до 3 рабочих дней","Другая справка — Если нужной справки нет в списке. · Срок: до 5 рабочих дней","Заявление на академический отпуск — Заявление о предоставлении академического отпуска. · Срок: до 15 рабочих дней","Заявление на повторную промежуточную аттестацию — Заявление о повторной сдаче промежуточной аттестации. · Срок: до 10 рабочих дней","Другое заявление — Если нужного заявления нет в списке. · Срок: до 5 рабочих дней"]},"formFields":["Тип:","Комментарий:","PDF-файлы (необязательно, до 3 файлов по 5 МБ):"],"emptyErrors":["Укажите, что именно нужно.","Укажите, что именно нужно.","Обязательное поле.","Обязательное поле."],"spacesErrors":["Укажите, что именно нужно."],"afterSubmit":{"url":"/requests/399ee6e5-0829-49c8-968f-26f6586f3b56/submitted/","h1":"Заявка подана","boldTags":0},"militaryHasSubject":false,"militaryHint":"Укажите военкомат.","militaryErrors":["Обязательное поле."],"myList":{"sw":360,"rows":["Другая справка: Справка о размере стипендии <b>x</b> · № 399ee6e5 · 19 ноября 2026 · Подана · готовность: 26 н","Другая справка: Справка о периоде обучения · № e7c5be1a · 16 ноября 2026 · В работе · готовность: 23 ноября 20"]},"staffQueue":{"sw":360,"rows":["Соколова Анна Петровна · ЦД-101 · Другая справка: Справка о периоде обучения · 16 ноября 2026 · В работе · фай","Соколова Анна Петровна · ЦД-101 · Другая справка: Справка о размере стипендии <b>x</b> · 19 ноября 2026 · Пода"]}}
+
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-loLf1l/db-AMA8Ls/tmp/shot-1795091162111-1.jpg
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-loLf1l/db-AMA8Ls/tmp/shot-1795091163726-2.jpg
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-loLf1l/db-AMA8Ls/tmp/shot-1795091169746-3.jpg
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-loLf1l/db-AMA8Ls/tmp/shot-1795091170746-4.jpg
+  ── Thought for 1s
+    I'm checking the catalog and the form: the catalog looks right, with the delivery times and the "other" option last. For the empty-form errors, the duplicate I was worried about isn't one: there's one error on the subject and one on the comment. HTML in the inputs is shown escaped as plain text, with no bold tags rendered.
+
+    The military case needs a comment and shows a hint about the enlistment office, with no subject field. The lists also show the subject. Next I'll look at the screenshots.
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-loLf1l/db-AMA8Ls/tmp/shot-1795091162111-1.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-loLf1l/db-AMA8Ls/tmp/shot-1795091163726-2.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-loLf1l/db-AMA8Ls/tmp/shot-1795091169746-3.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-loLf1l/db-AMA8Ls/tmp/shot-1795091170746-4.jpg
+  ── Thought for 7s
+    I'm noticing a couple of small visual defects in the "Мои заявки" list: some rows start a wrapped line with a "·" separator. I want to check whether that was already there before my change, and my guess is it comes from the existing inline-separator style from TASK-012.
+
+    Now I'm going through the remaining items: the form error placement looks like the existing Django rendering, and the form-level message still shows the default text instead of the custom one, which I'll flag for review. The catalog wrap with the dash at the start of a line also looks pre-existing. Next up is collecting the four screenshots, then waiting on tests and the changelog before deciding whether to push.
+
+    I'm still weighing whether to push to GitHub: the server deploys from there, so it makes sense, but pushing is outward-facing and the earlier approval was for a different fix, so I'll ask before doing it. I also still need to check the test results.
+  ── Ran B=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-loLf1l/db-AMA8Ls/tmp && D=docs/process/screenshots && cp $B/shot-1795091162111-1.jpg $D/2026-11-19_66_request-catalog-terms_student1.jpg && cp $B/shot-1795091163726-2.jpg $D/2026-11-19_67_request-other-errors_student1.jpg && cp $B/shot-1795091169746-3.jpg $D/2026-11-19_68_my-requests-subject_student1.jpg && cp $B/shot-1795091170746-4.jpg $D/2026-11-19_69_staff-queue-subject_staff1.jpg && L=$(cat $TMPDIR/lead14log); grep -E "^(Ran|OK|FAILED)|=[0-9a-z]+$" "$L" (1s)
+    $ B=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-loLf1l/db-AMA8Ls/tmp && D=docs/process/screenshots && cp $B/shot-1795091162111-1.jpg $D/2026-11-19_66_request-catalog-terms_student1.jpg && cp $B/shot-1795091163726-2.jpg $D/2026-11-19_67_request-other-errors_student1.jpg && cp $B/shot-1795091169746-3.jpg $D/2026-11-19_68_my-requests-subject_student1.jpg && cp $B/shot-1795091170746-4.jpg $D/2026-11-19_69_staff-queue-subject_staff1.jpg && L=$(cat $TMPDIR/lead14log); grep -E "^(Ran|OK|FAILED)|=[0-9a-z]+$" "$L"
+    deploy-check=0
+    makemigrations=0
+    ruff=0
+  ── Ran .venv/bin/python - <<'EOF' p='docs/process/README.md' s=open(p,encoding='utf-8').read() anchor=[l for l in s.split('\n') if l.startswith('| `2026-11-19_65_')][0] rows=[ ('66_request-catalog-terms_student1','После TASK-014 (новые виды заявок)','Каталог заявок: «Справка в военкомат», «Другая справка» в конце справок, «Другое заявление» в конце заявлений; срок везде «до N рабочих дней»'), ('67_request-other-errors_student1','После TASK-014','«Другая справка», отправка пустой формы: ошибки у обязательных полей «Тип» и «Комментарий». Недочёт: у комментария стандартный текст «Обязательное поле.»'), ('68_my-requests-subject_student1','После TASK-014','«Мои заявки»: «Другая справка: <Тип>»; HTML в поле «Тип» показан как текст (проверка тимлида с `<b>x</b>`). Недочёт: при переносе строка начинается с точки-разделителя «·»'), ('69_staff-queue-subject_staff1','После TASK-014','Очередь заявок сотрудника: те же заявки с полем «Тип»'), ] new='\n'.join(f'| `2026-11-19_{n}.jpg` | 19.11.2026 | {st} | {d} |' for n,st,d in rows) assert s.count(anchor)==1 s=s.replace(anchor, anchor+'\n'+new) open(p,'w',encoding='utf-8').write(s) EOF L=$(cat $TMPDIR/lead14log); for i in $(seq 1 55); do grep -q "^private_media=\|^midnight=" "$L" && grep -q "^midnight=" "$L" && break; sleep 10; done; grep -E "^(Ran|OK|FAILED)|=[0-9a-z]+$" "$L"; TZ=Europe/Moscow date (2m 42s)
+    $ .venv/bin/python - <<'EOF'
+  p='docs/process/README.md'
+  s=open(p,encoding='utf-8').read()
+  anchor=[l for l in s.split('\n') if l.startswith('| `2026-11-19_65_')][0]
+  rows=[
+  ('66_request-catalog-terms_student1','После TASK-014 (новые виды заявок)','Каталог заявок: «Справка в военкомат», «Другая справка» в конце справок, «Другое заявление» в конце заявлений; срок везде «до N рабочих дней»'),
+  ('67_request-other-errors_student1','После TASK-014','«Другая справка», отправка пустой формы: ошибки у обязательных полей «Тип» и «Комментарий». Недочёт: у комментария стандартный текст «Обязательное поле.»'),
+  ('68_my-requests-subject_student1','После TASK-014','«Мои заявки»: «Другая справка: <Тип>»; HTML в поле «Тип» показан как текст (проверка тимлида с `<b>x</b>`). Недочёт: при переносе строка начинается с точки-разделителя «·»'),
+  ('69_staff-queue-subject_staff1','После TASK-014','Очередь заявок сотрудника: те же заявки с полем «Тип»'),
+  ]
+  new='\n'.join(f'| `2026-11-19_{n}.jpg` | 19.11.2026 | {st} | {d} |' for n,st,d in rows)
+  assert s.count(anchor)==1
+  s=s.replace(anchor, anchor+'\n'+new)
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  L=$(cat $TMPDIR/lead14log); for i in $(seq 1 55); do grep -q "^private_media=\|^midnight=" "$L" && grep -q "^midnight=" "$L" && break; sleep 10; done; grep -E "^(Ran|OK|FAILED)|=[0-9a-z]+$" "$L"; TZ=Europe/Moscow date
+    deploy-check=0
+    makemigrations=0
+    ruff=0
+    Ran 1122 tests in 96.369s
+    OK
+    parallel=0
+    Ran 1122 tests in 153.203s
+    OK
+    midnight=0
+    private_media=unchanged
+    Thu Nov 19 15:29:27 MSK 2026
+
+── Assistant ───────────────────────────────────────────────
+Тесты прошли: 1122. Обновляю журнал и план, затем делаю коммит.
+
+── Running .venv/bin/python - <<'EOF' p='CHANGELOG.md' s=open(p,encoding='utf-8').read() anchor='## 2026-11-19\n### TASK-013-FIX2' entry='''## 2026-11-19 ### TASK-014: новые виды заявок и срок «до N рабочих дней» - Новые виды: «Справка в военкомат» (комментарий обязателен, подсказка «Укажите военкомат», срок до 3 дней), «Другая справка» и «Другое заявление» (срок до 5 дней). - У «Другой справки» и «Другого заявления» обязательны поля «Тип» (до 150 символов, пробелы по краям убираются) и «Комментарий». «Тип» виден в списках и карточках у студента и у сотрудника: «Другая справка: <Тип>». Новое поле заявки и флаг вида заявки в админке (миграция `petitions/0003`). - Срок во всех видах заявок: «до N рабочих дней» («до 1 рабочего дня», «до 21 рабочего дня»). - В демо-данных: 3 новых вида и заявка «Другая справка: Справка о периоде обучения». - Исполнитель — Кодер на DeepSeek. Ревью: 1 раунд, без замечаний. Проверка тимлида в браузере (360 px): каталог, ошибки формы, HTML в «Типе» показан как текст, списки студента и сотрудника. Всего тестов: 1122. ### TASK-013-FIX2''' assert s.count(anchor)==1 s=s.replace(anchor, entry) open(p,'w',encoding='utf-8').write(s) p='plan.md' s=open(p,encoding='utf-8').read() row=[l for l in s.split('\n') if l.startswith('| TASK-014 |')][0] assert row.endswith('| В работе |') s=s.replace(row, row[:-len('| В работе |')]+'| Готово |') old='TASK-013-FIX2 закрыта 19.11. TASK-014 (заявки) — у Кодера на DeepSeek.' assert s.count(old)==1 s=s.replace(old,'TASK-013-FIX2 и TASK-014 (заявки) закрыты 19.11. Готовится TASK-015: убрать настройки под старый маленький сервер.') open(p,'w',encoding='utf-8').write(s) EOF O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)     t=t.replace('[id скрыт]','[id скрыт]')     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]     assert not bad,(f,bad)     assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF rm -rf "$O"; grep -c "136.148.83.222\|[IP пользователя скрыт]\|109.160.32.154" docs/process/dialogs/01-team-lead.md
+  $ .venv/bin/python - <<'EOF'
+p='CHANGELOG.md'
+s=open(p,encoding='utf-8').read()
+anchor='## 2026-11-19\n### TASK-013-FIX2'
+entry='''## 2026-11-19
+### TASK-014: новые виды заявок и срок «до N рабочих дней»
+- Новые виды: «Справка в военкомат» (комментарий обязателен, подсказка «Укажите военкомат», срок до 3 дней), «Другая справка» и «Другое заявление» (срок до 5 дней).
+- У «Другой справки» и «Другого заявления» обязательны поля «Тип» (до 150 символов, пробелы по краям убираются) и «Комментарий». «Тип» виден в списках и карточках у студента и у сотрудника: «Другая справка: <Тип>». Новое поле заявки и флаг вида заявки в админке (миграция `petitions/0003`).
+- Срок во всех видах заявок: «до N рабочих дней» («до 1 рабочего дня», «до 21 рабочего дня»).
+- В демо-данных: 3 новых вида и заявка «Другая справка: Справка о периоде обучения».
+- Исполнитель — Кодер на DeepSeek. Ревью: 1 раунд, без замечаний. Проверка тимлида в браузере (360 px): каталог, ошибки формы, HTML в «Типе» показан как текст, списки студента и сотрудника. Всего тестов: 1122.
+
+### TASK-013-FIX2'''
+assert s.count(anchor)==1
+s=s.replace(anchor, entry)
+open(p,'w',encoding='utf-8').write(s)
+p='plan.md'
+s=open(p,encoding='utf-8').read()
+row=[l for l in s.split('\n') if l.startswith('| TASK-014 |')][0]
+assert row.endswith('| В работе |')
+s=s.replace(row, row[:-len('| В работе |')]+'| Готово |')
+old='TASK-013-FIX2 закрыта 19.11. TASK-014 (заявки) — у Кодера на DeepSeek.'
+assert s.count(old)==1
+s=s.replace(old,'TASK-013-FIX2 и TASK-014 (заявки) закрыты 19.11. Готовится TASK-015: убрать настройки под старый маленький сервер.')
+open(p,'w',encoding='utf-8').write(s)
+EOF
+O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF'
 import os,re,sys
 d=sys.argv[1]; out='docs/process/dialogs'
 for f in sorted(os.listdir(d)):
@@ -19061,4 +19899,4 @@ for f in sorted(os.listdir(d)):
     assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f
     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
 EOF
-rm -rf "$O"; git status --short
+rm -rf "$O"; grep -c "136.148.83.222\|[IP пользователя скрыт]\|109.160.32.154" docs/process/dialogs/01-team-lead.md

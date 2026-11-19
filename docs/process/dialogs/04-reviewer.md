@@ -16351,3 +16351,732 @@ TASK-013-FIX2 (карта на широком экране) одобрен с п
 Принятый спецификацией риск: в окнах ниже ~726 px план сохраняет минимальную ширину и может уходить ниже края экрана.
 
 Браузер закрыт, сервер остановлен. Жду следующий REPORT.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_ng6cbgatm6]
+
+[TASK-014] Coder -> Reviewer: REPORT
+Spec: docs/tasks/TASK-014.md (exact code in F1-F8). All 8 ACs implemented.
+
+## What was done
+1. AC1 — `petitions/models.py`: `RequestType.subject_required` (bool, default False), `clean()` rule ("Если нужно поле «Тип», комментарий тоже должен быть обязательным.") and DB check constraint `petitions_type_subject_needs_comment`. `petitions/admin.py` `list_display` adds `subject_required` (RequestType) and `subject` (Petition).
+2. AC2 — `Petition.subject` (CharField max 150, blank, default ""). `SUBJECT_MAX_LENGTH = 150`.
+3. AC3/AC4 — `petitions/forms.py` `PetitionForm.subject` (label "Тип", max 150, required; `clean_subject` normalises via `" ".join(split())` and re-checks empty); field removed when `subject_required` is False. `petitions/services.py` `submit_petition(..., subject="")` validates the same rules (defence in depth) and stores the normalised value; ignores it for non-flagged types. `petitions/views.py` passes `subject`.
+4. AC5 — `petitions/terms.py` `term_label(days)` ("до N рабочего дня" for 1/21/31…; "до N рабочих дней" otherwise). `RequestType.term_label` property; `catalog.html` now uses `{{ type.term_label }}`. `CatalogView` orders `subject_required, name` so catch-all types are last.
+5. AC6 — `Petition.display_name` ("<type>: <subject>" when subject set), used in `my_list.html`, `detail.html`, `staff_queue.html`, `staff_detail.html`, `submitted.html`. No `|safe`.
+6. AC7 — `petitions/demo.py`: 3 new types (7 total), `p-8` "Другая справка: Справка о периоде обучения" for student1; upsert by name; seed idempotent.
+7. AC8 — query counts unchanged (new `QueryCountTests::test_lists_constant_with_subject` passes).
+
+## Tests — 1095 -> 1122 (27 new)
+`petitions` app: 182 tests OK. Serial full run and midnight run both **1122 OK**, no failures/stalls.
+
+## Verification (all green)
+- `check` no issues; `check --deploy` no issues (1 silenced); `makemigrations --check` -> No changes.
+- `ruff check .` clean; `ruff format --check .` -> 193 files; yaml ok.
+- Seed on a fresh temp DB (`DATABASE_URL=sqlite:///$TMPDIR/t014-fresh.sqlite3`): first run "Requests ready: 7 types, 8 requests, 3 attachments.", second "7 types, 0 requests, 0 attachments.".
+- Migrate a DB seeded BEFORE the change: `git archive HEAD | tar -x` copy migrated+seeded (4 types, 7 requests), then project `migrate` applied `petitions/0003_subject`; `seed_demo` -> "7 types, 1 requests, 0 attachments." then "7 types, 0 requests, 0 attachments."; `p-8` display_name correct, all other rows `subject==""`.
+
+Logs: `$TMPDIR/test-20261119-150912.log` (1122), `test-midnight-20261119-151152.log` (1122), `test-20261119-150611-petitions.log` (182).
+
+## git status (mine; no db.sqlite3/private_media touched)
+```
+ M README.md
+ M petitions/admin.py
+ M petitions/demo.py
+ M petitions/forms.py
+ M petitions/models.py
+ M petitions/services.py
+ M petitions/templates/petitions/catalog.html
+ M petitions/templates/petitions/detail.html
+ M petitions/templates/petitions/my_list.html
+ M petitions/templates/petitions/staff_detail.html
+ M petitions/templates/petitions/staff_queue.html
+ M petitions/templates/petitions/submitted.html
+ M petitions/tests/helpers.py
+ M petitions/tests/test_demo.py
+ M petitions/tests/test_services.py
+ M petitions/tests/test_views.py
+ M petitions/views.py
+?? petitions/migrations/0003_subject.py
+?? petitions/terms.py
+?? petitions/tests/test_models.py
+?? petitions/tests/test_terms.py
+```
+Not mine: `docs/tasks/TASK-014.md` (the spec).
+
+One note for the Reviewer: the spec's Test plan expected the empty-comment form error text "Для этой заявки комментарий обязателен."; the form actually renders Django's required-field error "Обязательное поле." for an empty required comment (the custom message only exists in the service layer). I asserted the actual rendered text ("Обязательное поле.") in `test_comment_required_for_catch_all` / `test_military_comment_required`, and the admin changelist header renders "Нужно поле «Тип»" (capitalised) in `test_admin_shows_flag`.
+
+── Ran 3 commands, explored 2 files ────────────────────────
+  ── Ran source .venv/bin/activate && TS=$(date +%Y%m%d-%H%M%S) && echo "TS=$TS" && python manage.py test --parallel 1 > "$TMPDIR/test-t014-rev-$TS.log" 2>&1; grep -E '^(Ran|OK|FAILED|FAIL:|ERROR:)' "$TMPDIR/test-t014-rev-$TS.log"; python scripts/run_tests_at.py 2026-11-20T00:00:00 > "$TMPDIR/test-t014-rev-midnight-$TS.log" 2>&1; grep -E '^(Ran|OK|FAILED|FAIL:|ERROR:)' "$TMPDIR/test-t014-rev-midnight-$TS.log" (1s)
+    $ source .venv/bin/activate && TS=$(date +%Y%m%d-%H%M%S) && echo "TS=$TS" && python manage.py test --parallel 1 > "$TMPDIR/test-t014-rev-$TS.log" 2>&1; grep -E '^(Ran|OK|FAILED|FAIL:|ERROR:)' "$TMPDIR/test-t014-rev-$TS.log"; python scripts/run_tests_at.py 2026-11-20T00:00:00 > "$TMPDIR/test-t014-rev-midnight-$TS.log" 2>&1; grep -E '^(Ran|OK|FAILED|FAIL:|ERROR:)' "$TMPDIR/test-t014-rev-midnight-$TS.log"
+    Command running in background with ID: bjsj956ss. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bjsj956ss.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran git status --short && wc -l docs/tasks/TASK-014.md
+    $ git status --short && wc -l docs/tasks/TASK-014.md
+    M README.md
+     M petitions/admin.py
+     M petitions/demo.py
+     M petitions/forms.py
+     M petitions/models.py
+     M petitions/services.py
+     M petitions/templates/petitions/catalog.html
+     M petitions/templates/petitions/detail.html
+     M petitions/templates/petitions/my_list.html
+     M petitions/templates/petitions/staff_detail.html
+     M petitions/templates/petitions/staff_queue.html
+     M petitions/templates/petitions/submitted.html
+     M petitions/tests/helpers.py
+     M petitions/tests/test_demo.py
+     M petitions/tests/test_services.py
+     M petitions/tests/test_views.py
+     M petitions/views.py
+    ?? docs/tasks/TASK-014.md
+    ?? petitions/migrations/0003_subject.py
+    ?? petitions/terms.py
+    ?? petitions/tests/test_models.py
+    ?? petitions/tests/test_terms.py
+         312 docs/tasks/TASK-014.md
+  ── Read ~/hackatonproject/docs/tasks/TASK-014.md
+  ── Thought for 890ms
+    I'm checking whether the coder's "Обязательное поле." text is just the Django default, which would mean the spec's custom message was never part of the existing form. I'll look at PetitionForm in forms.py to see what it actually sets.
+
+    I'm accepting the "Обязательное поле." wording as fine for the UX, and I'll flag it for the Team lead as a test-expectation mismatch rather than a coder deviation. Next I'm going through the diffs.
+  ── Ran git diff -- petitions/models.py petitions/forms.py petitions/services.py petitions/views.py petitions/admin.py petitions/demo.py petitions/templates README.md && cat petitions/terms.py petitions/migrations/0003_subject.py
+    $ git diff -- petitions/models.py petitions/forms.py petitions/services.py petitions/views.py petitions/admin.py petitions/demo.py petitions/templates README.md && cat petitions/terms.py petitions/migrations/0003_subject.py
+    diff --git a/README.md b/README.md
+    index 4cbe77f..d4d9662 100644
+    --- a/README.md
+    +++ b/README.md
+    @@ -101,6 +101,11 @@ per-request detail with history and downloads. Staff: `/staff/requests/` (queue,
+     own faculty, filtered by status/type, open oldest first) and per-request actions
+     (take in progress, mark ready, mark issued, reject) and staff comments.
+     
+    +There are 7 request types: certificates and applications, including the
+    +catch-all "Другая справка" / "Другое заявление" which require a one-line "Тип"
+    +field plus a comment. The catalog shows the term as a maximum ("до N рабочих
+    +дней").
+    +
+     Status workflow:
+     
+     | Status | Allowed transitions |
+    diff --git a/petitions/admin.py b/petitions/admin.py
+    index 8c163a6..0412b11 100644
+    --- a/petitions/admin.py
+    +++ b/petitions/admin.py
+    @@ -5,7 +5,14 @@ from .models import Petition, PetitionAttachment, PetitionComment, PetitionStatu
+     
+     @admin.register(RequestType)
+     class RequestTypeAdmin(admin.ModelAdmin):
+    -    list_display = ("name", "kind", "processing_days", "comment_required", "is_active")
+    +    list_display = (
+    +        "name",
+    +        "kind",
+    +        "processing_days",
+    +        "comment_required",
+    +        "subject_required",
+    +        "is_active",
+    +    )
+         list_filter = ("kind", "is_active")
+     
+     
+    @@ -44,7 +51,7 @@ class PetitionAttachmentInline(admin.TabularInline):
+     
+     @admin.register(Petition)
+     class PetitionAdmin(admin.ModelAdmin):
+    -    list_display = ("public_id", "request_type", "student", "status", "created_at")
+    +    list_display = ("public_id", "request_type", "subject", "student", "status", "created_at")
+         list_filter = ("status", "request_type")
+         inlines = [PetitionHistoryInline, PetitionCommentInline, PetitionAttachmentInline]
+     
+    diff --git a/petitions/demo.py b/petitions/demo.py
+    index 48568e2..720ae72 100644
+    --- a/petitions/demo.py
+    +++ b/petitions/demo.py
+    @@ -38,6 +38,7 @@ REQUEST_TYPES = [
+             False,
+             "Можно указать, куда нужна справка.",
+             "Справка, подтверждающая факт обучения в университете.",
+    +        False,
+         ),
+         (
+             "Справка для стипендиального отдела",
+    @@ -46,6 +47,7 @@ REQUEST_TYPES = [
+             True,
+             "Обязательно укажите причину обращения.",
+             "Справка для оформления стипендий и иных выплат.",
+    +        False,
+         ),
+         (
+             "Заявление на повторную промежуточную аттестацию",
+    @@ -54,6 +56,7 @@ REQUEST_TYPES = [
+             True,
+             "Обязательно укажите причину обращения.",
+             "Заявление о повторной сдаче промежуточной аттестации.",
+    +        False,
+         ),
+         (
+             "Заявление на академический отпуск",
+    @@ -62,6 +65,34 @@ REQUEST_TYPES = [
+             True,
+             "Обязательно укажите причину обращения.",
+             "Заявление о предоставлении академического отпуска.",
+    +        False,
+    +    ),
+    +    (
+    +        "Справка в военкомат",
+    +        "certificate",
+    +        3,
+    +        True,
+    +        "Укажите военкомат.",
+    +        "Справка для военного комиссариата.",
+    +        False,
+    +    ),
+    +    (
+    +        "Другая справка",
+    +        "certificate",
+    +        5,
+    +        True,
+    +        "Опишите, что нужно и для чего.",
+    +        "Если нужной справки нет в списке.",
+    +        True,
+    +    ),
+    +    (
+    +        "Другое заявление",
+    +        "application",
+    +        5,
+    +        True,
+    +        "Опишите, что нужно и для чего.",
+    +        "Если нужного заявления нет в списке.",
+    +        True,
+         ),
+     ]
+     
+    @@ -130,13 +161,22 @@ PETITIONS = [
+             "comment": "Для назначения социальной стипендии.",
+             "staff_comment": ("staff2", "Проверяем данные о стипендии."),
+         },
+    +    {
+    +        "seed_key": "p-8",
+    +        "student": "student1",
+    +        "type": "Другая справка",
+    +        "subject": "Справка о периоде обучения",
+    +        "age": 3,
+    +        "path": ["submitted", "in_progress"],
+    +        "comment": "Нужна для оформления визы, с указанием дат начала и окончания обучения.",
+    +    },
+     ]
+     
+     
+     def seed_petitions_demo(today: date) -> PetitionsSeedSummary:
+         with transaction.atomic():
+             types = {}
+    -        for name, kind, days, required, hint, description in REQUEST_TYPES:
+    +        for name, kind, days, required, hint, description, subject_required in REQUEST_TYPES:
+                 types[name], _ = RequestType.objects.update_or_create(
+                     name=name,
+                     defaults={
+    @@ -145,6 +185,7 @@ def seed_petitions_demo(today: date) -> PetitionsSeedSummary:
+                         "comment_required": required,
+                         "comment_hint": hint,
+                         "description": description,
+    +                    "subject_required": subject_required,
+                         "is_active": True,
+                     },
+                 )
+    @@ -173,6 +214,7 @@ def seed_petitions_demo(today: date) -> PetitionsSeedSummary:
+                 petition = Petition.objects.create(
+                     student=student,
+                     request_type=rtype,
+    +                subject=seed.get("subject", ""),
+                     comment=seed["comment"],
+                     status=path[-1],
+                     created_at=created_at,
+    diff --git a/petitions/forms.py b/petitions/forms.py
+    index 9b9ab27..8c9cba7 100644
+    --- a/petitions/forms.py
+    +++ b/petitions/forms.py
+    @@ -3,7 +3,7 @@
+     from django import forms
+     
+     from petitions.files import validate_attachments
+    -from petitions.models import MAX_COMMENT_LENGTH, PetitionStatus, RequestType
+    +from petitions.models import MAX_COMMENT_LENGTH, SUBJECT_MAX_LENGTH, PetitionStatus, RequestType
+     
+     
+     class MultipleFileInput(forms.ClearableFileInput):
+    @@ -23,6 +23,12 @@ class MultipleFileField(forms.FileField):
+     
+     
+     class PetitionForm(forms.Form):
+    +    subject = forms.CharField(
+    +        label="Тип",
+    +        max_length=SUBJECT_MAX_LENGTH,
+    +        help_text="Что именно нужно, например: «Справка о периоде обучения».",
+    +        error_messages={"required": "Укажите, что именно нужно."},
+    +    )
+         comment = forms.CharField(
+             label="Комментарий",
+             required=False,
+    @@ -38,6 +44,14 @@ class PetitionForm(forms.Form):
+             self.request_type = request_type
+             self.fields["comment"].required = request_type.comment_required
+             self.fields["comment"].help_text = request_type.comment_hint
+    +        if not request_type.subject_required:
+    +            del self.fields["subject"]
+    +
+    +    def clean_subject(self):
+    +        subject = " ".join((self.cleaned_data.get("subject") or "").split())
+    +        if not subject:
+    +            raise forms.ValidationError("Укажите, что именно нужно.")
+    +        return subject
+     
+         def clean_comment(self):
+             comment = (self.cleaned_data.get("comment") or "").strip()
+    diff --git a/petitions/models.py b/petitions/models.py
+    index 4edabcc..5b8137c 100644
+    --- a/petitions/models.py
+    +++ b/petitions/models.py
+    @@ -10,8 +10,10 @@ from django.db import models
+     from core.clock import now
+     from core.storage import get_private_storage
+     from petitions.files import attachment_upload_to
+    +from petitions.terms import term_label
+     
+     MAX_COMMENT_LENGTH = 2000
+    +SUBJECT_MAX_LENGTH = 150
+     
+     
+     class RequestKind(models.TextChoices):
+    @@ -41,6 +43,7 @@ class RequestType(models.Model):
+         comment_hint = models.CharField(
+             "подсказка к комментарию", max_length=255, blank=True, default=""
+         )
+    +    subject_required = models.BooleanField("нужно поле «Тип»", default=False)
+         is_active = models.BooleanField("доступна для подачи", default=True)
+     
+         class Meta:
+    @@ -49,7 +52,11 @@ class RequestType(models.Model):
+                 models.CheckConstraint(
+                     condition=models.Q(processing_days__gte=1) & models.Q(processing_days__lte=60),
+                     name="petitions_type_days_1_60",
+    -            )
+    +            ),
+    +            models.CheckConstraint(
+    +                condition=~models.Q(subject_required=True, comment_required=False),
+    +                name="petitions_type_subject_needs_comment",
+    +            ),
+             ]
+             verbose_name = "вид заявки"
+             verbose_name_plural = "виды заявок"
+    @@ -57,10 +64,18 @@ class RequestType(models.Model):
+         def __str__(self) -> str:
+             return self.name
+     
+    +    @property
+    +    def term_label(self) -> str:
+    +        return term_label(self.processing_days)
+    +
+         def clean(self):
+             super().clean()
+             if self.comment_required and not self.comment_hint:
+                 raise ValidationError("Для обязательного комментария заполните подсказку.")
+    +        if self.subject_required and not self.comment_required:
+    +            raise ValidationError(
+    +                "Если нужно поле «Тип», комментарий тоже должен быть обязательным."
+    +            )
+     
+     
+     class Petition(models.Model):
+    @@ -74,6 +89,7 @@ class Petition(models.Model):
+         request_type = models.ForeignKey(
+             RequestType, on_delete=models.PROTECT, related_name="petitions", verbose_name="вид заявки"
+         )
+    +    subject = models.CharField("тип", max_length=SUBJECT_MAX_LENGTH, blank=True, default="")
+         comment = models.TextField("комментарий", blank=True, default="", max_length=MAX_COMMENT_LENGTH)
+         status = models.CharField(
+             "статус", max_length=16, choices=PetitionStatus.choices, default=PetitionStatus.SUBMITTED
+    @@ -104,6 +120,12 @@ class Petition(models.Model):
+         def __str__(self) -> str:
+             return f"{self.request_type} — {self.student} ({self.get_status_display()})"
+     
+    +    @property
+    +    def display_name(self) -> str:
+    +        if self.subject:
+    +            return f"{self.request_type.name}: {self.subject}"
+    +        return self.request_type.name
+    +
+         @property
+         def short_id(self) -> str:
+             return str(self.public_id)[:8]
+    diff --git a/petitions/services.py b/petitions/services.py
+    index ff7e934..87cc5ca 100644
+    --- a/petitions/services.py
+    +++ b/petitions/services.py
+    @@ -13,6 +13,7 @@ from core.storage import get_private_storage
+     from petitions.files import store_attachment, validate_attachments
+     from petitions.models import (
+         MAX_COMMENT_LENGTH,
+    +    SUBJECT_MAX_LENGTH,
+         Petition,
+         PetitionComment,
+         PetitionStatus,
+    @@ -56,8 +57,10 @@ def submit_petition(
+         request_type: object,
+         comment: str,
+         uploads: list,
+    +    subject: str = "",
+     ) -> Petition:
+         comment = (comment or "").strip()
+    +    subject = " ".join((subject or "").split()) if request_type.subject_required else ""
+         errors: list[str] = []
+         if not request_type.is_active:
+             errors.append("Этот вид заявки сейчас недоступен.")
+    @@ -65,6 +68,10 @@ def submit_petition(
+             errors.append("Комментарий слишком длинный.")
+         if request_type.comment_required and not comment:
+             errors.append("Для этой заявки комментарий обязателен.")
+    +    if request_type.subject_required and not subject:
+    +        errors.append("Укажите, что именно нужно.")
+    +    if len(subject) > SUBJECT_MAX_LENGTH:
+    +        errors.append("Поле «Тип» слишком длинное.")
+         try:
+             validate_attachments(uploads)
+         except ValidationError as exc:
+    @@ -88,6 +95,7 @@ def submit_petition(
+                 petition = Petition.objects.create(
+                     student=student,
+                     request_type=request_type,
+    +                subject=subject,
+                     comment=comment,
+                     status=SUBMITTED,
+                     created_at=now,
+    diff --git a/petitions/templates/petitions/catalog.html b/petitions/templates/petitions/catalog.html
+    index 3beb212..70feab2 100644
+    --- a/petitions/templates/petitions/catalog.html
+    +++ b/petitions/templates/petitions/catalog.html
+    @@ -6,7 +6,7 @@
+         <p>
+           <a href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>
+           {% if type.description %} — {{ type.description }}{% endif %}
+    -      · Срок: {{ type.processing_days }} раб. дн.
+    +      · Срок: {{ type.term_label }}
+         </p>
+       {% empty %}
+         <p>Справок пока нет.</p>
+    @@ -16,7 +16,7 @@
+         <p>
+           <a href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>
+           {% if type.description %} — {{ type.description }}{% endif %}
+    -      · Срок: {{ type.processing_days }} раб. дн.
+    +      · Срок: {{ type.term_label }}
+         </p>
+       {% empty %}
+         <p>Заявлений пока нет.</p>
+    diff --git a/petitions/templates/petitions/detail.html b/petitions/templates/petitions/detail.html
+    index deeb794..687a4a5 100644
+    --- a/petitions/templates/petitions/detail.html
+    +++ b/petitions/templates/petitions/detail.html
+    @@ -1,6 +1,6 @@
+     {% extends "base.html" %}
+     {% block content %}
+    -  <h1>{{ petition.request_type.name }}</h1>
+    +  <h1>{{ petition.display_name }}</h1>
+       <p class="status status--{{ petition.status }}">{{ petition.get_status_display }}</p>
+       <p>№ {{ petition.short_id }}</p>
+       <p>Подана: {{ petition.created_at|date:"j E Y H:i" }}</p>
+    diff --git a/petitions/templates/petitions/my_list.html b/petitions/templates/petitions/my_list.html
+    index 03c2994..7be6f7f 100644
+    --- a/petitions/templates/petitions/my_list.html
+    +++ b/petitions/templates/petitions/my_list.html
+    @@ -6,7 +6,7 @@
+         <ul class="petition-list">
+           {% for petition in petitions %}
+             <li class="petition">
+    -          <a href="{% url 'petitions:detail' petition.public_id %}">{{ petition.request_type.name }}</a>
+    +          <a href="{% url 'petitions:detail' petition.public_id %}">{{ petition.display_name }}</a>
+               · № {{ petition.short_id }}
+               · {{ petition.created_at|date:"j E Y" }}
+               · <span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>
+    diff --git a/petitions/templates/petitions/staff_detail.html b/petitions/templates/petitions/staff_detail.html
+    index 4aa0b79..356b305 100644
+    --- a/petitions/templates/petitions/staff_detail.html
+    +++ b/petitions/templates/petitions/staff_detail.html
+    @@ -6,7 +6,7 @@
+       <p>{{ petition.student.group.name }}</p>
+       <p>№ зачётной книжки: {{ petition.student.record_number }}</p>
+       <h2>Заявка</h2>
+    -  <p>{{ petition.request_type.name }}</p>
+    +  <p>{{ petition.display_name }}</p>
+       <p class="status status--{{ petition.status }}">{{ petition.get_status_display }}</p>
+       <p>Подана: {{ petition.created_at|date:"j E Y H:i" }}</p>
+       <p>Ожидаемая дата готовности: {{ petition.expected_ready_date|date:"j E Y" }}</p>
+    diff --git a/petitions/templates/petitions/staff_queue.html b/petitions/templates/petitions/staff_queue.html
+    index a9ab2f6..348cbc3 100644
+    --- a/petitions/templates/petitions/staff_queue.html
+    +++ b/petitions/templates/petitions/staff_queue.html
+    @@ -27,7 +27,7 @@
+             <li class="petition">
+               <a href="{% url 'petitions:staff_detail' petition.public_id %}">{{ petition.student.full_name }}</a>
+               · {{ petition.student.group.name }}
+    -          · {{ petition.request_type.name }}
+    +          · {{ petition.display_name }}
+               · {{ petition.created_at|date:"j E Y" }}
+               · <span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>
+               · файлов: {{ petition.attachment_count }}
+    diff --git a/petitions/templates/petitions/submitted.html b/petitions/templates/petitions/submitted.html
+    index 23fa7e9..a9fd9ed 100644
+    --- a/petitions/templates/petitions/submitted.html
+    +++ b/petitions/templates/petitions/submitted.html
+    @@ -1,7 +1,7 @@
+     {% extends "base.html" %}
+     {% block content %}
+       <h1>Заявка подана</h1>
+    -  <p>{{ petition.request_type.name }}</p>
+    +  <p>{{ petition.display_name }}</p>
+       <p>№ {{ petition.short_id }}</p>
+       <p>Ожидаемая дата готовности: {{ petition.expected_ready_date|date:"j E Y" }}</p>
+       <p><a href="{% url 'petitions:detail' petition.public_id %}">К заявке</a></p>
+    diff --git a/petitions/views.py b/petitions/views.py
+    index d355f80..70850f4 100644
+    --- a/petitions/views.py
+    +++ b/petitions/views.py
+    @@ -34,7 +34,7 @@ class CatalogView(StudentRequiredMixin, TemplateView):
+     
+         def get_context_data(self, **kwargs):
+             context = super().get_context_data(**kwargs)
+    -        types = RequestType.objects.filter(is_active=True)
+    +        types = RequestType.objects.filter(is_active=True).order_by("subject_required", "name")
+             context["certificates"] = types.filter(kind=RequestKind.CERTIFICATE)
+             context["applications"] = types.filter(kind=RequestKind.APPLICATION)
+             return context
+    @@ -68,6 +68,7 @@ class SubmitPetitionView(StudentRequiredMixin, FormView):
+                     self.request_type,
+                     form.cleaned_data["comment"],
+                     form.cleaned_data["files"],
+    +                subject=form.cleaned_data.get("subject", ""),
+                 )
+             except ValidationError as exc:
+                 form.add_error(None, exc)
+    """Russian wording of processing terms."""
+
+
+    def term_label(days: int) -> str:
+        if days % 10 == 1 and days % 100 != 11:
+            return f"до {days} рабочего дня"
+        return f"до {days} рабочих дней"
+    # Generated by Django 5.2.19 on 2026-11-18 23:32
+
+    from django.db import migrations, models
+
+
+    class Migration(migrations.Migration):
+        dependencies = [
+            ("petitions", "0002_alter_petition_created_at_and_more"),
+        ]
+
+        operations = [
+            migrations.AddField(
+                model_name="petition",
+                name="subject",
+                field=models.CharField(blank=True, default="", max_length=150, verbose_name="тип"),
+            ),
+            migrations.AddField(
+                model_name="requesttype",
+                name="subject_required",
+                field=models.BooleanField(default=False, verbose_name="нужно поле «Тип»"),
+            ),
+            migrations.AddConstraint(
+                model_name="requesttype",
+                constraint=models.CheckConstraint(
+                    condition=models.Q(
+                        ("comment_required", False), ("subject_required", True), _negated=True
+                    ),
+                    name="petitions_type_subject_needs_comment",
+                ),
+            ),
+        ]
+  ── Thought for 3s
+    Everything matches the spec so far. I need to confirm that subject_required can be edited in the admin, which holds unless a `fields` list is defined, and the diff only sets list_display and list_filter on RequestTypeAdmin. Ordering by subject_required and name changes the existing order to name, which the spec allows. Next I'm checking how the subject's max_length of 150 interacts with stripping and the clean method.
+
+    I'm checking the form's comment error: the comment field is required based on the request type, and Django's default "Обязательное поле." message is what shows, which is pre-existing behavior. So the spec's expected text was off, and the coder asserting the real message is reasonable, something to flag to the TL. Next I'll look briefly at the test diffs.
+  ── Read petitions/tests/test_models.py
+  ── Thought for 5s
+    I'm checking whether an 8-character hex short_id could plausibly show up by chance inside a 64-character random CSRF token on the page, since a short needle like that would make the assertNotIn test unreliable.
+
+    The 8-character hex needle is about 2.6e-13 likely to show up by chance in the 64-character CSRF token, so the assertNotIn check is safe in practice. I'll note it, though the README rule still says never. The Cyrillic required-field message and the "errorlist" assertion look fine too, and I'll check the subject_required admin and form handling next.
+
+── Assistant ───────────────────────────────────────────────
+Код совпадает со спецификацией F1–F8. Проверяю тесты мутациями на копии.
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Ran M=$TMPDIR/rev-mut && rm -rf "$M" && mkdir -p "$M" && rsync -a --exclude .venv --exclude .git --exclude db.sqlite3 --exclude '.env' --exclude staticfiles --exclude private_media ./ "$M/" && cd "$M" && source ~/hackatonproject/.venv/bin/activate && export DEBUG=true SECRET_KEY=mut-dummy-key-0123456789abcdefghijklmnopqrstuvwxyz && run(){ python manage.py test "$@" --parallel 1 2>&1 | grep -E '^(Ran|OK|FAILED)' | tr '\n' ' '; echo; } mut(){ f=$1; shift; label=$1; shift; expr=$1; shift; cp "$f" "$f.bak"; python3 -c "import sys;p,a,b=sys.argv[1:];s=open(p).read();assert a in s,(p,a);open(p,'w').write(s.replace(a,b,1))" "$f" "$expr" "$1"; shift; echo -n "$label: "; run "$@"; mv "$f.bak" "$f"; } mut petitions/terms.py "M1 11 singular" 'days % 10 == 1 and days % 100 != 11' 'days % 10 == 1' petitions.tests.test_terms mut petitions/services.py "M2 service no normalise" 'subject = " ".join((subject or "").split()) if' 'subject = (subject or "") if' petitions.tests.test_services mut petitions/services.py "M3 service keeps subject for any type" 'if request_type.subject_required else ""' 'if True else ""' petitions.tests.test_services mut petitions/forms.py "M4 form no normalise" '" ".join((self.cleaned_data.get("subject") or "").split())' '(self.cleaned_data.get("subject") or "")' petitions.tests.test_views mut petitions/templates/petitions/staff_detail.html "M5 staff detail old name" '<p>{{ petition.display_name }}</p>' '<p>{{ petition.request_type.name }}</p>' petitions.tests.test_views mut petitions/templates/petitions/submitted.html "M6 submitted old name" '{{ petition.display_name }}' '{{ petition.request_type.name }}' petitions.tests.test_views mut petitions/views.py "M7 catalog order" '.order_by("subject_required", "name")' '.order_by("-subject_required", "name")' petitions.tests.test_views mut petitions/models.py "M8 clean rule off" 'if self.subject_required and not self.comment_required:' 'if False:' petitions.tests.test_models mut petitions/views.py "M9 view drops subject" 'subject=form.cleaned_data.get("subject", ""),' '' petitions.tests.test_views cd /; rm -rf "$M" (21s)
+    $ M=$TMPDIR/rev-mut && rm -rf "$M" && mkdir -p "$M" && rsync -a --exclude .venv --exclude .git --exclude db.sqlite3 --exclude '.env' --exclude staticfiles --exclude private_media ./ "$M/" && cd "$M" && source ~/hackatonproject/.venv/bin/activate && export DEBUG=true SECRET_KEY=mut-dummy-key-0123456789abcdefghijklmnopqrstuvwxyz && run(){ python manage.py test "$@" --parallel 1 2>&1 | grep -E '^(Ran|OK|FAILED)' | tr '\n' ' '; echo; }
+  mut(){ f=$1; shift; label=$1; shift; expr=$1; shift; cp "$f" "$f.bak"; python3 -c "import sys;p,a,b=sys.argv[1:];s=open(p).read();assert a in s,(p,a);open(p,'w').write(s.replace(a,b,1))" "$f" "$expr" "$1"; shift; echo -n "$label: "; run "$@"; mv "$f.bak" "$f"; }
+  mut petitions/terms.py "M1 11 singular" 'days % 10 == 1 and days % 100 != 11' 'days % 10 == 1' petitions.tests.test_terms
+  mut petitions/services.py "M2 service no normalise" 'subject = " ".join((subject or "").split()) if' 'subject = (subject or "") if' petitions.tests.test_services
+  mut petitions/services.py "M3 service keeps subject for any type" 'if request_type.subject_required else ""' 'if True else ""' petitions.tests.test_services
+  mut petitions/forms.py "M4 form no normalise" '" ".join((self.cleaned_data.get("subject") or "").split())' '(self.cleaned_data.get("subject") or "")' petitions.tests.test_views
+  mut petitions/templates/petitions/staff_detail.html "M5 staff detail old name" '<p>{{ petition.display_name }}</p>' '<p>{{ petition.request_type.name }}</p>' petitions.tests.test_views
+  mut petitions/templates/petitions/submitted.html "M6 submitted old name" '{{ petition.display_name }}' '{{ petition.request_type.name }}' petitions.tests.test_views
+  mut petitions/views.py "M7 catalog order" '.order_by("subject_required", "name")' '.order_by("-subject_required", "name")' petitions.tests.test_views
+  mut petitions/models.py "M8 clean rule off" 'if self.subject_required and not self.comment_required:' 'if False:' petitions.tests.test_models
+  mut petitions/views.py "M9 view drops subject" 'subject=form.cleaned_data.get("subject", ""),' '' petitions.tests.test_views
+  cd /; rm -rf "$M"
+    M1 11 singular: Ran 2 tests in 0.001s FAILED (failures=1) 
+    M2 service no normalise: Ran 51 tests in 0.276s FAILED (failures=3) 
+    M3 service keeps subject for any type: Ran 51 tests in 0.202s FAILED (failures=1) 
+    M4 form no normalise: Ran 72 tests in 1.097s OK 
+    M5 staff detail old name: Ran 72 tests in 1.099s FAILED (failures=1) 
+    M6 submitted old name: Ran 72 tests in 1.043s FAILED (failures=1) 
+    M7 catalog order: Ran 72 tests in 1.246s FAILED (failures=1) 
+    M8 clean rule off: Ran 5 tests in 0.271s OK 
+    M9 view drops subject: Ran 72 tests in 1.064s FAILED (failures=2)
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 3s
+    The form's normalisation turns out not to matter here: the service normalises the input anyway, so the stored outcome is unchanged and the whitespace-only case still fails the required check. An input with internal whitespace that only fits under the limit after normalisation is still rejected by the form, so this mutation is equivalent and I'm marking it as such. Next I'm looking at the second mutant, which has survived as well.
+
+    The second mutant also survives, but this one looks like an equivalent mutation too. Removing the custom `clean()` rule doesn't change the outcome, because Django's constraint validation still raises a `ValidationError` from `full_clean()`, so the test can't tell them apart. The only thing I'm not covering is the custom message. Next I'll run the 360 visual check on the long subject and look at the test output.
+  ── Thought for 3ms
+    Обе мутации, M4 и M8, выжили, но эквивалентны: M4 нормализует сервис, а M8 ловит то же CheckConstraint в `full_clean()`. Жду полные прогоны.
+  ── Ran until [ $(grep -cE '^(OK|FAILED)' /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bjsj956ss.output 2>/dev/null) -ge 2 ]; do sleep 5; done; cat /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bjsj956ss.output; cd ~/hackatonproject && source .venv/bin/activate && { python manage.py check; DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop python manage.py check --deploy --fail-level WARNING; python manage.py makemigrations --check --dry-run; ruff check .; ruff format --check .; grep -rn "раб. дн" --include='*.html' . --exclude-dir=.venv; } 2>&1 | tail -6 (4m 23s)
+    $ until [ $(grep -cE '^(OK|FAILED)' /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bjsj956ss.output 2>/dev/null) -ge 2 ]; do sleep 5; done; cat /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bjsj956ss.output; cd ~/hackatonproject && source .venv/bin/activate && { python manage.py check; DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop python manage.py check --deploy --fail-level WARNING; python manage.py makemigrations --check --dry-run; ruff check .; ruff format --check .; grep -rn "раб. дн" --include='*.html' . --exclude-dir=.venv; } 2>&1 | tail -6
+    TS=20261119-041555
+    Ran 1122 tests in 157.949s
+    OK
+    Ran 1122 tests in 154.863s
+    OK
+
+    [exited with code 0]
+    System check identified no issues (0 silenced).
+    System check identified no issues (1 silenced).
+    No changes detected
+    All checks passed!
+    193 files already formatted
+  ── Thought for 5ms
+    I'm going to check the migration and seeding myself, using the rev-fix.sqlite3 database, which is currently at schedule 0006 and petitions 0002 with four types seeded. I'll migrate it with the project up to 0003 and run the seed twice, then do a 360 visual check on the long subject detail view.
+
+── Assistant ───────────────────────────────────────────────
+Тесты: 1122 OK в обоих прогонах. Проверяю миграцию и seed на своей старой базе: там 4 типа, данные до изменения.
+
+── Ran 3 commands ──────────────────────────────────────────
+  ── Ran source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/rev-fix.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/rev-fix-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && python manage.py shell -c "from petitions.models import RequestType as T; print('before types', T.objects.count())" 2>/dev/null | tail -1; python manage.py showmigrations petitions | tail -1; python manage.py migrate -v1 2>&1 | grep -i petitions; python manage.py seed_demo 2>&1 | grep Requests; python manage.py seed_demo 2>&1 | grep Requests; python manage.py shell -c " from petitions.models import Petition as P p=P.objects.get(seed_key='p-8'); print(p.display_name, p.student.user.username) print('nonempty subjects', P.objects.exclude(subject='').count()) long='Справка '+'о'*140 p.subject=long[:150]; p.save(update_fields=['subject']); print('pk', p.public_id) from django.contrib.sessions.backends.db import SessionStore from django.contrib.auth import SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY for u in (p.student.user,):     s=SessionStore(); s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create(); print('SESSION', s.session_key) " 2>/dev/null | tee $TMPDIR/rev-t014.txt | grep -v SESSION (5s)
+    $ source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/rev-fix.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/rev-fix-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && python manage.py shell -c "from petitions.models import RequestType as T; print('before types', T.objects.count())" 2>/dev/null | tail -1; python manage.py showmigrations petitions | tail -1; python manage.py migrate -v1 2>&1 | grep -i petitions; python manage.py seed_demo 2>&1 | grep Requests; python manage.py seed_demo 2>&1 | grep Requests; python manage.py shell -c "
+  from petitions.models import Petition as P
+  p=P.objects.get(seed_key='p-8'); print(p.display_name, p.student.user.username)
+  print('nonempty subjects', P.objects.exclude(subject='').count())
+  long='Справка '+'о'*140
+  p.subject=long[:150]; p.save(update_fields=['subject']); print('pk', p.public_id)
+  from django.contrib.sessions.backends.db import SessionStore
+  from django.contrib.auth import SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY
+  for u in (p.student.user,):
+      s=SessionStore(); s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create(); print('SESSION', s.session_key)
+  " 2>/dev/null | tee $TMPDIR/rev-t014.txt | grep -v SESSION
+    before types 4
+     [ ] 0003_subject
+      Apply all migrations: academics, accounts, admin, auth, chat, contenttypes, notifications, petitions, schedule, sessions, university
+      Applying petitions.0003_subject... OK
+    Requests ready: 7 types, 1 requests, 0 attachments.
+    Requests ready: 7 types, 0 requests, 0 attachments.
+    31 objects imported automatically (use -v 2 for details).
+
+    Другая справка: Справка о периоде обучения student1
+    nonempty subjects 1
+    pk 63a22876-2176-4d25-ad40-25ce55a851ff
+  ── Ran source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/rev-fix.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/rev-fix-private" && python manage.py runserver 127.0.0.1:8771 --noreload > $TMPDIR/rev-ui-server.log 2>&1 (1s)
+    $ source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/rev-fix.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/rev-fix-private" && python manage.py runserver 127.0.0.1:8771 --noreload > $TMPDIR/rev-ui-server.log 2>&1
+    Command running in background with ID: bghj21mv3. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bghj21mv3.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -1 (3s)
+    $ bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -1
+    {"id":"6ab1da1d-1db9-4e22-a98b-51df1b3accf8","threadId":"thr_cpuae9aqw3","hostId":"host_cuvmpv75p3","backend":"local","state":"ready","createdAt":1795090895133,"expiresAt":1795092695133,"previewDirective":"::browser-preview{session=\"6ab1da1d-1db9-4e22-a98b-51df1b3accf8\"}"}
+
+── Assistant ───────────────────────────────────────────────
+::browser-preview{session="6ab1da1d-1db9-4e22-a98b-51df1b3accf8"}
+
+── Ran 2 commands, explored 2 files, ran 1 tool ────────────
+  ── Ran SID=$(awk '/^SESSION/{print $2}' $TMPDIR/rev-t014.txt) && bb browser-automation run 6ab1da1d-1db9-4e22-a98b-51df1b3accf8 --script " const p = await browser.getPage('main'); await p.setCookie({name:'sessionid', value:'$SID', domain:'127.0.0.1', path:'/'}); await p.setViewport({width:360,height:780}); const out={}; for (const [k,u] of [['detail','/requests/63a22876-2176-4d25-ad40-25ce55a851ff/'],['list','/requests/'],['catalog','/requests/new/']]) {   await p.goto('http://127.0.0.1:8771'+u); await p.evaluate(()=>document.fonts.ready);   out[k]=await p.evaluate(()=>document.documentElement.scrollWidth);   await p.shot({type:'jpeg',maxEdge:780,quality:55}); } return out;" --json --timeout 60s 2>&1 | python3 -c "import json,sys; d=json.load(sys.stdin); print([i['path'] for i in d.get('images',[])]); print(d.get('text')); print(d.get('error'))" 2>/dev/null (1s)
+    $ SID=$(awk '/^SESSION/{print $2}' $TMPDIR/rev-t014.txt) && bb browser-automation run 6ab1da1d-1db9-4e22-a98b-51df1b3accf8 --script "
+  const p = await browser.getPage('main');
+  await p.setCookie({name:'sessionid', value:'$SID', domain:'127.0.0.1', path:'/'});
+  await p.setViewport({width:360,height:780});
+  const out={};
+  for (const [k,u] of [['detail','/requests/63a22876-2176-4d25-ad40-25ce55a851ff/'],['list','/requests/'],['catalog','/requests/new/']]) {
+    await p.goto('http://127.0.0.1:8771'+u); await p.evaluate(()=>document.fonts.ready);
+    out[k]=await p.evaluate(()=>document.documentElement.scrollWidth);
+    await p.shot({type:'jpeg',maxEdge:780,quality:55});
+  }
+  return out;" --json --timeout 60s 2>&1 | python3 -c "import json,sys; d=json.load(sys.stdin); print([i['path'] for i in d.get('images',[])]); print(d.get('text')); print(d.get('error'))" 2>/dev/null
+    ['/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-loLf1l/db-V0MXzp/tmp/shot-1795090902750-1.jpg', '/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-loLf1l/db-V0MXzp/tmp/shot-1795090902828-2.jpg', '/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-loLf1l/db-V0MXzp/tmp/shot-1795090902889-3.jpg']
+    {
+      "detail": 360,
+      "list": 360,
+      "catalog": 360
+    }
+    None
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-loLf1l/db-V0MXzp/tmp/shot-1795090902750-1.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-loLf1l/db-V0MXzp/tmp/shot-1795090902889-3.jpg
+  ── Thought for 558ms
+    The layout wraps cleanly with no horizontal scroll, which is what I wanted. The long h1 is an accepted risk under the spec, so I'll leave it. Next I'll close things out, stop the server, and send APPROVE.
+  ── Thought for 5ms
+    Длинный «Тип» переносится без горизонтальной прокрутки, а каталог в порядке: «Другая справка» стоит последней, сроки указаны в рабочих днях. Теперь закрываю браузер и сервер.
+  ── Ran bb browser-automation close 6ab1da1d-1db9-4e22-a98b-51df1b3accf8 --json >/dev/null 2>&1; echo closed (1m 15s, error)
+    $ bb browser-automation close 6ab1da1d-1db9-4e22-a98b-51df1b3accf8 --json >/dev/null 2>&1; echo closed
+    The server-side auto mode classifier gave no verdict (the response ended before its verdict arrived), so auto mode cannot determine the safety of Bash. This is a transient failure of the check, not a judgment about the action: a later response may get a verdict. You may try the action again once, as-is. Repeated attempts are slowed by a growing delay, and after 10 responses in a row without a verdict the turn stops. If it keeps failing, continue with other tasks that don't require this action and come back to it later. Note: reading files, searching code, and other read-only operations do not require the classifier and can still be used.
+    exit 1
+  ── Stopped task (1m 14s)
+    {"message":"Successfully stopped task: bghj21mv3 (source .venv/bin/activate && export DATABASE_URL=\"sqlite:///$TMPDIR/rev-fix.sqlite3\" PRIVATE_MEDIA_ROOT=\"$TMPDIR/rev-fix-private\" && python manage.py runserver 127.0.0.1:8771 --noreload > $TMPDIR/rev-ui-server.log 2>&1)","task_id":"bghj21mv3","task_type":"local_bash","command":"source .venv/bin/activate && export DATABASE_URL=\"sqlite:///$TMPDIR/rev-fix.sqlite3\" PRIVATE_MEDIA_ROOT=\"$TMPDIR/rev-fix-private\" && python manage.py runserver 127.0.0.1:8771 --noreload > $TMPDIR/rev-ui-server.log 2>&1"}
+
+── Assistant ───────────────────────────────────────────────
+API Error: Connection lost mid-response. The response above may be incomplete.
+
+── Bash was denied automatically ───────────────────────────
+  Classifier unavailable (classifier)
+
+── Ran bb browser-automation close 6ab1da1d-1db9-4e22-a98b-51df1b3accf8 --json >/dev/null 2>&1; echo closed (4s)
+  $ bb browser-automation close 6ab1da1d-1db9-4e22-a98b-51df1b3accf8 --json >/dev/null 2>&1; echo closed
+  closed
+
+── Ran bb thread tell thr_4izdzwetb4 --message-file - <<'EOF' [TASK-014] Reviewer -> Team lead: APPROVE Round 1. Assignee: Coder. Spec: docs/tasks/TASK-014.md. ## Verified - F1-F8, admin and README match the spec: terms.py, model fields/constraint/clean/properties, migration 0003 (2 AddField + AddConstraint, depends on 0002), form field + clean_subject, service `subject=""` with normalisation and length check, view passes subject, catalog order, 6 templates use display_name/term_label (no `|safe`), demo types and p-8. "раб. дн." is gone from all templates. - Access: views and selectors are unchanged. The new test test_other_student_cannot_see_subject covers the 404 for another student's petition and shows the subject is absent from their list. - Mutations on a temp copy:   - caught: 11 → singular; no normalisation in the service; service keeps the subject for unflagged types; staff_detail and submitted back to type name; reversed catalog order; view drops subject (2 failures).   - equivalent (survived): (a) no normalisation in the form, because the service normalises anyway; (b) the RequestType.clean() rule disabled, because full_clean() also validates the CheckConstraint and rejects the same combination. The custom clean() message is therefore not asserted by any test. Low risk. - Migration on my DB seeded before the change (4 types, petitions at 0002): migrate applied 0003. seed_demo printed "7 types, 1 requests", then "7 types, 0 requests". p-8 shows "Другая справка: Справка о периоде обучения" for student1; only p-8 has a subject. - Browser at 360 px (headless Chrome): a 150-char subject in the detail h1 wraps; scrollWidth is 360 on detail, list and catalog. Catalog shows "до 3 рабочих дней" / "до 5 рабочих дней", and "Другая справка" is last in its section. ## Runs (log time US; MSK = +11 h, ~15:16-15:22 MSK) - `test --parallel 1`: Ran 1122 tests, OK. $TMPDIR/test-t014-rev-20261119-041555.log - `run_tests_at.py 2026-11-20T00:00:00`: Ran 1122 tests, OK. $TMPDIR/test-t014-rev-midnight-20261119-041555.log - No failures. check, check --deploy --fail-level WARNING, makemigrations --check, ruff check . and ruff format --check . (193 files): all OK. ## Spec deviation (accepted; FYI) The Test plan expected "Для этой заявки комментарий обязателен." for an empty comment on the form. That text exists only in the service. The form shows Django's "Обязательное поле.", as it did before this task. The Coder asserted the real text in test_comment_required_for_catch_all and test_military_comment_required. Behaviour is unchanged, and the Test plan line was wrong. If you want the custom message on the form, that is a separate small change. ## Notes - The long pixel h1 (150 chars) takes about 9 lines at 360 px. It is accepted by the spec Risks. - `test_other_student_cannot_see_subject` uses assertNotIn on the 8-char short_id over a full page. The README rule warns against short needles because of the CSRF token. Here it is assertNotIn of 8 hex chars, so a false failure needs a token match (~1e-13). Negligible; noted only for consistency. EOF
+  $ bb thread tell thr_4izdzwetb4 --message-file - <<'EOF'
+[TASK-014] Reviewer -> Team lead: APPROVE
+Round 1. Assignee: Coder. Spec: docs/tasks/TASK-014.md.
+
+## Verified
+- F1-F8, admin and README match the spec: terms.py, model fields/constraint/clean/properties, migration 0003 (2 AddField + AddConstraint, depends on 0002), form field + clean_subject, service `subject=""` with normalisation and length check, view passes subject, catalog order, 6 templates use display_name/term_label (no `|safe`), demo types and p-8. "раб. дн." is gone from all templates.
+- Access: views and selectors are unchanged. The new test test_other_student_cannot_see_subject covers the 404 for another student's petition and shows the subject is absent from their list.
+- Mutations on a temp copy:
+  - caught: 11 → singular; no normalisation in the service; service keeps the subject for unflagged types; staff_detail and submitted back to type name; reversed catalog order; view drops subject (2 failures).
+  - equivalent (survived): (a) no normalisation in the form, because the service normalises anyway; (b) the RequestType.clean() rule disabled, because full_clean() also validates the CheckConstraint and rejects the same combination. The custom clean() message is therefore not asserted by any test. Low risk.
+- Migration on my DB seeded before the change (4 types, petitions at 0002): migrate applied 0003. seed_demo printed "7 types, 1 requests", then "7 types, 0 requests". p-8 shows "Другая справка: Справка о периоде обучения" for student1; only p-8 has a subject.
+- Browser at 360 px (headless Chrome): a 150-char subject in the detail h1 wraps; scrollWidth is 360 on detail, list and catalog. Catalog shows "до 3 рабочих дней" / "до 5 рабочих дней", and "Другая справка" is last in its section.
+
+## Runs (log time US; MSK = +11 h, ~15:16-15:22 MSK)
+- `test --parallel 1`: Ran 1122 tests, OK. $TMPDIR/test-t014-rev-20261119-041555.log
+- `run_tests_at.py 2026-11-20T00:00:00`: Ran 1122 tests, OK. $TMPDIR/test-t014-rev-midnight-20261119-041555.log
+- No failures. check, check --deploy --fail-level WARNING, makemigrations --check, ruff check . and ruff format --check . (193 files): all OK.
+
+## Spec deviation (accepted; FYI)
+The Test plan expected "Для этой заявки комментарий обязателен." for an empty comment on the form. That text exists only in the service. The form shows Django's "Обязательное поле.", as it did before this task. The Coder asserted the real text in test_comment_required_for_catch_all and test_military_comment_required. Behaviour is unchanged, and the Test plan line was wrong. If you want the custom message on the form, that is a separate small change.
+
+## Notes
+- The long pixel h1 (150 chars) takes about 9 lines at 360 px. It is accepted by the spec Risks.
+- `test_other_student_cannot_see_subject` uses assertNotIn on the 8-char short_id over a full page. The README rule warns against short needles because of the CSRF token. Here it is assertNotIn of 8 hex chars, so a false failure needs a token match (~1e-13). Negligible; noted only for consistency.
+EOF
+  Thread thr_4izdzwetb4 steered
+
+── Assistant ───────────────────────────────────────────────
+TASK-014 одобрен с первого раза: новые виды заявок, поле «Тип», срок в виде «до N рабочих дней». APPROVE отправлен Тимлиду.
+
+- **Тесты:** полный прогон дал 1122 OK, прогон «в полночь» тоже 1122 OK, падений не было. `check`, `check --deploy`, миграции и ruff в порядке.
+- **Код совпадает со спецификацией:**
+  - 7 видов заявок;
+  - поле «Тип» только у «Другой справки» и «Другого заявления», до 150 символов, лишние пробелы удаляются;
+  - название «Другая справка: …» видно на пяти страницах, HTML в нём экранируется;
+  - доступ к заявкам не изменился, чужую заявку студент не видит.
+- **Мутации:** 7 из 9 тесты поймали. Две выжили, но они ничего не меняют в поведении:
+  - нормализацию «Типа» в форме всё равно повторяет сервис;
+  - запрет «Тип без комментария» дублирует ограничение в базе.
+- **Миграция на старых данных** прошла. Seed создал 7 видов и одну новую заявку p-8, повторный запуск ничего не добавил.
+- **В браузере на 360 px:** «Тип» длиной 150 символов переносится, горизонтальной прокрутки нет. В каталоге «Другая справка» стоит последней, сроки написаны правильно.
+
+Отступление от спецификации: при пустом комментарии форма пишет «Обязательное поле.», а не «Для этой заявки комментарий обязателен.». Форма и раньше выводила этот текст. Ошибка была в плане тестов, кодер проверил реальный текст. Я сообщил Тимлиду: если нужен свой текст, это отдельная небольшая правка.
+
+Браузер закрыт, сервер остановлен. Жду следующий REPORT.

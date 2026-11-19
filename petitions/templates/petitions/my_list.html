@@ -6,7 +6,7 @@
     <ul class="petition-list">
       {% for petition in petitions %}
         <li class="petition">
-          <a href="{% url 'petitions:detail' petition.public_id %}">{{ petition.request_type.name }}</a>
+          <a href="{% url 'petitions:detail' petition.public_id %}">{{ petition.display_name }}</a>
           · № {{ petition.short_id }}
           · {{ petition.created_at|date:"j E Y" }}
           · <span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>

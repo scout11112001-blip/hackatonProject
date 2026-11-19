@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-  <h1>{{ petition.request_type.name }}</h1>
+  <h1>{{ petition.display_name }}</h1>
   <p class="status status--{{ petition.status }}">{{ petition.get_status_display }}</p>
   <p>№ {{ petition.short_id }}</p>
   <p>Подана: {{ petition.created_at|date:"j E Y H:i" }}</p>

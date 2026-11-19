@@ -27,7 +27,7 @@
         <li class="petition">
           <a href="{% url 'petitions:staff_detail' petition.public_id %}">{{ petition.student.full_name }}</a>
           · {{ petition.student.group.name }}
-          · {{ petition.request_type.name }}
+          · {{ petition.display_name }}
           · {{ petition.created_at|date:"j E Y" }}
           · <span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>
           · файлов: {{ petition.attachment_count }}

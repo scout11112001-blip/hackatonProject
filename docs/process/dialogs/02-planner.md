@@ -21488,3 +21488,63 @@ You've hit your 5-hour limit · resets 2:40pm (America/Los_Angeles)
 В ленте уведомлений заявки по-прежнему называются только по виду, без «Типа»: вы перечислили только страницы заявок.
 
 Когда тимлид сообщит о коммите TASK-013-FIX2, я перезапущу проверки на чистом дереве и передам задачу Кодеру.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-014] Team lead -> Planner: ANSWER
+TASK-013-FIX2 committed (ca9f30b). The tree is clean except your docs/tasks/TASK-014.md. Re-run the verification commands on the clean tree and hand TASK-014 to the Coder.
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Ran git status --short && git log --oneline -1 && source .venv/bin/activate && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run | tail -1 && ruff check . | tail -1 && ruff format --check . | tail -1 && LOG="$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log" && python manage.py test --parallel 1 2>&1 | tee "$LOG" | grep -E "^(FAIL|ERROR):|^Ran|^OK|^FAILED"; echo "$LOG"; TZ=Europe/Moscow date; git diff --stat ca9f30b~1 ca9f30b | tail -3 (2m 35s)
+    $ git status --short && git log --oneline -1 && source .venv/bin/activate && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run | tail -1 && ruff check . | tail -1 && ruff format --check . | tail -1 && LOG="$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log" && python manage.py test --parallel 1 2>&1 | tee "$LOG" | grep -E "^(FAIL|ERROR):|^Ran|^OK|^FAILED"; echo "$LOG"; TZ=Europe/Moscow date; git diff --stat ca9f30b~1 ca9f30b | tail -3
+    ?? docs/tasks/TASK-014.md
+    ca9f30b TASK-013-FIX2: wide map layout, the floor plan fits the screen
+    System check identified no issues (0 silenced).
+    No changes detected
+    All checks passed!
+    190 files already formatted
+    Ran 1095 tests in 151.738s
+    OK
+    /tmp/claude-501/test-20261118-152758.log
+    Thu Nov 19 02:30:31 MSK 2026
+     plan.md                                            |    7 +-
+     static/css/base.css                                |   39 +
+     16 files changed, 4426 insertions(+), 4 deletions(-)
+  ── Thought for 4ms
+    I'm checking that the commit left the petitions files alone, so I'll grep for "petitions" in the diff stat.
+  ── Ran git diff --name-only 8f469b2 ca9f30b | grep -c petitions; python3 - <<'EOF' 2>&1 | grep -v xcrun import pathlib p=pathlib.Path('docs/tasks/TASK-014.md'); s=p.read_text() old=s[s.index('1. Clean starting point:'):s.index('2. Referenced objects exist:')] s=s.replace(old,'1. Clean starting point: re-checked on 2026-11-19 ~02:30 MSK after the TASK-013-FIX2 commit `ca9f30b`: `git status --short` shows only `?? docs/tasks/TASK-014.md`. The commits since the prototype (`8f469b2..ca9f30b`) touch no `petitions` file.\n') old8=s[s.index('8. Verification:'):s.index('9. Conflicts:')] s=s.replace(old8,'8. Verification on the clean tree (HEAD `ca9f30b`, 2026-11-19 ~02:28 MSK): `check` (no issues), `makemigrations --check` (no changes), `ruff check .` (passed), `ruff format --check .` (190 files formatted), `python manage.py test --parallel 1`: **Ran 1095 tests, OK** (log `/tmp/claude-501/test-20261118-152758.log`). Prototype full run with all of F1–F8 on the previous HEAD (log `/tmp/claude-501/test-t014-proto-20261118-144322.log`, ~01:46 MSK): the only failure is `petitions.tests.test_demo.PetitionsDemoTests.test_types_exact` (expects 4 types) — expected, updated below. The lists\' query-count tests passed unchanged.\n') p.write_text(s) EOF grep -n "^1\. Clean\|^8\. Verification" docs/tasks/TASK-014.md (1s)
+    $ git diff --name-only 8f469b2 ca9f30b | grep -c petitions; python3 - <<'EOF' 2>&1 | grep -v xcrun
+  import pathlib
+  p=pathlib.Path('docs/tasks/TASK-014.md'); s=p.read_text()
+  old=s[s.index('1. Clean starting point:'):s.index('2. Referenced objects exist:')]
+  s=s.replace(old,'1. Clean starting point: re-checked on 2026-11-19 ~02:30 MSK after the TASK-013-FIX2 commit `ca9f30b`: `git status --short` shows only `?? docs/tasks/TASK-014.md`. The commits since the prototype (`8f469b2..ca9f30b`) touch no `petitions` file.\n')
+  old8=s[s.index('8. Verification:'):s.index('9. Conflicts:')]
+  s=s.replace(old8,'8. Verification on the clean tree (HEAD `ca9f30b`, 2026-11-19 ~02:28 MSK): `check` (no issues), `makemigrations --check` (no changes), `ruff check .` (passed), `ruff format --check .` (190 files formatted), `python manage.py test --parallel 1`: **Ran 1095 tests, OK** (log `/tmp/claude-501/test-20261118-152758.log`). Prototype full run with all of F1–F8 on the previous HEAD (log `/tmp/claude-501/test-t014-proto-20261118-144322.log`, ~01:46 MSK): the only failure is `petitions.tests.test_demo.PetitionsDemoTests.test_types_exact` (expects 4 types) — expected, updated below. The lists\' query-count tests passed unchanged.\n')
+  p.write_text(s)
+  EOF
+  grep -n "^1\. Clean\|^8\. Verification" docs/tasks/TASK-014.md
+    0
+    185:1. Clean starting point: re-checked on 2026-11-19 ~02:30 MSK after the TASK-013-FIX2 commit `ca9f30b`: `git status --short` shows only `?? docs/tasks/TASK-014.md`. The commits since the prototype (`8f469b2..ca9f30b`) touch no `petitions` file.
+    192:8. Verification on the clean tree (HEAD `ca9f30b`, 2026-11-19 ~02:28 MSK): `check` (no issues), `makemigrations --check` (no changes), `ruff check .` (passed), `ruff format --check .` (190 files formatted), `python manage.py test --parallel 1`: **Ran 1095 tests, OK** (log `/tmp/claude-501/test-20261118-152758.log`). Prototype full run with all of F1–F8 on the previous HEAD (log `/tmp/claude-501/test-t014-proto-20261118-144322.log`, ~01:46 MSK): the only failure is `petitions.tests.test_demo.PetitionsDemoTests.test_types_exact` (expects 4 types) — expected, updated below. The lists' query-count tests passed unchanged.
+    [This command modified 1 file you've previously read: docs/tasks/TASK-014.md. Call Read before editing.]
+
+── Ran bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF' [TASK-014] Planner -> Coder: TASK Spec: docs/tasks/TASK-014.md (exact code in F1-F8). Summary: - New RequestType.subject_required (+ clean() rule and DB constraint: it needs comment_required) and Petition.subject (max 150). Migration petitions/0003_subject. - PetitionForm gets a required "Тип" field only for flagged types, normalised to one line. submit_petition(..., subject="") validates it again and ignores it for other types. Petition.display_name ("Другая справка: <Тип>") is used in my_list, detail, staff_queue, staff_detail and submitted. - Term wording: petitions/terms.py term_label() -> "до N рабочих дней" / "до 1 (21, 31…) рабочего дня" via RequestType.term_label in catalog.html. Catch-all types are last in the catalog. - Seeds: 3 new types (7 total) and demo request p-8 "Другая справка: Справка о периоде обучения" for student1. Update test_types_exact and test_command_output; add the tests listed in the Test plan. Baseline on the clean tree (HEAD ca9f30b): 1095 tests OK (2026-11-19 ~02:28 MSK). Prototype: only test_types_exact failed (expected). Never touch db.sqlite3 or private_media/. EOF
+  $ bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF'
+[TASK-014] Planner -> Coder: TASK
+Spec: docs/tasks/TASK-014.md (exact code in F1-F8).
+Summary:
+- New RequestType.subject_required (+ clean() rule and DB constraint: it needs comment_required) and Petition.subject (max 150). Migration petitions/0003_subject.
+- PetitionForm gets a required "Тип" field only for flagged types, normalised to one line. submit_petition(..., subject="") validates it again and ignores it for other types. Petition.display_name ("Другая справка: <Тип>") is used in my_list, detail, staff_queue, staff_detail and submitted.
+- Term wording: petitions/terms.py term_label() -> "до N рабочих дней" / "до 1 (21, 31…) рабочего дня" via RequestType.term_label in catalog.html. Catch-all types are last in the catalog.
+- Seeds: 3 new types (7 total) and demo request p-8 "Другая справка: Справка о периоде обучения" for student1. Update test_types_exact and test_command_output; add the tests listed in the Test plan.
+Baseline on the clean tree (HEAD ca9f30b): 1095 tests OK (2026-11-19 ~02:28 MSK). Prototype: only test_types_exact failed (expected). Never touch db.sqlite3 or private_media/.
+EOF
+  Thread thr_ng6cbgatm6 steered
+
+── Assistant ───────────────────────────────────────────────
+Я отправил TASK-014 Кодеру.
+
+Перед этим перезапустил все проверки на чистом дереве после коммита TASK-013-FIX2 (`ca9f30b`). Прошли все 1095 тестов, `check`, проверка миграций и ruff. Коммит TASK-013-FIX2 не меняет ни одного файла заявок, поэтому прототип TASK-014 остаётся в силе. Новые данные проверки я записал в раздел проверки выполнимости [спецификации](docs/tasks/TASK-014.md).
+
+Жду вопросов Кодера.

@@ -3,7 +3,7 @@
 from django import forms
 
 from petitions.files import validate_attachments
-from petitions.models import MAX_COMMENT_LENGTH, PetitionStatus, RequestType
+from petitions.models import MAX_COMMENT_LENGTH, SUBJECT_MAX_LENGTH, PetitionStatus, RequestType
 
 
 class MultipleFileInput(forms.ClearableFileInput):
@@ -23,6 +23,12 @@ class MultipleFileField(forms.FileField):
 
 
 class PetitionForm(forms.Form):
+    subject = forms.CharField(
+        label="Тип",
+        max_length=SUBJECT_MAX_LENGTH,
+        help_text="Что именно нужно, например: «Справка о периоде обучения».",
+        error_messages={"required": "Укажите, что именно нужно."},
+    )
     comment = forms.CharField(
         label="Комментарий",
         required=False,
@@ -38,6 +44,14 @@ class PetitionForm(forms.Form):
         self.request_type = request_type
         self.fields["comment"].required = request_type.comment_required
         self.fields["comment"].help_text = request_type.comment_hint
+        if not request_type.subject_required:
+            del self.fields["subject"]
+
+    def clean_subject(self):
+        subject = " ".join((self.cleaned_data.get("subject") or "").split())
+        if not subject:
+            raise forms.ValidationError("Укажите, что именно нужно.")
+        return subject
 
     def clean_comment(self):
         comment = (self.cleaned_data.get("comment") or "").strip()

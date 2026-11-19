@@ -34,7 +34,7 @@ class CatalogView(StudentRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        types = RequestType.objects.filter(is_active=True)
+        types = RequestType.objects.filter(is_active=True).order_by("subject_required", "name")
         context["certificates"] = types.filter(kind=RequestKind.CERTIFICATE)
         context["applications"] = types.filter(kind=RequestKind.APPLICATION)
         return context
@@ -68,6 +68,7 @@ class SubmitPetitionView(StudentRequiredMixin, FormView):
                 self.request_type,
                 form.cleaned_data["comment"],
                 form.cleaned_data["files"],
+                subject=form.cleaned_data.get("subject", ""),
             )
         except ValidationError as exc:
             form.add_error(None, exc)

@@ -6,7 +6,7 @@
     <p>
       <a href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>
       {% if type.description %} — {{ type.description }}{% endif %}
-      · Срок: {{ type.processing_days }} раб. дн.
+      · Срок: {{ type.term_label }}
     </p>
   {% empty %}
     <p>Справок пока нет.</p>
@@ -16,7 +16,7 @@
     <p>
       <a href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>
       {% if type.description %} — {{ type.description }}{% endif %}
-      · Срок: {{ type.processing_days }} раб. дн.
+      · Срок: {{ type.term_label }}
     </p>
   {% empty %}
     <p>Заявлений пока нет.</p>

@@ -40,16 +40,34 @@ class PetitionsDemoTests(FrozenClockMixin, TestCase):
         return count
 
     def test_types_exact(self):
+        # TASK-014: 3 new types
         expected = {
-            ("Справка об обучении", "certificate", 3, False),
-            ("Справка для стипендиального отдела", "certificate", 3, True),
-            ("Заявление на повторную промежуточную аттестацию", "application", 10, True),
-            ("Заявление на академический отпуск", "application", 15, True),
+            ("Справка об обучении", "certificate", 3, False, False),
+            ("Справка для стипендиального отдела", "certificate", 3, True, False),
+            ("Заявление на повторную промежуточную аттестацию", "application", 10, True, False),
+            ("Заявление на академический отпуск", "application", 15, True, False),
+            ("Справка в военкомат", "certificate", 3, True, False),
+            ("Другая справка", "certificate", 5, True, True),
+            ("Другое заявление", "application", 5, True, True),
         }
         types = RequestType.objects.all()
-        self.assertEqual(types.count(), 4)
+        self.assertEqual(types.count(), 7)
         for t in types:
-            self.assertIn((t.name, t.kind, t.processing_days, t.comment_required), expected)
+            self.assertIn(
+                (t.name, t.kind, t.processing_days, t.comment_required, t.subject_required),
+                expected,
+            )
+
+    def test_demo_subject_request(self):
+        p = Petition.objects.get(seed_key="p-8")
+        self.assertEqual(p.request_type.name, "Другая справка")
+        self.assertEqual(p.subject, "Справка о периоде обучения")
+        self.assertEqual(p.student.user.username, "student1")
+        self.assertEqual(p.display_name, "Другая справка: Справка о периоде обучения")
+        for other in Petition.objects.exclude(seed_key="p-8"):
+            self.assertEqual(other.subject, "")
+        for t in RequestType.objects.filter(subject_required=True):
+            self.assertTrue(t.comment_required)
 
     def test_every_status_present(self):
         statuses = set(Petition.objects.values_list("status", flat=True))
@@ -107,4 +125,4 @@ class PetitionsDemoTests(FrozenClockMixin, TestCase):
         with mock.patch.dict(os.environ, {"DEMO_PASSWORD": PASSWORD}):
             out = StringIO()
             call_command("seed_demo", stdout=out)
-        self.assertIn("Requests ready", out.getvalue())
+        self.assertIn("Requests ready: 7 types", out.getvalue())

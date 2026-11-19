@@ -5,7 +5,14 @@ from .models import Petition, PetitionAttachment, PetitionComment, PetitionStatu
 
 @admin.register(RequestType)
 class RequestTypeAdmin(admin.ModelAdmin):
-    list_display = ("name", "kind", "processing_days", "comment_required", "is_active")
+    list_display = (
+        "name",
+        "kind",
+        "processing_days",
+        "comment_required",
+        "subject_required",
+        "is_active",
+    )
     list_filter = ("kind", "is_active")
 
 
@@ -44,7 +51,7 @@ class PetitionAttachmentInline(admin.TabularInline):
 
 @admin.register(Petition)
 class PetitionAdmin(admin.ModelAdmin):
-    list_display = ("public_id", "request_type", "student", "status", "created_at")
+    list_display = ("public_id", "request_type", "subject", "student", "status", "created_at")
     list_filter = ("status", "request_type")
     inlines = [PetitionHistoryInline, PetitionCommentInline, PetitionAttachmentInline]
 

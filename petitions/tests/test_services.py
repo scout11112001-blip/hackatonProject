@@ -416,3 +416,45 @@ class ServiceClockTests(FrozenClockMixin, TestCase):
         for model, field in cases:
             with self.subTest(model=model.__name__, field=field):
                 self.assertIs(model._meta.get_field(field).default, clock.now)
+
+
+class SubmitSubjectTests(FrozenClockMixin, TestCase):
+    def setUp(self):
+        self.faculty = make_faculty("FDD")
+        self.group = make_group(self.faculty, "ЦД-101")
+        self.student = make_student("s1", self.group, "ST-0001").student_profile
+        self.catch_all = make_type(
+            name="Другая справка", days=5, comment_required=True, hint="h", subject_required=True
+        )
+        self.ordinary = make_type(days=3)
+
+    def test_subject_stored_normalised(self):
+        petition = submit_petition(
+            self.student, self.catch_all, "коммент", [], subject="  Справка \n о периоде  "
+        )
+        self.assertEqual(petition.subject, "Справка о периоде")
+
+    def test_subject_required(self):
+        for subject in ("", "   "):
+            with self.subTest(subject=subject):
+                with self.assertRaises(ValidationError) as cm:
+                    submit_petition(self.student, self.catch_all, "коммент", [], subject=subject)
+                self.assertTrue(
+                    any("Укажите, что именно нужно." in m for m in cm.exception.messages)
+                )
+        self.assertEqual(Petition.objects.count(), 0)
+
+    def test_subject_length(self):
+        ok = submit_petition(self.student, self.catch_all, "коммент", [], subject="а" * 150)
+        self.assertEqual(len(ok.subject), 150)
+        with self.assertRaises(ValidationError) as cm:
+            submit_petition(self.student, self.catch_all, "коммент", [], subject="а" * 151)
+        self.assertTrue(any("Поле «Тип» слишком длинное." in m for m in cm.exception.messages))
+
+    def test_subject_ignored_without_flag(self):
+        petition = submit_petition(self.student, self.ordinary, "", [], subject="X")
+        self.assertEqual(petition.subject, "")
+
+    def test_existing_positional_calls_still_work(self):
+        petition = submit_petition(self.student, self.ordinary, "", [])
+        self.assertEqual(petition.status, "submitted")

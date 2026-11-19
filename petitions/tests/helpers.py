@@ -24,13 +24,21 @@ def fake_upload(name, content, content_type):
     return SimpleUploadedFile(name, content, content_type=content_type)
 
 
-def make_type(name="Справка", kind="certificate", days=3, comment_required=False, hint=""):
+def make_type(
+    name="Справка",
+    kind="certificate",
+    days=3,
+    comment_required=False,
+    hint="",
+    subject_required=False,
+):
     return RequestType.objects.create(
         name=name,
         kind=kind,
         processing_days=days,
         comment_required=comment_required,
         comment_hint=hint,
+        subject_required=subject_required,
     )
 
 

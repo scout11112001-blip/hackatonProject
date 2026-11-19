@@ -101,6 +101,11 @@ per-request detail with history and downloads. Staff: `/staff/requests/` (queue,
 own faculty, filtered by status/type, open oldest first) and per-request actions
 (take in progress, mark ready, mark issued, reject) and staff comments.
 
+There are 7 request types: certificates and applications, including the
+catch-all "Другая справка" / "Другое заявление" which require a one-line "Тип"
+field plus a comment. The catalog shows the term as a maximum ("до N рабочих
+дней").
+
 Status workflow:
 
 | Status | Allowed transitions |

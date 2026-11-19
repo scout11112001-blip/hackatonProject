@@ -6,7 +6,7 @@
   <p>{{ petition.student.group.name }}</p>
   <p>№ зачётной книжки: {{ petition.student.record_number }}</p>
   <h2>Заявка</h2>
-  <p>{{ petition.request_type.name }}</p>
+  <p>{{ petition.display_name }}</p>
   <p class="status status--{{ petition.status }}">{{ petition.get_status_display }}</p>
   <p>Подана: {{ petition.created_at|date:"j E Y H:i" }}</p>
   <p>Ожидаемая дата готовности: {{ petition.expected_ready_date|date:"j E Y" }}</p>
