@@ -25,7 +25,6 @@ NGINX_CONF = DEPLOY_DIR / "nginx" / "deanery.conf"
 NGINX_BOOTSTRAP = DEPLOY_DIR / "nginx" / "deanery-bootstrap.conf"
 GUNICORN_CONF = DEPLOY_DIR / "gunicorn.conf.py"
 SYSTEMD_UNIT = DEPLOY_DIR / "systemd" / "deanery.service"
-JOURNALD = DEPLOY_DIR / "journald" / "50-deanery.conf"
 SSH_HARDENING = DEPLOY_DIR / "ssh" / "10-deanery-hardening.conf"
 CRON = DEPLOY_DIR / "cron" / "deanery-backup"
 BACKUP_SH = DEPLOY_DIR / "backup.sh"
@@ -34,8 +33,9 @@ MANAGE_SH = DEPLOY_DIR / "manage.sh"
 ENV_EXAMPLE = BASE_DIR / ".env.production.example"
 DEPLOY_MD = BASE_DIR / "docs" / "DEPLOY.md"
 
-# The step-10 sed `-e` rules (docs/DEPLOY.md); kept here so the test can run them.
-STEP10_SED_EXPRS = (
+# The sed `-e` rules of the "Environment file" step (docs/DEPLOY.md); kept here so the
+# test can run them.
+ENV_FILE_SED_EXPRS = (
     "s/example\\.com/$DOMAIN/g",
     "s|replace-me-with-secrets-token-urlsafe-50-generated-on-the-server|$SECRET|",
     "s|REPLACE_ME_DB_PASSWORD|$DB_PASS|",
@@ -60,7 +60,7 @@ class GunicornConfigTests(SimpleTestCase):
     def test_defaults(self):
         cfg = self._load_config()
         self.assertEqual(cfg["bind"], "127.0.0.1:8000")
-        self.assertEqual(cfg["workers"], 2)
+        self.assertEqual(cfg["workers"], 5)  # TASK-015: 2 vCPU / ~2 GB server
         self.assertEqual(cfg["timeout"], 30)
         self.assertEqual(cfg["graceful_timeout"], 30)
         self.assertEqual(cfg["accesslog"], "-")
@@ -219,7 +219,7 @@ class EnvExampleTests(SimpleTestCase):
         for origin in values["CSRF_TRUSTED_ORIGINS"].split(","):
             self.assertTrue(origin.startswith("https://"))
         self.assertEqual(values["SECURE_HSTS_PRELOAD"], "false")
-        self.assertEqual(values["GUNICORN_WORKERS"], "2")
+        self.assertEqual(values["GUNICORN_WORKERS"], "5")  # TASK-015: 2 vCPU / ~2 GB server
 
     def test_deploy_check_passes_with_example_values(self):
         env = {"PATH": os.environ["PATH"], **_example_values()}
@@ -258,9 +258,6 @@ class SystemdUnitTests(SimpleTestCase):
 
 
 class SmallFilesTests(SimpleTestCase):
-    def test_journald_limit(self):
-        self.assertIn("SystemMaxUse=200M", _read(JOURNALD))
-
     def test_ssh_hardening(self):
         self.assertIn("PasswordAuthentication no", _read(SSH_HARDENING))
         self.assertTrue(SSH_HARDENING.name.startswith("10-"))
@@ -373,15 +370,44 @@ class SecretScanTests(SimpleTestCase):
 
 
 class RunbookTests(SimpleTestCase):
-    def test_swap_before_packages(self):
+    def test_swap_check_before_packages(self):
         text = _read(DEPLOY_MD)
-        self.assertLess(text.index("fallocate"), text.index("apt -y install"))
+        self.assertLess(text.index("swapon --show"), text.index("apt -y install"))
+
+    def test_no_swap_creation(self):
+        text = _read(DEPLOY_MD)
+        for fragment in ("fallocate", "mkswap", "/etc/fstab", "vm.swappiness"):
+            self.assertNotIn(fragment, text, fragment)
+
+    def test_steps_numbered_consecutively(self):
+        numbers = re.findall(r"^## (\d+)\. ", _read(DEPLOY_MD), re.MULTILINE)
+        self.assertEqual(numbers, [str(i) for i in range(len(numbers))])
+
+    def test_step_references(self):
+        text = _read(DEPLOY_MD)
+        titles = dict(re.findall(r"^## (\d+)\. (.+)$", text, re.MULTILINE))
+        references = (
+            (text, r"until step (\d+) is verified", "SSH: keys only"),
+            (text, r"until step (\d+) \(SSH hardening\)", "SSH: keys only"),
+            (text, r"right after step (\d+), once the repo", "App user, directories, code"),
+            (text, r"already exists from step (\d+)\)", "PostgreSQL (trial database)"),
+            (text, r"Repeat\s+step (\d+) \(without seeding\)", "Smoke check"),
+            (text, r"repeat the smoke check \(step (\d+)\)", "Smoke check"),
+            (
+                _read(NGINX_BOOTSTRAP),
+                r"docs/DEPLOY\.md step (\d+)\)",
+                "nginx bootstrap + certificate",
+            ),
+        )
+        for source, pattern, title in references:
+            match = re.search(pattern, source)
+            self.assertIsNotNone(match, pattern)
+            self.assertEqual(titles.get(match.group(1)), title, pattern)
 
     def test_required_topics(self):
         text = _read(DEPLOY_MD)
         for topic in (
-            "vm.swappiness=10",
-            "SystemMaxUse",
+            "swapon --show",
             "ufw",
             "certbot certonly --webroot",
             "certbot renew --dry-run",
@@ -393,7 +419,6 @@ class RunbookTests(SimpleTestCase):
             "seed_demo",
             "2026-11-22",
             "deanery_trial",
-            "shared_buffers",
             "free -h",
             "df -h",
             "journalctl --disk-usage",
@@ -407,14 +432,14 @@ class RunbookTests(SimpleTestCase):
             if "cron" in line:
                 self.assertNotIn("seed_demo", line)
 
-    def test_step10_sed_produces_trial_env(self):
+    def test_env_file_sed_produces_trial_env(self):
         bash = shutil.which("bash")
         if bash is None:
             self.skipTest("bash not available")
         doc = _read(DEPLOY_MD)
-        for expr in STEP10_SED_EXPRS:
+        for expr in ENV_FILE_SED_EXPRS:
             self.assertIn(expr, doc, f"missing sed rule: {expr}")
-        sed_args = " ".join(f'-e "{expr}"' for expr in STEP10_SED_EXPRS)
+        sed_args = " ".join(f'-e "{expr}"' for expr in ENV_FILE_SED_EXPRS)
         script = (
             'export DOMAIN="deanery.example.org"; '
             'export SECRET="dummy-secret-value"; '
@@ -446,3 +471,27 @@ class RunbookTests(SimpleTestCase):
             )
             if stripped.startswith("sed "):
                 self.assertNotIn(" deploy/", stripped, f"relative path: {stripped}")
+
+
+class OldServerLimitsTests(SimpleTestCase):
+    """TASK-015: the server has 2 vCPU, ~2 GB RAM, a 20 GB disk and a provider swap."""
+
+    FORBIDDEN = ("1 GB", "1 vCPU", "10 GB", "swapfile", "50-deanery.conf", "SystemMaxUse")
+
+    def test_no_old_server_values(self):
+        for path in _secret_scan_paths():
+            text = _read(path)
+            for fragment in self.FORBIDDEN:
+                self.assertNotIn(fragment, text, f"{path.name}: {fragment}")
+
+    def test_no_shared_buffers_warning(self):
+        self.assertNotIn("shared_buffers", _read(DEPLOY_MD))
+
+    def test_journald_override_removed(self):
+        self.assertFalse((DEPLOY_DIR / "journald").exists())
+
+    def test_resources_section(self):
+        text = _read(DEPLOY_MD)
+        section = text[text.index("## 19. Resources") : text.index("## 20. Troubleshooting")]
+        for fragment in ("GUNICORN_WORKERS=5", "min(5, 13)", "512 MB", "20 GB", "10%"):
+            self.assertIn(fragment, section, fragment)

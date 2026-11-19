@@ -1,7 +1,8 @@
 # Deployment runbook
 
-Production deployment of the Deanery prototype on Ubuntu 24.04 (1 vCPU, 1 GB
-RAM, 10 GB disk), one domain with HTTPS, serving until 2026-11-28.
+Production deployment of the Deanery prototype on Ubuntu 24.04 (2 vCPU, ~2 GB
+RAM, 20 GB disk, 512 MB swap from the provider), one domain with HTTPS, serving
+until 2026-11-28.
 
 The agents have no server access; this runbook documents the manual steps. Run
 every command as the sudo user unless a step says otherwise. Keep one SSH
@@ -29,15 +30,13 @@ ssh-copy-id "$APP_USER"@<server-ip>
 
 Keep one SSH session open until step 4 (SSH hardening) is verified.
 
-## 1. Swap first (1 GB RAM)
+## 1. Memory and swap check
 
-Do this before any `apt` or `pip` step, so installs and migrations have room.
+The provider already created a 512 MB swap. Check that it is active; do not
+create or resize swap.
 
 ```bash
-sudo fallocate -l 1G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-echo 'vm.swappiness=10' | sudo tee /etc/sysctl.d/99-deanery-swap.conf && sudo sysctl --system
-free -h
+swapon --show && free -h
 ```
 
 ## 2. Time zone
@@ -62,7 +61,7 @@ Copy `deploy/ssh/10-deanery-hardening.conf` (in the cloned repo, at
 `/etc/ssh/sshd_config.d/`; the `10-` name sorts before Ubuntu's
 `50-cloud-init.conf`, so it wins. The file sets `PasswordAuthentication no`,
 `PermitRootLogin prohibit-password` and `PubkeyAuthentication yes`. This step
-may be done right after step 7, once the repo is cloned.
+may be done right after step 6, once the repo is cloned.
 
 ```bash
 sudo install -m 644 /srv/deanery/app/deploy/ssh/10-deanery-hardening.conf /etc/ssh/sshd_config.d/
@@ -81,27 +80,7 @@ Only SSH, HTTP and HTTPS.
 sudo ufw allow OpenSSH && sudo ufw allow 80/tcp && sudo ufw allow 443/tcp && sudo ufw --force enable && sudo ufw status
 ```
 
-## 6. journald limit
-
-Cap journald so logs cannot fill the 10 GB disk. The file sets
-`SystemMaxUse=200M` (and keeps 1 GB free). This runs before the clone (step 7),
-so the config is written inline:
-
-```bash
-sudo mkdir -p /etc/systemd/journald.conf.d
-sudo tee /etc/systemd/journald.conf.d/50-deanery.conf > /dev/null <<'EOF'
-[Journal]
-SystemMaxUse=200M
-SystemKeepFree=1G
-MaxRetentionSec=14day
-EOF
-sudo systemctl restart systemd-journald
-journalctl --disk-usage
-```
-
-nginx logs are rotated by the stock `/etc/logrotate.d/nginx` — no action.
-
-## 7. App user, directories, code
+## 6. App user, directories, code
 
 ```bash
 sudo adduser --system --group --home /srv/deanery --shell /bin/bash "$APP_USER"
@@ -111,7 +90,7 @@ sudo chmod 750 /srv/deanery/private_media /srv/deanery/private_media_trial && su
 sudo mkdir -p /var/www/letsencrypt
 ```
 
-## 8. Python venv
+## 7. Python venv
 
 ```bash
 sudo -u "$APP_USER" python3.12 -m venv /srv/deanery/venv
@@ -119,10 +98,7 @@ sudo -u "$APP_USER" /srv/deanery/venv/bin/pip install --upgrade pip
 sudo -u "$APP_USER" /srv/deanery/venv/bin/pip install -r /srv/deanery/app/requirements.txt
 ```
 
-## 9. PostgreSQL (trial database)
-
-Keep PostgreSQL stock settings: do **not** raise `shared_buffers`, keep
-`max_connections`.
+## 8. PostgreSQL (trial database)
 
 ```bash
 DB_PASS=$(openssl rand -hex 24)
@@ -131,7 +107,7 @@ sudo -u postgres psql -v ON_ERROR_STOP=1 \
   -c "CREATE DATABASE deanery_trial OWNER deanery ENCODING 'UTF8' TEMPLATE template0;"
 ```
 
-## 10. Environment file
+## 9. Environment file
 
 Build `/etc/deanery/deanery.env` from
 `/srv/deanery/app/.env.production.example`, replacing the placeholders. Values
@@ -160,7 +136,7 @@ Show the final file without printing secrets:
 sudo -u "$APP_USER" grep -v -E 'SECRET_KEY|PASSWORD' /etc/deanery/deanery.env
 ```
 
-## 11. Django
+## 10. Django
 
 ```bash
 M="sudo -u $APP_USER /srv/deanery/app/deploy/manage.sh"
@@ -172,7 +148,7 @@ $M createsuperuser
 
 Leave the superuser role empty — a Django superuser is for the admin only.
 
-## 12. gunicorn + systemd
+## 11. gunicorn + systemd
 
 ```bash
 sed "s/<APP_USER>/$APP_USER/g" /srv/deanery/app/deploy/systemd/deanery.service | sudo tee /etc/systemd/system/deanery.service > /dev/null
@@ -184,7 +160,7 @@ journalctl -u deanery -n 50
 
 `/health/` should return `{"status": "ok"}`.
 
-## 13. nginx bootstrap + certificate
+## 12. nginx bootstrap + certificate
 
 ```bash
 sed "s/example.com/$DOMAIN/g" /srv/deanery/app/deploy/nginx/deanery-bootstrap.conf | sudo tee /etc/nginx/sites-available/deanery > /dev/null
@@ -194,7 +170,7 @@ sudo nginx -t && sudo systemctl reload nginx
 sudo certbot certonly --webroot -w /var/www/letsencrypt -d "$DOMAIN" --email <your e-mail> --agree-tos --no-eff-email --deploy-hook "systemctl reload nginx"
 ```
 
-## 14. nginx full site
+## 13. nginx full site
 
 ```bash
 sed "s/example.com/$DOMAIN/g" /srv/deanery/app/deploy/nginx/deanery.conf | sudo tee /etc/nginx/sites-available/deanery > /dev/null
@@ -203,7 +179,7 @@ systemctl list-timers certbot.timer
 sudo certbot renew --dry-run
 ```
 
-## 15. Backups
+## 14. Backups
 
 ```bash
 sed "s/<APP_USER>/$APP_USER/g" /srv/deanery/app/deploy/cron/deanery-backup | sudo tee /etc/cron.d/deanery-backup > /dev/null
@@ -220,7 +196,7 @@ sudo -u "$APP_USER" bash -c 'set -a; . /etc/deanery/deanery.env; gunzip -c /srv/
 sudo -u "$APP_USER" bash -c 'tar -xzf /srv/deanery/backups/media-<STAMP>.tar.gz -C /srv/deanery'
 ```
 
-## 16. Smoke check
+## 15. Smoke check
 
 ```bash
 curl -sI http://$DOMAIN/ | head -1
@@ -234,9 +210,9 @@ On the **trial** database run `$M seed_demo` once, then open one page per role
 (student: Расписание, Заявки, Чат; staff: Заявки, Чаты); upload a PDF to a
 request (checks `client_max_body_size`) and download it.
 
-## 17. Final database on 2026-11-22 (once)
+## 16. Final database on 2026-11-22 (once)
 
-Create the final database (the `deanery` role already exists from step 9):
+Create the final database (the `deanery` role already exists from step 8):
 
 ```bash
 sudo -u postgres psql -v ON_ERROR_STOP=1 \
@@ -258,10 +234,10 @@ sudo systemctl restart deanery
 ```
 
 Run `seed_demo` exactly once; do not schedule it as a recurring job. Repeat
-step 16 (without seeding). Optionally drop `deanery_trial` and empty
+step 15 (without seeding). Optionally drop `deanery_trial` and empty
 `private_media_trial` after 2026-11-28.
 
-## 18. Update procedure
+## 17. Update procedure
 
 ```bash
 sudo -u "$APP_USER" git -C /srv/deanery/app pull --ff-only
@@ -272,9 +248,9 @@ $M check --deploy --fail-level WARNING
 sudo systemctl restart deanery
 ```
 
-Then repeat the smoke check (step 16).
+Then repeat the smoke check (step 15).
 
-## 19. HSTS
+## 18. HSTS
 
 After the site works over HTTPS for a day, raise the HSTS max-age in the env
 file and restart:
@@ -289,24 +265,41 @@ A large value cannot be undone for visitors before it expires, so raise it only
 after HTTPS is confirmed. Never enable `SECURE_HSTS_PRELOAD` (it is an
 irreversible browser-list commitment for this prototype).
 
-## 20. Resources
+## 19. Resources
 
-Expected memory: gunicorn master + 2 workers ≈ 200–250 MB, PostgreSQL ≈
-100–150 MB, nginx ≈ 10 MB, system ≈ 200 MB → ≈ 600 MB of 1 GB; swap covers
-peaks (pip install, migrations). Disk: venv ≈ 150 MB, journal ≤ 200 MB,
-backups (7 days, gzip) small.
+Server: 2 vCPU, ~2 GB RAM (1.9 GB usable), 20 GB disk, 512 MB swap from the
+provider.
+
+Workers: `GUNICORN_WORKERS=5` by the formula
+`min(2 × vCPU + 1, (free RAM MB − 300) / 90)` = min(5, 13) = 5.
+
+Expected memory: gunicorn master + 5 workers ≈ 350–500 MB (≈ 60–90 MB per
+worker), PostgreSQL ≈ 150–200 MB (shared memory and up to 5 connections),
+nginx ≈ 10 MB, system ≈ 250 MB → ≈ 750–950 MB of 1.9 GB. The rest holds the
+file cache and the peaks of `pip install`, `migrate` and `collectstatic`; the
+swap covers rare peaks.
+
+Disk: system and packages ≈ 4 GB, code ≈ 50 MB, venv ≈ 150 MB, PostgreSQL data
+(trial and final databases) ≈ 100 MB, backups (7 days, gzip) small, journal at
+most ≈ 2 GB → at most ≈ 7 GB of 20 GB. Logs: journald uses the systemd
+defaults (at most 10% of the file system, at most 4 GB; it keeps 15% of the
+file system free). nginx logs are rotated by the stock
+`/etc/logrotate.d/nginx`.
 
 ```bash
 free -h
+swapon --show
 df -h
 journalctl --disk-usage
 systemctl status deanery
 ```
 
-If pages are slow or memory is full, upgrade the hosting tariff and raise
-`GUNICORN_WORKERS` by the formula `min(2 × vCPU + 1, (free RAM MB − 300) / 90)`.
+If pages are slow or memory is full (`free -h` shows little available memory
+and the swap is in use), lower `GUNICORN_WORKERS` in `/etc/deanery/deanery.env`
+and run `sudo systemctl restart deanery`. On a bigger server raise it by the
+same formula.
 
-## 21. Troubleshooting
+## 20. Troubleshooting
 
 - 502 Bad Gateway → `journalctl -u deanery`.
 - 400 Bad Request → check `ALLOWED_HOSTS`.

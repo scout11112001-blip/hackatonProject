@@ -18190,3 +18190,956 @@ TASK-014-FIX одобрен с первого раза: точка-раздел�
 - Один новый тест ищет короткую строку «GX» по всей странице. По правилу из README так делать нельзя: этот тест может пройти ложно, хотя упасть ложно не может.
 
 Браузер закрыт, сервер остановлен. Жду следующий REPORT.
+
+── User ────────────────────────────────────────────────────
+/compact
+
+── Context compacted ───────────────────────────────────────
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_ng6cbgatm6]
+
+[TASK-015] Coder -> Reviewer: REPORT
+Spec: docs/tasks/TASK-015.md (base HEAD afed2a1). Deploy docs/templates/tests only; no app code.
+
+## What was done (F1-F6, in spec order)
+- F1 `docs/DEPLOY.md`: new header (2 vCPU, ~2 GB, 20 GB, 512 MB swap); step 1 -> "Memory and swap check" (`swapon --show && free -h`); deleted step 6 (journald) and the `shared_buffers`/`max_connections` warning; renumbered 7..21 -> 6..20; fixed cross-references (step 9->8, 16->15 x2, and the F1.3 step 7->6); new "Resources" body (F1.9 exact text).
+- F2 `deploy/gunicorn.conf.py`: workers default 5, docstring formula `= min(5, 13)`, `GUNICORN_WORKERS` override kept.
+- F3 `.env.production.example`: comment + `GUNICORN_WORKERS=5`.
+- F4 `deploy/nginx/deanery-bootstrap.conf`: step 13 -> 12.
+- F5 deleted `deploy/journald/50-deanery.conf` with `rm`, then `rmdir deploy/journald` (no -r/-f, no git commands).
+- F6 `core/tests/test_deploy.py`: removed `JOURNALD` const + `test_journald_limit`; renamed `STEP10_SED_EXPRS`/`test_step10_sed_produces_trial_env` -> `ENV_FILE_SED_EXPRS`/`test_env_file_sed_produces_trial_env`; `test_defaults` workers 5; `test_production_values` "5"; `test_required_topics` -vm.swappiness/SystemMaxUse/shared_buffers +swapon --show; replaced `test_swap_before_packages` with the four guard tests; appended `OldServerLimitsTests`.
+
+## Verification (section 8) — all green
+- `manage.py test --parallel` -> **Ran 1140 tests … OK** (1134 +6). Log: `$TMPDIR/test-20261120-012645.log`, run at 01:27 MSK 20.11.2026.
+- `ruff check .` All checks passed; `ruff format --check .` 193 files formatted.
+- `bash -n deploy/backup.sh deploy/manage.sh` OK; `gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application` exit 0.
+- `manage.py check` no issues; `makemigrations --check --dry-run` No changes; CI YAML OK.
+- AC9 grep -> `GREP_CLEAN`.
+- Headings 0..20 consecutive, matching F1.6 table exactly.
+
+## git status (expected per spec)
+```
+ M .env.production.example
+ M core/tests/test_deploy.py
+ M deploy/gunicorn.conf.py
+ D deploy/journald/50-deanery.conf
+ M deploy/nginx/deanery-bootstrap.conf
+ M docs/DEPLOY.md
+ M plan.md
+?? docs/tasks/TASK-015.md
+```
+`plan.md` and `docs/tasks/TASK-015.md` are not mine (Team lead / Planner files, as noted in the spec). I did not touch `plan.md`.
+
+── Ran 10 commands, explored 3 files, 1 search ─────────────
+  ── Thought for 3ms
+    I'm starting the review of TASK-015 and reading the spec first.
+  ── Ran wc -l docs/tasks/TASK-015.md && git status --short && git diff --stat
+    $ wc -l docs/tasks/TASK-015.md && git status --short && git diff --stat
+    446 docs/tasks/TASK-015.md
+     M .env.production.example
+     M core/tests/test_deploy.py
+     M deploy/gunicorn.conf.py
+     D deploy/journald/50-deanery.conf
+     M deploy/nginx/deanery-bootstrap.conf
+     M docs/DEPLOY.md
+     M plan.md
+    ?? docs/tasks/TASK-015.md
+     .env.production.example             |   4 +-
+     core/tests/test_deploy.py           |  81 ++++++++++++++++++++++------
+     deploy/gunicorn.conf.py             |   6 +--
+     deploy/journald/50-deanery.conf     |   4 --
+     deploy/nginx/deanery-bootstrap.conf |   2 +-
+     docs/DEPLOY.md                      | 105 +++++++++++++++++-------------------
+     plan.md                             |   4 +-
+     7 files changed, 122 insertions(+), 84 deletions(-)
+  ── Read ~/hackatonproject/docs/tasks/TASK-015.md
+  ── Ran git diff -- .env.production.example deploy/ core/tests/test_deploy.py
+    $ git diff -- .env.production.example deploy/ core/tests/test_deploy.py
+    diff --git a/.env.production.example b/.env.production.example
+    index 914faa0..5fb55e6 100644
+    --- a/.env.production.example
+    +++ b/.env.production.example
+    @@ -31,6 +31,6 @@ DEMO_PASSWORD=REPLACE_ME_DEMO_PASSWORD
+     # Login lockout per (username, IP).
+     LOGIN_FAILURE_LIMIT=5
+     LOGIN_LOCKOUT_SECONDS=900
+    -# gunicorn (deploy/gunicorn.conf.py): 2 workers for 1 vCPU / 1 GB RAM.
+    -GUNICORN_WORKERS=2
+    +# gunicorn (deploy/gunicorn.conf.py): 5 workers for 2 vCPU / ~2 GB RAM (docs/DEPLOY.md, Resources).
+    +GUNICORN_WORKERS=5
+     GUNICORN_BIND=127.0.0.1:8000
+    diff --git a/core/tests/test_deploy.py b/core/tests/test_deploy.py
+    index b566090..021c698 100644
+    --- a/core/tests/test_deploy.py
+    +++ b/core/tests/test_deploy.py
+    @@ -25,7 +25,6 @@ NGINX_CONF = DEPLOY_DIR / "nginx" / "deanery.conf"
+     NGINX_BOOTSTRAP = DEPLOY_DIR / "nginx" / "deanery-bootstrap.conf"
+     GUNICORN_CONF = DEPLOY_DIR / "gunicorn.conf.py"
+     SYSTEMD_UNIT = DEPLOY_DIR / "systemd" / "deanery.service"
+    -JOURNALD = DEPLOY_DIR / "journald" / "50-deanery.conf"
+     SSH_HARDENING = DEPLOY_DIR / "ssh" / "10-deanery-hardening.conf"
+     CRON = DEPLOY_DIR / "cron" / "deanery-backup"
+     BACKUP_SH = DEPLOY_DIR / "backup.sh"
+    @@ -34,8 +33,9 @@ MANAGE_SH = DEPLOY_DIR / "manage.sh"
+     ENV_EXAMPLE = BASE_DIR / ".env.production.example"
+     DEPLOY_MD = BASE_DIR / "docs" / "DEPLOY.md"
+     
+    -# The step-10 sed `-e` rules (docs/DEPLOY.md); kept here so the test can run them.
+    -STEP10_SED_EXPRS = (
+    +# The sed `-e` rules of the "Environment file" step (docs/DEPLOY.md); kept here so the
+    +# test can run them.
+    +ENV_FILE_SED_EXPRS = (
+         "s/example\\.com/$DOMAIN/g",
+         "s|replace-me-with-secrets-token-urlsafe-50-generated-on-the-server|$SECRET|",
+         "s|REPLACE_ME_DB_PASSWORD|$DB_PASS|",
+    @@ -60,7 +60,7 @@ class GunicornConfigTests(SimpleTestCase):
+         def test_defaults(self):
+             cfg = self._load_config()
+             self.assertEqual(cfg["bind"], "127.0.0.1:8000")
+    -        self.assertEqual(cfg["workers"], 2)
+    +        self.assertEqual(cfg["workers"], 5)  # TASK-015: 2 vCPU / ~2 GB server
+             self.assertEqual(cfg["timeout"], 30)
+             self.assertEqual(cfg["graceful_timeout"], 30)
+             self.assertEqual(cfg["accesslog"], "-")
+    @@ -219,7 +219,7 @@ class EnvExampleTests(SimpleTestCase):
+             for origin in values["CSRF_TRUSTED_ORIGINS"].split(","):
+                 self.assertTrue(origin.startswith("https://"))
+             self.assertEqual(values["SECURE_HSTS_PRELOAD"], "false")
+    -        self.assertEqual(values["GUNICORN_WORKERS"], "2")
+    +        self.assertEqual(values["GUNICORN_WORKERS"], "5")  # TASK-015: 2 vCPU / ~2 GB server
+     
+         def test_deploy_check_passes_with_example_values(self):
+             env = {"PATH": os.environ["PATH"], **_example_values()}
+    @@ -258,9 +258,6 @@ class SystemdUnitTests(SimpleTestCase):
+     
+     
+     class SmallFilesTests(SimpleTestCase):
+    -    def test_journald_limit(self):
+    -        self.assertIn("SystemMaxUse=200M", _read(JOURNALD))
+    -
+         def test_ssh_hardening(self):
+             self.assertIn("PasswordAuthentication no", _read(SSH_HARDENING))
+             self.assertTrue(SSH_HARDENING.name.startswith("10-"))
+    @@ -373,15 +370,44 @@ class SecretScanTests(SimpleTestCase):
+     
+     
+     class RunbookTests(SimpleTestCase):
+    -    def test_swap_before_packages(self):
+    +    def test_swap_check_before_packages(self):
+    +        text = _read(DEPLOY_MD)
+    +        self.assertLess(text.index("swapon --show"), text.index("apt -y install"))
+    +
+    +    def test_no_swap_creation(self):
+             text = _read(DEPLOY_MD)
+    -        self.assertLess(text.index("fallocate"), text.index("apt -y install"))
+    +        for fragment in ("fallocate", "mkswap", "/etc/fstab", "vm.swappiness"):
+    +            self.assertNotIn(fragment, text, fragment)
+    +
+    +    def test_steps_numbered_consecutively(self):
+    +        numbers = re.findall(r"^## (\d+)\. ", _read(DEPLOY_MD), re.MULTILINE)
+    +        self.assertEqual(numbers, [str(i) for i in range(len(numbers))])
+    +
+    +    def test_step_references(self):
+    +        text = _read(DEPLOY_MD)
+    +        titles = dict(re.findall(r"^## (\d+)\. (.+)$", text, re.MULTILINE))
+    +        references = (
+    +            (text, r"until step (\d+) is verified", "SSH: keys only"),
+    +            (text, r"until step (\d+) \(SSH hardening\)", "SSH: keys only"),
+    +            (text, r"right after step (\d+), once the repo", "App user, directories, code"),
+    +            (text, r"already exists from step (\d+)\)", "PostgreSQL (trial database)"),
+    +            (text, r"Repeat\s+step (\d+) \(without seeding\)", "Smoke check"),
+    +            (text, r"repeat the smoke check \(step (\d+)\)", "Smoke check"),
+    +            (
+    +                _read(NGINX_BOOTSTRAP),
+    +                r"docs/DEPLOY\.md step (\d+)\)",
+    +                "nginx bootstrap + certificate",
+    +            ),
+    +        )
+    +        for source, pattern, title in references:
+    +            match = re.search(pattern, source)
+    +            self.assertIsNotNone(match, pattern)
+    +            self.assertEqual(titles.get(match.group(1)), title, pattern)
+     
+         def test_required_topics(self):
+             text = _read(DEPLOY_MD)
+             for topic in (
+    -            "vm.swappiness=10",
+    -            "SystemMaxUse",
+    +            "swapon --show",
+                 "ufw",
+                 "certbot certonly --webroot",
+                 "certbot renew --dry-run",
+    @@ -393,7 +419,6 @@ class RunbookTests(SimpleTestCase):
+                 "seed_demo",
+                 "2026-11-22",
+                 "deanery_trial",
+    -            "shared_buffers",
+                 "free -h",
+                 "df -h",
+                 "journalctl --disk-usage",
+    @@ -407,14 +432,14 @@ class RunbookTests(SimpleTestCase):
+                 if "cron" in line:
+                     self.assertNotIn("seed_demo", line)
+     
+    -    def test_step10_sed_produces_trial_env(self):
+    +    def test_env_file_sed_produces_trial_env(self):
+             bash = shutil.which("bash")
+             if bash is None:
+                 self.skipTest("bash not available")
+             doc = _read(DEPLOY_MD)
+    -        for expr in STEP10_SED_EXPRS:
+    +        for expr in ENV_FILE_SED_EXPRS:
+                 self.assertIn(expr, doc, f"missing sed rule: {expr}")
+    -        sed_args = " ".join(f'-e "{expr}"' for expr in STEP10_SED_EXPRS)
+    +        sed_args = " ".join(f'-e "{expr}"' for expr in ENV_FILE_SED_EXPRS)
+             script = (
+                 'export DOMAIN="deanery.example.org"; '
+                 'export SECRET="dummy-secret-value"; '
+    @@ -446,3 +471,27 @@ class RunbookTests(SimpleTestCase):
+                 )
+                 if stripped.startswith("sed "):
+                     self.assertNotIn(" deploy/", stripped, f"relative path: {stripped}")
+    +
+    +
+    +class OldServerLimitsTests(SimpleTestCase):
+    +    """TASK-015: the server has 2 vCPU, ~2 GB RAM, a 20 GB disk and a provider swap."""
+    +
+    +    FORBIDDEN = ("1 GB", "1 vCPU", "10 GB", "swapfile", "50-deanery.conf", "SystemMaxUse")
+    +
+    +    def test_no_old_server_values(self):
+    +        for path in _secret_scan_paths():
+    +            text = _read(path)
+    +            for fragment in self.FORBIDDEN:
+    +                self.assertNotIn(fragment, text, f"{path.name}: {fragment}")
+    +
+    +    def test_no_shared_buffers_warning(self):
+    +        self.assertNotIn("shared_buffers", _read(DEPLOY_MD))
+    +
+    +    def test_journald_override_removed(self):
+    +        self.assertFalse((DEPLOY_DIR / "journald").exists())
+    +
+    +    def test_resources_section(self):
+    +        text = _read(DEPLOY_MD)
+    +        section = text[text.index("## 19. Resources") : text.index("## 20. Troubleshooting")]
+    +        for fragment in ("GUNICORN_WORKERS=5", "min(5, 13)", "512 MB", "20 GB", "10%"):
+    +            self.assertIn(fragment, section, fragment)
+    diff --git a/deploy/gunicorn.conf.py b/deploy/gunicorn.conf.py
+    index bde2db8..f8127ba 100644
+    --- a/deploy/gunicorn.conf.py
+    +++ b/deploy/gunicorn.conf.py
+    @@ -1,13 +1,13 @@
+     """gunicorn settings for the deanery prototype (loaded with -c deploy/gunicorn.conf.py).
+     
+    -Workers: 2 for 1 vCPU / 1 GB RAM. Bigger server: min(2 * vCPU + 1, (free RAM MB - 300) // 90),
+    -set GUNICORN_WORKERS in /etc/deanery/deanery.env.
+    +Workers: 5 for 2 vCPU / ~2 GB RAM: min(2 * vCPU + 1, (free RAM MB - 300) // 90) = min(5, 13).
+    +Other server: set GUNICORN_WORKERS in /etc/deanery/deanery.env by the same formula.
+     """
+     
+     import os
+     
+     bind = os.environ.get("GUNICORN_BIND", "127.0.0.1:8000")
+    -workers = max(1, int(os.environ.get("GUNICORN_WORKERS", "2")))
+    +workers = max(1, int(os.environ.get("GUNICORN_WORKERS", "5")))
+     timeout = 30
+     graceful_timeout = 30
+     keepalive = 5
+    diff --git a/deploy/journald/50-deanery.conf b/deploy/journald/50-deanery.conf
+    deleted file mode 100644
+    index a0f4597..0000000
+    --- a/deploy/journald/50-deanery.conf
+    +++ /dev/null
+    @@ -1,4 +0,0 @@
+    -[Journal]
+    -SystemMaxUse=200M
+    -SystemKeepFree=1G
+    -MaxRetentionSec=14day
+    diff --git a/deploy/nginx/deanery-bootstrap.conf b/deploy/nginx/deanery-bootstrap.conf
+    index b8621f0..f41d924 100644
+    --- a/deploy/nginx/deanery-bootstrap.conf
+    +++ b/deploy/nginx/deanery-bootstrap.conf
+    @@ -1,4 +1,4 @@
+    -# Temporary HTTP-only site used once to obtain the first certificate (docs/DEPLOY.md step 13).
+    +# Temporary HTTP-only site used once to obtain the first certificate (docs/DEPLOY.md step 12).
+     server {
+         listen 80;
+         listen [::]:80;
+  ── Thought
+    The spec match is confirmed, so I'm moving on to the DEPLOY.md diff. I'll kick off the test run in the background while I review it.
+  ── Ran .venv/bin/python manage.py test --parallel > "$TMPDIR/test-t015-rev-$(date +%Y%m%d-%H%M%S).log" 2>&1; ls -t $TMPDIR/test-t015-rev-*.log | head -1; tail -4 $(ls -t $TMPDIR/test-t015-rev-*.log | head -1)
+    $ .venv/bin/python manage.py test --parallel > "$TMPDIR/test-t015-rev-$(date +%Y%m%d-%H%M%S).log" 2>&1; ls -t $TMPDIR/test-t015-rev-*.log | head -1; tail -4 $(ls -t $TMPDIR/test-t015-rev-*.log | head -1)
+    Command running in background with ID: brlrpehjg. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/brlrpehjg.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran git diff -- docs/DEPLOY.md
+    $ git diff -- docs/DEPLOY.md
+    diff --git a/docs/DEPLOY.md b/docs/DEPLOY.md
+    index 45a4d8d..cf47336 100644
+    --- a/docs/DEPLOY.md
+    +++ b/docs/DEPLOY.md
+    @@ -1,7 +1,8 @@
+     # Deployment runbook
+     
+    -Production deployment of the Deanery prototype on Ubuntu 24.04 (1 vCPU, 1 GB
+    -RAM, 10 GB disk), one domain with HTTPS, serving until 2026-11-28.
+    +Production deployment of the Deanery prototype on Ubuntu 24.04 (2 vCPU, ~2 GB
+    +RAM, 20 GB disk, 512 MB swap from the provider), one domain with HTTPS, serving
+    +until 2026-11-28.
+     
+     The agents have no server access; this runbook documents the manual steps. Run
+     every command as the sudo user unless a step says otherwise. Keep one SSH
+    @@ -29,15 +30,13 @@ ssh-copy-id "$APP_USER"@<server-ip>
+     
+     Keep one SSH session open until step 4 (SSH hardening) is verified.
+     
+    -## 1. Swap first (1 GB RAM)
+    +## 1. Memory and swap check
+     
+    -Do this before any `apt` or `pip` step, so installs and migrations have room.
+    +The provider already created a 512 MB swap. Check that it is active; do not
+    +create or resize swap.
+     
+     ```bash
+    -sudo fallocate -l 1G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+    -echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+    -echo 'vm.swappiness=10' | sudo tee /etc/sysctl.d/99-deanery-swap.conf && sudo sysctl --system
+    -free -h
+    +swapon --show && free -h
+     ```
+     
+     ## 2. Time zone
+    @@ -62,7 +61,7 @@ Copy `deploy/ssh/10-deanery-hardening.conf` (in the cloned repo, at
+     `/etc/ssh/sshd_config.d/`; the `10-` name sorts before Ubuntu's
+     `50-cloud-init.conf`, so it wins. The file sets `PasswordAuthentication no`,
+     `PermitRootLogin prohibit-password` and `PubkeyAuthentication yes`. This step
+    -may be done right after step 7, once the repo is cloned.
+    +may be done right after step 6, once the repo is cloned.
+     
+     ```bash
+     sudo install -m 644 /srv/deanery/app/deploy/ssh/10-deanery-hardening.conf /etc/ssh/sshd_config.d/
+    @@ -81,27 +80,7 @@ Only SSH, HTTP and HTTPS.
+     sudo ufw allow OpenSSH && sudo ufw allow 80/tcp && sudo ufw allow 443/tcp && sudo ufw --force enable && sudo ufw status
+     ```
+     
+    -## 6. journald limit
+    -
+    -Cap journald so logs cannot fill the 10 GB disk. The file sets
+    -`SystemMaxUse=200M` (and keeps 1 GB free). This runs before the clone (step 7),
+    -so the config is written inline:
+    -
+    -```bash
+    -sudo mkdir -p /etc/systemd/journald.conf.d
+    -sudo tee /etc/systemd/journald.conf.d/50-deanery.conf > /dev/null <<'EOF'
+    -[Journal]
+    -SystemMaxUse=200M
+    -SystemKeepFree=1G
+    -MaxRetentionSec=14day
+    -EOF
+    -sudo systemctl restart systemd-journald
+    -journalctl --disk-usage
+    -```
+    -
+    -nginx logs are rotated by the stock `/etc/logrotate.d/nginx` — no action.
+    -
+    -## 7. App user, directories, code
+    +## 6. App user, directories, code
+     
+     ```bash
+     sudo adduser --system --group --home /srv/deanery --shell /bin/bash "$APP_USER"
+    @@ -111,7 +90,7 @@ sudo chmod 750 /srv/deanery/private_media /srv/deanery/private_media_trial && su
+     sudo mkdir -p /var/www/letsencrypt
+     ```
+     
+    -## 8. Python venv
+    +## 7. Python venv
+     
+     ```bash
+     sudo -u "$APP_USER" python3.12 -m venv /srv/deanery/venv
+    @@ -119,10 +98,7 @@ sudo -u "$APP_USER" /srv/deanery/venv/bin/pip install --upgrade pip
+     sudo -u "$APP_USER" /srv/deanery/venv/bin/pip install -r /srv/deanery/app/requirements.txt
+     ```
+     
+    -## 9. PostgreSQL (trial database)
+    -
+    -Keep PostgreSQL stock settings: do **not** raise `shared_buffers`, keep
+    -`max_connections`.
+    +## 8. PostgreSQL (trial database)
+     
+     ```bash
+     DB_PASS=$(openssl rand -hex 24)
+    @@ -131,7 +107,7 @@ sudo -u postgres psql -v ON_ERROR_STOP=1 \
+       -c "CREATE DATABASE deanery_trial OWNER deanery ENCODING 'UTF8' TEMPLATE template0;"
+     ```
+     
+    -## 10. Environment file
+    +## 9. Environment file
+     
+     Build `/etc/deanery/deanery.env` from
+     `/srv/deanery/app/.env.production.example`, replacing the placeholders. Values
+    @@ -160,7 +136,7 @@ Show the final file without printing secrets:
+     sudo -u "$APP_USER" grep -v -E 'SECRET_KEY|PASSWORD' /etc/deanery/deanery.env
+     ```
+     
+    -## 11. Django
+    +## 10. Django
+     
+     ```bash
+     M="sudo -u $APP_USER /srv/deanery/app/deploy/manage.sh"
+    @@ -172,7 +148,7 @@ $M createsuperuser
+     
+     Leave the superuser role empty — a Django superuser is for the admin only.
+     
+    -## 12. gunicorn + systemd
+    +## 11. gunicorn + systemd
+     
+     ```bash
+     sed "s/<APP_USER>/$APP_USER/g" /srv/deanery/app/deploy/systemd/deanery.service | sudo tee /etc/systemd/system/deanery.service > /dev/null
+    @@ -184,7 +160,7 @@ journalctl -u deanery -n 50
+     
+     `/health/` should return `{"status": "ok"}`.
+     
+    -## 13. nginx bootstrap + certificate
+    +## 12. nginx bootstrap + certificate
+     
+     ```bash
+     sed "s/example.com/$DOMAIN/g" /srv/deanery/app/deploy/nginx/deanery-bootstrap.conf | sudo tee /etc/nginx/sites-available/deanery > /dev/null
+    @@ -194,7 +170,7 @@ sudo nginx -t && sudo systemctl reload nginx
+     sudo certbot certonly --webroot -w /var/www/letsencrypt -d "$DOMAIN" --email <your e-mail> --agree-tos --no-eff-email --deploy-hook "systemctl reload nginx"
+     ```
+     
+    -## 14. nginx full site
+    +## 13. nginx full site
+     
+     ```bash
+     sed "s/example.com/$DOMAIN/g" /srv/deanery/app/deploy/nginx/deanery.conf | sudo tee /etc/nginx/sites-available/deanery > /dev/null
+    @@ -203,7 +179,7 @@ systemctl list-timers certbot.timer
+     sudo certbot renew --dry-run
+     ```
+     
+    -## 15. Backups
+    +## 14. Backups
+     
+     ```bash
+     sed "s/<APP_USER>/$APP_USER/g" /srv/deanery/app/deploy/cron/deanery-backup | sudo tee /etc/cron.d/deanery-backup > /dev/null
+    @@ -220,7 +196,7 @@ sudo -u "$APP_USER" bash -c 'set -a; . /etc/deanery/deanery.env; gunzip -c /srv/
+     sudo -u "$APP_USER" bash -c 'tar -xzf /srv/deanery/backups/media-<STAMP>.tar.gz -C /srv/deanery'
+     ```
+     
+    -## 16. Smoke check
+    +## 15. Smoke check
+     
+     ```bash
+     curl -sI http://$DOMAIN/ | head -1
+    @@ -234,9 +210,9 @@ On the **trial** database run `$M seed_demo` once, then open one page per role
+     (student: Расписание, Заявки, Чат; staff: Заявки, Чаты); upload a PDF to a
+     request (checks `client_max_body_size`) and download it.
+     
+    -## 17. Final database on 2026-11-22 (once)
+    +## 16. Final database on 2026-11-22 (once)
+     
+    -Create the final database (the `deanery` role already exists from step 9):
+    +Create the final database (the `deanery` role already exists from step 8):
+     
+     ```bash
+     sudo -u postgres psql -v ON_ERROR_STOP=1 \
+    @@ -258,10 +234,10 @@ sudo systemctl restart deanery
+     ```
+     
+     Run `seed_demo` exactly once; do not schedule it as a recurring job. Repeat
+    -step 16 (without seeding). Optionally drop `deanery_trial` and empty
+    +step 15 (without seeding). Optionally drop `deanery_trial` and empty
+     `private_media_trial` after 2026-11-28.
+     
+    -## 18. Update procedure
+    +## 17. Update procedure
+     
+     ```bash
+     sudo -u "$APP_USER" git -C /srv/deanery/app pull --ff-only
+    @@ -272,9 +248,9 @@ $M check --deploy --fail-level WARNING
+     sudo systemctl restart deanery
+     ```
+     
+    -Then repeat the smoke check (step 16).
+    +Then repeat the smoke check (step 15).
+     
+    -## 19. HSTS
+    +## 18. HSTS
+     
+     After the site works over HTTPS for a day, raise the HSTS max-age in the env
+     file and restart:
+    @@ -289,24 +265,41 @@ A large value cannot be undone for visitors before it expires, so raise it only
+     after HTTPS is confirmed. Never enable `SECURE_HSTS_PRELOAD` (it is an
+     irreversible browser-list commitment for this prototype).
+     
+    -## 20. Resources
+    +## 19. Resources
+    +
+    +Server: 2 vCPU, ~2 GB RAM (1.9 GB usable), 20 GB disk, 512 MB swap from the
+    +provider.
+    +
+    +Workers: `GUNICORN_WORKERS=5` by the formula
+    +`min(2 × vCPU + 1, (free RAM MB − 300) / 90)` = min(5, 13) = 5.
+    +
+    +Expected memory: gunicorn master + 5 workers ≈ 350–500 MB (≈ 60–90 MB per
+    +worker), PostgreSQL ≈ 150–200 MB (shared memory and up to 5 connections),
+    +nginx ≈ 10 MB, system ≈ 250 MB → ≈ 750–950 MB of 1.9 GB. The rest holds the
+    +file cache and the peaks of `pip install`, `migrate` and `collectstatic`; the
+    +swap covers rare peaks.
+     
+    -Expected memory: gunicorn master + 2 workers ≈ 200–250 MB, PostgreSQL ≈
+    -100–150 MB, nginx ≈ 10 MB, system ≈ 200 MB → ≈ 600 MB of 1 GB; swap covers
+    -peaks (pip install, migrations). Disk: venv ≈ 150 MB, journal ≤ 200 MB,
+    -backups (7 days, gzip) small.
+    +Disk: system and packages ≈ 4 GB, code ≈ 50 MB, venv ≈ 150 MB, PostgreSQL data
+    +(trial and final databases) ≈ 100 MB, backups (7 days, gzip) small, journal at
+    +most ≈ 2 GB → at most ≈ 7 GB of 20 GB. Logs: journald uses the systemd
+    +defaults (at most 10% of the file system, at most 4 GB; it keeps 15% of the
+    +file system free). nginx logs are rotated by the stock
+    +`/etc/logrotate.d/nginx`.
+     
+     ```bash
+     free -h
+    +swapon --show
+     df -h
+     journalctl --disk-usage
+     systemctl status deanery
+     ```
+     
+    -If pages are slow or memory is full, upgrade the hosting tariff and raise
+    -`GUNICORN_WORKERS` by the formula `min(2 × vCPU + 1, (free RAM MB − 300) / 90)`.
+    +If pages are slow or memory is full (`free -h` shows little available memory
+    +and the swap is in use), lower `GUNICORN_WORKERS` in `/etc/deanery/deanery.env`
+    +and run `sudo systemctl restart deanery`. On a bigger server raise it by the
+    +same formula.
+     
+    -## 21. Troubleshooting
+    +## 20. Troubleshooting
+     
+     - 502 Bad Gateway → `journalctl -u deanery`.
+     - 400 Bad Request → check `ALLOWED_HOSTS`.
+  ── Thought for 14ms
+    I've confirmed the content matches the spec, and next I want to check the Resources text against it, comparing the two programmatically rather than by eye. I also need to look for leftover "step N" references and other mentions of journald or 50-deanery across the repo, including the README, CI config, deploy/manage.sh, backup.sh, and systemd unit comments, so I'll run a grep for those.
+  ── Ran python3 - <<'EOF' import re spec=open('docs/tasks/TASK-015.md').read() doc=open('docs/DEPLOY.md').read() m=re.search(r"with exactly:\n\n````\n(.*?)\n````", spec, re.S) body=m.group(1) sec=doc[doc.index("## 19. Resources\n\n")+len("## 19. Resources\n\n"):doc.index("\n## 20. Troubleshooting")] print("RESOURCES_EXACT", body.strip()==sec.strip()) m2=re.search(r"F1.2.*?with:\n\n````\n(.*?)\n````", spec, re.S) print("STEP1_EXACT", m2.group(1) in doc) EOF echo ---; grep -rnE "step [0-9]+" --include='*' -I . --exclude-dir=.venv --exclude-dir=.git --exclude-dir=docs --exclude-dir=node_modules | grep -v "^./core/tests/test_deploy.py" | head; grep -nE "step [0-9]+|Step [0-9]+" docs/DEPLOY.md README.md echo ---; grep -rnIE "journald|50-deanery|SystemMaxUse|swapfile|GUNICORN_WORKERS" . --exclude-dir=.venv --exclude-dir=.git --exclude-dir=tasks --exclude-dir=process --exclude-dir=__pycache__ | grep -v "^./docs/DEPLOY.md" echo ---; ls deploy; git diff --quiet HEAD -- .github deploy/systemd deploy/ssh deploy/cron deploy/backup.sh deploy/manage.sh deploy/nginx/deanery.conf README.md CHANGELOG.md && echo UNCHANGED_OK (3s)
+    $ python3 - <<'EOF'
+  import re
+  spec=open('docs/tasks/TASK-015.md').read()
+  doc=open('docs/DEPLOY.md').read()
+  m=re.search(r"with exactly:\n\n````\n(.*?)\n````", spec, re.S)
+  body=m.group(1)
+  sec=doc[doc.index("## 19. Resources\n\n")+len("## 19. Resources\n\n"):doc.index("\n## 20. Troubleshooting")]
+  print("RESOURCES_EXACT", body.strip()==sec.strip())
+  m2=re.search(r"F1.2.*?with:\n\n````\n(.*?)\n````", spec, re.S)
+  print("STEP1_EXACT", m2.group(1) in doc)
+  EOF
+  echo ---; grep -rnE "step [0-9]+" --include='*' -I . --exclude-dir=.venv --exclude-dir=.git --exclude-dir=docs --exclude-dir=node_modules | grep -v "^./core/tests/test_deploy.py" | head; grep -nE "step [0-9]+|Step [0-9]+" docs/DEPLOY.md README.md
+  echo ---; grep -rnIE "journald|50-deanery|SystemMaxUse|swapfile|GUNICORN_WORKERS" . --exclude-dir=.venv --exclude-dir=.git --exclude-dir=tasks --exclude-dir=process --exclude-dir=__pycache__ | grep -v "^./docs/DEPLOY.md"
+  echo ---; ls deploy; git diff --quiet HEAD -- .github deploy/systemd deploy/ssh deploy/cron deploy/backup.sh deploy/manage.sh deploy/nginx/deanery.conf README.md CHANGELOG.md && echo UNCHANGED_OK
+    RESOURCES_EXACT True
+    STEP1_EXACT True
+    ---
+    schedule/demo.py:296:        # Refresh demo changes (spec 6.9 step 6) BEFORE saving lessons (step 7), so that
+    deploy/nginx/deanery-bootstrap.conf:1:# Temporary HTTP-only site used once to obtain the first certificate (docs/DEPLOY.md step 12).
+    .bb/roles/lead.md:28:2. The user decides what is fixed and how. Send nothing to the Planner before that decision. If the user accepts all items as limitations, record them in `plan.md` ("Принятые ограничения") and skip to step 5.
+    .bb/roles/lead.md:30:4. If its review produces new small defects, repeat from step 1 with `TASK-NNN-FIX2`.
+    docs/DEPLOY.md:9:session open until step 4 is verified, so you do not lock yourself out.
+    docs/DEPLOY.md:31:Keep one SSH session open until step 4 (SSH hardening) is verified.
+    docs/DEPLOY.md:64:may be done right after step 6, once the repo is cloned.
+    docs/DEPLOY.md:215:Create the final database (the `deanery` role already exists from step 8):
+    docs/DEPLOY.md:237:step 15 (without seeding). Optionally drop `deanery_trial` and empty
+    docs/DEPLOY.md:251:Then repeat the smoke check (step 15).
+    ---
+    .env.production.example:35:GUNICORN_WORKERS=5
+    core/tests/test_deploy.py:71:        cfg = self._load_config({"GUNICORN_WORKERS": "3", "GUNICORN_BIND": "127.0.0.1:9000"})
+    core/tests/test_deploy.py:76:        cfg = self._load_config({"GUNICORN_WORKERS": "0"})
+    core/tests/test_deploy.py:194:        "GUNICORN_WORKERS",
+    core/tests/test_deploy.py:222:        self.assertEqual(values["GUNICORN_WORKERS"], "5")  # TASK-015: 2 vCPU / ~2 GB server
+    core/tests/test_deploy.py:479:    FORBIDDEN = ("1 GB", "1 vCPU", "10 GB", "swapfile", "50-deanery.conf", "SystemMaxUse")
+    core/tests/test_deploy.py:490:    def test_journald_override_removed(self):
+    core/tests/test_deploy.py:491:        self.assertFalse((DEPLOY_DIR / "journald").exists())
+    core/tests/test_deploy.py:496:        for fragment in ("GUNICORN_WORKERS=5", "min(5, 13)", "512 MB", "20 GB", "10%"):
+    deploy/gunicorn.conf.py:4:Other server: set GUNICORN_WORKERS in /etc/deanery/deanery.env by the same formula.
+    deploy/gunicorn.conf.py:10:workers = max(1, int(os.environ.get("GUNICORN_WORKERS", "5")))
+    docs/DEPLOY.md:273:Workers: `GUNICORN_WORKERS=5` by the formula
+    docs/DEPLOY.md:284:most ≈ 2 GB → at most ≈ 7 GB of 20 GB. Logs: journald uses the systemd
+    docs/DEPLOY.md:298:and the swap is in use), lower `GUNICORN_WORKERS` in `/etc/deanery/deanery.env`
+    ---
+    __pycache__
+    backup.sh
+    cron
+    gunicorn.conf.py
+    manage.sh
+    nginx
+    ssh
+    systemd
+    UNCHANGED_OK
+  ── Thought for 2s
+    The header lines 1-4 check out exactly as written. Next I want to see whether DEPLOY.md's step 9 "Environment file" mentions "Resources" or any step numbers, and whether other docs reference a "DEPLOY.md step." The grep found nothing, but it excluded the docs directory from its "step N" search, so I still need to check the non-task files under docs/ for that reference. After that I'll run the remaining verification commands.
+
+    I'm going to run mutation tests on the guard tests in a copy of the directory, such as changing "step 6" back to "step 7" or skipping a heading number, to confirm they fail as expected. I'm also considering whether to wait for the main test run first, though running the mutations in parallel in a separate copy seems fine.
+  ── Searched for DEPLOY\.md.{0,20}step|step [0-9]+ in README.md
+  ── Read ~/.claude/projects/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tool-results/bdepob2h7.txt
+  ── Thought for 4ms
+    Все проверки прошли чисто, кроме полного прогона тестов, который ещё идёт. Далее проверю новые тесты мутациями на ошибки нумерации.
+  ── Ran M=$TMPDIR/rev-mut15 && mkdir -p $M && rsync -a --exclude .venv --exclude .git --exclude db.sqlite3 --exclude .env --exclude staticfiles --exclude private_media ./ $M/ && cd $M && export DEBUG=true SECRET_KEY=mut-dummy-key-015 run(){ ~/hackatonproject/.venv/bin/python manage.py test core.tests.test_deploy 2>&1 | grep -E "^(FAIL|ERROR):|^Ran|^OK|^FAILED"; } cp docs/DEPLOY.md /tmp/x 2>/dev/null; cp docs/DEPLOY.md $TMPDIR/dm.bak; cp deploy/nginx/deanery-bootstrap.conf $TMPDIR/nb.bak echo "== M0 baseline"; run echo "== M1 step 6->7 xref"; sed -i '' 's/right after step 6,/right after step 7,/' docs/DEPLOY.md; run; cp $TMPDIR/dm.bak docs/DEPLOY.md echo "== M2 heading gap (## 13 -> ## 14)"; sed -i '' 's/^## 13\. nginx full/## 14. nginx full/' docs/DEPLOY.md; run; cp $TMPDIR/dm.bak docs/DEPLOY.md echo "== M3 nginx comment step 13"; sed -i '' 's/DEPLOY.md step 12/DEPLOY.md step 13/' deploy/nginx/deanery-bootstrap.conf; run; cp $TMPDIR/nb.bak deploy/nginx/deanery-bootstrap.conf echo "== M4 smoke ref 15->16"; sed -i '' 's/smoke check (step 15)/smoke check (step 16)/' docs/DEPLOY.md; run; cp $TMPDIR/dm.bak docs/DEPLOY.md echo "== M5 recreate journald dir"; mkdir deploy/journald; run; rmdir deploy/journald echo "== M6 workers default 2"; sed -i '' 's/"GUNICORN_WORKERS", "5"/"GUNICORN_WORKERS", "2"/' deploy/gunicorn.conf.py; run (13s)
+    $ M=$TMPDIR/rev-mut15 && mkdir -p $M && rsync -a --exclude .venv --exclude .git --exclude db.sqlite3 --exclude .env --exclude staticfiles --exclude private_media ./ $M/ && cd $M && export DEBUG=true SECRET_KEY=mut-dummy-key-015
+  run(){ ~/hackatonproject/.venv/bin/python manage.py test core.tests.test_deploy 2>&1 | grep -E "^(FAIL|ERROR):|^Ran|^OK|^FAILED"; }
+  cp docs/DEPLOY.md /tmp/x 2>/dev/null; cp docs/DEPLOY.md $TMPDIR/dm.bak; cp deploy/nginx/deanery-bootstrap.conf $TMPDIR/nb.bak
+  echo "== M0 baseline"; run
+  echo "== M1 step 6->7 xref"; sed -i '' 's/right after step 6,/right after step 7,/' docs/DEPLOY.md; run; cp $TMPDIR/dm.bak docs/DEPLOY.md
+  echo "== M2 heading gap (## 13 -> ## 14)"; sed -i '' 's/^## 13\. nginx full/## 14. nginx full/' docs/DEPLOY.md; run; cp $TMPDIR/dm.bak docs/DEPLOY.md
+  echo "== M3 nginx comment step 13"; sed -i '' 's/DEPLOY.md step 12/DEPLOY.md step 13/' deploy/nginx/deanery-bootstrap.conf; run; cp $TMPDIR/nb.bak deploy/nginx/deanery-bootstrap.conf
+  echo "== M4 smoke ref 15->16"; sed -i '' 's/smoke check (step 15)/smoke check (step 16)/' docs/DEPLOY.md; run; cp $TMPDIR/dm.bak docs/DEPLOY.md
+  echo "== M5 recreate journald dir"; mkdir deploy/journald; run; rmdir deploy/journald
+  echo "== M6 workers default 2"; sed -i '' 's/"GUNICORN_WORKERS", "5"/"GUNICORN_WORKERS", "2"/' deploy/gunicorn.conf.py; run
+    == M0 baseline
+    Ran 44 tests in 0.866s
+    OK
+    == M1 step 6->7 xref
+    FAIL: test_step_references (core.tests.test_deploy.RunbookTests.test_step_references)
+    Ran 44 tests in 0.692s
+    FAILED (failures=1)
+    == M2 heading gap (## 13 -> ## 14)
+    FAIL: test_steps_numbered_consecutively (core.tests.test_deploy.RunbookTests.test_steps_numbered_consecutively)
+    Ran 44 tests in 0.711s
+    FAILED (failures=1)
+    == M3 nginx comment step 13
+    FAIL: test_step_references (core.tests.test_deploy.RunbookTests.test_step_references)
+    Ran 44 tests in 0.702s
+    FAILED (failures=1)
+    == M4 smoke ref 15->16
+    FAIL: test_step_references (core.tests.test_deploy.RunbookTests.test_step_references)
+    Ran 44 tests in 0.448s
+    FAILED (failures=1)
+    == M5 recreate journald dir
+    FAIL: test_journald_override_removed (core.tests.test_deploy.OldServerLimitsTests.test_journald_override_removed)
+    Ran 44 tests in 0.455s
+    FAILED (failures=1)
+    == M6 workers default 2
+    FAIL: test_defaults (core.tests.test_deploy.GunicornConfigTests.test_defaults)
+    Ran 44 tests in 0.450s
+    FAILED (failures=1)
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 7ms
+    I'm noticing my last command wrote a scratch file to /tmp, which probably failed quietly in the sandbox, so nothing harmful happened. Next I want to clear out that temporary copy, and I'm weighing whether removing it needs approval, since the rule is aimed at destructive commands in the project, not my own temp files. I'll delete only the copy I made under $TMPDIR with a plain recursive remove.
+
+    Now I'm checking the test output that came back.
+  ── Read /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/brlrpehjg.output
+  ── Thought for 3ms
+    The tail of the output mentions a tblib message, which may mean something failed. I'll check the log to see what actually happened.
+  ── Ran L=$TMPDIR/test-t015-rev-20261119-142755.log; grep -nE "^(Ran|OK|FAILED)|^(FAIL|ERROR):|tblib|Traceback" $L | head -20; wc -l $L; tail -12 $L
+    $ L=$TMPDIR/test-t015-rev-20261119-142755.log; grep -nE "^(Ran|OK|FAILED)|^(FAIL|ERROR):|tblib|Traceback" $L | head -20; wc -l $L; tail -12 $L
+    27:Traceback (most recent call last):
+    44:Traceback (most recent call last):
+    61:Traceback (most recent call last):
+    81:Traceback (most recent call last):
+    98:Traceback (most recent call last):
+    115:Traceback (most recent call last):
+    133:Traceback (most recent call last):
+    150:Traceback (most recent call last):
+    167:Traceback (most recent call last):
+    184:Traceback (most recent call last):
+    208:Traceback (most recent call last):
+    225:Traceback (most recent call last):
+    242:Traceback (most recent call last):
+    259:Traceback (most recent call last):
+    281:Traceback (most recent call last):
+    304:Traceback (most recent call last):
+    327:Traceback (most recent call last):
+    350:Traceback (most recent call last):
+    391:Traceback (most recent call last):
+    414:Traceback (most recent call last):
+        1311 /tmp/claude-501/test-t015-rev-20261119-142755.log
+
+        AssertionError('Tuples differ: (8, 17, 2, 3, 124) != (8, 17, 2, 3,
+        127)\n\nFirst differing element 4:\n124\n127\n\n- (8, 17, 2, 3, 124)\n?
+        ^\n\n+ (8, 17, 2, 3, 127)\n?                 ^\n')
+
+    Unfortunately, tracebacks cannot be pickled, making it impossible for the
+    parallel test runner to handle this exception cleanly.
+
+    In order to see the traceback, you should install tblib:
+
+        python -m pip install tblib
+  ── Thought for 1s
+    Many tests are failing, and I'm not sure yet whether the run aborted. The timestamps look like the trouble might be time-related: my run is at 01:27 MSK on the 20th, and the coder's run at the same moment passed, though their log name carries a different date, so their machine may be in another timezone.
+
+    I'm checking the timezones now: the coder may run under TZ=MSK, and my 14:27 local stamp works out to 01:27 MSK on the 20th, which is essentially the same moment as theirs. Next I'll look at the first failures.
+  ── Ran L=$TMPDIR/test-t015-rev-20261119-142755.log; sed -n 1,80p $L
+    $ L=$TMPDIR/test-t015-rev-20261119-142755.log; sed -n 1,80p $L
+    Creating test database for alias 'default'...
+    Cloning test database for alias 'default'...
+    Cloning test database for alias 'default'...
+    Cloning test database for alias 'default'...
+    Cloning test database for alias 'default'...
+    Cloning test database for alias 'default'...
+    Cloning test database for alias 'default'...
+    Cloning test database for alias 'default'...
+    Cloning test database for alias 'default'...
+    Found 1140 test(s).
+    System check identified no issues (0 silenced).
+    ................................~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py:61: UserWarning: No directory at: ~/hackatonproject/staticfiles/
+      mw_instance = middleware(adapted_handler)
+    ...................................~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py:61: UserWarning: No directory at: ~/hackatonproject/staticfiles/
+      mw_instance = middleware(adapted_handler)
+    ~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py:61: UserWarning: No directory at: ~/hackatonproject/staticfiles/
+      mw_instance = middleware(adapted_handler)
+    ~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py:61: UserWarning: No directory at: ~/hackatonproject/staticfiles/
+      mw_instance = middleware(adapted_handler)
+    ~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py:61: UserWarning: No directory at: ~/hackatonproject/staticfiles/
+      mw_instance = middleware(adapted_handler)
+    ~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py:61: UserWarning: No directory at: ~/hackatonproject/staticfiles/
+      mw_instance = middleware(adapted_handler)
+    ~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py:61: UserWarning: No directory at: ~/hackatonproject/staticfiles/
+      mw_instance = middleware(adapted_handler)
+    2026-11-20 01:27:57,609 WARNING django.request Forbidden (Permission denied): /grades/
+    Traceback (most recent call last):
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+        response = get_response(request)
+                   ^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+        response = wrapped_callback(request, *callback_args, **callback_kwargs)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/views/generic/base.py", line 105, in view
+        return self.dispatch(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/accounts/access.py", line 40, in dispatch
+        self.profile = get_profile_for_role(request.user, self.required_role)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/accounts/access.py", line 28, in get_profile_for_role
+        raise PermissionDenied
+    django.core.exceptions.PermissionDenied
+    2026-11-20 01:27:57,619 WARNING django.request Forbidden (Permission denied): /grades/
+    Traceback (most recent call last):
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+        response = get_response(request)
+                   ^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+        response = wrapped_callback(request, *callback_args, **callback_kwargs)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/views/generic/base.py", line 105, in view
+        return self.dispatch(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/accounts/access.py", line 40, in dispatch
+        self.profile = get_profile_for_role(request.user, self.required_role)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/accounts/access.py", line 28, in get_profile_for_role
+        raise PermissionDenied
+    django.core.exceptions.PermissionDenied
+    2026-11-20 01:27:57,628 WARNING django.request Forbidden (Permission denied): /grades/t-2026-autumn/
+    Traceback (most recent call last):
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+        response = get_response(request)
+                   ^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+        response = wrapped_callback(request, *callback_args, **callback_kwargs)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/views/generic/base.py", line 105, in view
+        return self.dispatch(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/accounts/access.py", line 40, in dispatch
+        self.profile = get_profile_for_role(request.user, self.required_role)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/accounts/access.py", line 28, in get_profile_for_role
+        raise PermissionDenied
+    django.core.exceptions.PermissionDenied
+    ..2026-11-20 01:27:57,642 WARNING django.request Not Found: /staff/students/999999/grades/
+    2026-11-20 01:27:57,652 WARNING django.request Not Found: /staff/students/1/grades/
+    2026-11-20 01:27:57,664 WARNING django.request Not Found: /staff/students/1/grades/t-2026-autumn/
+    .........................2026-11-20 01:27:57,730 WARNING django.request Forbidden (Permission denied): /grades/unknown-term/
+  ── Thought for 4ms
+    The logs look normal until the end, where the run crashed on an unpicklable failure and never printed "Ran." The crash message is a tuple mismatch, (8, 17, 2, 3, 124) against (8, 17, 2, 3, 127), so I need to work out which test produced it.
+  ── Ran L=$TMPDIR/test-t015-rev-20261119-142755.log; grep -nE "Tuples differ|subTest|^[a-zA-Z_.]+Error|failed|test_[a-z_]+ \(" $L | head; sed -n 1270,1311p $L
+    $ L=$TMPDIR/test-t015-rev-20261119-142755.log; grep -nE "Tuples differ|subTest|^[a-zA-Z_.]+Error|failed|test_[a-z_]+ \(" $L | head; sed -n 1270,1311p $L
+    1168:AssertionError: Tuples differ: (8, 17, 2, 3, 124) != (8, 17, 2, 3, 127)
+    1220:TypeError: cannot pickle 'traceback' object
+    1260:TypeError: cannot pickle 'traceback' object
+    1299:test_idempotent (petitions.tests.test_demo.PetitionsDemoTests.test_idempotent) failed:
+    1301:    AssertionError('Tuples differ: (8, 17, 2, 3, 124) != (8, 17, 2, 3,
+    Requests ready: 7 types, 0 requests, 0 attachments.
+    Notifications ready: 0 announcements.
+    Chat ready: 0 dialogs, 0 messages.
+    Demo data ready: 2 faculties, 2 programs, 2 groups, 3 students, 2 staff.
+    Schedule ready: 39 rooms, 6 teachers, 6 disciplines, 18 weekly lessons, 8 changes.
+    Academics ready: 2 terms, 17 curriculum items, 13 final results, 70 marks, 232 attendance records.
+    Requests ready: 7 types, 8 requests, 3 attachments.
+    Notifications ready: 9 announcements.
+    Chat ready: 3 dialogs, 8 messages.
+    Demo data ready: 2 faculties, 2 programs, 2 groups, 3 students, 2 staff.
+    Schedule ready: 39 rooms, 6 teachers, 6 disciplines, 18 weekly lessons, 8 changes.
+    Academics ready: 2 terms, 17 curriculum items, 13 final results, 70 marks, 232 attendance records.
+    Requests ready: 7 types, 8 requests, 3 attachments.
+    Notifications ready: 9 announcements.
+    Chat ready: 3 dialogs, 8 messages.
+    Demo data ready: 2 faculties, 2 programs, 2 groups, 3 students, 2 staff.
+    Schedule ready: 39 rooms, 6 teachers, 6 disciplines, 18 weekly lessons, 8 changes.
+    Academics ready: 2 terms, 17 curriculum items, 13 final results, 70 marks, 232 attendance records.
+    Requests ready: 7 types, 0 requests, 0 attachments.
+    Notifications ready: 0 announcements.
+    Chat ready: 0 dialogs, 0 messages.
+    Demo data ready: 2 faculties, 2 programs, 2 groups, 3 students, 2 staff.
+    Schedule ready: 39 rooms, 6 teachers, 6 disciplines, 18 weekly lessons, 8 changes.
+    Academics ready: 2 terms, 17 curriculum items, 13 final results, 70 marks, 232 attendance records.
+    Requests ready: 7 types, 8 requests, 3 attachments.
+    Notifications ready: 9 announcements.
+    Chat ready: 3 dialogs, 8 messages.
+
+
+    test_idempotent (petitions.tests.test_demo.PetitionsDemoTests.test_idempotent) failed:
+
+        AssertionError('Tuples differ: (8, 17, 2, 3, 124) != (8, 17, 2, 3,
+        127)\n\nFirst differing element 4:\n124\n127\n\n- (8, 17, 2, 3, 124)\n?
+        ^\n\n+ (8, 17, 2, 3, 127)\n?                 ^\n')
+
+    Unfortunately, tracebacks cannot be pickled, making it impossible for the
+    parallel test runner to handle this exception cleanly.
+
+    In order to see the traceback, you should install tblib:
+
+        python -m pip install tblib
+  ── Thought for 5ms
+    I'm looking at a real failure in petitions.tests.test_demo, test_idempotent, which fails at about 01:28 MSK on Friday 20.11 with element 4 count 124 versus 127, probably history entries or notifications. It doesn't look related to TASK-015 since there's no app code involved, but it's still a failure I need to report. I'm checking whether it's a time-dependent flake by reading the traceback around lines 1150–1170 and the test itself.
+  ── Ran L=$TMPDIR/test-t015-rev-20261119-142755.log; sed -n 1150,1170p $L; cd ~/hackatonproject && grep -n "def test_idempotent" -A25 petitions/tests/test_demo.py
+    $ L=$TMPDIR/test-t015-rev-20261119-142755.log; sed -n 1150,1170p $L; cd ~/hackatonproject && grep -n "def test_idempotent" -A25 petitions/tests/test_demo.py
+    Traceback (most recent call last):
+      File "/opt/homebrew/Cellar/python@3.12/3.12.16/Frameworks/Python.framework/Versions/3.12/lib/python3.12/unittest/case.py", line 58, in testPartExecutor
+        yield
+      File "/opt/homebrew/Cellar/python@3.12/3.12.16/Frameworks/Python.framework/Versions/3.12/lib/python3.12/unittest/case.py", line 634, in run
+        self._callTestMethod(testMethod)
+      File "/opt/homebrew/Cellar/python@3.12/3.12.16/Frameworks/Python.framework/Versions/3.12/lib/python3.12/unittest/case.py", line 589, in _callTestMethod
+        if method() is not None:
+           ^^^^^^^^
+      File "~/hackatonproject/petitions/tests/test_demo.py", line 122, in test_idempotent
+        self.assertEqual(before, after)
+      File "/opt/homebrew/Cellar/python@3.12/3.12.16/Frameworks/Python.framework/Versions/3.12/lib/python3.12/unittest/case.py", line 885, in assertEqual
+        assertion_func(first, second, msg=msg)
+      File "/opt/homebrew/Cellar/python@3.12/3.12.16/Frameworks/Python.framework/Versions/3.12/lib/python3.12/unittest/case.py", line 1102, in assertTupleEqual
+        self.assertSequenceEqual(tuple1, tuple2, msg, seq_type=tuple)
+      File "/opt/homebrew/Cellar/python@3.12/3.12.16/Frameworks/Python.framework/Versions/3.12/lib/python3.12/unittest/case.py", line 1073, in assertSequenceEqual
+        self.fail(msg)
+      File "/opt/homebrew/Cellar/python@3.12/3.12.16/Frameworks/Python.framework/Versions/3.12/lib/python3.12/unittest/case.py", line 715, in fail
+        raise self.failureException(msg)
+    AssertionError: Tuples differ: (8, 17, 2, 3, 124) != (8, 17, 2, 3, 127)
+
+    First differing element 4:
+    106:    def test_idempotent(self):
+    107-        before = (
+    108-            Petition.objects.count(),
+    109-            PetitionStatusChange.objects.count(),
+    110-            PetitionComment.objects.count(),
+    111-            PetitionAttachment.objects.count(),
+    112-            self._count_files(),
+    113-        )
+    114-        seed_petitions_demo(D)
+    115-        after = (
+    116-            Petition.objects.count(),
+    117-            PetitionStatusChange.objects.count(),
+    118-            PetitionComment.objects.count(),
+    119-            PetitionAttachment.objects.count(),
+    120-            self._count_files(),
+    121-        )
+    122-        self.assertEqual(before, after)
+    123-
+    124-    def test_command_output(self):
+    125-        with mock.patch.dict(os.environ, {"DEMO_PASSWORD": PASSWORD}):
+    126-            out = StringIO()
+    127-            call_command("seed_demo", stdout=out)
+    128-        self.assertIn("Requests ready: 7 types", out.getvalue())
+  ── Thought for 4ms
+    I'm looking at `_count_files`, which counts files in the private media root. The 124-versus-127 mismatch could be a race: parallel workers may share one temp directory for uploads, so another worker writing files mid-count would shift the total. That looks unrelated to TASK-015 and more like a flake that was already there. I'll check `_count_files` and the test runner.
+
+── Assistant ───────────────────────────────────────────────
+Полный прогон упал на одном тесте, который не связан с задачей. Проверяю причину.
+
+── Explored 1 search ───────────────────────────────────────
+  ── Searched for _count_files in petitions/tests/test_demo.py
+  ── Thought for 1s
+    I've confirmed the parallel workers share one temp directory, so test_idempotent's file count gets thrown off whenever another worker uploads in between. That race predates TASK-015 and has been there since TASK-013-FIX. I'll report the failing test with its name, the MSK time, and the traceback, then rerun the full suite and the test on its own to confirm it passes.
+
+    The run's timestamp checks out: 14:27:55 local is 01:27:55 MSK on the 20th, and the log's own Django timestamp agrees. I'm kicking off the rerun in the background now.
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Ran L="$TMPDIR/test-t015-rev2-$(date +%Y%m%d-%H%M%S).log"; .venv/bin/python manage.py test --parallel > "$L" 2>&1; echo "$L"; grep -nE "^(Ran|OK|FAILED)|failed:$|^(FAIL|ERROR):" "$L" (1s)
+    $ L="$TMPDIR/test-t015-rev2-$(date +%Y%m%d-%H%M%S).log"; .venv/bin/python manage.py test --parallel > "$L" 2>&1; echo "$L"; grep -nE "^(Ran|OK|FAILED)|failed:$|^(FAIL|ERROR):" "$L"
+    Command running in background with ID: bw8cjj6wt. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bw8cjj6wt.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran for i in 1 2 3; do .venv/bin/python manage.py test petitions.tests.test_demo 2>&1 | grep -E "^(Ran|OK|FAILED)"; done; git log --oneline -3 -- core/test_runner.py petitions/tests/test_demo.py (1m 15s)
+    $ for i in 1 2 3; do .venv/bin/python manage.py test petitions.tests.test_demo 2>&1 | grep -E "^(Ran|OK|FAILED)"; done; git log --oneline -3 -- core/test_runner.py petitions/tests/test_demo.py
+    Ran 8 tests in 33.825s
+    OK
+    Ran 8 tests in 19.370s
+    OK
+    Ran 8 tests in 17.404s
+    OK
+    1414de1 TASK-014: military office certificate, catch-all requests with a required subject, "до N рабочих дней" terms
+    8f469b2 TASK-013-FIX: feed marks a lesson change new only on visible edits; parallel tests keep uploads in a temp dir
+    61053cf TASK-006: certificates and applications, staff request queue
+
+── Explored 1 file ─────────────────────────────────────────
+  ── Read /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/bw8cjj6wt.output
+  ── Thought for 961ms
+    The second run came back clean at 1140, so the failure looks like a race in the petitions test_idempotent. It shares a temp private media directory with parallel workers, and other tests in other workers may be uploading files at the same time. I'm noting that this is not TASK-015. I'll check that the test's upload path matches its file count, and I'll report to the team lead with APPROVE, the test name, the 01:27:57 MSK 20.11 timestamp, the excerpt, and the cause.
+
+    I'm checking the remaining claims: the AC9 grep is fine, and the coder's report matches what I've verified, so I'm going ahead with APPROVE.
+
+── Ran bb thread tell thr_4izdzwetb4 --message-file - <<'EOF' [TASK-015] Reviewer -> Team lead: APPROVE Spec: docs/tasks/TASK-015.md. Round 1. Changes are uncommitted; git status matches spec section 8 exactly (5 M, 1 D deploy/journald/50-deanery.conf, ?? the spec, plus your M plan.md). The deploy/journald/ directory is gone; no application code touched. ## Checked against the spec - F1 docs/DEPLOY.md: header, step 1 and the whole Resources body are byte-identical to F1.1/F1.2/F1.9 (script compare). Step 6 (journald) and the shared_buffers warning are deleted. Headings 0..20 match the F1.6 table. All 6 "step N" references point to the right titles (4, 4, 6, 8, 15, 15). - F2 gunicorn default 5, override kept; F3 GUNICORN_WORKERS=5; F4 nginx comment step 12. Everything else (systemd, ssh, cron, backup.sh, manage.sh, nginx deanery.conf, CI, README, CHANGELOG) is unchanged. - F6 tests match the spec text. Outside docs/tasks and docs/process the repo has no other journald, 50-deanery, SystemMaxUse or swapfile mentions. ## Mutations (in a temp copy; test_deploy: 44 tests) Every mutation fails the expected test: - "step 6" back to "step 7" -> test_step_references. - Gap in the headings (## 13 -> ## 14) -> test_steps_numbered_consecutively. - nginx comment "step 13" -> test_step_references. - Smoke-check reference 15 -> 16 -> test_step_references. - Empty deploy/journald/ dir -> test_journald_override_removed. - Default workers "2" -> test_defaults. ## Runs - Run 1, full suite --parallel, 01:27 MSK 20.11 ($TMPDIR/test-t015-rev-20261119-142755.log): FAILED, then the parallel runner aborted (no tblib).   - Failing test: petitions.tests.test_demo.PetitionsDemoTests.test_idempotent, at 01:27:57 MSK 20.11.     petitions/tests/test_demo.py:122 self.assertEqual(before, after)     AssertionError: Tuples differ: (8, 17, 2, 3, 124) != (8, 17, 2, 3, 127)  (element 4 = _count_files())   - Cause: not TASK-015 (no app or test code involved). It is a pre-existing race. core/test_runner.py (TASK-013-FIX) gives ALL parallel workers one shared temp PRIVATE_MEDIA_ROOT. _count_files() (test_demo.py:35) walks that whole root, so files that tests in other workers upload between "before" and "after" change the count (124 -> 127).   - Same module alone 3 times: OK. - Run 2, full suite --parallel, 01:29 MSK 20.11 ($TMPDIR/test-t015-rev2-20261119-142906.log): Ran 1140 tests ... OK. - Other checks: ruff check and format --check OK (193 files); bash -n OK; gunicorn --check-config exit 0; manage.py check and makemigrations --check OK; CI YAML OK; AC9 grep GREP_CLEAN. ## For you - Suggested fix task for the flaky test (your decision). Option A: _count_files() counts only the demo's own files (e.g. the paths of PetitionAttachment files) instead of the whole storage root. Option B: the test runner gives each parallel worker its own sub-directory. It can fail again in any parallel run, CI included. - plan.md is modified in the tree (your file) — remember it in the commit. EOF
+  $ bb thread tell thr_4izdzwetb4 --message-file - <<'EOF'
+[TASK-015] Reviewer -> Team lead: APPROVE
+
+Spec: docs/tasks/TASK-015.md. Round 1. Changes are uncommitted; git status matches spec section 8 exactly (5 M, 1 D deploy/journald/50-deanery.conf, ?? the spec, plus your M plan.md). The deploy/journald/ directory is gone; no application code touched.
+
+## Checked against the spec
+- F1 docs/DEPLOY.md: header, step 1 and the whole Resources body are byte-identical to F1.1/F1.2/F1.9 (script compare). Step 6 (journald) and the shared_buffers warning are deleted. Headings 0..20 match the F1.6 table. All 6 "step N" references point to the right titles (4, 4, 6, 8, 15, 15).
+- F2 gunicorn default 5, override kept; F3 GUNICORN_WORKERS=5; F4 nginx comment step 12. Everything else (systemd, ssh, cron, backup.sh, manage.sh, nginx deanery.conf, CI, README, CHANGELOG) is unchanged.
+- F6 tests match the spec text. Outside docs/tasks and docs/process the repo has no other journald, 50-deanery, SystemMaxUse or swapfile mentions.
+
+## Mutations (in a temp copy; test_deploy: 44 tests)
+Every mutation fails the expected test:
+- "step 6" back to "step 7" -> test_step_references.
+- Gap in the headings (## 13 -> ## 14) -> test_steps_numbered_consecutively.
+- nginx comment "step 13" -> test_step_references.
+- Smoke-check reference 15 -> 16 -> test_step_references.
+- Empty deploy/journald/ dir -> test_journald_override_removed.
+- Default workers "2" -> test_defaults.
+
+## Runs
+- Run 1, full suite --parallel, 01:27 MSK 20.11 ($TMPDIR/test-t015-rev-20261119-142755.log): FAILED, then the parallel runner aborted (no tblib).
+  - Failing test: petitions.tests.test_demo.PetitionsDemoTests.test_idempotent, at 01:27:57 MSK 20.11.
+    petitions/tests/test_demo.py:122 self.assertEqual(before, after)
+    AssertionError: Tuples differ: (8, 17, 2, 3, 124) != (8, 17, 2, 3, 127)  (element 4 = _count_files())
+  - Cause: not TASK-015 (no app or test code involved). It is a pre-existing race. core/test_runner.py (TASK-013-FIX) gives ALL parallel workers one shared temp PRIVATE_MEDIA_ROOT. _count_files() (test_demo.py:35) walks that whole root, so files that tests in other workers upload between "before" and "after" change the count (124 -> 127).
+  - Same module alone 3 times: OK.
+- Run 2, full suite --parallel, 01:29 MSK 20.11 ($TMPDIR/test-t015-rev2-20261119-142906.log): Ran 1140 tests ... OK.
+- Other checks: ruff check and format --check OK (193 files); bash -n OK; gunicorn --check-config exit 0; manage.py check and makemigrations --check OK; CI YAML OK; AC9 grep GREP_CLEAN.
+
+## For you
+- Suggested fix task for the flaky test (your decision). Option A: _count_files() counts only the demo's own files (e.g. the paths of PetitionAttachment files) instead of the whole storage root. Option B: the test runner gives each parallel worker its own sub-directory. It can fail again in any parallel run, CI included.
+- plan.md is modified in the tree (your file) — remember it in the commit.
+EOF
+  Thread thr_4izdzwetb4 steered
+
+── Thought for 5s ──────────────────────────────────────────
+  I'm checking whether option B holds up: workers started with spawn re-import their settings from the environment, which makes it a reasonable suggestion. Next I need to write my reply to the user in Russian.
+
+── Assistant ───────────────────────────────────────────────
+TASK-015 одобрен с первого раза, APPROVE отправлен Тимлиду. Одно падение было, но задача его не вызвала.
+
+**Задача.** Файлы деплоя переведены на новый сервер: 2 vCPU, ~2 ГБ RAM, 20 ГБ диска, своп провайдера.
+- Шаг 1, раздел «Ресурсы» и заголовок документа совпадают со спецификацией символ в символ.
+- Шаг про журнал (journald) удалён вместе с файлом и папкой.
+- Шаги перенумерованы 0–20. Все ссылки «шаг N» указывают на нужные шаги.
+- gunicorn по умолчанию запускает 5 процессов.
+- Остальные файлы деплоя не изменились.
+
+**Мутации.** Я внёс 6 намеренных ошибок в копию проекта: неверную ссылку на шаг, пропуск в нумерации, старое число процессов и другие. Каждую поймал нужный тест.
+
+**Прогоны.**
+- Первый полный прогон в 01:27 МСК упал на тесте `petitions.tests.test_demo.PetitionsDemoTests.test_idempotent`.
+  - Причина: тест считает загруженные файлы во временной папке. Эту папку используют все параллельные процессы тестов. Если другой процесс загрузит файл во время подсчёта, число не совпадёт (124 вместо 127).
+  - Ошибка существовала до TASK-015. Она может снова случайно появиться при любом параллельном прогоне, в том числе в CI.
+  - Отдельно этот тест прошёл 3 раза из 3.
+- Второй полный прогон в 01:29 МСК: 1140 тестов OK.
+- ruff, `check`, миграции, gunicorn и CI YAML в порядке.
+
+Я предложил Тимлиду два варианта исправления. Решение за ним:
+- тест считает только свои файлы;
+- каждый параллельный процесс получает свою временную папку.
+
+Ещё я напомнил Тимлиду, что `plan.md` изменён в рабочей копии. Жду следующий REPORT.

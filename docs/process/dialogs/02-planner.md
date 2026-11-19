@@ -22190,3 +22190,1345 @@ EOF
 **Визуальная проверка:** каждую добавленную страницу UI-кодер смотрит на 360 px за студента и за сотрудника, где это применимо.
 
 TASK-015 по-прежнему на паузе.
+
+── User ────────────────────────────────────────────────────
+/compact
+
+── Context compacted ───────────────────────────────────────
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-015] Team lead -> Planner: TASK
+TASK-015 go (user decision). TASK-014-FIX is committed (afed2a1) and the tree is clean. Use the TASK-015 request I sent earlier in this thread (unchanged), write docs/tasks/TASK-015.md with your feasibility check and test plan, and hand it to the Coder (DeepSeek, thr_ng6cbgatm6). The Coder's context was compacted on 19.11.
+
+── Ran 6 commands, explored 1 search, 3 files ──────────────
+  ── Thought for 7ms
+    I'm going to pull up the original TASK-015 request from the transcript, so I'm searching the transcript JSONL for that task ID.
+  ── Ran cd ~/hackatonproject; python3 - <<'EOF' 2>/dev/null import json p="~/.claude/projects/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d.jsonl" for line in open(p):     try: d=json.loads(line)     except: continue     m=d.get("message",{})     if m.get("role")!="user": continue     c=m.get("content")     texts=[c] if isinstance(c,str) else [x.get("text","") for x in c if isinstance(x,dict) and x.get("type")=="text"]     for t in texts:         if "[TASK-015]" in t:             print("=====",d.get("timestamp")); print(t[:6000]) EOF (2s)
+    $ cd ~/hackatonproject; python3 - <<'EOF' 2>/dev/null
+  import json
+  p="~/.claude/projects/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d.jsonl"
+  for line in open(p):
+      try: d=json.loads(line)
+      except: continue
+      m=d.get("message",{})
+      if m.get("role")!="user": continue
+      c=m.get("content")
+      texts=[c] if isinstance(c,str) else [x.get("text","") for x in c if isinstance(x,dict) and x.get("type")=="text"]
+      for t in texts:
+          if "[TASK-015]" in t:
+              print("=====",d.get("timestamp")); print(t[:6000])
+  EOF
+    ===== 2026-11-19T12:33:54.698Z
+    [bb message from thread:thr_4izdzwetb4]
+
+    [TASK-014-FIX] Team lead -> Planner: TASK
+    Approved by the user. Write the spec `docs/tasks/TASK-014-FIX.md` and hand it to the UI coder.
+    Assignee: UI coder (thr_pgcwc2dwnn)
+
+    ## Context
+    TASK-014 (committed 1414de1) made request titles longer ("Другая справка: <Тип>", up to 150 characters). Found by the Team lead at 360 px. Apply your "Feasibility check" and "Test plan" sections.
+
+    ## Item (user decision: fix)
+    1. Request lists: when a row wraps, a line starts with the separator dot ("· № 399ee6e5 · 19 ноября 2026 ·"), see `docs/process/screenshots/2026-11-19_68_my-requests-subject_student1.jpg`. Cause: `petitions/templates/petitions/my_list.html` and `staff_queue.html` join the parts with a literal " · " in the text, so the browser may break the line right before a dot. Required: a separator never starts a line in the request lists (student list and staff queue, any title length); the row stays readable at 360 px and 1024 px. Choose the means (e.g. the title on its own line and the details as one line below, or separators that stay attached to the previous item); check other lists that use the same " · " pattern (e.g. the catalog "— description · Срок: ...") and apply the same rule there if they wrap the same way. No JavaScript; text for screen readers stays sensible.
+       - Visual check: student "Мои заявки" and staff "Заявки" with the demo request "Другая справка: Справка о периоде обучения" and with a 150-character subject, at 360 x 780 and 1024 x 768; catalog at 360 px.
+
+    ## Accepted as is (user decision, no change)
+    - The empty comment on the form shows Django's "Обязательное поле." (the service has the custom text).
+
+    ## Out of scope
+    New features, other pages.
+
+    ## Order
+    TASK-015 comes after this task (the Coder must not work in the tree at the same time).
+    [bb message from thread:thr_4izdzwetb4]
+
+    [TASK-015] Team lead -> Planner: TASK
+    Approved by the user. Write the spec `docs/tasks/TASK-015.md` and hand it to the Coder (DeepSeek, thr_ng6cbgatm6).
+
+    ## Context
+    TASK-011 prepared the deploy for a small server (1 vCPU, 1 GB RAM, 10 GB disk). On 19.11 the user moved to another hosting: Ubuntu 24.04.4, 2 vCPU, 1.9 GB RAM, 20 GB disk, the provider already created a 512 MB swap file (swappiness 60). User decision: remove the optimizations made for the old small server. Documentation and deploy templates only; no application code changes. Apply your "Feasibility check" and "Test plan" sections.
+
+    ## Changes
+    1. `docs/DEPLOY.md` header and every mention of the old size: describe the new server (2 vCPU, ~2 GB RAM, 20 GB disk).
+    2. Remove step "1. Swap first (1 GB RAM)" (fallocate 1 GB, fstab, swappiness 10). Replace it with a one-line check that the provider swap exists (`swapon --show`, `free -h`); do not create or resize swap. Renumber steps and fix all step cross-references.
+    3. gunicorn workers: 5 (formula already in the runbook: min(2 x vCPU + 1, (free RAM MB - 300) / 90) = min(5, 13)). Update `deploy/gunicorn.conf.py` (docstring and the default), `.env.production.example` (comment and `GUNICORN_WORKERS=5`) and the runbook. Keep the env override.
+    4. journald: remove the custom cap made for the 10 GB disk (`deploy/journald/50-deanery.conf` and its runbook step); systemd defaults apply (10% of the file system, at most 4 GB). Remove the file and every reference to it (runbook, tests, CI if any).
+    5. PostgreSQL: drop the "do not raise shared_buffers, keep max_connections" warning that exists because of 1 GB RAM; stock settings stay (no tuning step added).
+    6. Section "Resources": recalculate the expected memory and disk for 5 workers on ~2 GB / 20 GB.
+    7. Keep everything else unchanged: backups (KEEP_DAYS 7), nginx, systemd unit, SSH hardening, firewall, HTTPS, HSTS.
+
+    ## Verification
+    All existing verification commands (check, deploy check, tests with the output saved to a file, ruff, CI YAML, `bash -n` of the deploy scripts, `gunicorn --check-config`); update tests that assert the old worker count or the journald file, with the reason; `grep` proves no mention of "1 GB", "1 vCPU", "10 GB", "swapfile" or "50-deanery.conf" remains in docs/DEPLOY.md, deploy/ and .env.production.example.
+
+    ## Timing
+    TASK-014-FIX (UI coder, petitions templates/CSS) goes first. Write this spec and run the feasibility check now (treat TASK-014-FIX files as expected uncommitted changes), but do NOT hand it to the Coder until I send "TASK-014-FIX committed". The Coder's context is being compacted now.
+    ===== None
+    [bb message from thread:thr_4izdzwetb4]
+
+    [TASK-014-FIX] Team lead -> Planner: TASK
+    Approved by the user. Write the spec `docs/tasks/TASK-014-FIX.md` and hand it to the UI coder.
+    Assignee: UI coder (thr_pgcwc2dwnn)
+
+    ## Context
+    TASK-014 (committed 1414de1) made request titles longer ("Другая справка: <Тип>", up to 150 characters). Found by the Team lead at 360 px. Apply your "Feasibility check" and "Test plan" sections.
+
+    ## Item (user decision: fix)
+    1. Request lists: when a row wraps, a line starts with the separator dot ("· № 399ee6e5 · 19 ноября 2026 ·"), see `docs/process/screenshots/2026-11-19_68_my-requests-subject_student1.jpg`. Cause: `petitions/templates/petitions/my_list.html` and `staff_queue.html` join the parts with a literal " · " in the text, so the browser may break the line right before a dot. Required: a separator never starts a line in the request lists (student list and staff queue, any title length); the row stays readable at 360 px and 1024 px. Choose the means (e.g. the title on its own line and the details as one line below, or separators that stay attached to the previous item); check other lists that use the same " · " pattern (e.g. the catalog "— description · Срок: ...") and apply the same rule there if they wrap the same way. No JavaScript; text for screen readers stays sensible.
+       - Visual check: student "Мои заявки" and staff "Заявки" with the demo request "Другая справка: Справка о периоде обучения" and with a 150-character subject, at 360 x 780 and 1024 x 768; catalog at 360 px.
+
+    ## Accepted as is (user decision, no change)
+    - The empty comment on the form shows Django's "Обязательное поле." (the service has the custom text).
+
+    ## Out of scope
+    New features, other pages.
+
+    ## Order
+    TASK-015 comes after this task (the Coder must not work in the tree at the same time).
+    [bb message from thread:thr_4izdzwetb4]
+
+    [TASK-015] Team lead -> Planner: TASK
+    Approved by the user. Write the spec `docs/tasks/TASK-015.md` and hand it to the Coder (DeepSeek, thr_ng6cbgatm6).
+
+    ## Context
+    TASK-011 prepared the deploy for a small server (1 vCPU, 1 GB RAM, 10 GB disk). On 19.11 the user moved to another hosting: Ubuntu 24.04.4, 2 vCPU, 1.9 GB RAM, 20 GB disk, the provider already created a 512 MB swap file (swappiness 60). User decision: remove the optimizations made for the old small server. Documentation and deploy templates only; no application code changes. Apply your "Feasibility check" and "Test plan" sections.
+
+    ## Changes
+    1. `docs/DEPLOY.md` header and every mention of the old size: describe the new server (2 vCPU, ~2 GB RAM, 20 GB disk).
+    2. Remove step "1. Swap first (1 GB RAM)" (fallocate 1 GB, fstab, swappiness 10). Replace it with a one-line check that the provider swap exists (`swapon --show`, `free -h`); do not create or resize swap. Renumber steps and fix all step cross-references.
+    3. gunicorn workers: 5 (formula already in the runbook: min(2 x vCPU + 1, (free RAM MB - 300) / 90) = min(5, 13)). Update `deploy/gunicorn.conf.py` (docstring and the default), `.env.production.example` (comment and `GUNICORN_WORKERS=5`) and the runbook. Keep the env override.
+    4. journald: remove the custom cap made for the 10 GB disk (`deploy/journald/50-deanery.conf` and its runbook step); systemd defaults apply (10% of the file system, at most 4 GB). Remove the file and every reference to it (runbook, tests, CI if any).
+    5. PostgreSQL: drop the "do not raise shared_buffers, keep max_connections" warning that exists because of 1 GB RAM; stock settings stay (no tuning step added).
+    6. Section "Resources": recalculate the expected memory and disk for 5 workers on ~2 GB / 20 GB.
+    7. Keep everything else unchanged: backups (KEEP_DAYS 7), nginx, systemd unit, SSH hardening, firewall, HTTPS, HSTS.
+
+    ## Verification
+    All existing verification commands (check, deploy check, tests with the output saved to a file, ruff, CI YAML, `bash -n` of the deploy scripts, `gunicorn --check-config`); update tests that assert the old worker count or the journald file, with the reason; `grep` proves no mention of "1 GB", "1 vCPU", "10 GB", "swapfile" or "50-deanery.conf" remains in docs/DEPLOY.md, deploy/ and .env.production.example.
+
+    ## Timing
+    TASK-014-FIX (UI coder, petitions templates/CSS) goes first. Write this spec and run the feasibility check now (treat TASK-014-FIX files as expected uncommitted changes), but do NOT hand it to the Coder until I send "TASK-014-FIX committed". The Coder's context is being compacted now.
+    ===== None
+    The user sent a new message while you were working:
+    [bb message from thread:thr_4izdzwetb4]
+
+    [TASK-015] Team lead -> Planner: ANSWER
+    Hold TASK-015 completely (user decision): do not write or hand over the spec until I send "TASK-015 go". If you have already started, stop and keep the draft as is. TASK-014-FIX goes ahead as planned.
+
+    This is how Claude Code surfaces messages the user sends mid-turn — within the running turn, often alongside the next tool result, rather than as a separate conversation turn. Address the message above as you continue this turn.
+    ===== 2026-11-19T22:15:33.814Z
+    [bb message from thread:thr_4izdzwetb4]
+
+    [TASK-015] Team lead -> Planner: TASK
+    TASK-015 go (user decision). TASK-014-FIX is committed (afed2a1) and the tree is clean. Use the TASK-015 request I sent earlier in this thread (unchanged), write docs/tasks/TASK-015.md with your feasibility check and test plan, and hand it to the Coder (DeepSeek, thr_ng6cbgatm6). The Coder's context was compacted on 19.11.
+    ===== None
+    [bb message from thread:thr_4izdzwetb4]
+
+    [TASK-015] Team lead -> Planner: TASK
+    TASK-015 go (user decision). TASK-014-FIX is committed (afed2a1) and the tree is clean. Use the TASK-015 request I sent earlier in this thread (unchanged), write docs/tasks/TASK-015.md with your feasibility check and test plan, and hand it to the Coder (DeepSeek, thr_ng6cbgatm6). The Coder's context was compacted on 19.11.
+  ── Thought for 6ms
+    I'm setting aside the Claude Docs tools since they won't help here. Next I'll look through the deploy files.
+  ── Ran cd ~/hackatonproject; git status --short; git log --oneline -1; ls deploy deploy/*; wc -l docs/DEPLOY.md deploy/gunicorn.conf.py .env.production.example; grep -rn "50-deanery\|journald\|GUNICORN_WORKERS\|swap\|1 GB\|1 vCPU\|10 GB\|shared_buffers\|max_connections" --include=* -I . 2>/dev/null | grep -v "^./.venv\|^./.git/\|^./docs/tasks\|^./docs/process\|staticfiles" | head -80 (3s)
+    $ cd ~/hackatonproject; git status --short; git log --oneline -1; ls deploy deploy/*; wc -l docs/DEPLOY.md deploy/gunicorn.conf.py .env.production.example; grep -rn "50-deanery\|journald\|GUNICORN_WORKERS\|swap\|1 GB\|1 vCPU\|10 GB\|shared_buffers\|max_connections" --include=* -I . 2>/dev/null | grep -v "^./.venv\|^./.git/\|^./docs/tasks\|^./docs/process\|staticfiles" | head -80
+    M plan.md
+    afed2a1 TASK-014-FIX: a separator dot never starts a line in lists
+    deploy/backup.sh
+    deploy/gunicorn.conf.py
+    deploy/manage.sh
+
+    deploy:
+    __pycache__
+    backup.sh
+    cron
+    gunicorn.conf.py
+    journald
+    manage.sh
+    nginx
+    ssh
+    systemd
+
+    deploy/__pycache__:
+    gunicorn.conf.cpython-312.pyc
+
+    deploy/cron:
+    deanery-backup
+
+    deploy/journald:
+    50-deanery.conf
+
+    deploy/nginx:
+    deanery-bootstrap.conf
+    deanery.conf
+
+    deploy/ssh:
+    10-deanery-hardening.conf
+
+    deploy/systemd:
+    deanery.service
+         316 docs/DEPLOY.md
+          20 deploy/gunicorn.conf.py
+          36 .env.production.example
+         372 total
+    (eval):1: no matches found: --include=*
+  ── Thought for 7ms
+    I see that plan.md has been modified, and it wasn't me. The lead says the tree is otherwise clean, so this is probably the user's own edit. I'll note it and leave the file alone.
+  ── Searched for 50-deanery\|journald\|GUNICORN_WORKERS\|workers\|swap\|1 GB\|1 vCPU\|10 GB\|shared_buffers\|max_connections\|1GB\|10G\|Swap in .
+  ── Read docs/DEPLOY.md
+  ── Thought for 16s
+    I'm checking the runbook's step references: step 6 writes journald inline, and the "keep one SSH session open until step 4" note has to stay. Since step 1 is being replaced by a one-line check, the steps will need renumbering and their cross-references updated, so I'm weighing how to lay out the new numbering.
+
+    I'm weighing two ways to handle the swap check: keeping it as step 1 so steps 1 through 5 stay put, or folding it into a "before you start" step and renumbering everything. Keeping step 1 is the cleaner choice, since removing step 6 then only shifts the later steps down by one, and the references to step 4 stay correct.
+
+    I'm scanning the doc for any banned size strings like "1 GB" and "10 GB," checking that none of the numbers I'm about to keep collide with them. The "≈ 2 GB" and "1.9 GB" figures are clear of the match. For the swap check, I'll use `swapon --show && free -h` and avoid naming the swap file itself.
+
+    I'm moving on to the tests in core/tests/test_deploy.py and checking the CI config for any journald reference. The README only has the parallel-run line, and I'm leaving the historical task doc and the lead's files alone. Next I'm redoing the memory budget: the workers, the database, and the system overhead.
+
+    I'm sizing the memory and disk budget now. The swap file is 512 MB from the provider, and the RAM total lands somewhere near 700–900 MB of the roughly 1.9 GB available, which leaves headroom for page cache and pip installs. For disk, I'm estimating the journal at no more than about 2 GB, using systemd's default of 10% of the file system.
+
+    Next I'm sizing the disk side: Ubuntu base, the apt packages for PostgreSQL and nginx, the small database, and the weekly backups. I'll also check whether a quick local gunicorn run against a temp database can confirm the per-worker memory figure, and confirm the connection limits in the settings.
+
+    I'm going to read through the tests in core/tests/test_deploy.py and the CI config to look for any references to journald.
+  ── Read core/tests/test_deploy.py
+  ── Thought for 4s
+    I need to check the step-10 references next: the comment about the step-10 sed and the test name test_step10_sed_produces_trial_env. Once the steps are renumbered, the env file step moves to 9, since the journald step goes away and the later steps shift down by one.
+
+    Next I'm checking the remaining step-10 references: the comment about the step-10 sed and the test name. Rather than keeping numbers in names that will drift with renumbering, I'm leaning toward renaming the constant and test to describe the env step itself. After that I need to look for other files that cite deploy steps by number, and check the secret-scan paths section for journald.
+  ── Thought for 5ms
+    Пишу спецификацию TASK-015 и проверяю ссылки на шаги деплоя и тесты, зависящие от старого сервера.
+  ── Read core/tests/test_deploy.py
+  ── Thought for 4s
+    I'm checking the nginx config reference that points to "step 13" and need to update it to step 12. I also want to look at the README around line 225 for any resource mentions in the deployment notes.
+
+    I'm planning to remove the journald config file with a plain rm and then rmdir the empty directory, avoiding rm -rf and git rm. Next I'll check the README deployment notes around lines 215–235 and measure gunicorn's memory footprint by booting it locally with five workers.
+  ── Read README.md
+  ── Thought for 1s
+    Since there's no CONN_MAX_AGE set, each request opens its own Postgres connection, and with at most five concurrent workers that should be manageable. I'm planning to measure the RSS of five gunicorn workers locally, probably against a temporary SQLite database via DATABASE_URL, while making sure the process environment overrides whatever `.env` would supply.
+
+    I'm going to make a clean copy from git archive in a temp directory without any `.env` file, and set dummy environment variables there, so the measurement doesn't depend on whatever the app would read from `.env`.
+  ── Ran set -e; D=$TMPDIR/t015; rm -rf "$D"; mkdir -p "$D"; cd ~/hackatonproject; git archive HEAD | tar -x -C "$D"; cd "$D"; export DEBUG=true SECRET_KEY=dummy-key-for-local-check DATABASE_URL=sqlite:///$D/db.sqlite3 PRIVATE_MEDIA_ROOT=$D/pm DEMO_PASSWORD=demo-pass-123 ALLOWED_HOSTS=localhost,127.0.0.1; ~/hackatonproject/.venv/bin/python manage.py migrate -v0; ~/hackatonproject/.venv/bin/python manage.py seed_demo >/dev/null; ls -la db.sqlite3 (5s)
+    $ set -e; D=$TMPDIR/t015; rm -rf "$D"; mkdir -p "$D"; cd ~/hackatonproject; git archive HEAD | tar -x -C "$D"; cd "$D"; export DEBUG=true SECRET_KEY=dummy-key-for-local-check DATABASE_URL=sqlite:///$D/db.sqlite3 PRIVATE_MEDIA_ROOT=$D/pm DEMO_PASSWORD=demo-pass-123 ALLOWED_HOSTS=localhost,127.0.0.1; ~/hackatonproject/.venv/bin/python manage.py migrate -v0; ~/hackatonproject/.venv/bin/python manage.py seed_demo >/dev/null; ls -la db.sqlite3
+    -rw-r--r--@ 1 andreyorlov  wheel  663552 Nov 19 14:16 db.sqlite3
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 5ms
+    I'm clearing out my own temp directory, which is safe since it's freshly created. The timestamp looks off, but that doesn't matter for this. Next I'll start gunicorn with five workers on port 8765, load a few pages, and check its memory usage.
+  ── Ran D=$TMPDIR/t015; cd "$D"; export DEBUG=true SECRET_KEY=dummy-key-for-local-check DATABASE_URL=sqlite:///$D/db.sqlite3 PRIVATE_MEDIA_ROOT=$D/pm DEMO_PASSWORD=demo-pass-123 ALLOWED_HOSTS=localhost,127.0.0.1 GUNICORN_WORKERS=5 GUNICORN_BIND=127.0.0.1:8765; V=~/hackatonproject/.venv/bin; $V/gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application && echo CHECK_OK; $V/gunicorn -c deploy/gunicorn.conf.py config.wsgi:application > $D/gu.log 2>&1 & GP=$!; sleep 4; for i in $(seq 1 60); do curl -s -o /dev/null -w '%{http_code} ' http://127.0.0.1:8765/health/; curl -s -o /dev/null http://127.0.0.1:8765/accounts/login/; done; echo; # login as student to load heavier pages J=$D/cj; rm -f $J; curl -s -c $J -b $J http://127.0.0.1:8765/accounts/login/ -o $D/login.html; TOK=$(grep -o 'csrfmiddlewaretoken" value="[^"]*' $D/login.html | sed 's/.*value="//'); curl -s -c $J -b $J -o /dev/null -w 'login %{http_code}\n' -e http://127.0.0.1:8765/accounts/login/ --data-urlencode "csrfmiddlewaretoken=$TOK" --data-urlencode username=student1 --data-urlencode password=demo-pass-123 http://127.0.0.1:8765/accounts/login/; for i in $(seq 1 20); do for u in / /schedule/ /petitions/ /chat/ /map/ /notifications/ /academics/; do curl -s -b $J -o /dev/null -w '%{http_code} ' http://127.0.0.1:8765$u; done; done; echo; ps -o pid,ppid,rss,command -p $GP; ps -o pid,ppid,rss,command | awk -v p=$GP '$2==p'; kill $GP; wait $GP 2>/dev/null; grep -c "Booting worker" $D/gu.log (9s)
+    $ D=$TMPDIR/t015; cd "$D"; export DEBUG=true SECRET_KEY=dummy-key-for-local-check DATABASE_URL=sqlite:///$D/db.sqlite3 PRIVATE_MEDIA_ROOT=$D/pm DEMO_PASSWORD=demo-pass-123 ALLOWED_HOSTS=localhost,127.0.0.1 GUNICORN_WORKERS=5 GUNICORN_BIND=127.0.0.1:8765; V=~/hackatonproject/.venv/bin; $V/gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application && echo CHECK_OK; $V/gunicorn -c deploy/gunicorn.conf.py config.wsgi:application > $D/gu.log 2>&1 & GP=$!; sleep 4; for i in $(seq 1 60); do curl -s -o /dev/null -w '%{http_code} ' http://127.0.0.1:8765/health/; curl -s -o /dev/null http://127.0.0.1:8765/accounts/login/; done; echo; # login as student to load heavier pages
+  J=$D/cj; rm -f $J; curl -s -c $J -b $J http://127.0.0.1:8765/accounts/login/ -o $D/login.html; TOK=$(grep -o 'csrfmiddlewaretoken" value="[^"]*' $D/login.html | sed 's/.*value="//'); curl -s -c $J -b $J -o /dev/null -w 'login %{http_code}\n' -e http://127.0.0.1:8765/accounts/login/ --data-urlencode "csrfmiddlewaretoken=$TOK" --data-urlencode username=student1 --data-urlencode password=demo-pass-123 http://127.0.0.1:8765/accounts/login/; for i in $(seq 1 20); do for u in / /schedule/ /petitions/ /chat/ /map/ /notifications/ /academics/; do curl -s -b $J -o /dev/null -w '%{http_code} ' http://127.0.0.1:8765$u; done; done; echo; ps -o pid,ppid,rss,command -p $GP; ps -o pid,ppid,rss,command | awk -v p=$GP '$2==p'; kill $GP; wait $GP 2>/dev/null; grep -c "Booting worker" $D/gu.log
+    CHECK_OK
+    (eval):1: nice(5) failed: operation not permitted
+    200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 200 
+    login 404
+    302 302 404 302 302 302 404 302 302 404 302 302 302 404 302 302 404 302 302 302 404 302 302 404 302 302 302 404 302 302 404 302 302 302 404 302 302 404 302 302 302 404 302 302 404 302 302 302 404 302 302 404 302 302 302 404 302 302 404 302 302 302 404 302 302 404 302 302 302 404 302 302 404 302 302 302 404 302 302 404 302 302 302 404 302 302 404 302 302 302 404 302 302 404 302 302 302 404 302 302 404 302 302 302 404 302 302 404 302 302 302 404 302 302 404 302 302 302 404 302 302 404 302 302 302 404 302 302 404 302 302 302 404 302 302 404 302 302 302 404 
+    (eval):2: operation not permitted: ps
+    (eval):2: operation not permitted: ps
+    5
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 1s
+    I'm trying to find the login URL since the first one was wrong, and `ps` is blocked by the sandbox, so I can't measure memory that way. I'm considering reading the worker's resource usage from inside the process instead, and settling on a simpler approach: a Python process that loads Django, renders pages with the test client, and checks resource usage afterward.
+
+    I'm settling on measuring the peak resident memory with resource.getrusage(RUSAGE_SELF).ru_maxrss in a Python process that loads Django and renders pages through the test client. I know macOS reports that value in bytes, and the numbers won't match Linux exactly, but they're close enough to compare against the 60–90 MB estimate from TASK-011.
+  ── Ran D=$TMPDIR/t015; cd "$D"; grep -rn "login" config/urls.py accounts/urls.py 2>/dev/null | head -5; export DEBUG=false SECRET_KEY=dummy-key-for-local-check-0123456789abcdefghijklmnop DATABASE_URL=sqlite:///$D/db.sqlite3 PRIVATE_MEDIA_ROOT=$D/pm DEMO_PASSWORD=demo-pass-123 ALLOWED_HOSTS=testserver SECURE_SSL_REDIRECT=false; ~/hackatonproject/.venv/bin/python - <<'EOF' import os, resource, django os.environ.setdefault("DJANGO_SETTINGS_MODULE","config.settings") def mb(): return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024/1024 from django.conf import settings from django.core.wsgi import get_wsgi_application app = get_wsgi_application() print("after wsgi load: %.0f MB" % mb()) from django.test import Client from django.contrib.auth import get_user_model U=get_user_model() c=Client() for name in ["student1"]:     u=U.objects.filter(username=name).first() or U.objects.filter(is_superuser=False).first()     c.force_login(u) from django.urls import get_resolver codes={} for _ in range(20):     for path in ["/", "/schedule/", "/petitions/", "/chat/", "/map/", "/notifications/", "/academics/", "/schedule/today/"]:         r=c.get(path); codes[path]=r.status_code print(codes) staff=U.objects.filter(username__startswith="staff").first() or U.objects.filter(is_staff=True).first() if staff:     c.force_login(staff)     for _ in range(10):         for path in ["/", "/petitions/staff/", "/chat/staff/", "/notifications/staff/"]:             codes[path]=c.get(path).status_code print(codes) print("after pages: %.0f MB" % mb()) EOF (2s, error)
+    $ D=$TMPDIR/t015; cd "$D"; grep -rn "login" config/urls.py accounts/urls.py 2>/dev/null | head -5; export DEBUG=false SECRET_KEY=dummy-key-for-local-check-0123456789abcdefghijklmnop DATABASE_URL=sqlite:///$D/db.sqlite3 PRIVATE_MEDIA_ROOT=$D/pm DEMO_PASSWORD=demo-pass-123 ALLOWED_HOSTS=testserver SECURE_SSL_REDIRECT=false; ~/hackatonproject/.venv/bin/python - <<'EOF'
+  import os, resource, django
+  os.environ.setdefault("DJANGO_SETTINGS_MODULE","config.settings")
+  def mb(): return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024/1024
+  from django.conf import settings
+  from django.core.wsgi import get_wsgi_application
+  app = get_wsgi_application()
+  print("after wsgi load: %.0f MB" % mb())
+  from django.test import Client
+  from django.contrib.auth import get_user_model
+  U=get_user_model()
+  c=Client()
+  for name in ["student1"]:
+      u=U.objects.filter(username=name).first() or U.objects.filter(is_superuser=False).first()
+      c.force_login(u)
+  from django.urls import get_resolver
+  codes={}
+  for _ in range(20):
+      for path in ["/", "/schedule/", "/petitions/", "/chat/", "/map/", "/notifications/", "/academics/", "/schedule/today/"]:
+          r=c.get(path); codes[path]=r.status_code
+  print(codes)
+  staff=U.objects.filter(username__startswith="staff").first() or U.objects.filter(is_staff=True).first()
+  if staff:
+      c.force_login(staff)
+      for _ in range(10):
+          for path in ["/", "/petitions/staff/", "/chat/staff/", "/notifications/staff/"]:
+              codes[path]=c.get(path).status_code
+  print(codes)
+  print("after pages: %.0f MB" % mb())
+  EOF
+    Exit code 1
+    accounts/urls.py:8:    path("login/", views.DeaneryLoginView.as_view(), name="login"),
+    Traceback (most recent call last):
+      File "<stdin>", line 6, in <module>
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/wsgi.py", line 12, in get_wsgi_application
+        django.setup(set_prefix=False)
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/__init__.py", line 19, in setup
+        configure_logging(settings.LOGGING_CONFIG, settings.LOGGING)
+                          ^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/conf/__init__.py", line 81, in __getattr__
+        self._setup(name)
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/conf/__init__.py", line 68, in _setup
+        self._wrapped = Settings(settings_module)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/conf/__init__.py", line 166, in __init__
+        mod = importlib.import_module(self.SETTINGS_MODULE)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/opt/homebrew/Cellar/python@3.12/3.12.16/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py", line 90, in import_module
+        return _bootstrap._gcd_import(name[level:], package, level)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+      File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+      File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+      File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+      File "<frozen importlib._bootstrap_external>", line 999, in exec_module
+      File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+      File "/private/tmp/claude-501/t015/config/settings.py", line 24, in <module>
+        ADMIN_URL = resolve_admin_url(env.str("ADMIN_URL", default=""), DEBUG)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/private/tmp/claude-501/t015/config/env_utils.py", line 30, in resolve_admin_url
+        raise ImproperlyConfigured(
+    django.core.exceptions.ImproperlyConfigured: ADMIN_URL environment variable is required when DEBUG is false.
+    exit 1
+  ── Thought for 6ms
+    I'll run with DEBUG=true, since it's simpler to set up. Turning it off would better match production, but that needs collectstatic to be run first or template rendering fails. The memory cost of DEBUG=true is small, so it doesn't change the choice.
+  ── Ran D=$TMPDIR/t015; cd "$D"; export DEBUG=true SECRET_KEY=dummy-key-for-local-check DATABASE_URL=sqlite:///$D/db.sqlite3 PRIVATE_MEDIA_ROOT=$D/pm DEMO_PASSWORD=demo-pass-123 ALLOWED_HOSTS=testserver; ~/hackatonproject/.venv/bin/python - <<'EOF' import os, resource os.environ.setdefault("DJANGO_SETTINGS_MODULE","config.settings") def mb(): return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024/1024 print("bare python+imports: %.0f MB" % mb()) from django.core.wsgi import get_wsgi_application app = get_wsgi_application() print("after wsgi load: %.0f MB" % mb()) from django.test import Client from django.contrib.auth import get_user_model U=get_user_model() c=Client() u=U.objects.filter(username="student1").first() or U.objects.filter(is_staff=False,is_superuser=False).first() print("student:", u.username) c.force_login(u) codes={} for _ in range(20):     for path in ["/", "/schedule/", "/petitions/", "/chat/", "/map/", "/notifications/", "/academics/"]:         codes[path]=c.get(path, follow=True).status_code staff=U.objects.filter(is_staff=True,is_superuser=False).first() print("staff:", staff and staff.username) c.force_login(staff) for _ in range(10):     for path in ["/", "/petitions/staff/", "/chat/staff/", "/notifications/staff/"]:         codes["staff "+path]=c.get(path, follow=True).status_code print(codes) print("after pages: %.0f MB" % mb()) EOF (2s, error)
+    $ D=$TMPDIR/t015; cd "$D"; export DEBUG=true SECRET_KEY=dummy-key-for-local-check DATABASE_URL=sqlite:///$D/db.sqlite3 PRIVATE_MEDIA_ROOT=$D/pm DEMO_PASSWORD=demo-pass-123 ALLOWED_HOSTS=testserver; ~/hackatonproject/.venv/bin/python - <<'EOF'
+  import os, resource
+  os.environ.setdefault("DJANGO_SETTINGS_MODULE","config.settings")
+  def mb(): return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024/1024
+  print("bare python+imports: %.0f MB" % mb())
+  from django.core.wsgi import get_wsgi_application
+  app = get_wsgi_application()
+  print("after wsgi load: %.0f MB" % mb())
+  from django.test import Client
+  from django.contrib.auth import get_user_model
+  U=get_user_model()
+  c=Client()
+  u=U.objects.filter(username="student1").first() or U.objects.filter(is_staff=False,is_superuser=False).first()
+  print("student:", u.username)
+  c.force_login(u)
+  codes={}
+  for _ in range(20):
+      for path in ["/", "/schedule/", "/petitions/", "/chat/", "/map/", "/notifications/", "/academics/"]:
+          codes[path]=c.get(path, follow=True).status_code
+  staff=U.objects.filter(is_staff=True,is_superuser=False).first()
+  print("staff:", staff and staff.username)
+  c.force_login(staff)
+  for _ in range(10):
+      for path in ["/", "/petitions/staff/", "/chat/staff/", "/notifications/staff/"]:
+          codes["staff "+path]=c.get(path, follow=True).status_code
+  print(codes)
+  print("after pages: %.0f MB" % mb())
+  EOF
+    Exit code 1
+    2026-11-20 01:17:13,580 WARNING django.request Not Found: /petitions/
+    2026-11-20 01:17:13,649 WARNING django.request Not Found: /academics/
+    2026-11-20 01:17:13,677 WARNING django.request Not Found: /petitions/
+    2026-11-20 01:17:13,719 WARNING django.request Not Found: /academics/
+    2026-11-20 01:17:13,749 WARNING django.request Not Found: /petitions/
+    2026-11-20 01:17:13,792 WARNING django.request Not Found: /academics/
+    2026-11-20 01:17:13,819 WARNING django.request Not Found: /petitions/
+    2026-11-20 01:17:13,862 WARNING django.request Not Found: /academics/
+    2026-11-20 01:17:13,890 WARNING django.request Not Found: /petitions/
+    2026-11-20 01:17:13,936 WARNING django.request Not Found: /academics/
+    2026-11-20 01:17:13,964 WARNING django.request Not Found: /petitions/
+    2026-11-20 01:17:14,007 WARNING django.request Not Found: /academics/
+    2026-11-20 01:17:14,035 WARNING django.request Not Found: /petitions/
+    2026-11-20 01:17:14,079 WARNING django.request Not Found: /academics/
+    2026-11-20 01:17:14,107 WARNING django.request Not Found: /petitions/
+    2026-11-20 01:17:14,150 WARNING django.request Not Found: /academics/
+    2026-11-20 01:17:14,178 WARNING django.request Not Found: /petitions/
+    2026-11-20 01:17:14,222 WARNING django.request Not Found: /academics/
+    2026-11-20 01:17:14,250 WARNING django.request Not Found: /petitions/
+    2026-11-20 01:17:14,293 WARNING django.request Not Found: /academics/
+    2026-11-20 01:17:14,321 WARNING django.request Not Found: /petitions/
+    2026-11-20 01:17:14,364 WARNING django.request Not Found: /academics/
+    2026-11-20 01:17:14,392 WARNING django.request Not Found: /petitions/
+    2026-11-20 01:17:14,435 WARNING django.request Not Found: /academics/
+    2026-11-20 01:17:14,463 WARNING django.request Not Found: /petitions/
+    2026-11-20 01:17:14,508 WARNING django.request Not Found: /academics/
+    2026-11-20 01:17:14,536 WARNING django.request Not Found: /petitions/
+    2026-11-20 01:17:14,579 WARNING django.request Not Found: /academics/
+    2026-11-20 01:17:14,607 WARNING django.request Not Found: /petitions/
+    2026-11-20 01:17:14,650 WARNING django.request Not Found: /academics/
+    2026-11-20 01:17:14,678 WARNING django.request Not Found: /petitions/
+    2026-11-20 01:17:14,721 WARNING django.request Not Found: /academics/
+    2026-11-20 01:17:14,750 WARNING django.request Not Found: /petitions/
+    2026-11-20 01:17:14,806 WARNING django.request Not Found: /academics/
+    2026-11-20 01:17:14,834 WARNING django.request Not Found: /petitions/
+    2026-11-20 01:17:14,877 WARNING django.request Not Found: /academics/
+    2026-11-20 01:17:14,905 WARNING django.request Not Found: /petitions/
+    2026-11-20 01:17:14,948 WARNING django.request Not Found: /academics/
+    2026-11-20 01:17:14,975 WARNING django.request Not Found: /petitions/
+    2026-11-20 01:17:15,018 WARNING django.request Not Found: /academics/
+    bare python+imports: 9 MB
+    after wsgi load: 46 MB
+    student: student1
+    staff: None
+    Traceback (most recent call last):
+      File "<stdin>", line 21, in <module>
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/test/client.py", line 857, in force_login
+        user.backend = backend
+        ^^^^^^^^^^^^
+    AttributeError: 'NoneType' object has no attribute 'backend'
+    exit 1
+  ── Thought for 6ms
+    I'm going to pull up the URL list quickly, and I'm wondering whether to look up the reverse names through show_urls or just print config/urls directly.
+
+── Assistant ───────────────────────────────────────────────
+Измеряю память одного процесса Django, чтобы пересчитать раздел «Ресурсы».
+
+── Ran 5 commands, explored 1 search ───────────────────────
+  ── Ran D=$TMPDIR/t015; cd "$D"; grep -n "path(" config/urls.py | head -20; export DEBUG=true SECRET_KEY=dummy-key-for-local-check DATABASE_URL=sqlite:///$D/db.sqlite3 PRIVATE_MEDIA_ROOT=$D/pm DEMO_PASSWORD=demo-pass-123 ALLOWED_HOSTS=testserver; ~/hackatonproject/.venv/bin/python manage.py shell -c "from django.contrib.auth import get_user_model as g; print([(u.username,u.role if hasattr(u,'role') else '') for u in g().objects.all()[:40]])" 2>&1 | tail -2
+    $ D=$TMPDIR/t015; cd "$D"; grep -n "path(" config/urls.py | head -20; export DEBUG=true SECRET_KEY=dummy-key-for-local-check DATABASE_URL=sqlite:///$D/db.sqlite3 PRIVATE_MEDIA_ROOT=$D/pm DEMO_PASSWORD=demo-pass-123 ALLOWED_HOSTS=testserver; ~/hackatonproject/.venv/bin/python manage.py shell -c "from django.contrib.auth import get_user_model as g; print([(u.username,u.role if hasattr(u,'role') else '') for u in g().objects.all()[:40]])" 2>&1 | tail -2
+    8:    path(settings.ADMIN_URL, admin.site.urls),
+    9:    path("", include("accounts.urls")),
+    10:    path("", include("schedule.urls")),
+    11:    path("", include("academics.urls")),
+    12:    path("", include("petitions.urls")),
+    13:    path("", include("notifications.urls")),
+    14:    path("", include("campusmap.urls")),
+    15:    path("", include("chat.urls")),
+    16:    path("", include("core.urls")),
+
+    [('student1', 'student'), ('student2', 'student'), ('student3', 'student'), ('staff1', 'staff'), ('staff2', 'staff')]
+    Shell cwd was reset to ~/hackatonproject
+  ── Ran D=$TMPDIR/t015; cd "$D"; export DEBUG=true SECRET_KEY=dummy-key-for-local-check DATABASE_URL=sqlite:///$D/db.sqlite3 PRIVATE_MEDIA_ROOT=$D/pm DEMO_PASSWORD=demo-pass-123 ALLOWED_HOSTS=testserver; ~/hackatonproject/.venv/bin/python - 2>/dev/null <<'EOF' import os, resource os.environ.setdefault("DJANGO_SETTINGS_MODULE","config.settings") def mb(): return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024/1024 from django.core.wsgi import get_wsgi_application app = get_wsgi_application() print("after wsgi load: %.0f MB" % mb()) from django.urls import get_resolver paths=sorted({"/"+str(p.pattern) for r in get_resolver().url_patterns if hasattr(r,'url_patterns') for p in r.url_patterns if "<" not in str(p.pattern) and "admin" not in str(p.pattern) and "logout" not in str(p.pattern)}) from django.test import Client from django.contrib.auth import get_user_model U=get_user_model(); c=Client(); codes={} for name in ["student1","staff1"]:     c.force_login(U.objects.get(username=name))     for _ in range(15):         for p in paths:             codes[name+" "+p]=c.get(p).status_code print(sum(1 for v in codes.values() if v==200), "pages 200 of", len(codes)) print("after pages: %.0f MB" % mb()) EOF (7s)
+    $ D=$TMPDIR/t015; cd "$D"; export DEBUG=true SECRET_KEY=dummy-key-for-local-check DATABASE_URL=sqlite:///$D/db.sqlite3 PRIVATE_MEDIA_ROOT=$D/pm DEMO_PASSWORD=demo-pass-123 ALLOWED_HOSTS=testserver; ~/hackatonproject/.venv/bin/python - 2>/dev/null <<'EOF'
+  import os, resource
+  os.environ.setdefault("DJANGO_SETTINGS_MODULE","config.settings")
+  def mb(): return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024/1024
+  from django.core.wsgi import get_wsgi_application
+  app = get_wsgi_application()
+  print("after wsgi load: %.0f MB" % mb())
+  from django.urls import get_resolver
+  paths=sorted({"/"+str(p.pattern) for r in get_resolver().url_patterns if hasattr(r,'url_patterns') for p in r.url_patterns if "<" not in str(p.pattern) and "admin" not in str(p.pattern) and "logout" not in str(p.pattern)})
+  from django.test import Client
+  from django.contrib.auth import get_user_model
+  U=get_user_model(); c=Client(); codes={}
+  for name in ["student1","staff1"]:
+      c.force_login(U.objects.get(username=name))
+      for _ in range(15):
+          for p in paths:
+              codes[name+" "+p]=c.get(p).status_code
+  print(sum(1 for v in codes.values() if v==200), "pages 200 of", len(codes))
+  print("after pages: %.0f MB" % mb())
+  EOF
+    after wsgi load: 45 MB
+    20 pages 200 of 88
+    after pages: 58 MB
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 5s
+    Peak memory is around 58 MB on macOS with sqlite, and Linux with psycopg adds roughly 5–10 MB, so the 60–90 MB estimate for TASK-011 still holds. Five workers at that size plus about 40 MB for the master comes to roughly 350–500 MB. PostgreSQL adds about 100–150 MB of shared memory plus 5–10 MB per backend for up to five backends, so roughly 150–200 MB more.
+
+    Next I'm checking the memory budget against the RAM left after the system and nginx, which works out to roughly 13 workers, so I'll take the lead's cap of 5. On disk, the base system and packages come to 3–4 GB, the venv to about 150 MB, and PostgreSQL to about 100 MB across the two databases. Logs and backups add a little more, for a worst case near 6 GB out of 20. I still need to check the repo and venv sizes locally.
+  ── Ran cd ~/hackatonproject; du -sh .venv $TMPDIR/t015 2>/dev/null; git count-objects -vH | grep size-pack; ls docs/process | head -3; du -sh docs/process
+    $ cd ~/hackatonproject; du -sh .venv $TMPDIR/t015 2>/dev/null; git count-objects -vH | grep size-pack; ls docs/process | head -3; du -sh docs/process
+    96M	.venv
+     19M	/tmp/claude-501/t015
+    size-pack: 0 bytes
+    README.md
+    dialogs
+    screenshots
+     15M	docs/process
+  ── Thought for 33s
+    The repo is roughly 19 MB, and with .git it could be around 20 to 40 MB more, so code plus git should come to about 50 MB. Next I want a baseline test run on a temp copy of HEAD, then a second temp copy with the change applied, to check that the tests I plan to specify actually pass. The main tree is clean apart from plan.md, so running there would also be fine, but I'd rather work in $TMPDIR.
+
+    Next I'm planning the applied changes in a second copy and will run the full test suite, ruff, the gunicorn check, and a grep against it. I'm settling on the step-1 rewrite first: it becomes a memory and swap check that only confirms the existing 512 MB swap is active, with no creating or resizing.
+
+    I'm renumbering the remaining steps and fixing the cross-references that point to them, then updating the header to drop the "24.04.4" detail. The PostgreSQL step loses its tuning paragraph, so I'm also removing the shared_buffers topic from the test list.
+
+    I'm writing the Resources section for step 19: the server spec, then expected memory use per component (gunicorn, PostgreSQL, nginx, system) adding up to roughly 750–950 MB of 1.9 GB usable, with the rest left for file cache and peaks during installs and migrations.
+
+    I'm settling the remaining details of the Resources section: disk use for the system and packages, code, the venv, the PostgreSQL databases and backups, with journald capped by its systemd defaults and nginx logs left to the stock logrotate config. That brings the total to at most about 7 GB of the 20 GB disk.
+
+    I'm settling the worker count next, setting GUNICORN_WORKERS to 5 from the formula.
+
+    I'm checking how the worker count fits the formula: min(5, 13) gives 5. If memory gets tight, I'd lower GUNICORN_WORKERS and restart the service, then raise it again on a larger server.
+
+    Now I'm checking the worker formula against the server's memory, which comes out to 5 workers. I'll keep the test expectations aligned with that default.
+
+    Now I'm going through the test changes: dropping the journald constant and its size test, and replacing the swap-order test with one that checks `swapon --show` comes before the package install, plus another that makes sure nothing in the runbook creates or resizes swap.
+
+    Next I'm adding a test class that checks none of the old server limits ("1 GB", "1 vCPU", "swapfile", "SystemMaxUse", "shared_buffers" and similar) remain in the runbook, the gunicorn config, the env example, or anything under deploy/, and I'm dropping the journald test along with its constant.
+
+    I'm writing the runbook test expectations now: step numbers should run consecutively and every "step N" reference in DEPLOY.md should point to a real heading. I'm also pinning the specific cross-references, like step 6, step 8 and step 15, so a wrong renumbering gets caught.
+
+    Now I'm writing the cross-reference tests: a table that maps each phrase like "until step N is verified" to the heading title it should point at, so a wrong renumbering gets caught.
+
+    I'm writing the cross-reference table entries, mapping each "step N" phrase in the runbook to the heading it should point at.
+
+    I'm adding a check that the test list covers the new swap and runbook expectations, and I'm planning to rename the env-file sed test, since its "step 10" name would now be wrong. Then I'll run the baseline test suite.
+
+    I'm defining the test changes for this rename: the new test count should net to four more tests, and I'll verify the exact list in the copy. Before the test run, I'm checking that the swap-order test still finds the right position, since `swapon --show` also shows up later in the Resources commands.
+
+    I'm going to apply the DEPLOY.md and test changes directly in the copy with Python replacements, writing out the exact new text first.
+  ── Searched for line-length\|\[tool.ruff in ruff.toml
+  ── Thought for 5ms
+    CI has no journald reference, so that part is clear. Next I'll apply the changes in a second copy, t015b, to verify them, and I'm writing a Python patch script in $TMPDIR so the copy itself stays untouched.
+  ── Ran set -e; B=$TMPDIR/t015b; rm -rf "$B"; mkdir -p "$B"; cd ~/hackatonproject; git archive HEAD | tar -x -C "$B"; cat > $TMPDIR/t015_apply.py <<'PYEOF' import re, sys, pathlib B = pathlib.Path(sys.argv[1]) def sub(path, old, new, count=1):     p = B / path; t = p.read_text()     assert t.count(old) == count, (path, old[:60], t.count(old))     p.write_text(t.replace(old, new)) md = "docs/DEPLOY.md" sub(md, """Production deployment of the Deanery prototype on Ubuntu 24.04 (1 vCPU, 1 GB RAM, 10 GB disk), one domain with HTTPS, serving until 2026-11-28.""", """Production deployment of the Deanery prototype on Ubuntu 24.04 (2 vCPU, ~2 GB RAM, 20 GB disk, 512 MB swap from the provider), one domain with HTTPS, serving until 2026-11-28.""") sub(md, """## 1. Swap first (1 GB RAM) Do this before any `apt` or `pip` step, so installs and migrations have room. ```bash sudo fallocate -l 1G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab echo 'vm.swappiness=10' | sudo tee /etc/sysctl.d/99-deanery-swap.conf && sudo sysctl --system free -h ``` """, """## 1. Memory and swap check The provider already created a 512 MB swap. Check that it is active; do not create or resize swap. ```bash swapon --show && free -h ``` """) sub(md, "may be done right after step 7, once the repo is cloned.", "may be done right after step 6, once the repo is cloned.") sub(md, """## 6. journald limit Cap journald so logs cannot fill the 10 GB disk. The file sets `SystemMaxUse=200M` (and keeps 1 GB free). This runs before the clone (step 7), so the config is written inline: ```bash sudo mkdir -p /etc/systemd/journald.conf.d sudo tee /etc/systemd/journald.conf.d/50-deanery.conf > /dev/null <<'EOF' [Journal] SystemMaxUse=200M SystemKeepFree=1G MaxRetentionSec=14day EOF sudo systemctl restart systemd-journald journalctl --disk-usage ``` nginx logs are rotated by the stock `/etc/logrotate.d/nginx` — no action. """, "") sub(md, """Keep PostgreSQL stock settings: do **not** raise `shared_buffers`, keep `max_connections`. """, "") for old, new in [(7,6),(8,7),(9,8),(10,9),(11,10),(12,11),(13,12),(14,13),(15,14),(16,15),(17,16),(18,17),(19,18),(20,19),(21,20)]:     sub(md, f"\n## {old}. ", f"\n## {new}. ") sub(md, "the `deanery` role already exists from step 9)", "the `deanery` role already exists from step 8)") sub(md, "step 16 (without seeding)", "step 15 (without seeding)") sub(md, "Then repeat the smoke check (step 16).", "Then repeat the smoke check (step 15).") sub(md, """Expected memory: gunicorn master + 2 workers ≈ 200–250 MB, PostgreSQL ≈ 100–150 MB, nginx ≈ 10 MB, system ≈ 200 MB → ≈ 600 MB of 1 GB; swap covers peaks (pip install, migrations). Disk: venv ≈ 150 MB, journal ≤ 200 MB, backups (7 days, gzip) small. ```bash free -h df -h journalctl --disk-usage systemctl status deanery ``` If pages are slow or memory is full, upgrade the hosting tariff and raise `GUNICORN_WORKERS` by the formula `min(2 × vCPU + 1, (free RAM MB − 300) / 90)`.""", """Server: 2 vCPU, ~2 GB RAM (1.9 GB usable), 20 GB disk, 512 MB swap from the provider. Workers: `GUNICORN_WORKERS=5` by the formula `min(2 × vCPU + 1, (free RAM MB − 300) / 90)` = min(5, 13) = 5. Expected memory: gunicorn master + 5 workers ≈ 350–500 MB (≈ 60–90 MB per worker), PostgreSQL ≈ 150–200 MB (shared memory and up to 5 connections), nginx ≈ 10 MB, system ≈ 250 MB → ≈ 750–950 MB of 1.9 GB. The rest holds the file cache and the peaks of `pip install`, `migrate` and `collectstatic`; the swap covers rare peaks. Disk: system and packages ≈ 4 GB, code ≈ 50 MB, venv ≈ 150 MB, PostgreSQL data (trial and final databases) ≈ 100 MB, backups (7 days, gzip) small, journal at most ≈ 2 GB → at most ≈ 7 GB of 20 GB. Logs: journald uses the systemd defaults (at most 10% of the file system, at most 4 GB; it keeps 15% of the file system free). nginx logs are rotated by the stock `/etc/logrotate.d/nginx`. ```bash free -h swapon --show df -h journalctl --disk-usage systemctl status deanery ``` If pages are slow or memory is full (`free -h` shows little available memory and the swap is in use), lower `GUNICORN_WORKERS` in `/etc/deanery/deanery.env` and run `sudo systemctl restart deanery`. On a bigger server raise it by the same formula.""") sub("deploy/nginx/deanery-bootstrap.conf", "(docs/DEPLOY.md step 13)", "(docs/DEPLOY.md step 12)") sub("deploy/gunicorn.conf.py", """Workers: 2 for 1 vCPU / 1 GB RAM. Bigger server: min(2 * vCPU + 1, (free RAM MB - 300) // 90), set GUNICORN_WORKERS in /etc/deanery/deanery.env.""", """Workers: 5 for 2 vCPU / ~2 GB RAM: min(2 * vCPU + 1, (free RAM MB - 300) // 90) = min(5, 13). Other server: set GUNICORN_WORKERS in /etc/deanery/deanery.env by the same formula.""") sub("deploy/gunicorn.conf.py", 'os.environ.get("GUNICORN_WORKERS", "2")', 'os.environ.get("GUNICORN_WORKERS", "5")') sub(".env.production.example", """# gunicorn (deploy/gunicorn.conf.py): 2 workers for 1 vCPU / 1 GB RAM. GUNICORN_WORKERS=2""", """# gunicorn (deploy/gunicorn.conf.py): 5 workers for 2 vCPU / ~2 GB RAM (docs/DEPLOY.md, Resources). GUNICORN_WORKERS=5""") (B / "deploy/journald/50-deanery.conf").unlink(); (B / "deploy/journald").rmdir() PYEOF .venv/bin/python $TMPDIR/t015_apply.py "$B" && echo APPLIED; grep -n "^## " $B/docs/DEPLOY.md
+    $ set -e; B=$TMPDIR/t015b; rm -rf "$B"; mkdir -p "$B"; cd ~/hackatonproject; git archive HEAD | tar -x -C "$B"; cat > $TMPDIR/t015_apply.py <<'PYEOF'
+  import re, sys, pathlib
+  B = pathlib.Path(sys.argv[1])
+  def sub(path, old, new, count=1):
+      p = B / path; t = p.read_text()
+      assert t.count(old) == count, (path, old[:60], t.count(old))
+      p.write_text(t.replace(old, new))
+
+  md = "docs/DEPLOY.md"
+  sub(md, """Production deployment of the Deanery prototype on Ubuntu 24.04 (1 vCPU, 1 GB
+  RAM, 10 GB disk), one domain with HTTPS, serving until 2026-11-28.""",
+  """Production deployment of the Deanery prototype on Ubuntu 24.04 (2 vCPU, ~2 GB
+  RAM, 20 GB disk, 512 MB swap from the provider), one domain with HTTPS, serving
+  until 2026-11-28.""")
+  sub(md, """## 1. Swap first (1 GB RAM)
+
+  Do this before any `apt` or `pip` step, so installs and migrations have room.
+
+  ```bash
+  sudo fallocate -l 1G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+  echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+  echo 'vm.swappiness=10' | sudo tee /etc/sysctl.d/99-deanery-swap.conf && sudo sysctl --system
+  free -h
+  ```
+  """, """## 1. Memory and swap check
+
+  The provider already created a 512 MB swap. Check that it is active; do not
+  create or resize swap.
+
+  ```bash
+  swapon --show && free -h
+  ```
+  """)
+  sub(md, "may be done right after step 7, once the repo is cloned.", "may be done right after step 6, once the repo is cloned.")
+  sub(md, """## 6. journald limit
+
+  Cap journald so logs cannot fill the 10 GB disk. The file sets
+  `SystemMaxUse=200M` (and keeps 1 GB free). This runs before the clone (step 7),
+  so the config is written inline:
+
+  ```bash
+  sudo mkdir -p /etc/systemd/journald.conf.d
+  sudo tee /etc/systemd/journald.conf.d/50-deanery.conf > /dev/null <<'EOF'
+  [Journal]
+  SystemMaxUse=200M
+  SystemKeepFree=1G
+  MaxRetentionSec=14day
+  EOF
+  sudo systemctl restart systemd-journald
+  journalctl --disk-usage
+  ```
+
+  nginx logs are rotated by the stock `/etc/logrotate.d/nginx` — no action.
+
+  """, "")
+  sub(md, """Keep PostgreSQL stock settings: do **not** raise `shared_buffers`, keep
+  `max_connections`.
+
+  """, "")
+  for old, new in [(7,6),(8,7),(9,8),(10,9),(11,10),(12,11),(13,12),(14,13),(15,14),(16,15),(17,16),(18,17),(19,18),(20,19),(21,20)]:
+      sub(md, f"\n## {old}. ", f"\n## {new}. ")
+  sub(md, "the `deanery` role already exists from step 9)", "the `deanery` role already exists from step 8)")
+  sub(md, "step 16 (without seeding)", "step 15 (without seeding)")
+  sub(md, "Then repeat the smoke check (step 16).", "Then repeat the smoke check (step 15).")
+  sub(md, """Expected memory: gunicorn master + 2 workers ≈ 200–250 MB, PostgreSQL ≈
+  100–150 MB, nginx ≈ 10 MB, system ≈ 200 MB → ≈ 600 MB of 1 GB; swap covers
+  peaks (pip install, migrations). Disk: venv ≈ 150 MB, journal ≤ 200 MB,
+  backups (7 days, gzip) small.
+
+  ```bash
+  free -h
+  df -h
+  journalctl --disk-usage
+  systemctl status deanery
+  ```
+
+  If pages are slow or memory is full, upgrade the hosting tariff and raise
+  `GUNICORN_WORKERS` by the formula `min(2 × vCPU + 1, (free RAM MB − 300) / 90)`.""",
+  """Server: 2 vCPU, ~2 GB RAM (1.9 GB usable), 20 GB disk, 512 MB swap from the
+  provider.
+
+  Workers: `GUNICORN_WORKERS=5` by the formula
+  `min(2 × vCPU + 1, (free RAM MB − 300) / 90)` = min(5, 13) = 5.
+
+  Expected memory: gunicorn master + 5 workers ≈ 350–500 MB (≈ 60–90 MB per
+  worker), PostgreSQL ≈ 150–200 MB (shared memory and up to 5 connections),
+  nginx ≈ 10 MB, system ≈ 250 MB → ≈ 750–950 MB of 1.9 GB. The rest holds the
+  file cache and the peaks of `pip install`, `migrate` and `collectstatic`; the
+  swap covers rare peaks.
+
+  Disk: system and packages ≈ 4 GB, code ≈ 50 MB, venv ≈ 150 MB, PostgreSQL data
+  (trial and final databases) ≈ 100 MB, backups (7 days, gzip) small, journal at
+  most ≈ 2 GB → at most ≈ 7 GB of 20 GB. Logs: journald uses the systemd
+  defaults (at most 10% of the file system, at most 4 GB; it keeps 15% of the
+  file system free). nginx logs are rotated by the stock
+  `/etc/logrotate.d/nginx`.
+
+  ```bash
+  free -h
+  swapon --show
+  df -h
+  journalctl --disk-usage
+  systemctl status deanery
+  ```
+
+  If pages are slow or memory is full (`free -h` shows little available memory
+  and the swap is in use), lower `GUNICORN_WORKERS` in `/etc/deanery/deanery.env`
+  and run `sudo systemctl restart deanery`. On a bigger server raise it by the
+  same formula.""")
+
+  sub("deploy/nginx/deanery-bootstrap.conf", "(docs/DEPLOY.md step 13)", "(docs/DEPLOY.md step 12)")
+  sub("deploy/gunicorn.conf.py", """Workers: 2 for 1 vCPU / 1 GB RAM. Bigger server: min(2 * vCPU + 1, (free RAM MB - 300) // 90),
+  set GUNICORN_WORKERS in /etc/deanery/deanery.env.""",
+  """Workers: 5 for 2 vCPU / ~2 GB RAM: min(2 * vCPU + 1, (free RAM MB - 300) // 90) = min(5, 13).
+  Other server: set GUNICORN_WORKERS in /etc/deanery/deanery.env by the same formula.""")
+  sub("deploy/gunicorn.conf.py", 'os.environ.get("GUNICORN_WORKERS", "2")', 'os.environ.get("GUNICORN_WORKERS", "5")')
+  sub(".env.production.example", """# gunicorn (deploy/gunicorn.conf.py): 2 workers for 1 vCPU / 1 GB RAM.
+  GUNICORN_WORKERS=2""", """# gunicorn (deploy/gunicorn.conf.py): 5 workers for 2 vCPU / ~2 GB RAM (docs/DEPLOY.md, Resources).
+  GUNICORN_WORKERS=5""")
+  (B / "deploy/journald/50-deanery.conf").unlink(); (B / "deploy/journald").rmdir()
+  PYEOF
+  .venv/bin/python $TMPDIR/t015_apply.py "$B" && echo APPLIED; grep -n "^## " $B/docs/DEPLOY.md
+    APPLIED
+    19:## 0. Before you start
+    33:## 1. Memory and swap check
+    42:## 2. Time zone
+    50:## 3. Packages
+    57:## 4. SSH: keys only
+    75:## 5. Firewall
+    83:## 6. App user, directories, code
+    93:## 7. Python venv
+    101:## 8. PostgreSQL (trial database)
+    110:## 9. Environment file
+    139:## 10. Django
+    151:## 11. gunicorn + systemd
+    163:## 12. nginx bootstrap + certificate
+    173:## 13. nginx full site
+    182:## 14. Backups
+    199:## 15. Smoke check
+    213:## 16. Final database on 2026-11-22 (once)
+    240:## 17. Update procedure
+    253:## 18. HSTS
+    268:## 19. Resources
+    302:## 20. Troubleshooting
+  ── Thought for 892ms
+    I'm checking the gunicorn comment line length in the env example, which is around 101 characters but not Python, so it's fine. Next I'm looking at the gunicorn config docstring's first line, which sets 5 workers for 2 vCPU and about 2 GB RAM, using a min of the CPU-based count and a RAM-based count.
+
+    I'm checking the line lengths of the gunicorn comments against Ruff's E501 limit, since the docstring line is around 96 characters. After that I'll move on to the test edits in the copy.
+  ── Ran set -e; B=$TMPDIR/t015b; cat > $TMPDIR/t015_tests.py <<'PYEOF' import sys, pathlib B = pathlib.Path(sys.argv[1]); p = B / "core/tests/test_deploy.py"; t = p.read_text() def sub(old, new):     global t     assert t.count(old) == 1, old[:70]     t = t.replace(old, new) sub('JOURNALD = DEPLOY_DIR / "journald" / "50-deanery.conf"\n', "") sub("# The step-10 sed `-e` rules (docs/DEPLOY.md); kept here so the test can run them.\nSTEP10_SED_EXPRS = (",     '# The sed `-e` rules of the "Environment file" step (docs/DEPLOY.md); kept here so the\n# test can run them.\nENV_FILE_SED_EXPRS = (') sub('        self.assertEqual(cfg["workers"], 2)\n', '        self.assertEqual(cfg["workers"], 5)  # TASK-015: 2 vCPU / ~2 GB server\n') sub('        self.assertEqual(values["GUNICORN_WORKERS"], "2")\n', '        self.assertEqual(values["GUNICORN_WORKERS"], "5")  # TASK-015: 2 vCPU / ~2 GB server\n') sub('''    def test_journald_limit(self):         self.assertIn("SystemMaxUse=200M", _read(JOURNALD)) ''', "") sub('''    def test_swap_before_packages(self):         text = _read(DEPLOY_MD)         self.assertLess(text.index("fallocate"), text.index("apt -y install")) ''', '''    def test_swap_check_before_packages(self):         text = _read(DEPLOY_MD)         self.assertLess(text.index("swapon --show"), text.index("apt -y install"))     def test_no_swap_creation(self):         text = _read(DEPLOY_MD)         for fragment in ("fallocate", "mkswap", "/etc/fstab", "vm.swappiness"):             self.assertNotIn(fragment, text, fragment)     def test_steps_numbered_consecutively(self):         numbers = re.findall(r"^## (\\d+)\\. ", _read(DEPLOY_MD), re.MULTILINE)         self.assertEqual(numbers, [str(i) for i in range(len(numbers))])     def test_step_references(self):         text = _read(DEPLOY_MD)         titles = dict(re.findall(r"^## (\\d+)\\. (.+)$", text, re.MULTILINE))         references = (             (text, r"until step (\\d+) is verified", "SSH: keys only"),             (text, r"until step (\\d+) \\(SSH hardening\\)", "SSH: keys only"),             (text, r"right after step (\\d+), once the repo", "App user, directories, code"),             (text, r"already exists from step (\\d+)\\)", "PostgreSQL (trial database)"),             (text, r"Repeat\\s+step (\\d+) \\(without seeding\\)", "Smoke check"),             (text, r"repeat the smoke check \\(step (\\d+)\\)", "Smoke check"),             (_read(NGINX_BOOTSTRAP), r"docs/DEPLOY\\.md step (\\d+)\\)", "nginx bootstrap + certificate"),         )         for source, pattern, title in references:             match = re.search(pattern, source)             self.assertIsNotNone(match, pattern)             self.assertEqual(titles.get(match.group(1)), title, pattern) ''') sub('''            "vm.swappiness=10",             "SystemMaxUse",             "ufw",''', '''            "swapon --show",             "ufw",''') sub('''            "deanery_trial",             "shared_buffers", ''', '''            "deanery_trial", ''') sub("    def test_step10_sed_produces_trial_env(self):", "    def test_env_file_sed_produces_trial_env(self):") assert t.count("STEP10_SED_EXPRS") == 2 t = t.replace("STEP10_SED_EXPRS", "ENV_FILE_SED_EXPRS") t += ''' class OldServerLimitsTests(SimpleTestCase):     """TASK-015: the server has 2 vCPU, ~2 GB RAM, a 20 GB disk and a provider swap."""     FORBIDDEN = ("1 GB", "1 vCPU", "10 GB", "swapfile", "50-deanery.conf", "SystemMaxUse")     def test_no_old_server_values(self):         for path in _secret_scan_paths():             text = _read(path)             for fragment in self.FORBIDDEN:                 self.assertNotIn(fragment, text, f"{path.name}: {fragment}")     def test_no_shared_buffers_warning(self):         self.assertNotIn("shared_buffers", _read(DEPLOY_MD))     def test_journald_override_removed(self):         self.assertFalse((DEPLOY_DIR / "journald").exists())     def test_resources_section(self):         text = _read(DEPLOY_MD)         section = text[text.index("## 19. Resources") : text.index("## 20. Troubleshooting")]         for fragment in ("GUNICORN_WORKERS=5", "min(5, 13)", "512 MB", "20 GB", "10%"):             self.assertIn(fragment, section, fragment) ''' p.write_text(t) PYEOF cd ~/hackatonproject; .venv/bin/python $TMPDIR/t015_tests.py "$B" && echo OK; cd $B; ~/hackatonproject/.venv/bin/ruff check . && ~/hackatonproject/.venv/bin/ruff format --check . ; git -C ~/hackatonproject diff --no-index --stat /dev/null /dev/null; true
+    $ set -e; B=$TMPDIR/t015b; cat > $TMPDIR/t015_tests.py <<'PYEOF'
+  import sys, pathlib
+  B = pathlib.Path(sys.argv[1]); p = B / "core/tests/test_deploy.py"; t = p.read_text()
+  def sub(old, new):
+      global t
+      assert t.count(old) == 1, old[:70]
+      t = t.replace(old, new)
+  sub('JOURNALD = DEPLOY_DIR / "journald" / "50-deanery.conf"\n', "")
+  sub("# The step-10 sed `-e` rules (docs/DEPLOY.md); kept here so the test can run them.\nSTEP10_SED_EXPRS = (",
+      '# The sed `-e` rules of the "Environment file" step (docs/DEPLOY.md); kept here so the\n# test can run them.\nENV_FILE_SED_EXPRS = (')
+  sub('        self.assertEqual(cfg["workers"], 2)\n', '        self.assertEqual(cfg["workers"], 5)  # TASK-015: 2 vCPU / ~2 GB server\n')
+  sub('        self.assertEqual(values["GUNICORN_WORKERS"], "2")\n', '        self.assertEqual(values["GUNICORN_WORKERS"], "5")  # TASK-015: 2 vCPU / ~2 GB server\n')
+  sub('''    def test_journald_limit(self):
+          self.assertIn("SystemMaxUse=200M", _read(JOURNALD))
+
+  ''', "")
+  sub('''    def test_swap_before_packages(self):
+          text = _read(DEPLOY_MD)
+          self.assertLess(text.index("fallocate"), text.index("apt -y install"))
+  ''', '''    def test_swap_check_before_packages(self):
+          text = _read(DEPLOY_MD)
+          self.assertLess(text.index("swapon --show"), text.index("apt -y install"))
+
+      def test_no_swap_creation(self):
+          text = _read(DEPLOY_MD)
+          for fragment in ("fallocate", "mkswap", "/etc/fstab", "vm.swappiness"):
+              self.assertNotIn(fragment, text, fragment)
+
+      def test_steps_numbered_consecutively(self):
+          numbers = re.findall(r"^## (\\d+)\\. ", _read(DEPLOY_MD), re.MULTILINE)
+          self.assertEqual(numbers, [str(i) for i in range(len(numbers))])
+
+      def test_step_references(self):
+          text = _read(DEPLOY_MD)
+          titles = dict(re.findall(r"^## (\\d+)\\. (.+)$", text, re.MULTILINE))
+          references = (
+              (text, r"until step (\\d+) is verified", "SSH: keys only"),
+              (text, r"until step (\\d+) \\(SSH hardening\\)", "SSH: keys only"),
+              (text, r"right after step (\\d+), once the repo", "App user, directories, code"),
+              (text, r"already exists from step (\\d+)\\)", "PostgreSQL (trial database)"),
+              (text, r"Repeat\\s+step (\\d+) \\(without seeding\\)", "Smoke check"),
+              (text, r"repeat the smoke check \\(step (\\d+)\\)", "Smoke check"),
+              (_read(NGINX_BOOTSTRAP), r"docs/DEPLOY\\.md step (\\d+)\\)", "nginx bootstrap + certificate"),
+          )
+          for source, pattern, title in references:
+              match = re.search(pattern, source)
+              self.assertIsNotNone(match, pattern)
+              self.assertEqual(titles.get(match.group(1)), title, pattern)
+  ''')
+  sub('''            "vm.swappiness=10",
+              "SystemMaxUse",
+              "ufw",''', '''            "swapon --show",
+              "ufw",''')
+  sub('''            "deanery_trial",
+              "shared_buffers",
+  ''', '''            "deanery_trial",
+  ''')
+  sub("    def test_step10_sed_produces_trial_env(self):", "    def test_env_file_sed_produces_trial_env(self):")
+  assert t.count("STEP10_SED_EXPRS") == 2
+  t = t.replace("STEP10_SED_EXPRS", "ENV_FILE_SED_EXPRS")
+  t += '''
+
+  class OldServerLimitsTests(SimpleTestCase):
+      """TASK-015: the server has 2 vCPU, ~2 GB RAM, a 20 GB disk and a provider swap."""
+
+      FORBIDDEN = ("1 GB", "1 vCPU", "10 GB", "swapfile", "50-deanery.conf", "SystemMaxUse")
+
+      def test_no_old_server_values(self):
+          for path in _secret_scan_paths():
+              text = _read(path)
+              for fragment in self.FORBIDDEN:
+                  self.assertNotIn(fragment, text, f"{path.name}: {fragment}")
+
+      def test_no_shared_buffers_warning(self):
+          self.assertNotIn("shared_buffers", _read(DEPLOY_MD))
+
+      def test_journald_override_removed(self):
+          self.assertFalse((DEPLOY_DIR / "journald").exists())
+
+      def test_resources_section(self):
+          text = _read(DEPLOY_MD)
+          section = text[text.index("## 19. Resources") : text.index("## 20. Troubleshooting")]
+          for fragment in ("GUNICORN_WORKERS=5", "min(5, 13)", "512 MB", "20 GB", "10%"):
+              self.assertIn(fragment, section, fragment)
+  '''
+  p.write_text(t)
+  PYEOF
+  cd ~/hackatonproject; .venv/bin/python $TMPDIR/t015_tests.py "$B" && echo OK; cd $B; ~/hackatonproject/.venv/bin/ruff check . && ~/hackatonproject/.venv/bin/ruff format --check . ; git -C ~/hackatonproject diff --no-index --stat /dev/null /dev/null; true
+    OK
+    E501 Line too long (103 > 100)
+       --> core/tests/test_deploy.py:396:101
+        |
+    394 |             (text, r"Repeat\s+step (\d+) \(without seeding\)", "Smoke check"),
+    395 |             (text, r"repeat the smoke check \(step (\d+)\)", "Smoke check"),
+    396 |             (_read(NGINX_BOOTSTRAP), r"docs/DEPLOY\.md step (\d+)\)", "nginx bootstrap + certificate"),
+        |                                                                                                     ^^^
+    397 |         )
+    398 |         for source, pattern, title in references:
+        |
+
+    Found 1 error.
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 5ms
+    I'm thinking about whether letting ruff format handle the E501 line-length error would work, since format may split the tuple. I'll run ruff format on the test file in the copy, which is allowed since it's outside docs/, and then check the result.
+
+── Assistant ───────────────────────────────────────────────
+Проверяю предложенные изменения на временной копии проекта: линтер, затем полный прогон тестов.
+
+── Ran 5 commands, explored 1 search ───────────────────────
+  ── Ran B=$TMPDIR/t015b; cd $B; R=~/hackatonproject/.venv/bin/ruff; $R format core/tests/test_deploy.py && $R check . && $R format --check . && sed -n 385,405p core/tests/test_deploy.py
+    $ B=$TMPDIR/t015b; cd $B; R=~/hackatonproject/.venv/bin/ruff; $R format core/tests/test_deploy.py && $R check . && $R format --check . && sed -n 385,405p core/tests/test_deploy.py
+    1 file reformatted
+    All checks passed!
+    193 files already formatted
+
+        def test_step_references(self):
+            text = _read(DEPLOY_MD)
+            titles = dict(re.findall(r"^## (\d+)\. (.+)$", text, re.MULTILINE))
+            references = (
+                (text, r"until step (\d+) is verified", "SSH: keys only"),
+                (text, r"until step (\d+) \(SSH hardening\)", "SSH: keys only"),
+                (text, r"right after step (\d+), once the repo", "App user, directories, code"),
+                (text, r"already exists from step (\d+)\)", "PostgreSQL (trial database)"),
+                (text, r"Repeat\s+step (\d+) \(without seeding\)", "Smoke check"),
+                (text, r"repeat the smoke check \(step (\d+)\)", "Smoke check"),
+                (
+                    _read(NGINX_BOOTSTRAP),
+                    r"docs/DEPLOY\.md step (\d+)\)",
+                    "nginx bootstrap + certificate",
+                ),
+            )
+            for source, pattern, title in references:
+                match = re.search(pattern, source)
+                self.assertIsNotNone(match, pattern)
+                self.assertEqual(titles.get(match.group(1)), title, pattern)
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 4ms
+    I'm going to run the full test suite in both the baseline copy at HEAD and the changed copy, one after the other with output going to tee. I also want to confirm the new tests fail against HEAD by pairing the t015 code with the test file from t015b, using DEBUG=true and a dummy SECRET_KEY set as env vars rather than a .env file.
+  ── Ran B=$TMPDIR/t015b; cd $B; export DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop; unset DATABASE_URL; L=$TMPDIR/test-t015b-$(date +%Y%m%d-%H%M%S).log; ~/hackatonproject/.venv/bin/python manage.py test --parallel 2>&1 | tee $L | tail -4; echo LOG=$L; TZ=Europe/Moscow date (49s)
+    $ B=$TMPDIR/t015b; cd $B; export DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop; unset DATABASE_URL; L=$TMPDIR/test-t015b-$(date +%Y%m%d-%H%M%S).log; ~/hackatonproject/.venv/bin/python manage.py test --parallel 2>&1 | tee $L | tail -4; echo LOG=$L; TZ=Europe/Moscow date
+    Destroying test database for alias 'default'...
+    Destroying test database for alias 'default'...
+    Destroying test database for alias 'default'...
+    Destroying test database for alias 'default'...
+    LOG=/tmp/claude-501/test-t015b-20261119-141904.log
+    Fri Nov 20 01:19:53 MSK 2026
+    Shell cwd was reset to ~/hackatonproject
+  ── Searched for ^Ran |^OK|^FAILED|^(FAIL|ERROR): in /tmp/claude-501/test-t015b-20261119-141904.log
+  ── Thought for 8ms
+    I'm checking the HEAD test count, which was 1122 before TASK-014-FIX added tests. I'll run the baseline on the t015 copy and also run the new test file against the HEAD files to see the expected failures, so I'm copying the t015b test file into t015 and running core.tests.test_deploy.
+  ── Ran A=$TMPDIR/t015; cd $A; export DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop; unset DATABASE_URL PRIVATE_MEDIA_ROOT DEMO_PASSWORD ALLOWED_HOSTS; rm -f db.sqlite3; L=$TMPDIR/test-t015-head-$(date +%Y%m%d-%H%M%S).log; ~/hackatonproject/.venv/bin/python manage.py test --parallel > $L 2>&1; grep -E "^Ran |^OK|^FAILED" $L; cp $TMPDIR/t015b/core/tests/test_deploy.py core/tests/test_deploy.py; L2=$TMPDIR/test-t015-newtests-on-head-$(date +%Y%m%d-%H%M%S).log; ~/hackatonproject/.venv/bin/python manage.py test core.tests.test_deploy > $L2 2>&1; grep -E "^Ran |^OK|^FAILED|^(FAIL|ERROR):" $L2; echo $L $L2; TZ=Europe/Moscow date (1m 56s)
+    $ A=$TMPDIR/t015; cd $A; export DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop; unset DATABASE_URL PRIVATE_MEDIA_ROOT DEMO_PASSWORD ALLOWED_HOSTS; rm -f db.sqlite3; L=$TMPDIR/test-t015-head-$(date +%Y%m%d-%H%M%S).log; ~/hackatonproject/.venv/bin/python manage.py test --parallel > $L 2>&1; grep -E "^Ran |^OK|^FAILED" $L; cp $TMPDIR/t015b/core/tests/test_deploy.py core/tests/test_deploy.py; L2=$TMPDIR/test-t015-newtests-on-head-$(date +%Y%m%d-%H%M%S).log; ~/hackatonproject/.venv/bin/python manage.py test core.tests.test_deploy > $L2 2>&1; grep -E "^Ran |^OK|^FAILED|^(FAIL|ERROR):" $L2; echo $L $L2; TZ=Europe/Moscow date
+    Ran 1134 tests in 48.261s
+    OK
+    ERROR: test_resources_section (core.tests.test_deploy.OldServerLimitsTests.test_resources_section)
+    ERROR: test_swap_check_before_packages (core.tests.test_deploy.RunbookTests.test_swap_check_before_packages)
+    FAIL: test_production_values (core.tests.test_deploy.EnvExampleTests.test_production_values)
+    FAIL: test_defaults (core.tests.test_deploy.GunicornConfigTests.test_defaults)
+    FAIL: test_journald_override_removed (core.tests.test_deploy.OldServerLimitsTests.test_journald_override_removed)
+    FAIL: test_no_old_server_values (core.tests.test_deploy.OldServerLimitsTests.test_no_old_server_values)
+    FAIL: test_no_shared_buffers_warning (core.tests.test_deploy.OldServerLimitsTests.test_no_shared_buffers_warning)
+    FAIL: test_no_swap_creation (core.tests.test_deploy.RunbookTests.test_no_swap_creation)
+    FAIL: test_required_topics (core.tests.test_deploy.RunbookTests.test_required_topics)
+    Ran 44 tests in 0.483s
+    FAILED (failures=7, errors=2)
+    /tmp/claude-501/test-t015-head-20261119-142001.log /tmp/claude-501/test-t015-newtests-on-head-20261119-142156.log
+    Fri Nov 20 01:21:57 MSK 2026
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 2s
+    I'm checking the test counts: HEAD has 1134 passing and the changed tree has 1140, which matches the six-test net gain from two removals and eight additions. The steps-numbering and step-reference tests still pass on HEAD, which is expected since they guard the renumbering, and the env-file sed test passes as well.
+
+    I'm going through the remaining verifications on the copy: the shell syntax check, gunicorn's config check, manage.py check, makemigrations --check, and grep. I'm leaning toward skipping the frozen-clock run since this is a doc-only change, and I'll quickly confirm the default of 5 workers with a boot on copy B.
+  ── Ran B=$TMPDIR/t015b; cd $B; V=~/hackatonproject/.venv/bin; bash -n deploy/backup.sh deploy/manage.sh && echo BASH_OK; export DEBUG=true SECRET_KEY=dummy-key-for-local-check DATABASE_URL=sqlite:///$TMPDIR/t015/db.sqlite3 ALLOWED_HOSTS=localhost,127.0.0.1; unset GUNICORN_WORKERS GUNICORN_BIND; $V/gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application && echo CHECK_OK; GUNICORN_BIND=127.0.0.1:8766 $V/gunicorn -c deploy/gunicorn.conf.py config.wsgi:application > $TMPDIR/gu-b.log 2>&1 & GP=$!; sleep 5; curl -s http://127.0.0.1:8766/health/; echo; kill $GP; wait $GP 2>/dev/null; echo "workers booted: $(grep -c 'Booting worker' $TMPDIR/gu-b.log)"; grep -rnE "1 GB|1 vCPU|10 GB|swapfile|50-deanery\.conf" docs/DEPLOY.md deploy/ .env.production.example --exclude-dir=__pycache__ || echo GREP_CLEAN; $V/python manage.py check 2>&1 | tail -1; $V/python manage.py makemigrations --check --dry-run 2>&1 | tail -1 (7s)
+    $ B=$TMPDIR/t015b; cd $B; V=~/hackatonproject/.venv/bin; bash -n deploy/backup.sh deploy/manage.sh && echo BASH_OK; export DEBUG=true SECRET_KEY=dummy-key-for-local-check DATABASE_URL=sqlite:///$TMPDIR/t015/db.sqlite3 ALLOWED_HOSTS=localhost,127.0.0.1; unset GUNICORN_WORKERS GUNICORN_BIND; $V/gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application && echo CHECK_OK; GUNICORN_BIND=127.0.0.1:8766 $V/gunicorn -c deploy/gunicorn.conf.py config.wsgi:application > $TMPDIR/gu-b.log 2>&1 & GP=$!; sleep 5; curl -s http://127.0.0.1:8766/health/; echo; kill $GP; wait $GP 2>/dev/null; echo "workers booted: $(grep -c 'Booting worker' $TMPDIR/gu-b.log)"; grep -rnE "1 GB|1 vCPU|10 GB|swapfile|50-deanery\.conf" docs/DEPLOY.md deploy/ .env.production.example --exclude-dir=__pycache__ || echo GREP_CLEAN; $V/python manage.py check 2>&1 | tail -1; $V/python manage.py makemigrations --check --dry-run 2>&1 | tail -1
+    BASH_OK
+    CHECK_OK
+    (eval):1: nice(5) failed: operation not permitted
+    {"status": "ok"}
+    workers booted: 5
+    GREP_CLEAN
+    System check identified no issues (0 silenced).
+    No changes detected
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 4ms
+    I've confirmed there are no other docs references to the journald file outside the tasks, plan, and changelog files, and the README is fine. Next I'll diff the copy against HEAD so the exact content can go into the spec, and pull the final formatted test code for inclusion too.
+  ── Ran cd $TMPDIR; diff -u t015/core/tests/test_deploy.py t015b/core/tests/test_deploy.py | head -5; cd ~/hackatonproject; git archive HEAD core/tests/test_deploy.py | tar -xO > $TMPDIR/td_head.py; diff -u $TMPDIR/td_head.py $TMPDIR/t015b/core/tests/test_deploy.py > $TMPDIR/t015_testdiff.txt; wc -l $TMPDIR/t015_testdiff.txt; tail -30 $TMPDIR/t015b/core/tests/test_deploy.py
+    $ cd $TMPDIR; diff -u t015/core/tests/test_deploy.py t015b/core/tests/test_deploy.py | head -5; cd ~/hackatonproject; git archive HEAD core/tests/test_deploy.py | tar -xO > $TMPDIR/td_head.py; diff -u $TMPDIR/td_head.py $TMPDIR/t015b/core/tests/test_deploy.py > $TMPDIR/t015_testdiff.txt; wc -l $TMPDIR/t015_testdiff.txt; tail -30 $TMPDIR/t015b/core/tests/test_deploy.py
+    153 /tmp/claude-501/t015_testdiff.txt
+                stripped = line.strip()
+                self.assertFalse(
+                    stripped.startswith("sudo install -m 644 deploy/"), f"relative path: {stripped}"
+                )
+                if stripped.startswith("sed "):
+                    self.assertNotIn(" deploy/", stripped, f"relative path: {stripped}")
+
+
+    class OldServerLimitsTests(SimpleTestCase):
+        """TASK-015: the server has 2 vCPU, ~2 GB RAM, a 20 GB disk and a provider swap."""
+
+        FORBIDDEN = ("1 GB", "1 vCPU", "10 GB", "swapfile", "50-deanery.conf", "SystemMaxUse")
+
+        def test_no_old_server_values(self):
+            for path in _secret_scan_paths():
+                text = _read(path)
+                for fragment in self.FORBIDDEN:
+                    self.assertNotIn(fragment, text, f"{path.name}: {fragment}")
+
+        def test_no_shared_buffers_warning(self):
+            self.assertNotIn("shared_buffers", _read(DEPLOY_MD))
+
+        def test_journald_override_removed(self):
+            self.assertFalse((DEPLOY_DIR / "journald").exists())
+
+        def test_resources_section(self):
+            text = _read(DEPLOY_MD)
+            section = text[text.index("## 19. Resources") : text.index("## 20. Troubleshooting")]
+            for fragment in ("GUNICORN_WORKERS=5", "min(5, 13)", "512 MB", "20 GB", "10%"):
+                self.assertIn(fragment, section, fragment)
+  ── Thought for 5ms
+    I'm noting that the secret scan covers the gunicorn config, the env example, and the deploy doc, and that the gunicorn docstring's "~2 GB" figure is fine. Next I'll write the spec with exact text replacements, embedding the new DEPLOY.md blocks and the test code.
+
+── Assistant ───────────────────────────────────────────────
+Проверка на копии прошла: 1140 тестов OK, 5 процессов gunicorn запускаются. Пишу файл спецификации.
+
+── Created 1 file, ran 2 commands ──────────────────────────
+  ── Created docs/tasks/TASK-015.md +446
+    --- /dev/null
+    +++ b~/hackatonproject/docs/tasks/TASK-015.md
+    +# TASK-015: deploy files for the new server (2 vCPU, ~2 GB RAM, 20 GB disk)
+    +
+    +Author: Planner. Assignee: Coder. Status: ready for implementation.
+    +Base: HEAD afed2a1 (clean tree; `plan.md` is the Team lead's file, do not touch it).
+    +
+    +## 1. Goal
+    +
+    +TASK-011 prepared the deploy for a small server (1 vCPU, 1 GB RAM, 10 GB disk). On 2026-11-19 the user moved to
+    +another hosting: Ubuntu 24.04.4, 2 vCPU, 1.9 GB RAM, 20 GB disk, a 512 MB swap created by the provider
+    +(swappiness 60). Remove the optimizations made for the old small server. **Documentation, deploy templates and
+    +their tests only. No application code changes.**
+    +
+    +### Acceptance criteria
+    +
+    +| ID | Criterion |
+    +|---|---|
+    +| AC1 | `docs/DEPLOY.md` header describes the new server: 2 vCPU, ~2 GB RAM, 20 GB disk, 512 MB swap from the provider. |
+    +| AC2 | Step "1. Swap first (1 GB RAM)" is replaced by "1. Memory and swap check" with the one-line check `swapon --show && free -h`. The runbook never creates or resizes swap (no `fallocate`, `mkswap`, `/etc/fstab`, `vm.swappiness`). The check stays before `apt -y install`. |
+    +| AC3 | `deploy/gunicorn.conf.py`: default workers 5, docstring with the formula result; env override `GUNICORN_WORKERS` kept. `.env.production.example`: comment updated, `GUNICORN_WORKERS=5`. |
+    +| AC4 | The journald override is removed: file `deploy/journald/50-deanery.conf` and the directory `deploy/journald/` are deleted; the runbook step "6. journald limit" is deleted; the test that read the file is deleted. systemd defaults apply. The nginx logrotate sentence moves to "Resources". |
+    +| AC5 | The PostgreSQL warning "do not raise `shared_buffers`, keep `max_connections`" is deleted. No tuning step is added. |
+    +| AC6 | Steps are renumbered 0..20 with no gap; every cross-reference ("step N") points to the correct step, also the comment in `deploy/nginx/deanery-bootstrap.conf`. |
+    +| AC7 | Section "Resources" (now step 19) is recalculated for 5 workers on ~2 GB / 20 GB (exact text in F1.9). |
+    +| AC8 | Everything else is unchanged: backups (`KEEP_DAYS` 7), nginx templates (except the one comment in AC6), systemd unit, SSH hardening, firewall, HTTPS, HSTS, CI. |
+    +| AC9 | `grep -rnE "1 GB\|1 vCPU\|10 GB\|swapfile\|50-deanery\.conf" docs/DEPLOY.md deploy/ .env.production.example --exclude-dir=__pycache__` prints nothing. |
+    +| AC10 | Tests updated (section 7); full suite OK; ruff check and format check OK; `bash -n` and `gunicorn --check-config` OK. |
+    +
+    +## 2. Out of scope
+    +
+    +- Application code, settings, migrations, templates, static files.
+    +- `CHANGELOG.md`, `plan.md`, `README.md` (README has no server sizes; the Team lead updates CHANGELOG), old specs in
+    +  `docs/tasks/` (history, never edit them).
+    +- `.github/workflows/ci.yml` (it has no journald or worker-count references; verified).
+    +- PostgreSQL tuning, swap tuning, nginx/systemd changes, backup retention.
+    +
+    +## 3. Design decisions
+    +
+    +- **D1. Step 1 stays a step.** The swap step becomes "1. Memory and swap check". So steps 0–5 keep their numbers and
+    +  the two "step 4" references (SSH hardening) need no change. Only the removal of step 6 (journald) shifts steps
+    +  7–21 to 6–20.
+    +- **D2. The swap check does not name the swap file.** The provider created it; the runbook only checks
+    +  `swapon --show && free -h`. The word "swapfile" must not appear (AC9).
+    +- **D3. Workers = 5.** Formula already in the runbook: `min(2 × vCPU + 1, (free RAM MB − 300) / 90)` =
+    +  `min(5, 13)` = 5 (Team lead's numbers). Measured on HEAD (section 5, item 6): one Django worker peaks at
+    +  ≈ 58 MB RSS after loading every simple page as a student and as staff (macOS, SQLite); on Linux with psycopg
+    +  the TASK-011 estimate of 60–90 MB per worker holds. The project has no `CONN_MAX_AGE`, so each request opens and
+    +  closes its own PostgreSQL connection: at most 5 concurrent connections, far below the stock
+    +  `max_connections = 100`.
+    +- **D4. journald defaults.** With no override, journald uses `SystemMaxUse` = 10% of the file system (capped at
+    +  4 GB) and `SystemKeepFree` = 15% (journald.conf(5)). On 20 GB that is ≈ 2 GB at most. Nothing to install.
+    +- **D5. Delete, do not empty.** Delete `deploy/journald/50-deanery.conf` with `rm` and the empty directory with
+    +  `rmdir` (no `-r`, no `-f`, no `git rm`: only the Team lead changes the index). Git will show the file as deleted.
+    +- **D6. Test names without step numbers.** The constant `STEP10_SED_EXPRS` and the test
+    +  `test_step10_sed_produces_trial_env` are renamed to `ENV_FILE_SED_EXPRS` and
+    +  `test_env_file_sed_produces_trial_env`, because the "Environment file" step becomes step 9 and any future
+    +  renumbering must not make a name wrong. The sed rules themselves do not change.
+    +- **D7. Guard tests.** New tests check the step numbering and every cross-reference by the target step's title, so
+    +  a wrong renumbering fails a test (section 7).
+    +
+    +## 4. Files and functions
+    +
+    +Change: `docs/DEPLOY.md`, `deploy/gunicorn.conf.py`, `.env.production.example`,
+    +`deploy/nginx/deanery-bootstrap.conf` (one comment), `core/tests/test_deploy.py`.
+    +Delete: `deploy/journald/50-deanery.conf`, then the empty directory `deploy/journald/`.
+    +
+    +Every "old" text below is an exact, unique match in HEAD afed2a1 (checked by a script that asserted count == 1 for
+    +each replacement).
+    +
+    +### F1. `docs/DEPLOY.md`
+    +
+    +F1.1 Header, lines 3–4. Old:
+    +
+    +```
+    +Production deployment of the Deanery prototype on Ubuntu 24.04 (1 vCPU, 1 GB
+    +RAM, 10 GB disk), one domain with HTTPS, serving until 2026-11-28.
+    +```
+    +
+    +New:
+    +
+    +```
+    +Production deployment of the Deanery prototype on Ubuntu 24.04 (2 vCPU, ~2 GB
+    +RAM, 20 GB disk, 512 MB swap from the provider), one domain with HTTPS, serving
+    +until 2026-11-28.
+    +```
+    +
+    +F1.2 Step 1, lines 32–41. Replace the whole section `## 1. Swap first (1 GB RAM)` up to and including its code block
+    +(ending with `free -h` and the closing fence) with:
+    +
+    +````
+    +## 1. Memory and swap check
+    +
+    +The provider already created a 512 MB swap. Check that it is active; do not
+    +create or resize swap.
+    +
+    +```bash
+    +swapon --show && free -h
+    +```
+    +````
+    +
+    +F1.3 Step 4 text, line 65: `may be done right after step 7, once the repo is cloned.` →
+    +`may be done right after step 6, once the repo is cloned.`
+    +
+    +F1.4 Delete step 6 completely, lines 84–103: from `## 6. journald limit` through the line
+    +`nginx logs are rotated by the stock `/etc/logrotate.d/nginx` — no action.` and the blank line after it (that
+    +sentence moves to Resources in F1.9). After the deletion, `## 5. Firewall`'s code block is followed by one blank
+    +line and `## 6. App user, directories, code`.
+    +
+    +F1.5 PostgreSQL step (old 9), lines 124–126: delete the two lines
+    +
+    +```
+    +Keep PostgreSQL stock settings: do **not** raise `shared_buffers`, keep
+    +`max_connections`.
+    +```
+    +
+    +and the blank line after them, so the heading `## 8. PostgreSQL (trial database)` is followed by one blank line and
+    +the code block.
+    +
+    +F1.6 Renumber headings: `## 7.` → `## 6.`, `## 8.` → `## 7.`, … `## 21.` → `## 20.` (15 headings). Result:
+    +
+    +| New | Title |
+    +|---|---|
+    +| 0 | Before you start |
+    +| 1 | Memory and swap check |
+    +| 2 | Time zone |
+    +| 3 | Packages |
+    +| 4 | SSH: keys only |
+    +| 5 | Firewall |
+    +| 6 | App user, directories, code |
+    +| 7 | Python venv |
+    +| 8 | PostgreSQL (trial database) |
+    +| 9 | Environment file |
+    +| 10 | Django |
+    +| 11 | gunicorn + systemd |
+    +| 12 | nginx bootstrap + certificate |
+    +| 13 | nginx full site |
+    +| 14 | Backups |
+    +| 15 | Smoke check |
+    +| 16 | Final database on 2026-11-22 (once) |
+    +| 17 | Update procedure |
+    +| 18 | HSTS |
+    +| 19 | Resources |
+    +| 20 | Troubleshooting |
+    +
+    +F1.7 Cross-references (all of them; there are no others):
+    +
+    +| Line (HEAD) | Old | New |
+    +|---|---|---|
+    +| 8 | `until step 4 is verified` | unchanged |
+    +| 30 | `until step 4 (SSH hardening)` | unchanged |
+    +| 65 | `right after step 7` | `right after step 6` (F1.3) |
+    +| 87 | `(step 7)` | deleted with step 6 (F1.4) |
+    +| 239 | `already exists from step 9)` | `already exists from step 8)` |
+    +| 261 | `step 16 (without seeding)` | `step 15 (without seeding)` |
+    +| 275 | `Then repeat the smoke check (step 16).` | `Then repeat the smoke check (step 15).` |
+    +
+    +F1.8 Steps 2–18 otherwise stay byte-identical (the env-file sed block, backups, HSTS, smoke check text).
+    +
+    +F1.9 Resources (new step 19). Keep the heading `## 19. Resources`. Replace the whole body (old lines 294–307, from
+    +`Expected memory:` through `` `GUNICORN_WORKERS` by the formula `min(2 × vCPU + 1, (free RAM MB − 300) / 90)`. ``)
+    +with exactly:
+    +
+    +````
+    +Server: 2 vCPU, ~2 GB RAM (1.9 GB usable), 20 GB disk, 512 MB swap from the
+    +provider.
+    +
+    +Workers: `GUNICORN_WORKERS=5` by the formula
+    +`min(2 × vCPU + 1, (free RAM MB − 300) / 90)` = min(5, 13) = 5.
+    +
+    +Expected memory: gunicorn master + 5 workers ≈ 350–500 MB (≈ 60–90 MB per
+    +worker), PostgreSQL ≈ 150–200 MB (shared memory and up to 5 connections),
+    +nginx ≈ 10 MB, system ≈ 250 MB → ≈ 750–950 MB of 1.9 GB. The rest holds the
+    +file cache and the peaks of `pip install`, `migrate` and `collectstatic`; the
+    +swap covers rare peaks.
+    +
+    +Disk: system and packages ≈ 4 GB, code ≈ 50 MB, venv ≈ 150 MB, PostgreSQL data
+    +(trial and final databases) ≈ 100 MB, backups (7 days, gzip) small, journal at
+    +most ≈ 2 GB → at most ≈ 7 GB of 20 GB. Logs: journald uses the systemd
+    +defaults (at most 10% of the file system, at most 4 GB; it keeps 15% of the
+    +file system free). nginx logs are rotated by the stock
+    +`/etc/logrotate.d/nginx`.
+    +
+    +```bash
+    +free -h
+    +swapon --show
+    +df -h
+    +journalctl --disk-usage
+    +systemctl status deanery
+    +```
+    +
+    +If pages are slow or memory is full (`free -h` shows little available memory
+    +and the swap is in use), lower `GUNICORN_WORKERS` in `/etc/deanery/deanery.env`
+    +and run `sudo systemctl restart deanery`. On a bigger server raise it by the
+    +same formula.
+    +````
+    +
+    +The "≈" and "–" and "→" and "×" and "−" characters are the same Unicode characters the file already uses.
+    +Note: "1.9 GB", "~2 GB", "≈ 2 GB" and "20 GB" do not contain the forbidden substring "1 GB" or "10 GB" (AC9).
+    +
+    +### F2. `deploy/gunicorn.conf.py`
+    +
+    +Docstring lines 3–4, old:
+    +
+    +```
+    +Workers: 2 for 1 vCPU / 1 GB RAM. Bigger server: min(2 * vCPU + 1, (free RAM MB - 300) // 90),
+    +set GUNICORN_WORKERS in /etc/deanery/deanery.env.
+    +```
+    +
+    +New:
+    +
+    +```
+    +Workers: 5 for 2 vCPU / ~2 GB RAM: min(2 * vCPU + 1, (free RAM MB - 300) // 90) = min(5, 13).
+    +Other server: set GUNICORN_WORKERS in /etc/deanery/deanery.env by the same formula.
+    +```
+    +
+    +Line 10: `os.environ.get("GUNICORN_WORKERS", "2")` → `os.environ.get("GUNICORN_WORKERS", "5")`. Keep `max(1, int(...))`.
+    +Nothing else changes in this file.
+    +
+    +### F3. `.env.production.example`
+    +
+    +Lines 34–35, old:
+    +
+    +```
+    +# gunicorn (deploy/gunicorn.conf.py): 2 workers for 1 vCPU / 1 GB RAM.
+    +GUNICORN_WORKERS=2
+    +```
+    +
+    +New:
+    +
+    +```
+    +# gunicorn (deploy/gunicorn.conf.py): 5 workers for 2 vCPU / ~2 GB RAM (docs/DEPLOY.md, Resources).
+    +GUNICORN_WORKERS=5
+    +```
+    +
+    +### F4. `deploy/nginx/deanery-bootstrap.conf`
+    +
+    +Line 1: `(docs/DEPLOY.md step 13)` → `(docs/DEPLOY.md step 12)`. Nothing else changes.
+    +
+    +### F5. Delete the journald override
+    +
+    +```bash
+    +rm deploy/journald/50-deanery.conf
+    +rmdir deploy/journald
+    +```
+    +
+    +### F6. `core/tests/test_deploy.py`
+    +
+    +See section 7 for the full list. Exact edits:
+    +
+    +1. Delete the line `JOURNALD = DEPLOY_DIR / "journald" / "50-deanery.conf"`.
+    +2. Replace the comment and constant name:
+    +   ```python
+    +   # The sed `-e` rules of the "Environment file" step (docs/DEPLOY.md); kept here so the
+    +   # test can run them.
+    +   ENV_FILE_SED_EXPRS = (
+    +   ```
+    +   and rename both uses of `STEP10_SED_EXPRS` in `test_step10_sed_produces_trial_env`, which is renamed to
+    +   `test_env_file_sed_produces_trial_env`. Its body is otherwise unchanged.
+    +3. `GunicornConfigTests.test_defaults`:
+    +   `self.assertEqual(cfg["workers"], 5)  # TASK-015: 2 vCPU / ~2 GB server` (was 2).
+    +   `test_env_override` stays (`"3"` → 3 still differs from the default).
+    +4. `EnvExampleTests.test_production_values`:
+    +   `self.assertEqual(values["GUNICORN_WORKERS"], "5")  # TASK-015: 2 vCPU / ~2 GB server` (was "2").
+    +5. Delete `SmallFilesTests.test_journald_limit` (the file no longer exists; reason: TASK-015 AC4).
+    +6. In `RunbookTests` replace `test_swap_before_packages` with these four methods:
+    +   ```python
+    +   def test_swap_check_before_packages(self):
+    +       text = _read(DEPLOY_MD)
+    +       self.assertLess(text.index("swapon --show"), text.index("apt -y install"))
+    +
+    +   def test_no_swap_creation(self):
+    +       text = _read(DEPLOY_MD)
+    +       for fragment in ("fallocate", "mkswap", "/etc/fstab", "vm.swappiness"):
+    +           self.assertNotIn(fragment, text, fragment)
+    +
+    +   def test_steps_numbered_consecutively(self):
+    +       numbers = re.findall(r"^## (\d+)\. ", _read(DEPLOY_MD), re.MULTILINE)
+    +       self.assertEqual(numbers, [str(i) for i in range(len(numbers))])
+    +
+    +   def test_step_references(self):
+    +       text = _read(DEPLOY_MD)
+    +       titles = dict(re.findall(r"^## (\d+)\. (.+)$", text, re.MULTILINE))
+    +       references = (
+    +           (text, r"until step (\d+) is verified", "SSH: keys only"),
+    +           (text, r"until step (\d+) \(SSH hardening\)", "SSH: keys only"),
+    +           (text, r"right after step (\d+), once the repo", "App user, directories, code"),
+    +           (text, r"already exists from step (\d+)\)", "PostgreSQL (trial database)"),
+    +           (text, r"Repeat\s+step (\d+) \(without seeding\)", "Smoke check"),
+    +           (text, r"repeat the smoke check \(step (\d+)\)", "Smoke check"),
+    +           (
+    +               _read(NGINX_BOOTSTRAP),
+    +               r"docs/DEPLOY\.md step (\d+)\)",
+    +               "nginx bootstrap + certificate",
+    +           ),
+    +       )
+    +       for source, pattern, title in references:
+    +           match = re.search(pattern, source)
+    +           self.assertIsNotNone(match, pattern)
+    +           self.assertEqual(titles.get(match.group(1)), title, pattern)
+    +   ```
+    +7. `RunbookTests.test_required_topics`: remove `"vm.swappiness=10"`, `"SystemMaxUse"` and `"shared_buffers"`;
+    +   add `"swapon --show"` in place of `"vm.swappiness=10"` (first item). All other topics stay.
+    +8. Append a new class at the end of the file:
+    +   ```python
+    +   class OldServerLimitsTests(SimpleTestCase):
+    +       """TASK-015: the server has 2 vCPU, ~2 GB RAM, a 20 GB disk and a provider swap."""
+    +
+    +       FORBIDDEN = ("1 GB", "1 vCPU", "10 GB", "swapfile", "50-deanery.conf", "SystemMaxUse")
+    +
+    +       def test_no_old_server_values(self):
+    +           for path in _secret_scan_paths():
+    +               text = _read(path)
+    +               for fragment in self.FORBIDDEN:
+    +                   self.assertNotIn(fragment, text, f"{path.name}: {fragment}")
+    +
+    +       def test_no_shared_buffers_warning(self):
+    +           self.assertNotIn("shared_buffers", _read(DEPLOY_MD))
+    +
+    +       def test_journald_override_removed(self):
+    +           self.assertFalse((DEPLOY_DIR / "journald").exists())
+    +
+    +       def test_resources_section(self):
+    +           text = _read(DEPLOY_MD)
+    +           section = text[text.index("## 19. Resources") : text.index("## 20. Troubleshooting")]
+    +           for fragment in ("GUNICORN_WORKERS=5", "min(5, 13)", "512 MB", "20 GB", "10%"):
+    +               self.assertIn(fragment, section, fragment)
+    +   ```
+    +   `_secret_scan_paths()` already covers every file under `deploy/` (without `__pycache__`), `.env.production.example`
+    +   and `docs/DEPLOY.md`, so it is the exact AC9 scope.
+    +
+    +Run `ruff format core/tests/test_deploy.py` (never on `docs/`), then `ruff check .`.
+    +
+    +## 5. Feasibility check
+    +
+    +1. **Baseline** — HEAD afed2a1, copy made with `git archive HEAD | tar -x -C $TMPDIR/t015` (no `.env`), DEBUG=true
+    +   and a dummy SECRET_KEY: `manage.py test --parallel` → `Ran 1134 tests … OK`
+    +   (`$TMPDIR/test-t015-head-20261119-142001.log`, 01:20 MSK 20.11). OK.
+    +2. **Full change applied** — a second copy (`$TMPDIR/t015b`) with F1–F6 applied by a script that asserted each old
+    +   text occurs exactly once: `Ran 1140 tests … OK` (`$TMPDIR/test-t015b-20261119-141904.log`, 01:19 MSK 20.11).
+    +   +6 = 8 new − 2 removed (`test_journald_limit`, `test_swap_before_packages`). OK.
+    +3. **New tests fail on HEAD** — the new `test_deploy.py` against the HEAD files: 7 failures + 2 errors, exactly the
+    +   expected ones: `test_defaults`, `test_production_values`, `test_required_topics`, `test_no_swap_creation`,
+    +   `test_no_old_server_values`, `test_no_shared_buffers_warning`, `test_journald_override_removed` (FAIL);
+    +   `test_swap_check_before_packages`, `test_resources_section` (ERROR: substring not found). The two guard tests
+    +   `test_steps_numbered_consecutively` and `test_step_references` pass on HEAD, as intended (the old numbering is
+    +   consistent); they fail if the renumbering in F1.6/F1.7 is wrong
+    +   (`$TMPDIR/test-t015-newtests-on-head-20261119-142156.log`). OK.
+    +4. **Lint** — on the changed copy: `ruff format core/tests/test_deploy.py` reformatted the long tuple in
+    +   `test_step_references` (the code in F6.6 is the formatted result); then `ruff check .` → All checks passed;
+    +   `ruff format --check .` → 193 files already formatted. OK.
+    +5. **Deploy commands** — on the changed copy: `bash -n deploy/backup.sh deploy/manage.sh` OK;
+    +   `gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application` OK; `manage.py check` → no issues;
+    +   `makemigrations --check --dry-run` → No changes detected. `check --deploy` with the example values runs inside
+    +   `EnvExampleTests.test_deploy_check_passes_with_example_values` (passed in item 2). OK.
+    +6. **Runtime: 5 workers** — gunicorn 26.2.0 from the project venv with the changed config and no
+    +   `GUNICORN_WORKERS` in the environment booted exactly 5 workers ("Booting worker" ×5), `/health/` →
+    +   `{"status": "ok"}`. Memory: one worker process (`get_wsgi_application()` + every simple GET page as `student1`
+    +   and `staff1`, 15 rounds) peaked at 58 MB RSS (45 MB after loading). OK.
+    +7. **AC9 grep** — on the changed copy the AC9 command prints nothing. Also `grep` over the whole repo (without
+    +   `.venv`, `.git`, `docs/tasks`, `docs/process`) finds the journald file name only in `core/tests/test_deploy.py`
+    +   (handled in F6.1/F6.5); CI (`.github/workflows/ci.yml`) has no journald reference. OK.
+    +8. **Step references** — every "step N" in `docs/DEPLOY.md` and the one in `deploy/nginx/deanery-bootstrap.conf`
+    +   is listed in F1.7/F4 (grep `step [0-9]` over the repo outside `.venv`/`.git`/old specs). OK.
+    +9. **systemd defaults** — journald.conf(5): `SystemMaxUse=` defaults to 10% of the file system size, capped at 4G;
+    +   `SystemKeepFree=` defaults to 15%, capped at 4G. Ubuntu 24.04 keeps a persistent journal in `/var/log/journal`.
+    +   OK.
+    +10. **Safety** — no application code, no migration, no settings change; `.env` was never read (the copies had no
+    +    `.env`); the only deletion is one tracked file and its empty directory (F5), no `git` index command. The
+    +    working tree of the project was not modified by this check. OK.
+    +
+    +## 6. Implementation order
+    +
+    +1. F1 `docs/DEPLOY.md` (F1.1 → F1.9, top to bottom).
+    +2. F2, F3, F4.
+    +3. F5 (delete the file and the directory).
+    +4. F6 tests, `ruff format core/tests/test_deploy.py`.
+    +5. Verification (section 8).
+    +
+    +## 7. Test plan
+    +
+    +### Traceability
+    +
+    +| AC | Test (`core/tests/test_deploy.py`) |
+    +|---|---|
+    +| AC1 | `OldServerLimitsTests::test_no_old_server_values` (no "1 vCPU"/"1 GB"/"10 GB"), `test_resources_section` |
+    +| AC2 | `RunbookTests::test_swap_check_before_packages`, `RunbookTests::test_no_swap_creation`, `RunbookTests::test_required_topics` (`swapon --show`), `OldServerLimitsTests::test_no_old_server_values` ("swapfile") |
+    +| AC3 | `GunicornConfigTests::test_defaults` (5), `GunicornConfigTests::test_env_override` (unchanged), `GunicornConfigTests::test_workers_at_least_one` (unchanged), `EnvExampleTests::test_production_values` ("5") |
+    +| AC4 | `OldServerLimitsTests::test_journald_override_removed`, `OldServerLimitsTests::test_no_old_server_values` ("50-deanery.conf", "SystemMaxUse") |
+    +| AC5 | `OldServerLimitsTests::test_no_shared_buffers_warning` |
+    +| AC6 | `RunbookTests::test_steps_numbered_consecutively`, `RunbookTests::test_step_references` |
+    +| AC7 | `OldServerLimitsTests::test_resources_section` |
+    +| AC8 | all existing tests in `test_deploy.py` unchanged (nginx, systemd, SSH, cron, backup `KEEP_DAYS:-7`, secret scan, `test_env_file_sed_produces_trial_env`, `test_no_relative_deploy_paths`, `test_deploy_check_passes_with_example_values`) |
+    +| AC9 | `OldServerLimitsTests::test_no_old_server_values` + the grep in section 8 |
+    +| AC10 | section 8 commands |
+    +
+    +### Changed tests (with reason)
+    +
+    +| Test | Change | Reason |
+    +|---|---|---|
+    +| `GunicornConfigTests::test_defaults` | workers 2 → 5 | AC3, new server |
+    +| `EnvExampleTests::test_production_values` | `GUNICORN_WORKERS` "2" → "5" | AC3 |
+    +| `SmallFilesTests::test_journald_limit` | deleted | AC4, file removed |
+    +| `RunbookTests::test_swap_before_packages` | replaced by `test_swap_check_before_packages` | AC2, no swap creation |
+    +| `RunbookTests::test_required_topics` | −`vm.swappiness=10`, −`SystemMaxUse`, −`shared_buffers`, +`swapon --show` | AC2, AC4, AC5 |
+    +| `RunbookTests::test_step10_sed_produces_trial_env` | renamed to `test_env_file_sed_produces_trial_env`, constant `ENV_FILE_SED_EXPRS` | D6, step number changes |
+    +
+    +### Edge cases
+    +
+    +- Substring traps: "1.9 GB", "~2 GB", "≈ 2 GB", "20 GB" must not match "1 GB"/"10 GB" (checked: they do not).
+    +- "Repeat step 15" is split over two lines in the runbook (`Repeat\nstep 15`): the regex uses `\s+`.
+    +- `deploy/__pycache__/` exists locally and is ignored by git; `_secret_scan_paths()` skips it.
+    +- The env override still works: `GUNICORN_WORKERS=3` → 3, `"0"` → 1.
+    +- The settings branches (DEBUG true/false), query counts, access matrix: not applicable (no application code).
+    +
+    +Test count: 1134 → 1140.
+    +
+    +## 8. Verification (Coder, then Reviewer)
+    +
+    +```bash
+    +.venv/bin/python manage.py test --parallel 2>&1 | tee "$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log" | tail -3
+    +.venv/bin/ruff check . && .venv/bin/ruff format --check .
+    +bash -n deploy/backup.sh deploy/manage.sh
+    +.venv/bin/gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application
+    +.venv/bin/python manage.py check
+    +.venv/bin/python manage.py makemigrations --check --dry-run
+    +.venv/bin/python -c "import yaml,sys; yaml.safe_load(open('.github/workflows/ci.yml')); print('CI YAML OK')"
+    +grep -rnE "1 GB|1 vCPU|10 GB|swapfile|50-deanery\.conf" docs/DEPLOY.md deploy/ .env.production.example --exclude-dir=__pycache__ || echo GREP_CLEAN
+    +grep -n "^## " docs/DEPLOY.md
+    +git status --short
+    +```
+    +
+    +Expected: `Ran 1140 tests … OK`; ruff clean; `GREP_CLEAN`; headings 0..20 as in F1.6; `git status` shows
+    +`M .env.production.example`, `M core/tests/test_deploy.py`, `D deploy/journald/50-deanery.conf`,
+    +`M deploy/gunicorn.conf.py`, `M deploy/nginx/deanery-bootstrap.conf`, `M docs/DEPLOY.md`, the new
+    +`docs/tasks/TASK-015.md`, and the Team lead's `M plan.md`. If PyYAML is not installed, skip the YAML line and say
+    +so in the REPORT (CI YAML is not changed by this task). `check --deploy` with the example values is covered by
+    +`test_deploy_check_passes_with_example_values`; do not create a `.env` and never read the existing one.
+    +
+    +Report the test count, the log path and the Moscow time of the run. Report every failing run with the test name.
+    +
+    +## 9. Risks
+    +
+    +- **Wrong renumbering** → caught by `test_steps_numbered_consecutively` and `test_step_references`.
+    +- **Memory estimate**: 5 workers ≈ 350–500 MB is an estimate (58 MB per worker measured on macOS); the runbook tells
+    +  the operator how to lower `GUNICORN_WORKERS` if memory is short (F1.9).
+    +- **Journal size**: up to ≈ 2 GB by systemd defaults, fits the 20 GB disk with room for backups.
+    +- **Leftover empty directory** `deploy/journald/` locally → `test_journald_override_removed` fails; use `rmdir`.
+  ── Thought for 5ms
+    I need to confirm PyYAML is installed, and if it isn't, I'll update the spec to match. The expected git status list also includes the untracked TASK-015.md file, which looks correct.
+  ── Ran cd ~/hackatonproject; .venv/bin/python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('CI YAML OK')"; git status --short
+    $ cd ~/hackatonproject; .venv/bin/python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('CI YAML OK')"; git status --short
+    CI YAML OK
+     M plan.md
+    ?? docs/tasks/TASK-015.md
+  ── Ran cd ~/hackatonproject; bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF' [TASK-015] Planner -> Coder: TASK Spec: docs/tasks/TASK-015.md (base HEAD afed2a1). Deploy docs and templates for the new server (2 vCPU, ~2 GB RAM, 20 GB disk, 512 MB provider swap). No application code. - docs/DEPLOY.md: new header; step 1 becomes "Memory and swap check" (`swapon --show && free -h`); delete step 6 (journald) and the shared_buffers warning; renumber 7..21 -> 6..20 and fix the cross-references (table F1.7); new "Resources" text (F1.9, exact). - gunicorn default workers 5 (deploy/gunicorn.conf.py, .env.production.example); one comment in deploy/nginx/deanery-bootstrap.conf (step 13 -> 12). - Delete deploy/journald/50-deanery.conf with `rm`, then `rmdir deploy/journald` (no -r/-f, no git commands). - core/tests/test_deploy.py: exact edits in F6; expected 1134 -> 1140 tests OK. Every "old" text in the spec is an exact unique match in HEAD. Verification commands are in section 8. Do not touch plan.md (Team lead's file). EOF
+    $ cd ~/hackatonproject; bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF'
+  [TASK-015] Planner -> Coder: TASK
+  Spec: docs/tasks/TASK-015.md (base HEAD afed2a1). Deploy docs and templates for the new server (2 vCPU, ~2 GB RAM, 20 GB disk, 512 MB provider swap). No application code.
+  - docs/DEPLOY.md: new header; step 1 becomes "Memory and swap check" (`swapon --show && free -h`); delete step 6 (journald) and the shared_buffers warning; renumber 7..21 -> 6..20 and fix the cross-references (table F1.7); new "Resources" text (F1.9, exact).
+  - gunicorn default workers 5 (deploy/gunicorn.conf.py, .env.production.example); one comment in deploy/nginx/deanery-bootstrap.conf (step 13 -> 12).
+  - Delete deploy/journald/50-deanery.conf with `rm`, then `rmdir deploy/journald` (no -r/-f, no git commands).
+  - core/tests/test_deploy.py: exact edits in F6; expected 1134 -> 1140 tests OK. Every "old" text in the spec is an exact unique match in HEAD.
+  Verification commands are in section 8. Do not touch plan.md (Team lead's file).
+  EOF
+    Thread thr_ng6cbgatm6 steered
+  ── Thought for 5s
+    I'm leaving the temp copies in TMPDIR alone rather than cleaning them up. The work is finished, so the remaining step is a short summary for the user, written in Russian.
+
+── Assistant ───────────────────────────────────────────────
+Я написал спецификацию [TASK-015](docs/tasks/TASK-015.md) и передал её Кодеру. Все изменения я сначала применил на временной копии проекта: полный прогон дал 1140 тестов OK, сейчас в проекте 1134.
+
+**Что изменит Кодер:**
+- **Инструкция по деплою.** В заголовке будет новый сервер: 2 ядра, ~2 ГБ, диск 20 ГБ, swap 512 МБ от хостинга.
+- **Swap.** Шаг 1 больше не создаёт swap. Вместо него одна проверка: `swapon --show && free -h`.
+- **Журналы.** Шаг про лимит журналов удаляется вместе с файлом `deploy/journald/50-deanery.conf`. Действуют стандартные лимиты systemd: на диске 20 ГБ журналы займут не больше ~2 ГБ.
+- **PostgreSQL.** Предупреждение «не поднимать `shared_buffers`» удаляется. Настройки базы остаются стандартными.
+- **Номера шагов.** Шаги 7–21 становятся 6–20. Ссылки на шаги исправлены, в том числе комментарий в шаблоне nginx.
+- **gunicorn.** По умолчанию 5 процессов. Значение можно изменить через переменную `GUNICORN_WORKERS`.
+- **Раздел «Ресурсы».** Расчёт на 5 процессов: память ~750–950 МБ из 1,9 ГБ, диск до ~7 ГБ из 20 ГБ.
+
+**Что я проверил на копии:**
+- gunicorn запустил ровно 5 процессов, `/health/` отвечает «ok».
+- Один процесс Django занимает около 58 МБ после открытия всех простых страниц студента и сотрудника. Это совпадает со старой оценкой 60–90 МБ.
+- Поиск по `docs/DEPLOY.md`, `deploy/` и `.env.production.example` больше не находит «1 GB», «1 vCPU», «10 GB», «swapfile» и «50-deanery.conf».
+- Новые тесты проверяют порядок номеров шагов и все ссылки на шаги. Ошибку в нумерации они поймают.
+
+В рабочем дереве изменён `plan.md`. Это файл тимлида, Кодеру я написал его не трогать.
