@@ -1,5 +1,6 @@
 """Home page for students, staff and other roles (TASK-012, AC7-AC10, AC12)."""
 
+import re
 from datetime import date
 
 from django.db import connection
@@ -118,6 +119,14 @@ class HomeStudentTests(FrozenClockMixin, TestCase):
         self.assertIn("отменено", content)
         self.assertNotIn("Ремонт", content)
         self.assertNotIn("Болезнь", content)
+
+    def test_lesson_meta_separator_glued(self):
+        content = self._content()
+        metas = re.findall(r'<p class="lesson-meta">(.*?)</p>', content, re.S)
+        self.assertEqual(len(metas), 2)
+        for meta in metas:
+            self.assertIn("&nbsp;· ", meta)
+            self.assertIsNone(re.search(r"[ \t\n]·", meta))
 
     def test_other_group_lessons_hidden(self):
         self.assertNotIn("Чужая дисциплина", self._content())

@@ -5,10 +5,7 @@
   {% if students %}
     <ul class="student-list">
       {% for student in students %}
-        <li>
-          <a href="{% url 'accounts:staff_student_detail' student.pk %}">{{ student.full_name }}</a>
-          · {{ student.group.name }}, {{ student.course }} курс
-        </li>
+        <li><a href="{% url 'accounts:staff_student_detail' student.pk %}">{{ student.full_name }}</a>&nbsp;· {{ student.group.name }}, {{ student.course }} курс</li>
       {% endfor %}
     </ul>
   {% else %}

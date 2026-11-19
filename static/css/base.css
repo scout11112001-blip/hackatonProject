@@ -758,13 +758,37 @@ input[type="file"]::file-selector-button {
   padding: var(--space-3);
 }
 
-.petition > a,
 .chat-dialogs li > a,
 .student-list a,
 .group-list a {
   display: inline-block;
   min-height: 2.75rem;
   padding-block: 0.625rem;
+}
+
+/* Request rows and catalog (TASK-014-FIX): the title on its own line (44 px tap target),
+   then short details. Bounded detail parts never split; the "&nbsp;·" separator sits inside
+   the preceding part, so a line never starts with "·". */
+.petition-title,
+.catalog-title {
+  display: block;
+  min-height: 2.75rem;
+  padding-block: 0.625rem;
+}
+
+.meta-item {
+  white-space: nowrap;
+}
+
+.petition-meta,
+.petition-subject,
+.catalog-desc,
+.catalog-term {
+  margin: 0;
+}
+
+.catalog-item + .catalog-item {
+  margin-top: var(--space-3);
 }
 
 .discipline summary {

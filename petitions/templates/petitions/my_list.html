@@ -6,11 +6,8 @@
     <ul class="petition-list">
       {% for petition in petitions %}
         <li class="petition">
-          <a href="{% url 'petitions:detail' petition.public_id %}">{{ petition.display_name }}</a>
-          · № {{ petition.short_id }}
-          · {{ petition.created_at|date:"j E Y" }}
-          · <span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>
-          · готовность: {{ petition.expected_ready_date|date:"j E Y" }}
+          <a class="petition-title" href="{% url 'petitions:detail' petition.public_id %}">{{ petition.display_name }}</a>
+          <p class="petition-meta"><span class="meta-item">№ {{ petition.short_id }}&nbsp;·</span> <span class="meta-item">{{ petition.created_at|date:"j E Y" }}&nbsp;·</span> <span class="meta-item"><span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>&nbsp;·</span> <span class="meta-item">готовность: {{ petition.expected_ready_date|date:"j E Y" }}</span></p>
         </li>
       {% endfor %}
     </ul>

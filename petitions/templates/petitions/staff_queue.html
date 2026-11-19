@@ -25,12 +25,9 @@
     <ul class="petition-list">
       {% for petition in petitions %}
         <li class="petition">
-          <a href="{% url 'petitions:staff_detail' petition.public_id %}">{{ petition.student.full_name }}</a>
-          · {{ petition.student.group.name }}
-          · {{ petition.display_name }}
-          · {{ petition.created_at|date:"j E Y" }}
-          · <span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>
-          · файлов: {{ petition.attachment_count }}
+          <a class="petition-title" href="{% url 'petitions:staff_detail' petition.public_id %}">{{ petition.student.full_name }}</a>
+          <p class="petition-subject">{{ petition.display_name }}</p>
+          <p class="petition-meta"><span class="meta-item">{{ petition.student.group.name }}&nbsp;·</span> <span class="meta-item">{{ petition.created_at|date:"j E Y" }}&nbsp;·</span> <span class="meta-item"><span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>&nbsp;·</span> <span class="meta-item">файлов: {{ petition.attachment_count }}</span></p>
         </li>
       {% endfor %}
     </ul>

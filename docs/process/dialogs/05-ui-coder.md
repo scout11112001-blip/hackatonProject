@@ -8092,3 +8092,1802 @@ bb thread tell thr_cpuae9aqw3 --message-file /tmp/claude-501/ui/report-fix2.md 2
 - При перезапуске пропали и первые скриншоты. Я снял их заново.
 
 Тестовый сервер я снова останавливал командой без песочницы: песочница не показывает процессы из других команд. Сервер и браузер закрыты. Жду ответа Ревьюера.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_2imsg4kck2]
+
+[TASK-014-FIX] Planner -> UI coder: TASK
+Spec: docs/tasks/TASK-014-FIX.md. Reference: docs/process/screenshots/2026-11-19_68_my-requests-subject_student1.jpg (a line starts with "·").
+Summary:
+- Rule: a separator dot is glued to the previous part with a no-break space ("&nbsp;·") and followed by one normal space. Never a space or newline before "·", so a line can end with "·" but never start with one.
+- my_list and staff_queue: the title link goes on its own line (block, 44 px), then one details line of <span class="meta-item"> parts (nowrap, the dot inside the preceding span). Staff queue also gets <p class="petition-subject"> with display_name.
+- Catalog: no separators; name / description / "Срок: до N рабочих дней" as three lines. includes/history.html and includes/comments.html follow the same rule.
+- Only these 5 templates + base.css + tests. Other pages with " · " are out of scope (listed in the spec).
+Visual acceptance: student "Мои заявки" and staff "Заявки" with the demo "Другая справка" request and a 150-character subject at 360x780 and 1024x768; catalog and one detail at 360x780; no line starts with "·"; no horizontal scroll (also 320 for the student list). Baseline: 1122 tests OK (2026-11-19 ~15:35 MSK).
+
+── Assistant ───────────────────────────────────────────────
+Получил TASK-014-FIX. Читаю спецификацию.
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Ran git status --short && git log --oneline -3 && cat docs/tasks/TASK-014-FIX.md
+    $ git status --short && git log --oneline -3 && cat docs/tasks/TASK-014-FIX.md
+    M plan.md
+    ?? docs/tasks/TASK-014-FIX.md
+    1414de1 TASK-014: military office certificate, catch-all requests with a required subject, "до N рабочих дней" terms
+    ca9f30b TASK-013-FIX2: wide map layout, the floor plan fits the screen
+    8f469b2 TASK-013-FIX: feed marks a lesson change new only on visible edits; parallel tests keep uploads in a temp dir
+    # TASK-014-FIX: A separator dot never starts a line in request lists
+
+    Assignee: **UI coder** (thr_pgcwc2dwnn). Request: Team lead, approved by the user (found at 360 px on 19.11).
+
+    ## Goal
+
+    In the request pages, a separator "·" never starts a line, at any width and any title length. Rows stay readable at 360 px and 1024 px. No JavaScript.
+
+    Problem (screenshot `docs/process/screenshots/2026-11-19_68_my-requests-subject_student1.jpg`): `my_list.html` and `staff_queue.html` write each part on its own template line as `· part`, so the HTML has a normal space (newline + indentation) right before every dot. The browser may break there, and the next line starts with "· № 399ee6e5 · …".
+
+    ## Acceptance criteria
+
+    - AC1. **Separator rule** for every row this task touches: the dot is the last character of the preceding part, glued to it with a no-break space (`&nbsp;·`), and is followed by one normal space. There is never a normal space, tab or newline directly before a "·". Result: a line may end with "·" but never starts with it.
+    - AC2. **Student list** (`petitions/templates/petitions/my_list.html`): each row has the title link on its own line (block), then one details line: `№ <short id>&nbsp;· <created date>&nbsp;· <status>&nbsp;· готовность: <date>`.
+    - AC3. **Staff queue** (`petitions/templates/petitions/staff_queue.html`): each row has the student name link on its own line, then the request title (`petition.display_name`) on its own line, then one details line: `<group>&nbsp;· <created date>&nbsp;· <status>&nbsp;· файлов: N`.
+    - AC4. **Catalog** (`petitions/templates/petitions/catalog.html`): no separators at all. Each type is one block: the name link, the description (if any) on its own line, then "Срок: до N рабочих дней" on its own line. The em dash "— description" and "· Срок" are removed.
+    - AC5. **Request detail includes** (same pattern, same pages): `petitions/templates/petitions/includes/history.html` and `includes/comments.html` follow the rule of AC1 (`date&nbsp;· status&nbsp;· actor`, `author&nbsp;· date&nbsp;· text`).
+    - AC6. Short bounded details (the number, dates, status, "готовность: …", "файлов: N", the group) may be kept on one line with `white-space: nowrap` (D3); unbounded text (titles, names, comment text) wraps normally. No horizontal scroll at 320, 360 and 1024 px, even with a 150-character subject.
+    - AC7. Screen readers read the same words in the same order as today (the dots stay in the text; no `aria-hidden` needed; nothing is moved into CSS `content`).
+    - AC8. The information shown and the links are unchanged (same hrefs, same texts apart from the removed "— " and the separators' spacing). Existing tests pass; new tests guard AC1–AC4.
+
+    ## Out of scope
+
+    - Other pages with the same pattern (user decision: "other pages" are out of scope). Found and NOT changed, listed for the Team lead: `chat/templates/chat/staff_list.html` (name · group · time · новых), `chat/templates/chat/_message.html` (meta), `accounts/templates/accounts/student_list.html`, `schedule/templates/schedule/staff_group_list.html`, `notifications/templates/notifications/feed.html` and `staff_list.html` (`feed-meta`), `academics/templates/academics/includes/discipline.html` (summary), `schedule/.../lesson_compact.html` (`lesson-meta`). Short lines (`today.html`, `home.html` `page-sub`, lesson time lines) do not wrap at 360 px.
+    - The form's "Обязательное поле." for an empty comment (accepted by the user).
+    - New features, colours, fonts.
+
+    ## Design decisions
+
+    - **D1. Fix in the text, not in CSS pseudo-elements.** A dot drawn by `::before` of the next part would still start the line when that part wraps; `::after` of the previous part cannot be glued to it across a wrap of a long part. A no-break space before the dot glues the dot to the end of the previous part in the line-breaking algorithm (also across inline element boundaries), and the normal space after the dot remains the only break point. It works for any length and needs no extra CSS.
+    - **D2. Titles on their own line.** The request title can be 170 characters ("Другая справка: " + 150). Putting it on its own line (block link) makes the details line short and scannable; the link keeps the 44 px tap height (existing rule `.petition > a { display: inline-block; min-height: 2.75rem; … }` — change it to `display: block` for these rows, see Architecture).
+    - **D3. Optional nowrap for bounded parts.** Wrap each bounded part in `<span class="meta-item">…</span>` with `.meta-item { white-space: nowrap; }` (base.css), so "19 ноября 2026" or "готовность: 26 ноября 2026" do not split. The dot and the no-break space stay *inside* the preceding `meta-item` span (`<span class="meta-item">№ 399ee6e5&nbsp;·</span> <span class="meta-item">…`). The longest bounded part ("готовность: 26 сентября 2026", 28 characters) fits the 360 px card. Do not use `meta-item` for unbounded text.
+    - **D4. Catalog without separators.** Three short blocks read better on a phone than one long sentence, and there is nothing to separate.
+
+    ## Architecture / files
+
+    Templates (exact structure; class names are tested):
+
+    `petitions/templates/petitions/my_list.html`, row:
+    ```django
+    <li class="petition">
+      <a class="petition-title" href="{% url 'petitions:detail' petition.public_id %}">{{ petition.display_name }}</a>
+      <p class="petition-meta"><span class="meta-item">№ {{ petition.short_id }}&nbsp;·</span> <span class="meta-item">{{ petition.created_at|date:"j E Y" }}&nbsp;·</span> <span class="meta-item"><span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>&nbsp;·</span> <span class="meta-item">готовность: {{ petition.expected_ready_date|date:"j E Y" }}</span></p>
+    </li>
+    ```
+
+    `petitions/templates/petitions/staff_queue.html`, row:
+    ```django
+    <li class="petition">
+      <a class="petition-title" href="{% url 'petitions:staff_detail' petition.public_id %}">{{ petition.student.full_name }}</a>
+      <p class="petition-subject">{{ petition.display_name }}</p>
+      <p class="petition-meta"><span class="meta-item">{{ petition.student.group.name }}&nbsp;·</span> <span class="meta-item">{{ petition.created_at|date:"j E Y" }}&nbsp;·</span> <span class="meta-item"><span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>&nbsp;·</span> <span class="meta-item">файлов: {{ petition.attachment_count }}</span></p>
+    </li>
+    ```
+
+    `petitions/templates/petitions/catalog.html`, each type (both sections; keep the `{% empty %}` texts):
+    ```django
+    <div class="catalog-item">
+      <a class="catalog-title" href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>
+      {% if type.description %}<p class="catalog-desc">{{ type.description }}</p>{% endif %}
+      <p class="catalog-term">Срок: {{ type.term_label }}</p>
+    </div>
+    ```
+
+    `petitions/templates/petitions/includes/history.html`, item:
+    ```django
+    <li>{{ change.created_at|date:"j E Y H:i" }}&nbsp;· {% if change.from_status %}{{ change.get_from_status_display }} → {% endif %}{{ change.get_to_status_display }}&nbsp;· {% if change.actor.role == "staff" %}{{ change.actor.staff_profile.full_name }}{% elif change.actor.role == "student" %}Студент{% else %}Администратор{% endif %}{% if change.comment %}<br>{{ change.comment }}{% endif %}</li>
+    ```
+
+    `petitions/templates/petitions/includes/comments.html`, item:
+    ```django
+    <li>{% if comment.author.role == "staff" %}{{ comment.author.staff_profile.full_name }}{% else %}Сотрудник{% endif %}&nbsp;· {{ comment.created_at|date:"j E Y H:i" }}&nbsp;· {{ comment.text }}</li>
+    ```
+    Keep each `<li>` on one template line (a template line break before "·" would reintroduce a normal space).
+
+    CSS (`static/css/base.css`, layout only; colours unchanged):
+    - `.meta-item { white-space: nowrap; }`
+    - `.petition-title`, `.catalog-title`: `display: block;` (replace `display: inline-block` for `.petition > a` in the existing rule at `base.css:761`, or add a more specific rule after it), keep `min-height: 2.75rem` and the padding so the tap target stays ≥ 44 px.
+    - `.petition-meta`, `.petition-subject`, `.catalog-desc`, `.catalog-term`: `margin: 0;` (the existing `.petition p { margin: 0; }` already covers rows); small spacing between catalog items (`.catalog-item + .catalog-item { margin-top: var(--space-3); }`).
+    - You may give `.petition-meta` and `.catalog-term` the muted colour via an existing token in theme.css (optional; check contrast: `--color-muted` on the panel is 7.12:1).
+
+    No Python changes.
+
+    ## Feasibility check
+
+    1. Clean starting point: `git status --short` shows only ` M plan.md` (Team lead). HEAD `1414de1 TASK-014: …`.
+    2. Referenced objects exist: the five templates above (current markup read on 19.11; `my_list.html:9-13` and `staff_queue.html:28-33` put "·" at the start of template lines; `catalog.html` uses "— description · Срок: {{ type.term_label }}"; `includes/history.html:5-7` and `includes/comments.html:5-7` the same pattern), `Petition.display_name`, `short_id`, `RequestType.term_label`, CSS rules `base.css:189-202` (`.petition-list`, `.petition`, `.petition p`), `base.css:761` (`.petition > a { display: inline-block; min-height: 2.75rem; padding-block: 0.625rem; }`), theme panels `theme.css:313`.
+    3. New names are free: `.meta-item`, `.petition-title`, `.petition-meta`, `.petition-subject`, `.catalog-item`, `.catalog-title`, `.catalog-desc`, `.catalog-term` (no match in `static/css/` or templates).
+    4. Data and migrations: none; `makemigrations --check`: "No changes detected".
+    5. Tools: no new dependency; headless Chromium via `bb browser-automation` for the visual check (role file).
+    6. Framework: Django autoescaping is unchanged; `&nbsp;` is a literal entity in the template. CSS line breaking treats U+00A0 as non-breaking, also across inline element boundaries (UAX #14; the existing chat and lesson markup already rely on NBSP in `Teacher.short_name`).
+    7. Environment: none.
+    8. Verification on the current tree: `check` (no issues), `makemigrations --check` (no changes), `ruff check .` (passed), `ruff format --check .` (193 files formatted), `python manage.py test --parallel 1`: **Ran 1122 tests, OK** (log `/tmp/claude-501/test-20261119-043501.log`, 2026-11-19 ~15:35 MSK). Existing tests that read these pages assert only substrings that stay (escaped display names, "Срок: до N …", "не больше 3 файлов"); none asserts the old " · " joins (checked with `grep` in `petitions/tests/`).
+    9. Conflicts: none. The other pages with the same pattern are listed in "Out of scope" for the Team lead.
+    10. Assumptions / blockers: none.
+
+    ## Test plan
+
+    ### Traceability
+
+    | AC | Tests |
+    |---|---|
+    | AC1 | `petitions/tests/test_views.py::SeparatorTests::test_no_space_before_dot_in_lists`, `::test_no_space_before_dot_in_detail` |
+    | AC2 | `SeparatorTests::test_student_row_structure` |
+    | AC3 | `SeparatorTests::test_staff_row_structure` |
+    | AC4 | `SeparatorTests::test_catalog_blocks` |
+    | AC5 | `SeparatorTests::test_no_space_before_dot_in_detail` |
+    | AC6 | `core/tests/test_css.py::BaseCssTests::test_meta_item_nowrap`; visual check |
+    | AC7, AC8 | existing petitions tests unchanged; `SeparatorTests::test_texts_and_links_kept` |
+
+    ### Access matrix
+
+    No view or permission changes; the existing petitions access tests must pass unchanged.
+
+    ### Tests (`petitions/tests/test_views.py`, new class `SeparatorTests(FrozenClockMixin, TestCase)`)
+
+    Setup: faculty, group "GX", student A (+ staff of the same faculty), an ordinary type, a catch-all type (`make_type(name="Другая справка", days=5, comment_required=True, hint="h", subject_required=True)`), petition P1 of the ordinary type, petition P2 of the catch-all type with `subject` = 150 × "а"; for P1 one staff status change (via `change_status`) and one staff comment (`add_staff_comment`). Helper `_part(content, start_marker, end_marker)` slices the HTML.
+
+    - `test_no_space_before_dot_in_lists`: for `my_list` (student) and `staff_queue` (staff), inside `<ul class="petition-list">…</ul>`: `re.search(r"[ \t\n]·", part)` is None, and every row (`<li class="petition">…</li>`) contains the literal entity `&nbsp;·` exactly 3 times (Django outputs the template's `&nbsp;` unchanged).
+    - `test_no_space_before_dot_in_detail`: student detail and staff detail of P1: inside the history `<ol>` and the comments `<ul>`, no `[ \t\n]·`.
+    - `test_student_row_structure`: `my_list` contains `<a class="petition-title" href="/requests/<P2 uuid>/">Другая справка: ааа…</a>` (full 150 characters) followed by `<p class="petition-meta">`, and the meta contains `<span class="meta-item">№ <short id>&nbsp;·</span>`.
+    - `test_staff_row_structure`: `staff_queue` row of P2 has `<a class="petition-title" …>`, then `<p class="petition-subject">Другая справка: ааа…</p>`, then `<p class="petition-meta">` with `файлов: 0`.
+    - `test_catalog_blocks`: the catalog contains `<p class="catalog-term">Срок: до 5 рабочих дней</p>` and `<a class="catalog-title"`; no " — " and no "·" in the page's `main`.
+    - `test_texts_and_links_kept`: the student list still has the detail href, the status text, "готовность:"; the staff queue still has the staff detail href, the group name, "файлов:".
+
+    `core/tests/test_css.py::BaseCssTests::test_meta_item_nowrap`: base.css has a `.meta-item` rule with `white-space: nowrap`, and a rule for `.petition-title` with `display: block` and `min-height: 2.75rem` (directly or via a shared selector list).
+
+    ### Visual check (UI coder; screenshots and numbers in the REPORT)
+
+    Temporary DB with `seed_demo` (it has the demo request "Другая справка: Справка о периоде обучения" for student1); add one request with a 150-character subject for student1 (via `submit_petition` in `manage.py shell`, or the form).
+    - Student "Мои заявки" and staff "Заявки" (staff1) at 360 × 780 and 1024 × 768; catalog at 360 × 780; one request detail (with history and a staff comment) at 360 × 780.
+    - For each row, check that no line starts with "·". In the browser: for every text node, `Range.getClientRects()` per character is heavy; instead, take screenshots and also run: `[...document.querySelectorAll('.petition-meta, .petition li, ol li')].every(e => !/[\s]·/.test(e.innerHTML.replace(/&nbsp;/g,' ')))` (structure check), and look at the screenshots.
+    - `document.documentElement.scrollWidth === innerWidth` on every page (also at 320 × 780 for the student list).
+
+    ### Edge cases
+
+    150-character subject; the shortest row (ordinary type); a status with two words ("В работе"); a request with no attachments ("файлов: 0"); the catalog type without a description.
+
+    ## Implementation order
+
+    1. Templates (five files). Run `python manage.py test petitions --parallel 1` (log).
+    2. CSS. Visual check at 360 and 1024.
+    3. New tests. Full verification. REPORT.
+
+    ## Verification
+
+    ```bash
+    source .venv/bin/activate
+    python manage.py check
+    python manage.py makemigrations --check --dry-run
+    python manage.py test --parallel 1 2>&1 | tee "$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log"
+    ruff check petitions/tests/test_views.py core/tests/test_css.py
+    ruff format --check petitions/tests/test_views.py core/tests/test_css.py
+    git status --short
+    ```
+    If any run fails or stalls, even once, put the test name, the Moscow time and the traceback excerpt into the REPORT.
+
+    ## Risks
+
+    - **Template whitespace.** A newline or indentation before "·" in a template brings the bug back; the regex tests catch it.
+    - **Long staff names** wrap inside the title line (fine: no separator there).
+    - **Other pages** keep the old pattern (out of scope); listed for a possible later task.
+  ── Ran for f in my_list staff_queue catalog includes/history includes/comments; do echo "=== $f"; cat petitions/templates/petitions/$f.html; done (1s)
+    $ for f in my_list staff_queue catalog includes/history includes/comments; do echo "=== $f"; cat petitions/templates/petitions/$f.html; done
+    === my_list
+    {% extends "base.html" %}
+    {% block content %}
+      <h1>Мои заявки</h1>
+      <p class="page-actions"><a href="{% url 'petitions:catalog' %}">Подать заявку</a></p>
+      {% if petitions %}
+        <ul class="petition-list">
+          {% for petition in petitions %}
+            <li class="petition">
+              <a href="{% url 'petitions:detail' petition.public_id %}">{{ petition.display_name }}</a>
+              · № {{ petition.short_id }}
+              · {{ petition.created_at|date:"j E Y" }}
+              · <span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>
+              · готовность: {{ petition.expected_ready_date|date:"j E Y" }}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>Заявок пока нет.</p>
+      {% endif %}
+    {% endblock %}
+    === staff_queue
+    {% extends "base.html" %}
+    {% block content %}
+      <h1>Заявки</h1>
+      <form method="get" class="form">
+        <p>
+          <label for="status">Статус</label>
+          <select name="status" id="status">
+            {% for value, label in status_choices %}
+              <option value="{{ value }}"{% if value == selected_status %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </p>
+        <p>
+          <label for="type">Вид заявки</label>
+          <select name="type" id="type">
+            <option value="">Все</option>
+            {% for t in types %}
+              <option value="{{ t.pk }}"{% if t.pk|stringformat:"s" == selected_type %} selected{% endif %}>{{ t.name }}</option>
+            {% endfor %}
+          </select>
+        </p>
+        <button type="submit">Показать</button>
+      </form>
+      {% if petitions %}
+        <ul class="petition-list">
+          {% for petition in petitions %}
+            <li class="petition">
+              <a href="{% url 'petitions:staff_detail' petition.public_id %}">{{ petition.student.full_name }}</a>
+              · {{ petition.student.group.name }}
+              · {{ petition.display_name }}
+              · {{ petition.created_at|date:"j E Y" }}
+              · <span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>
+              · файлов: {{ petition.attachment_count }}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>Заявок нет.</p>
+      {% endif %}
+    {% endblock %}
+    === catalog
+    {% extends "base.html" %}
+    {% block content %}
+      <h1>Подать заявку</h1>
+      <h2>Справки</h2>
+      {% for type in certificates %}
+        <p>
+          <a href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>
+          {% if type.description %} — {{ type.description }}{% endif %}
+          · Срок: {{ type.term_label }}
+        </p>
+      {% empty %}
+        <p>Справок пока нет.</p>
+      {% endfor %}
+      <h2>Заявления</h2>
+      {% for type in applications %}
+        <p>
+          <a href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>
+          {% if type.description %} — {{ type.description }}{% endif %}
+          · Срок: {{ type.term_label }}
+        </p>
+      {% empty %}
+        <p>Заявлений пока нет.</p>
+      {% endfor %}
+    {% endblock %}
+    === includes/history
+    {% if petition.history.all %}
+      <ol>
+        {% for change in petition.history.all %}
+          <li>
+            {{ change.created_at|date:"j E Y H:i" }}
+            · {% if change.from_status %}{{ change.get_from_status_display }} → {% endif %}{{ change.get_to_status_display }}
+            · {% if change.actor.role == "staff" %}{{ change.actor.staff_profile.full_name }}{% elif change.actor.role == "student" %}Студент{% else %}Администратор{% endif %}
+            {% if change.comment %}<br>{{ change.comment }}{% endif %}
+          </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <p>Истории нет.</p>
+    {% endif %}
+    === includes/comments
+    {% if petition.staff_comments.all %}
+      <ul>
+        {% for comment in petition.staff_comments.all %}
+          <li>
+            {% if comment.author.role == "staff" %}{{ comment.author.staff_profile.full_name }}{% else %}Сотрудник{% endif %}
+            · {{ comment.created_at|date:"j E Y H:i" }}
+            · {{ comment.text }}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>Комментариев нет.</p>
+    {% endif %}
+  ── Thought for 6ms
+    I'm keeping the `{% empty %}` branch in the catalog template. The catalog used to wrap each item in a `<p>`, and I'm switching that to a `<div class="catalog-item">` now, so I'll write the templates with that change.
+
+── Assistant ───────────────────────────────────────────────
+Шаг 1: переписываю пять шаблонов по спецификации.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran python3 - <<'EOF' 2>/dev/null import pathlib def rep(path, old, new):     p=pathlib.Path(path); s=p.read_text(); assert s.count(old)==1,(path,old); p.write_text(s.replace(old,new)) D="petitions/templates/petitions/" rep(D+"my_list.html","""        <li class="petition">           <a href="{% url 'petitions:detail' petition.public_id %}">{{ petition.display_name }}</a>           · № {{ petition.short_id }}           · {{ petition.created_at|date:"j E Y" }}           · <span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>           · готовность: {{ petition.expected_ready_date|date:"j E Y" }}         </li>""","""        <li class="petition">           <a class="petition-title" href="{% url 'petitions:detail' petition.public_id %}">{{ petition.display_name }}</a>           <p class="petition-meta"><span class="meta-item">№ {{ petition.short_id }}&nbsp;·</span> <span class="meta-item">{{ petition.created_at|date:"j E Y" }}&nbsp;·</span> <span class="meta-item"><span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>&nbsp;·</span> <span class="meta-item">готовность: {{ petition.expected_ready_date|date:"j E Y" }}</span></p>         </li>""") rep(D+"staff_queue.html","""        <li class="petition">           <a href="{% url 'petitions:staff_detail' petition.public_id %}">{{ petition.student.full_name }}</a>           · {{ petition.student.group.name }}           · {{ petition.display_name }}           · {{ petition.created_at|date:"j E Y" }}           · <span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>           · файлов: {{ petition.attachment_count }}         </li>""","""        <li class="petition">           <a class="petition-title" href="{% url 'petitions:staff_detail' petition.public_id %}">{{ petition.student.full_name }}</a>           <p class="petition-subject">{{ petition.display_name }}</p>           <p class="petition-meta"><span class="meta-item">{{ petition.student.group.name }}&nbsp;·</span> <span class="meta-item">{{ petition.created_at|date:"j E Y" }}&nbsp;·</span> <span class="meta-item"><span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>&nbsp;·</span> <span class="meta-item">файлов: {{ petition.attachment_count }}</span></p>         </li>""") p=pathlib.Path(D+"catalog.html"); s=p.read_text() old="""    <p>       <a href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>       {% if type.description %} — {{ type.description }}{% endif %}       · Срок: {{ type.term_label }}     </p>""" assert s.count(old)==2 s=s.replace(old,"""    <div class="catalog-item">       <a class="catalog-title" href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>       {% if type.description %}<p class="catalog-desc">{{ type.description }}</p>{% endif %}       <p class="catalog-term">Срок: {{ type.term_label }}</p>     </div>""") p.write_text(s) rep(D+"includes/history.html","""      <li>         {{ change.created_at|date:"j E Y H:i" }}         · {% if change.from_status %}{{ change.get_from_status_display }} → {% endif %}{{ change.get_to_status_display }}         · {% if change.actor.role == "staff" %}{{ change.actor.staff_profile.full_name }}{% elif change.actor.role == "student" %}Студент{% else %}Администратор{% endif %}         {% if change.comment %}<br>{{ change.comment }}{% endif %}       </li>""","""      <li>{{ change.created_at|date:"j E Y H:i" }}&nbsp;· {% if change.from_status %}{{ change.get_from_status_display }} → {% endif %}{{ change.get_to_status_display }}&nbsp;· {% if change.actor.role == "staff" %}{{ change.actor.staff_profile.full_name }}{% elif change.actor.role == "student" %}Студент{% else %}Администратор{% endif %}{% if change.comment %}<br>{{ change.comment }}{% endif %}</li>""") rep(D+"includes/comments.html","""      <li>         {% if comment.author.role == "staff" %}{{ comment.author.staff_profile.full_name }}{% else %}Сотрудник{% endif %}         · {{ comment.created_at|date:"j E Y H:i" }}         · {{ comment.text }}       </li>""","""      <li>{% if comment.author.role == "staff" %}{{ comment.author.staff_profile.full_name }}{% else %}Сотрудник{% endif %}&nbsp;· {{ comment.created_at|date:"j E Y H:i" }}&nbsp;· {{ comment.text }}</li>""") EOF grep -rn "[[:space:]]·" petitions/templates/petitions/ ; echo "--"; source .venv/bin/activate && L="$TMPDIR/test-014fix-step1-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"; python manage.py test petitions --parallel 1 > "$L" 2>&1; echo "$L"; grep -E "^(Ran|OK|FAILED)" "$L"; grep -E "^(FAIL|ERROR):" -A12 "$L" | head -40 (22s)
+    $ python3 - <<'EOF' 2>/dev/null
+  import pathlib
+  def rep(path, old, new):
+      p=pathlib.Path(path); s=p.read_text(); assert s.count(old)==1,(path,old); p.write_text(s.replace(old,new))
+  D="petitions/templates/petitions/"
+  rep(D+"my_list.html","""        <li class="petition">
+            <a href="{% url 'petitions:detail' petition.public_id %}">{{ petition.display_name }}</a>
+            · № {{ petition.short_id }}
+            · {{ petition.created_at|date:"j E Y" }}
+            · <span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>
+            · готовность: {{ petition.expected_ready_date|date:"j E Y" }}
+          </li>""","""        <li class="petition">
+            <a class="petition-title" href="{% url 'petitions:detail' petition.public_id %}">{{ petition.display_name }}</a>
+            <p class="petition-meta"><span class="meta-item">№ {{ petition.short_id }}&nbsp;·</span> <span class="meta-item">{{ petition.created_at|date:"j E Y" }}&nbsp;·</span> <span class="meta-item"><span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>&nbsp;·</span> <span class="meta-item">готовность: {{ petition.expected_ready_date|date:"j E Y" }}</span></p>
+          </li>""")
+  rep(D+"staff_queue.html","""        <li class="petition">
+            <a href="{% url 'petitions:staff_detail' petition.public_id %}">{{ petition.student.full_name }}</a>
+            · {{ petition.student.group.name }}
+            · {{ petition.display_name }}
+            · {{ petition.created_at|date:"j E Y" }}
+            · <span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>
+            · файлов: {{ petition.attachment_count }}
+          </li>""","""        <li class="petition">
+            <a class="petition-title" href="{% url 'petitions:staff_detail' petition.public_id %}">{{ petition.student.full_name }}</a>
+            <p class="petition-subject">{{ petition.display_name }}</p>
+            <p class="petition-meta"><span class="meta-item">{{ petition.student.group.name }}&nbsp;·</span> <span class="meta-item">{{ petition.created_at|date:"j E Y" }}&nbsp;·</span> <span class="meta-item"><span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>&nbsp;·</span> <span class="meta-item">файлов: {{ petition.attachment_count }}</span></p>
+          </li>""")
+  p=pathlib.Path(D+"catalog.html"); s=p.read_text()
+  old="""    <p>
+        <a href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>
+        {% if type.description %} — {{ type.description }}{% endif %}
+        · Срок: {{ type.term_label }}
+      </p>"""
+  assert s.count(old)==2
+  s=s.replace(old,"""    <div class="catalog-item">
+        <a class="catalog-title" href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>
+        {% if type.description %}<p class="catalog-desc">{{ type.description }}</p>{% endif %}
+        <p class="catalog-term">Срок: {{ type.term_label }}</p>
+      </div>""")
+  p.write_text(s)
+  rep(D+"includes/history.html","""      <li>
+          {{ change.created_at|date:"j E Y H:i" }}
+          · {% if change.from_status %}{{ change.get_from_status_display }} → {% endif %}{{ change.get_to_status_display }}
+          · {% if change.actor.role == "staff" %}{{ change.actor.staff_profile.full_name }}{% elif change.actor.role == "student" %}Студент{% else %}Администратор{% endif %}
+          {% if change.comment %}<br>{{ change.comment }}{% endif %}
+        </li>""","""      <li>{{ change.created_at|date:"j E Y H:i" }}&nbsp;· {% if change.from_status %}{{ change.get_from_status_display }} → {% endif %}{{ change.get_to_status_display }}&nbsp;· {% if change.actor.role == "staff" %}{{ change.actor.staff_profile.full_name }}{% elif change.actor.role == "student" %}Студент{% else %}Администратор{% endif %}{% if change.comment %}<br>{{ change.comment }}{% endif %}</li>""")
+  rep(D+"includes/comments.html","""      <li>
+          {% if comment.author.role == "staff" %}{{ comment.author.staff_profile.full_name }}{% else %}Сотрудник{% endif %}
+          · {{ comment.created_at|date:"j E Y H:i" }}
+          · {{ comment.text }}
+        </li>""","""      <li>{% if comment.author.role == "staff" %}{{ comment.author.staff_profile.full_name }}{% else %}Сотрудник{% endif %}&nbsp;· {{ comment.created_at|date:"j E Y H:i" }}&nbsp;· {{ comment.text }}</li>""")
+  EOF
+  grep -rn "[[:space:]]·" petitions/templates/petitions/ ; echo "--"; source .venv/bin/activate && L="$TMPDIR/test-014fix-step1-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"; python manage.py test petitions --parallel 1 > "$L" 2>&1; echo "$L"; grep -E "^(Ran|OK|FAILED)" "$L"; grep -E "^(FAIL|ERROR):" -A12 "$L" | head -40
+    --
+    /tmp/claude-501/test-014fix-step1-20261119-153924.log
+    Ran 182 tests in 19.757s
+    OK
+  ── Thought for 4ms
+    I've confirmed the petition templates have no whitespace before the dot, so that check is clean. Next I'm opening the `.petition > a` rule in base.css to look at the Step 2 styling.
+
+── Assistant ───────────────────────────────────────────────
+Шаг 1 готов: 182 теста OK, в шаблонах нет пробела перед «·». Шаг 2: CSS.
+
+── Explored 1 search, ran 1 command ────────────────────────
+  ── Searched for ^\.petition\|\.petition > a\|petition p\|catalog in static/css/base.css
+  ── Thought for 4s
+    I'm adding a set of CSS rules after the block at line 768: titles get a fixed minimum height and block display, the meta items stop wrapping, the descriptive text loses its margins, and catalog items get spacing between them.
+
+    I'm noticing that the `.petition > a` rule is more specific than `.petition-title`, so the display setting wouldn't apply. I'll drop that part of the old rule and give the title classes their own block.
+  ── Ran python3 - <<'EOF' 2>/dev/null import pathlib def rep(path, old, new):     p=pathlib.Path(path); s=p.read_text(); assert s.count(old)==1,(path,old); p.write_text(s.replace(old,new)) rep("static/css/base.css",""".petition > a, .chat-dialogs li > a, .student-list a, .group-list a {   display: inline-block;   min-height: 2.75rem;   padding-block: 0.625rem; }""",""".chat-dialogs li > a, .student-list a, .group-list a {   display: inline-block;   min-height: 2.75rem;   padding-block: 0.625rem; } /* Request rows and catalog (TASK-014-FIX): the title on its own line (44 px tap target),    then short details. Bounded detail parts never split; the "&nbsp;·" separator sits inside    the preceding part, so a line never starts with "·". */ .petition-title, .catalog-title {   display: block;   min-height: 2.75rem;   padding-block: 0.625rem; } .meta-item {   white-space: nowrap; } .petition-meta, .petition-subject, .catalog-desc, .catalog-term {   margin: 0; } .catalog-item + .catalog-item {   margin-top: var(--space-3); }""") rep("static/css/theme.css",""".feed-meta strong {""",""".petition-meta, .catalog-term {   color: var(--color-muted); } .petition-meta .status {   color: var(--color-text); } .feed-meta strong {""") EOF grep -n "petition-meta" -B2 -A3 static/css/theme.css | head (1s)
+    $ python3 - <<'EOF' 2>/dev/null
+  import pathlib
+  def rep(path, old, new):
+      p=pathlib.Path(path); s=p.read_text(); assert s.count(old)==1,(path,old); p.write_text(s.replace(old,new))
+  rep("static/css/base.css",""".petition > a,
+  .chat-dialogs li > a,
+  .student-list a,
+  .group-list a {
+    display: inline-block;
+    min-height: 2.75rem;
+    padding-block: 0.625rem;
+  }""",""".chat-dialogs li > a,
+  .student-list a,
+  .group-list a {
+    display: inline-block;
+    min-height: 2.75rem;
+    padding-block: 0.625rem;
+  }
+
+  /* Request rows and catalog (TASK-014-FIX): the title on its own line (44 px tap target),
+     then short details. Bounded detail parts never split; the "&nbsp;·" separator sits inside
+     the preceding part, so a line never starts with "·". */
+  .petition-title,
+  .catalog-title {
+    display: block;
+    min-height: 2.75rem;
+    padding-block: 0.625rem;
+  }
+
+  .meta-item {
+    white-space: nowrap;
+  }
+
+  .petition-meta,
+  .petition-subject,
+  .catalog-desc,
+  .catalog-term {
+    margin: 0;
+  }
+
+  .catalog-item + .catalog-item {
+    margin-top: var(--space-3);
+  }""")
+  rep("static/css/theme.css",""".feed-meta strong {""",""".petition-meta,
+  .catalog-term {
+    color: var(--color-muted);
+  }
+
+  .petition-meta .status {
+    color: var(--color-text);
+  }
+
+  .feed-meta strong {""")
+  EOF
+  grep -n "petition-meta" -B2 -A3 static/css/theme.css | head
+    502-}
+    503-
+    504:.petition-meta,
+    505-.catalog-term {
+    506-  color: var(--color-muted);
+    507-}
+    508-
+    509:.petition-meta .status {
+    510-  color: var(--color-text);
+    511-}
+  ── Thought for 208ms
+    I'm setting up a temporary database and seeding it, then adding a 150-character subject request for student1. After that I'll check the signature of submit_petition.
+
+── Assistant ───────────────────────────────────────────────
+Готовлю временную БД с заявкой, у которой тема 150 символов.
+
+── Explored 2 searches, created 1 file, ran 3 commands ─────
+  ── Searched for def submit_petition in petitions/services.py
+  ── Searched for def make_petition\|def make_type in petitions/tests/helpers.py
+  ── Created /tmp/claude-501/ui/seed014.py +22
+    --- /dev/null
+    +++ b/tmp/claude-501/ui/seed014.py
+    +from django.contrib.auth import BACKEND_SESSION_KEY, HASH_SESSION_KEY, SESSION_KEY, get_user_model
+    +from django.contrib.sessions.backends.db import SessionStore
+    +
+    +from petitions.models import RequestType
+    +from petitions.services import submit_petition
+    +
+    +U = get_user_model()
+    +student = U.objects.get(username="student1")
+    +catch_all = RequestType.objects.filter(subject_required=True).first()
+    +print("catch-all type:", catch_all)
+    +subject = ("Очень длинная тема заявки для проверки переноса строк на узком экране " * 3)[:150]
+    +p = submit_petition(student.student_profile, catch_all, "Проверка длинной темы.", [], subject=subject)
+    +print("petition", p.public_id, len(subject))
+    +
+    +for name in ["student1", "staff1"]:
+    +    u = U.objects.get(username=name)
+    +    s = SessionStore()
+    +    s[SESSION_KEY] = str(u.pk)
+    +    s[BACKEND_SESSION_KEY] = "django.contrib.auth.backends.ModelBackend"
+    +    s[HASH_SESSION_KEY] = u.get_session_auth_hash()
+    +    s.create()
+    +    print(name, s.session_key)
+  ── Ran source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/ui014.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/ui-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && python manage.py migrate -v0 && python manage.py seed_demo 2>&1 | tail -1 && python manage.py shell < $TMPDIR/ui/seed014.py 2>&1 | grep -v imported (5s)
+    $ source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/ui014.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/ui-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && python manage.py migrate -v0 && python manage.py seed_demo 2>&1 | tail -1 && python manage.py shell < $TMPDIR/ui/seed014.py 2>&1 | grep -v imported
+    Chat ready: 3 dialogs, 8 messages.
+
+    catch-all type: Другое заявление
+    petition ac68109b-52e2-4d79-8071-d75259b01dee 150
+    student1 c22z31ejidehn8moyd3g84sbqmqt553f
+    staff1 n90ibunyyhn6no4u71d8s3swzsbiqol7
+  ── Thought for 6ms
+    I've settled on "Другое заявление" as the catch-all type, which fits the spec's 150-character subject. Next I'll start the server and open the browser to check it.
+  ── Ran source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/ui014.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/ui-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && python manage.py runserver 127.0.0.1:8770 --noreload > $TMPDIR/ui-server.log 2>&1 (1s)
+    $ source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/ui014.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/ui-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && python manage.py runserver 127.0.0.1:8770 --noreload > $TMPDIR/ui-server.log 2>&1
+    Command running in background with ID: blfs58wxn. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/blfs58wxn.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran bb browser-automation open --backend local --machine host_cuvmpv75p3 --headless --json 2>&1 | tail -1 (2s)
+    $ bb browser-automation open --backend local --machine host_cuvmpv75p3 --headless --json 2>&1 | tail -1
+    {"id":"344936c2-c75a-40a4-99cb-b40c32167cbf","threadId":"thr_pgcwc2dwnn","hostId":"host_cuvmpv75p3","backend":"local","state":"ready","createdAt":1795092025443,"expiresAt":1795093825443,"previewDirective":"::browser-preview{session=\"344936c2-c75a-40a4-99cb-b40c32167cbf\"}"}
+
+── Assistant ───────────────────────────────────────────────
+::browser-preview{session="344936c2-c75a-40a4-99cb-b40c32167cbf"}
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran ls /tmp/claude-501/ui/run.sh >/dev/null && sed -i '' -e 's/^S=.*/S=344936c2-c75a-40a4-99cb-b40c32167cbf/' -e 's/^PRE=.const SID=.*$/PRE='"'"'const SID={student1:"c22z31ejidehn8moyd3g84sbqmqt553f",staff1:"n90ibunyyhn6no4u71d8s3swzsbiqol7"};/' /tmp/claude-501/ui/run.sh && head -4 /tmp/claude-501/ui/run.sh | tail -2
+    $ ls /tmp/claude-501/ui/run.sh >/dev/null && sed -i '' -e 's/^S=.*/S=344936c2-c75a-40a4-99cb-b40c32167cbf/' -e 's/^PRE=.const SID=.*$/PRE='"'"'const SID={student1:"c22z31ejidehn8moyd3g84sbqmqt553f",staff1:"n90ibunyyhn6no4u71d8s3swzsbiqol7"};/' /tmp/claude-501/ui/run.sh && head -4 /tmp/claude-501/ui/run.sh | tail -2
+    S=344936c2-c75a-40a4-99cb-b40c32167cbf
+    PRE='const SID={student1:"c22z31ejidehn8moyd3g84sbqmqt553f",staff1:"n90ibunyyhn6no4u71d8s3swzsbiqol7"};
+    [This command modified 1 file you've previously read: ../../../tmp/claude-501/ui/run.sh. Call Read before editing.]
+  ── Thought for 1s
+    I'm planning a rendering-based check that looks for any "·" at the start of a line. For each dot, I'd measure its position with a Range and compare its top against the preceding character, since a larger top means it landed on a new line. I'm still weighing that against a simpler alternative that compares against the nearest non-space character, because crossing text node boundaries makes the first approach messier.
+
+    I'm judging whether a dot is at line start by its horizontal offset from the container's content edge, treating anything within about 2px as the start of a line. I'm settling on that as the simpler approach.
+
+── Created /tmp/claude-501/ui/dots.js +47 ──────────────────
+  --- /dev/null
+  +++ b/tmp/claude-501/ui/dots.js
+  +// For every "·" in the main content, check that it is not the first glyph on its line:
+  +// a dot starts a line when its left edge equals the left content edge of its block.
+  +const check = () => p.evaluate(() => {
+  +  const main = document.querySelector("main");
+  +  const walker = document.createTreeWalker(main, NodeFilter.SHOW_TEXT);
+  +  let dots = 0, lineStarts = [];
+  +  const structure = [...document.querySelectorAll(".petition-meta, .petition li, ol li, ul li")]
+  +    .every((e) => !/\s·/.test(e.innerHTML.replace(/&nbsp;/g, " ")));
+  +  while (walker.nextNode()) {
+  +    const node = walker.currentNode;
+  +    for (let i = 0; i < node.data.length; i++) {
+  +      if (node.data[i] !== "·") continue;
+  +      dots++;
+  +      const r = document.createRange();
+  +      r.setStart(node, i); r.setEnd(node, i + 1);
+  +      const dot = r.getBoundingClientRect();
+  +      let block = node.parentElement;
+  +      while (getComputedStyle(block).display.startsWith("inline")) block = block.parentElement;
+  +      const cs = getComputedStyle(block);
+  +      const left = block.getBoundingClientRect().left + parseFloat(cs.borderLeftWidth) + parseFloat(cs.paddingLeft);
+  +      // Text indent for list items is 0 here; first glyph of a line starts at `left`.
+  +      if (dot.left - left < 3) lineStarts.push(block.textContent.trim().slice(0, 60));
+  +    }
+  +  }
+  +  return { dots, lineStarts, structure, sw: document.documentElement.scrollWidth, vw: innerWidth };
+  +});
+  +const r = [];
+  +const pages = [
+  +  ["student1", "/requests/", [320, 360, 1024]],
+  +  ["staff1", "/staff/requests/", [360, 1024]],
+  +  ["student1", "/requests/new/", [360]],
+  +];
+  +for (const [u, url, widths] of pages) for (const w of widths) {
+  +  await go(u, url, w, w === 1024 ? 768 : 780);
+  +  r.push([u, url, w, await check()]);
+  +}
+  +// One detail with history and a staff comment (demo petition with comments).
+  +await go("staff1", "/staff/requests/", 360);
+  +const links = await p.$$eval(".petition-title", (as) => as.map((a) => a.getAttribute("href")));
+  +let detail = null;
+  +for (const href of links) {
+  +  await go("staff1", href, 360);
+  +  const has = await p.evaluate(() => document.body.textContent.includes("Комментариев нет.") === false && document.querySelectorAll("ol li").length > 1);
+  +  if (has) { detail = href; break; }
+  +}
+  +r.push(["detail", detail, 360, await check()]);
+  +return JSON.stringify(r, null, 1);
+
+── Ran sleep 1; /tmp/claude-501/ui/run.sh /tmp/claude-501/ui/dots.js (7s)
+  $ sleep 1; /tmp/claude-501/ui/run.sh /tmp/claude-501/ui/dots.js
+  [
+   [
+    "student1",
+    "/requests/",
+    320,
+    {
+     "dots": 15,
+     "lineStarts": [],
+     "structure": false,
+     "sw": 320,
+     "vw": 320
+    }
+   ],
+   [
+    "student1",
+    "/requests/",
+    360,
+    {
+     "dots": 15,
+     "lineStarts": [],
+     "structure": false,
+     "sw": 360,
+     "vw": 360
+    }
+   ],
+   [
+    "student1",
+    "/requests/",
+    1024,
+    {
+     "dots": 15,
+     "lineStarts": [],
+     "structure": false,
+     "sw": 1024,
+     "vw": 1024
+    }
+   ],
+   [
+    "staff1",
+    "/staff/requests/",
+    360,
+    {
+     "dots": 12,
+     "lineStarts": [],
+     "structure": false,
+     "sw": 360,
+     "vw": 360
+    }
+   ],
+   [
+    "staff1",
+    "/staff/requests/",
+    1024,
+    {
+     "dots": 12,
+     "lineStarts": [],
+     "structure": false,
+     "sw": 1024,
+     "vw": 1024
+    }
+   ],
+   [
+    "student1",
+    "/requests/new/",
+    360,
+    {
+     "dots": 0,
+     "lineStarts": [],
+     "structure": true,
+     "sw": 360,
+     "vw": 360
+    }
+   ],
+   [
+    "detail",
+    "/staff/requests/8c4f71f6-eaf1-4225-ac51-edc698e03101/",
+    360,
+    {
+     "dots": 6,
+     "lineStarts": [],
+     "structure": false,
+     "sw": 360,
+     "vw": 360
+    }
+   ]
+  ]
+
+── Claude Code API retry 1/10 after 609ms: unknown ─────────
+
+── Ran 3 commands, explored 1 file, edited 1 file ──────────
+  ── Thought for 2s
+    I'm checking why the structure test returns false. The `ul li` selector picks up the site nav list, which has no dots, so that's probably not the cause. I suspect the `\s` in the regex is matching the non-breaking space I substituted for `&nbsp;`, which would make the check behave differently from what the spec intends.
+
+    The structure test still reads as wrong. My guess is the `\s` in the regex catches the non-breaking space, and the cleaner check is the `lineStarts` result, which is what actually matters here.
+  ── Thought for 4ms
+    Проверка по разметке давала ложное `false`, потому что `\s` в JS совпадает и с неразрывным пробелом; теперь проверяю только обычные пробелы.
+  ── Ran sed -i '' 's|.every((e) => !/\\s·/.test(e.innerHTML.replace(/\&nbsp;/g, "\\u00a0")));|.every((e) => !/[ \\t\\n]·/.test(e.innerHTML));|' /tmp/claude-501/ui/dots.js && grep -n "every(" /tmp/claude-501/ui/dots.js && /tmp/claude-501/ui/run.sh /tmp/claude-501/ui/dots.js | python3 -c " import json,sys for row in json.loads(sys.stdin.read()):     print(row[0],row[1],row[2],row[3]) " 2>/dev/null (2s)
+    $ sed -i '' 's|.every((e) => !/\\s·/.test(e.innerHTML.replace(/\&nbsp;/g, "\\u00a0")));|.every((e) => !/[ \\t\\n]·/.test(e.innerHTML));|' /tmp/claude-501/ui/dots.js && grep -n "every(" /tmp/claude-501/ui/dots.js && /tmp/claude-501/ui/run.sh /tmp/claude-501/ui/dots.js | python3 -c "
+  import json,sys
+  for row in json.loads(sys.stdin.read()):
+      print(row[0],row[1],row[2],row[3])
+  " 2>/dev/null
+    8:    .every((e) => !/\s·/.test(e.innerHTML.replace(/&nbsp;/g, " ")));
+    student1 /requests/ 320 {'dots': 15, 'lineStarts': [], 'structure': False, 'sw': 320, 'vw': 320}
+    student1 /requests/ 360 {'dots': 15, 'lineStarts': [], 'structure': False, 'sw': 360, 'vw': 360}
+    student1 /requests/ 1024 {'dots': 15, 'lineStarts': [], 'structure': False, 'sw': 1024, 'vw': 1024}
+    staff1 /staff/requests/ 360 {'dots': 12, 'lineStarts': [], 'structure': False, 'sw': 360, 'vw': 360}
+    staff1 /staff/requests/ 1024 {'dots': 12, 'lineStarts': [], 'structure': False, 'sw': 1024, 'vw': 1024}
+    student1 /requests/new/ 360 {'dots': 0, 'lineStarts': [], 'structure': True, 'sw': 360, 'vw': 360}
+    detail /staff/requests/8c4f71f6-eaf1-4225-ac51-edc698e03101/ 360 {'dots': 6, 'lineStarts': [], 'structure': False, 'sw': 360, 'vw': 360}
+    [This command modified 1 file you've previously read: ../../../tmp/claude-501/ui/dots.js. Call Read before editing.]
+  ── Thought for 4ms
+    I'm trying to edit the file directly since the sed pattern didn't match, likely because the snippet contains a non-breaking space. I'll switch to the Edit tool instead.
+  ── Read /tmp/claude-501/ui/dots.js
+  ── Failed to edit /tmp/claude-501/ui/dots.js (error)
+    <tool_use_error>String to replace not found in file.
+    String:     .every((e) => !/\s·/.test(e.innerHTML.replace(/&nbsp;/g, " ")));
+    (note: Edit also tried swapping \uXXXX escapes and their characters; neither form matched, so the mismatch is likely elsewhere in old_string. Re-read the file and copy the exact surrounding text.)</tool_use_error>
+    --- a/tmp/claude-501/ui/dots.js
+    +++ b/tmp/claude-501/ui/dots.js
+    -    .every((e) => !/\s·/.test(e.innerHTML.replace(/&nbsp;/g, " ")));
+    +    .every((e) => !/[ \t\n]·/.test(e.innerHTML));
+  ── Ran /tmp/claude-501/ui/run.sh /tmp/claude-501/ui/dots.js | python3 -c " import json,sys for row in json.loads(sys.stdin.read()):     print(row[0],row[1],row[2],row[3]) " 2>/dev/null (2s)
+    $ /tmp/claude-501/ui/run.sh /tmp/claude-501/ui/dots.js | python3 -c "
+  import json,sys
+  for row in json.loads(sys.stdin.read()):
+      print(row[0],row[1],row[2],row[3])
+  " 2>/dev/null
+    student1 /requests/ 320 {'dots': 15, 'lineStarts': [], 'structure': False, 'sw': 320, 'vw': 320}
+    student1 /requests/ 360 {'dots': 15, 'lineStarts': [], 'structure': False, 'sw': 360, 'vw': 360}
+    student1 /requests/ 1024 {'dots': 15, 'lineStarts': [], 'structure': False, 'sw': 1024, 'vw': 1024}
+    staff1 /staff/requests/ 360 {'dots': 12, 'lineStarts': [], 'structure': False, 'sw': 360, 'vw': 360}
+    staff1 /staff/requests/ 1024 {'dots': 12, 'lineStarts': [], 'structure': False, 'sw': 1024, 'vw': 1024}
+    student1 /requests/new/ 360 {'dots': 0, 'lineStarts': [], 'structure': True, 'sw': 360, 'vw': 360}
+    detail /staff/requests/8c4f71f6-eaf1-4225-ac51-edc698e03101/ 360 {'dots': 6, 'lineStarts': [], 'structure': False, 'sw': 360, 'vw': 360}
+  ── Thought for 5ms
+    I suspect the replace character is a non-breaking space in the file, so I'll rewrite line 8 with a short Python script.
+  ── Ran python3 - <<'EOF' 2>/dev/null import pathlib p=pathlib.Path("/tmp/claude-501/ui/dots.js"); lines=p.read_text().split("\n") lines[7]='    .every((e) => !/[ \\t\\n]·/.test(e.innerHTML));' lines.insert(8,'  const bad = [...document.querySelectorAll(".petition-meta, .petition li, ol li, ul li")].filter((e) => /[ \\t\\n]·/.test(e.innerHTML)).map((e) => e.innerHTML.slice(0, 120));') p.write_text("\n".join(lines)) s=p.read_text(); s=s.replace("return { dots, lineStarts, structure,","return { dots, lineStarts, structure, bad,"); p.write_text(s) EOF sed -n 7,9p /tmp/claude-501/ui/dots.js; /tmp/claude-501/ui/run.sh /tmp/claude-501/ui/dots.js | python3 -c " import json,sys for row in json.loads(sys.stdin.read()):     print(row[0],row[1],row[2],row[3]) " 2>/dev/null (1s)
+    $ python3 - <<'EOF' 2>/dev/null
+  import pathlib
+  p=pathlib.Path("/tmp/claude-501/ui/dots.js"); lines=p.read_text().split("\n")
+  lines[7]='    .every((e) => !/[ \\t\\n]·/.test(e.innerHTML));'
+  lines.insert(8,'  const bad = [...document.querySelectorAll(".petition-meta, .petition li, ol li, ul li")].filter((e) => /[ \\t\\n]·/.test(e.innerHTML)).map((e) => e.innerHTML.slice(0, 120));')
+  p.write_text("\n".join(lines))
+  s=p.read_text(); s=s.replace("return { dots, lineStarts, structure,","return { dots, lineStarts, structure, bad,"); p.write_text(s)
+  EOF
+  sed -n 7,9p /tmp/claude-501/ui/dots.js; /tmp/claude-501/ui/run.sh /tmp/claude-501/ui/dots.js | python3 -c "
+  import json,sys
+  for row in json.loads(sys.stdin.read()):
+      print(row[0],row[1],row[2],row[3])
+  " 2>/dev/null
+    const structure = [...document.querySelectorAll(".petition-meta, .petition li, ol li, ul li")]
+        .every((e) => !/[ \t\n]·/.test(e.innerHTML));
+      const bad = [...document.querySelectorAll(".petition-meta, .petition li, ol li, ul li")].filter((e) => /[ \t\n]·/.test(e.innerHTML)).map((e) => e.innerHTML.slice(0, 120));
+    student1 /requests/ 320 {'dots': 15, 'lineStarts': [], 'structure': True, 'bad': [], 'sw': 320, 'vw': 320}
+    student1 /requests/ 360 {'dots': 15, 'lineStarts': [], 'structure': True, 'bad': [], 'sw': 360, 'vw': 360}
+    student1 /requests/ 1024 {'dots': 15, 'lineStarts': [], 'structure': True, 'bad': [], 'sw': 1024, 'vw': 1024}
+    staff1 /staff/requests/ 360 {'dots': 12, 'lineStarts': [], 'structure': True, 'bad': [], 'sw': 360, 'vw': 360}
+    staff1 /staff/requests/ 1024 {'dots': 12, 'lineStarts': [], 'structure': True, 'bad': [], 'sw': 1024, 'vw': 1024}
+    student1 /requests/new/ 360 {'dots': 0, 'lineStarts': [], 'structure': True, 'bad': [], 'sw': 360, 'vw': 360}
+    detail /staff/requests/8c4f71f6-eaf1-4225-ac51-edc698e03101/ 360 {'dots': 6, 'lineStarts': [], 'structure': True, 'bad': [], 'sw': 360, 'vw': 360}
+  ── Thought for 7ms
+    I'm checking the screenshots I've taken so far: student list and staff at 360 and 1024 wide, the catalog and detail pages at 360, and the student view at 320. Everything looks fine.
+
+── Assistant ───────────────────────────────────────────────
+Все проверки прошли: ни одна строка не начинается с «·», горизонтального скролла нет. Делаю скриншоты.
+
+── Ran 2 commands, explored 5 files ────────────────────────
+  ── Ran /tmp/claude-501/ui/run.sh 'await go("student1","/requests/",360,780); await shot(true); await go("staff1","/staff/requests/",360,780); await p.evaluate(()=>document.querySelector(".petition-list").scrollIntoView()); await shot(false); await go("student1","/requests/",1024,768); await shot(false); await go("staff1","/staff/requests/",1024,768); await p.evaluate(()=>document.querySelector(".petition-list").scrollIntoView()); await shot(false); return 1;' (2s)
+    $ /tmp/claude-501/ui/run.sh 'await go("student1","/requests/",360,780); await shot(true); await go("staff1","/staff/requests/",360,780); await p.evaluate(()=>document.querySelector(".petition-list").scrollIntoView()); await shot(false); await go("student1","/requests/",1024,768); await shot(false); await go("staff1","/staff/requests/",1024,768); await p.evaluate(()=>document.querySelector(".petition-list").scrollIntoView()); await shot(false); return 1;'
+    1
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-BHwrTj/db-f5DV34/tmp/shot-1795092142189-1.jpg 360 1486
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-BHwrTj/db-f5DV34/tmp/shot-1795092142305-2.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-BHwrTj/db-f5DV34/tmp/shot-1795092142418-3.jpg 1024 768
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-BHwrTj/db-f5DV34/tmp/shot-1795092142530-4.jpg 1024 768
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-BHwrTj/db-f5DV34/tmp/shot-1795092142189-1.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-BHwrTj/db-f5DV34/tmp/shot-1795092142305-2.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-BHwrTj/db-f5DV34/tmp/shot-1795092142530-4.jpg
+  ── Thought for 5ms
+    Catalog and detail screenshots are being captured at the 360px width.
+  ── Ran /tmp/claude-501/ui/run.sh 'await go("student1","/requests/new/",360,780); await shot(true); await go("staff1","/staff/requests/8c4f71f6-eaf1-4225-ac51-edc698e03101/",360,780); await p.evaluate(()=>document.querySelector("ol").scrollIntoView({block:"center"})); await shot(false); return 1;' (1s)
+    $ /tmp/claude-501/ui/run.sh 'await go("student1","/requests/new/",360,780); await shot(true); await go("staff1","/staff/requests/8c4f71f6-eaf1-4225-ac51-edc698e03101/",360,780); await p.evaluate(()=>document.querySelector("ol").scrollIntoView({block:"center"})); await shot(false); return 1;'
+    1
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-BHwrTj/db-f5DV34/tmp/shot-1795092152696-5.jpg 360 1312
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-BHwrTj/db-f5DV34/tmp/shot-1795092152770-6.jpg 360 780
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-BHwrTj/db-f5DV34/tmp/shot-1795092152696-5.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-BHwrTj/db-f5DV34/tmp/shot-1795092152770-6.jpg
+  ── Thought for 54ms
+    Everything checks out, so I'll save the screenshots and leave closing the browser and server for later. Next I'm moving on to the tests: SeparatorTests in petitions/tests/test_views.py and test_meta_item_nowrap. I'm looking at test_views' imports and whether FrozenClockMixin and a make_world helper are available.
+
+── Assistant ───────────────────────────────────────────────
+Визуально всё в порядке. Сохраняю скриншоты и пишу тесты.
+
+── Ran 1 command, explored 1 file ──────────────────────────
+  ── Ran mkdir -p /tmp/claude-501/ui/shots-014fix && cp /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-BHwrTj/db-f5DV34/tmp/shot-*.jpg /tmp/claude-501/ui/shots-014fix/ && ls /tmp/claude-501/ui/shots-014fix; cd ~/hackatonproject && sed -n 1,40p petitions/tests/test_views.py; grep -n "^class \|def setUpTestData" petitions/tests/test_views.py | head -20
+    $ mkdir -p /tmp/claude-501/ui/shots-014fix && cp /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-BHwrTj/db-f5DV34/tmp/shot-*.jpg /tmp/claude-501/ui/shots-014fix/ && ls /tmp/claude-501/ui/shots-014fix; cd ~/hackatonproject && sed -n 1,40p petitions/tests/test_views.py; grep -n "^class \|def setUpTestData" petitions/tests/test_views.py | head -20
+    shot-1795092142189-1.jpg
+    shot-1795092142305-2.jpg
+    shot-1795092142418-3.jpg
+    shot-1795092142530-4.jpg
+    shot-1795092152696-5.jpg
+    shot-1795092152770-6.jpg
+    import uuid
+    from datetime import timedelta
+
+    from django.core.files.base import ContentFile
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from django.db import connection
+    from django.test import Client, TestCase
+    from django.test.utils import CaptureQueriesContext
+    from django.urls import reverse
+    from django.utils import timezone
+
+    from accounts.models import User
+    from accounts.tests.helpers import make_faculty, make_group, make_staff, make_student
+    from core.testing import FrozenClockMixin
+    from petitions.files import store_attachment
+    from petitions.forms import PetitionForm
+    from petitions.models import Petition, PetitionComment, PetitionStatusChange
+    from petitions.services import add_staff_comment, change_status
+    from petitions.tests.helpers import fake_upload, make_petition, make_type, pdf_upload
+
+
+    class AccessMatrixTests(FrozenClockMixin, TestCase):
+        def setUp(self):
+            self.fac_x = make_faculty("FX")
+            self.fac_y = make_faculty("FY")
+            self.group_x = make_group(self.fac_x, "GX")
+            self.group_y = make_group(self.fac_y, "GY")
+            self.student_a = make_student("a", self.group_x, "SA").student_profile
+            self.student_a2 = make_student("a2", self.group_x, "SA2").student_profile
+            self.student_b = make_student("b", self.group_y, "SB").student_profile
+            self.staff_sx = make_staff("sx", self.fac_x)
+            self.staff_sy = make_staff("sy", self.fac_y)
+            self.admin = User.objects.create_superuser(username="admin")
+            self.type = make_type()
+            self.inactive = make_type(name="Inactive")
+            self.inactive.is_active = False
+            self.inactive.save()
+            self.pa = make_petition(self.student_a, self.type)
+            self.pa2 = make_petition(self.student_a2, self.type)
+            self.pb = make_petition(self.student_b, self.type)
+    22:class AccessMatrixTests(FrozenClockMixin, TestCase):
+    160:class FormTests(FrozenClockMixin, TestCase):
+    265:class StudentPagesTests(FrozenClockMixin, TestCase):
+    339:class StaffPagesTests(FrozenClockMixin, TestCase):
+    421:class StaffActionTests(FrozenClockMixin, TestCase):
+    519:class NavigationTests(FrozenClockMixin, TestCase):
+    544:class QueryCountTests(FrozenClockMixin, TestCase):
+    635:class SubjectFormTests(FrozenClockMixin, TestCase):
+    712:class CatalogTermTests(TestCase):
+    753:class SubjectDisplayTests(FrozenClockMixin, TestCase):
+  ── Read petitions/tests/test_views.py
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_2imsg4kck2]
+
+[TASK-014-FIX] Planner -> UI coder: ANSWER
+Spec amendment 1 (Team lead, approved by the user): docs/tasks/TASK-014-FIX.md, sections "Amendment 1", "Amendment 1: markup", "Amendment 1 tests" and the visual check list.
+- The same rule ("&nbsp;·" + one normal space, never whitespace before "·") now also applies to 8 templates: chat/staff_list.html, chat/_message.html, accounts/student_list.html, schedule/staff_group_list.html, notifications/feed.html, notifications/staff_list.html, academics/includes/discipline.html and schedule/includes/lesson_compact.html. The exact lines are in the spec.
+- _message.html is also the chat polling fragment. Keep the <li>, its classes, id and data-message-id; chat.js stays unchanged.
+- Update chat/tests/test_views.py:294 ("Деканат ·" -> "Деканат&nbsp;· ", with a TASK-014-FIX comment). Add SeparatorRuleTests (no \s before "·" in all 13 templates) and the per-page tests listed.
+- Visual check at 360 px for each added page (student and staff as listed), plus a live chat poll check.
+steer
+
+── Explored 1 search ───────────────────────────────────────
+  ── Thought for 3ms
+    I'm checking the `PetitionStatus` values to confirm that `"submitted"` and `"in_progress"` are valid before writing the tests for `change_status`.
+  ── Searched for class PetitionStatus in petitions/models.py
+
+── Assistant ───────────────────────────────────────────────
+Получил поправку 1 к спецификации: правило распространяется ещё на 8 шаблонов. Читаю новые разделы.
+
+── Ran 2 commands, explored 1 search ───────────────────────
+  ── Ran awk '/^## Amendment 1/,0' docs/tasks/TASK-014-FIX.md; grep -n "Amendment\|Visual check" docs/tasks/TASK-014-FIX.md
+    $ awk '/^## Amendment 1/,0' docs/tasks/TASK-014-FIX.md; grep -n "Amendment\|Visual check" docs/tasks/TASK-014-FIX.md
+    ## Amendment 1 (Team lead, approved by the user, 19.11)
+
+    The same rule (AC1: `&nbsp;·` + one normal space, never whitespace before "·") applies to every "·" in these templates too:
+    - `chat/templates/chat/staff_list.html` (row: name link, group, time, "новых: N")
+    - `chat/templates/chat/_message.html` (`chat-meta`: "Деканат · <short name>" and " · <time>")
+    - `accounts/templates/accounts/student_list.html` (row: name link · group, course)
+    - `schedule/templates/schedule/staff_group_list.html` (row: group link · programme, course)
+    - `notifications/templates/notifications/feed.html` and `notifications/templates/notifications/staff_list.html` (`feed-meta`)
+    - `academics/templates/academics/includes/discipline.html` (the `<summary>` line)
+    - `schedule/templates/schedule/includes/lesson_compact.html` (`lesson-time` and `lesson-meta`)
+
+    See "Amendment 1: markup" below. `_message.html` is also the fragment returned to the chat polling (`static/js/chat.js`, unchanged): keep the `<li>` element, its classes, `id="m-<pk>"` and `data-message-id`; change only the text separators inside `chat-meta`. The JS selects only `li[data-message-id]` and `#chat-messages` (checked: `static/js/chat.js:4-54`).
+
+    ## Out of scope
+
+    - Templates not listed in this spec. Short lines that do not wrap at 360 px stay as they are: `schedule/templates/schedule/today.html` (date · group), `core/templates/core/home.html` (`page-sub`, asserted exactly by `core/tests/test_home.py:84`), `schedule/templates/schedule/includes/lesson_item.html` (time line), `chat/templates/chat/staff_dialog.html` (name · group under the `h1`).
+    - The form's "Обязательное поле." for an empty comment (accepted by the user).
+    - New features, colours, fonts.
+
+    ## Design decisions
+
+    - **D1. Fix in the text, not in CSS pseudo-elements.** A dot drawn by `::before` of the next part would still start the line when that part wraps; `::after` of the previous part cannot be glued to it across a wrap of a long part. A no-break space before the dot glues the dot to the end of the previous part in the line-breaking algorithm (also across inline element boundaries), and the normal space after the dot remains the only break point. It works for any length and needs no extra CSS.
+    - **D2. Titles on their own line.** The request title can be 170 characters ("Другая справка: " + 150). Putting it on its own line (block link) makes the details line short and scannable; the link keeps the 44 px tap height (existing rule `.petition > a { display: inline-block; min-height: 2.75rem; … }` — change it to `display: block` for these rows, see Architecture).
+    - **D3. Optional nowrap for bounded parts.** Wrap each bounded part in `<span class="meta-item">…</span>` with `.meta-item { white-space: nowrap; }` (base.css), so "19 ноября 2026" or "готовность: 26 ноября 2026" do not split. The dot and the no-break space stay *inside* the preceding `meta-item` span (`<span class="meta-item">№ 399ee6e5&nbsp;·</span> <span class="meta-item">…`). The longest bounded part ("готовность: 26 сентября 2026", 28 characters) fits the 360 px card. Do not use `meta-item` for unbounded text.
+    - **D4. Catalog without separators.** Three short blocks read better on a phone than one long sentence, and there is nothing to separate.
+
+    ## Architecture / files
+
+    Templates (exact structure; class names are tested):
+
+    `petitions/templates/petitions/my_list.html`, row:
+    ```django
+    <li class="petition">
+      <a class="petition-title" href="{% url 'petitions:detail' petition.public_id %}">{{ petition.display_name }}</a>
+      <p class="petition-meta"><span class="meta-item">№ {{ petition.short_id }}&nbsp;·</span> <span class="meta-item">{{ petition.created_at|date:"j E Y" }}&nbsp;·</span> <span class="meta-item"><span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>&nbsp;·</span> <span class="meta-item">готовность: {{ petition.expected_ready_date|date:"j E Y" }}</span></p>
+    </li>
+    ```
+
+    `petitions/templates/petitions/staff_queue.html`, row:
+    ```django
+    <li class="petition">
+      <a class="petition-title" href="{% url 'petitions:staff_detail' petition.public_id %}">{{ petition.student.full_name }}</a>
+      <p class="petition-subject">{{ petition.display_name }}</p>
+      <p class="petition-meta"><span class="meta-item">{{ petition.student.group.name }}&nbsp;·</span> <span class="meta-item">{{ petition.created_at|date:"j E Y" }}&nbsp;·</span> <span class="meta-item"><span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>&nbsp;·</span> <span class="meta-item">файлов: {{ petition.attachment_count }}</span></p>
+    </li>
+    ```
+
+    `petitions/templates/petitions/catalog.html`, each type (both sections; keep the `{% empty %}` texts):
+    ```django
+    <div class="catalog-item">
+      <a class="catalog-title" href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>
+      {% if type.description %}<p class="catalog-desc">{{ type.description }}</p>{% endif %}
+      <p class="catalog-term">Срок: {{ type.term_label }}</p>
+    </div>
+    ```
+
+    `petitions/templates/petitions/includes/history.html`, item:
+    ```django
+    <li>{{ change.created_at|date:"j E Y H:i" }}&nbsp;· {% if change.from_status %}{{ change.get_from_status_display }} → {% endif %}{{ change.get_to_status_display }}&nbsp;· {% if change.actor.role == "staff" %}{{ change.actor.staff_profile.full_name }}{% elif change.actor.role == "student" %}Студент{% else %}Администратор{% endif %}{% if change.comment %}<br>{{ change.comment }}{% endif %}</li>
+    ```
+
+    `petitions/templates/petitions/includes/comments.html`, item:
+    ```django
+    <li>{% if comment.author.role == "staff" %}{{ comment.author.staff_profile.full_name }}{% else %}Сотрудник{% endif %}&nbsp;· {{ comment.created_at|date:"j E Y H:i" }}&nbsp;· {{ comment.text }}</li>
+    ```
+    Keep each `<li>` on one template line (a template line break before "·" would reintroduce a normal space).
+
+    CSS (`static/css/base.css`, layout only; colours unchanged):
+    - `.meta-item { white-space: nowrap; }`
+    - `.petition-title`, `.catalog-title`: `display: block;` (replace `display: inline-block` for `.petition > a` in the existing rule at `base.css:761`, or add a more specific rule after it), keep `min-height: 2.75rem` and the padding so the tap target stays ≥ 44 px.
+    - `.petition-meta`, `.petition-subject`, `.catalog-desc`, `.catalog-term`: `margin: 0;` (the existing `.petition p { margin: 0; }` already covers rows); small spacing between catalog items (`.catalog-item + .catalog-item { margin-top: var(--space-3); }`).
+    - You may give `.petition-meta` and `.catalog-term` the muted colour via an existing token in theme.css (optional; check contrast: `--color-muted` on the panel is 7.12:1).
+
+    No Python changes.
+
+    ### Amendment 1: markup
+
+    Keep each changed line as one template line (no newline or indentation before "·"). Unbounded parts (names, programme names, tags, audience labels, discipline names) wrap normally; you may wrap short bounded parts (dates, "новых: N", "N курс", percent) in `<span class="meta-item">` with the dot inside the span, as in D3.
+
+    - `chat/staff_list.html` row:
+      `<li><a href="…">{{ d.student.full_name }}</a>&nbsp;· {{ d.student.group.name }}&nbsp;· {{ d.last_message_at|date:"d.m.Y H:i" }}{% if d.unread %}&nbsp;· <strong>новых: {{ d.unread }}</strong>{% endif %}</li>`
+    - `chat/_message.html` meta:
+      `<p class="chat-meta"><strong>{% if m.author_role == "staff" %}Деканат&nbsp;· {{ m.author.staff_profile.short_name }}{% elif viewer_is_student %}Вы{% else %}{{ student_name }}{% endif %}</strong>&nbsp;· <time …>…</time></p>`
+    - `accounts/student_list.html` row (one line inside `<li>`):
+      `<li><a href="…">{{ student.full_name }}</a>&nbsp;· {{ student.group.name }}, {{ student.course }} курс</li>`
+    - `schedule/staff_group_list.html` row:
+      `<li><a href="…">{{ group.name }}</a>&nbsp;· {{ group.program.name }}, {{ group.course }} курс</li>`
+    - `notifications/feed.html` meta:
+      `<p class="feed-meta">{% if item.is_new %}<strong>Новое</strong>&nbsp;· {% endif %}{{ item.tag }}&nbsp;· <time …>…</time>{% if item.audience_label %}&nbsp;· {{ item.audience_label }}{% endif %}</p>`
+    - `notifications/staff_list.html` meta:
+      `<p class="feed-meta">{{ a.audience_label }}&nbsp;· {{ a.published_at|date:"d.m.Y H:i" }}&nbsp;· {% if a.is_published %}Опубликовано{% else %}Снято с публикации {{ a.unpublished_at|date:"d.m.Y H:i" }}{% endif %}</p>`
+    - `academics/includes/discipline.html` summary (one template line inside `<summary>`):
+      `<summary><strong>{{ d.item.discipline.name }}</strong>&nbsp;· {{ d.item.get_assessment_form_display }}&nbsp;· Итог: {% if d.effective %}{{ d.effective.get_result_display }}{% else %}нет{% endif %}{% if d.is_debt %}&nbsp;· <strong>Задолженность</strong>{% endif %}&nbsp;· Посещаемость: {% if d.attendance.percent is not None %}{{ d.attendance.percent }}%{% else %}—{% endif %}</summary>`
+    - `schedule/includes/lesson_compact.html`: in `lesson-time` replace ` · {{ item.slot.number }} пара` with `&nbsp;· {{ item.slot.number }} пара`; in `lesson-meta` replace both ` · ` with `&nbsp;· `. Nothing else in the line changes (the room link, `lesson-change` span and the "идёт" tag stay exactly as they are; `core/tests/test_home.py` asserts them).
+
+    ## Feasibility check
+
+    1. Clean starting point: `git status --short` shows only ` M plan.md` (Team lead). HEAD `1414de1 TASK-014: …`.
+    2. Referenced objects exist: the five templates above (current markup read on 19.11; `my_list.html:9-13` and `staff_queue.html:28-33` put "·" at the start of template lines; `catalog.html` uses "— description · Срок: {{ type.term_label }}"; `includes/history.html:5-7` and `includes/comments.html:5-7` the same pattern), `Petition.display_name`, `short_id`, `RequestType.term_label`, CSS rules `base.css:189-202` (`.petition-list`, `.petition`, `.petition p`), `base.css:761` (`.petition > a { display: inline-block; min-height: 2.75rem; padding-block: 0.625rem; }`), theme panels `theme.css:313`.
+    3. New names are free: `.meta-item`, `.petition-title`, `.petition-meta`, `.petition-subject`, `.catalog-item`, `.catalog-title`, `.catalog-desc`, `.catalog-term` (no match in `static/css/` or templates).
+    4. Data and migrations: none; `makemigrations --check`: "No changes detected".
+    5. Tools: no new dependency; headless Chromium via `bb browser-automation` for the visual check (role file).
+    6. Framework: Django autoescaping is unchanged; `&nbsp;` is a literal entity in the template. CSS line breaking treats U+00A0 as non-breaking, also across inline element boundaries (UAX #14; the existing chat and lesson markup already rely on NBSP in `Teacher.short_name`).
+    7. Environment: none.
+    8. Verification on the current tree: `check` (no issues), `makemigrations --check` (no changes), `ruff check .` (passed), `ruff format --check .` (193 files formatted), `python manage.py test --parallel 1`: **Ran 1122 tests, OK** (log `/tmp/claude-501/test-20261119-043501.log`, 2026-11-19 ~15:35 MSK). Existing tests that read these pages assert only substrings that stay (escaped display names, "Срок: до N …", "не больше 3 файлов"); none asserts the old " · " joins (checked with `grep` in `petitions/tests/`).
+    9. Conflicts: none. Amendment 1 (19.11): the 8 added templates were read; every "·" in them is listed above. Tests that assert these separators: only `chat/tests/test_views.py:294` (`assertIn("Деканат ·", content)`) — update it (see Test plan). `academics/tests/test_views.py:209` asserts "Задолженность" (stays). `core/tests/test_home.py` asserts the room link and `lesson-change` span (unchanged by the edit). `static/js/chat.js` uses only `[data-chat-poll-url]`, `#chat-messages`, `[data-chat-status]`, `li[data-message-id]`.
+    10. Assumptions / blockers: none.
+
+    ## Test plan
+
+    ### Traceability
+
+    | AC | Tests |
+    |---|---|
+    | AC1 | `petitions/tests/test_views.py::SeparatorTests::test_no_space_before_dot_in_lists`, `::test_no_space_before_dot_in_detail` |
+    | AC2 | `SeparatorTests::test_student_row_structure` |
+    | AC3 | `SeparatorTests::test_staff_row_structure` |
+    | AC4 | `SeparatorTests::test_catalog_blocks` |
+    | AC5 | `SeparatorTests::test_no_space_before_dot_in_detail` |
+    | AC6 | `core/tests/test_css.py::BaseCssTests::test_meta_item_nowrap`; visual check |
+    | AC7, AC8 | existing petitions tests unchanged; `SeparatorTests::test_texts_and_links_kept` |
+
+    ### Access matrix
+
+    No view or permission changes; the existing petitions access tests must pass unchanged.
+
+    ### Tests (`petitions/tests/test_views.py`, new class `SeparatorTests(FrozenClockMixin, TestCase)`)
+
+    Setup: faculty, group "GX", student A (+ staff of the same faculty), an ordinary type, a catch-all type (`make_type(name="Другая справка", days=5, comment_required=True, hint="h", subject_required=True)`), petition P1 of the ordinary type, petition P2 of the catch-all type with `subject` = 150 × "а"; for P1 one staff status change (via `change_status`) and one staff comment (`add_staff_comment`). Helper `_part(content, start_marker, end_marker)` slices the HTML.
+
+    - `test_no_space_before_dot_in_lists`: for `my_list` (student) and `staff_queue` (staff), inside `<ul class="petition-list">…</ul>`: `re.search(r"[ \t\n]·", part)` is None, and every row (`<li class="petition">…</li>`) contains the literal entity `&nbsp;·` exactly 3 times (Django outputs the template's `&nbsp;` unchanged).
+    - `test_no_space_before_dot_in_detail`: student detail and staff detail of P1: inside the history `<ol>` and the comments `<ul>`, no `[ \t\n]·`.
+    - `test_student_row_structure`: `my_list` contains `<a class="petition-title" href="/requests/<P2 uuid>/">Другая справка: ааа…</a>` (full 150 characters) followed by `<p class="petition-meta">`, and the meta contains `<span class="meta-item">№ <short id>&nbsp;·</span>`.
+    - `test_staff_row_structure`: `staff_queue` row of P2 has `<a class="petition-title" …>`, then `<p class="petition-subject">Другая справка: ааа…</p>`, then `<p class="petition-meta">` with `файлов: 0`.
+    - `test_catalog_blocks`: the catalog contains `<p class="catalog-term">Срок: до 5 рабочих дней</p>` and `<a class="catalog-title"`; no " — " and no "·" in the page's `main`.
+    - `test_texts_and_links_kept`: the student list still has the detail href, the status text, "готовность:"; the staff queue still has the staff detail href, the group name, "файлов:".
+
+    Amendment 1 tests:
+    - `core/tests/test_design.py::SeparatorRuleTests::test_no_whitespace_before_separator`: for each template of this task (the 5 petitions templates and the 8 of Amendment 1; a module-level tuple of paths), the file text has no match for `re.compile(r"\s·")` (any whitespace, including a newline, directly before "·"), and contains at least one "&nbsp;·". subTest per file.
+    - `chat/tests/test_views.py` line 294: `self.assertIn("Деканат ·", content)` → `self.assertIn("Деканат&nbsp;· ", content)` with the comment `# TASK-014-FIX: separator glued with a no-break space`.
+    - `chat/tests/test_views.py::PollTests` (or the class that tests the polling fragment; find it with `grep -n "X-Chat-Fragment" chat/tests/test_views.py`): new `test_fragment_meta_separator`: the polled fragment of a staff message contains `Деканат&nbsp;· ` and `li` with `data-message-id` (the JS contract).
+    - `notifications/tests/test_views.py::FeedViewTests::test_meta_separator_glued`: the feed of a student with one new announcement contains `<strong>Новое</strong>&nbsp;· ` and no `[ \t\n]·` inside `<p class="feed-meta">…</p>`.
+    - `academics/tests/test_views.py` (class with the report view): new `test_summary_separator_glued`: the report page's `<summary>` contains `&nbsp;· Итог:` and no `[ \t\n]·`.
+    - `core/tests/test_home.py::HomeStudentTests::test_lesson_meta_separator_glued`: the home page contains `&nbsp;· ` inside `<p class="lesson-meta">` and no `[ \t\n]·` there.
+
+    `core/tests/test_css.py::BaseCssTests::test_meta_item_nowrap`: base.css has a `.meta-item` rule with `white-space: nowrap`, and a rule for `.petition-title` with `display: block` and `min-height: 2.75rem` (directly or via a shared selector list).
+
+    ### Visual check (UI coder; screenshots and numbers in the REPORT)
+
+    Temporary DB with `seed_demo` (it has the demo request "Другая справка: Справка о периоде обучения" for student1); add one request with a 150-character subject for student1 (via `submit_petition` in `manage.py shell`, or the form).
+    - Student "Мои заявки" and staff "Заявки" (staff1) at 360 × 780 and 1024 × 768; catalog at 360 × 780; one request detail (with history and a staff comment) at 360 × 780.
+    - For each row, check that no line starts with "·". In the browser: for every text node, `Range.getClientRects()` per character is heavy; instead, take screenshots and also run: `[...document.querySelectorAll('.petition-meta, .petition li, ol li')].every(e => !/[\s]·/.test(e.innerHTML.replace(/&nbsp;/g,' ')))` (structure check), and look at the screenshots.
+    - `document.documentElement.scrollWidth === innerWidth` on every page (also at 320 × 780 for the student list).
+    - Amendment 1 pages at 360 × 780 (screenshot each; no line starts with "·"; no horizontal scroll): staff "Чаты" list (`/staff/chats/`, staff1), student chat (`/chat/`, student1, with a staff message) and a staff dialog (staff1), staff "Студенты" (`/staff/students/`), staff "Расписание групп" (`/staff/schedule/`), student "Уведомления" (`/notifications/`, with a "Новое" item), staff "Объявления" (`/staff/announcements/`), student "Успеваемость" (`/grades/`, one `<details>` open) and the staff view of a student's grades, student home "Занятия" card (`/`). Also check that chat polling still adds a new message without reload (send a message from the other role and wait one poll interval).
+
+    ### Edge cases
+
+    150-character subject; the shortest row (ordinary type); a status with two words ("В работе"); a request with no attachments ("файлов: 0"); the catalog type without a description.
+
+    ## Implementation order
+
+    1. Templates (five files). Run `python manage.py test petitions --parallel 1` (log).
+    2. CSS. Visual check at 360 and 1024.
+    3. New tests. Full verification. REPORT.
+
+    ## Verification
+
+    ```bash
+    source .venv/bin/activate
+    python manage.py check
+    python manage.py makemigrations --check --dry-run
+    python manage.py test --parallel 1 2>&1 | tee "$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log"
+    ruff check petitions/tests/test_views.py core/tests/test_css.py
+    ruff format --check petitions/tests/test_views.py core/tests/test_css.py
+    git status --short
+    ```
+    If any run fails or stalls, even once, put the test name, the Moscow time and the traceback excerpt into the REPORT.
+
+    ## Risks
+
+    - **Template whitespace.** A newline or indentation before "·" in a template brings the bug back; the regex tests catch it.
+    - **Long staff names** wrap inside the title line (fine: no separator there).
+    - **Other pages** keep the old pattern (out of scope); listed for a possible later task.
+    22:## Amendment 1 (Team lead, approved by the user, 19.11)
+    33:See "Amendment 1: markup" below. `_message.html` is also the fragment returned to the chat polling (`static/js/chat.js`, unchanged): keep the `<li>` element, its classes, `id="m-<pk>"` and `data-message-id`; change only the text separators inside `chat-meta`. The JS selects only `li[data-message-id]` and `#chat-messages` (checked: `static/js/chat.js:4-54`).
+    97:### Amendment 1: markup
+    127:9. Conflicts: none. Amendment 1 (19.11): the 8 added templates were read; every "·" in them is listed above. Tests that assert these separators: only `chat/tests/test_views.py:294` (`assertIn("Деканат ·", content)`) — update it (see Test plan). `academics/tests/test_views.py:209` asserts "Задолженность" (stays). `core/tests/test_home.py` asserts the room link and `lesson-change` span (unchanged by the edit). `static/js/chat.js` uses only `[data-chat-poll-url]`, `#chat-messages`, `[data-chat-status]`, `li[data-message-id]`.
+    159:Amendment 1 tests:
+    160:- `core/tests/test_design.py::SeparatorRuleTests::test_no_whitespace_before_separator`: for each template of this task (the 5 petitions templates and the 8 of Amendment 1; a module-level tuple of paths), the file text has no match for `re.compile(r"\s·")` (any whitespace, including a newline, directly before "·"), and contains at least one "&nbsp;·". subTest per file.
+    169:### Visual check (UI coder; screenshots and numbers in the REPORT)
+    175:- Amendment 1 pages at 360 × 780 (screenshot each; no line starts with "·"; no horizontal scroll): staff "Чаты" list (`/staff/chats/`, staff1), student chat (`/chat/`, student1, with a staff message) and a staff dialog (staff1), staff "Студенты" (`/staff/students/`), staff "Расписание групп" (`/staff/schedule/`), student "Уведомления" (`/notifications/`, with a "Новое" item), staff "Объявления" (`/staff/announcements/`), student "Успеваемость" (`/grades/`, one `<details>` open) and the staff view of a student's grades, student home "Занятия" card (`/`). Also check that chat polling still adds a new message without reload (send a message from the other role and wait one poll interval).
+    184:2. CSS. Visual check at 360 and 1024.
+  ── Thought for 2s
+    I'm checking the separator rule test, which expects a "·" in catalog.html, but that file now has no dots at all and the spec says it should have none. Since catalog is one of the five petition templates, I'll special-case it to assert that no "·" appears, and note the conflict in the report. I also want to confirm whether Python's `\s` matches the non-breaking space `\u00a0`, since that affects how the template separators get matched.
+
+    I'm confirming that the literal "&nbsp;" entity in the templates means there are no non-breaking space characters to worry about. Next I'll apply the eight template edits, starting by reading them.
+  ── Thought for 4ms
+    Поправка прочитана; в AC4 «·» у каталога нет, а новый тест требует её в каждом файле, так что для каталога проверю отсутствие «·» и отмечу это в отчёте. Дальше правлю 8 шаблонов.
+  ── Searched for · in schedule/templates/schedule/includes/lesson_compact.html
+  ── Ran python3 - <<'EOF' 2>/dev/null import pathlib def rep(path, old, new, count=1):     p=pathlib.Path(path); s=p.read_text(); assert s.count(old)==count,(path,old,s.count(old)); p.write_text(s.replace(old,new)) rep("chat/templates/chat/staff_list.html","{{ d.student.full_name }}</a> · {{ d.student.group.name }} · {{ d.last_message_at|date:\"d.m.Y H:i\" }}{% if d.unread %} · <strong>","{{ d.student.full_name }}</a>&nbsp;· {{ d.student.group.name }}&nbsp;· {{ d.last_message_at|date:\"d.m.Y H:i\" }}{% if d.unread %}&nbsp;· <strong>") rep("chat/templates/chat/_message.html","Деканат · {{ m.author.staff_profile.short_name }}","Деканат&nbsp;· {{ m.author.staff_profile.short_name }}") rep("chat/templates/chat/_message.html","{% endif %}</strong> · <time","{% endif %}</strong>&nbsp;· <time") rep("accounts/templates/accounts/student_list.html","""        <li>           <a href="{% url 'accounts:staff_student_detail' student.pk %}">{{ student.full_name }}</a>           · {{ student.group.name }}, {{ student.course }} курс         </li>""","""        <li><a href="{% url 'accounts:staff_student_detail' student.pk %}">{{ student.full_name }}</a>&nbsp;· {{ student.group.name }}, {{ student.course }} курс</li>""") rep("schedule/templates/schedule/staff_group_list.html","""      <li>         <a href="{% url 'schedule:staff_group_week' group.pk %}">{{ group.name }}</a>         · {{ group.program.name }}, {{ group.course }} курс       </li>""","""      <li><a href="{% url 'schedule:staff_group_week' group.pk %}">{{ group.name }}</a>&nbsp;· {{ group.program.name }}, {{ group.course }} курс</li>""") rep("notifications/templates/notifications/feed.html","<strong>Новое</strong> · {% endif %}{{ item.tag }} · <time","<strong>Новое</strong>&nbsp;· {% endif %}{{ item.tag }}&nbsp;· <time") rep("notifications/templates/notifications/feed.html","{% if item.audience_label %} · {{ item.audience_label }}","{% if item.audience_label %}&nbsp;· {{ item.audience_label }}") rep("notifications/templates/notifications/staff_list.html","{{ a.audience_label }} · {{ a.published_at|date:\"d.m.Y H:i\" }} · {% if","{{ a.audience_label }}&nbsp;· {{ a.published_at|date:\"d.m.Y H:i\" }}&nbsp;· {% if") rep("academics/templates/academics/includes/discipline.html","""    <summary>       <strong>{{ d.item.discipline.name }}</strong> · {{ d.item.get_assessment_form_display }}       · Итог: {% if d.effective %}{{ d.effective.get_result_display }}{% else %}нет{% endif %}       {% if d.is_debt %}· <strong>Задолженность</strong>{% endif %}       · Посещаемость: {% if d.attendance.percent is not None %}{{ d.attendance.percent }}%{% else %}—{% endif %}     </summary>""","""    <summary><strong>{{ d.item.discipline.name }}</strong>&nbsp;· {{ d.item.get_assessment_form_display }}&nbsp;· Итог: {% if d.effective %}{{ d.effective.get_result_display }}{% else %}нет{% endif %}{% if d.is_debt %}&nbsp;· <strong>Задолженность</strong>{% endif %}&nbsp;· Посещаемость: {% if d.attendance.percent is not None %}{{ d.attendance.percent }}%{% else %}—{% endif %}</summary>""") L="schedule/templates/schedule/includes/lesson_compact.html" rep(L,"</time> · {{ item.slot.number }} пара","</time>&nbsp;· {{ item.slot.number }} пара") rep(L,"{{ item.lesson.get_lesson_type_display }} · {{ item.teacher.short_name }} · {% if item.is_happening %}","{{ item.lesson.get_lesson_type_display }}&nbsp;· {{ item.teacher.short_name }}&nbsp;· {% if item.is_happening %}") EOF for f in petitions/templates/petitions/my_list.html petitions/templates/petitions/staff_queue.html petitions/templates/petitions/catalog.html petitions/templates/petitions/includes/history.html petitions/templates/petitions/includes/comments.html chat/templates/chat/staff_list.html chat/templates/chat/_message.html accounts/templates/accounts/student_list.html schedule/templates/schedule/staff_group_list.html notifications/templates/notifications/feed.html notifications/templates/notifications/staff_list.html academics/templates/academics/includes/discipline.html schedule/templates/schedule/includes/lesson_compact.html; do python3 -c " import re,sys t=open('$f').read(); print('$f', 'bad' if re.search(r'\s·',t) else 'ok', t.count('&nbsp;·'))" 2>/dev/null; done (2s)
+    $ python3 - <<'EOF' 2>/dev/null
+  import pathlib
+  def rep(path, old, new, count=1):
+      p=pathlib.Path(path); s=p.read_text(); assert s.count(old)==count,(path,old,s.count(old)); p.write_text(s.replace(old,new))
+  rep("chat/templates/chat/staff_list.html","{{ d.student.full_name }}</a> · {{ d.student.group.name }} · {{ d.last_message_at|date:\"d.m.Y H:i\" }}{% if d.unread %} · <strong>","{{ d.student.full_name }}</a>&nbsp;· {{ d.student.group.name }}&nbsp;· {{ d.last_message_at|date:\"d.m.Y H:i\" }}{% if d.unread %}&nbsp;· <strong>")
+  rep("chat/templates/chat/_message.html","Деканат · {{ m.author.staff_profile.short_name }}","Деканат&nbsp;· {{ m.author.staff_profile.short_name }}")
+  rep("chat/templates/chat/_message.html","{% endif %}</strong> · <time","{% endif %}</strong>&nbsp;· <time")
+  rep("accounts/templates/accounts/student_list.html","""        <li>
+            <a href="{% url 'accounts:staff_student_detail' student.pk %}">{{ student.full_name }}</a>
+            · {{ student.group.name }}, {{ student.course }} курс
+          </li>""","""        <li><a href="{% url 'accounts:staff_student_detail' student.pk %}">{{ student.full_name }}</a>&nbsp;· {{ student.group.name }}, {{ student.course }} курс</li>""")
+  rep("schedule/templates/schedule/staff_group_list.html","""      <li>
+          <a href="{% url 'schedule:staff_group_week' group.pk %}">{{ group.name }}</a>
+          · {{ group.program.name }}, {{ group.course }} курс
+        </li>""","""      <li><a href="{% url 'schedule:staff_group_week' group.pk %}">{{ group.name }}</a>&nbsp;· {{ group.program.name }}, {{ group.course }} курс</li>""")
+  rep("notifications/templates/notifications/feed.html","<strong>Новое</strong> · {% endif %}{{ item.tag }} · <time","<strong>Новое</strong>&nbsp;· {% endif %}{{ item.tag }}&nbsp;· <time")
+  rep("notifications/templates/notifications/feed.html","{% if item.audience_label %} · {{ item.audience_label }}","{% if item.audience_label %}&nbsp;· {{ item.audience_label }}")
+  rep("notifications/templates/notifications/staff_list.html","{{ a.audience_label }} · {{ a.published_at|date:\"d.m.Y H:i\" }} · {% if","{{ a.audience_label }}&nbsp;· {{ a.published_at|date:\"d.m.Y H:i\" }}&nbsp;· {% if")
+  rep("academics/templates/academics/includes/discipline.html","""    <summary>
+        <strong>{{ d.item.discipline.name }}</strong> · {{ d.item.get_assessment_form_display }}
+        · Итог: {% if d.effective %}{{ d.effective.get_result_display }}{% else %}нет{% endif %}
+        {% if d.is_debt %}· <strong>Задолженность</strong>{% endif %}
+        · Посещаемость: {% if d.attendance.percent is not None %}{{ d.attendance.percent }}%{% else %}—{% endif %}
+      </summary>""","""    <summary><strong>{{ d.item.discipline.name }}</strong>&nbsp;· {{ d.item.get_assessment_form_display }}&nbsp;· Итог: {% if d.effective %}{{ d.effective.get_result_display }}{% else %}нет{% endif %}{% if d.is_debt %}&nbsp;· <strong>Задолженность</strong>{% endif %}&nbsp;· Посещаемость: {% if d.attendance.percent is not None %}{{ d.attendance.percent }}%{% else %}—{% endif %}</summary>""")
+  L="schedule/templates/schedule/includes/lesson_compact.html"
+  rep(L,"</time> · {{ item.slot.number }} пара","</time>&nbsp;· {{ item.slot.number }} пара")
+  rep(L,"{{ item.lesson.get_lesson_type_display }} · {{ item.teacher.short_name }} · {% if item.is_happening %}","{{ item.lesson.get_lesson_type_display }}&nbsp;· {{ item.teacher.short_name }}&nbsp;· {% if item.is_happening %}")
+  EOF
+  for f in petitions/templates/petitions/my_list.html petitions/templates/petitions/staff_queue.html petitions/templates/petitions/catalog.html petitions/templates/petitions/includes/history.html petitions/templates/petitions/includes/comments.html chat/templates/chat/staff_list.html chat/templates/chat/_message.html accounts/templates/accounts/student_list.html schedule/templates/schedule/staff_group_list.html notifications/templates/notifications/feed.html notifications/templates/notifications/staff_list.html academics/templates/academics/includes/discipline.html schedule/templates/schedule/includes/lesson_compact.html; do python3 -c "
+  import re,sys
+  t=open('$f').read(); print('$f', 'bad' if re.search(r'\s·',t) else 'ok', t.count('&nbsp;·'))" 2>/dev/null; done
+    petitions/templates/petitions/my_list.html ok 3
+    petitions/templates/petitions/staff_queue.html ok 3
+    petitions/templates/petitions/catalog.html ok 0
+    petitions/templates/petitions/includes/history.html ok 2
+    petitions/templates/petitions/includes/comments.html ok 2
+    chat/templates/chat/staff_list.html ok 3
+    chat/templates/chat/_message.html ok 2
+    accounts/templates/accounts/student_list.html ok 1
+    schedule/templates/schedule/staff_group_list.html ok 1
+    notifications/templates/notifications/feed.html ok 3
+    notifications/templates/notifications/staff_list.html ok 2
+    academics/templates/academics/includes/discipline.html ok 4
+    schedule/templates/schedule/includes/lesson_compact.html ok 3
+  ── Thought for 6ms
+    I'm noting that the `<summary>` contents in discipline.html are now tight, without the earlier whitespace and newlines, and that's fine. Next I'll update the chat test at line 294 and write the remaining tests, starting by reviewing that chat test along with the fragment, academics report, and home tests.
+
+── Assistant ───────────────────────────────────────────────
+Все 13 шаблонов чистые. Теперь тесты.
+
+── Explored 1 file ─────────────────────────────────────────
+  ── Read chat/tests/test_views.py
+
+── Assistant ───────────────────────────────────────────────
+You've hit your 5-hour limit · resets 9am (America/Los_Angeles)
+
+── Error ───────────────────────────────────────────────────
+  Provider rate limit reached
+  You've hit your 5-hour limit · resets 9am (America/Los_Angeles)
+
+── Claude Code API retry 1/10 after 566ms: unknown ─────────
+
+── Thought for 896ms ───────────────────────────────────────
+  The server got killed by its 30-minute limit, so I need to keep writing tests and then restart it for the Amendment visual check. The test list covers petitions SeparatorTests, core test_css's test_meta_item_nowrap, core test_design's SeparatorRuleTests, the chat test update at line 294 plus test_fragment_meta_separator in UpdatesViewTests, and the notifications FeedViewTests separator test.
+
+  I'm also adding a separator test for the academics StudentGradesViewTests summary, and one in core test_home for the lesson meta line.
+
+── Assistant ───────────────────────────────────────────────
+Продолжаю: сервер остановился по лимиту времени, перезапущу его для визуальной проверки. Сейчас пишу тесты.
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Ran git status --short && sed -n 1,35p chat/tests/test_views.py | grep -n "import\|make_world\|ax_dialog" ; sed -n 33,48p chat/tests/test_views.py; grep -n "class FeedViewTests" -A12 notifications/tests/test_views.py | head -14
+    $ git status --short && sed -n 1,35p chat/tests/test_views.py | grep -n "import\|make_world\|ax_dialog" ; sed -n 33,48p chat/tests/test_views.py; grep -n "class FeedViewTests" -A12 notifications/tests/test_views.py | head -14
+    M academics/templates/academics/includes/discipline.html
+     M accounts/templates/accounts/student_list.html
+     M chat/templates/chat/_message.html
+     M chat/templates/chat/staff_list.html
+     M notifications/templates/notifications/feed.html
+     M notifications/templates/notifications/staff_list.html
+     M petitions/templates/petitions/catalog.html
+     M petitions/templates/petitions/includes/comments.html
+     M petitions/templates/petitions/includes/history.html
+     M petitions/templates/petitions/my_list.html
+     M petitions/templates/petitions/staff_queue.html
+     M plan.md
+     M schedule/templates/schedule/includes/lesson_compact.html
+     M schedule/templates/schedule/staff_group_list.html
+     M static/css/base.css
+     M static/css/theme.css
+    ?? docs/tasks/TASK-014-FIX.md
+    3:import uuid
+    4:from unittest import mock
+    6:from django.contrib.messages import constants
+    7:from django.contrib.messages.storage.base import Message as FrameworkMessage
+    8:from django.db import connection
+    9:from django.test import Client, TestCase
+    10:from django.test.utils import CaptureQueriesContext
+    11:from django.urls import reverse
+    13:from accounts.models import User
+    14:from accounts.tests.helpers import make_staff, make_student
+    15:from chat.constants import RATE_LIMIT_MESSAGES
+    16:from chat.models import AuthorRole, Dialog, Message
+    17:from chat.selectors import student_unread_count
+    18:from chat.tests.helpers import add_message, make_dialog
+    19:from core.testing import FrozenClockMixin
+    20:from notifications.feed import badge_for_user
+    21:from notifications.models import Audience
+    22:from notifications.tests.helpers import make_announcement, make_world
+    class _ChatWorld(FrozenClockMixin, TestCase):
+        frozen_now = NOW
+
+        @classmethod
+        def setUpTestData(cls):
+            cls.w = make_world()
+            cls.ax_dialog = make_dialog(cls.w.ax_profile)
+            cls.bx_dialog = make_dialog(cls.w.bx_profile)
+            cls.ay_dialog = make_dialog(cls.w.ay_profile)
+            add_message(cls.ax_dialog, cls.w.ax, AuthorRole.STUDENT, text="ax text")
+            add_message(cls.bx_dialog, cls.w.bx, AuthorRole.STUDENT, text="bx text")
+            add_message(cls.ay_dialog, cls.w.ay, AuthorRole.STUDENT, text="ay text")
+            cls.ax_uuid = cls.ax_dialog.public_id
+            cls.np = User.objects.create_user(username="np", role=User.Role.STUDENT)
+
+
+    451:class FeedViewTests(FrozenClockMixin, TestCase):
+    452-    frozen_now = NOW
+    453-
+    454-    @classmethod
+    455-    def setUpTestData(cls):
+    456-        cls.w = make_world()
+    457-
+    458-    def _get(self):
+    459-        self.client.force_login(self.w.ax)
+    460-        return self.client.get(reverse("notifications:feed"))
+    461-
+    462-    def test_sections_order(self):
+    463-        response = self._get()
+  ── Thought for 3s
+    I'm planning to write all the tests with Python patching. The SeparatorTests will go at the end of petitions/tests/test_views.py, which needs a `re` import. For the my_list rows, P1 and P2 each get three separators, and I'm checking the history list and comments list on the detail page.
+
+    I'm going to check the `<main>` section for any `·` separators instead of slicing out the history and comments lists, since that's stricter. The detail and staff detail templates don't use dots, so it should be safe. On the staff queue, the default "open" filter includes both submitted and in_progress, so P1 and P2 will both appear there.
+  ── Thought for 4ms
+    I'm going to write the tests now, adding a SeparatorTests class to petitions/tests/test_views.py. That file doesn't import `re` yet, so I'll need to add that import at the top.
+  ── Ran python3 - <<'EOF' 2>/dev/null import pathlib def rep(path, old, new):     p=pathlib.Path(path); s=p.read_text(); assert s.count(old)==1,(path,old); p.write_text(s.replace(old,new)) # 1. petitions SeparatorTests P="petitions/tests/test_views.py" p=pathlib.Path(P); s=p.read_text() if not s.startswith("import re\n"):     s="import re\n"+s s=s.rstrip("\n")+''' def _part(content: str, start_marker: str, end_marker: str) -> str:     start = content.index(start_marker)     return content[start : content.index(end_marker, start)] SPACE_BEFORE_DOT = re.compile(r"[ \\t\\n]·") class SeparatorTests(FrozenClockMixin, TestCase):     """A separator dot is glued to the previous part (TASK-014-FIX)."""     @classmethod     def setUpTestData(cls):         cls.fac = make_faculty("FX")         cls.group = make_group(cls.fac, "GX")         cls.student = make_student("a", cls.group, "SA").student_profile         cls.staff = make_staff("sx", cls.fac)         cls.ordinary = make_type(name="Справка об обучении")         cls.catch_all = make_type(             name="Другая справка",             days=5,             comment_required=True,             hint="h",             subject_required=True,         )         cls.p1 = make_petition(cls.student, cls.ordinary)         cls.p2 = make_petition(cls.student, cls.catch_all)         cls.p2.subject = "а" * 150         cls.p2.save(update_fields=["subject"])         change_status(cls.p1, cls.staff, "submitted", "in_progress")         add_staff_comment(cls.p1, cls.staff, "Справка будет готова к пятнице.")         cls.long_title = "Другая справка: " + "а" * 150     def _student_list(self):         self.client.force_login(self.student.user)         return self.client.get(reverse("petitions:my_list")).content.decode()     def _staff_queue(self):         self.client.force_login(self.staff)         return self.client.get(reverse("petitions:staff_queue")).content.decode()     def test_no_space_before_dot_in_lists(self):         for name, content in (("my_list", self._student_list()), ("queue", self._staff_queue())):             with self.subTest(page=name):                 part = _part(content, '<ul class="petition-list">', "</ul>")                 self.assertIsNone(SPACE_BEFORE_DOT.search(part))                 rows = re.findall(r'<li class="petition">.*?</li>', part, re.S)                 self.assertEqual(len(rows), 2)                 for row in rows:                     self.assertEqual(row.count("&nbsp;·"), 3)     def test_no_space_before_dot_in_detail(self):         pages = (             (self.student.user, reverse("petitions:detail", args=[self.p1.public_id])),             (self.staff, reverse("petitions:staff_detail", args=[self.p1.public_id])),         )         for user, url in pages:             self.client.force_login(user)             content = self.client.get(url).content.decode()             with self.subTest(url=url):                 history = _part(content, "<ol>", "</ol>")                 self.assertIn("&nbsp;·", history)                 self.assertIsNone(SPACE_BEFORE_DOT.search(history))                 start = content.index("Справка будет готова к пятнице.")                 comments = content[content.rindex("<ul>", 0, start) : content.index("</ul>", start)]                 self.assertIn("&nbsp;·", comments)                 self.assertIsNone(SPACE_BEFORE_DOT.search(comments))     def test_student_row_structure(self):         content = self._student_list()         link = (             f'<a class="petition-title" href="/requests/{self.p2.public_id}/">'             f"{self.long_title}</a>"         )         self.assertIn(link, content)         row = content[content.index(link) :]         self.assertTrue(row[len(link) :].lstrip().startswith('<p class="petition-meta">'))         self.assertIn(f'<span class="meta-item">№ {self.p2.short_id}&nbsp;·</span>', row)     def test_staff_row_structure(self):         content = self._staff_queue()         subject = f'<p class="petition-subject">{self.long_title}</p>'         self.assertIn(subject, content)         row_start = content.rindex('<li class="petition">', 0, content.index(subject))         row = content[row_start : content.index("</li>", row_start)]         self.assertLess(row.index('<a class="petition-title"'), row.index(subject))         self.assertLess(row.index(subject), row.index('<p class="petition-meta">'))         self.assertIn("файлов: 0", row)     def test_catalog_blocks(self):         self.client.force_login(self.student.user)         content = self.client.get(reverse("petitions:catalog")).content.decode()         self.assertIn('<p class="catalog-term">Срок: до 5 рабочих дней</p>', content)         self.assertIn('<a class="catalog-title"', content)         main = _part(content, "<main", "</main>")         self.assertNotIn(" — ", main)         self.assertNotIn("·", main)     def test_texts_and_links_kept(self):         content = self._student_list()         self.assertIn(f'href="/requests/{self.p1.public_id}/"', content)         self.assertIn("В работе", content)         self.assertIn("готовность:", content)         queue = self._staff_queue()         self.assertIn(f'href="/staff/requests/{self.p1.public_id}/"', queue)         self.assertIn("GX", queue)         self.assertIn("файлов:", queue) ''' p.write_text(s) # 2. core test_css C="core/tests/test_css.py" rep(C,"""    def test_map_highlight_rule(self):""","""    def test_meta_item_nowrap(self):         base_css = (Path(settings.BASE_DIR) / "static/css/base.css").read_text()         rules = re.findall(r"([^{}]+)\\{([^{}]*)\\}", base_css)         def bodies(selector):             return [b for sel, b in rules if selector in [s.strip() for s in sel.split(",")]]         self.assertTrue(any("white-space: nowrap" in b for b in bodies(".meta-item")))         title = bodies(".petition-title")         self.assertTrue(any("display: block" in b and "min-height: 2.75rem" in b for b in title))     def test_map_highlight_rule(self):""") # 3. core test_design SeparatorRuleTests D="core/tests/test_design.py" p=pathlib.Path(D); s=p.read_text().rstrip("\\n") s=s.rstrip("\n")+''' SEPARATOR_TEMPLATES = (     "petitions/templates/petitions/my_list.html",     "petitions/templates/petitions/staff_queue.html",     "petitions/templates/petitions/catalog.html",     "petitions/templates/petitions/includes/history.html",     "petitions/templates/petitions/includes/comments.html",     "chat/templates/chat/staff_list.html",     "chat/templates/chat/_message.html",     "accounts/templates/accounts/student_list.html",     "schedule/templates/schedule/staff_group_list.html",     "notifications/templates/notifications/feed.html",     "notifications/templates/notifications/staff_list.html",     "academics/templates/academics/includes/discipline.html",     "schedule/templates/schedule/includes/lesson_compact.html", ) class SeparatorRuleTests(SimpleTestCase):     """A "·" is always glued to the previous part with "&nbsp;" (TASK-014-FIX)."""     def test_no_whitespace_before_separator(self):         for relative in SEPARATOR_TEMPLATES:             text = _read(relative)             with self.subTest(template=relative):                 self.assertIsNone(re.search(r"\\s·", text))                 if relative.endswith("catalog.html"):                     # The catalog has no separators at all (AC4).                     self.assertNotIn("·", text)                 else:                     self.assertIn("&nbsp;·", text) ''' p.write_text(s) # 4. chat tests H="chat/tests/test_views.py" rep(H,"""        self.assertIn("Деканат ·", content)""","""        # TASK-014-FIX: separator glued with a no-break space         self.assertIn("Деканат&nbsp;· ", content)""") rep(H,"""    def test_fragment_alignment_by_viewer(self):""","""    def test_fragment_meta_separator(self):         staff_message = add_message(self.ax_dialog, self.w.sx, AuthorRole.STAFF, text="ответ")         self.client.force_login(self.w.ax)         response = self.client.get("/chat/updates/?after=0")         self.assertEqual(response["X-Chat-Fragment"], "1")         content = response.content.decode()         self.assertIn("Деканат&nbsp;· ", content)         self.assertIn(f'<li class="chat-message', content)         self.assertIn(f'data-message-id="{staff_message.pk}"', content)         self.assertIsNone(re.search(r"[ \\t\\n]·", content))     def test_fragment_alignment_by_viewer(self):""") p=pathlib.Path(H); s=p.read_text() if "\nimport re\n" not in s:     s=s.replace("import uuid\n","import re\nimport uuid\n",1) p.write_text(s) # 5. notifications feed N="notifications/tests/test_views.py" rep(N,"""    def test_section_anchors(self):""","""    def test_meta_separator_glued(self):         make_announcement(self.w.sx, audience=Audience.UNIVERSITY, title="Новость")         content = self._get().content.decode()         self.assertIn("<strong>Новое</strong>&nbsp;· ", content)         metas = re.findall(r'<p class="feed-meta">(.*?)</p>', content, re.S)         self.assertTrue(metas)         for meta in metas:             self.assertIsNone(re.search(r"[ \\t\\n]·", meta))     def test_section_anchors(self):""") p=pathlib.Path(N); s=p.read_text() if "\nimport re\n" not in s and not s.startswith("import re\n"):     s="import re\n"+s p.write_text(s) # 6. academics A="academics/tests/test_views.py" rep(A,"""    def test_ok_status(self):""","""    def test_summary_separator_glued(self):         content = self._get("/grades/", self.student_a).content.decode()         summaries = re.findall(r"<summary>(.*?)</summary>", content, re.S)         self.assertTrue(summaries)         for summary in summaries:             self.assertIn("&nbsp;· Итог:", summary)             self.assertIsNone(re.search(r"[ \\t\\n]·", summary))     def test_ok_status(self):""") p=pathlib.Path(A); s=p.read_text() if "\nimport re\n" not in s and not s.startswith("import re\n"):     s="import re\n"+s p.write_text(s) # 7. home M="core/tests/test_home.py" rep(M,"""    def test_other_group_lessons_hidden(self):""","""    def test_lesson_meta_separator_glued(self):         content = self._content()         metas = re.findall(r'<p class="lesson-meta">(.*?)</p>', content, re.S)         self.assertEqual(len(metas), 2)         for meta in metas:             self.assertIn("&nbsp;· ", meta)             self.assertIsNone(re.search(r"[ \\t\\n]·", meta))     def test_other_group_lessons_hidden(self):""") p=pathlib.Path(M); s=p.read_text() if "\nimport re\n" not in s:     s=s.replace('"""Home page for students, staff and other roles (TASK-012, AC7-AC10, AC12)."""\n\n','"""Home page for students, staff and other roles (TASK-012, AC7-AC10, AC12)."""\n\nimport re\n',1) p.write_text(s) EOF source .venv/bin/activate && F="petitions/tests/test_views.py core/tests/test_css.py core/tests/test_design.py chat/tests/test_views.py notifications/tests/test_views.py academics/tests/test_views.py core/tests/test_home.py"; ruff check --fix ${=F}; ruff format ${=F}; ruff check ${=F} (2s)
+    $ python3 - <<'EOF' 2>/dev/null
+  import pathlib
+  def rep(path, old, new):
+      p=pathlib.Path(path); s=p.read_text(); assert s.count(old)==1,(path,old); p.write_text(s.replace(old,new))
+
+  # 1. petitions SeparatorTests
+  P="petitions/tests/test_views.py"
+  p=pathlib.Path(P); s=p.read_text()
+  if not s.startswith("import re\n"):
+      s="import re\n"+s
+  s=s.rstrip("\n")+'''
+
+
+  def _part(content: str, start_marker: str, end_marker: str) -> str:
+      start = content.index(start_marker)
+      return content[start : content.index(end_marker, start)]
+
+
+  SPACE_BEFORE_DOT = re.compile(r"[ \\t\\n]·")
+
+
+  class SeparatorTests(FrozenClockMixin, TestCase):
+      """A separator dot is glued to the previous part (TASK-014-FIX)."""
+
+      @classmethod
+      def setUpTestData(cls):
+          cls.fac = make_faculty("FX")
+          cls.group = make_group(cls.fac, "GX")
+          cls.student = make_student("a", cls.group, "SA").student_profile
+          cls.staff = make_staff("sx", cls.fac)
+          cls.ordinary = make_type(name="Справка об обучении")
+          cls.catch_all = make_type(
+              name="Другая справка",
+              days=5,
+              comment_required=True,
+              hint="h",
+              subject_required=True,
+          )
+          cls.p1 = make_petition(cls.student, cls.ordinary)
+          cls.p2 = make_petition(cls.student, cls.catch_all)
+          cls.p2.subject = "а" * 150
+          cls.p2.save(update_fields=["subject"])
+          change_status(cls.p1, cls.staff, "submitted", "in_progress")
+          add_staff_comment(cls.p1, cls.staff, "Справка будет готова к пятнице.")
+          cls.long_title = "Другая справка: " + "а" * 150
+
+      def _student_list(self):
+          self.client.force_login(self.student.user)
+          return self.client.get(reverse("petitions:my_list")).content.decode()
+
+      def _staff_queue(self):
+          self.client.force_login(self.staff)
+          return self.client.get(reverse("petitions:staff_queue")).content.decode()
+
+      def test_no_space_before_dot_in_lists(self):
+          for name, content in (("my_list", self._student_list()), ("queue", self._staff_queue())):
+              with self.subTest(page=name):
+                  part = _part(content, '<ul class="petition-list">', "</ul>")
+                  self.assertIsNone(SPACE_BEFORE_DOT.search(part))
+                  rows = re.findall(r'<li class="petition">.*?</li>', part, re.S)
+                  self.assertEqual(len(rows), 2)
+                  for row in rows:
+                      self.assertEqual(row.count("&nbsp;·"), 3)
+
+      def test_no_space_before_dot_in_detail(self):
+          pages = (
+              (self.student.user, reverse("petitions:detail", args=[self.p1.public_id])),
+              (self.staff, reverse("petitions:staff_detail", args=[self.p1.public_id])),
+          )
+          for user, url in pages:
+              self.client.force_login(user)
+              content = self.client.get(url).content.decode()
+              with self.subTest(url=url):
+                  history = _part(content, "<ol>", "</ol>")
+                  self.assertIn("&nbsp;·", history)
+                  self.assertIsNone(SPACE_BEFORE_DOT.search(history))
+                  start = content.index("Справка будет готова к пятнице.")
+                  comments = content[content.rindex("<ul>", 0, start) : content.index("</ul>", start)]
+                  self.assertIn("&nbsp;·", comments)
+                  self.assertIsNone(SPACE_BEFORE_DOT.search(comments))
+
+      def test_student_row_structure(self):
+          content = self._student_list()
+          link = (
+              f'<a class="petition-title" href="/requests/{self.p2.public_id}/">'
+              f"{self.long_title}</a>"
+          )
+          self.assertIn(link, content)
+          row = content[content.index(link) :]
+          self.assertTrue(row[len(link) :].lstrip().startswith('<p class="petition-meta">'))
+          self.assertIn(f'<span class="meta-item">№ {self.p2.short_id}&nbsp;·</span>', row)
+
+      def test_staff_row_structure(self):
+          content = self._staff_queue()
+          subject = f'<p class="petition-subject">{self.long_title}</p>'
+          self.assertIn(subject, content)
+          row_start = content.rindex('<li class="petition">', 0, content.index(subject))
+          row = content[row_start : content.index("</li>", row_start)]
+          self.assertLess(row.index('<a class="petition-title"'), row.index(subject))
+          self.assertLess(row.index(subject), row.index('<p class="petition-meta">'))
+          self.assertIn("файлов: 0", row)
+
+      def test_catalog_blocks(self):
+          self.client.force_login(self.student.user)
+          content = self.client.get(reverse("petitions:catalog")).content.decode()
+          self.assertIn('<p class="catalog-term">Срок: до 5 рабочих дней</p>', content)
+          self.assertIn('<a class="catalog-title"', content)
+          main = _part(content, "<main", "</main>")
+          self.assertNotIn(" — ", main)
+          self.assertNotIn("·", main)
+
+      def test_texts_and_links_kept(self):
+          content = self._student_list()
+          self.assertIn(f'href="/requests/{self.p1.public_id}/"', content)
+          self.assertIn("В работе", content)
+          self.assertIn("готовность:", content)
+          queue = self._staff_queue()
+          self.assertIn(f'href="/staff/requests/{self.p1.public_id}/"', queue)
+          self.assertIn("GX", queue)
+          self.assertIn("файлов:", queue)
+  '''
+  p.write_text(s)
+
+  # 2. core test_css
+  C="core/tests/test_css.py"
+  rep(C,"""    def test_map_highlight_rule(self):""","""    def test_meta_item_nowrap(self):
+          base_css = (Path(settings.BASE_DIR) / "static/css/base.css").read_text()
+          rules = re.findall(r"([^{}]+)\\{([^{}]*)\\}", base_css)
+
+          def bodies(selector):
+              return [b for sel, b in rules if selector in [s.strip() for s in sel.split(",")]]
+
+          self.assertTrue(any("white-space: nowrap" in b for b in bodies(".meta-item")))
+          title = bodies(".petition-title")
+          self.assertTrue(any("display: block" in b and "min-height: 2.75rem" in b for b in title))
+
+      def test_map_highlight_rule(self):""")
+
+  # 3. core test_design SeparatorRuleTests
+  D="core/tests/test_design.py"
+  p=pathlib.Path(D); s=p.read_text().rstrip("\\n")
+  s=s.rstrip("\n")+'''
+
+
+  SEPARATOR_TEMPLATES = (
+      "petitions/templates/petitions/my_list.html",
+      "petitions/templates/petitions/staff_queue.html",
+      "petitions/templates/petitions/catalog.html",
+      "petitions/templates/petitions/includes/history.html",
+      "petitions/templates/petitions/includes/comments.html",
+      "chat/templates/chat/staff_list.html",
+      "chat/templates/chat/_message.html",
+      "accounts/templates/accounts/student_list.html",
+      "schedule/templates/schedule/staff_group_list.html",
+      "notifications/templates/notifications/feed.html",
+      "notifications/templates/notifications/staff_list.html",
+      "academics/templates/academics/includes/discipline.html",
+      "schedule/templates/schedule/includes/lesson_compact.html",
+  )
+
+
+  class SeparatorRuleTests(SimpleTestCase):
+      """A "·" is always glued to the previous part with "&nbsp;" (TASK-014-FIX)."""
+
+      def test_no_whitespace_before_separator(self):
+          for relative in SEPARATOR_TEMPLATES:
+              text = _read(relative)
+              with self.subTest(template=relative):
+                  self.assertIsNone(re.search(r"\\s·", text))
+                  if relative.endswith("catalog.html"):
+                      # The catalog has no separators at all (AC4).
+                      self.assertNotIn("·", text)
+                  else:
+                      self.assertIn("&nbsp;·", text)
+  '''
+  p.write_text(s)
+
+  # 4. chat tests
+  H="chat/tests/test_views.py"
+  rep(H,"""        self.assertIn("Деканат ·", content)""","""        # TASK-014-FIX: separator glued with a no-break space
+          self.assertIn("Деканат&nbsp;· ", content)""")
+  rep(H,"""    def test_fragment_alignment_by_viewer(self):""","""    def test_fragment_meta_separator(self):
+          staff_message = add_message(self.ax_dialog, self.w.sx, AuthorRole.STAFF, text="ответ")
+          self.client.force_login(self.w.ax)
+          response = self.client.get("/chat/updates/?after=0")
+          self.assertEqual(response["X-Chat-Fragment"], "1")
+          content = response.content.decode()
+          self.assertIn("Деканат&nbsp;· ", content)
+          self.assertIn(f'<li class="chat-message', content)
+          self.assertIn(f'data-message-id="{staff_message.pk}"', content)
+          self.assertIsNone(re.search(r"[ \\t\\n]·", content))
+
+      def test_fragment_alignment_by_viewer(self):""")
+  p=pathlib.Path(H); s=p.read_text()
+  if "\nimport re\n" not in s:
+      s=s.replace("import uuid\n","import re\nimport uuid\n",1)
+  p.write_text(s)
+
+  # 5. notifications feed
+  N="notifications/tests/test_views.py"
+  rep(N,"""    def test_section_anchors(self):""","""    def test_meta_separator_glued(self):
+          make_announcement(self.w.sx, audience=Audience.UNIVERSITY, title="Новость")
+          content = self._get().content.decode()
+          self.assertIn("<strong>Новое</strong>&nbsp;· ", content)
+          metas = re.findall(r'<p class="feed-meta">(.*?)</p>', content, re.S)
+          self.assertTrue(metas)
+          for meta in metas:
+              self.assertIsNone(re.search(r"[ \\t\\n]·", meta))
+
+      def test_section_anchors(self):""")
+  p=pathlib.Path(N); s=p.read_text()
+  if "\nimport re\n" not in s and not s.startswith("import re\n"):
+      s="import re\n"+s
+  p.write_text(s)
+
+  # 6. academics
+  A="academics/tests/test_views.py"
+  rep(A,"""    def test_ok_status(self):""","""    def test_summary_separator_glued(self):
+          content = self._get("/grades/", self.student_a).content.decode()
+          summaries = re.findall(r"<summary>(.*?)</summary>", content, re.S)
+          self.assertTrue(summaries)
+          for summary in summaries:
+              self.assertIn("&nbsp;· Итог:", summary)
+              self.assertIsNone(re.search(r"[ \\t\\n]·", summary))
+
+      def test_ok_status(self):""")
+  p=pathlib.Path(A); s=p.read_text()
+  if "\nimport re\n" not in s and not s.startswith("import re\n"):
+      s="import re\n"+s
+  p.write_text(s)
+
+  # 7. home
+  M="core/tests/test_home.py"
+  rep(M,"""    def test_other_group_lessons_hidden(self):""","""    def test_lesson_meta_separator_glued(self):
+          content = self._content()
+          metas = re.findall(r'<p class="lesson-meta">(.*?)</p>', content, re.S)
+          self.assertEqual(len(metas), 2)
+          for meta in metas:
+              self.assertIn("&nbsp;· ", meta)
+              self.assertIsNone(re.search(r"[ \\t\\n]·", meta))
+
+      def test_other_group_lessons_hidden(self):""")
+  p=pathlib.Path(M); s=p.read_text()
+  if "\nimport re\n" not in s:
+      s=s.replace('"""Home page for students, staff and other roles (TASK-012, AC7-AC10, AC12)."""\n\n','"""Home page for students, staff and other roles (TASK-012, AC7-AC10, AC12)."""\n\nimport re\n',1)
+  p.write_text(s)
+  EOF
+  source .venv/bin/activate && F="petitions/tests/test_views.py core/tests/test_css.py core/tests/test_design.py chat/tests/test_views.py notifications/tests/test_views.py academics/tests/test_views.py core/tests/test_home.py"; ruff check --fix ${=F}; ruff format ${=F}; ruff check ${=F}
+    Found 1 error (1 fixed, 0 remaining).
+    1 file reformatted, 6 files left unchanged
+    All checks passed!
+    [This command modified 2 files you've previously read: core/tests/test_home.py, core/tests/test_design.py. Call Read before editing.]
+
+── Claude Code API retry 1/10 after 540ms: unknown ─────────
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Thought for 17ms
+    I'm checking the "1 fixed" result, which looks like an import-order change around the `re` placement, and it looks fine. Next I'm looking at an f-string with no placeholders, which ruff would flag as F541 and auto-fix, and that also checks out. Now I'll run the affected test apps.
+  ── Ran source .venv/bin/activate && L="$TMPDIR/test-014fix-apps-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"; python manage.py test petitions chat notifications academics core schedule accounts --parallel 1 > "$L" 2>&1; echo "$L"; grep -E "^(Ran|OK|FAILED)" "$L"; grep -E "^(FAIL|ERROR):" -A15 "$L" | head -60 (1h 28m 23s)
+    $ source .venv/bin/activate && L="$TMPDIR/test-014fix-apps-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"; python manage.py test petitions chat notifications academics core schedule accounts --parallel 1 > "$L" 2>&1; echo "$L"; grep -E "^(Ran|OK|FAILED)" "$L"; grep -E "^(FAIL|ERROR):" -A15 "$L" | head -60
+    Command did not complete within its 600s timeout and was moved to the background (ID: br5ag3gxt). Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/br5ag3gxt.output. You will be notified when it completes. If it is still running after 30m in the background, it will be stopped and you will be notified. It is running now: do not start a second copy while it runs. If it is no longer needed, stop it with TaskStop. No output had been read from it when it was moved. A program that buffers its output, or a pipe into one such as tail, can keep the output file empty until the command finishes. To check interim output, use Read on that file path.
+  ── Thought for 2ms
+    The suite usually finishes in about 150 seconds, so running past 600 seconds suggests something may be stuck. I'll check the log to see whether it's still making progress.
+
+── Assistant ───────────────────────────────────────────────
+Прогон идёт дольше обычного. Проверяю лог.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran L=$(ls -t /tmp/claude-501/test-014fix-apps-* | head -1); echo $L; wc -c $L; tail -c 1500 $L
+    $ L=$(ls -t /tmp/claude-501/test-014fix-apps-* | head -1); echo $L; wc -c $L; tail -c 1500 $L
+    /tmp/claude-501/test-014fix-apps-20261119-221740.log
+       79996 /tmp/claude-501/test-014fix-apps-20261119-221740.log
+    ^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/accounts/access.py", line 28, in get_profile_for_role
+        raise PermissionDenied
+    django.core.exceptions.PermissionDenied
+    2026-11-19 23:46:10,770 WARNING django.request Forbidden (Permission denied): /staff/schedule/1/2026-11-16/
+    Traceback (most recent call last):
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+        response = get_response(request)
+                   ^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+        response = wrapped_callback(request, *callback_args, **callback_kwargs)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/views/generic/base.py", line 105, in view
+        return self.dispatch(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/accounts/access.py", line 40, in dispatch
+        self.profile = get_profile_for_role(request.user, self.required_role)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/accounts/access.py", line 28, in get_profile_for_role
+        raise PermissionDenied
+    django.core.exceptions.PermissionDenied
+    ....................................................
+  ── Thought for 11ms
+    I'm checking the timestamps: the log file name says 22:17 Moscow time, but the Django log lines show 23:46, so roughly an hour and a half has passed. That suggests the test run has been going much longer than the 600-second timeout, or the session was suspended. The output is still progressing, so I'll wait for the completion notification.
+
+── Assistant ───────────────────────────────────────────────
+Тесты идут (точки в логе прибавляются). Жду уведомления о завершении.
+
+── Thought for 11ms ────────────────────────────────────────
+  I'm restarting the server now so I can check the Amendment visual on the ui014 database, since the sessions are still valid. I also need a staff message in student1's chat, which the demo already has, and I'll give the server start a longer timeout.
+
+── Assistant ───────────────────────────────────────────────
+Пока идут тесты, перезапускаю сервер для визуальной проверки страниц из поправки.
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Ran source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/ui014.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/ui-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && python manage.py runserver 127.0.0.1:8770 --noreload > $TMPDIR/ui-server.log 2>&1
+    $ source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/ui014.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/ui-private" DEMO_PASSWORD='Local-Demo-Pass-2026!' && python manage.py runserver 127.0.0.1:8770 --noreload > $TMPDIR/ui-server.log 2>&1
+    Command running in background with ID: bf6jkuu1w. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/bf6jkuu1w.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran bb browser-automation list --json 2>&1 | head -5; bb browser-automation open --backend local --machine host_cuvmpv75p3 --headless --json 2>&1 | tail -1 (2s)
+    $ bb browser-automation list --json 2>&1 | head -5; bb browser-automation open --backend local --machine host_cuvmpv75p3 --headless --json 2>&1 | tail -1
+    [{"id":"10ac9b56-d0f4-4001-871d-ac012f397c46","threadId":"thr_pgcwc2dwnn","hostId":"host_cuvmpv75p3","backend":"local","state":"closed","createdAt":1795007258908,"expiresAt":1795009175285},{"id":"344936c2-c75a-40a4-99cb-b40c32167cbf","threadId":"thr_pgcwc2dwnn","hostId":"host_cuvmpv75p3","backend":"local","state":"closed","createdAt":1795092025443,"expiresAt":1795093952817},{"id":"480b382f-b4a0-44a7-a232-16ca65458821","threadId":"thr_pgcwc2dwnn","hostId":"host_cuvmpv75p3","backend":"local","state":"closed","createdAt":1794997476406,"expiresAt":1795000067511},{"id":"586f262a-341e-467c-98c1-3a929b3f1494","threadId":"thr_pgcwc2dwnn","hostId":"host_cuvmpv75p3","backend":"local","state":"closed","createdAt":1795030494272,"expiresAt":1795032347708},{"id":"5b08aee7-484b-4b2d-8f0f-ca0bd8d30cc5","threadId":"thr_pgcwc2dwnn","hostId":"host_cuvmpv75p3","backend":"local","state":"closed","createdAt":1795041758146,"expiresAt":1795043579901}]
+    {"id":"8ef29cd3-f65b-4fe5-9753-5c685de3784a","threadId":"thr_pgcwc2dwnn","hostId":"host_cuvmpv75p3","backend":"local","state":"ready","createdAt":1795121186774,"expiresAt":1795122986774,"previewDirective":"::browser-preview{session=\"8ef29cd3-f65b-4fe5-9753-5c685de3784a\"}"}
+
+── Assistant ───────────────────────────────────────────────
+::browser-preview{session="8ef29cd3-f65b-4fe5-9753-5c685de3784a"}
+
+── Ran sed -i '' 's/^S=.*/S=8ef29cd3-f65b-4fe5-9753-5c685de3784a/' /tmp/claude-501/ui/run.sh && python3 - <<'EOF' 2>/dev/null import pathlib p=pathlib.Path("/tmp/claude-501/ui/dots.js"); s=p.read_text() i=s.index("const r = [];") s=s[:i]+'''const r = []; const pages = [   ["staff1", "/staff/chats/"], ["student1", "/chat/"], ["staff1", "/staff/students/"],   ["staff1", "/staff/schedule/"], ["student1", "/notifications/"], ["staff1", "/staff/announcements/"],   ["student1", "/grades/"], ["student1", "/"], ]; for (const [u, url] of pages) { await go(u, url, 360, 780); r.push([u, url, 360, await check()]); } await go("staff1", "/staff/chats/", 360, 780); const dialog = await p.$eval(".chat-dialogs a", (a) => a.getAttribute("href")); await go("staff1", dialog, 360, 780); r.push(["staff1", dialog, 360, await check()]); await go("staff1", "/staff/students/", 360, 780); const st = await p.$eval(".student-list a", (a) => a.getAttribute("href")); await go("staff1", st, 360, 780); const grades = await p.$$eval(".site-main a", (as) => as.map((a) => a.getAttribute("href")).find((h) => h.includes("grades"))); await go("staff1", grades, 360, 780); await p.evaluate(() => document.querySelectorAll(".discipline details").forEach((d) => (d.open = true))); r.push(["staff1", grades, 360, await check()]); return JSON.stringify(r); ''' pathlib.Path("/tmp/claude-501/ui/dots2.js").write_text(s) EOF sleep 1; /tmp/claude-501/ui/run.sh /tmp/claude-501/ui/dots2.js | python3 -c " import json,sys for row in json.loads(sys.stdin.read()):     c=row[3]; print(row[0],row[1],'dots',c['dots'],'lineStarts',c['lineStarts'],'struct',c['structure'],'sw',c['sw'],c['vw']) " 2>/dev/null (5s)
+  $ sed -i '' 's/^S=.*/S=8ef29cd3-f65b-4fe5-9753-5c685de3784a/' /tmp/claude-501/ui/run.sh && python3 - <<'EOF' 2>/dev/null
+import pathlib
+p=pathlib.Path("/tmp/claude-501/ui/dots.js"); s=p.read_text()
+i=s.index("const r = [];")
+s=s[:i]+'''const r = [];
+const pages = [
+  ["staff1", "/staff/chats/"], ["student1", "/chat/"], ["staff1", "/staff/students/"],
+  ["staff1", "/staff/schedule/"], ["student1", "/notifications/"], ["staff1", "/staff/announcements/"],
+  ["student1", "/grades/"], ["student1", "/"],
+];
+for (const [u, url] of pages) { await go(u, url, 360, 780); r.push([u, url, 360, await check()]); }
+await go("staff1", "/staff/chats/", 360, 780);
+const dialog = await p.$eval(".chat-dialogs a", (a) => a.getAttribute("href"));
+await go("staff1", dialog, 360, 780); r.push(["staff1", dialog, 360, await check()]);
+await go("staff1", "/staff/students/", 360, 780);
+const st = await p.$eval(".student-list a", (a) => a.getAttribute("href"));
+await go("staff1", st, 360, 780);
+const grades = await p.$$eval(".site-main a", (as) => as.map((a) => a.getAttribute("href")).find((h) => h.includes("grades")));
+await go("staff1", grades, 360, 780);
+await p.evaluate(() => document.querySelectorAll(".discipline details").forEach((d) => (d.open = true)));
+r.push(["staff1", grades, 360, await check()]);
+return JSON.stringify(r);
+'''
+pathlib.Path("/tmp/claude-501/ui/dots2.js").write_text(s)
+EOF
+sleep 1; /tmp/claude-501/ui/run.sh /tmp/claude-501/ui/dots2.js | python3 -c "
+import json,sys
+for row in json.loads(sys.stdin.read()):
+    c=row[3]; print(row[0],row[1],'dots',c['dots'],'lineStarts',c['lineStarts'],'struct',c['structure'],'sw',c['sw'],c['vw'])
+" 2>/dev/null
+  staff1 /staff/chats/ dots 5 lineStarts [] struct True sw 360 360
+  student1 /chat/ dots 6 lineStarts [] struct True sw 360 360
+  staff1 /staff/students/ dots 2 lineStarts [] struct True sw 360 360
+  staff1 /staff/schedule/ dots 1 lineStarts [] struct True sw 360 360
+  student1 /notifications/ dots 51 lineStarts [] struct True sw 360 360
+  staff1 /staff/announcements/ dots 8 lineStarts [] struct True sw 360 360
+  student1 /grades/ dots 15 lineStarts [] struct True sw 360 360
+  student1 / dots 10 lineStarts [] struct True sw 360 360
+  staff1 /staff/chats/35ebc1f1-067b-447c-b8a8-1a2466f15e48/ dots 2 lineStarts [] struct True sw 360 360
+  staff1 /staff/students/3/grades/ dots 15 lineStarts [] struct True sw 360 360
+  [This command modified 1 file you've previously read: ../../../tmp/claude-501/ui/run.sh. Call Read before editing.]
+
+── Assistant ───────────────────────────────────────────────
+Все страницы из поправки прошли проверку на 360 px. Один тест упал: `test_meta_item_nowrap`. Смотрю причину.
+
+── Ran 6 commands, created 3 files, explored 4 files ───────
+  ── Ran L=$(ls -t /tmp/claude-501/test-014fix-apps-* | head -1); grep -E "^FAIL:" -A14 $L; cd ~/hackatonproject && grep -n "petition-title" -B1 -A5 static/css/base.css | head
+    $ L=$(ls -t /tmp/claude-501/test-014fix-apps-* | head -1); grep -E "^FAIL:" -A14 $L; cd ~/hackatonproject && grep -n "petition-title" -B1 -A5 static/css/base.css | head
+    FAIL: test_meta_item_nowrap (core.tests.test_css.BaseCssTests.test_meta_item_nowrap)
+    ----------------------------------------------------------------------
+    Traceback (most recent call last):
+      File "~/hackatonproject/core/tests/test_css.py", line 29, in test_meta_item_nowrap
+        self.assertTrue(any("display: block" in b and "min-height: 2.75rem" in b for b in title))
+    AssertionError: False is not true
+
+    ----------------------------------------------------------------------
+    Ran 1051 tests in 152.063s
+
+    FAILED (failures=1)
+    Destroying test database for alias 'default'...
+    Found 1051 test(s).
+    System check identified no issues (0 silenced).
+    Demo data ready: 2 faculties, 2 programs, 2 groups, 3 students, 2 staff.
+    771-   the preceding part, so a line never starts with "·". */
+    772:.petition-title,
+    773-.catalog-title {
+    774-  display: block;
+    775-  min-height: 2.75rem;
+    776-  padding-block: 0.625rem;
+    777-}
+  ── Thought for 1s
+    I think the regex is the problem here: the selector group is grabbing the preceding comment along with `.petition-title`, so the first item never matches. I'll strip comments before parsing, since that's a bug in my test, not the code. I also need to sort out the timestamps, because the log filename says 22:17 while some entries inside show 23:46.
+
+    I need to report the test name and the failure time from the log line, and the Django timestamps nearby suggest about 23:46 MSK.
+  ── Thought for 19ms
+    Регулярное выражение в моём тесте захватывало комментарий CSS вместе с селектором, поэтому я убираю комментарии перед разбором.
+  ── Ran python3 - <<'EOF' 2>/dev/null import pathlib p=pathlib.Path("core/tests/test_css.py"); s=p.read_text() old='''        rules = re.findall(r"([^{}]+)\\{([^{}]*)\\}", base_css)         def bodies(selector):''' assert old in s, "nf" s=s.replace(old,'''        css = re.sub(r"/\\*.*?\\*/", "", base_css, flags=re.S)         rules = re.findall(r"([^{}]+)\\{([^{}]*)\\}", css)         def bodies(selector):''') p.write_text(s) EOF sed -n 20,32p core/tests/test_css.py; source .venv/bin/activate && ruff check core/tests/test_css.py && ruff format --check core/tests/test_css.py && L="$TMPDIR/test-014fix-css-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"; python manage.py test core.tests.test_css core.tests.test_design petitions --parallel 1 > "$L" 2>&1; echo "$L"; grep -E "^(Ran|OK|FAILED)" "$L" (23s)
+    $ python3 - <<'EOF' 2>/dev/null
+  import pathlib
+  p=pathlib.Path("core/tests/test_css.py"); s=p.read_text()
+  old='''        rules = re.findall(r"([^{}]+)\\{([^{}]*)\\}", base_css)
+
+          def bodies(selector):'''
+  assert old in s, "nf"
+  s=s.replace(old,'''        css = re.sub(r"/\\*.*?\\*/", "", base_css, flags=re.S)
+          rules = re.findall(r"([^{}]+)\\{([^{}]*)\\}", css)
+
+          def bodies(selector):''')
+  p.write_text(s)
+  EOF
+  sed -n 20,32p core/tests/test_css.py; source .venv/bin/activate && ruff check core/tests/test_css.py && ruff format --check core/tests/test_css.py && L="$TMPDIR/test-014fix-css-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"; python manage.py test core.tests.test_css core.tests.test_design petitions --parallel 1 > "$L" 2>&1; echo "$L"; grep -E "^(Ran|OK|FAILED)" "$L"
+    def test_meta_item_nowrap(self):
+            base_css = (Path(settings.BASE_DIR) / "static/css/base.css").read_text()
+            css = re.sub(r"/\*.*?\*/", "", base_css, flags=re.S)
+            rules = re.findall(r"([^{}]+)\{([^{}]*)\}", css)
+
+            def bodies(selector):
+                return [b for sel, b in rules if selector in [s.strip() for s in sel.split(",")]]
+
+            self.assertTrue(any("white-space: nowrap" in b for b in bodies(".meta-item")))
+            title = bodies(".petition-title")
+            self.assertTrue(any("display: block" in b and "min-height: 2.75rem" in b for b in title))
+
+        def test_map_highlight_rule(self):
+    All checks passed!
+    1 file already formatted
+    /tmp/claude-501/test-014fix-css-20261119-234653.log
+    Ran 223 tests in 19.982s
+    OK
+  ── Thought for 358ms
+    The 223 tests passed, petitions included, so that's fine. Next I want to check that live chat polling works: I'll open the student chat page, post a staff message through the Django shell using the same helper as before, and confirm it shows up after the 5-second poll without a reload.
+  ── Thought for 17ms
+    Тест исправлен, все 223 теста проходят. Сейчас проверяю живое обновление чата: новое сообщение должно появиться без перезагрузки страницы.
+  ── Created /tmp/claude-501/ui/staffmsg.py +15
+    --- /dev/null
+    +++ b/tmp/claude-501/ui/staffmsg.py
+    +from django.contrib.auth import get_user_model
+    +from django.utils import timezone
+    +
+    +from chat.models import AuthorRole, Dialog, Message
+    +
+    +U = get_user_model()
+    +staff = U.objects.get(username="staff1")
+    +student = U.objects.get(username="student1")
+    +dialog = Dialog.objects.get(student=student.student_profile)
+    +now = timezone.now()
+    +m = Message.objects.create(
+    +    dialog=dialog, author=staff, author_role=AuthorRole.STAFF, text="Проверка опроса чата", created_at=now
+    +)
+    +Dialog.objects.filter(pk=dialog.pk).update(last_message_at=now, last_message_id=m.pk)
+    +print("message", m.pk)
+  ── Ran /tmp/claude-501/ui/run.sh 'await go("student1","/chat/",360,780); return await p.evaluate(()=>document.querySelectorAll("#chat-messages li[data-message-id]").length);' && source .venv/bin/activate && DATABASE_URL="sqlite:///$TMPDIR/ui014.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/ui-private" python manage.py shell < $TMPDIR/ui/staffmsg.py 2>&1 | grep message && /tmp/claude-501/ui/run.sh 'await new Promise(r=>setTimeout(r,7000)); const res = await p.evaluate(()=>{const li=[...document.querySelectorAll("#chat-messages li[data-message-id]")]; const last=li[li.length-1]; last.scrollIntoView({block:"center"}); return {count: li.length, lastText: last.querySelector(".chat-text").textContent, meta: last.querySelector(".chat-meta").innerHTML, url: location.pathname};}); await shot(false); return res;' (9s)
+    $ /tmp/claude-501/ui/run.sh 'await go("student1","/chat/",360,780); return await p.evaluate(()=>document.querySelectorAll("#chat-messages li[data-message-id]").length);' && source .venv/bin/activate && DATABASE_URL="sqlite:///$TMPDIR/ui014.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/ui-private" python manage.py shell < $TMPDIR/ui/staffmsg.py 2>&1 | grep message && /tmp/claude-501/ui/run.sh 'await new Promise(r=>setTimeout(r,7000)); const res = await p.evaluate(()=>{const li=[...document.querySelectorAll("#chat-messages li[data-message-id]")]; const last=li[li.length-1]; last.scrollIntoView({block:"center"}); return {count: li.length, lastText: last.querySelector(".chat-text").textContent, meta: last.querySelector(".chat-meta").innerHTML, url: location.pathname};}); await shot(false); return res;'
+    4
+    message 9
+    {
+      "count": 5,
+      "lastText": "Проверка опроса чата",
+      "meta": "<strong>Деканат&nbsp;· Миронова&nbsp;Е.&nbsp;В.</strong>&nbsp;· <time datetime=\"2026-11-19T23:47:26.627424+03:00\">19.11.2026 23:47</time>",
+      "url": "/chat/"
+    }
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-uwDzZs/db-aFDP9T/tmp/shot-1795121254047-1.jpg 360 780
+  ── Thought for 491ms
+    The polling is confirmed working, with the count going from 4 to 5 without a reload. Next I'll capture screenshots of the amendment pages at 360 width, in three runs of up to four pages each, then wrap up.
+  ── Thought for 2ms
+    Опрос чата заработал: стало 5 сообщений вместо 4, и разделитель больше не склеен. Сейчас сделаю скриншоты страниц из правки.
+  ── Ran /tmp/claude-501/ui/run.sh 'await go("staff1","/staff/chats/",360,780); await shot(false); await go("staff1","/staff/students/",360,780); await shot(false); await go("staff1","/staff/schedule/",360,780); await shot(false); await go("student1","/notifications/",360,780); await p.evaluate(()=>document.querySelector("#feed").scrollIntoView()); await shot(false); return 1;'; /tmp/claude-501/ui/run.sh 'await go("staff1","/staff/announcements/",360,780); await p.evaluate(()=>document.querySelector("#list-title").scrollIntoView()); await shot(false); await go("student1","/grades/",360,780); await p.evaluate(()=>{const d=document.querySelector(".discipline details"); d.open=true; document.querySelector(".discipline-list").scrollIntoView();}); await shot(false); await go("student1","/",360,780); await p.evaluate(()=>document.querySelector("#home-lessons").scrollIntoView()); await shot(false); return 1;' (2s)
+    $ /tmp/claude-501/ui/run.sh 'await go("staff1","/staff/chats/",360,780); await shot(false); await go("staff1","/staff/students/",360,780); await shot(false); await go("staff1","/staff/schedule/",360,780); await shot(false); await go("student1","/notifications/",360,780); await p.evaluate(()=>document.querySelector("#feed").scrollIntoView()); await shot(false); return 1;'; /tmp/claude-501/ui/run.sh 'await go("staff1","/staff/announcements/",360,780); await p.evaluate(()=>document.querySelector("#list-title").scrollIntoView()); await shot(false); await go("student1","/grades/",360,780); await p.evaluate(()=>{const d=document.querySelector(".discipline details"); d.open=true; document.querySelector(".discipline-list").scrollIntoView();}); await shot(false); await go("student1","/",360,780); await p.evaluate(()=>document.querySelector("#home-lessons").scrollIntoView()); await shot(false); return 1;'
+    1
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-uwDzZs/db-aFDP9T/tmp/shot-1795121260918-2.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-uwDzZs/db-aFDP9T/tmp/shot-1795121261005-3.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-uwDzZs/db-aFDP9T/tmp/shot-1795121261067-4.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-uwDzZs/db-aFDP9T/tmp/shot-1795121261157-5.jpg 360 780
+    1
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-uwDzZs/db-aFDP9T/tmp/shot-1795121262024-6.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-uwDzZs/db-aFDP9T/tmp/shot-1795121262111-7.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-uwDzZs/db-aFDP9T/tmp/shot-1795121262213-8.jpg 360 780
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-uwDzZs/db-aFDP9T/tmp/shot-1795121260918-2.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-uwDzZs/db-aFDP9T/tmp/shot-1795121261157-5.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-uwDzZs/db-aFDP9T/tmp/shot-1795121262111-7.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-uwDzZs/db-aFDP9T/tmp/shot-1795121262213-8.jpg
+  ── Thought for 728ms
+    Everything checks out: the lines end with "·" and never start with one. Next I'll save the screenshots, close the browser and server, and run the full verification.
+  ── Thought for 16ms
+    Все экраны прошли проверку: строки заканчиваются на «·», но не начинаются с неё. Сейчас сохраню скриншоты, закрою браузер и сервер и запущу полную проверку.
+  ── Ran cp /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-uwDzZs/db-aFDP9T/tmp/shot-*.jpg /tmp/claude-501/ui/shots-014fix/ && ls /tmp/claude-501/ui/shots-014fix | wc -l; bb browser-automation close 8ef29cd3-f65b-4fe5-9753-5c685de3784a --json 2>&1 | grep -o '"state":"[a-z]*"'; pkill -f "runserver 127.0.0.1:8770"; sleep 1; pgrep -f "runserver 127.0.0.1:8770" || echo stopped (Outside of sandbox) (6s)
+    $ cp /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-uwDzZs/db-aFDP9T/tmp/shot-*.jpg /tmp/claude-501/ui/shots-014fix/ && ls /tmp/claude-501/ui/shots-014fix | wc -l; bb browser-automation close 8ef29cd3-f65b-4fe5-9753-5c685de3784a --json 2>&1 | grep -o '"state":"[a-z]*"'; pkill -f "runserver 127.0.0.1:8770"; sleep 1; pgrep -f "runserver 127.0.0.1:8770" || echo stopped
+    14
+    "state":"closed"
+    stopped
+  ── Created /tmp/claude-501/ui/verify-014fix.sh +16
+    --- /dev/null
+    +++ b/tmp/claude-501/ui/verify-014fix.sh
+    +#!/bin/zsh
+    +cd ~/hackatonproject
+    +source .venv/bin/activate
+    +T=/tmp/claude-501
+    +F=(petitions/tests/test_views.py core/tests/test_css.py core/tests/test_design.py chat/tests/test_views.py notifications/tests/test_views.py academics/tests/test_views.py core/tests/test_home.py)
+    +{
+    +  echo "== check"; python manage.py check
+    +  echo "== makemigrations"; python manage.py makemigrations --check --dry-run
+    +  echo "== ruff"; ruff check $F && ruff format --check $F
+    +} > "$T/verify-014fix-checks.log" 2>&1
+    +L="$T/test-014fix-full-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"
+    +python manage.py test --parallel 1 > "$L" 2>&1
+    +echo "$L"
+    +grep -E "^(Ran|OK|FAILED)" "$L"
+    +grep -E "^(FAIL|ERROR):" "$L" | head
+    +cat "$T/verify-014fix-checks.log"
+  ── Ran zsh /tmp/claude-501/ui/verify-014fix.sh
+    $ zsh /tmp/claude-501/ui/verify-014fix.sh
+    Command running in background with ID: b165ly522. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/b165ly522.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Thought for 1s
+    I'm drafting the report while I wait, and I need the time of the failed run. Django logged it at 23:46:10, and the test file failure also lands around 23:46 MSK. The first big run is puzzling, though: it's named for a 22:17 start but seems to have finished around 23:46, so my session may have been paused in between.
+
+    The run's start time doesn't match its length: 152 seconds of tests means it began around 23:44, not 22:17 as the file name suggests. The 22:17 timestamp was probably taken before the shell suspended Python, so I'll report the run as finishing around 23:46 MSK.
+  ── Created /tmp/claude-501/ui/report-014fix.md +53
+    --- /dev/null
+    +++ b/tmp/claude-501/ui/report-014fix.md
+    +[TASK-014-FIX] UI coder -> Reviewer: REPORT
+    +Spec: docs/tasks/TASK-014-FIX.md (incl. Amendment 1).
+    +
+    +## What was done
+    +Rule everywhere in scope: the dot is glued to the previous part with `&nbsp;·`, followed by one normal space; no whitespace or newline before "·" in any of the 13 templates.
+    +- petitions: `my_list.html` and `staff_queue.html` rows exactly as in the spec (block `.petition-title` link; staff `<p class="petition-subject">`; one `<p class="petition-meta">` of `meta-item` spans with the dot inside the preceding span). `catalog.html`: `.catalog-item` blocks (title link / description / "Срок: …"), no separators, `{% empty %}` texts kept. `includes/history.html`, `includes/comments.html`: each `<li>` on one template line with `&nbsp;·`.
+    +- Amendment 1 (exact lines from the spec): chat `staff_list.html`, `_message.html` (only the separators in `chat-meta`; `<li>`, classes, `id`, `data-message-id` unchanged; chat.js unchanged), accounts `student_list.html`, schedule `staff_group_list.html`, notifications `feed.html`, `staff_list.html`, academics `includes/discipline.html` (`<summary>` on one line), schedule `includes/lesson_compact.html` (three separators; room link, `lesson-change`, tag unchanged).
+    +- base.css: `.meta-item { white-space: nowrap }`; `.petition-title, .catalog-title { display: block; min-height: 2.75rem; padding-block: 0.625rem }` (I removed `.petition > a` from the old shared inline-block rule, so the new rule applies without a specificity fight); `margin: 0` for meta/subject/desc/term; `.catalog-item + .catalog-item` spacing.
+    +- theme.css (optional per spec): `.petition-meta, .catalog-term` in `--color-muted` (7.12:1 on the panel); `.petition-meta .status` stays `--color-text` so the status is not dimmed.
+    +
+    +## Changed files
+    +Templates (13): petitions/templates/petitions/{my_list,staff_queue,catalog}.html, petitions/templates/petitions/includes/{history,comments}.html, chat/templates/chat/{staff_list,_message}.html, accounts/templates/accounts/student_list.html, schedule/templates/schedule/staff_group_list.html, notifications/templates/notifications/{feed,staff_list}.html, academics/templates/academics/includes/discipline.html, schedule/templates/schedule/includes/lesson_compact.html.
+    +CSS: static/css/base.css, static/css/theme.css.
+    +Tests: petitions/tests/test_views.py, core/tests/test_css.py, core/tests/test_design.py, chat/tests/test_views.py, notifications/tests/test_views.py, academics/tests/test_views.py, core/tests/test_home.py.
+    +Unexpected changes: none (`plan.md` is the Team lead's; `docs/tasks/TASK-014-FIX.md` is the spec). No Python app code, no JS.
+    +
+    +## Spec conflict (please check)
+    +`SeparatorRuleTests::test_no_whitespace_before_separator` asks every file of the tuple to contain at least one `&nbsp;·`, but `catalog.html` has no separators at all by AC4/D4. The test asserts `assertNotIn("·", text)` for `catalog.html` instead (with a comment), and `&nbsp;·` for the other 12 files.
+    +
+    +## Tests
+    +New: `petitions SeparatorTests` (6 tests from the plan), `BaseCssTests::test_meta_item_nowrap`, `SeparatorRuleTests::test_no_whitespace_before_separator` (13 files, subTest each), `UpdatesViewTests::test_fragment_meta_separator` (chat poll fragment: `Деканат&nbsp;· `, `li` with `data-message-id`), `FeedViewTests::test_meta_separator_glued`, `StudentGradesViewTests::test_summary_separator_glued`, `HomeStudentTests::test_lesson_meta_separator_glued`.
+    +Changed: `chat/tests/test_views.py` "Деканат ·" → "Деканат&nbsp;· " with `# TASK-014-FIX:` comment. No other existing test changed.
+    +
+    +## Test runs (Moscow time)
+    +RESULTS_PLACEHOLDER
+    +
+    +## Visual check (temp DB with seed_demo + one request with a 150-character subject "Другое заявление: …" for student1; headless Chromium)
+    +Check per page: for every "·" in `main`, a Range rect of the dot vs the left content edge of its block → `lineStarts` (dots that start a line); plus a markup check (no `[ \t\n]·` in `innerHTML`); plus `scrollWidth === innerWidth`.
+    +
+    +| Page | Role | Width | Dots | Line starts with "·" | H-scroll |
+    +|---|---|---|---|---|---|
+    +| /requests/ | student | 320, 360, 1024 | 15 | 0 | none |
+    +| /staff/requests/ | staff | 360, 1024 | 12 | 0 | none |
+    +| /requests/new/ (catalog) | student | 360 | 0 | – | none |
+    +| request detail (history + staff comment) | staff | 360 | 6 | 0 | none |
+    +| /staff/chats/ | staff | 360 | 5 | 0 | none |
+    +| /chat/ | student | 360 | 6 | 0 | none |
+    +| staff dialog | staff | 360 | 2 | 0 | none |
+    +| /staff/students/ | staff | 360 | 2 | 0 | none |
+    +| /staff/schedule/ | staff | 360 | 1 | 0 | none |
+    +| /notifications/ (with "Новое") | student | 360 | 51 | 0 | none |
+    +| /staff/announcements/ | staff | 360 | 8 | 0 | none |
+    +| /grades/ (details open) | student | 360 | 15 | 0 | none |
+    +| staff view of student grades (all details open) | staff | 360 | 15 | 0 | none |
+    +| / "Занятия" card | student | 360 | 10 | 0 | none |
+    +
+    +At 360 the long rows wrap after a dot (the line ends with "·", e.g. "№ ac68109b · 19 ноября 2026 ·" / "Подана ·" / "готовность: 26 ноября 2026"); bounded parts never split.
+    +Live chat poll: student /chat/ open with 4 messages; a staff message created in the DB; after one poll interval (7 s) the page had 5 messages without reload, the new meta `<strong>Деканат&nbsp;· Миронова&nbsp;Е.&nbsp;В.</strong>&nbsp;· <time …>`.
+    +
+    +Screenshots: /tmp/claude-501/ui/shots-014fix/ (14 JPEGs: student list 360 full page, staff queue 360 and 1024, student list 1024, catalog 360 full page, detail 360, chat after poll 360, staff chats, students, groups, feed, announcements, grades with details, home card — all 360).
+    +
+    +## What remains
+    +Nothing in scope. Pages listed as out of scope in the spec keep " · " (today.html, home page-sub, lesson_item time line, staff_dialog header line).
+
+── Assistant ───────────────────────────────────────────────
+Отчёт подготовлен. Жду окончания полного прогона.
+
+── Assistant ───────────────────────────────────────────────
+Жду уведомления от Monitor.
+
+── Explored 1 file, ran 1 command ──────────────────────────
+  ── Read /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/b165ly522.output
+  ── Ran python3 - <<'EOF' 2>/dev/null import pathlib p=pathlib.Path("/tmp/claude-501/ui/report-014fix.md"); s=p.read_text() s=s.replace("RESULTS_PLACEHOLDER","""- Step 1 (5 petitions templates) `test petitions`: 182 OK (15:39 MSK), log /tmp/claude-501/test-014fix-step1-20261119-153924.log. - **FAILED once**: `core.tests.test_css.BaseCssTests.test_meta_item_nowrap` in `test petitions chat notifications academics core schedule accounts` (finished ~23:46 MSK; log /tmp/claude-501/test-014fix-apps-20261119-221740.log; the file name has the start time of the shell command, the run itself was delayed by a pause of my session): `AssertionError: False is not true` at `self.assertTrue(any("display: block" in b and "min-height: 2.75rem" in b for b in title))`. Cause: my new test's rule regex took the CSS comment above `.petition-title` into the selector text. Fix: the test strips `/* … */` before parsing. The other 1050 tests in that run passed. - After the fix: `test core.tests.test_css core.tests.test_design petitions`: 223 OK (23:46 MSK), log /tmp/claude-501/test-014fix-css-20261119-234653.log. - Full `python manage.py test --parallel 1`: **Ran 1134 tests, OK** (23:48–23:51 MSK), log /tmp/claude-501/test-014fix-full-20261119-234806.log. Baseline 1122 → 1134 (+12). - `check`: no issues; `makemigrations --check --dry-run`: No changes detected; `ruff check` / `ruff format --check` on the 7 test files: passed. Log /tmp/claude-501/verify-014fix-checks.log.""") p.write_text(s) EOF bb thread tell thr_cpuae9aqw3 --message-file /tmp/claude-501/ui/report-014fix.md 2>&1 | tail -1
+    $ python3 - <<'EOF' 2>/dev/null
+  import pathlib
+  p=pathlib.Path("/tmp/claude-501/ui/report-014fix.md"); s=p.read_text()
+  s=s.replace("RESULTS_PLACEHOLDER","""- Step 1 (5 petitions templates) `test petitions`: 182 OK (15:39 MSK), log /tmp/claude-501/test-014fix-step1-20261119-153924.log.
+  - **FAILED once**: `core.tests.test_css.BaseCssTests.test_meta_item_nowrap` in `test petitions chat notifications academics core schedule accounts` (finished ~23:46 MSK; log /tmp/claude-501/test-014fix-apps-20261119-221740.log; the file name has the start time of the shell command, the run itself was delayed by a pause of my session): `AssertionError: False is not true` at `self.assertTrue(any("display: block" in b and "min-height: 2.75rem" in b for b in title))`. Cause: my new test's rule regex took the CSS comment above `.petition-title` into the selector text. Fix: the test strips `/* … */` before parsing. The other 1050 tests in that run passed.
+  - After the fix: `test core.tests.test_css core.tests.test_design petitions`: 223 OK (23:46 MSK), log /tmp/claude-501/test-014fix-css-20261119-234653.log.
+  - Full `python manage.py test --parallel 1`: **Ran 1134 tests, OK** (23:48–23:51 MSK), log /tmp/claude-501/test-014fix-full-20261119-234806.log. Baseline 1122 → 1134 (+12).
+  - `check`: no issues; `makemigrations --check --dry-run`: No changes detected; `ruff check` / `ruff format --check` on the 7 test files: passed. Log /tmp/claude-501/verify-014fix-checks.log.""")
+  p.write_text(s)
+  EOF
+  bb thread tell thr_cpuae9aqw3 --message-file /tmp/claude-501/ui/report-014fix.md 2>&1 | tail -1
+    Thread thr_cpuae9aqw3 steered
+    [This command modified 1 file you've previously read: ../../../tmp/claude-501/ui/report-014fix.md. Call Read before editing.]
+
+── Assistant ───────────────────────────────────────────────
+TASK-014-FIX готова вместе с поправкой 1, отчёт отправлен Ревьюеру (@thread:thr_cpuae9aqw3). Полный прогон: 1134 теста OK, было 1122.
+
+**Что сделано:**
+- **Правило для «·»:** точка приклеена к предыдущей части неразрывным пробелом (`&nbsp;·`), после неё идёт обычный пробел. Строка может кончаться точкой, но не может с неё начинаться. Правило действует в 13 шаблонах: 5 по заявкам и 8 из поправки (чаты, студенты, группы, уведомления, объявления, успеваемость, карточка «Занятия»).
+- **Списки заявок:** название стоит на отдельной строке и остаётся кнопкой высотой 44 px. Ниже одна строка деталей; короткие части (даты, статус) не разрываются.
+- **Каталог:** разделителей нет. У каждого вида заявки три строки: название, описание и срок.
+- **Тесты:** 12 новых. В тесте чата один ожидаемый текст обновлён.
+
+**Проверка в браузере:**
+- 14 страниц на 360 px, списки заявок ещё на 320 и 1024 px.
+- Ни одна строка не начинается с «·», горизонтального скролла нет. Тему заявки в 150 символов я тоже проверил.
+- Живой опрос чата работает: новое сообщение от сотрудника появилось без перезагрузки, разделитель в нём склеен.
+
+**Что пошло не так:**
+- Один раз упал мой новый тест `test_meta_item_nowrap` (около 23:46 по Москве). Тест захватывал комментарий CSS вместе с селектором. Я исправил тест, повторный прогон прошёл. Это записано в отчёте.
+- В поправке есть противоречие. Новый тест требует «&nbsp;·» в каждом из 13 файлов, но в каталоге разделителей нет совсем: так задано в AC4. Для каталога тест проверяет, что «·» в нём нет. Я попросил Ревьюера это проверить.
+
+Тестовый сервер я один раз остановил командой без песочницы, потому что песочница не показывает процессы из других команд. Ещё один раз сервер остановился сам по лимиту времени фоновой команды, после этого я его перезапустил. Сервер и браузер закрыты. Жду ответа Ревьюера.

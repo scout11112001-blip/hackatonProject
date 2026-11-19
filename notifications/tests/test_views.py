@@ -1,3 +1,4 @@
+import re
 from datetime import date, timedelta
 from unittest import mock
 
@@ -467,6 +468,15 @@ class FeedViewTests(FrozenClockMixin, TestCase):
     def test_empty_state(self):
         response = self._get()
         self.assertIn("Уведомлений за последние 30 дней нет.", response.content.decode())
+
+    def test_meta_separator_glued(self):
+        make_announcement(self.w.sx, audience=Audience.UNIVERSITY, title="Новость")
+        content = self._get().content.decode()
+        self.assertIn("<strong>Новое</strong>&nbsp;· ", content)
+        metas = re.findall(r'<p class="feed-meta">(.*?)</p>', content, re.S)
+        self.assertTrue(metas)
+        for meta in metas:
+            self.assertIsNone(re.search(r"[ \t\n]·", meta))
 
     def test_section_anchors(self):
         content = self._get().content.decode()

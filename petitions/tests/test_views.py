@@ -1,3 +1,4 @@
+import re
 import uuid
 from datetime import timedelta
 
@@ -818,3 +819,111 @@ class SubjectDisplayTests(FrozenClockMixin, TestCase):
         content = self.client.get(reverse("petitions:my_list")).content.decode()
         self.assertIn("Справка об обучении", content)
         self.assertNotIn("Справка об обучении:", content)
+
+
+def _part(content: str, start_marker: str, end_marker: str) -> str:
+    start = content.index(start_marker)
+    return content[start : content.index(end_marker, start)]
+
+
+SPACE_BEFORE_DOT = re.compile(r"[ \t\n]·")
+
+
+class SeparatorTests(FrozenClockMixin, TestCase):
+    """A separator dot is glued to the previous part (TASK-014-FIX)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.fac = make_faculty("FX")
+        cls.group = make_group(cls.fac, "GX")
+        cls.student = make_student("a", cls.group, "SA").student_profile
+        cls.staff = make_staff("sx", cls.fac)
+        cls.ordinary = make_type(name="Справка об обучении")
+        cls.catch_all = make_type(
+            name="Другая справка",
+            days=5,
+            comment_required=True,
+            hint="h",
+            subject_required=True,
+        )
+        cls.p1 = make_petition(cls.student, cls.ordinary)
+        cls.p2 = make_petition(cls.student, cls.catch_all)
+        cls.p2.subject = "а" * 150
+        cls.p2.save(update_fields=["subject"])
+        change_status(cls.p1, cls.staff, "submitted", "in_progress")
+        add_staff_comment(cls.p1, cls.staff, "Справка будет готова к пятнице.")
+        cls.long_title = "Другая справка: " + "а" * 150
+
+    def _student_list(self):
+        self.client.force_login(self.student.user)
+        return self.client.get(reverse("petitions:my_list")).content.decode()
+
+    def _staff_queue(self):
+        self.client.force_login(self.staff)
+        return self.client.get(reverse("petitions:staff_queue")).content.decode()
+
+    def test_no_space_before_dot_in_lists(self):
+        for name, content in (("my_list", self._student_list()), ("queue", self._staff_queue())):
+            with self.subTest(page=name):
+                part = _part(content, '<ul class="petition-list">', "</ul>")
+                self.assertIsNone(SPACE_BEFORE_DOT.search(part))
+                rows = re.findall(r'<li class="petition">.*?</li>', part, re.S)
+                self.assertEqual(len(rows), 2)
+                for row in rows:
+                    self.assertEqual(row.count("&nbsp;·"), 3)
+
+    def test_no_space_before_dot_in_detail(self):
+        pages = (
+            (self.student.user, reverse("petitions:detail", args=[self.p1.public_id])),
+            (self.staff, reverse("petitions:staff_detail", args=[self.p1.public_id])),
+        )
+        for user, url in pages:
+            self.client.force_login(user)
+            content = self.client.get(url).content.decode()
+            with self.subTest(url=url):
+                history = _part(content, "<ol>", "</ol>")
+                self.assertIn("&nbsp;·", history)
+                self.assertIsNone(SPACE_BEFORE_DOT.search(history))
+                start = content.index("Справка будет готова к пятнице.")
+                comments = content[content.rindex("<ul>", 0, start) : content.index("</ul>", start)]
+                self.assertIn("&nbsp;·", comments)
+                self.assertIsNone(SPACE_BEFORE_DOT.search(comments))
+
+    def test_student_row_structure(self):
+        content = self._student_list()
+        link = (
+            f'<a class="petition-title" href="/requests/{self.p2.public_id}/">{self.long_title}</a>'
+        )
+        self.assertIn(link, content)
+        row = content[content.index(link) :]
+        self.assertTrue(row[len(link) :].lstrip().startswith('<p class="petition-meta">'))
+        self.assertIn(f'<span class="meta-item">№ {self.p2.short_id}&nbsp;·</span>', row)
+
+    def test_staff_row_structure(self):
+        content = self._staff_queue()
+        subject = f'<p class="petition-subject">{self.long_title}</p>'
+        self.assertIn(subject, content)
+        row_start = content.rindex('<li class="petition">', 0, content.index(subject))
+        row = content[row_start : content.index("</li>", row_start)]
+        self.assertLess(row.index('<a class="petition-title"'), row.index(subject))
+        self.assertLess(row.index(subject), row.index('<p class="petition-meta">'))
+        self.assertIn("файлов: 0", row)
+
+    def test_catalog_blocks(self):
+        self.client.force_login(self.student.user)
+        content = self.client.get(reverse("petitions:catalog")).content.decode()
+        self.assertIn('<p class="catalog-term">Срок: до 5 рабочих дней</p>', content)
+        self.assertIn('<a class="catalog-title"', content)
+        main = _part(content, "<main", "</main>")
+        self.assertNotIn(" — ", main)
+        self.assertNotIn("·", main)
+
+    def test_texts_and_links_kept(self):
+        content = self._student_list()
+        self.assertIn(f'href="/requests/{self.p1.public_id}/"', content)
+        self.assertIn("В работе", content)
+        self.assertIn("готовность:", content)
+        queue = self._staff_queue()
+        self.assertIn(f'href="/staff/requests/{self.p1.public_id}/"', queue)
+        self.assertIn("GX", queue)
+        self.assertIn("файлов:", queue)

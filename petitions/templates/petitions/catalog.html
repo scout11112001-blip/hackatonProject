@@ -3,21 +3,21 @@
   <h1>Подать заявку</h1>
   <h2>Справки</h2>
   {% for type in certificates %}
-    <p>
-      <a href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>
-      {% if type.description %} — {{ type.description }}{% endif %}
-      · Срок: {{ type.term_label }}
-    </p>
+    <div class="catalog-item">
+      <a class="catalog-title" href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>
+      {% if type.description %}<p class="catalog-desc">{{ type.description }}</p>{% endif %}
+      <p class="catalog-term">Срок: {{ type.term_label }}</p>
+    </div>
   {% empty %}
     <p>Справок пока нет.</p>
   {% endfor %}
   <h2>Заявления</h2>
   {% for type in applications %}
-    <p>
-      <a href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>
-      {% if type.description %} — {{ type.description }}{% endif %}
-      · Срок: {{ type.term_label }}
-    </p>
+    <div class="catalog-item">
+      <a class="catalog-title" href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>
+      {% if type.description %}<p class="catalog-desc">{{ type.description }}</p>{% endif %}
+      <p class="catalog-term">Срок: {{ type.term_label }}</p>
+    </div>
   {% empty %}
     <p>Заявлений пока нет.</p>
   {% endfor %}

@@ -12,7 +12,7 @@
   <ul class="feed">
     {% for item in items %}
     <li class="feed-item" id="{{ item.key }}">
-      <p class="feed-meta">{% if item.is_new %}<strong>Новое</strong> · {% endif %}{{ item.tag }} · <time datetime="{{ item.timestamp|date:'c' }}">{{ item.timestamp|date:"d.m.Y H:i" }}</time>{% if item.audience_label %} · {{ item.audience_label }}{% endif %}</p>
+      <p class="feed-meta">{% if item.is_new %}<strong>Новое</strong>&nbsp;· {% endif %}{{ item.tag }}&nbsp;· <time datetime="{{ item.timestamp|date:'c' }}">{{ item.timestamp|date:"d.m.Y H:i" }}</time>{% if item.audience_label %}&nbsp;· {{ item.audience_label }}{% endif %}</p>
       <h3>{% if item.url %}<a href="{{ item.url }}">{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}</h3>
       {% if item.deadline %}<p>Срок: до {{ item.deadline|date:"d.m.Y" }}, {{ item.deadline_label }}</p>{% endif %}
       {% if item.body %}<p>{{ item.body|linebreaksbr }}</p>{% endif %}

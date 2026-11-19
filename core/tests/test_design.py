@@ -360,3 +360,35 @@ class ReadmeTests(SimpleTestCase):
         for needle in ("Туалет М", "Туалет Ж", "Вход", "Every floor has two staircases"):
             self.assertIn(needle, section)
         self.assertNotIn("Склад", section)
+
+
+SEPARATOR_TEMPLATES = (
+    "petitions/templates/petitions/my_list.html",
+    "petitions/templates/petitions/staff_queue.html",
+    "petitions/templates/petitions/catalog.html",
+    "petitions/templates/petitions/includes/history.html",
+    "petitions/templates/petitions/includes/comments.html",
+    "chat/templates/chat/staff_list.html",
+    "chat/templates/chat/_message.html",
+    "accounts/templates/accounts/student_list.html",
+    "schedule/templates/schedule/staff_group_list.html",
+    "notifications/templates/notifications/feed.html",
+    "notifications/templates/notifications/staff_list.html",
+    "academics/templates/academics/includes/discipline.html",
+    "schedule/templates/schedule/includes/lesson_compact.html",
+)
+
+
+class SeparatorRuleTests(SimpleTestCase):
+    """A "·" is always glued to the previous part with "&nbsp;" (TASK-014-FIX)."""
+
+    def test_no_whitespace_before_separator(self):
+        for relative in SEPARATOR_TEMPLATES:
+            text = _read(relative)
+            with self.subTest(template=relative):
+                self.assertIsNone(re.search(r"\s·", text))
+                if relative.endswith("catalog.html"):
+                    # The catalog has no separators at all (AC4).
+                    self.assertNotIn("·", text)
+                else:
+                    self.assertIn("&nbsp;·", text)

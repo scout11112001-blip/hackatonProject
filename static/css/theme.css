@@ -501,6 +501,15 @@ label {
   color: var(--color-muted);
 }
 
+.petition-meta,
+.catalog-term {
+  color: var(--color-muted);
+}
+
+.petition-meta .status {
+  color: var(--color-text);
+}
+
 .feed-meta strong {
   color: var(--color-heading);
 }

@@ -1,3 +1,4 @@
+import re
 from datetime import date
 from unittest import mock
 
@@ -207,6 +208,14 @@ class StudentGradesViewTests(AccessFixture):
         self.assertIn("Есть задолженности: 1", response.content.decode())
         response_term = self._get(f"/grades/{self.term_prev.code}/", self.student_a)
         self.assertIn("Задолженность", response_term.content.decode())
+
+    def test_summary_separator_glued(self):
+        content = self._get("/grades/", self.student_a).content.decode()
+        summaries = re.findall(r"<summary>(.*?)</summary>", content, re.S)
+        self.assertTrue(summaries)
+        for summary in summaries:
+            self.assertIn("&nbsp;· Итог:", summary)
+            self.assertIsNone(re.search(r"[ \t\n]·", summary))
 
     def test_ok_status(self):
         response = self._get("/grades/", self.student_a)

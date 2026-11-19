@@ -19853,50 +19853,975 @@ TASK-014 одобрена Ревьюером. Проверяю её, а зате
 ── Assistant ───────────────────────────────────────────────
 Тесты прошли: 1122. Обновляю журнал и план, затем делаю коммит.
 
-── Running .venv/bin/python - <<'EOF' p='CHANGELOG.md' s=open(p,encoding='utf-8').read() anchor='## 2026-11-19\n### TASK-013-FIX2' entry='''## 2026-11-19 ### TASK-014: новые виды заявок и срок «до N рабочих дней» - Новые виды: «Справка в военкомат» (комментарий обязателен, подсказка «Укажите военкомат», срок до 3 дней), «Другая справка» и «Другое заявление» (срок до 5 дней). - У «Другой справки» и «Другого заявления» обязательны поля «Тип» (до 150 символов, пробелы по краям убираются) и «Комментарий». «Тип» виден в списках и карточках у студента и у сотрудника: «Другая справка: <Тип>». Новое поле заявки и флаг вида заявки в админке (миграция `petitions/0003`). - Срок во всех видах заявок: «до N рабочих дней» («до 1 рабочего дня», «до 21 рабочего дня»). - В демо-данных: 3 новых вида и заявка «Другая справка: Справка о периоде обучения». - Исполнитель — Кодер на DeepSeek. Ревью: 1 раунд, без замечаний. Проверка тимлида в браузере (360 px): каталог, ошибки формы, HTML в «Типе» показан как текст, списки студента и сотрудника. Всего тестов: 1122. ### TASK-013-FIX2''' assert s.count(anchor)==1 s=s.replace(anchor, entry) open(p,'w',encoding='utf-8').write(s) p='plan.md' s=open(p,encoding='utf-8').read() row=[l for l in s.split('\n') if l.startswith('| TASK-014 |')][0] assert row.endswith('| В работе |') s=s.replace(row, row[:-len('| В работе |')]+'| Готово |') old='TASK-013-FIX2 закрыта 19.11. TASK-014 (заявки) — у Кодера на DeepSeek.' assert s.count(old)==1 s=s.replace(old,'TASK-013-FIX2 и TASK-014 (заявки) закрыты 19.11. Готовится TASK-015: убрать настройки под старый маленький сервер.') open(p,'w',encoding='utf-8').write(s) EOF O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)     t=t.replace('[id скрыт]','[id скрыт]')     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]     assert not bad,(f,bad)     assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF rm -rf "$O"; grep -c "136.148.83.222\|[IP пользователя скрыт]\|109.160.32.154" docs/process/dialogs/01-team-lead.md
-  $ .venv/bin/python - <<'EOF'
-p='CHANGELOG.md'
-s=open(p,encoding='utf-8').read()
-anchor='## 2026-11-19\n### TASK-013-FIX2'
-entry='''## 2026-11-19
-### TASK-014: новые виды заявок и срок «до N рабочих дней»
-- Новые виды: «Справка в военкомат» (комментарий обязателен, подсказка «Укажите военкомат», срок до 3 дней), «Другая справка» и «Другое заявление» (срок до 5 дней).
-- У «Другой справки» и «Другого заявления» обязательны поля «Тип» (до 150 символов, пробелы по краям убираются) и «Комментарий». «Тип» виден в списках и карточках у студента и у сотрудника: «Другая справка: <Тип>». Новое поле заявки и флаг вида заявки в админке (миграция `petitions/0003`).
-- Срок во всех видах заявок: «до N рабочих дней» («до 1 рабочего дня», «до 21 рабочего дня»).
-- В демо-данных: 3 новых вида и заявка «Другая справка: Справка о периоде обучения».
-- Исполнитель — Кодер на DeepSeek. Ревью: 1 раунд, без замечаний. Проверка тимлида в браузере (360 px): каталог, ошибки формы, HTML в «Типе» показан как текст, списки студента и сотрудника. Всего тестов: 1122.
+── Ran 5 commands, explored 1 list ─────────────────────────
+  ── Ran .venv/bin/python - <<'EOF' p='CHANGELOG.md' s=open(p,encoding='utf-8').read() anchor='## 2026-11-19\n### TASK-013-FIX2' entry='''## 2026-11-19 ### TASK-014: новые виды заявок и срок «до N рабочих дней» - Новые виды: «Справка в военкомат» (комментарий обязателен, подсказка «Укажите военкомат», срок до 3 дней), «Другая справка» и «Другое заявление» (срок до 5 дней). - У «Другой справки» и «Другого заявления» обязательны поля «Тип» (до 150 символов, пробелы по краям убираются) и «Комментарий». «Тип» виден в списках и карточках у студента и у сотрудника: «Другая справка: <Тип>». Новое поле заявки и флаг вида заявки в админке (миграция `petitions/0003`). - Срок во всех видах заявок: «до N рабочих дней» («до 1 рабочего дня», «до 21 рабочего дня»). - В демо-данных: 3 новых вида и заявка «Другая справка: Справка о периоде обучения». - Исполнитель — Кодер на DeepSeek. Ревью: 1 раунд, без замечаний. Проверка тимлида в браузере (360 px): каталог, ошибки формы, HTML в «Типе» показан как текст, списки студента и сотрудника. Всего тестов: 1122. ### TASK-013-FIX2''' assert s.count(anchor)==1 s=s.replace(anchor, entry) open(p,'w',encoding='utf-8').write(s) p='plan.md' s=open(p,encoding='utf-8').read() row=[l for l in s.split('\n') if l.startswith('| TASK-014 |')][0] assert row.endswith('| В работе |') s=s.replace(row, row[:-len('| В работе |')]+'| Готово |') old='TASK-013-FIX2 закрыта 19.11. TASK-014 (заявки) — у Кодера на DeepSeek.' assert s.count(old)==1 s=s.replace(old,'TASK-013-FIX2 и TASK-014 (заявки) закрыты 19.11. Готовится TASK-015: убрать настройки под старый маленький сервер.') open(p,'w',encoding='utf-8').write(s) EOF O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)     t=t.replace('[id скрыт]','[id скрыт]')     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]     assert not bad,(f,bad)     assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF rm -rf "$O"; grep -c "136.148.83.222\|[IP пользователя скрыт]\|109.160.32.154" docs/process/dialogs/01-team-lead.md (6s)
+    $ .venv/bin/python - <<'EOF'
+  p='CHANGELOG.md'
+  s=open(p,encoding='utf-8').read()
+  anchor='## 2026-11-19\n### TASK-013-FIX2'
+  entry='''## 2026-11-19
+  ### TASK-014: новые виды заявок и срок «до N рабочих дней»
+  - Новые виды: «Справка в военкомат» (комментарий обязателен, подсказка «Укажите военкомат», срок до 3 дней), «Другая справка» и «Другое заявление» (срок до 5 дней).
+  - У «Другой справки» и «Другого заявления» обязательны поля «Тип» (до 150 символов, пробелы по краям убираются) и «Комментарий». «Тип» виден в списках и карточках у студента и у сотрудника: «Другая справка: <Тип>». Новое поле заявки и флаг вида заявки в админке (миграция `petitions/0003`).
+  - Срок во всех видах заявок: «до N рабочих дней» («до 1 рабочего дня», «до 21 рабочего дня»).
+  - В демо-данных: 3 новых вида и заявка «Другая справка: Справка о периоде обучения».
+  - Исполнитель — Кодер на DeepSeek. Ревью: 1 раунд, без замечаний. Проверка тимлида в браузере (360 px): каталог, ошибки формы, HTML в «Типе» показан как текст, списки студента и сотрудника. Всего тестов: 1122.
 
-### TASK-013-FIX2'''
-assert s.count(anchor)==1
-s=s.replace(anchor, entry)
-open(p,'w',encoding='utf-8').write(s)
+  ### TASK-013-FIX2'''
+  assert s.count(anchor)==1
+  s=s.replace(anchor, entry)
+  open(p,'w',encoding='utf-8').write(s)
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  row=[l for l in s.split('\n') if l.startswith('| TASK-014 |')][0]
+  assert row.endswith('| В работе |')
+  s=s.replace(row, row[:-len('| В работе |')]+'| Готово |')
+  old='TASK-013-FIX2 закрыта 19.11. TASK-014 (заявки) — у Кодера на DeepSeek.'
+  assert s.count(old)==1
+  s=s.replace(old,'TASK-013-FIX2 и TASK-014 (заявки) закрыты 19.11. Готовится TASK-015: убрать настройки под старый маленький сервер.')
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF'
+  import os,re,sys
+  d=sys.argv[1]; out='docs/process/dialogs'
+  for f in sorted(os.listdir(d)):
+      t=open(os.path.join(d,f),encoding='utf-8').read()
+      t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)
+      t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)
+      t=t.replace('[id скрыт]','[id скрыт]')
+      t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')
+      t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)
+      t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')
+      bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]
+      assert not bad,(f,bad)
+      assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f
+      assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f
+      assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f
+      assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f
+      open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
+  EOF
+  rm -rf "$O"; grep -c "136.148.83.222\|[IP пользователя скрыт]\|109.160.32.154" docs/process/dialogs/01-team-lead.md
+    01-team-lead.md 1976 KB
+    02-planner.md 1903 KB
+    03-coder-deepseek.md 5605 KB
+    04-reviewer.md 1275 KB
+    05-ui-coder.md 529 KB
+    43
+  ── Thought for 3s
+    I'm weighing whether the team-lead dialog should keep the server IP and the user's VPN exit IP, since the repo going public would expose the server IP via DNS anyway, while the user's egress IP is still personal-ish even though it's a VPN exit rather than their home address. I'm also checking the hostname that was just starting to come up.
+
+    I'm deciding whether to redact the user's VPN exit IP, which is personal-ish even though it isn't a home address, and I'll mask it as a user IP. I'm keeping the server IP, since it's already discoverable through DNS once the site goes public. I'll also add the user's IP to the redaction list in memory.
+  ── Ran .venv/bin/python -I - <<'EOF' import os d='docs/process/dialogs' for f in sorted(os.listdir(d)):     p=os.path.join(d,f); t=open(p,encoding='utf-8').read()     n=t.count('[IP пользователя скрыт]')     if n:         t=t.replace('[IP пользователя скрыт]','[IP пользователя скрыт]'); open(p,'w',encoding='utf-8').write(t)     print(f, n) EOF grep -rc "[IP пользователя скрыт]" docs/process/dialogs | grep -v ":0" (1s)
+    $ .venv/bin/python -I - <<'EOF'
+  import os
+  d='docs/process/dialogs'
+  for f in sorted(os.listdir(d)):
+      p=os.path.join(d,f); t=open(p,encoding='utf-8').read()
+      n=t.count('[IP пользователя скрыт]')
+      if n:
+          t=t.replace('[IP пользователя скрыт]','[IP пользователя скрыт]'); open(p,'w',encoding='utf-8').write(t)
+      print(f, n)
+  EOF
+  grep -rc "[IP пользователя скрыт]" docs/process/dialogs | grep -v ":0"
+    01-team-lead.md 16
+    02-planner.md 0
+    03-coder-deepseek.md 0
+    04-reviewer.md 0
+    05-ui-coder.md 0
+  ── Ran git add README.md CHANGELOG.md plan.md petitions docs/process docs/tasks/TASK-014.md && git status --short && git commit -q -F - <<'EOF' TASK-014: military office certificate, catch-all requests with a required subject, "до N рабочих дней" terms - New request types: "Справка в военкомат" (comment required),   "Другая справка" and "Другое заявление" with required "Тип" (max 150   characters, normalised) and comment. The subject is shown in student and   staff lists and details as "<type>: <subject>". RequestType.subject_required   and Petition.subject, migration petitions/0003. - Processing terms read "до N рабочих дней" with the correct Russian form. - Demo: the 3 new types and one "Другая справка" request. - Process docs: screenshots 66-69, CHANGELOG, plan, dialogs. Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com> EOF git log --oneline -1; git status --short | wc -l (Outside of sandbox)
+    $ git add README.md CHANGELOG.md plan.md petitions docs/process docs/tasks/TASK-014.md && git status --short && git commit -q -F - <<'EOF'
+  TASK-014: military office certificate, catch-all requests with a required subject, "до N рабочих дней" terms
+
+  - New request types: "Справка в военкомат" (comment required),
+    "Другая справка" and "Другое заявление" with required "Тип" (max 150
+    characters, normalised) and comment. The subject is shown in student and
+    staff lists and details as "<type>: <subject>". RequestType.subject_required
+    and Petition.subject, migration petitions/0003.
+  - Processing terms read "до N рабочих дней" with the correct Russian form.
+  - Demo: the 3 new types and one "Другая справка" request.
+  - Process docs: screenshots 66-69, CHANGELOG, plan, dialogs.
+
+  Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+  EOF
+  git log --oneline -1; git status --short | wc -l
+    M  CHANGELOG.md
+    M  README.md
+    M  docs/process/README.md
+    M  docs/process/dialogs/01-team-lead.md
+    M  docs/process/dialogs/02-planner.md
+    M  docs/process/dialogs/03-coder-deepseek.md
+    M  docs/process/dialogs/04-reviewer.md
+    A  docs/process/screenshots/2026-11-19_66_request-catalog-terms_student1.jpg
+    A  docs/process/screenshots/2026-11-19_67_request-other-errors_student1.jpg
+    A  docs/process/screenshots/2026-11-19_68_my-requests-subject_student1.jpg
+    A  docs/process/screenshots/2026-11-19_69_staff-queue-subject_staff1.jpg
+    A  docs/tasks/TASK-014.md
+    M  petitions/admin.py
+    M  petitions/demo.py
+    M  petitions/forms.py
+    A  petitions/migrations/0003_subject.py
+    M  petitions/models.py
+    M  petitions/services.py
+    M  petitions/templates/petitions/catalog.html
+    M  petitions/templates/petitions/detail.html
+    M  petitions/templates/petitions/my_list.html
+    M  petitions/templates/petitions/staff_detail.html
+    M  petitions/templates/petitions/staff_queue.html
+    M  petitions/templates/petitions/submitted.html
+    A  petitions/terms.py
+    M  petitions/tests/helpers.py
+    M  petitions/tests/test_demo.py
+    A  petitions/tests/test_models.py
+    M  petitions/tests/test_services.py
+    A  petitions/tests/test_terms.py
+    M  petitions/tests/test_views.py
+    M  petitions/views.py
+    M  plan.md
+    1414de1 TASK-014: military office certificate, catch-all requests with a required subject, "до N рабочих дней" terms
+           0
+  ── Ran bb browser-automation stop $(cat $TMPDIR/bsess) >/dev/null 2>&1; pkill -f "runserver 127.0.0.1:8774" 2>/dev/null; rm -rf "$TMPDIR/lead14.sqlite3" "$TMPDIR/lead14-media" "$TMPDIR/sess14.json" "$TMPDIR/t14.js" "$TMPDIR/t14.out" "$TMPDIR"/pm14-*.txt; bb thread context thr_ng6cbgatm6 2>&1 | head -1; cd ~/hackatonproject && gh run list --limit 1 2>&1 | cut -c1-120 (Outside of sandbox) (4s)
+    $ bb browser-automation stop $(cat $TMPDIR/bsess) >/dev/null 2>&1; pkill -f "runserver 127.0.0.1:8774" 2>/dev/null; rm -rf "$TMPDIR/lead14.sqlite3" "$TMPDIR/lead14-media" "$TMPDIR/sess14.json" "$TMPDIR/t14.js" "$TMPDIR/t14.out" "$TMPDIR"/pm14-*.txt; bb thread context thr_ng6cbgatm6 2>&1 | head -1; cd ~/hackatonproject && gh run list --limit 1 2>&1 | cut -c1-120
+    cat: /var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T//bsess: No such file or directory
+    (eval):1: no matches found: /var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T//pm14-*.txt
+    Context window: 208,557 / 1,048,576 tokens
+    completed	success	TASK-013-FIX2: wide map layout, the floor plan fits the screen	CI	main	push	44420948035	9m49s	2026-11-
+  ── Thought for 4s
+    The cleanup ran without the sandbox, so TMPDIR pointed somewhere else and the rm missed my temp files in /tmp/claude-501, and the browser stop failed too. I'll rerun the cleanup inside the sandbox and stop the browser session by its ID. The server was already killed by pkill, so that part is done.
+
+    The coder context is at 208k, over the 200k limit, so the rule says to compact after this fix cycle.
+
+    The sandbox-less cleanup missed my temp files and the browser stop failed, so I'll rerun the cleanup inside the sandbox and stop the browser session by its ID. The coder context is at 208k, over the 200k limit, so I'm weighing whether to compact before TASK-015 now or wait for the user's call on TASK-014's fix.
+  ── Ran bb browser-automation stop b3115b56-7d8f-4731-85da-ea4eb25abf51 >/dev/null 2>&1; rm -rf "$TMPDIR/lead14.sqlite3" "$TMPDIR/lead14-media" "$TMPDIR/sess14.json" "$TMPDIR/t14.js" "$TMPDIR/t14.out" "$TMPDIR/pm14-before.txt" "$TMPDIR/pm14-after.txt"; ls "$TMPDIR" | grep -c "lead14\|sess14\|t14" (3s)
+    $ bb browser-automation stop b3115b56-7d8f-4731-85da-ea4eb25abf51 >/dev/null 2>&1; rm -rf "$TMPDIR/lead14.sqlite3" "$TMPDIR/lead14-media" "$TMPDIR/sess14.json" "$TMPDIR/t14.js" "$TMPDIR/t14.out" "$TMPDIR/pm14-before.txt" "$TMPDIR/pm14-after.txt"; ls "$TMPDIR" | grep -c "lead14\|sess14\|t14"
+    2
+  ── Listed files in $TMPDIR
+
+── Assistant ───────────────────────────────────────────────
+TASK-014 закрыта, коммит `1414de1`. Ревьюер одобрил её с первого раунда. Тесты прошли: 1122, включая параллельный прогон и прогон на границе полуночи.
+
+**Что я проверил в браузере (360 px):**
+- Каталог: «Справка в военкомат», «Другая справка» и «Другое заявление» на месте. Срок везде «до N рабочих дней».
+- «Другая справка» с пустыми полями не отправляется, показаны ошибки у «Типа» и «Комментария». «Тип» из одних пробелов тоже даёт ошибку.
+- Я ввёл в «Тип» HTML-код `<b>x</b>`. Он показан как обычный текст, это безопасно.
+- «Справка в военкомат»: поля «Тип» нет, комментарий обязателен, подсказка «Укажите военкомат.».
+- В списках студента и сотрудника видно «Другая справка: <Тип>».
+- Скриншоты 66–69 лежат в `docs/process`.
+
+В выгрузке диалогов я скрыл ваш IP-адрес подключения.
+
+**Черновик TASK-014-FIX (мелочи):**
+1. У пустого комментария стандартный текст «Обязательное поле.», а не «Для этой заявки комментарий обязателен.». Рекомендую принять как есть: смысл понятен.
+2. В списке заявок на телефоне строка после переноса начинается с точки-разделителя «· № …» (скриншот 68). Рекомендую исправить: это видно жюри на телефоне. Исполнитель — Кодер интерфейса.
+
+**TASK-015: убрать настройки под старый маленький сервер.** Черновик готов (`TASK-015.txt`), исполнитель — Кодер на DeepSeek. Что поменяется в `docs/DEPLOY.md` и шаблонах деплоя:
+- Шаг «сначала создать swap 1 ГБ» убираем: у хостинга уже есть swap 512 МБ.
+- Процессов gunicorn 5 вместо 2. Это по формуле из инструкции для 2 ядер и 2 ГБ.
+- Лимит журналов 200 МБ (он был из-за диска 10 ГБ) убираем, действуют стандартные настройки Ubuntu.
+- Убираем запрет настраивать PostgreSQL под 1 ГБ.
+- Пересчитываем память и диск под новый сервер.
+- Резервные копии, nginx, HTTPS и защиту SSH не трогаем.
+
+Деплой это не задерживает. На сервере я и так сразу поставлю 5 процессов и пропущу шаг со swap.
+
+**Контекст Кодера: 208 тыс. токенов**, порог 200 тыс. Предлагаю сжать его перед TASK-015.
+
+**Что нужно от вас:**
+- Решение по TASK-014-FIX: пункты 1 и 2.
+- «Отправляй» для TASK-015 и согласие на сжатие контекста Кодера.
+- Можно сделать `git push`? На GitHub не хватает 1 коммита. CI прошлого push прошёл успешно.
+- Для деплоя: ваш ключ с паролем ключа, домен, вариант (а) ключ развёртывания или (б) публичный репозиторий.
+
+── User ────────────────────────────────────────────────────
+andreyorlov@MacBook-Air-Andrey ~ % cat ~/.ssh/hackaton_deploy2.pub
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK8iQcI7ettHqkskT1VMXHBA0bh1vb+DnxwnTUvBG+x4 hackaton-deploy2
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Thought for 2s
+    I'm weighing whether to remove the old hackaton-deploy key. It's harmless since its passphrase is forgotten and the private key stays on the user's Mac, but removing unused keys is still good hygiene, so I'm leaning toward adding the new key and suggesting the old one be removed.
+
+    Since the old key's passphrase is lost and its private key stays on the user's Mac, it's harmless, but I won't remove it without asking; I'll add the new key and mention that the old one could go. Re-adding a key is easy if needed. Next I'm checking the key format and making the append idempotent with a grep check before writing.
+  ── Ran K='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK8iQcI7ettHqkskT1VMXHBA0bh1vb+DnxwnTUvBG+x4 hackaton-deploy2'; echo "$K" > "$TMPDIR/k2.pub" && ssh-keygen -lf "$TMPDIR/k2.pub" && ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 "grep -qF '$K' /root/.ssh/authorized_keys || echo '$K' >> /root/.ssh/authorized_keys; ls -l /root/.ssh/authorized_keys; awk '{print \$1, substr(\$2,length(\$2)-7), \$3}' /root/.ssh/authorized_keys" 2>&1; rm -f "$TMPDIR/k2.pub" (Outside of sandbox) (11s)
+    $ K='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK8iQcI7ettHqkskT1VMXHBA0bh1vb+DnxwnTUvBG+x4 hackaton-deploy2'; echo "$K" > "$TMPDIR/k2.pub" && ssh-keygen -lf "$TMPDIR/k2.pub" && ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 "grep -qF '$K' /root/.ssh/authorized_keys || echo '$K' >> /root/.ssh/authorized_keys; ls -l /root/.ssh/authorized_keys; awk '{print \$1, substr(\$2,length(\$2)-7), \$3}' /root/.ssh/authorized_keys" 2>&1; rm -f "$TMPDIR/k2.pub"
+    256 SHA256:5vkacW1a1IjPexkjKSCjvSnjBjDNtel4jvcsCcw3U9M hackaton-deploy2 (ED25519)
+    -rw------- 1 root root 290 Nov 19 12:31 /root/.ssh/authorized_keys
+    ssh-ed25519 7iN6v2zt hackaton-deploy
+    ssh-ed25519 pJHMNU9y hackaton-lead
+    ssh-ed25519 TUvBG+x4 hackaton-deploy2
+
+── Assistant ───────────────────────────────────────────────
+Я добавил ваш новый ключ `hackaton-deploy2` на сервер. Сейчас там 3 ключа: старый ваш, мой и новый.
+
+**Проверьте вход на Mac:**
+```
+ssh -i ~/.ssh/hackaton_deploy2 -o IdentitiesOnly=yes root@136.148.83.222
+```
+Пароль `root` сервер спрашивать не должен. Если у нового ключа есть свой пароль, Mac спросит его, это нормально.
+
+Если вход прошёл, ответьте мне 2 вещи:
+1. Можно выключить вход по паролю и включить брандмауэр (порты 22, 80, 443)?
+2. Удалить старый ключ `hackaton-deploy`? Он вам больше не нужен, раз пароль от него забыт. Рекомендую удалить: лишний ключ — лишний вход на сервер.
+
+── User ────────────────────────────────────────────────────
+Все работает, выполняй только предложенный пункт 2 (удаляй ключ)
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Thought for 13ms
+    I'm only going to remove the old key and leave password auth and ufw alone. The user says the new key works, and the old one is unusable anyway, so I'll find the line with the exact "hackaton-deploy" comment (not deploy2) and delete it with a sed match on the exact key.
+  ── Ran ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 ' journalctl -u ssh --no-pager -q -b | grep "Accepted publickey" | grep -c "5vkacW1a1IjPexkjKSCjvSnjBjDNtel4jvcsCcw3U9M" cp -p /root/.ssh/authorized_keys /root/.ssh/authorized_keys.bak-20261119 grep -vF "AAAAC3NzaC1lZDI1NTE5AAAAIPnxaer3wx+9EEj+wLVlGNsEA4F41lfIVrCv7iN6v2zt hackaton-deploy" /root/.ssh/authorized_keys > /root/.ssh/authorized_keys.new && chmod 600 /root/.ssh/authorized_keys.new && mv /root/.ssh/authorized_keys.new /root/.ssh/authorized_keys ls -l /root/.ssh/; awk "{print \$1, substr(\$2,length(\$2)-7), \$3}" /root/.ssh/authorized_keys ' 2>&1 (Outside of sandbox) (11s)
+    $ ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 '
+  journalctl -u ssh --no-pager -q -b | grep "Accepted publickey" | grep -c "5vkacW1a1IjPexkjKSCjvSnjBjDNtel4jvcsCcw3U9M"
+  cp -p /root/.ssh/authorized_keys /root/.ssh/authorized_keys.bak-20261119
+  grep -vF "AAAAC3NzaC1lZDI1NTE5AAAAIPnxaer3wx+9EEj+wLVlGNsEA4F41lfIVrCv7iN6v2zt hackaton-deploy" /root/.ssh/authorized_keys > /root/.ssh/authorized_keys.new && chmod 600 /root/.ssh/authorized_keys.new && mv /root/.ssh/authorized_keys.new /root/.ssh/authorized_keys
+  ls -l /root/.ssh/; awk "{print \$1, substr(\$2,length(\$2)-7), \$3}" /root/.ssh/authorized_keys
+  ' 2>&1
+    1
+    total 8
+    -rw------- 1 root root 193 Nov 19 12:32 authorized_keys
+    -rw------- 1 root root 290 Nov 19 12:31 authorized_keys.bak-20261119
+    ssh-ed25519 pJHMNU9y hackaton-lead
+    ssh-ed25519 TUvBG+x4 hackaton-deploy2
+  ── Thought for 14ms
+    The backup still holds the old key, but sshd only reads authorized_keys, so it doesn't affect access. It's just a safety copy, so I can remove it now that the change is confirmed. I'll check that my key still works and then delete the backup.
+  ── Ran ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 'rm /root/.ssh/authorized_keys.bak-20261119 && ls /root/.ssh/ && echo login-ok' 2>&1 (Outside of sandbox) (6s)
+    $ ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 'rm /root/.ssh/authorized_keys.bak-20261119 && ls /root/.ssh/ && echo login-ok' 2>&1
+    authorized_keys
+    login-ok
+
+── Assistant ───────────────────────────────────────────────
+Старый ключ `hackaton-deploy` удалён. На сервере остались 2 ключа: ваш новый `hackaton-deploy2` и мой `hackaton-lead`.
+
+- По журналу сервера ваш вход новым ключом прошёл.
+- После удаления мой вход тоже работает.
+- Временную копию файла ключей я удалил.
+
+Вход по паролю и брандмауэр я не трогал, как вы сказали.
+
+── User ────────────────────────────────────────────────────
+С твоими рекомендациями по 014-fix согласен. По 015 - тоже. Кодера сжимай
+
+── Explored 1 file, created 1 file, ran 3 commands ─────────
+  ── Thought for 9s
+    I'm accepting item 1 as is and fixing item 2, the separators on wrap in the request list, so I'll draft a TASK-014-FIX request for the UI coder. Then TASK-015 goes to the Planner on the Coder DeepSeek, and before that I'm compacting the Coder thread first.
+
+    Compacting the Coder thread comes before TASK-015 goes over, and I'll wait for that compaction to finish. The Planner can write the spec in the meantime, since it doesn't touch the Coder. I'm also checking whether TASK-014-FIX and TASK-015 can run in parallel, given they touch different files, but I'm leaning toward keeping them serial as I argued earlier.
+
+    I'm weighing whether TASK-014-FIX and TASK-015 should run in parallel or one after the other. They touch different files, but both agents run full test suites, so one's uncommitted changes could break the other's test run. Since TASK-015 is docs-only and TASK-014-FIX is a small CSS fix, I'm leaning toward running TASK-014-FIX first with the UI coder while the Coder compaction finishes, then handing TASK-015 over.
+
+    TASK-014-FIX is committed, so I'm moving on: I'll check the `my_list.html` template to describe the defect precisely before drafting the request.
+  ── Read petitions/templates/petitions/my_list.html
+  ── Created ~/.bb/thread-storage/thr_4izdzwetb4/TASK-014-FIX.txt +19
+    --- /dev/null
+    +++ b~/.bb/thread-storage/thr_4izdzwetb4/TASK-014-FIX.txt
+    +[TASK-014-FIX] Team lead -> Planner: TASK
+    +Approved by the user. Write the spec `docs/tasks/TASK-014-FIX.md` and hand it to the UI coder.
+    +Assignee: UI coder (thr_pgcwc2dwnn)
+    +
+    +## Context
+    +TASK-014 (committed 1414de1) made request titles longer ("Другая справка: <Тип>", up to 150 characters). Found by the Team lead at 360 px. Apply your "Feasibility check" and "Test plan" sections.
+    +
+    +## Item (user decision: fix)
+    +1. Request lists: when a row wraps, a line starts with the separator dot ("· № 399ee6e5 · 19 ноября 2026 ·"), see `docs/process/screenshots/2026-11-19_68_my-requests-subject_student1.jpg`. Cause: `petitions/templates/petitions/my_list.html` and `staff_queue.html` join the parts with a literal " · " in the text, so the browser may break the line right before a dot. Required: a separator never starts a line in the request lists (student list and staff queue, any title length); the row stays readable at 360 px and 1024 px. Choose the means (e.g. the title on its own line and the details as one line below, or separators that stay attached to the previous item); check other lists that use the same " · " pattern (e.g. the catalog "— description · Срок: ...") and apply the same rule there if they wrap the same way. No JavaScript; text for screen readers stays sensible.
+    +   - Visual check: student "Мои заявки" and staff "Заявки" with the demo request "Другая справка: Справка о периоде обучения" and with a 150-character subject, at 360 x 780 and 1024 x 768; catalog at 360 px.
+    +
+    +## Accepted as is (user decision, no change)
+    +- The empty comment on the form shows Django's "Обязательное поле." (the service has the custom text).
+    +
+    +## Out of scope
+    +New features, other pages.
+    +
+    +## Order
+    +TASK-015 comes after this task (the Coder must not work in the tree at the same time).
+  ── Ran bb thread compact --help 2>&1 | head -12
+    $ bb thread compact --help 2>&1 | head -12
+    Usage: bb thread compact [options] [id]
+
+    Request compaction of an idle or errored thread's context
+
+    Options:
+      --self      Target the current thread (from BB_THREAD_ID)
+      --json      Print machine-readable JSON output
+      -h, --help  display help for command
+  ── Ran bb thread list 2>/dev/null | grep -E "thr_ng6cbgatm6|thr_pgcwc2dwnn|thr_2imsg4kck2"; bb thread compact thr_ng6cbgatm6 2>&1 | tail -3 (1s)
+    $ bb thread list 2>/dev/null | grep -E "thr_ng6cbgatm6|thr_pgcwc2dwnn|thr_2imsg4kck2"; bb thread compact thr_ng6cbgatm6 2>&1 | tail -3
+    thr_2imsg4kck2  Планировщик       hackatonproject  idle (pinned)  
+    thr_ng6cbgatm6  Кодер (DeepSeek)  hackatonproject  idle (pinned)  
+    thr_pgcwc2dwnn  Кодер интерфейса  hackatonproject  idle (pinned)  
+    Thread thr_ng6cbgatm6 context compaction requested
+  ── Ran git status --short | wc -l && { cat ~/.bb/thread-storage/thr_4izdzwetb4/TASK-014-FIX.txt; } | bb thread tell thr_2imsg4kck2 --message-file - && { cat ~/.bb/thread-storage/thr_4izdzwetb4/TASK-015.txt; cat <<'EOF' ## Timing TASK-014-FIX (UI coder, petitions templates/CSS) goes first. Write this spec and run the feasibility check now (treat TASK-014-FIX files as expected uncommitted changes), but do NOT hand it to the Coder until I send "TASK-014-FIX committed". The Coder's context is being compacted now. EOF } | bb thread tell thr_2imsg4kck2 --message-file - (1s)
+    $ git status --short | wc -l && { cat ~/.bb/thread-storage/thr_4izdzwetb4/TASK-014-FIX.txt; } | bb thread tell thr_2imsg4kck2 --message-file - && { cat ~/.bb/thread-storage/thr_4izdzwetb4/TASK-015.txt; cat <<'EOF'
+
+  ## Timing
+  TASK-014-FIX (UI coder, petitions templates/CSS) goes first. Write this spec and run the feasibility check now (treat TASK-014-FIX files as expected uncommitted changes), but do NOT hand it to the Coder until I send "TASK-014-FIX committed". The Coder's context is being compacted now.
+  EOF
+  } | bb thread tell thr_2imsg4kck2 --message-file -
+    0
+    Thread thr_2imsg4kck2 steered
+    Thread thr_2imsg4kck2 steered
+
+── User ────────────────────────────────────────────────────
+Остановись после 014-fix перед 015
+steer
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran .venv/bin/python - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() row=[l for l in s.split('\n') if l.startswith('| TASK-014 |')][0] new='''| TASK-014-FIX | Списки заявок: строка не начинается с точки-разделителя (исполнитель — Кодер интерфейса); текст «Обязательное поле.» принят как есть | В работе | | TASK-015 | Деплой под новый сервер: без шага swap, 5 процессов gunicorn, стандартный лимит журналов, без запрета настройки PostgreSQL | Спецификация (Кодеру после коммита TASK-014-FIX) |''' assert s.count(row)==1 s=s.replace(row, row+'\n'+new) old='Готовится TASK-015: убрать настройки под старый маленький сервер.' assert s.count(old)==1 s=s.replace(old,'В работе TASK-014-FIX (Кодер интерфейса), затем TASK-015 (Кодер на DeepSeek, контекст сжат 19.11).') s=s.replace('- Сервер маленький (1 ядро, 1 ГБ): сначала swap 1 ГБ, потом установка пакетов.\n','- Сервер (19.11, новый хостинг): 2 ядра, 2 ГБ, диск 20 ГБ, swap 512 МБ от хостинга; 5 процессов gunicorn (TASK-015).\n') open(p,'w',encoding='utf-8').write(s) EOF grep -n "TASK-014-FIX\|TASK-015\|Сервер (19.11" plan.md | cut -c1-90; bb thread list 2>/dev/null | grep thr_ng6cbgatm6 (1s)
+    $ .venv/bin/python - <<'EOF'
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  row=[l for l in s.split('\n') if l.startswith('| TASK-014 |')][0]
+  new='''| TASK-014-FIX | Списки заявок: строка не начинается с точки-разделителя (исполнитель — Кодер интерфейса); текст «Обязательное поле.» принят как есть | В работе |
+  | TASK-015 | Деплой под новый сервер: без шага swap, 5 процессов gunicorn, стандартный лимит журналов, без запрета настройки PostgreSQL | Спецификация (Кодеру после коммита TASK-014-FIX) |'''
+  assert s.count(row)==1
+  s=s.replace(row, row+'\n'+new)
+  old='Готовится TASK-015: убрать настройки под старый маленький сервер.'
+  assert s.count(old)==1
+  s=s.replace(old,'В работе TASK-014-FIX (Кодер интерфейса), затем TASK-015 (Кодер на DeepSeek, контекст сжат 19.11).')
+  s=s.replace('- Сервер маленький (1 ядро, 1 ГБ): сначала swap 1 ГБ, потом установка пакетов.\n','- Сервер (19.11, новый хостинг): 2 ядра, 2 ГБ, диск 20 ГБ, swap 512 МБ от хостинга; 5 процессов gunicorn (TASK-015).\n')
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  grep -n "TASK-014-FIX\|TASK-015\|Сервер (19.11" plan.md | cut -c1-90; bb thread list 2>/dev/null | grep thr_ng6cbgatm6
+    109:| TASK-014-FIX | Списки заявок: строка не начинается с 
+    110:| TASK-015 | Деплой под новый сервер: без шага swap, 5 пр
+    115:Сейчас: TASK-013 (карта, без причин изменений, мелки
+    134:- Сервер (19.11, новый хостинг): 2 ядра, 2 ГБ, диск 20 Г�
+    thr_ng6cbgatm6  Кодер (DeepSeek)  hackatonproject  active (pinned)
+  ── Thought for 4s
+    I need to stop after 014-FIX and hold off on 015, so I won't send the Planner's go-ahead until the user confirms. But the Planner may already be writing the spec, and the user's "pause 015 entirely" reading makes me wonder whether that spec should be held too.
+
+    I'm going to hold TASK-015 completely, with no spec work at all until the user gives a go, since the Planner writing it now could be wasted if they want changes. Compaction on the Coder was already approved, so that part stays as is. I'll also mark TASK-015 as paused in plan.md, waiting on the user's decision.
+
+── Assistant ───────────────────────────────────────────────
+Понял: после TASK-014-FIX останавливаюсь. TASK-015 без вашего слова не пойдёт. Предупреждаю Планировщика.
+
+── Ran bb thread tell thr_2imsg4kck2 --message-file - <<'EOF' [TASK-015] Team lead -> Planner: ANSWER Hold TASK-015 completely (user decision): do not write or hand over the spec until I send "TASK-015 go". If you have already started, stop and keep the draft as is. TASK-014-FIX goes ahead as planned. EOF cd ~/hackatonproject && .venv/bin/python - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() s=s.replace('| Спецификация (Кодеру после коммита TASK-014-FIX) |','| Пауза (ждёт решения пользователя) |') s=s.replace('В работе TASK-014-FIX (Кодер интерфейса), затем TASK-015 (Кодер на DeepSeek, контекст сжат 19.11).','В работе TASK-014-FIX (Кодер интерфейса). TASK-015 на паузе до решения пользователя (контекст Кодера на DeepSeek сжат 19.11).') open(p,'w',encoding='utf-8').write(s) EOF grep -c "Пауза (ждёт решения пользователя)" plan.md (1s)
+  $ bb thread tell thr_2imsg4kck2 --message-file - <<'EOF'
+[TASK-015] Team lead -> Planner: ANSWER
+Hold TASK-015 completely (user decision): do not write or hand over the spec until I send "TASK-015 go". If you have already started, stop and keep the draft as is. TASK-014-FIX goes ahead as planned.
+EOF
+cd ~/hackatonproject && .venv/bin/python - <<'EOF'
 p='plan.md'
 s=open(p,encoding='utf-8').read()
-row=[l for l in s.split('\n') if l.startswith('| TASK-014 |')][0]
-assert row.endswith('| В работе |')
-s=s.replace(row, row[:-len('| В работе |')]+'| Готово |')
-old='TASK-013-FIX2 закрыта 19.11. TASK-014 (заявки) — у Кодера на DeepSeek.'
-assert s.count(old)==1
-s=s.replace(old,'TASK-013-FIX2 и TASK-014 (заявки) закрыты 19.11. Готовится TASK-015: убрать настройки под старый маленький сервер.')
+s=s.replace('| Спецификация (Кодеру после коммита TASK-014-FIX) |','| Пауза (ждёт решения пользователя) |')
+s=s.replace('В работе TASK-014-FIX (Кодер интерфейса), затем TASK-015 (Кодер на DeepSeek, контекст сжат 19.11).','В работе TASK-014-FIX (Кодер интерфейса). TASK-015 на паузе до решения пользователя (контекст Кодера на DeepSeek сжат 19.11).')
 open(p,'w',encoding='utf-8').write(s)
 EOF
-O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF'
-import os,re,sys
-d=sys.argv[1]; out='docs/process/dialogs'
-for f in sorted(os.listdir(d)):
-    t=open(os.path.join(d,f),encoding='utf-8').read()
-    t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)
-    t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)
-    t=t.replace('[id скрыт]','[id скрыт]')
-    t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')
-    t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)
-    t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')
-    bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~') if k in t]
-    assert not bad,(f,bad)
-    assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f
-    assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f
-    assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f
-    assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f
-    open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
+grep -c "Пауза (ждёт решения пользователя)" plan.md
+  Thread thr_2imsg4kck2 steered
+  1
+
+── Assistant ───────────────────────────────────────────────
+Я остановил TASK-015 на паузе. Планировщик не будет писать спецификацию и передавать её, пока я не дам команду. В `plan.md` у неё статус «Пауза (ждёт решения пользователя)».
+
+**Что сейчас идёт:**
+- TASK-014-FIX отправлена Планировщику, исполнитель — Кодер интерфейса. Нужно, чтобы строка в списках заявок не начиналась с точки-разделителя. Пункт про «Обязательное поле.» принят как есть.
+- У Кодера на DeepSeek идёт сжатие контекста (было 208 тыс. токенов).
+
+Когда TASK-014-FIX пройдёт проверку, я сделаю коммит, пришлю отчёт и остановлюсь. TASK-015 начну только после вашего слова.
+
+── User ────────────────────────────────────────────────────
+Попытки входа с чужих ip прекратились?
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 ' date -u +"now %H:%M UTC" J=$(journalctl -u ssh --no-pager -q -b) echo "total failed since boot: $(echo "$J" | grep -c "Failed password")" echo "== failed per 10 min (last 2 h)"; echo "$J" | grep "Failed password" | awk "{print substr(\$3,1,4)\"0\"}" | uniq -c | tail -12 echo "== top IPs last 30 min"; journalctl -u ssh --no-pager -q --since "-30min" | grep -E "Failed password|Invalid user" | grep -oE "from [0-9.]+" | sort | uniq -c | sort -rn | head -5 echo "== accepted since boot (non-me)"; echo "$J" | grep Accepted | grep -v "0mkvW8" | awk "{print \$1,\$2,\$3,\$7,\$9,\$11}" echo "== who"; who ' 2>&1 (Outside of sandbox) (6s)
+    $ ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 '
+  date -u +"now %H:%M UTC"
+  J=$(journalctl -u ssh --no-pager -q -b)
+  echo "total failed since boot: $(echo "$J" | grep -c "Failed password")"
+  echo "== failed per 10 min (last 2 h)"; echo "$J" | grep "Failed password" | awk "{print substr(\$3,1,4)\"0\"}" | uniq -c | tail -12
+  echo "== top IPs last 30 min"; journalctl -u ssh --no-pager -q --since "-30min" | grep -E "Failed password|Invalid user" | grep -oE "from [0-9.]+" | sort | uniq -c | sort -rn | head -5
+  echo "== accepted since boot (non-me)"; echo "$J" | grep Accepted | grep -v "0mkvW8" | awk "{print \$1,\$2,\$3,\$7,\$9,\$11}"
+  echo "== who"; who
+  ' 2>&1
+    now 12:37 UTC
+    total failed since boot: 1335
+    == failed per 10 min (last 2 h)
+         41 10:40
+        119 10:50
+        117 11:00
+        121 11:10
+        126 11:20
+        123 11:30
+        121 11:40
+        122 11:50
+        126 12:00
+        164 12:10
+        125 12:20
+         30 12:30
+    == top IPs last 30 min
+        504 from 109.160.32.154
+         47 from 61.93.123.64
+          1 from 193.32.162.15
+    == accepted since boot (non-me)
+    Nov 19 12:19:09 password root [IP пользователя скрыт]
+    Nov 19 12:21:49 password root [IP пользователя скрыт]
+    Nov 19 12:31:39 publickey root [IP пользователя скрыт]
+    == who
+    root     tty1         2026-11-19 12:06
+    root     pts/0        2026-11-19 12:31 ([IP пользователя скрыт])
+  ── Thought for 6s
+    Attacks are still coming in at about 120 per 10 minutes, with 504 attempts from 109.160.32.154 in the last half hour. The current 12:30 window is only partly done, so its low count doesn't mean they've stopped. Every successful login so far was the user's own, via password at 12:19 and 12:21 and via key at 12:31.
+
+    I'm going to suggest turning off password login next, since it's the main fix and the attacks won't stop on their own. I'm also weighing whether a rate limit with ufw is worth adding, though it isn't needed once passwords are off. The root password strength is unknown to me, so I'll strongly recommend the change and ask the user again whether to disable password login now, noting the web console rollback is available.
+
+── Assistant ───────────────────────────────────────────────
+Нет, попытки идут: примерно 120 за каждые 10 минут, с 10:40 UTC без перерыва. Всего с запуска сервера было 1335 неудачных попыток. За последние 30 минут: 504 с адреса 109.160.32.154, 47 с 61.93.123.64 и 1 с третьего адреса.
+
+**Удачные входы были только наши:**
+- ваши: по паролю в 15:19 и 15:21 по Москве, по новому ключу в 15:31;
+- мои: по ключу `hackaton-lead`.
+
+Чужих удачных входов нет.
+
+Такие попытки сами не прекратятся: роботы перебирают пароли на всех серверах в интернете подряд. Защита от них — выключить вход по паролю. Тогда все эти попытки станут бесполезны, сколько бы их ни было. Ваш новый ключ и мой ключ работают, поэтому вы ничего не теряете. Если что-то пойдёт не так, вход по паролю можно вернуть через веб-консоль хостинга.
+
+**Выключить вход по паролю сейчас?** Я поменяю только настройку SSH: вход по паролю будет выключен, `root` сможет входить только по ключу. Сразу после этого я проверю вход по ключу. Брандмауэр и остальное не трогаю, пока вы не скажете.
+
+Сеанс в веб-консоли (с 15:06) ещё открыт. Если он больше не нужен, закройте его командой `exit`.
+
+── User ────────────────────────────────────────────────────
+Включай, сеанс завершил. После проверь входы и активные сессии
+
+── Explored 1 file ─────────────────────────────────────────
+  ── Thought for 2s
+    I'm treating the "включай" as turning on the protection, which here means turning off password login. The hardening file from the repo sets password and keyboard-interactive auth to no, root to prohibit-password, and pubkey to yes. The deploy step puts it in sshd_config.d with the 10- prefix so it overrides the cloud-init file.
+
+    Next I'll run sshd -t, reload ssh, and check the effective config with sshd -T. Then I'll test a fresh connection with my key and confirm password auth is refused, keeping my current session open as a fallback. Pulling up DEPLOY section 4 to follow along.
+  ── Read docs/DEPLOY.md
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_2imsg4kck2]
+
+[TASK-014-FIX] Planner -> Team lead: REPORT
+TASK-014-FIX spec handed to the UI coder (docs/tasks/TASK-014-FIX.md). TASK-015 is on hold, as you asked: no draft exists.
+For your decision (not changed, because "other pages" are out of scope): these templates use the same " · " pattern and can start a line with "·" when they wrap at 360 px:
+- chat/templates/chat/staff_list.html
+- chat/templates/chat/_message.html
+- accounts/templates/accounts/student_list.html
+- schedule/templates/schedule/staff_group_list.html
+- notifications/templates/notifications/feed.html and staff_list.html (feed-meta)
+- academics/templates/academics/includes/discipline.html
+- schedule/templates/schedule/includes/lesson_compact.html (lesson-meta)
+The fix is the same rule ("&nbsp;·" + normal space) if you want a follow-up task.
+steer
+
+── Ran B64=$(base64 < deploy/ssh/10-deanery-hardening.conf | tr -d '\n') && ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 " set -e echo '$B64' | base64 -d > /tmp/10-deanery-hardening.conf install -m 644 /tmp/10-deanery-hardening.conf /etc/ssh/sshd_config.d/10-deanery-hardening.conf && rm /tmp/10-deanery-hardening.conf cat /etc/ssh/sshd_config.d/10-deanery-hardening.conf sshd -t && systemctl reload ssh && echo reloaded sshd -T | grep -Ei '^(passwordauthentication|permitrootlogin|kbdinteractiveauthentication|pubkeyauthentication) ' " 2>&1 (Outside of sandbox) (8s)
+  $ B64=$(base64 < deploy/ssh/10-deanery-hardening.conf | tr -d '\n') && ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 "
+set -e
+echo '$B64' | base64 -d > /tmp/10-deanery-hardening.conf
+install -m 644 /tmp/10-deanery-hardening.conf /etc/ssh/sshd_config.d/10-deanery-hardening.conf && rm /tmp/10-deanery-hardening.conf
+cat /etc/ssh/sshd_config.d/10-deanery-hardening.conf
+sshd -t && systemctl reload ssh && echo reloaded
+sshd -T | grep -Ei '^(passwordauthentication|permitrootlogin|kbdinteractiveauthentication|pubkeyauthentication) '
+" 2>&1
+  PasswordAuthentication no
+  KbdInteractiveAuthentication no
+  PermitRootLogin prohibit-password
+  PubkeyAuthentication yes
+  reloaded
+  permitrootlogin without-password
+  pubkeyauthentication yes
+  passwordauthentication no
+  kbdinteractiveauthentication no
+
+── Assistant ───────────────────────────────────────────────
+Вход по паролю выключен. Теперь проверяю новый вход по ключу, отказ по паролю и активные сессии.
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Ran echo "== new key login"; ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 'echo key-login-ok' 2>&1 echo "== password login must fail"; ssh -o PubkeyAuthentication=no -o PreferredAuthentications=password,keyboard-interactive -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 true 2>&1 | tail -1 echo "== server"; ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 ' date -u +"now %H:%M:%S UTC" echo "-- who"; who echo "-- sessions"; loginctl list-sessions --no-legend echo "-- sshd sessions"; ps -eo pid,etime,user,args | grep -E "sshd: [a-z]+@" | grep -v grep echo "-- accepted since boot"; journalctl -u ssh --no-pager -q -b | grep Accepted | awk "{print \$3,\$6,\$7,\$9,\$11,\$NF}" echo "-- attempts after reload"; journalctl -u ssh --no-pager -q --since "-3min" | grep -oE "(Failed [a-z]+|Invalid user|Connection closed by authenticating user|Disconnected from authenticating user|Received disconnect)" | sort | uniq -c ' 2>&1 (Outside of sandbox) (14s)
+    $ echo "== new key login"; ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 'echo key-login-ok' 2>&1
+  echo "== password login must fail"; ssh -o PubkeyAuthentication=no -o PreferredAuthentications=password,keyboard-interactive -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 true 2>&1 | tail -1
+  echo "== server"; ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 '
+  date -u +"now %H:%M:%S UTC"
+  echo "-- who"; who
+  echo "-- sessions"; loginctl list-sessions --no-legend
+  echo "-- sshd sessions"; ps -eo pid,etime,user,args | grep -E "sshd: [a-z]+@" | grep -v grep
+  echo "-- accepted since boot"; journalctl -u ssh --no-pager -q -b | grep Accepted | awk "{print \$3,\$6,\$7,\$9,\$11,\$NF}"
+  echo "-- attempts after reload"; journalctl -u ssh --no-pager -q --since "-3min" | grep -oE "(Failed [a-z]+|Invalid user|Connection closed by authenticating user|Disconnected from authenticating user|Received disconnect)" | sort | uniq -c
+  ' 2>&1
+    == new key login
+    key-login-ok
+    == password login must fail
+    root@136.148.83.222: Permission denied (publickey).
+    == server
+    now 12:39:33 UTC
+    -- who
+    root     pts/0        2026-11-19 12:31 ([IP пользователя скрыт])
+    -- sessions
+    27 0 root - pts/0 active no -
+    34 0 root - -     active no -
+    -- sshd sessions
+       4666       08:00 root     sshd: root@pts/0
+       5095       00:04 root     sshd: root@notty
+    -- accepted since boot
+    12:18:39 Accepted publickey root [IP пользователя скрыт] SHA256:0mkvW8csjdUJ1bTNnnh1puDOX5dH+2VEC4tpO/ZcXdo
+    12:18:54 Accepted publickey root [IP пользователя скрыт] SHA256:0mkvW8csjdUJ1bTNnnh1puDOX5dH+2VEC4tpO/ZcXdo
+    12:19:09 Accepted password root [IP пользователя скрыт] ssh2
+    12:19:14 Accepted publickey root [IP пользователя скрыт] SHA256:0mkvW8csjdUJ1bTNnnh1puDOX5dH+2VEC4tpO/ZcXdo
+    12:19:31 Accepted publickey root [IP пользователя скрыт] SHA256:0mkvW8csjdUJ1bTNnnh1puDOX5dH+2VEC4tpO/ZcXdo
+    12:21:49 Accepted password root [IP пользователя скрыт] ssh2
+    12:22:48 Accepted publickey root [IP пользователя скрыт] SHA256:0mkvW8csjdUJ1bTNnnh1puDOX5dH+2VEC4tpO/ZcXdo
+    12:24:25 Accepted publickey root [IP пользователя скрыт] SHA256:0mkvW8csjdUJ1bTNnnh1puDOX5dH+2VEC4tpO/ZcXdo
+    12:31:02 Accepted publickey root [IP пользователя скрыт] SHA256:0mkvW8csjdUJ1bTNnnh1puDOX5dH+2VEC4tpO/ZcXdo
+    12:31:39 Accepted publickey root [IP пользователя скрыт] SHA256:5vkacW1a1IjPexkjKSCjvSnjBjDNtel4jvcsCcw3U9M
+    12:32:44 Accepted publickey root [IP пользователя скрыт] SHA256:0mkvW8csjdUJ1bTNnnh1puDOX5dH+2VEC4tpO/ZcXdo
+    12:32:55 Accepted publickey root [IP пользователя скрыт] SHA256:0mkvW8csjdUJ1bTNnnh1puDOX5dH+2VEC4tpO/ZcXdo
+    12:37:06 Accepted publickey root [IP пользователя скрыт] SHA256:0mkvW8csjdUJ1bTNnnh1puDOX5dH+2VEC4tpO/ZcXdo
+    12:39:11 Accepted publickey root [IP пользователя скрыт] SHA256:0mkvW8csjdUJ1bTNnnh1puDOX5dH+2VEC4tpO/ZcXdo
+    12:39:23 Accepted publickey root [IP пользователя скрыт] SHA256:0mkvW8csjdUJ1bTNnnh1puDOX5dH+2VEC4tpO/ZcXdo
+    12:39:32 Accepted publickey root [IP пользователя скрыт] SHA256:0mkvW8csjdUJ1bTNnnh1puDOX5dH+2VEC4tpO/ZcXdo
+    -- attempts after reload
+          1 Connection closed by authenticating user
+  ── Thought for 5s
+    I'm checking the login records now: the accepted keys and passwords, the two open sessions on pts/0 and my current one, and tty1 being closed. After the reload there's only one rejected attempt, which is most likely my own password test, and any remaining attacker attempts would be cut off before authentication.
+
+    I'm going through the login records to confirm the attempts after the reload were all rejected before authentication, with only one real attempt in the last three minutes, which was probably my own password test. I won't claim the brute-forcers have stopped, since I may simply not see their attempts logged. I'm also noting that the 12:31 session on pts/0 belongs to the user and that I still need to update plan.md and remind them to remove the hackaton-lead key after deploy.
+  ── Ran .venv/bin/python - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() old='Вход по паролю пока включён, идёт перебор паролей — отключить первым шагом.' assert s.count(old)==1 s=s.replace(old,'Вход по SSH только по ключу (19.11, `10-deanery-hardening.conf`), перебор паролей больше не опасен; старый ключ пользователя удалён, новый — `hackaton-deploy2`.') open(p,'w',encoding='utf-8').write(s) EOF grep -c "только по ключу" plan.md (1s)
+    $ .venv/bin/python - <<'EOF'
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  old='Вход по паролю пока включён, идёт перебор паролей — отключить первым шагом.'
+  assert s.count(old)==1
+  s=s.replace(old,'Вход по SSH только по ключу (19.11, `10-deanery-hardening.conf`), перебор паролей больше не опасен; старый ключ пользователя удалён, новый — `hackaton-deploy2`.')
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  grep -c "только по ключу" plan.md
+    1
+
+── Assistant ───────────────────────────────────────────────
+Вход по паролю выключен, проверка прошла.
+
+**Проверка:**
+- Вход по ключу работает. Я проверил новым подключением.
+- Вход по паролю отклоняется: `Permission denied (publickey)`. Подобрать пароль теперь нельзя, сколько бы попыток ни было.
+- Настройки сервера: `passwordauthentication no`, `permitrootlogin without-password` (то есть `root` входит только по ключу).
+
+**Активные сессии:**
+- `pts/0` с 15:31 по Москве — это ваша сессия по новому ключу `hackaton-deploy2`;
+- моя служебная сессия этой проверки.
+
+Сеанс веб-консоли закрыт.
+
+**Входы с момента запуска** были только с вашего адреса: 2 ваших по паролю (15:19, 15:21), 1 ваш по новому ключу (15:31), остальные мои по ключу `hackaton-lead`. Чужих входов нет. После перезапуска SSH за 3 минуты была 1 попытка, это моя проверка пароля.
+
+**Вопрос от Планировщика по TASK-014-FIX.** Точка-разделитель «·» в начале строки может появиться ещё на 7 страницах:
+- чат: список чатов сотрудника и сами сообщения;
+- список студентов;
+- список групп в расписании сотрудника;
+- лента уведомлений и объявления сотрудника;
+- успеваемость;
+- короткая карточка занятия.
+
+Исправление везде одно и то же, правка маленькая. Рекомендую добавить эти страницы в TASK-014-FIX, их увидит жюри на телефоне. Добавлять?
+
+── User ────────────────────────────────────────────────────
+Да, добавляй
+
+── Ran bb thread tell thr_2imsg4kck2 --message-file - <<'EOF' [TASK-014-FIX] Team lead -> Planner: TASK Spec amendment, approved by the user: extend TASK-014-FIX to every template you listed with the same " · " pattern, with the same rule (a separator never starts a line): - chat/templates/chat/staff_list.html - chat/templates/chat/_message.html - accounts/templates/accounts/student_list.html - schedule/templates/schedule/staff_group_list.html - notifications/templates/notifications/feed.html and staff_list.html (feed-meta) - academics/templates/academics/includes/discipline.html - schedule/templates/schedule/includes/lesson_compact.html (lesson-meta) Note: `_message.html` is also rendered by the chat polling JS response; keep the markup the JS expects (static/js/chat.js unchanged, chat tests pass). Update docs/tasks/TASK-014-FIX.md (scope, tests, visual check at 360 px for each page: student and staff where applicable) and send the amendment to the UI coder. TASK-015 stays on hold. EOF cd ~/hackatonproject && .venv/bin/python - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() old='| TASK-014-FIX | Списки заявок: строка не начинается с точки-разделителя (исполнитель — Кодер интерфейса); текст «Обязательное поле.» принят как есть | В работе |' assert s.count(old)==1 s=s.replace(old,'| TASK-014-FIX | Строка не начинается с точки-разделителя «·»: заявки, чат, студенты, группы, лента и объявления, успеваемость, карточка занятия (исполнитель — Кодер интерфейса); текст «Обязательное поле.» принят как есть | В работе |') open(p,'w',encoding='utf-8').write(s) EOF grep -c "заявки, чат, студенты" plan.md (2s)
+  $ bb thread tell thr_2imsg4kck2 --message-file - <<'EOF'
+[TASK-014-FIX] Team lead -> Planner: TASK
+Spec amendment, approved by the user: extend TASK-014-FIX to every template you listed with the same " · " pattern, with the same rule (a separator never starts a line):
+- chat/templates/chat/staff_list.html
+- chat/templates/chat/_message.html
+- accounts/templates/accounts/student_list.html
+- schedule/templates/schedule/staff_group_list.html
+- notifications/templates/notifications/feed.html and staff_list.html (feed-meta)
+- academics/templates/academics/includes/discipline.html
+- schedule/templates/schedule/includes/lesson_compact.html (lesson-meta)
+Note: `_message.html` is also rendered by the chat polling JS response; keep the markup the JS expects (static/js/chat.js unchanged, chat tests pass). Update docs/tasks/TASK-014-FIX.md (scope, tests, visual check at 360 px for each page: student and staff where applicable) and send the amendment to the UI coder. TASK-015 stays on hold.
 EOF
-rm -rf "$O"; grep -c "136.148.83.222\|[IP пользователя скрыт]\|109.160.32.154" docs/process/dialogs/01-team-lead.md
+cd ~/hackatonproject && .venv/bin/python - <<'EOF'
+p='plan.md'
+s=open(p,encoding='utf-8').read()
+old='| TASK-014-FIX | Списки заявок: строка не начинается с точки-разделителя (исполнитель — Кодер интерфейса); текст «Обязательное поле.» принят как есть | В работе |'
+assert s.count(old)==1
+s=s.replace(old,'| TASK-014-FIX | Строка не начинается с точки-разделителя «·»: заявки, чат, студенты, группы, лента и объявления, успеваемость, карточка занятия (исполнитель — Кодер интерфейса); текст «Обязательное поле.» принят как есть | В работе |')
+open(p,'w',encoding='utf-8').write(s)
+EOF
+grep -c "заявки, чат, студенты" plan.md
+  Thread thr_2imsg4kck2 steered
+  1
+
+── Assistant ───────────────────────────────────────────────
+Я отправил Планировщику дополнение к TASK-014-FIX. Он обновит спецификацию и передаст её Кодеру интерфейса.
+
+К спискам заявок добавились ещё 7 страниц:
+- чат: список чатов и сообщения;
+- список студентов;
+- группы в расписании сотрудника;
+- лента и объявления;
+- успеваемость;
+- карточка занятия.
+
+Правило везде одно: строка не начинается с «·». Чат на телефоне обновляет сообщения сам, через JavaScript. Это обновление ломаться не должно, тесты чата должны пройти.
+
+После проверки я посмотрю каждую из этих страниц на 360 px. Потом сделаю коммит, пришлю отчёт и остановлюсь перед TASK-015. В `plan.md` описание TASK-014-FIX уже обновлено.
+
+── User ────────────────────────────────────────────────────
+Сколько всего было попыток входа с чужих ip?
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Ran ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 ' date -u +"now %H:%M UTC"; journalctl --list-boots --no-pager 2>/dev/null | tail -3 J=$(journalctl -u ssh --no-pager -q) F=$(echo "$J" | grep -vF "[IP пользователя скрыт]") echo "first log line: $(echo "$J" | head -1 | cut -c1-15)" echo "failed password (foreign): $(echo "$F" | grep -c "Failed password")" echo "invalid user lines: $(echo "$F" | grep -c "Invalid user")" echo "preauth closes (foreign): $(echo "$F" | grep -cE "(Connection closed|Disconnected) by (authenticating|invalid) user .*preauth")" echo "connections (foreign, distinct sshd pids): $(echo "$F" | grep -oE "sshd\[[0-9]+\]" | sort -u | wc -l)" echo "distinct IPs: $(echo "$F" | grep -oE "from [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+" | sort -u | wc -l)" echo "== top IPs (any auth failure line)"; echo "$F" | grep -E "Failed password|Invalid user|preauth" | grep -oE "(from )?[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+ port" | grep -oE "[0-9.]+\.[0-9]+" | sort | uniq -c | sort -rn | head -8 echo "== after hardening (12:38 UTC)"; journalctl -u ssh --no-pager -q --since "12:38" | grep -vF "[IP пользователя скрыт]" | grep -E "preauth|Invalid|Failed" | grep -oE "[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+ port" | cut -d" " -f1 | sort | uniq -c | sort -rn | head -5 ' 2>&1 (Outside of sandbox) (15s)
+    $ ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 '
+  date -u +"now %H:%M UTC"; journalctl --list-boots --no-pager 2>/dev/null | tail -3
+  J=$(journalctl -u ssh --no-pager -q)
+  F=$(echo "$J" | grep -vF "[IP пользователя скрыт]")
+  echo "first log line: $(echo "$J" | head -1 | cut -c1-15)"
+  echo "failed password (foreign): $(echo "$F" | grep -c "Failed password")"
+  echo "invalid user lines: $(echo "$F" | grep -c "Invalid user")"
+  echo "preauth closes (foreign): $(echo "$F" | grep -cE "(Connection closed|Disconnected) by (authenticating|invalid) user .*preauth")"
+  echo "connections (foreign, distinct sshd pids): $(echo "$F" | grep -oE "sshd\[[0-9]+\]" | sort -u | wc -l)"
+  echo "distinct IPs: $(echo "$F" | grep -oE "from [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+" | sort -u | wc -l)"
+  echo "== top IPs (any auth failure line)"; echo "$F" | grep -E "Failed password|Invalid user|preauth" | grep -oE "(from )?[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+ port" | grep -oE "[0-9.]+\.[0-9]+" | sort | uniq -c | sort -rn | head -8
+  echo "== after hardening (12:38 UTC)"; journalctl -u ssh --no-pager -q --since "12:38" | grep -vF "[IP пользователя скрыт]" | grep -E "preauth|Invalid|Failed" | grep -oE "[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+ port" | cut -d" " -f1 | sort | uniq -c | sort -rn | head -5
+  ' 2>&1
+    now 12:41 UTC
+    IDX BOOT ID                          FIRST ENTRY                 LAST ENTRY
+     -1 669f1e851863432785f846c6b81063aa Thu 2026-11-19 10:23:53 UTC Thu 2026-11-19 10:24:30 UTC
+      0 debc87f5a9864bedae071a49134e575f Thu 2026-11-19 10:24:52 UTC Thu 2026-11-19 12:41:47 UTC
+    first log line: Nov 19 10:26:56
+    failed password (foreign): 1335
+    invalid user lines: 818
+    preauth closes (foreign): 1295
+    connections (foreign, distinct sshd pids): 1342
+    distinct IPs: 7
+    == top IPs (any auth failure line)
+       3384 109.160.32.154
+         66 61.93.123.64
+         12 80.94.92.234
+          9 35.214.204.44
+          3 35.214.225.27
+          2 193.32.162.15
+          1 205.210.31.148
+          1 143.20.31.153
+    == after hardening (12:38 UTC)
+  ── Thought for 3s
+    I'm tallying the foreign-IP connections: about 1342 from sshd PIDs, 1335 failed password attempts, and 818 with nonexistent usernames. The distinct IP count is 7 or 8, depending on whether one line lacks the "from" pattern, so I'll report 8 addresses and avoid presenting the raw line counts as attempts.
+
+    I'm going to count failed password attempts per IP, since the earlier totals were line counts and not accurate per-address figures. The 1122 attempts from 109.160.32.154 and the 42 from 61.93 are from the 12:18 snapshot, so I'll recompute them with a quick command. I also want to check why foreign attempts dropped to zero after 12:38, since the attackers may have stopped once password authentication was disabled.
+  ── Ran ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 ' journalctl -u ssh --no-pager -q | grep -vF "[IP пользователя скрыт]" | grep -oE "sshd\[[0-9]+\]: .* [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+ port" | sed -E "s/sshd\[([0-9]+)\]: .* ([0-9.]+) port/\1 \2/" | sort -u | awk "{print \$2}" | sort | uniq -c | sort -rn echo "last foreign: $(journalctl -u ssh --no-pager -q | grep -vF "[IP пользователя скрыт]" | grep -E "Failed|Invalid|preauth" | tail -1 | cut -c1-15)" ' 2>&1 (Outside of sandbox) (8s)
+    $ ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 root@136.148.83.222 '
+  journalctl -u ssh --no-pager -q | grep -vF "[IP пользователя скрыт]" | grep -oE "sshd\[[0-9]+\]: .* [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+ port" | sed -E "s/sshd\[([0-9]+)\]: .* ([0-9.]+) port/\1 \2/" | sort -u | awk "{print \$2}" | sort | uniq -c | sort -rn
+  echo "last foreign: $(journalctl -u ssh --no-pager -q | grep -vF "[IP пользователя скрыт]" | grep -E "Failed|Invalid|preauth" | tail -1 | cut -c1-15)"
+  ' 2>&1
+    1287 109.160.32.154
+         10 61.93.123.64
+         10 35.214.204.44
+          8 80.94.92.234
+          2 193.32.162.15
+          2 106.219.191.113
+          1 65.49.1.24
+          1 35.214.225.27
+          1 205.210.31.148
+          1 172.212.227.97
+          1 143.20.31.153
+          1 0.0.0.0
+    last foreign: Nov 19 12:32:23
+  ── Thought for 7s
+    I'm reconciling the numbers: the 61.93.123.64 address shows 10 connections, but it accounts for 42 to 47 failed passwords, since each connection allows several attempts. So I'm counting password attempts separately from connections. Excluding the 0.0.0.0 listen line, I'm tallying the totals from the 11 remaining addresses.
+
+    The last foreign attempt came at 15:32 MSK, before the hardening at 15:38, so nothing foreign has hit the server since. The main source, 109.160.32.154, accounts for about 1287 of the 1324 connections, mostly over a span of roughly two hours.
+
+── Assistant ───────────────────────────────────────────────
+С чужих адресов было **1335 попыток подобрать пароль**, все неудачные. Это период с запуска сервера (13:24 по Москве) до сейчас.
+
+- **Подключений:** 1324 с 11 адресов. За одно подключение робот пробует несколько паролей.
+- **Главный источник:** 109.160.32.154, это 1287 подключений (97%). Остальные адреса дали по 1–10 подключений: 61.93.123.64, 35.214.204.44, 80.94.92.234 и ещё 7.
+- **Имена:** примерно в 800 попытках были несуществующие пользователи (`guest`, `steam`, `cloud` и подобные), в остальных `root`.
+- **Последняя чужая попытка** была в 15:32 по Москве. После того как я выключил вход по паролю (15:38), чужих попыток нет.
+
+Удачных чужих входов не было. Теперь войти можно только по ключу, поэтому новые попытки ничем не грозят.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_cpuae9aqw3]
+
+[TASK-014-FIX] Reviewer -> Team lead: APPROVE
+Round 1. Assignee: UI coder. Spec: docs/tasks/TASK-014-FIX.md (incl. Amendment 1).
+
+## Verified
+- All 13 templates match the spec markup. Every "·" in them is `&nbsp;· ` with no whitespace before it. A grep over all templates leaves only the 4 out-of-scope lines (today.html, home page-sub, lesson_item time, staff_dialog header). In _message.html only the meta separators changed; the li, classes, id and data-message-id are unchanged, and static/js is unchanged.
+- CSS: `.petition > a` was removed from the shared inline-block rule; the new `.petition-title, .catalog-title` block keeps 44 px. `.meta-item` is nowrap. Muted meta colour is 7.12:1. Petitions have no per-status colour classes, so `.petition-meta .status` hides nothing.
+- My own browser check (temp DB with a 150-char subject, headless Chrome): I measured every "·" in `main` against its block's left content edge, at 320 and 360. Student pages: /requests/, /chat/, /notifications/, /grades/ (details open), /. Staff pages: /staff/requests/, /staff/chats/, /staff/students/, /staff/announcements/. 18 page×width combinations, 191 dots, 0 line starts, scrollWidth equals the viewport everywhere. Screenshots at 360 show lines ending with "·", never starting with it; the 150-char title wraps on its own line.
+
+## Runs (log time US; MSK = +11 h, ~23:51-23:57 MSK)
+- `test --parallel 1`: Ran 1134 tests, OK. $TMPDIR/test-t014fix-rev-20261119-125103.log
+- `run_tests_at.py 2026-11-20T00:00:00`: Ran 1134 tests, OK. $TMPDIR/test-t014fix-rev-midnight-20261119-125103.log
+- My runs had no failures. The UI coder reported one failure, ~23:46 MSK: `core.tests.test_css.BaseCssTests.test_meta_item_nowrap` (`AssertionError: False is not true`). Their new test's regex read the CSS comment as part of the selector. They fixed the test (it now strips comments) before the final run.
+- check, makemigrations --check, ruff check . and ruff format --check . (193 files): all OK.
+
+## Spec conflict (accepted; FYI)
+`SeparatorRuleTests::test_no_whitespace_before_separator` asks every listed file to contain "&nbsp;·". catalog.html has no separators by AC4/D4. The UI coder asserts `"·" not in` catalog.html instead, which keeps the intent.
+
+## Notes (non-blocking)
+- `SeparatorTests::test_texts_and_links_kept` uses `assertIn("GX", queue)` on a full page. Under the README rule this is a short needle: it can pass falsely if the CSRF token contains "GX" (~1.6%). It cannot fail falsely. A cleanup could assert `<span class="meta-item">GX&nbsp;·</span>`.
+- plan.md is still modified (your file).
+
+── Assistant ───────────────────────────────────────────────
+TASK-014-FIX одобрена. Проверяю её: тесты и страницы на 360 px.
+
+── Ran 5 commands ──────────────────────────────────────────
+  ── Ran git status --short && . .venv/bin/activate && L="$TMPDIR/test-lead14fix-$(date +%Y%m%d-%H%M%S).log" && echo "$L" > "$TMPDIR/lead14fixlog" && (find private_media -type f | sort > "$TMPDIR/pm14f-before.txt"; { python manage.py check; DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ python manage.py check --deploy --fail-level WARNING; echo "deploy-check=$?"; python manage.py makemigrations --check --dry-run; echo "makemigrations=$?"; ruff check . && ruff format --check .; echo "ruff=$?"; python manage.py test --parallel 2 2>&1; echo "parallel=$?"; python scripts/run_tests_at.py 2026-11-20T00:00:00 2>&1; echo "midnight=$?"; find private_media -type f | sort > "$TMPDIR/pm14f-after.txt"; diff -q "$TMPDIR/pm14f-before.txt" "$TMPDIR/pm14f-after.txt" && echo "private_media=unchanged"; } > "$L" 2>&1) > /dev/null 2>&1 & echo started (2s)
+    $ git status --short && . .venv/bin/activate && L="$TMPDIR/test-lead14fix-$(date +%Y%m%d-%H%M%S).log" && echo "$L" > "$TMPDIR/lead14fixlog" && (find private_media -type f | sort > "$TMPDIR/pm14f-before.txt"; { python manage.py check; DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ python manage.py check --deploy --fail-level WARNING; echo "deploy-check=$?"; python manage.py makemigrations --check --dry-run; echo "makemigrations=$?"; ruff check . && ruff format --check .; echo "ruff=$?"; python manage.py test --parallel 2 2>&1; echo "parallel=$?"; python scripts/run_tests_at.py 2026-11-20T00:00:00 2>&1; echo "midnight=$?"; find private_media -type f | sort > "$TMPDIR/pm14f-after.txt"; diff -q "$TMPDIR/pm14f-before.txt" "$TMPDIR/pm14f-after.txt" && echo "private_media=unchanged"; } > "$L" 2>&1) > /dev/null 2>&1 &
+  echo started
+    M academics/templates/academics/includes/discipline.html
+     M academics/tests/test_views.py
+     M accounts/templates/accounts/student_list.html
+     M chat/templates/chat/_message.html
+     M chat/templates/chat/staff_list.html
+     M chat/tests/test_views.py
+     M core/tests/test_css.py
+     M core/tests/test_design.py
+     M core/tests/test_home.py
+     M notifications/templates/notifications/feed.html
+     M notifications/templates/notifications/staff_list.html
+     M notifications/tests/test_views.py
+     M petitions/templates/petitions/catalog.html
+     M petitions/templates/petitions/includes/comments.html
+     M petitions/templates/petitions/includes/history.html
+     M petitions/templates/petitions/my_list.html
+     M petitions/templates/petitions/staff_queue.html
+     M petitions/tests/test_views.py
+     M plan.md
+     M schedule/templates/schedule/includes/lesson_compact.html
+     M schedule/templates/schedule/staff_group_list.html
+     M static/css/base.css
+     M static/css/theme.css
+    ?? docs/tasks/TASK-014-FIX.md
+    (eval):1: nice(5) failed: operation not permitted
+    started
+  ── Ran git diff petitions/templates/petitions/my_list.html chat/templates/chat/_message.html static/css/base.css | head -90
+    $ git diff petitions/templates/petitions/my_list.html chat/templates/chat/_message.html static/css/base.css | head -90
+    diff --git a/chat/templates/chat/_message.html b/chat/templates/chat/_message.html
+    index c69dc39..2cb651b 100644
+    --- a/chat/templates/chat/_message.html
+    +++ b/chat/templates/chat/_message.html
+    @@ -1,4 +1,4 @@
+     <li class="chat-message chat-message--{{ m.author_role }} {% if m.author_role == 'student' and viewer_is_student or m.author_role == 'staff' and not viewer_is_student %}chat-message--own{% else %}chat-message--other{% endif %}" id="m-{{ m.pk }}" data-message-id="{{ m.pk }}">
+    -  <p class="chat-meta"><strong>{% if m.author_role == "staff" %}Деканат · {{ m.author.staff_profile.short_name }}{% elif viewer_is_student %}Вы{% else %}{{ student_name }}{% endif %}</strong> · <time datetime="{{ m.created_at|date:'c' }}">{{ m.created_at|date:"d.m.Y H:i" }}</time></p>
+    +  <p class="chat-meta"><strong>{% if m.author_role == "staff" %}Деканат&nbsp;· {{ m.author.staff_profile.short_name }}{% elif viewer_is_student %}Вы{% else %}{{ student_name }}{% endif %}</strong>&nbsp;· <time datetime="{{ m.created_at|date:'c' }}">{{ m.created_at|date:"d.m.Y H:i" }}</time></p>
+       <p class="chat-text">{{ m.text|linebreaksbr }}</p>
+     </li>
+    diff --git a/petitions/templates/petitions/my_list.html b/petitions/templates/petitions/my_list.html
+    index 7be6f7f..7d26a6b 100644
+    --- a/petitions/templates/petitions/my_list.html
+    +++ b/petitions/templates/petitions/my_list.html
+    @@ -6,11 +6,8 @@
+         <ul class="petition-list">
+           {% for petition in petitions %}
+             <li class="petition">
+    -          <a href="{% url 'petitions:detail' petition.public_id %}">{{ petition.display_name }}</a>
+    -          · № {{ petition.short_id }}
+    -          · {{ petition.created_at|date:"j E Y" }}
+    -          · <span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>
+    -          · готовность: {{ petition.expected_ready_date|date:"j E Y" }}
+    +          <a class="petition-title" href="{% url 'petitions:detail' petition.public_id %}">{{ petition.display_name }}</a>
+    +          <p class="petition-meta"><span class="meta-item">№ {{ petition.short_id }}&nbsp;·</span> <span class="meta-item">{{ petition.created_at|date:"j E Y" }}&nbsp;·</span> <span class="meta-item"><span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>&nbsp;·</span> <span class="meta-item">готовность: {{ petition.expected_ready_date|date:"j E Y" }}</span></p>
+             </li>
+           {% endfor %}
+         </ul>
+    diff --git a/static/css/base.css b/static/css/base.css
+    index 9599c2f..170ced1 100644
+    --- a/static/css/base.css
+    +++ b/static/css/base.css
+    @@ -758,7 +758,6 @@ input[type="file"]::file-selector-button {
+       padding: var(--space-3);
+     }
+     
+    -.petition > a,
+     .chat-dialogs li > a,
+     .student-list a,
+     .group-list a {
+    @@ -767,6 +766,31 @@ input[type="file"]::file-selector-button {
+       padding-block: 0.625rem;
+     }
+     
+    +/* Request rows and catalog (TASK-014-FIX): the title on its own line (44 px tap target),
+    +   then short details. Bounded detail parts never split; the "&nbsp;·" separator sits inside
+    +   the preceding part, so a line never starts with "·". */
+    +.petition-title,
+    +.catalog-title {
+    +  display: block;
+    +  min-height: 2.75rem;
+    +  padding-block: 0.625rem;
+    +}
+    +
+    +.meta-item {
+    +  white-space: nowrap;
+    +}
+    +
+    +.petition-meta,
+    +.petition-subject,
+    +.catalog-desc,
+    +.catalog-term {
+    +  margin: 0;
+    +}
+    +
+    +.catalog-item + .catalog-item {
+    +  margin-top: var(--space-3);
+    +}
+    +
+     .discipline summary {
+       min-height: 2.75rem;
+       padding: var(--space-1) 0;
+  ── Ran . .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/lead14f.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/lead14f-media" && rm -f "$TMPDIR/lead14f.sqlite3" && mkdir -p "$TMPDIR/lead14f-media" && python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py shell -c " import json from django.contrib.sessions.backends.db import SessionStore from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY from petitions.models import Petition U=get_user_model(); out={} for n in ['student1','staff1']:     u=U.objects.get(username=n); s=SessionStore()     s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create(); out[n]=s.session_key p=Petition.objects.exclude(subject='').first() p.subject=('Справка о периоде обучения с указанием дат начала и окончания, номера приказа о зачислении и формы обучения для визового центра посольства ')[:150] p.save(update_fields=['subject']) print(len(p.subject)) json.dump(out, open('$TMPDIR/sess14f.json','w')) " 2>&1 | grep -v imported (6s)
+    $ . .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/lead14f.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/lead14f-media" && rm -f "$TMPDIR/lead14f.sqlite3" && mkdir -p "$TMPDIR/lead14f-media" && python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py shell -c "
+  import json
+  from django.contrib.sessions.backends.db import SessionStore
+  from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY
+  from petitions.models import Petition
+  U=get_user_model(); out={}
+  for n in ['student1','staff1']:
+      u=U.objects.get(username=n); s=SessionStore()
+      s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create(); out[n]=s.session_key
+  p=Petition.objects.exclude(subject='').first()
+  p.subject=('Справка о периоде обучения с указанием дат начала и окончания, номера приказа о зачислении и формы обучения для визового центра посольства ')[:150]
+  p.save(update_fields=['subject'])
+  print(len(p.subject))
+  json.dump(out, open('$TMPDIR/sess14f.json','w'))
+  " 2>&1 | grep -v imported
+    Chat ready: 3 dialogs, 8 messages.
+
+    139
+  ── Ran . .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/lead14f.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/lead14f-media" DEBUG=true && exec python manage.py runserver 127.0.0.1:8775 --noreload (3s)
+    $ . .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/lead14f.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/lead14f-media" DEBUG=true && exec python manage.py runserver 127.0.0.1:8775 --noreload
+    Command running in background with ID: brpmv35au. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/b253eb8a-83a9-41db-914f-dac833630714/tasks/brpmv35au.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran sleep 4; curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8775/login/; bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -1 > "$TMPDIR/bopen.json"; ~/hackatonproject/.venv/bin/python -c "import json;d=json.load(open('$TMPDIR/bopen.json'));print(d.get('sessionId') or d.get('id'));print(d.get('previewDirective',''))" | tee "$TMPDIR/bopen.txt"; head -1 "$TMPDIR/bopen.txt" > "$TMPDIR/bsess" (6s)
+    $ sleep 4; curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8775/login/; bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -1 > "$TMPDIR/bopen.json"; ~/hackatonproject/.venv/bin/python -c "import json;d=json.load(open('$TMPDIR/bopen.json'));print(d.get('sessionId') or d.get('id'));print(d.get('previewDirective',''))" | tee "$TMPDIR/bopen.txt"; head -1 "$TMPDIR/bopen.txt" > "$TMPDIR/bsess"
+    200
+    e49b28db-e4c2-4b94-9167-e4f16919da77
+    ::browser-preview{session="e49b28db-e4c2-4b94-9167-e4f16919da77"}
+
+── Assistant ───────────────────────────────────────────────
+::browser-preview{session="e49b28db-e4c2-4b94-9167-e4f16919da77"}
+
+── Ran cat > "$TMPDIR/s14.js" <<'EOF' const p = await browser.getPage('main'); const res = {}; const B = 'http://127.0.0.1:8775'; const as = async (k) => { await p.deleteCookie({name: 'sessionid', domain: '127.0.0.1'}); await p.setCookie({name: 'sessionid', value: k, domain: '127.0.0.1', path: '/'}); }; // count "·" glyphs that start a visual line: compare each dot's rect with the previous non-space character's rect const scan = () => p.evaluate(() => {   const main = document.querySelector('main');   document.querySelectorAll('main details').forEach(d => d.open = true);   const walker = document.createTreeWalker(main, NodeFilter.SHOW_TEXT);   let dots = 0, starts = 0, examples = [];   const prevCharRect = (node, idx) => {     // find previous visible non-space char in document order     let n = node, i = idx - 1;     const w = document.createTreeWalker(main, NodeFilter.SHOW_TEXT); w.currentNode = node;     while (true) {       while (i >= 0) { const ch = n.data[i]; if (ch && !/\s/.test(ch)) { const r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + 1); const rr = r.getClientRects()[0]; if (rr) return rr; } i--; }       n = w.previousNode(); if (!n) return null; i = n.data.length - 1;     }   };   let t;   while ((t = walker.nextNode())) {     for (let i = 0; i < t.data.length; i++) {       if (t.data[i] !== '·') continue;       const r = document.createRange(); r.setStart(t, i); r.setEnd(t, i + 1);       const rr = r.getClientRects()[0]; if (!rr || rr.width === 0) continue;       dots++;       const pr = prevCharRect(t, i);       if (!pr || pr.bottom <= rr.top + 1) { starts++; if (examples.length < 3) examples.push(t.parentElement.closest('li,p,div').innerText.slice(0, 80)); }     }   }   return {dots, starts, examples, sw: document.documentElement.scrollWidth}; }); await p.setViewport({width: 360, height: 780, deviceScaleFactor: 1}); await as('__K1__'); for (const u of ['/requests/', '/requests/new/', '/chat/', '/notifications/', '/grades/', '/']) { await p.goto(B + u, {waitUntil: 'networkidle0'}); res['student ' + u] = await scan(); if (u === '/requests/' || u === '/grades/') await p.shot({type: 'jpeg', maxEdge: 960, quality: 70}); } await as('__KS__'); for (const u of ['/staff/requests/', '/staff/chats/', '/staff/students/', '/staff/announcements/', '/staff/schedule/']) { await p.goto(B + u, {waitUntil: 'networkidle0'}); res['staff ' + u] = await scan(); if (u === '/staff/requests/' || u === '/staff/chats/') await p.shot({type: 'jpeg', maxEdge: 960, quality: 70}); } console.log(JSON.stringify(res)); EOF J=$TMPDIR/sess14f.json; PY=~/hackatonproject/.venv/bin/python; K1=$($PY -c "import json;print(json.load(open('$J'))['student1'])"); KS=$($PY -c "import json;print(json.load(open('$J'))['staff1'])"); sed -i '' "s/__K1__/$K1/; s/__KS__/$KS/" "$TMPDIR/s14.js"; bb browser-automation run $(cat $TMPDIR/bsess) --timeout 120s --json --script "$(cat $TMPDIR/s14.js)" > $TMPDIR/s14.out 2>&1; $PY -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d.get("text") or d);[print(i["path"]) for i in d.get("images",[])]' $TMPDIR/s14.out 2>/dev/null || head -c 3000 $TMPDIR/s14.out (12s)
+  $ cat > "$TMPDIR/s14.js" <<'EOF'
+const p = await browser.getPage('main');
+const res = {};
+const B = 'http://127.0.0.1:8775';
+const as = async (k) => { await p.deleteCookie({name: 'sessionid', domain: '127.0.0.1'}); await p.setCookie({name: 'sessionid', value: k, domain: '127.0.0.1', path: '/'}); };
+// count "·" glyphs that start a visual line: compare each dot's rect with the previous non-space character's rect
+const scan = () => p.evaluate(() => {
+  const main = document.querySelector('main');
+  document.querySelectorAll('main details').forEach(d => d.open = true);
+  const walker = document.createTreeWalker(main, NodeFilter.SHOW_TEXT);
+  let dots = 0, starts = 0, examples = [];
+  const prevCharRect = (node, idx) => {
+    // find previous visible non-space char in document order
+    let n = node, i = idx - 1;
+    const w = document.createTreeWalker(main, NodeFilter.SHOW_TEXT); w.currentNode = node;
+    while (true) {
+      while (i >= 0) { const ch = n.data[i]; if (ch && !/\s/.test(ch)) { const r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + 1); const rr = r.getClientRects()[0]; if (rr) return rr; } i--; }
+      n = w.previousNode(); if (!n) return null; i = n.data.length - 1;
+    }
+  };
+  let t;
+  while ((t = walker.nextNode())) {
+    for (let i = 0; i < t.data.length; i++) {
+      if (t.data[i] !== '·') continue;
+      const r = document.createRange(); r.setStart(t, i); r.setEnd(t, i + 1);
+      const rr = r.getClientRects()[0]; if (!rr || rr.width === 0) continue;
+      dots++;
+      const pr = prevCharRect(t, i);
+      if (!pr || pr.bottom <= rr.top + 1) { starts++; if (examples.length < 3) examples.push(t.parentElement.closest('li,p,div').innerText.slice(0, 80)); }
+    }
+  }
+  return {dots, starts, examples, sw: document.documentElement.scrollWidth};
+});
+await p.setViewport({width: 360, height: 780, deviceScaleFactor: 1});
+await as('__K1__');
+for (const u of ['/requests/', '/requests/new/', '/chat/', '/notifications/', '/grades/', '/']) { await p.goto(B + u, {waitUntil: 'networkidle0'}); res['student ' + u] = await scan(); if (u === '/requests/' || u === '/grades/') await p.shot({type: 'jpeg', maxEdge: 960, quality: 70}); }
+await as('__KS__');
+for (const u of ['/staff/requests/', '/staff/chats/', '/staff/students/', '/staff/announcements/', '/staff/schedule/']) { await p.goto(B + u, {waitUntil: 'networkidle0'}); res['staff ' + u] = await scan(); if (u === '/staff/requests/' || u === '/staff/chats/') await p.shot({type: 'jpeg', maxEdge: 960, quality: 70}); }
+console.log(JSON.stringify(res));
+EOF
+J=$TMPDIR/sess14f.json; PY=~/hackatonproject/.venv/bin/python; K1=$($PY -c "import json;print(json.load(open('$J'))['student1'])"); KS=$($PY -c "import json;print(json.load(open('$J'))['staff1'])"); sed -i '' "s/__K1__/$K1/; s/__KS__/$KS/" "$TMPDIR/s14.js"; bb browser-automation run $(cat $TMPDIR/bsess) --timeout 120s --json --script "$(cat $TMPDIR/s14.js)" > $TMPDIR/s14.out 2>&1; $PY -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d.get("text") or d);[print(i["path"]) for i in d.get("images",[])]' $TMPDIR/s14.out 2>/dev/null || head -c 3000 $TMPDIR/s14.out
+  {"student /requests/":{"dots":12,"starts":0,"examples":[],"sw":360},"student /requests/new/":{"dots":0,"starts":0,"examples":[],"sw":360},"student /chat/":{"dots":6,"starts":0,"examples":[],"sw":360},"student /notifications/":{"dots":51,"starts":0,"examples":[],"sw":360},"student /grades/":{"dots":15,"starts":0,"examples":[],"sw":360},"student /":{"dots":10,"starts":0,"examples":[],"sw":360},"staff /staff/requests/":{"dots":9,"starts":0,"examples":[],"sw":360},"staff /staff/chats/":{"dots":5,"starts":0,"examples":[],"sw":360},"staff /staff/students/":{"dots":2,"starts":0,"examples":[],"sw":360},"staff /staff/announcements/":{"dots":8,"starts":0,"examples":[],"sw":360},"staff /staff/schedule/":{"dots":1,"starts":0,"examples":[],"sw":360}}
+
+  /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-JzgtNd/db-AmJSBG/tmp/shot-1795121838485-1.jpg
+  /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-JzgtNd/db-AmJSBG/tmp/shot-1795121842491-2.jpg
+  /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-JzgtNd/db-AmJSBG/tmp/shot-1795121844489-3.jpg
+  /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-JzgtNd/db-AmJSBG/tmp/shot-1795121845490-4.jpg
+
+── Explored 3 files ────────────────────────────────────────
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-JzgtNd/db-AmJSBG/tmp/shot-1795121838485-1.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-JzgtNd/db-AmJSBG/tmp/shot-1795121845490-4.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-JzgtNd/db-AmJSBG/tmp/shot-1795121842491-2.jpg
+  ── Thought for 821ms
+    I'm checking the student's grades page for student1, and it reads fine. Next I need to save screenshots 70 through 73, update the README rows, wait for the tests, write the CHANGELOG and plan entries, and commit after redacting the user's IP from the dialogs. I'm still unsure whether to push, since the user hasn't answered that question about TASK-014.
+
+    I'm not going to push yet, since the user never answered the question about pushing TASK-014, so I'll ask again before doing anything with the remote.
+
+── Running 2 commands ──────────────────────────────────────
+  ── Ran B=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-JzgtNd/db-AmJSBG/tmp && D=docs/process/screenshots && cp $B/shot-1795121838485-1.jpg $D/2026-11-19_70_my-requests-no-leading-dot_student1.jpg && cp $B/shot-1795121842491-2.jpg $D/2026-11-19_71_grades-separators_student1.jpg && cp $B/shot-1795121844489-3.jpg $D/2026-11-19_72_staff-queue-no-leading-dot_staff1.jpg && cp $B/shot-1795121845490-4.jpg $D/2026-11-19_73_staff-chats-separators_staff1.jpg && .venv/bin/python - <<'EOF' p='docs/process/README.md' s=open(p,encoding='utf-8').read() anchor=[l for l in s.split('\n') if l.startswith('| `2026-11-19_69_')][0] rows=[ ('70_my-requests-no-leading-dot_student1','После TASK-014-FIX (разделители «·»)','«Мои заявки» на 360 px: название отдельной строкой (длинный «Тип» переносится), подробности ниже; строки заканчиваются на «·» и никогда с неё не начинаются. Сравните со снимком 68'), ('71_grades-separators_student1','После TASK-014-FIX','Успеваемость: строка дисциплины «Зачёт · Итог · Посещаемость» переносится без точки в начале строки'), ('72_staff-queue-no-leading-dot_staff1','После TASK-014-FIX','Очередь заявок сотрудника: ФИО, группа и вид заявки, подробности без точки в начале строки'), ('73_staff-chats-separators_staff1','После TASK-014-FIX','Список чатов сотрудника: «ФИО · группа ·» и время на следующей строке'), ] new='\n'.join(f'| `2026-11-19_{n}.jpg` | 19.11.2026 | {st} | {d} |' for n,st,d in rows) assert s.count(anchor)==1 s=s.replace(anchor, anchor+'\n'+new) open(p,'w',encoding='utf-8').write(s) EOF L=$(cat $TMPDIR/lead14fixlog); for i in $(seq 1 55); do grep -q "^midnight=" "$L" && break; sleep 10; done; grep -E "^(Ran|OK|FAILED)|=[0-9a-z]+$" "$L"; TZ=Europe/Moscow date (3m 2s)
+    $ B=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-JzgtNd/db-AmJSBG/tmp && D=docs/process/screenshots && cp $B/shot-1795121838485-1.jpg $D/2026-11-19_70_my-requests-no-leading-dot_student1.jpg && cp $B/shot-1795121842491-2.jpg $D/2026-11-19_71_grades-separators_student1.jpg && cp $B/shot-1795121844489-3.jpg $D/2026-11-19_72_staff-queue-no-leading-dot_staff1.jpg && cp $B/shot-1795121845490-4.jpg $D/2026-11-19_73_staff-chats-separators_staff1.jpg && .venv/bin/python - <<'EOF'
+  p='docs/process/README.md'
+  s=open(p,encoding='utf-8').read()
+  anchor=[l for l in s.split('\n') if l.startswith('| `2026-11-19_69_')][0]
+  rows=[
+  ('70_my-requests-no-leading-dot_student1','После TASK-014-FIX (разделители «·»)','«Мои заявки» на 360 px: название отдельной строкой (длинный «Тип» переносится), подробности ниже; строки заканчиваются на «·» и никогда с неё не начинаются. Сравните со снимком 68'),
+  ('71_grades-separators_student1','После TASK-014-FIX','Успеваемость: строка дисциплины «Зачёт · Итог · Посещаемость» переносится без точки в начале строки'),
+  ('72_staff-queue-no-leading-dot_staff1','После TASK-014-FIX','Очередь заявок сотрудника: ФИО, группа и вид заявки, подробности без точки в начале строки'),
+  ('73_staff-chats-separators_staff1','После TASK-014-FIX','Список чатов сотрудника: «ФИО · группа ·» и время на следующей строке'),
+  ]
+  new='\n'.join(f'| `2026-11-19_{n}.jpg` | 19.11.2026 | {st} | {d} |' for n,st,d in rows)
+  assert s.count(anchor)==1
+  s=s.replace(anchor, anchor+'\n'+new)
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  L=$(cat $TMPDIR/lead14fixlog); for i in $(seq 1 55); do grep -q "^midnight=" "$L" && break; sleep 10; done; grep -E "^(Ran|OK|FAILED)|=[0-9a-z]+$" "$L"; TZ=Europe/Moscow date
+    deploy-check=0
+    makemigrations=0
+    ruff=0
+    Ran 1134 tests in 81.603s
+    OK
+    parallel=0
+    Ran 1134 tests in 152.832s
+    OK
+    midnight=0
+    private_media=unchanged
+    Fri Nov 20 00:00:45 MSK 2026
+  ── Running .venv/bin/python - <<'EOF' p='CHANGELOG.md' s=open(p,encoding='utf-8').read() anchor='## 2026-11-19\n### TASK-014:' entry='''## 2026-11-19 ### TASK-014-FIX: строка не начинается с точки-разделителя - Во всех списках с «·» разделитель стоит в конце предыдущей части (`&nbsp;·`), части подробностей не разрываются: заявки (студент и сотрудник, комментарии, история), каталог, чат (список и сообщения), студенты, группы, лента и объявления, успеваемость, карточка занятия. В списках заявок название — отдельной строкой. Только шаблоны и CSS, JavaScript чата не менялся. - Принято как есть: у пустого комментария стандартный текст «Обязательное поле.». - Исполнитель — Кодер интерфейса. Ревью: 1 раунд, без замечаний. Проверка тимлида в браузере (360 px, 11 страниц студента и сотрудника, «Тип» 139 символов): 119 разделителей, ни один не начинает строку. Всего тестов: 1134. ### TASK-014:''' assert s.count(anchor)==1 s=s.replace(anchor, entry) open(p,'w',encoding='utf-8').write(s) p='plan.md' s=open(p,encoding='utf-8').read() row=[l for l in s.split('\n') if l.startswith('| TASK-014-FIX |')][0] assert row.endswith('| В работе |') s=s.replace(row, row[:-len('| В работе |')]+'| Готово |') old='В работе TASK-014-FIX (Кодер интерфейса). TASK-015 на паузе до решения пользователя (контекст Кодера на DeepSeek сжат 19.11).' assert s.count(old)==1 s=s.replace(old,'TASK-014-FIX закрыта 20.11. TASK-015 на паузе до решения пользователя (контекст Кодера на DeepSeek сжат 19.11).') open(p,'w',encoding='utf-8').write(s) EOF O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)     t=t.replace('[id скрыт]','[id скрыт]')     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     t=t.replace('[IP пользователя скрыт]','[IP пользователя скрыт]')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~','[IP пользователя скрыт]') if k in t]     assert not bad,(f,bad)     assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF rm -rf "$O"
+    $ .venv/bin/python - <<'EOF'
+  p='CHANGELOG.md'
+  s=open(p,encoding='utf-8').read()
+  anchor='## 2026-11-19\n### TASK-014:'
+  entry='''## 2026-11-19
+  ### TASK-014-FIX: строка не начинается с точки-разделителя
+  - Во всех списках с «·» разделитель стоит в конце предыдущей части (`&nbsp;·`), части подробностей не разрываются: заявки (студент и сотрудник, комментарии, история), каталог, чат (список и сообщения), студенты, группы, лента и объявления, успеваемость, карточка занятия. В списках заявок название — отдельной строкой. Только шаблоны и CSS, JavaScript чата не менялся.
+  - Принято как есть: у пустого комментария стандартный текст «Обязательное поле.».
+  - Исполнитель — Кодер интерфейса. Ревью: 1 раунд, без замечаний. Проверка тимлида в браузере (360 px, 11 страниц студента и сотрудника, «Тип» 139 символов): 119 разделителей, ни один не начинает строку. Всего тестов: 1134.
+
+  ### TASK-014:'''
+  assert s.count(anchor)==1
+  s=s.replace(anchor, entry)
+  open(p,'w',encoding='utf-8').write(s)
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  row=[l for l in s.split('\n') if l.startswith('| TASK-014-FIX |')][0]
+  assert row.endswith('| В работе |')
+  s=s.replace(row, row[:-len('| В работе |')]+'| Готово |')
+  old='В работе TASK-014-FIX (Кодер интерфейса). TASK-015 на паузе до решения пользователя (контекст Кодера на DeepSeek сжат 19.11).'
+  assert s.count(old)==1
+  s=s.replace(old,'TASK-014-FIX закрыта 20.11. TASK-015 на паузе до решения пользователя (контекст Кодера на DeepSeek сжат 19.11).')
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && .venv/bin/python -I - "$O" <<'EOF'
+  import os,re,sys
+  d=sys.argv[1]; out='docs/process/dialogs'
+  for f in sorted(os.listdir(d)):
+      t=open(os.path.join(d,f),encoding='utf-8').read()
+      t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)
+      t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)
+      t=t.replace('[id скрыт]','[id скрыт]')
+      t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')
+      t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)
+      t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')
+      t=t.replace('[IP пользователя скрыт]','[IP пользователя скрыт]')
+      bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~','[IP пользователя скрыт]') if k in t]
+      assert not bad,(f,bad)
+      assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f
+      assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f
+      assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f
+      assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f
+      open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
+  EOF
+  rm -rf "$O"

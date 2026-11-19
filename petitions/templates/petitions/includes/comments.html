@@ -1,11 +1,7 @@
 {% if petition.staff_comments.all %}
   <ul>
     {% for comment in petition.staff_comments.all %}
-      <li>
-        {% if comment.author.role == "staff" %}{{ comment.author.staff_profile.full_name }}{% else %}Сотрудник{% endif %}
-        · {{ comment.created_at|date:"j E Y H:i" }}
-        · {{ comment.text }}
-      </li>
+      <li>{% if comment.author.role == "staff" %}{{ comment.author.staff_profile.full_name }}{% else %}Сотрудник{% endif %}&nbsp;· {{ comment.created_at|date:"j E Y H:i" }}&nbsp;· {{ comment.text }}</li>
     {% endfor %}
   </ul>
 {% else %}

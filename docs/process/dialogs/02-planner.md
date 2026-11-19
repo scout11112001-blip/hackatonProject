@@ -21548,3 +21548,645 @@ EOF
 Перед этим перезапустил все проверки на чистом дереве после коммита TASK-013-FIX2 (`ca9f30b`). Прошли все 1095 тестов, `check`, проверка миграций и ruff. Коммит TASK-013-FIX2 не меняет ни одного файла заявок, поэтому прототип TASK-014 остаётся в силе. Новые данные проверки я записал в раздел проверки выполнимости [спецификации](docs/tasks/TASK-014.md).
 
 Жду вопросов Кодера.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-014-FIX] Team lead -> Planner: TASK
+Approved by the user. Write the spec `docs/tasks/TASK-014-FIX.md` and hand it to the UI coder.
+Assignee: UI coder (thr_pgcwc2dwnn)
+
+## Context
+TASK-014 (committed 1414de1) made request titles longer ("Другая справка: <Тип>", up to 150 characters). Found by the Team lead at 360 px. Apply your "Feasibility check" and "Test plan" sections.
+
+## Item (user decision: fix)
+1. Request lists: when a row wraps, a line starts with the separator dot ("· № 399ee6e5 · 19 ноября 2026 ·"), see `docs/process/screenshots/2026-11-19_68_my-requests-subject_student1.jpg`. Cause: `petitions/templates/petitions/my_list.html` and `staff_queue.html` join the parts with a literal " · " in the text, so the browser may break the line right before a dot. Required: a separator never starts a line in the request lists (student list and staff queue, any title length); the row stays readable at 360 px and 1024 px. Choose the means (e.g. the title on its own line and the details as one line below, or separators that stay attached to the previous item); check other lists that use the same " · " pattern (e.g. the catalog "— description · Срок: ...") and apply the same rule there if they wrap the same way. No JavaScript; text for screen readers stays sensible.
+   - Visual check: student "Мои заявки" and staff "Заявки" with the demo request "Другая справка: Справка о периоде обучения" and with a 150-character subject, at 360 x 780 and 1024 x 768; catalog at 360 px.
+
+## Accepted as is (user decision, no change)
+- The empty comment on the form shows Django's "Обязательное поле." (the service has the custom text).
+
+## Out of scope
+New features, other pages.
+
+## Order
+TASK-015 comes after this task (the Coder must not work in the tree at the same time).
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-015] Team lead -> Planner: TASK
+Approved by the user. Write the spec `docs/tasks/TASK-015.md` and hand it to the Coder (DeepSeek, thr_ng6cbgatm6).
+
+## Context
+TASK-011 prepared the deploy for a small server (1 vCPU, 1 GB RAM, 10 GB disk). On 19.11 the user moved to another hosting: Ubuntu 24.04.4, 2 vCPU, 1.9 GB RAM, 20 GB disk, the provider already created a 512 MB swap file (swappiness 60). User decision: remove the optimizations made for the old small server. Documentation and deploy templates only; no application code changes. Apply your "Feasibility check" and "Test plan" sections.
+
+## Changes
+1. `docs/DEPLOY.md` header and every mention of the old size: describe the new server (2 vCPU, ~2 GB RAM, 20 GB disk).
+2. Remove step "1. Swap first (1 GB RAM)" (fallocate 1 GB, fstab, swappiness 10). Replace it with a one-line check that the provider swap exists (`swapon --show`, `free -h`); do not create or resize swap. Renumber steps and fix all step cross-references.
+3. gunicorn workers: 5 (formula already in the runbook: min(2 x vCPU + 1, (free RAM MB - 300) / 90) = min(5, 13)). Update `deploy/gunicorn.conf.py` (docstring and the default), `.env.production.example` (comment and `GUNICORN_WORKERS=5`) and the runbook. Keep the env override.
+4. journald: remove the custom cap made for the 10 GB disk (`deploy/journald/50-deanery.conf` and its runbook step); systemd defaults apply (10% of the file system, at most 4 GB). Remove the file and every reference to it (runbook, tests, CI if any).
+5. PostgreSQL: drop the "do not raise shared_buffers, keep max_connections" warning that exists because of 1 GB RAM; stock settings stay (no tuning step added).
+6. Section "Resources": recalculate the expected memory and disk for 5 workers on ~2 GB / 20 GB.
+7. Keep everything else unchanged: backups (KEEP_DAYS 7), nginx, systemd unit, SSH hardening, firewall, HTTPS, HSTS.
+
+## Verification
+All existing verification commands (check, deploy check, tests with the output saved to a file, ruff, CI YAML, `bash -n` of the deploy scripts, `gunicorn --check-config`); update tests that assert the old worker count or the journald file, with the reason; `grep` proves no mention of "1 GB", "1 vCPU", "10 GB", "swapfile" or "50-deanery.conf" remains in docs/DEPLOY.md, deploy/ and .env.production.example.
+
+## Timing
+TASK-014-FIX (UI coder, petitions templates/CSS) goes first. Write this spec and run the feasibility check now (treat TASK-014-FIX files as expected uncommitted changes), but do NOT hand it to the Coder until I send "TASK-014-FIX committed". The Coder's context is being compacted now.
+steer
+
+── Thought for 11ms ────────────────────────────────────────
+  I have two tasks: first the TASK-014-FIX, which I'll hand to the UI coder now, and then the TASK-015 spec, which I'll hand over later. For the fix, I'm going to look at the current templates after TASK-014, take a screenshot, check the CSS for the .petition rows, and review the catalog before deciding on an approach.
+
+── Assistant ───────────────────────────────────────────────
+Взял обе задачи. Сначала TASK-014-FIX (точка-разделитель в начале строки), потом TASK-015 (деплой на новый сервер). Смотрю текущие шаблоны и скриншот.
+
+── Ran 1 command, explored 1 file ──────────────────────────
+  ── Ran git status --short && git log --oneline -3 && cat petitions/templates/petitions/my_list.html petitions/templates/petitions/staff_queue.html petitions/templates/petitions/catalog.html | grep -v "^\s*$"; grep -rn " · " --include='*.html' . | grep -v -e .venv -e docs/ | grep -v "petitions/templates/petitions/\(my_list\|staff_queue\|catalog\)" (2s)
+    $ git status --short && git log --oneline -3 && cat petitions/templates/petitions/my_list.html petitions/templates/petitions/staff_queue.html petitions/templates/petitions/catalog.html | grep -v "^\s*$"; grep -rn " · " --include='*.html' . | grep -v -e .venv -e docs/ | grep -v "petitions/templates/petitions/\(my_list\|staff_queue\|catalog\)"
+    M plan.md
+    1414de1 TASK-014: military office certificate, catch-all requests with a required subject, "до N рабочих дней" terms
+    ca9f30b TASK-013-FIX2: wide map layout, the floor plan fits the screen
+    8f469b2 TASK-013-FIX: feed marks a lesson change new only on visible edits; parallel tests keep uploads in a temp dir
+    {% extends "base.html" %}
+    {% block content %}
+      <h1>Мои заявки</h1>
+      <p class="page-actions"><a href="{% url 'petitions:catalog' %}">Подать заявку</a></p>
+      {% if petitions %}
+        <ul class="petition-list">
+          {% for petition in petitions %}
+            <li class="petition">
+              <a href="{% url 'petitions:detail' petition.public_id %}">{{ petition.display_name }}</a>
+              · № {{ petition.short_id }}
+              · {{ petition.created_at|date:"j E Y" }}
+              · <span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>
+              · готовность: {{ petition.expected_ready_date|date:"j E Y" }}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>Заявок пока нет.</p>
+      {% endif %}
+    {% endblock %}
+    {% extends "base.html" %}
+    {% block content %}
+      <h1>Заявки</h1>
+      <form method="get" class="form">
+        <p>
+          <label for="status">Статус</label>
+          <select name="status" id="status">
+            {% for value, label in status_choices %}
+              <option value="{{ value }}"{% if value == selected_status %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </p>
+        <p>
+          <label for="type">Вид заявки</label>
+          <select name="type" id="type">
+            <option value="">Все</option>
+            {% for t in types %}
+              <option value="{{ t.pk }}"{% if t.pk|stringformat:"s" == selected_type %} selected{% endif %}>{{ t.name }}</option>
+            {% endfor %}
+          </select>
+        </p>
+        <button type="submit">Показать</button>
+      </form>
+      {% if petitions %}
+        <ul class="petition-list">
+          {% for petition in petitions %}
+            <li class="petition">
+              <a href="{% url 'petitions:staff_detail' petition.public_id %}">{{ petition.student.full_name }}</a>
+              · {{ petition.student.group.name }}
+              · {{ petition.display_name }}
+              · {{ petition.created_at|date:"j E Y" }}
+              · <span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>
+              · файлов: {{ petition.attachment_count }}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>Заявок нет.</p>
+      {% endif %}
+    {% endblock %}
+    {% extends "base.html" %}
+    {% block content %}
+      <h1>Подать заявку</h1>
+      <h2>Справки</h2>
+      {% for type in certificates %}
+        <p>
+          <a href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>
+          {% if type.description %} — {{ type.description }}{% endif %}
+          · Срок: {{ type.term_label }}
+        </p>
+      {% empty %}
+        <p>Справок пока нет.</p>
+      {% endfor %}
+      <h2>Заявления</h2>
+      {% for type in applications %}
+        <p>
+          <a href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>
+          {% if type.description %} — {{ type.description }}{% endif %}
+          · Срок: {{ type.term_label }}
+        </p>
+      {% empty %}
+        <p>Заявлений пока нет.</p>
+      {% endfor %}
+    {% endblock %}
+    academics/templates/academics/includes/discipline.html:4:      <strong>{{ d.item.discipline.name }}</strong> · {{ d.item.get_assessment_form_display }}
+    academics/templates/academics/includes/discipline.html:5:      · Итог: {% if d.effective %}{{ d.effective.get_result_display }}{% else %}нет{% endif %}
+    academics/templates/academics/includes/discipline.html:7:      · Посещаемость: {% if d.attendance.percent is not None %}{{ d.attendance.percent }}%{% else %}—{% endif %}
+    schedule/templates/schedule/staff_group_list.html:8:        · {{ group.program.name }}, {{ group.course }} курс
+    schedule/templates/schedule/today.html:4:  <p>{{ day.date|date:"l, j E" }} · группа {{ group.name }}</p>
+    schedule/templates/schedule/includes/lesson_item.html:5:    <time>{{ item.slot.start|time:"H:i" }}</time>–<time>{{ item.slot.end|time:"H:i" }}</time> · {{ item.slot.number }} пара
+    schedule/templates/schedule/includes/lesson_compact.html:2:  <p class="lesson-time"><time>{{ item.slot.start|time:"H:i" }}</time>–<time>{{ item.slot.end|time:"H:i" }}</time> · {{ item.slot.number }} пара{% if row.is_in_progress %} <span class="tag">идёт</span>{% endif %}</p>
+    schedule/templates/schedule/includes/lesson_compact.html:4:  <p class="lesson-meta">{{ item.lesson.get_lesson_type_display }} · {{ item.teacher.short_name }} · {% if item.is_happening %}<a class="room" href="{% url 'campusmap:room' item.room.code %}">ауд. {{ item.room.number }}</a>{% else %}<span class="room">ауд. {{ item.room.number }}</span>{% endif %}{% if item.is_changed %} <span class="lesson-change">{% if item.kind == "cancelled" %}отменено{% elif item.kind == "moved-out" %}перенесено на {{ item.moved_to_date|date:"j E" }}{% elif item.kind == "moved-in" %}перенесено с {{ item.moved_from_date|date:"j E" }}{% elif item.kind == "room-changed" %}аудитория изменена{% elif item.kind == "teacher-replaced" %}замена преподавателя{% endif %}</span>{% endif %}</p>
+    core/templates/core/home.html:5:  <p class="page-sub">{{ day.date|date:"l, j E" }} · {{ summary.student.group.name }}</p>
+    chat/templates/chat/_message.html:2:  <p class="chat-meta"><strong>{% if m.author_role == "staff" %}Деканат · {{ m.author.staff_profile.short_name }}{% elif viewer_is_student %}Вы{% else %}{{ student_name }}{% endif %}</strong> · <time datetime="{{ m.created_at|date:'c' }}">{{ m.created_at|date:"d.m.Y H:i" }}</time></p>
+    chat/templates/chat/staff_list.html:8:  <li><a href="{% url 'chat:staff_dialog' d.public_id %}">{{ d.student.full_name }}</a> · {{ d.student.group.name }} · {{ d.last_message_at|date:"d.m.Y H:i" }}{% if d.unread %} · <strong>новых: {{ d.unread }}</strong>{% endif %}</li>
+    chat/templates/chat/staff_dialog.html:7:<p><a href="{% url 'accounts:staff_student_detail' dialog.student.pk %}">{{ dialog.student.full_name }}</a> · {{ dialog.student.group.name }}</p>
+    petitions/templates/petitions/includes/comments.html:6:        · {{ comment.created_at|date:"j E Y H:i" }}
+    petitions/templates/petitions/includes/comments.html:7:        · {{ comment.text }}
+    petitions/templates/petitions/includes/history.html:6:        · {% if change.from_status %}{{ change.get_from_status_display }} → {% endif %}{{ change.get_to_status_display }}
+    petitions/templates/petitions/includes/history.html:7:        · {% if change.actor.role == "staff" %}{{ change.actor.staff_profile.full_name }}{% elif change.actor.role == "student" %}Студент{% else %}Администратор{% endif %}
+    accounts/templates/accounts/student_list.html:10:          · {{ student.group.name }}, {{ student.course }} курс
+    notifications/templates/notifications/feed.html:15:      <p class="feed-meta">{% if item.is_new %}<strong>Новое</strong> · {% endif %}{{ item.tag }} · <time datetime="{{ item.timestamp|date:'c' }}">{{ item.timestamp|date:"d.m.Y H:i" }}</time>{% if item.audience_label %} · {{ item.audience_label }}{% endif %}</p>
+    notifications/templates/notifications/staff_list.html:15:      <p class="feed-meta">{{ a.audience_label }} · {{ a.published_at|date:"d.m.Y H:i" }} · {% if a.is_published %}Опубликовано{% else %}Снято с публикации {{ a.unpublished_at|date:"d.m.Y H:i" }}{% endif %}</p>
+  ── Read ~/hackatonproject/docs/process/screenshots/2026-11-19_68_my-requests-subject_student1.jpg
+  ── Thought for 38s
+    I'm weighing how to keep separators attached to the item before them, so a line break never leaves a dot at the start of a line. One option is a CSS `::before` on the next item with `nowrap`; the other is appending a non-breaking space and dot to the end of the previous item.
+
+    I'm considering placing the separator at the end of each item rather than the start, so a wrap can't leave a dot at the beginning of a line. Long items like staff display names can't be forced onto one line, so they'll need their own line, while the shorter details can go on a single line that needs non-breaking joins.
+
+    I'm checking whether a non-breaking space before each dot would keep it attached to the preceding text, so no line can start with one. I'm also weighing whether marking the dots `aria-hidden` would stop screen readers from reading them out.
+
+    I'm leaning toward letting the separators sit on the line with the preceding text, using a non-breaking space before each dot so no line can start with one. Screen readers will keep reading the dots as they do now, so I'm not hiding them from assistive tech.
+
+    Next I'm settling the layout for the meta lines: short items like the number, date, status and file count get `white-space: nowrap`, so breaks can only fall between items. Dates can stay as they are, since a wrap like "19 ноября" / "2026" is acceptable.
+
+    I'm now putting each meta item in its own nowrap span with the separator dot at its end, so a line can never begin with a dot and breaks only fall between items. The longer staff display names can't be held on one line, so they'll get their own row.
+
+    Still writing the meta-line markup...
+
+    I'm settling the catalog rows next: the name goes on its own linked line, the description on another, and the "Срок" term on a third, each as a block, so no separator dot is needed and nothing can wrap into a stray dot. I'm also checking that the existing test for the "Срок: до 1 рабочего дня" wording still holds, and whether any test expects the old " — description" string.
+
+    Next I'm checking the tests for any assertions on the list row text, like the "· №" pattern or the "файлов:" wording. I also want to see where else the same " · " joining is used, since the chat staff list, the accounts student list, the schedule group list and the petition history lines could all wrap the same way.
+
+    I'm going through the remaining list templates that join items with " · " and checking which ones can wrap at 360 px. The petition list, staff queue, catalog, history and comments are the main candidates, along with the chat staff list, accounts student list, schedule group list, notifications, academics summary and chat message meta. I'm leaving the short home-page lines alone, since they won't wrap.
+
+    I'm checking which tests assert exact " · " strings, since wrapping the items could break them. Short lines like the lesson time and room are fine as they are, but lesson meta rows can wrap, so I'm weighing whether to touch them too or keep the change limited to the petition lists.
+
+    I'm deciding which other petition lists get the same nowrap treatment: the request pages are in scope, so I'll cover my list, the staff queue and the catalog, plus the history and comments includes on the detail pages. Lists in other apps are out of scope for this change, so I'll note them as candidates rather than edit them.
+
+    I'm settling on attaching each separator to the end of the item before it, with a non-breaking space ahead of the dot, so no line can start with one. Bounded items like dates, numbers and statuses get `nowrap`, while long items such as actor names or comment text keep normal wrapping.
+
+    I'm going to use a non-breaking space directly before each dot, so a separator can never start a line, and I'll check that by testing the rendered list markup for a regular space before the dot. That means restructuring the template so the dot follows the non-breaking space with no newline or indentation between them, and the request rows get their title link on its own line.
+
+    I'm checking the history and comments includes and the petition CSS next, to see how their meta lines are built.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-015] Team lead -> Planner: ANSWER
+Hold TASK-015 completely (user decision): do not write or hand over the spec until I send "TASK-015 go". If you have already started, stop and keep the draft as is. TASK-014-FIX goes ahead as planned.
+steer
+
+── Explored 1 file ─────────────────────────────────────────
+  ── Read petitions/templates/petitions/includes/history.html
+  ── Thought for 5ms
+    I've put TASK-015 aside for now and am continuing TASK-014-FIX. The grep for row-text assertions came back empty, so I'm checking whether any tests assert petition list content or the "→" format in history and comments.
+
+── Assistant ───────────────────────────────────────────────
+TASK-015 стоит на паузе, я его ещё не начинал. Продолжаю TASK-014-FIX.
+
+── Explored 2 searches ─────────────────────────────────────
+  ── Searched for →\|файлов\|готовность\|Срок:\|Студент<\|petition-list in */tests
+  ── Thought
+    I'm checking whether any staff queue test asserts the 'Другая справка' text in a particular markup, like the '· Другая справка' separator. The TASK-014 SubjectDisplayTests already cover the escaped display name, so that part is fine. I'll grep the petitions tests for "display" to see if anything else depends on that exact format.
+  ── Searched for class SubjectDisplayTests in petitions/tests/test_views.py
+  ── Thought
+    I'm checking the baseline first: only plan.md is modified, and the last full test run was 1095 at ca9f30b, before the TASK-014 commit changed the count. I'll run the full test suite on HEAD 1414de1 now, which takes about 150 seconds. I'm fairly confident about the UI change, so a quick browser prototype isn't necessary, since the UI coder does the visual check.
+
+── Assistant ───────────────────────────────────────────────
+Шаблоны и тесты изучил. Запускаю базовый прогон на текущем дереве.
+
+── Ran source .venv/bin/activate && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run | tail -1 && ruff check . | tail -1 && ruff format --check . | tail -1 && LOG="$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log" && python manage.py test --parallel 1 2>&1 | tee "$LOG" | grep -E "^(FAIL|ERROR):|^Ran|^OK|^FAILED"; echo "$LOG"; TZ=Europe/Moscow date (2m 44s)
+  $ source .venv/bin/activate && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run | tail -1 && ruff check . | tail -1 && ruff format --check . | tail -1 && LOG="$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log" && python manage.py test --parallel 1 2>&1 | tee "$LOG" | grep -E "^(FAIL|ERROR):|^Ran|^OK|^FAILED"; echo "$LOG"; TZ=Europe/Moscow date
+  System check identified no issues (0 silenced).
+  No changes detected
+  All checks passed!
+  193 files already formatted
+  Ran 1122 tests in 161.256s
+  OK
+  /tmp/claude-501/test-20261119-043501.log
+  Thu Nov 19 15:37:44 MSK 2026
+
+── Edited 2 files ──────────────────────────────────────────
+  ── Created docs/tasks/TASK-014-FIX.md +162
+    --- /dev/null
+    +++ b~/hackatonproject/docs/tasks/TASK-014-FIX.md
+    +# TASK-014-FIX: A separator dot never starts a line in request lists
+    +
+    +Assignee: **UI coder** (thr_pgcwc2dwnn). Request: Team lead, approved by the user (found at 360 px on 19.11).
+    +
+    +## Goal
+    +
+    +In the request pages, a separator "·" never starts a line, at any width and any title length. Rows stay readable at 360 px and 1024 px. No JavaScript.
+    +
+    +Problem (screenshot `docs/process/screenshots/2026-11-19_68_my-requests-subject_student1.jpg`): `my_list.html` and `staff_queue.html` write each part on its own template line as `· part`, so the HTML has a normal space (newline + indentation) right before every dot. The browser may break there, and the next line starts with "· № 399ee6e5 · …".
+    +
+    +## Acceptance criteria
+    +
+    +- AC1. **Separator rule** for every row this task touches: the dot is the last character of the preceding part, glued to it with a no-break space (`&nbsp;·`), and is followed by one normal space. There is never a normal space, tab or newline directly before a "·". Result: a line may end with "·" but never starts with it.
+    +- AC2. **Student list** (`petitions/templates/petitions/my_list.html`): each row has the title link on its own line (block), then one details line: `№ <short id>&nbsp;· <created date>&nbsp;· <status>&nbsp;· готовность: <date>`.
+    +- AC3. **Staff queue** (`petitions/templates/petitions/staff_queue.html`): each row has the student name link on its own line, then the request title (`petition.display_name`) on its own line, then one details line: `<group>&nbsp;· <created date>&nbsp;· <status>&nbsp;· файлов: N`.
+    +- AC4. **Catalog** (`petitions/templates/petitions/catalog.html`): no separators at all. Each type is one block: the name link, the description (if any) on its own line, then "Срок: до N рабочих дней" on its own line. The em dash "— description" and "· Срок" are removed.
+    +- AC5. **Request detail includes** (same pattern, same pages): `petitions/templates/petitions/includes/history.html` and `includes/comments.html` follow the rule of AC1 (`date&nbsp;· status&nbsp;· actor`, `author&nbsp;· date&nbsp;· text`).
+    +- AC6. Short bounded details (the number, dates, status, "готовность: …", "файлов: N", the group) may be kept on one line with `white-space: nowrap` (D3); unbounded text (titles, names, comment text) wraps normally. No horizontal scroll at 320, 360 and 1024 px, even with a 150-character subject.
+    +- AC7. Screen readers read the same words in the same order as today (the dots stay in the text; no `aria-hidden` needed; nothing is moved into CSS `content`).
+    +- AC8. The information shown and the links are unchanged (same hrefs, same texts apart from the removed "— " and the separators' spacing). Existing tests pass; new tests guard AC1–AC4.
+    +
+    +## Out of scope
+    +
+    +- Other pages with the same pattern (user decision: "other pages" are out of scope). Found and NOT changed, listed for the Team lead: `chat/templates/chat/staff_list.html` (name · group · time · новых), `chat/templates/chat/_message.html` (meta), `accounts/templates/accounts/student_list.html`, `schedule/templates/schedule/staff_group_list.html`, `notifications/templates/notifications/feed.html` and `staff_list.html` (`feed-meta`), `academics/templates/academics/includes/discipline.html` (summary), `schedule/.../lesson_compact.html` (`lesson-meta`). Short lines (`today.html`, `home.html` `page-sub`, lesson time lines) do not wrap at 360 px.
+    +- The form's "Обязательное поле." for an empty comment (accepted by the user).
+    +- New features, colours, fonts.
+    +
+    +## Design decisions
+    +
+    +- **D1. Fix in the text, not in CSS pseudo-elements.** A dot drawn by `::before` of the next part would still start the line when that part wraps; `::after` of the previous part cannot be glued to it across a wrap of a long part. A no-break space before the dot glues the dot to the end of the previous part in the line-breaking algorithm (also across inline element boundaries), and the normal space after the dot remains the only break point. It works for any length and needs no extra CSS.
+    +- **D2. Titles on their own line.** The request title can be 170 characters ("Другая справка: " + 150). Putting it on its own line (block link) makes the details line short and scannable; the link keeps the 44 px tap height (existing rule `.petition > a { display: inline-block; min-height: 2.75rem; … }` — change it to `display: block` for these rows, see Architecture).
+    +- **D3. Optional nowrap for bounded parts.** Wrap each bounded part in `<span class="meta-item">…</span>` with `.meta-item { white-space: nowrap; }` (base.css), so "19 ноября 2026" or "готовность: 26 ноября 2026" do not split. The dot and the no-break space stay *inside* the preceding `meta-item` span (`<span class="meta-item">№ 399ee6e5&nbsp;·</span> <span class="meta-item">…`). The longest bounded part ("готовность: 26 сентября 2026", 28 characters) fits the 360 px card. Do not use `meta-item` for unbounded text.
+    +- **D4. Catalog without separators.** Three short blocks read better on a phone than one long sentence, and there is nothing to separate.
+    +
+    +## Architecture / files
+    +
+    +Templates (exact structure; class names are tested):
+    +
+    +`petitions/templates/petitions/my_list.html`, row:
+    +```django
+    +<li class="petition">
+    +  <a class="petition-title" href="{% url 'petitions:detail' petition.public_id %}">{{ petition.display_name }}</a>
+    +  <p class="petition-meta"><span class="meta-item">№ {{ petition.short_id }}&nbsp;·</span> <span class="meta-item">{{ petition.created_at|date:"j E Y" }}&nbsp;·</span> <span class="meta-item"><span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>&nbsp;·</span> <span class="meta-item">готовность: {{ petition.expected_ready_date|date:"j E Y" }}</span></p>
+    +</li>
+    +```
+    +
+    +`petitions/templates/petitions/staff_queue.html`, row:
+    +```django
+    +<li class="petition">
+    +  <a class="petition-title" href="{% url 'petitions:staff_detail' petition.public_id %}">{{ petition.student.full_name }}</a>
+    +  <p class="petition-subject">{{ petition.display_name }}</p>
+    +  <p class="petition-meta"><span class="meta-item">{{ petition.student.group.name }}&nbsp;·</span> <span class="meta-item">{{ petition.created_at|date:"j E Y" }}&nbsp;·</span> <span class="meta-item"><span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>&nbsp;·</span> <span class="meta-item">файлов: {{ petition.attachment_count }}</span></p>
+    +</li>
+    +```
+    +
+    +`petitions/templates/petitions/catalog.html`, each type (both sections; keep the `{% empty %}` texts):
+    +```django
+    +<div class="catalog-item">
+    +  <a class="catalog-title" href="{% url 'petitions:submit' type.pk %}">{{ type.name }}</a>
+    +  {% if type.description %}<p class="catalog-desc">{{ type.description }}</p>{% endif %}
+    +  <p class="catalog-term">Срок: {{ type.term_label }}</p>
+    +</div>
+    +```
+    +
+    +`petitions/templates/petitions/includes/history.html`, item:
+    +```django
+    +<li>{{ change.created_at|date:"j E Y H:i" }}&nbsp;· {% if change.from_status %}{{ change.get_from_status_display }} → {% endif %}{{ change.get_to_status_display }}&nbsp;· {% if change.actor.role == "staff" %}{{ change.actor.staff_profile.full_name }}{% elif change.actor.role == "student" %}Студент{% else %}Администратор{% endif %}{% if change.comment %}<br>{{ change.comment }}{% endif %}</li>
+    +```
+    +
+    +`petitions/templates/petitions/includes/comments.html`, item:
+    +```django
+    +<li>{% if comment.author.role == "staff" %}{{ comment.author.staff_profile.full_name }}{% else %}Сотрудник{% endif %}&nbsp;· {{ comment.created_at|date:"j E Y H:i" }}&nbsp;· {{ comment.text }}</li>
+    +```
+    +Keep each `<li>` on one template line (a template line break before "·" would reintroduce a normal space).
+    +
+    +CSS (`static/css/base.css`, layout only; colours unchanged):
+    +- `.meta-item { white-space: nowrap; }`
+    +- `.petition-title`, `.catalog-title`: `display: block;` (replace `display: inline-block` for `.petition > a` in the existing rule at `base.css:761`, or add a more specific rule after it), keep `min-height: 2.75rem` and the padding so the tap target stays ≥ 44 px.
+    +- `.petition-meta`, `.petition-subject`, `.catalog-desc`, `.catalog-term`: `margin: 0;` (the existing `.petition p { margin: 0; }` already covers rows); small spacing between catalog items (`.catalog-item + .catalog-item { margin-top: var(--space-3); }`).
+    +- You may give `.petition-meta` and `.catalog-term` the muted colour via an existing token in theme.css (optional; check contrast: `--color-muted` on the panel is 7.12:1).
+    +
+    +No Python changes.
+    +
+    +## Feasibility check
+    +
+    +1. Clean starting point: `git status --short` shows only ` M plan.md` (Team lead). HEAD `1414de1 TASK-014: …`.
+    +2. Referenced objects exist: the five templates above (current markup read on 19.11; `my_list.html:9-13` and `staff_queue.html:28-33` put "·" at the start of template lines; `catalog.html` uses "— description · Срок: {{ type.term_label }}"; `includes/history.html:5-7` and `includes/comments.html:5-7` the same pattern), `Petition.display_name`, `short_id`, `RequestType.term_label`, CSS rules `base.css:189-202` (`.petition-list`, `.petition`, `.petition p`), `base.css:761` (`.petition > a { display: inline-block; min-height: 2.75rem; padding-block: 0.625rem; }`), theme panels `theme.css:313`.
+    +3. New names are free: `.meta-item`, `.petition-title`, `.petition-meta`, `.petition-subject`, `.catalog-item`, `.catalog-title`, `.catalog-desc`, `.catalog-term` (no match in `static/css/` or templates).
+    +4. Data and migrations: none; `makemigrations --check`: "No changes detected".
+    +5. Tools: no new dependency; headless Chromium via `bb browser-automation` for the visual check (role file).
+    +6. Framework: Django autoescaping is unchanged; `&nbsp;` is a literal entity in the template. CSS line breaking treats U+00A0 as non-breaking, also across inline element boundaries (UAX #14; the existing chat and lesson markup already rely on NBSP in `Teacher.short_name`).
+    +7. Environment: none.
+    +8. Verification on the current tree: `check` (no issues), `makemigrations --check` (no changes), `ruff check .` (passed), `ruff format --check .` (193 files formatted), `python manage.py test --parallel 1`: **Ran 1122 tests, OK** (log `/tmp/claude-501/test-20261119-043501.log`, 2026-11-19 ~15:35 MSK). Existing tests that read these pages assert only substrings that stay (escaped display names, "Срок: до N …", "не больше 3 файлов"); none asserts the old " · " joins (checked with `grep` in `petitions/tests/`).
+    +9. Conflicts: none. The other pages with the same pattern are listed in "Out of scope" for the Team lead.
+    +10. Assumptions / blockers: none.
+    +
+    +## Test plan
+    +
+    +### Traceability
+    +
+    +| AC | Tests |
+    +|---|---|
+    +| AC1 | `petitions/tests/test_views.py::SeparatorTests::test_no_space_before_dot_in_lists`, `::test_no_space_before_dot_in_detail` |
+    +| AC2 | `SeparatorTests::test_student_row_structure` |
+    +| AC3 | `SeparatorTests::test_staff_row_structure` |
+    +| AC4 | `SeparatorTests::test_catalog_blocks` |
+    +| AC5 | `SeparatorTests::test_no_space_before_dot_in_detail` |
+    +| AC6 | `core/tests/test_css.py::BaseCssTests::test_meta_item_nowrap`; visual check |
+    +| AC7, AC8 | existing petitions tests unchanged; `SeparatorTests::test_texts_and_links_kept` |
+    +
+    +### Access matrix
+    +
+    +No view or permission changes; the existing petitions access tests must pass unchanged.
+    +
+    +### Tests (`petitions/tests/test_views.py`, new class `SeparatorTests(FrozenClockMixin, TestCase)`)
+    +
+    +Setup: faculty, group "GX", student A (+ staff of the same faculty), an ordinary type, a catch-all type (`make_type(name="Другая справка", days=5, comment_required=True, hint="h", subject_required=True)`), petition P1 of the ordinary type, petition P2 of the catch-all type with `subject` = 150 × "а"; for P1 one staff status change (via `change_status`) and one staff comment (`add_staff_comment`). Helper `_part(content, start_marker, end_marker)` slices the HTML.
+    +
+    +- `test_no_space_before_dot_in_lists`: for `my_list` (student) and `staff_queue` (staff), inside `<ul class="petition-list">…</ul>`: `re.search(r"[ \t\n]·", part)` is None, and "&nbsp;·" (or " ·" after Django renders it as an entity — assert on the template output, which keeps `&nbsp;`) occurs 3 times per row.
+    +- `test_no_space_before_dot_in_detail`: student detail and staff detail of P1: inside the history `<ol>` and the comments `<ul>`, no `[ \t\n]·`.
+    +- `test_student_row_structure`: `my_list` contains `<a class="petition-title" href="/requests/<P2 uuid>/">Другая справка: ааа…</a>` (full 150 characters) followed by `<p class="petition-meta">`, and the meta contains `<span class="meta-item">№ <short id>&nbsp;·</span>`.
+    +- `test_staff_row_structure`: `staff_queue` row of P2 has `<a class="petition-title" …>`, then `<p class="petition-subject">Другая справка: ааа…</p>`, then `<p class="petition-meta">` with `файлов: 0`.
+    +- `test_catalog_blocks`: the catalog contains `<p class="catalog-term">Срок: до 5 рабочих дней</p>` and `<a class="catalog-title"`; no " — " and no "·" in the page's `main`.
+    +- `test_texts_and_links_kept`: the student list still has the detail href, the status text, "готовность:"; the staff queue still has the staff detail href, the group name, "файлов:".
+    +
+    +`core/tests/test_css.py::BaseCssTests::test_meta_item_nowrap`: base.css has a `.meta-item` rule with `white-space: nowrap`, and a rule for `.petition-title` with `display: block` and `min-height: 2.75rem` (directly or via a shared selector list).
+    +
+    +### Visual check (UI coder; screenshots and numbers in the REPORT)
+    +
+    +Temporary DB with `seed_demo` (it has the demo request "Другая справка: Справка о периоде обучения" for student1); add one request with a 150-character subject for student1 (via `submit_petition` in `manage.py shell`, or the form).
+    +- Student "Мои заявки" and staff "Заявки" (staff1) at 360 × 780 and 1024 × 768; catalog at 360 × 780; one request detail (with history and a staff comment) at 360 × 780.
+    +- For each row, check that no line starts with "·". In the browser: for every text node, `Range.getClientRects()` per character is heavy; instead, take screenshots and also run: `[...document.querySelectorAll('.petition-meta, .petition li, ol li')].every(e => !/[\s]·/.test(e.innerHTML.replace(/&nbsp;/g,' ')))` (structure check), and look at the screenshots.
+    +- `document.documentElement.scrollWidth === innerWidth` on every page (also at 320 × 780 for the student list).
+    +
+    +### Edge cases
+    +
+    +150-character subject; the shortest row (ordinary type); a status with two words ("В работе"); a request with no attachments ("файлов: 0"); the catalog type without a description.
+    +
+    +## Implementation order
+    +
+    +1. Templates (five files). Run `python manage.py test petitions --parallel 1` (log).
+    +2. CSS. Visual check at 360 and 1024.
+    +3. New tests. Full verification. REPORT.
+    +
+    +## Verification
+    +
+    +```bash
+    +source .venv/bin/activate
+    +python manage.py check
+    +python manage.py makemigrations --check --dry-run
+    +python manage.py test --parallel 1 2>&1 | tee "$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log"
+    +ruff check petitions/tests/test_views.py core/tests/test_css.py
+    +ruff format --check petitions/tests/test_views.py core/tests/test_css.py
+    +git status --short
+    +```
+    +If any run fails or stalls, even once, put the test name, the Moscow time and the traceback excerpt into the REPORT.
+    +
+    +## Risks
+    +
+    +- **Template whitespace.** A newline or indentation before "·" in a template brings the bug back; the regex tests catch it.
+    +- **Long staff names** wrap inside the title line (fine: no separator there).
+    +- **Other pages** keep the old pattern (out of scope); listed for a possible later task.
+  ── Thought for 689ms
+    I'm checking the test regex, since the "&nbsp;·" sequence renders literally in the raw HTML and the character before the dot is a semicolon, so the match still works. I also need to simplify the test description and drop the confusing \u00a0 note, since the sequence appears three times per row in both templates.
+
+    I'm confirming both templates contain three separators per row, so the edit applies to each.
+  ── Edited docs/tasks/TASK-014-FIX.md +1 -1
+    --- a~/hackatonproject/docs/tasks/TASK-014-FIX.md
+    +++ b~/hackatonproject/docs/tasks/TASK-014-FIX.md
+    -`re.search(r"[ \t\n]·", part)` is None, and "&nbsp;·" (or " ·" after Django renders it as an entity — assert on the template output, which keeps `&nbsp;`) occurs 3 times per row.
+    +`re.search(r"[ \t\n]·", part)` is None, and every row (`<li class="petition">…</li>`) contains the literal entity `&nbsp;·` exactly 3 times (Django outputs the template's `&nbsp;` unchanged).
+
+── Ran bb thread tell thr_pgcwc2dwnn --message-file - <<'EOF' [TASK-014-FIX] Planner -> UI coder: TASK Spec: docs/tasks/TASK-014-FIX.md. Reference: docs/process/screenshots/2026-11-19_68_my-requests-subject_student1.jpg (a line starts with "·"). Summary: - Rule: a separator dot is glued to the previous part with a no-break space ("&nbsp;·") and followed by one normal space. Never a space or newline before "·", so a line can end with "·" but never start with one. - my_list and staff_queue: the title link goes on its own line (block, 44 px), then one details line of <span class="meta-item"> parts (nowrap, the dot inside the preceding span). Staff queue also gets <p class="petition-subject"> with display_name. - Catalog: no separators; name / description / "Срок: до N рабочих дней" as three lines. includes/history.html and includes/comments.html follow the same rule. - Only these 5 templates + base.css + tests. Other pages with " · " are out of scope (listed in the spec). Visual acceptance: student "Мои заявки" and staff "Заявки" with the demo "Другая справка" request and a 150-character subject at 360x780 and 1024x768; catalog and one detail at 360x780; no line starts with "·"; no horizontal scroll (also 320 for the student list). Baseline: 1122 tests OK (2026-11-19 ~15:35 MSK). EOF (1s)
+  $ bb thread tell thr_pgcwc2dwnn --message-file - <<'EOF'
+[TASK-014-FIX] Planner -> UI coder: TASK
+Spec: docs/tasks/TASK-014-FIX.md. Reference: docs/process/screenshots/2026-11-19_68_my-requests-subject_student1.jpg (a line starts with "·").
+Summary:
+- Rule: a separator dot is glued to the previous part with a no-break space ("&nbsp;·") and followed by one normal space. Never a space or newline before "·", so a line can end with "·" but never start with one.
+- my_list and staff_queue: the title link goes on its own line (block, 44 px), then one details line of <span class="meta-item"> parts (nowrap, the dot inside the preceding span). Staff queue also gets <p class="petition-subject"> with display_name.
+- Catalog: no separators; name / description / "Срок: до N рабочих дней" as three lines. includes/history.html and includes/comments.html follow the same rule.
+- Only these 5 templates + base.css + tests. Other pages with " · " are out of scope (listed in the spec).
+Visual acceptance: student "Мои заявки" and staff "Заявки" with the demo "Другая справка" request and a 150-character subject at 360x780 and 1024x768; catalog and one detail at 360x780; no line starts with "·"; no horizontal scroll (also 320 for the student list). Baseline: 1122 tests OK (2026-11-19 ~15:35 MSK).
+EOF
+  Thread thr_pgcwc2dwnn steered
+
+── Thought for 16ms ────────────────────────────────────────
+  I'm weighing whether to tell the lead about the other out-of-scope pages. The spec already lists them, but the call is the lead's to make, so a short report about the pages that share the same pattern seems worth sending.
+
+── Ran bb thread tell thr_4izdzwetb4 --message-file - <<'EOF' [TASK-014-FIX] Planner -> Team lead: REPORT TASK-014-FIX spec handed to the UI coder (docs/tasks/TASK-014-FIX.md). TASK-015 is on hold, as you asked: no draft exists. For your decision (not changed, because "other pages" are out of scope): these templates use the same " · " pattern and can start a line with "·" when they wrap at 360 px: - chat/templates/chat/staff_list.html - chat/templates/chat/_message.html - accounts/templates/accounts/student_list.html - schedule/templates/schedule/staff_group_list.html - notifications/templates/notifications/feed.html and staff_list.html (feed-meta) - academics/templates/academics/includes/discipline.html - schedule/templates/schedule/includes/lesson_compact.html (lesson-meta) The fix is the same rule ("&nbsp;·" + normal space) if you want a follow-up task. EOF
+  $ bb thread tell thr_4izdzwetb4 --message-file - <<'EOF'
+[TASK-014-FIX] Planner -> Team lead: REPORT
+TASK-014-FIX spec handed to the UI coder (docs/tasks/TASK-014-FIX.md). TASK-015 is on hold, as you asked: no draft exists.
+For your decision (not changed, because "other pages" are out of scope): these templates use the same " · " pattern and can start a line with "·" when they wrap at 360 px:
+- chat/templates/chat/staff_list.html
+- chat/templates/chat/_message.html
+- accounts/templates/accounts/student_list.html
+- schedule/templates/schedule/staff_group_list.html
+- notifications/templates/notifications/feed.html and staff_list.html (feed-meta)
+- academics/templates/academics/includes/discipline.html
+- schedule/templates/schedule/includes/lesson_compact.html (lesson-meta)
+The fix is the same rule ("&nbsp;·" + normal space) if you want a follow-up task.
+EOF
+  Thread thr_4izdzwetb4 steered
+
+── Assistant ───────────────────────────────────────────────
+Я написал спецификацию [TASK-014-FIX](docs/tasks/TASK-014-FIX.md) и отправил её UI-кодеру. До изменений прошли все 1122 теста.
+
+**Причина бага.** Разделители «·» стоят в шаблонах в начале строки, поэтому перед каждой точкой есть обычный пробел. На таком пробеле браузер может перенести строку, и новая строка начинается с «·».
+
+**Исправление:**
+- **Правило для разделителей.** Точка «приклеена» к предыдущему элементу неразрывным пробелом, а после неё стоит обычный пробел. Строка может закончиться точкой, но начаться с неё не может, при любой длине названия.
+- **«Мои заявки» и очередь сотрудника.** Название заявки на отдельной строке, ниже одна строка деталей: номер, дата, статус, срок готовности.
+- **Каталог.** Разделителей больше нет: название, описание и срок стоят каждый на своей строке.
+- **История и комментарии в карточке заявки.** Там та же схема с точками, поэтому их я тоже исправляю по этому правилу.
+
+**Что осталось без изменений.** Ещё на 7 страницах вне заявок та же схема с точками: список чатов, список студентов, лента уведомлений, успеваемость и другие. Вы вывели другие страницы за рамки задачи, поэтому я их не трогал. Список этих страниц я отправил тимлиду: если нужно, их можно исправить отдельной задачей тем же правилом.
+
+TASK-015 стоит на паузе, черновика нет. Жду сообщения тимлида «TASK-015 go».
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-014-FIX] Team lead -> Planner: TASK
+Spec amendment, approved by the user: extend TASK-014-FIX to every template you listed with the same " · " pattern, with the same rule (a separator never starts a line):
+- chat/templates/chat/staff_list.html
+- chat/templates/chat/_message.html
+- accounts/templates/accounts/student_list.html
+- schedule/templates/schedule/staff_group_list.html
+- notifications/templates/notifications/feed.html and staff_list.html (feed-meta)
+- academics/templates/academics/includes/discipline.html
+- schedule/templates/schedule/includes/lesson_compact.html (lesson-meta)
+Note: `_message.html` is also rendered by the chat polling JS response; keep the markup the JS expects (static/js/chat.js unchanged, chat tests pass). Update docs/tasks/TASK-014-FIX.md (scope, tests, visual check at 360 px for each page: student and staff where applicable) and send the amendment to the UI coder. TASK-015 stays on hold.
+
+── Thought ─────────────────────────────────────────────────
+  I need to read these templates and chat.js to see what markup chat.js expects, and check any tests that assert exact strings in the templates, especially the " · " separator.
+
+── Assistant ───────────────────────────────────────────────
+Расширяю TASK-014-FIX на 7 шаблонов. Смотрю их разметку, `chat.js` и тесты, которые проверяют точный текст.
+
+── Ran git status --short; for f in chat/templates/chat/staff_list.html chat/templates/chat/_message.html accounts/templates/accounts/student_list.html schedule/templates/schedule/staff_group_list.html notifications/templates/notifications/feed.html notifications/templates/notifications/staff_list.html academics/templates/academics/includes/discipline.html schedule/templates/schedule/includes/lesson_compact.html; do echo "=== $f"; grep -n "·" $f; done; grep -n "querySelector\|classList\|chat-meta\|chat-message\|data-" static/js/chat.js | head -20
+  $ git status --short; for f in chat/templates/chat/staff_list.html chat/templates/chat/_message.html accounts/templates/accounts/student_list.html schedule/templates/schedule/staff_group_list.html notifications/templates/notifications/feed.html notifications/templates/notifications/staff_list.html academics/templates/academics/includes/discipline.html schedule/templates/schedule/includes/lesson_compact.html; do echo "=== $f"; grep -n "·" $f; done; grep -n "querySelector\|classList\|chat-meta\|chat-message\|data-" static/js/chat.js | head -20
+  M petitions/templates/petitions/catalog.html
+   M petitions/templates/petitions/includes/comments.html
+   M petitions/templates/petitions/includes/history.html
+   M petitions/templates/petitions/my_list.html
+   M petitions/templates/petitions/staff_queue.html
+   M plan.md
+   M static/css/base.css
+   M static/css/theme.css
+  ?? docs/tasks/TASK-014-FIX.md
+  === chat/templates/chat/staff_list.html
+  8:  <li><a href="{% url 'chat:staff_dialog' d.public_id %}">{{ d.student.full_name }}</a> · {{ d.student.group.name }} · {{ d.last_message_at|date:"d.m.Y H:i" }}{% if d.unread %} · <strong>новых: {{ d.unread }}</strong>{% endif %}</li>
+  === chat/templates/chat/_message.html
+  2:  <p class="chat-meta"><strong>{% if m.author_role == "staff" %}Деканат · {{ m.author.staff_profile.short_name }}{% elif viewer_is_student %}Вы{% else %}{{ student_name }}{% endif %}</strong> · <time datetime="{{ m.created_at|date:'c' }}">{{ m.created_at|date:"d.m.Y H:i" }}</time></p>
+  === accounts/templates/accounts/student_list.html
+  10:          · {{ student.group.name }}, {{ student.course }} курс
+  === schedule/templates/schedule/staff_group_list.html
+  8:        · {{ group.program.name }}, {{ group.course }} курс
+  === notifications/templates/notifications/feed.html
+  15:      <p class="feed-meta">{% if item.is_new %}<strong>Новое</strong> · {% endif %}{{ item.tag }} · <time datetime="{{ item.timestamp|date:'c' }}">{{ item.timestamp|date:"d.m.Y H:i" }}</time>{% if item.audience_label %} · {{ item.audience_label }}{% endif %}</p>
+  === notifications/templates/notifications/staff_list.html
+  15:      <p class="feed-meta">{{ a.audience_label }} · {{ a.published_at|date:"d.m.Y H:i" }} · {% if a.is_published %}Опубликовано{% else %}Снято с публикации {{ a.unpublished_at|date:"d.m.Y H:i" }}{% endif %}</p>
+  === academics/templates/academics/includes/discipline.html
+  4:      <strong>{{ d.item.discipline.name }}</strong> · {{ d.item.get_assessment_form_display }}
+  5:      · Итог: {% if d.effective %}{{ d.effective.get_result_display }}{% else %}нет{% endif %}
+  6:      {% if d.is_debt %}· <strong>Задолженность</strong>{% endif %}
+  7:      · Посещаемость: {% if d.attendance.percent is not None %}{{ d.attendance.percent }}%{% else %}—{% endif %}
+  === schedule/templates/schedule/includes/lesson_compact.html
+  2:  <p class="lesson-time"><time>{{ item.slot.start|time:"H:i" }}</time>–<time>{{ item.slot.end|time:"H:i" }}</time> · {{ item.slot.number }} пара{% if row.is_in_progress %} <span class="tag">идёт</span>{% endif %}</p>
+  4:  <p class="lesson-meta">{{ item.lesson.get_lesson_type_display }} · {{ item.teacher.short_name }} · {% if item.is_happening %}<a class="room" href="{% url 'campusmap:room' item.room.code %}">ауд. {{ item.room.number }}</a>{% else %}<span class="room">ауд. {{ item.room.number }}</span>{% endif %}{% if item.is_changed %} <span class="lesson-change">{% if item.kind == "cancelled" %}отменено{% elif item.kind == "moved-out" %}перенесено на {{ item.moved_to_date|date:"j E" }}{% elif item.kind == "moved-in" %}перенесено с {{ item.moved_from_date|date:"j E" }}{% elif item.kind == "room-changed" %}аудитория изменена{% elif item.kind == "teacher-replaced" %}замена преподавателя{% endif %}</span>{% endif %}</p>
+  4:  var root = document.querySelector("[data-chat-poll-url]");
+  8:  var list = document.getElementById("chat-messages");
+  9:  var status = root.querySelector("[data-chat-status]");
+  19:    var items = list.querySelectorAll("li[data-message-id]");
+  23:    return items[items.length - 1].getAttribute("data-message-id");
+  54:            var nodes = doc.body.querySelectorAll("li[data-message-id]");
+
+── Claude Code API retry 1/10 after 561ms: unknown ─────────
+
+── Explored 1 search, 1 file ───────────────────────────────
+  ── Thought for 8ms
+    The UI coder has already started on the petition files, which is fine. Chat.js only relies on the message list items and their ids, so the chat-meta content doesn't matter here. Next I'll grep the tests for exact strings containing " · " in these templates.
+  ── Searched for  · \|· in */tests
+  ── Thought for 11s
+    I'm checking the chat test at line 294, which asserts "Деканат ·", but the new rule renders that as "Деканат&nbsp;·", so the test will fail and needs updating with a reason. I also want to confirm the home test's lesson_compact markup assertions still hold if only the separator changes.
+
+    I'm going through the test assertions that the separator change could break, checking whether any of them match on "Семинар · " or on the old spacing. The lesson-meta and the message template each carry several "·" separators, so I'm planning to apply the non-breaking rule to every separator in those listed templates rather than only the first.
+
+    I'm planning a template-level test that scans the listed templates for whitespace before a "·" separator, covering the petitions ones as well. Then I'll check the visual result at 360px for the student and staff pages that use these separators: the chat, message, student and group lists, the feed, announcements, the grades discipline summary and the home lesson card.
+
+    I'm now going to update the spec itself: the scope section, AC9, the per-template architecture lines, the tests, and the visual check at 360px, then edit the file.
+  ── Thought for 5ms
+    Одна правка затронет тесты: `chat/tests/test_views.py:294` ждёт «Деканат ·» с обычным пробелом. Текст в `chat-meta` можно менять безопасно, так как `chat.js` опирается только на `li[data-message-id]` и id; дальше обновляю спецификацию.
+  ── Read chat/tests/test_views.py
+
+── Assistant ───────────────────────────────────────────────
+Теперь вношу поправку в спецификацию: охват, разметку по шаблонам, тесты и визуальную проверку.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran python3 - <<'EOF' 2>&1 | grep -v xcrun import pathlib p=pathlib.Path('docs/tasks/TASK-014-FIX.md'); s=p.read_text() s=s.replace('# TASK-014-FIX: A separator dot never starts a line in request lists\n','# TASK-014-FIX: A separator dot never starts a line in request lists (and other lists, amendment 1)\n') s=s.replace('''## Out of scope - Other pages with the same pattern (user decision: "other pages" are out of scope). Found and NOT changed, listed for the Team lead: `chat/templates/chat/staff_list.html` (name · group · time · новых), `chat/templates/chat/_message.html` (meta), `accounts/templates/accounts/student_list.html`, `schedule/templates/schedule/staff_group_list.html`, `notifications/templates/notifications/feed.html` and `staff_list.html` (`feed-meta`), `academics/templates/academics/includes/discipline.html` (summary), `schedule/.../lesson_compact.html` (`lesson-meta`). Short lines (`today.html`, `home.html` `page-sub`, lesson time lines) do not wrap at 360 px.''','''## Amendment 1 (Team lead, approved by the user, 19.11) The same rule (AC1: `&nbsp;·` + one normal space, never whitespace before "·") applies to every "·" in these templates too: - `chat/templates/chat/staff_list.html` (row: name link, group, time, "новых: N") - `chat/templates/chat/_message.html` (`chat-meta`: "Деканат · <short name>" and " · <time>") - `accounts/templates/accounts/student_list.html` (row: name link · group, course) - `schedule/templates/schedule/staff_group_list.html` (row: group link · programme, course) - `notifications/templates/notifications/feed.html` and `notifications/templates/notifications/staff_list.html` (`feed-meta`) - `academics/templates/academics/includes/discipline.html` (the `<summary>` line) - `schedule/templates/schedule/includes/lesson_compact.html` (`lesson-time` and `lesson-meta`) See "Amendment 1: markup" below. `_message.html` is also the fragment returned to the chat polling (`static/js/chat.js`, unchanged): keep the `<li>` element, its classes, `id="m-<pk>"` and `data-message-id`; change only the text separators inside `chat-meta`. The JS selects only `li[data-message-id]` and `#chat-messages` (checked: `static/js/chat.js:4-54`). ## Out of scope - Templates not listed in this spec. Short lines that do not wrap at 360 px stay as they are: `schedule/templates/schedule/today.html` (date · group), `core/templates/core/home.html` (`page-sub`, asserted exactly by `core/tests/test_home.py:84`), `schedule/templates/schedule/includes/lesson_item.html` (time line), `chat/templates/chat/staff_dialog.html` (name · group under the `h1`).''') s=s.replace('''No Python changes. ## Feasibility check''','''No Python changes. ### Amendment 1: markup Keep each changed line as one template line (no newline or indentation before "·"). Unbounded parts (names, programme names, tags, audience labels, discipline names) wrap normally; you may wrap short bounded parts (dates, "новых: N", "N курс", percent) in `<span class="meta-item">` with the dot inside the span, as in D3. - `chat/staff_list.html` row:   `<li><a href="…">{{ d.student.full_name }}</a>&nbsp;· {{ d.student.group.name }}&nbsp;· {{ d.last_message_at|date:"d.m.Y H:i" }}{% if d.unread %}&nbsp;· <strong>новых: {{ d.unread }}</strong>{% endif %}</li>` - `chat/_message.html` meta:   `<p class="chat-meta"><strong>{% if m.author_role == "staff" %}Деканат&nbsp;· {{ m.author.staff_profile.short_name }}{% elif viewer_is_student %}Вы{% else %}{{ student_name }}{% endif %}</strong>&nbsp;· <time …>…</time></p>` - `accounts/student_list.html` row (one line inside `<li>`):   `<li><a href="…">{{ student.full_name }}</a>&nbsp;· {{ student.group.name }}, {{ student.course }} курс</li>` - `schedule/staff_group_list.html` row:   `<li><a href="…">{{ group.name }}</a>&nbsp;· {{ group.program.name }}, {{ group.course }} курс</li>` - `notifications/feed.html` meta:   `<p class="feed-meta">{% if item.is_new %}<strong>Новое</strong>&nbsp;· {% endif %}{{ item.tag }}&nbsp;· <time …>…</time>{% if item.audience_label %}&nbsp;· {{ item.audience_label }}{% endif %}</p>` - `notifications/staff_list.html` meta:   `<p class="feed-meta">{{ a.audience_label }}&nbsp;· {{ a.published_at|date:"d.m.Y H:i" }}&nbsp;· {% if a.is_published %}Опубликовано{% else %}Снято с публикации {{ a.unpublished_at|date:"d.m.Y H:i" }}{% endif %}</p>` - `academics/includes/discipline.html` summary (one template line inside `<summary>`):   `<summary><strong>{{ d.item.discipline.name }}</strong>&nbsp;· {{ d.item.get_assessment_form_display }}&nbsp;· Итог: {% if d.effective %}{{ d.effective.get_result_display }}{% else %}нет{% endif %}{% if d.is_debt %}&nbsp;· <strong>Задолженность</strong>{% endif %}&nbsp;· Посещаемость: {% if d.attendance.percent is not None %}{{ d.attendance.percent }}%{% else %}—{% endif %}</summary>` - `schedule/includes/lesson_compact.html`: in `lesson-time` replace ` · {{ item.slot.number }} пара` with `&nbsp;· {{ item.slot.number }} пара`; in `lesson-meta` replace both ` · ` with `&nbsp;· `. Nothing else in the line changes (the room link, `lesson-change` span and the "идёт" tag stay exactly as they are; `core/tests/test_home.py` asserts them). ## Feasibility check''') s=s.replace('''9. Conflicts: none. The other pages with the same pattern are listed in "Out of scope" for the Team lead.''','''9. Conflicts: none. Amendment 1 (19.11): the 8 added templates were read; every "·" in them is listed above. Tests that assert these separators: only `chat/tests/test_views.py:294` (`assertIn("Деканат ·", content)`) — update it (see Test plan). `academics/tests/test_views.py:209` asserts "Задолженность" (stays). `core/tests/test_home.py` asserts the room link and `lesson-change` span (unchanged by the edit). `static/js/chat.js` uses only `[data-chat-poll-url]`, `#chat-messages`, `[data-chat-status]`, `li[data-message-id]`.''') s=s.replace('''`core/tests/test_css.py::BaseCssTests::test_meta_item_nowrap`:''','''Amendment 1 tests: - `core/tests/test_design.py::SeparatorRuleTests::test_no_whitespace_before_separator`: for each template of this task (the 5 petitions templates and the 8 of Amendment 1; a module-level tuple of paths), the file text has no match for `re.compile(r"\\s·")` (any whitespace, including a newline, directly before "·"), and contains at least one "&nbsp;·". subTest per file. - `chat/tests/test_views.py` line 294: `self.assertIn("Деканат ·", content)` → `self.assertIn("Деканат&nbsp;· ", content)` with the comment `# TASK-014-FIX: separator glued with a no-break space`. - `chat/tests/test_views.py::PollTests` (or the class that tests the polling fragment; find it with `grep -n "X-Chat-Fragment" chat/tests/test_views.py`): new `test_fragment_meta_separator`: the polled fragment of a staff message contains `Деканат&nbsp;· ` and `li` with `data-message-id` (the JS contract). - `notifications/tests/test_views.py::FeedViewTests::test_meta_separator_glued`: the feed of a student with one new announcement contains `<strong>Новое</strong>&nbsp;· ` and no `[ \\t\\n]·` inside `<p class="feed-meta">…</p>`. - `academics/tests/test_views.py` (class with the report view): new `test_summary_separator_glued`: the report page's `<summary>` contains `&nbsp;· Итог:` and no `[ \\t\\n]·`. - `core/tests/test_home.py::HomeStudentTests::test_lesson_meta_separator_glued`: the home page contains `&nbsp;· ` inside `<p class="lesson-meta">` and no `[ \\t\\n]·` there. `core/tests/test_css.py::BaseCssTests::test_meta_item_nowrap`:''') s=s.replace('''- `document.documentElement.scrollWidth === innerWidth` on every page (also at 320 × 780 for the student list).''','''- `document.documentElement.scrollWidth === innerWidth` on every page (also at 320 × 780 for the student list). - Amendment 1 pages at 360 × 780 (screenshot each; no line starts with "·"; no horizontal scroll): staff "Чаты" list (`/staff/chats/`, staff1), student chat (`/chat/`, student1, with a staff message) and a staff dialog (staff1), staff "Студенты" (`/staff/students/`), staff "Расписание групп" (`/staff/schedule/`), student "Уведомления" (`/notifications/`, with a "Новое" item), staff "Объявления" (`/staff/announcements/`), student "Успеваемость" (`/grades/`, one `<details>` open) and the staff view of a student's grades, student home "Занятия" card (`/`). Also check that chat polling still adds a new message without reload (send a message from the other role and wait one poll interval).''') p.write_text(s) EOF grep -n "Amendment 1" docs/tasks/TASK-014-FIX.md | head; grep -n "X-Chat-Fragment" chat/tests/test_views.py | head -3 (1s)
+    $ python3 - <<'EOF' 2>&1 | grep -v xcrun
+  import pathlib
+  p=pathlib.Path('docs/tasks/TASK-014-FIX.md'); s=p.read_text()
+  s=s.replace('# TASK-014-FIX: A separator dot never starts a line in request lists\n','# TASK-014-FIX: A separator dot never starts a line in request lists (and other lists, amendment 1)\n')
+  s=s.replace('''## Out of scope
+
+  - Other pages with the same pattern (user decision: "other pages" are out of scope). Found and NOT changed, listed for the Team lead: `chat/templates/chat/staff_list.html` (name · group · time · новых), `chat/templates/chat/_message.html` (meta), `accounts/templates/accounts/student_list.html`, `schedule/templates/schedule/staff_group_list.html`, `notifications/templates/notifications/feed.html` and `staff_list.html` (`feed-meta`), `academics/templates/academics/includes/discipline.html` (summary), `schedule/.../lesson_compact.html` (`lesson-meta`). Short lines (`today.html`, `home.html` `page-sub`, lesson time lines) do not wrap at 360 px.''','''## Amendment 1 (Team lead, approved by the user, 19.11)
+
+  The same rule (AC1: `&nbsp;·` + one normal space, never whitespace before "·") applies to every "·" in these templates too:
+  - `chat/templates/chat/staff_list.html` (row: name link, group, time, "новых: N")
+  - `chat/templates/chat/_message.html` (`chat-meta`: "Деканат · <short name>" and " · <time>")
+  - `accounts/templates/accounts/student_list.html` (row: name link · group, course)
+  - `schedule/templates/schedule/staff_group_list.html` (row: group link · programme, course)
+  - `notifications/templates/notifications/feed.html` and `notifications/templates/notifications/staff_list.html` (`feed-meta`)
+  - `academics/templates/academics/includes/discipline.html` (the `<summary>` line)
+  - `schedule/templates/schedule/includes/lesson_compact.html` (`lesson-time` and `lesson-meta`)
+
+  See "Amendment 1: markup" below. `_message.html` is also the fragment returned to the chat polling (`static/js/chat.js`, unchanged): keep the `<li>` element, its classes, `id="m-<pk>"` and `data-message-id`; change only the text separators inside `chat-meta`. The JS selects only `li[data-message-id]` and `#chat-messages` (checked: `static/js/chat.js:4-54`).
+
+  ## Out of scope
+
+  - Templates not listed in this spec. Short lines that do not wrap at 360 px stay as they are: `schedule/templates/schedule/today.html` (date · group), `core/templates/core/home.html` (`page-sub`, asserted exactly by `core/tests/test_home.py:84`), `schedule/templates/schedule/includes/lesson_item.html` (time line), `chat/templates/chat/staff_dialog.html` (name · group under the `h1`).''')
+  s=s.replace('''No Python changes.
+
+  ## Feasibility check''','''No Python changes.
+
+  ### Amendment 1: markup
+
+  Keep each changed line as one template line (no newline or indentation before "·"). Unbounded parts (names, programme names, tags, audience labels, discipline names) wrap normally; you may wrap short bounded parts (dates, "новых: N", "N курс", percent) in `<span class="meta-item">` with the dot inside the span, as in D3.
+
+  - `chat/staff_list.html` row:
+    `<li><a href="…">{{ d.student.full_name }}</a>&nbsp;· {{ d.student.group.name }}&nbsp;· {{ d.last_message_at|date:"d.m.Y H:i" }}{% if d.unread %}&nbsp;· <strong>новых: {{ d.unread }}</strong>{% endif %}</li>`
+  - `chat/_message.html` meta:
+    `<p class="chat-meta"><strong>{% if m.author_role == "staff" %}Деканат&nbsp;· {{ m.author.staff_profile.short_name }}{% elif viewer_is_student %}Вы{% else %}{{ student_name }}{% endif %}</strong>&nbsp;· <time …>…</time></p>`
+  - `accounts/student_list.html` row (one line inside `<li>`):
+    `<li><a href="…">{{ student.full_name }}</a>&nbsp;· {{ student.group.name }}, {{ student.course }} курс</li>`
+  - `schedule/staff_group_list.html` row:
+    `<li><a href="…">{{ group.name }}</a>&nbsp;· {{ group.program.name }}, {{ group.course }} курс</li>`
+  - `notifications/feed.html` meta:
+    `<p class="feed-meta">{% if item.is_new %}<strong>Новое</strong>&nbsp;· {% endif %}{{ item.tag }}&nbsp;· <time …>…</time>{% if item.audience_label %}&nbsp;· {{ item.audience_label }}{% endif %}</p>`
+  - `notifications/staff_list.html` meta:
+    `<p class="feed-meta">{{ a.audience_label }}&nbsp;· {{ a.published_at|date:"d.m.Y H:i" }}&nbsp;· {% if a.is_published %}Опубликовано{% else %}Снято с публикации {{ a.unpublished_at|date:"d.m.Y H:i" }}{% endif %}</p>`
+  - `academics/includes/discipline.html` summary (one template line inside `<summary>`):
+    `<summary><strong>{{ d.item.discipline.name }}</strong>&nbsp;· {{ d.item.get_assessment_form_display }}&nbsp;· Итог: {% if d.effective %}{{ d.effective.get_result_display }}{% else %}нет{% endif %}{% if d.is_debt %}&nbsp;· <strong>Задолженность</strong>{% endif %}&nbsp;· Посещаемость: {% if d.attendance.percent is not None %}{{ d.attendance.percent }}%{% else %}—{% endif %}</summary>`
+  - `schedule/includes/lesson_compact.html`: in `lesson-time` replace ` · {{ item.slot.number }} пара` with `&nbsp;· {{ item.slot.number }} пара`; in `lesson-meta` replace both ` · ` with `&nbsp;· `. Nothing else in the line changes (the room link, `lesson-change` span and the "идёт" tag stay exactly as they are; `core/tests/test_home.py` asserts them).
+
+  ## Feasibility check''')
+  s=s.replace('''9. Conflicts: none. The other pages with the same pattern are listed in "Out of scope" for the Team lead.''','''9. Conflicts: none. Amendment 1 (19.11): the 8 added templates were read; every "·" in them is listed above. Tests that assert these separators: only `chat/tests/test_views.py:294` (`assertIn("Деканат ·", content)`) — update it (see Test plan). `academics/tests/test_views.py:209` asserts "Задолженность" (stays). `core/tests/test_home.py` asserts the room link and `lesson-change` span (unchanged by the edit). `static/js/chat.js` uses only `[data-chat-poll-url]`, `#chat-messages`, `[data-chat-status]`, `li[data-message-id]`.''')
+  s=s.replace('''`core/tests/test_css.py::BaseCssTests::test_meta_item_nowrap`:''','''Amendment 1 tests:
+  - `core/tests/test_design.py::SeparatorRuleTests::test_no_whitespace_before_separator`: for each template of this task (the 5 petitions templates and the 8 of Amendment 1; a module-level tuple of paths), the file text has no match for `re.compile(r"\\s·")` (any whitespace, including a newline, directly before "·"), and contains at least one "&nbsp;·". subTest per file.
+  - `chat/tests/test_views.py` line 294: `self.assertIn("Деканат ·", content)` → `self.assertIn("Деканат&nbsp;· ", content)` with the comment `# TASK-014-FIX: separator glued with a no-break space`.
+  - `chat/tests/test_views.py::PollTests` (or the class that tests the polling fragment; find it with `grep -n "X-Chat-Fragment" chat/tests/test_views.py`): new `test_fragment_meta_separator`: the polled fragment of a staff message contains `Деканат&nbsp;· ` and `li` with `data-message-id` (the JS contract).
+  - `notifications/tests/test_views.py::FeedViewTests::test_meta_separator_glued`: the feed of a student with one new announcement contains `<strong>Новое</strong>&nbsp;· ` and no `[ \\t\\n]·` inside `<p class="feed-meta">…</p>`.
+  - `academics/tests/test_views.py` (class with the report view): new `test_summary_separator_glued`: the report page's `<summary>` contains `&nbsp;· Итог:` and no `[ \\t\\n]·`.
+  - `core/tests/test_home.py::HomeStudentTests::test_lesson_meta_separator_glued`: the home page contains `&nbsp;· ` inside `<p class="lesson-meta">` and no `[ \\t\\n]·` there.
+
+  `core/tests/test_css.py::BaseCssTests::test_meta_item_nowrap`:''')
+  s=s.replace('''- `document.documentElement.scrollWidth === innerWidth` on every page (also at 320 × 780 for the student list).''','''- `document.documentElement.scrollWidth === innerWidth` on every page (also at 320 × 780 for the student list).
+  - Amendment 1 pages at 360 × 780 (screenshot each; no line starts with "·"; no horizontal scroll): staff "Чаты" list (`/staff/chats/`, staff1), student chat (`/chat/`, student1, with a staff message) and a staff dialog (staff1), staff "Студенты" (`/staff/students/`), staff "Расписание групп" (`/staff/schedule/`), student "Уведомления" (`/notifications/`, with a "Новое" item), staff "Объявления" (`/staff/announcements/`), student "Успеваемость" (`/grades/`, one `<details>` open) and the staff view of a student's grades, student home "Занятия" card (`/`). Also check that chat polling still adds a new message without reload (send a message from the other role and wait one poll interval).''')
+  p.write_text(s)
+  EOF
+  grep -n "Amendment 1" docs/tasks/TASK-014-FIX.md | head; grep -n "X-Chat-Fragment" chat/tests/test_views.py | head -3
+    22:## Amendment 1 (Team lead, approved by the user, 19.11)
+    33:See "Amendment 1: markup" below. `_message.html` is also the fragment returned to the chat polling (`static/js/chat.js`, unchanged): keep the `<li>` element, its classes, `id="m-<pk>"` and `data-message-id`; change only the text separators inside `chat-meta`. The JS selects only `li[data-message-id]` and `#chat-messages` (checked: `static/js/chat.js:4-54`).
+    97:### Amendment 1: markup
+    127:9. Conflicts: none. Amendment 1 (19.11): the 8 added templates were read; every "·" in them is listed above. Tests that assert these separators: only `chat/tests/test_views.py:294` (`assertIn("Деканат ·", content)`) — update it (see Test plan). `academics/tests/test_views.py:209` asserts "Задолженность" (stays). `core/tests/test_home.py` asserts the room link and `lesson-change` span (unchanged by the edit). `static/js/chat.js` uses only `[data-chat-poll-url]`, `#chat-messages`, `[data-chat-status]`, `li[data-message-id]`.
+    159:Amendment 1 tests:
+    160:- `core/tests/test_design.py::SeparatorRuleTests::test_no_whitespace_before_separator`: for each template of this task (the 5 petitions templates and the 8 of Amendment 1; a module-level tuple of paths), the file text has no match for `re.compile(r"\s·")` (any whitespace, including a newline, directly before "·"), and contains at least one "&nbsp;·". subTest per file.
+    175:- Amendment 1 pages at 360 × 780 (screenshot each; no line starts with "·"; no horizontal scroll): staff "Чаты" list (`/staff/chats/`, staff1), student chat (`/chat/`, student1, with a staff message) and a staff dialog (staff1), staff "Студенты" (`/staff/students/`), staff "Расписание групп" (`/staff/schedule/`), student "Уведомления" (`/notifications/`, with a "Новое" item), staff "Объявления" (`/staff/announcements/`), student "Успеваемость" (`/grades/`, one `<details>` open) and the staff view of a student's grades, student home "Занятия" card (`/`). Also check that chat polling still adds a new message without reload (send a message from the other role and wait one poll interval).
+    509:        self.assertEqual(response["X-Chat-Fragment"], "1")
+    559:        self.assertEqual(response["X-Chat-Fragment"], "1")
+  ── Thought for 5ms
+    I'm checking the architecture's file list and the acceptance criteria references, and the amendment section already covers those. The "only these 5 templates" line looks fine too. The summary in the `<summary>` block is a single line and fits. Next I'll send the amendment to the UI coder.
+
+── Ran bb thread tell thr_pgcwc2dwnn --message-file - <<'EOF' [TASK-014-FIX] Planner -> UI coder: ANSWER Spec amendment 1 (Team lead, approved by the user): docs/tasks/TASK-014-FIX.md, sections "Amendment 1", "Amendment 1: markup", "Amendment 1 tests" and the visual check list. - The same rule ("&nbsp;·" + one normal space, never whitespace before "·") now also applies to 8 templates: chat/staff_list.html, chat/_message.html, accounts/student_list.html, schedule/staff_group_list.html, notifications/feed.html, notifications/staff_list.html, academics/includes/discipline.html and schedule/includes/lesson_compact.html. The exact lines are in the spec. - _message.html is also the chat polling fragment. Keep the <li>, its classes, id and data-message-id; chat.js stays unchanged. - Update chat/tests/test_views.py:294 ("Деканат ·" -> "Деканат&nbsp;· ", with a TASK-014-FIX comment). Add SeparatorRuleTests (no \s before "·" in all 13 templates) and the per-page tests listed. - Visual check at 360 px for each added page (student and staff as listed), plus a live chat poll check. EOF
+  $ bb thread tell thr_pgcwc2dwnn --message-file - <<'EOF'
+[TASK-014-FIX] Planner -> UI coder: ANSWER
+Spec amendment 1 (Team lead, approved by the user): docs/tasks/TASK-014-FIX.md, sections "Amendment 1", "Amendment 1: markup", "Amendment 1 tests" and the visual check list.
+- The same rule ("&nbsp;·" + one normal space, never whitespace before "·") now also applies to 8 templates: chat/staff_list.html, chat/_message.html, accounts/student_list.html, schedule/staff_group_list.html, notifications/feed.html, notifications/staff_list.html, academics/includes/discipline.html and schedule/includes/lesson_compact.html. The exact lines are in the spec.
+- _message.html is also the chat polling fragment. Keep the <li>, its classes, id and data-message-id; chat.js stays unchanged.
+- Update chat/tests/test_views.py:294 ("Деканат ·" -> "Деканат&nbsp;· ", with a TASK-014-FIX comment). Add SeparatorRuleTests (no \s before "·" in all 13 templates) and the per-page tests listed.
+- Visual check at 360 px for each added page (student and staff as listed), plus a live chat poll check.
+EOF
+  Thread thr_pgcwc2dwnn steered
+
+── Assistant ───────────────────────────────────────────────
+Я дополнил спецификацию [TASK-014-FIX](docs/tasks/TASK-014-FIX.md) и отправил поправку UI-кодеру.
+
+**Что добавлено:** то же правило для разделителей (точка «приклеена» неразрывным пробелом, после неё обычный пробел) теперь действует ещё в 8 шаблонах:
+- список чатов сотрудника и строка над сообщением в чате;
+- список студентов и список групп в расписании сотрудника;
+- лента уведомлений и список объявлений сотрудника;
+- строка дисциплины в успеваемости;
+- карточка «Занятия» на главной.
+
+Для каждого шаблона в спецификации есть точная строка разметки.
+
+**Чат.** Шаблон сообщения также приходит в ответах опроса чата, который обновляет переписку без перезагрузки страницы. Скрипт `chat.js` ищет сообщения только по атрибуту `data-message-id`, а текст разделителей не читает. Поэтому скрипт не меняется. UI-кодер должен проверить вживую, что новое сообщение по-прежнему появляется без перезагрузки.
+
+**Тесты.** Обновить нужно один старый тест: он ждёт «Деканат ·» с обычным пробелом. Новый тест проверяет все 13 шаблонов: перед «·» нигде нет пробела или переноса строки. Ещё добавлены тесты на ленту, успеваемость, главную и ответ опроса чата.
+
+**Визуальная проверка:** каждую добавленную страницу UI-кодер смотрит на 360 px за студента и за сотрудника, где это применимо.
+
+TASK-015 по-прежнему на паузе.

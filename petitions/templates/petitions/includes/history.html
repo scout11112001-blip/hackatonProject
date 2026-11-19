@@ -1,12 +1,7 @@
 {% if petition.history.all %}
   <ol>
     {% for change in petition.history.all %}
-      <li>
-        {{ change.created_at|date:"j E Y H:i" }}
-        · {% if change.from_status %}{{ change.get_from_status_display }} → {% endif %}{{ change.get_to_status_display }}
-        · {% if change.actor.role == "staff" %}{{ change.actor.staff_profile.full_name }}{% elif change.actor.role == "student" %}Студент{% else %}Администратор{% endif %}
-        {% if change.comment %}<br>{{ change.comment }}{% endif %}
-      </li>
+      <li>{{ change.created_at|date:"j E Y H:i" }}&nbsp;· {% if change.from_status %}{{ change.get_from_status_display }} → {% endif %}{{ change.get_to_status_display }}&nbsp;· {% if change.actor.role == "staff" %}{{ change.actor.staff_profile.full_name }}{% elif change.actor.role == "student" %}Студент{% else %}Администратор{% endif %}{% if change.comment %}<br>{{ change.comment }}{% endif %}</li>
     {% endfor %}
   </ol>
 {% else %}

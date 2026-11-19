@@ -1,5 +1,6 @@
 """View tests for the chat app."""
 
+import re
 import uuid
 from unittest import mock
 
@@ -291,7 +292,8 @@ class ViewTests(_ChatWorld):
             content.index('id="chat-form"'), content.index(f'data-message-id="{b.pk}"')
         )
         self.assertIn(">Вы</strong>", content)
-        self.assertIn("Деканат ·", content)
+        # TASK-014-FIX: separator glued with a no-break space
+        self.assertIn("Деканат&nbsp;· ", content)
 
     def test_text_escaped_line_breaks_kept(self):
         dialog = self.ax_dialog
@@ -560,6 +562,17 @@ class UpdatesViewTests(_ChatWorld):
         content = response.content.decode()
         self.assertNotIn('<ul class="messages">', content)
         self.assertIn('<li class="chat-message', content)
+
+    def test_fragment_meta_separator(self):
+        staff_message = add_message(self.ax_dialog, self.w.sx, AuthorRole.STAFF, text="ответ")
+        self.client.force_login(self.w.ax)
+        response = self.client.get("/chat/updates/?after=0")
+        self.assertEqual(response["X-Chat-Fragment"], "1")
+        content = response.content.decode()
+        self.assertIn("Деканат&nbsp;· ", content)
+        self.assertIn('<li class="chat-message', content)
+        self.assertIn(f'data-message-id="{staff_message.pk}"', content)
+        self.assertIsNone(re.search(r"[ \t\n]·", content))
 
     def test_fragment_alignment_by_viewer(self):
         dialog = self.ax_dialog

@@ -1,11 +1,6 @@
 <li class="discipline{% if d.is_debt %} discipline--debt{% endif %}">
   <details>
-    <summary>
-      <strong>{{ d.item.discipline.name }}</strong> · {{ d.item.get_assessment_form_display }}
-      · Итог: {% if d.effective %}{{ d.effective.get_result_display }}{% else %}нет{% endif %}
-      {% if d.is_debt %}· <strong>Задолженность</strong>{% endif %}
-      · Посещаемость: {% if d.attendance.percent is not None %}{{ d.attendance.percent }}%{% else %}—{% endif %}
-    </summary>
+    <summary><strong>{{ d.item.discipline.name }}</strong>&nbsp;· {{ d.item.get_assessment_form_display }}&nbsp;· Итог: {% if d.effective %}{{ d.effective.get_result_display }}{% else %}нет{% endif %}{% if d.is_debt %}&nbsp;· <strong>Задолженность</strong>{% endif %}&nbsp;· Посещаемость: {% if d.attendance.percent is not None %}{{ d.attendance.percent }}%{% else %}—{% endif %}</summary>
     <h3>Текущие оценки</h3>
     {% if d.marks %}<ul>{% for m in d.marks %}<li>{{ m.date|date:"j E" }} — {{ m.kind }}: {{ m.value }}</li>{% endfor %}</ul>{% else %}<p>Оценок нет.</p>{% endif %}
     <h3>Итоговый результат</h3>

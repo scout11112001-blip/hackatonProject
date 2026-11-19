@@ -12,7 +12,7 @@
   <ul class="feed">
     {% for a in announcements %}
     <li class="feed-item" id="announcement-{{ a.public_id }}">
-      <p class="feed-meta">{{ a.audience_label }} · {{ a.published_at|date:"d.m.Y H:i" }} · {% if a.is_published %}Опубликовано{% else %}Снято с публикации {{ a.unpublished_at|date:"d.m.Y H:i" }}{% endif %}</p>
+      <p class="feed-meta">{{ a.audience_label }}&nbsp;· {{ a.published_at|date:"d.m.Y H:i" }}&nbsp;· {% if a.is_published %}Опубликовано{% else %}Снято с публикации {{ a.unpublished_at|date:"d.m.Y H:i" }}{% endif %}</p>
       <h3>{{ a.title }}</h3>
       {% if a.deadline %}<p>Срок: до {{ a.deadline|date:"d.m.Y" }}</p>{% endif %}
       <p>{{ a.body|linebreaksbr }}</p>

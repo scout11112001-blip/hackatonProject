@@ -17,6 +17,18 @@ class BaseCssTests(SimpleTestCase):
         self.assertNotIn("max-width: 100%", tokens)
         self.assertNotIn("max-width: 100%", theme)
 
+    def test_meta_item_nowrap(self):
+        base_css = (Path(settings.BASE_DIR) / "static/css/base.css").read_text()
+        css = re.sub(r"/\*.*?\*/", "", base_css, flags=re.S)
+        rules = re.findall(r"([^{}]+)\{([^{}]*)\}", css)
+
+        def bodies(selector):
+            return [b for sel, b in rules if selector in [s.strip() for s in sel.split(",")]]
+
+        self.assertTrue(any("white-space: nowrap" in b for b in bodies(".meta-item")))
+        title = bodies(".petition-title")
+        self.assertTrue(any("display: block" in b and "min-height: 2.75rem" in b for b in title))
+
     def test_map_highlight_rule(self):
         base_css = (Path(settings.BASE_DIR) / "static/css/base.css").read_text()
         tokens = (Path(settings.BASE_DIR) / "static/css/tokens.css").read_text()
