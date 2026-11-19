@@ -38,3 +38,8 @@ Small defects are not deferred to a backlog. After every successful commit:
 ## Assigning coders
 - Every request to the Planner names the assignee when it is not the default: add the line "Assignee: UI coder" for visual tasks (design, templates, CSS, static assets). Otherwise the Coder (DeepSeek) does the task.
 - The UI coder (thr_pgcwc2dwnn) is a Claude thread: do not clear or compact it (same rule as the Planner and the Reviewer).
+
+## Pentester
+- The Pentester (Claude Opus, `.claude/agents/pentester.md`) gets requests `PENTEST-N` from the Team lead only, after user approval: local app testing on a temporary database; production testing of `digital-student-services.ru` / `136.148.83.222` only after HTTPS is live and within the rules of engagement in its role file.
+- Its `REPORT` goes to the Team lead with `docs/security/PENTEST-N.md`. Report the findings to the user in Russian with a recommendation per finding; approved fixes become `TASK-NNN` requests to the Planner. Commit the report file with the next commit.
+- Do not clear or compact the Pentester (Claude thread). Remove any objects it created on production before the final database switch on 2026-11-22.

@@ -18,6 +18,7 @@
 | Coder | thr_ng6cbgatm6 | opencode (DeepSeek) | `.opencode/agent/coder.md` |
 | Reviewer | thr_cpuae9aqw3 | Claude Code | `.claude/agents/reviewer.md` |
 | UI coder | thr_pgcwc2dwnn | Claude Code (Opus) | `.claude/agents/ui-coder.md` |
+| Pentester | thr_kqfp9kn6jk | Claude Code (Opus) | `.claude/agents/pentester.md` |
 
 ## Workflow
 ```
@@ -33,9 +34,10 @@ user <-> Team lead -> Planner -> Coder / UI coder <-> Reviewer -> Team lead -> u
 8. Maximum 3 review rounds per task. After the 3rd `CHANGES REQUESTED`, the Reviewer escalates to the Team lead instead.
 9. If an agent is blocked (missing info, unclear requirement, failing environment), it reports to the Team lead, not to the user.
 10. If the user writes to you directly, answer in Russian and follow the user's instructions.
+11. The Pentester works outside the task chain: it gets requests `PENTEST-N` only from the Team lead and reports findings only to the Team lead. Fixes of its findings go through the normal chain as `TASK-NNN` after user approval. No other agent messages the Pentester.
 
 ## Git and commits
-- Only the Team lead commits. The Planner, the Coder, the UI coder and the Reviewer NEVER run `git commit`, `git push`, `git stash`, `git checkout`, `git reset` or any other command that changes git history or the index.
+- Only the Team lead commits. The Planner, the Coder, the UI coder, the Reviewer and the Pentester NEVER run `git commit`, `git push`, `git stash`, `git checkout`, `git reset` or any other command that changes git history or the index.
 - The Coder leaves all changes uncommitted. The Reviewer reviews the uncommitted changes (`git status`, `git diff`, and untracked files).
 - After `APPROVE`, the Team lead commits the task as one commit `TASK-NNN: <summary>` and updates `CHANGELOG.md`.
 
