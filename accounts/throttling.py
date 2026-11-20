@@ -42,6 +42,23 @@ def get_client_ip(request: HttpRequest | None) -> str:
         return UNKNOWN_IP
 
 
+def throttle_ip(ip: str) -> str:
+    """Lockout key for a client address: IPv4 as is, IPv6 by its /64 network.
+
+    One IPv6 client usually owns a whole /64 and could take a new address for every
+    attempt. The key is the network address (a valid IP, e.g. "2001:db8:1:2::").
+    """
+    try:
+        address = ipaddress.ip_address(ip)
+    except ValueError:
+        return UNKNOWN_IP
+    if isinstance(address, ipaddress.IPv6Address):
+        if address.ipv4_mapped is not None:
+            return str(address.ipv4_mapped)
+        return str(ipaddress.IPv6Network((address, 64), strict=False).network_address)
+    return str(address)
+
+
 def is_locked(username: str, ip: str, now: datetime) -> bool:
     return LoginThrottle.objects.filter(
         username_key=normalize_username(username), ip_address=ip, locked_until__gt=now

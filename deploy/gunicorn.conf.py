@@ -18,3 +18,5 @@ errorlog = "-"
 loglevel = "info"
 capture_output = True
 control_socket_disable = True
+# Trust only the scheme header that nginx always overwrites (PT1-F13).
+secure_scheme_headers = {"X-FORWARDED-PROTO": "https"}

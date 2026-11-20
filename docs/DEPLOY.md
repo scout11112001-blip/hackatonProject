@@ -20,12 +20,14 @@ REPO_URL=<your repository URL>
 
 You need:
 
-- a domain whose `A` record already points at the server IP;
-- an SSH key you created and installed on the server:
+- a domain whose `A` records for `$DOMAIN` and `www.$DOMAIN` already point at
+  the server IP;
+- an SSH key you created and installed for your own sudo user (never for
+  `$APP_USER`: the service account has no login shell and no SSH key):
 
 ```bash
 ssh-keygen -t ed25519
-ssh-copy-id "$APP_USER"@<server-ip>
+ssh-copy-id <your-sudo-user>@<server-ip>
 ```
 
 Keep one SSH session open until step 4 (SSH hardening) is verified.
@@ -83,12 +85,14 @@ sudo ufw allow OpenSSH && sudo ufw allow 80/tcp && sudo ufw allow 443/tcp && sud
 ## 6. App user, directories, code
 
 ```bash
-sudo adduser --system --group --home /srv/deanery --shell /bin/bash "$APP_USER"
+sudo adduser --system --group --home /srv/deanery --shell /usr/sbin/nologin "$APP_USER"
 sudo -u "$APP_USER" git clone "$REPO_URL" /srv/deanery/app
 sudo -u "$APP_USER" mkdir -p /srv/deanery/private_media /srv/deanery/private_media_trial /srv/deanery/backups
 sudo chmod 750 /srv/deanery/private_media /srv/deanery/private_media_trial && sudo chmod 700 /srv/deanery/backups
 sudo mkdir -p /var/www/letsencrypt
 ```
+
+`sudo -u "$APP_USER" <command>` still works with the `nologin` shell.
 
 ## 7. Python venv
 
@@ -167,7 +171,7 @@ sed "s/example.com/$DOMAIN/g" /srv/deanery/app/deploy/nginx/deanery-bootstrap.co
 sudo ln -sf /etc/nginx/sites-available/deanery /etc/nginx/sites-enabled/deanery
 sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t && sudo systemctl reload nginx
-sudo certbot certonly --webroot -w /var/www/letsencrypt -d "$DOMAIN" --email <your e-mail> --agree-tos --no-eff-email --deploy-hook "systemctl reload nginx"
+sudo certbot certonly --webroot -w /var/www/letsencrypt -d "$DOMAIN" -d "www.$DOMAIN" --email <your e-mail> --agree-tos --no-eff-email --deploy-hook "systemctl reload nginx"
 ```
 
 ## 13. nginx full site
@@ -200,11 +204,17 @@ sudo -u "$APP_USER" bash -c 'tar -xzf /srv/deanery/backups/media-<STAMP>.tar.gz 
 
 ```bash
 curl -sI http://$DOMAIN/ | head -1
+curl -sI https://www.$DOMAIN/ | grep -iE '^(HTTP|location)'
 curl -s https://$DOMAIN/health/
-curl -s -o /dev/null -w '%{http_code}' https://$DOMAIN/private_media/
+curl -s -o /dev/null -w '%{http_code}\n' https://$DOMAIN/private_media/
+curl -sI https://$DOMAIN/login/ | grep -i '^content-security-policy'
+curl -s -o /dev/null -w '%{http_code}\n' -H 'Host: other.example' http://127.0.0.1/
 ```
 
-Expected: `http://` → 301 to https; `/health/` → ok; `/private_media/` → 404.
+Expected: `http://` → 301 to https; `https://www.` → 301 to `https://$DOMAIN/`;
+`/health/` → ok; `/private_media/` → 404; the login page has a
+`Content-Security-Policy` header; a foreign Host → `000` (nginx closes the
+connection).
 In the browser: the login page, the admin at `https://$DOMAIN/<ADMIN_URL>`.
 On the **trial** database run `$M seed_demo` once, then open one page per role
 (student: Расписание, Заявки, Чат; staff: Заявки, Чаты); upload a PDF to a
@@ -230,8 +240,12 @@ sudo sed -i \
 M="sudo -u $APP_USER /srv/deanery/app/deploy/manage.sh"
 $M migrate
 $M seed_demo
+sudo sed -i '/^DEMO_PASSWORD=/d' /etc/deanery/deanery.env
 sudo systemctl restart deanery
 ```
+
+The app does not read `DEMO_PASSWORD` at run time; only `seed_demo` needs it, so
+it is removed from the env file right after seeding.
 
 Run `seed_demo` exactly once; do not schedule it as a recurring job. Repeat
 step 15 (without seeding). Optionally drop `deanery_trial` and empty
@@ -307,3 +321,37 @@ same formula.
 - 413 Request Entity Too Large → `client_max_body_size` (20m).
 - Locked logins / wrong client IP → `CLIENT_IP_HEADER` and the `X-Real-IP`
   header set by nginx.
+
+## 21. One-time hardening of a server installed before TASK-016
+
+Run after the update procedure (step 17) has pulled the TASK-016 code.
+
+```bash
+sudo usermod --shell /usr/sbin/nologin "$APP_USER"
+getent passwd "$APP_USER"
+sudo ls -la /srv/deanery/.ssh 2>/dev/null || echo "no .ssh directory"
+sudo certbot certificates
+```
+
+`getent` must end with `/usr/sbin/nologin`. `certbot certificates` must list
+both `$DOMAIN` and `www.$DOMAIN` for the certificate in
+`/etc/letsencrypt/live/$DOMAIN/`; if `www` is missing, run the `certbot
+certonly` command of step 12 with `--expand`. Remove the temporary `www`
+redirect site (it now lives in the template), then install the new nginx site
+and the new systemd unit:
+
+```bash
+sudo cp /etc/nginx/sites-available/deanery /root/deanery.nginx.bak
+sudo cp /etc/systemd/system/deanery.service /root/deanery.service.bak
+sudo rm /etc/nginx/sites-enabled/<temporary www site>
+sed "s/example.com/$DOMAIN/g" /srv/deanery/app/deploy/nginx/deanery.conf | sudo tee /etc/nginx/sites-available/deanery > /dev/null
+sudo nginx -t && sudo systemctl reload nginx
+sed "s/<APP_USER>/$APP_USER/g" /srv/deanery/app/deploy/systemd/deanery.service | sudo tee /etc/systemd/system/deanery.service > /dev/null
+sudo systemd-analyze verify /etc/systemd/system/deanery.service
+sudo systemctl daemon-reload && sudo systemctl restart deanery
+systemctl status deanery
+systemd-analyze security deanery | tail -1
+```
+
+Then repeat the smoke check (step 15), upload and download a PDF as a student,
+and run `sudo -u "$APP_USER" /srv/deanery/app/deploy/backup.sh` once.

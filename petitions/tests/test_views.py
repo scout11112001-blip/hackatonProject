@@ -927,3 +927,68 @@ class SeparatorTests(FrozenClockMixin, TestCase):
         self.assertIn(f'href="/staff/requests/{self.p1.public_id}/"', queue)
         self.assertIn("GX", queue)
         self.assertIn("файлов:", queue)
+
+
+class HardeningTests(FrozenClockMixin, TestCase):
+    """TASK-016: PT1-F7 (hint escaped) and PT1-F8 (out-of-range type filter)."""
+
+    HUGE = "9" * 25
+
+    def setUp(self):
+        self.fac = make_faculty("FX")
+        self.group = make_group(self.fac, "GX")
+        self.student = make_student("a", self.group, "SA").student_profile
+        self.staff = make_staff("sx", self.fac)
+        self.type = make_type()
+        self.other_type = make_type(name="Другая")
+        self.p1 = make_petition(self.student, self.type)
+        self.p2 = make_petition(self.student, self.other_type)
+
+    def test_comment_hint_escaped(self):
+        hint = '<img src=x onerror="alert(1)"> & <b>жирный</b>'
+        t = make_type(name="XSS", comment_required=True, hint=hint)
+        self.client.force_login(self.student.user)
+        content = self.client.get(reverse("petitions:submit", args=[t.pk])).content.decode()
+        self.assertNotIn("<img src=x", content)
+        self.assertNotIn("<b>жирный</b>", content)
+        self.assertIn("&lt;img src=x onerror=&quot;alert(1)&quot;&gt; &amp; &lt;b&gt;", content)
+
+    def test_plain_hint_unchanged(self):
+        t = make_type(name="Plain", comment_required=True, hint="Укажите причину «А»")
+        form = PetitionForm(request_type=t)
+        self.assertEqual(form.fields["comment"].help_text, "Укажите причину «А»")
+
+    def _queue(self, type_value):
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse("petitions:staff_queue"), {"type": type_value})
+        self.assertEqual(response.status_code, 200, type_value)
+        return response.content.decode()
+
+    def test_type_filter_valid(self):
+        content = self._queue(str(self.type.pk))
+        self.assertIn(str(self.p1.short_id), content)
+        self.assertNotIn(str(self.p2.short_id), content)
+
+    def test_type_filter_out_of_range_ignored(self):
+        for value in (self.HUGE, "-1", "1e3", " 1", "\u0663", "0x1", ""):
+            content = self._queue(value)
+            self.assertIn(str(self.p1.short_id), content, value)
+            self.assertIn(str(self.p2.short_id), content, value)
+
+    def test_type_filter_18_digits_empty(self):
+        content = self._queue("9" * 18)
+        self.assertNotIn(str(self.p1.short_id), content)
+        self.assertNotIn(str(self.p2.short_id), content)
+
+    def test_huge_url_ids_404(self):
+        self.client.force_login(self.student.user)
+        self.assertEqual(self.client.get(f"/requests/new/{self.HUGE}/").status_code, 404)
+        self.assertEqual(self.client.get(f"/map/floor/{self.HUGE}/").status_code, 404)
+        self.client.force_login(self.staff)
+        for path in (
+            f"/staff/students/{self.HUGE}/",
+            f"/staff/students/{self.HUGE}/grades/",
+            f"/staff/schedule/{self.HUGE}/",
+            f"/staff/schedule/{self.HUGE}/2026-11-16/",
+        ):
+            self.assertEqual(self.client.get(path).status_code, 404, path)

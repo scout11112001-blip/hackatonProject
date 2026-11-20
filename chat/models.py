@@ -70,9 +70,9 @@ class Message(models.Model):
                 name="chat_message_author_role_value",
             ),
             models.UniqueConstraint(
-                fields=["dialog", "client_token"],
+                fields=["dialog", "author", "client_token"],
                 condition=models.Q(client_token__isnull=False),
-                name="chat_message_unique_client_token",
+                name="chat_message_unique_author_client_token",
             ),
             models.UniqueConstraint(
                 fields=["seed_key"],

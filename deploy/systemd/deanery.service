@@ -14,10 +14,17 @@ Restart=on-failure
 RestartSec=5
 KillMode=mixed
 TimeoutStopSec=35
+# Sandbox (PT1-F13). At run time the app writes only uploads to PRIVATE_MEDIA_ROOT and
+# temporary files (large uploads, gunicorn heartbeats) to its private /tmp.
 NoNewPrivileges=true
 PrivateTmp=true
-ProtectSystem=full
+PrivateDevices=true
+ProtectSystem=strict
 ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
 ReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial
 
 [Install]

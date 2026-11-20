@@ -24238,3 +24238,3381 @@ All existing verification commands, plus `python manage.py test --parallel 2` ru
 - **Тест.** Новый тест проверяет, что `cd /` стоит перед `pg_dump`, `tar` и `find`.
 
 **Прогоны.** Три полных прогона с `--parallel 2` на копии: каждый раз 1141 тест OK. Сейчас в проекте 1140.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-016] Team lead -> Planner: TASK
+Approved by the user. Write the spec `docs/tasks/TASK-016.md` and hand it to the Coder (DeepSeek, thr_ng6cbgatm6).
+
+## Context
+Security hardening from the local pentest `docs/security/PENTEST-1.md` (HEAD 57cdde1; no Critical/High). Read the report: every item below names its finding ID with file:line, evidence and a recommended fix. Production facts (Team lead, 20.11): Ubuntu 24.04, nginx 1.24, no global IPv6, HTTPS live on `digital-student-services.ru` + `www` (Let's Encrypt), the service account `deanery` owns `/srv/deanery/app`, no SSH keys for it. On the server `www` -> apex is a separate temporary file; the template must now contain it. Apply your "Feasibility check" and "Test plan" sections.
+
+## Items (user decisions)
+1. PT1-F1 (Medium, CPU exhaustion via failed logins) and PT1-F2 (lockout bypass by IP rotation):
+   - nginx `limit_req_zone` per client IP for the login paths (`/login/` and the admin login under the configurable admin path; the runbook renders the admin path), e.g. 10 r/m with a small burst, `limit_req_status 429`; a site-wide `limit_conn` per IP (e.g. 20). Move the `proxy_set_header` lines to the `server` level so new `location` blocks inherit them (as the report says).
+   - `accounts/throttling.py`: key IPv6 client addresses by their /64 network (IPv4 unchanged).
+   - Do NOT add a per-account lockout across IPs: it would let anyone lock the jury out of the shared demo accounts (decision in plan.md 6b).
+2. PT1-F4: nginx catch-all `default_server` blocks for 80 and 443 that close requests for any other Host or by IP (`return 444`; `ssl_reject_handshake on` for 443), and a `www.<domain>` server (80 and 443) that redirects with 301 to `https://<domain>$request_uri` and serves the ACME path on 80. The runbook issues the certificate for both names (`-d $DOMAIN -d www.$DOMAIN`) and the bootstrap config answers ACME for both.
+3. PT1-F3: `Cache-Control: no-store` (private) for responses to authenticated users; anonymous pages and static files unchanged. Session length stays 14 days.
+4. PT1-F5: a strict Content-Security-Policy set by the app (testable), e.g. `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'`. Templates have no inline scripts/styles/handlers (grep 20.11); check the favicon/SVG/data URIs; the Django admin uses inline scripts/styles: decide how the admin keeps working (e.g. a relaxed policy only under the admin path) and justify. No new dependency.
+5. PT1-F7: escape `RequestType.comment_hint` before it becomes `help_text` (`petitions/forms.py:46`).
+6. PT1-F8: out-of-range integers in GET filters (`petitions/views.py:135`) are treated as an invalid filter; check every other integer read from GET/POST/URL kwargs for the same problem.
+7. PT1-F10: the chat idempotency token is looked up per author (`chat/services.py:36-39`, `:99-101`).
+8. PT1-F13:
+   - `deploy/backup.sh`: no database password on the command line (libpq environment or a temporary 0600 passfile); keep the existing behaviour and tests.
+   - `deploy/gunicorn.conf.py`: `secure_scheme_headers = {"X-FORWARDED-PROTO": "https"}`.
+   - `deploy/systemd/deanery.service`: stronger sandboxing (`ProtectSystem=strict` with `ReadWritePaths` only for the private media directories, `PrivateDevices`, `ProtectKernelTunables`, `ProtectControlGroups`, `RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX`, `CapabilityBoundingSet=`, `NoNewPrivileges`); list exactly what the app writes at run time and prove nothing else is needed.
+   - `docs/DEPLOY.md`: remove `DEMO_PASSWORD` from the env file after the one-time `seed_demo` on 2026-11-22 (the app does not need it at run time).
+9. PT1-F6 (partly): the service account gets `/usr/sbin/nologin` in the runbook (`sudo -u` still works) and no SSH key step for it; everything else of F6 is accepted (see below).
+10. Not tested in PENTEST-1: add a dependency audit to CI (`pip-audit -r requirements.txt` in its own step; a dev-only tool, not in requirements.txt) and fix anything it reports.
+
+## Accepted as is (user decision, no change)
+PT1-F6 rest (code owned by the service account, root SSH login by key: changing the login model before the deadline risks a lockout; password login is off), PT1-F9 (PDF magic check; files are served as attachments with nosniff), PT1-F11 (read state on GET), PT1-F12 (one demo password; it goes only to the jury), TLS cipher list and OCSP (decide after testssl in PENTEST-2), HSTS raise (runbook step 18, Team lead on 21.11).
+
+## Verification
+All existing verification commands (incl. `--parallel 2`, `run_tests_at.py`, `bash -n`, `gunicorn --check-config`, CI YAML), `nginx -t` on the rendered configs if nginx is available locally (otherwise say so), `systemd-analyze verify` if available, and tests for each item. The Team lead checks every page in the browser for CSP errors (student, staff, admin) and applies the nginx/systemd changes on the server; the Pentester re-tests in PENTEST-2.
+
+── Ran 1 command, explored 1 file ──────────────────────────
+  ── Thought for 8ms
+    I'm starting on this large task and need to open the pentest report and the relevant files first.
+  ── Ran cd ~/hackatonproject; git log --oneline -5; git status --short; wc -l docs/security/PENTEST-1.md (2s)
+    $ cd ~/hackatonproject; git log --oneline -5; git status --short; wc -l docs/security/PENTEST-1.md
+    851b3ee Security: PENTEST-1 reports (two runs) and HTTPS live
+    57cdde1 Team: add the pentester agent (Claude Opus) for security testing
+    d80fc4b TASK-015-FIX: stable demo idempotency test under --parallel; backup.sh runs from any directory
+    915955f TASK-015: deploy runbook for the new 2 vCPU / 2 GB server
+    afed2a1 TASK-014-FIX: a separator dot never starts a line in lists
+     M plan.md
+         490 docs/security/PENTEST-1.md
+  ── Read ~/hackatonproject/docs/security/PENTEST-1.md
+  ── Thought for 8ms
+    This is a big task, so I'm going to read through everything relevant first: the nginx configs, bootstrap, settings, throttling, forms, the petitions views, the chat services, backup.sh, the gunicorn config, the systemd unit, the current DEPLOY.md, the CI workflow, and the base templates for inline code. I'll also check plan.md section 6b for the per-account lockout requirement.
+
+── Assistant ───────────────────────────────────────────────
+Читаю отчёт пентеста и все затронутые файлы. Задача большая, поэтому сначала собираю факты.
+
+── Ran 5 commands, explored 9 searches, 2 files ────────────
+  ── Ran cd ~/hackatonproject; for f in deploy/nginx/deanery.conf deploy/nginx/deanery-bootstrap.conf deploy/systemd/deanery.service deploy/backup.sh deploy/gunicorn.conf.py deploy/manage.sh deploy/cron/deanery-backup accounts/throttling.py; do echo "=== $f"; cat -n $f; done
+    $ cd ~/hackatonproject; for f in deploy/nginx/deanery.conf deploy/nginx/deanery-bootstrap.conf deploy/systemd/deanery.service deploy/backup.sh deploy/gunicorn.conf.py deploy/manage.sh deploy/cron/deanery-backup accounts/throttling.py; do echo "=== $f"; cat -n $f; done
+    === deploy/nginx/deanery.conf
+         1	# Deanery prototype. Static files are served by Django/WhiteNoise; nginx serves no project files.
+         2	# PRIVATE_MEDIA_ROOT must never get a location here (attachments go through Django access checks).
+         3	server {
+         4	    listen 80;
+         5	    listen [::]:80;
+         6	    server_name example.com;
+         7	    server_tokens off;
+         8	
+         9	    location ^~ /.well-known/acme-challenge/ {
+        10	        root /var/www/letsencrypt;
+        11	        default_type "text/plain";
+        12	    }
+        13	
+        14	    location / {
+        15	        return 301 https://$host$request_uri;
+        16	    }
+        17	}
+        18	
+        19	server {
+        20	    listen 443 ssl http2;
+        21	    listen [::]:443 ssl http2;
+        22	    server_name example.com;
+        23	    server_tokens off;
+        24	
+        25	    ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;
+        26	    ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
+        27	    ssl_protocols TLSv1.2 TLSv1.3;
+        28	    ssl_prefer_server_ciphers off;
+        29	    ssl_session_cache shared:SSL:10m;
+        30	    ssl_session_timeout 1d;
+        31	    ssl_session_tickets off;
+        32	
+        33	    client_max_body_size 20m;
+        34	
+        35	    # Not set by Django; X-Frame-Options, nosniff, Referrer-Policy and HSTS come from Django.
+        36	    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+        37	
+        38	    location / {
+        39	        proxy_pass http://127.0.0.1:8000;
+        40	        proxy_set_header Host $host;
+        41	        proxy_set_header X-Real-IP $remote_addr;
+        42	        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        43	        proxy_set_header X-Forwarded-Proto $scheme;
+        44	        proxy_redirect off;
+        45	        proxy_connect_timeout 5s;
+        46	        proxy_read_timeout 60s;
+        47	    }
+        48	}
+    === deploy/nginx/deanery-bootstrap.conf
+         1	# Temporary HTTP-only site used once to obtain the first certificate (docs/DEPLOY.md step 12).
+         2	server {
+         3	    listen 80;
+         4	    listen [::]:80;
+         5	    server_name example.com;
+         6	    server_tokens off;
+         7	
+         8	    location ^~ /.well-known/acme-challenge/ {
+         9	        root /var/www/letsencrypt;
+        10	        default_type "text/plain";
+        11	    }
+        12	
+        13	    location / {
+        14	        return 503;
+        15	    }
+        16	}
+    === deploy/systemd/deanery.service
+         1	[Unit]
+         2	Description=Deanery prototype (gunicorn)
+         3	After=network.target postgresql.service
+         4	Wants=postgresql.service
+         5	
+         6	[Service]
+         7	Type=simple
+         8	User=<APP_USER>
+         9	Group=<APP_USER>
+        10	WorkingDirectory=/srv/deanery/app
+        11	EnvironmentFile=/etc/deanery/deanery.env
+        12	ExecStart=/srv/deanery/venv/bin/gunicorn -c deploy/gunicorn.conf.py config.wsgi:application
+        13	Restart=on-failure
+        14	RestartSec=5
+        15	KillMode=mixed
+        16	TimeoutStopSec=35
+        17	NoNewPrivileges=true
+        18	PrivateTmp=true
+        19	ProtectSystem=full
+        20	ProtectHome=true
+        21	ReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial
+        22	
+        23	[Install]
+        24	WantedBy=multi-user.target
+    === deploy/backup.sh
+         1	#!/usr/bin/env bash
+         2	# Daily backup: gzip-compressed pg_dump + tar.gz of PRIVATE_MEDIA_ROOT; keeps KEEP_DAYS days.
+         3	set -euo pipefail
+         4	umask 077
+         5	# Start from / so the script works from any directory (find restores the start directory).
+         6	cd /
+         7	BACKUP_DIR="${BACKUP_DIR:-/srv/deanery/backups}"
+         8	KEEP_DAYS="${KEEP_DAYS:-7}"
+         9	set -a
+        10	. /etc/deanery/deanery.env
+        11	set +a
+        12	STAMP="$(date +%Y%m%d-%H%M%S)"
+        13	mkdir -p "$BACKUP_DIR"
+        14	pg_dump --no-owner --no-privileges "$DATABASE_URL" | gzip -9 > "$BACKUP_DIR/db-$STAMP.sql.gz"
+        15	tar -czf "$BACKUP_DIR/media-$STAMP.tar.gz" -C "$(dirname "$PRIVATE_MEDIA_ROOT")" "$(basename "$PRIVATE_MEDIA_ROOT")"
+        16	find "$BACKUP_DIR" -maxdepth 1 -type f \( -name 'db-*.sql.gz' -o -name 'media-*.tar.gz' \) -mtime +"$((KEEP_DAYS - 1))" -delete
+        17	echo "backup ok: $STAMP"
+    === deploy/gunicorn.conf.py
+         1	"""gunicorn settings for the deanery prototype (loaded with -c deploy/gunicorn.conf.py).
+         2	
+         3	Workers: 5 for 2 vCPU / ~2 GB RAM: min(2 * vCPU + 1, (free RAM MB - 300) // 90) = min(5, 13).
+         4	Other server: set GUNICORN_WORKERS in /etc/deanery/deanery.env by the same formula.
+         5	"""
+         6	
+         7	import os
+         8	
+         9	bind = os.environ.get("GUNICORN_BIND", "127.0.0.1:8000")
+        10	workers = max(1, int(os.environ.get("GUNICORN_WORKERS", "5")))
+        11	timeout = 30
+        12	graceful_timeout = 30
+        13	keepalive = 5
+        14	max_requests = 1000
+        15	max_requests_jitter = 100
+        16	accesslog = "-"
+        17	errorlog = "-"
+        18	loglevel = "info"
+        19	capture_output = True
+        20	control_socket_disable = True
+    === deploy/manage.sh
+         1	#!/usr/bin/env bash
+         2	# Run a Django management command with the production environment.
+         3	# Usage: sudo -u <APP_USER> /srv/deanery/app/deploy/manage.sh <command> [args]
+         4	set -euo pipefail
+         5	set -a
+         6	. /etc/deanery/deanery.env
+         7	set +a
+         8	cd /srv/deanery/app
+         9	exec /srv/deanery/venv/bin/python manage.py "$@"
+    === deploy/cron/deanery-backup
+         1	# Daily backup of PostgreSQL and PRIVATE_MEDIA_ROOT at 04:30 Moscow time.
+         2	30 4 * * * <APP_USER> /srv/deanery/app/deploy/backup.sh 2>&1 | logger -t deanery-backup
+    === accounts/throttling.py
+         1	"""Login brute-force throttling keyed by (normalized username, client IP)."""
+         2	
+         3	import ipaddress
+         4	from datetime import datetime, timedelta
+         5	
+         6	from django.conf import settings
+         7	from django.db import transaction
+         8	from django.http import HttpRequest
+         9	
+        10	from .models import LoginThrottle
+        11	
+        12	# Sentinel for "client IP unknown"; not a bind address.
+        13	UNKNOWN_IP = "0.0.0.0"  # noqa: S104
+        14	
+        15	
+        16	def normalize_username(username: str) -> str:
+        17	    return username.strip().casefold()[:150]
+        18	
+        19	
+        20	def get_client_ip(request: HttpRequest | None) -> str:
+        21	    if request is None:
+        22	        return UNKNOWN_IP
+        23	    header = settings.CLIENT_IP_HEADER
+        24	    candidate = ""
+        25	    if header == "HTTP_X_REAL_IP":
+        26	        candidate = request.META.get(header, "").strip()
+        27	    elif header == "HTTP_X_FORWARDED_FOR":
+        28	        raw = request.META.get(header, "")
+        29	        if raw:
+        30	            candidate = raw.split(",")[-1].strip()
+        31	    if candidate:
+        32	        try:
+        33	            ipaddress.ip_address(candidate)
+        34	            return candidate
+        35	        except ValueError:
+        36	            pass
+        37	    remote = request.META.get("REMOTE_ADDR", "")
+        38	    try:
+        39	        ipaddress.ip_address(remote)
+        40	        return remote
+        41	    except ValueError:
+        42	        return UNKNOWN_IP
+        43	
+        44	
+        45	def is_locked(username: str, ip: str, now: datetime) -> bool:
+        46	    return LoginThrottle.objects.filter(
+        47	        username_key=normalize_username(username), ip_address=ip, locked_until__gt=now
+        48	    ).exists()
+        49	
+        50	
+        51	def register_failure(username: str, ip: str, now: datetime) -> None:
+        52	    key = normalize_username(username)
+        53	    window = timedelta(seconds=settings.LOGIN_LOCKOUT_SECONDS)
+        54	    with transaction.atomic():
+        55	        # Opportunistic cleanup of expired rows (personal data, retained <= ~1 day).
+        56	        stale_ts = now - max(window, timedelta(days=1))
+        57	        LoginThrottle.objects.filter(
+        58	            last_failure_at__lt=stale_ts, locked_until__isnull=True
+        59	        ).delete()
+        60	        LoginThrottle.objects.filter(locked_until__lt=now - timedelta(days=1)).delete()
+        61	
+        62	        row, _ = LoginThrottle.objects.get_or_create(
+        63	            username_key=key,
+        64	            ip_address=ip,
+        65	            defaults={"first_failure_at": now, "last_failure_at": now},
+        66	        )
+        67	        row = LoginThrottle.objects.select_for_update().get(pk=row.pk)
+        68	        if (row.locked_until is not None and row.locked_until <= now) or (
+        69	            row.first_failure_at <= now - window
+        70	        ):
+        71	            row.failures = 0
+        72	            row.first_failure_at = now
+        73	            row.locked_until = None
+        74	        row.failures += 1
+        75	        row.last_failure_at = now
+        76	        if row.failures >= settings.LOGIN_FAILURE_LIMIT:
+        77	            row.locked_until = now + window
+        78	        row.save()
+        79	
+        80	
+        81	def reset_failures(username: str, ip: str) -> None:
+        82	    LoginThrottle.objects.filter(username_key=normalize_username(username), ip_address=ip).delete()
+  ── Searched for ip_address in accounts/migrations/*.py
+  ── Thought for 7s
+    Since Django 5.2 lacks the built-in CSP middleware that arrived in 6.0, I'll write a small middleware in core. The admin login sits at the ADMIN_URL path, which is a secret prefix, so the nginx template needs a placeholder that the runbook fills in.
+
+    I'm going to have nginx read the admin path from the env file at render time, but the secret-path location is sitting in a config that local users could read. I'm weighing a regex location for any `/login/` path as a way to avoid putting the secret in nginx at all, and I'll tighten the file mode either way.
+
+    I'm checking how `resolve_admin_url` validates ADMIN_URL, since a multi-segment value would change the regex I'm considering for the nginx login location.
+  ── Read config/env_utils.py
+  ── Thought for 18s
+    I'm checking whether a regex location matching any multi-segment admin path ending in `login/` would also catch other URLs, and searching the URL configs for other `login/` endpoints. So far it looks like only the accounts login and the admin login, with Django's admin login at the admin prefix plus `login/`. I'm leaning toward a single regex location to cover the admin path.
+
+    I'm weighing whether to cover the admin path with a regex location rather than a fixed path, since it avoids putting the secret in the nginx config and means no re-render when the admin URL changes. I'm also considering rate-limiting only the POST requests, because several jurors behind one NAT would otherwise trip the per-IP limit on their page loads.
+
+    Now I'm checking whether the rate-limit zone should key only on POST requests, so the juror pages stay unthrottled while login attempts get limited. Setting the limit at 10 requests a minute with a burst of 10 should let a whole NAT group log in at once without slowing the server much. I'm also confirming that the zone and map directives are valid at the top level of a site file, and that the 429 status settings belong in the server block.
+
+    I'm settling on a connection limit of 50 per IP rather than 20, since several jurors behind one NAT could easily open around seven static requests each and hit the cap. It still stops a single client from opening hundreds of connections, and gunicorn's five sync workers bound the real load anyway.
+
+    I'm going with a 20-per-IP connection cap and adding the 429 status, since the static assets are small and finish in milliseconds, so concurrent streams from several jurors behind one NAT shouldn't pile up enough to trip it.
+
+    Checking whether nginx is installed locally, and whether pip-audit can be run in a temp environment outside the project. Then I'll read petitions/forms.py and views.py around line 120.
+
+    Next I'm reading through the views around line 120-150, the chat services, and the integer reads, then checking the templates for inline scripts and styles, the admin setup, and any `data:` URIs, since those would affect the CSP.
+  ── Ran cd ~/hackatonproject; which nginx systemd-analyze pip-audit; grep -rn "login" --include=urls.py . | grep -v .venv; cat -n petitions/forms.py | sed -n 30,60p; cat -n petitions/views.py | sed -n 110,160p; cat -n chat/services.py | sed -n 1,120p
+    $ cd ~/hackatonproject; which nginx systemd-analyze pip-audit; grep -rn "login" --include=urls.py . | grep -v .venv; cat -n petitions/forms.py | sed -n 30,60p; cat -n petitions/views.py | sed -n 110,160p; cat -n chat/services.py | sed -n 1,120p
+    nginx not found
+    systemd-analyze not found
+    pip-audit not found
+    accounts/urls.py:8:    path("login/", views.DeaneryLoginView.as_view(), name="login"),
+        30	        error_messages={"required": "Укажите, что именно нужно."},
+        31	    )
+        32	    comment = forms.CharField(
+        33	        label="Комментарий",
+        34	        required=False,
+        35	        max_length=MAX_COMMENT_LENGTH,
+        36	        widget=forms.Textarea(attrs={"rows": 4}),
+        37	    )
+        38	    files = MultipleFileField(
+        39	        label="PDF-файлы (необязательно, до 3 файлов по 5 МБ)", required=False
+        40	    )
+        41	
+        42	    def __init__(self, *args, request_type: RequestType, **kwargs):
+        43	        super().__init__(*args, **kwargs)
+        44	        self.request_type = request_type
+        45	        self.fields["comment"].required = request_type.comment_required
+        46	        self.fields["comment"].help_text = request_type.comment_hint
+        47	        if not request_type.subject_required:
+        48	            del self.fields["subject"]
+        49	
+        50	    def clean_subject(self):
+        51	        subject = " ".join((self.cleaned_data.get("subject") or "").split())
+        52	        if not subject:
+        53	            raise forms.ValidationError("Укажите, что именно нужно.")
+        54	        return subject
+        55	
+        56	    def clean_comment(self):
+        57	        comment = (self.cleaned_data.get("comment") or "").strip()
+        58	        if self.request_type.comment_required and not comment:
+        59	            raise forms.ValidationError("Для этой заявки комментарий обязателен.")
+        60	        return comment
+       110	                "staff_comments",
+       111	                queryset=PetitionComment.objects.select_related("author__staff_profile"),
+       112	            ),
+       113	            "attachments",
+       114	        )
+       115	
+       116	
+       117	class StaffQueueView(StaffRequiredMixin, ListView):
+       118	    template_name = "petitions/staff_queue.html"
+       119	    context_object_name = "petitions"
+       120	
+       121	    def get_queryset(self):
+       122	        qs = petitions_visible_to(self.request.user)
+       123	        status = self.request.GET.get("status", "open")
+       124	        if status == "open":
+       125	            qs = qs.filter(status__in=OPEN_STATUSES)
+       126	        elif status == "all":
+       127	            pass
+       128	        elif status in STATUS_VALUES:
+       129	            qs = qs.filter(status=status)
+       130	        else:
+       131	            qs = qs.filter(status__in=OPEN_STATUSES)
+       132	        type_id = self.request.GET.get("type", "")
+       133	        if type_id:
+       134	            try:
+       135	                qs = qs.filter(request_type_id=int(type_id))
+       136	            except (TypeError, ValueError):
+       137	                pass
+       138	        return qs.order_by("created_at").annotate(attachment_count=Count("attachments"))
+       139	
+       140	    def get_context_data(self, **kwargs):
+       141	        context = super().get_context_data(**kwargs)
+       142	        context["status_choices"] = [("open", "Открытые"), ("all", "Все")] + list(
+       143	            PetitionStatus.choices
+       144	        )
+       145	        context["selected_status"] = self.request.GET.get("status", "open")
+       146	        context["selected_type"] = self.request.GET.get("type", "")
+       147	        context["types"] = RequestType.objects.all()
+       148	        return context
+       149	
+       150	
+       151	class StaffPetitionDetailView(StaffRequiredMixin, DetailView):
+       152	    model = Petition
+       153	    template_name = "petitions/staff_detail.html"
+       154	    slug_field = "public_id"
+       155	    slug_url_kwarg = "public_id"
+       156	
+       157	    def get_queryset(self):
+       158	        return (
+       159	            petitions_visible_to(self.request.user)
+       160	            .select_related("student__user")
+         1	"""Chat services: sending messages, read markers and history loading."""
+         2	
+         3	from datetime import timedelta
+         4	from uuid import UUID
+         5	
+         6	from django.core.exceptions import PermissionDenied, ValidationError
+         7	from django.db import transaction
+         8	
+         9	from accounts.access import get_profile_for_role
+        10	from accounts.models import StudentProfile, User
+        11	from core import clock
+        12	
+        13	from .constants import (
+        14	    FRAGMENT_LIMIT,
+        15	    HISTORY_LIMIT,
+        16	    MESSAGE_MAX_LENGTH,
+        17	    RATE_LIMIT_MESSAGES,
+        18	    RATE_LIMIT_MINUTES,
+        19	)
+        20	from .models import AuthorRole, Dialog, Message
+        21	from .selectors import dialogs_visible_to
+        22	
+        23	
+        24	def normalize_text(text: str) -> str:
+        25	    return text.replace("\r\n", "\n").replace("\r", "\n").strip()
+        26	
+        27	
+        28	def text_errors(text: str) -> list[str]:
+        29	    if not text:
+        30	        return ["Сообщение пустое."]
+        31	    if len(text) > MESSAGE_MAX_LENGTH:
+        32	        return [f"Сообщение длиннее {MESSAGE_MAX_LENGTH} символов."]
+        33	    return []
+        34	
+        35	
+        36	def _idempotent_message(dialog: Dialog, client_token: UUID | None) -> Message | None:
+        37	    if client_token is None:
+        38	        return None
+        39	    return dialog.messages.filter(client_token=client_token).first()
+        40	
+        41	
+        42	def send_student_message(student: StudentProfile, text: str, client_token: UUID | None) -> Message:
+        43	    text = normalize_text(text)
+        44	    errors = text_errors(text)
+        45	    if errors:
+        46	        raise ValidationError(errors)
+        47	
+        48	    with transaction.atomic():
+        49	        dialog, _ = Dialog.objects.get_or_create(student=student)
+        50	        dialog = Dialog.objects.select_for_update().get(pk=dialog.pk)
+        51	
+        52	        existing = _idempotent_message(dialog, client_token)
+        53	        if existing is not None:
+        54	            return existing
+        55	
+        56	        now = clock.now()
+        57	        recent = Message.objects.filter(
+        58	            author_id=student.user_id,
+        59	            author_role=AuthorRole.STUDENT,
+        60	            created_at__gt=now - timedelta(minutes=RATE_LIMIT_MINUTES),
+        61	        ).count()
+        62	        if recent >= RATE_LIMIT_MESSAGES:
+        63	            raise ValidationError(
+        64	                f"Можно отправить не больше {RATE_LIMIT_MESSAGES} сообщений "
+        65	                f"за {RATE_LIMIT_MINUTES} минут. Подождите немного."
+        66	            )
+        67	
+        68	        message = Message(
+        69	            dialog=dialog,
+        70	            author=student.user,
+        71	            author_role=AuthorRole.STUDENT,
+        72	            text=text,
+        73	            created_at=now,
+        74	            client_token=client_token,
+        75	        )
+        76	        message.full_clean()
+        77	        message.save()
+        78	
+        79	        Dialog.objects.filter(pk=dialog.pk).update(last_message_at=now, last_message_id=message.pk)
+        80	        return message
+        81	
+        82	
+        83	def send_staff_message(
+        84	    dialog: Dialog, actor: User, text: str, client_token: UUID | None
+        85	) -> Message:
+        86	    get_profile_for_role(actor, User.Role.STAFF)
+        87	    text = normalize_text(text)
+        88	    errors = text_errors(text)
+        89	    if errors:
+        90	        raise ValidationError(errors)
+        91	
+        92	    with transaction.atomic():
+        93	        locked = (
+        94	            dialogs_visible_to(actor).select_for_update(of=("self",)).filter(pk=dialog.pk).first()
+        95	        )
+        96	        if locked is None:
+        97	            raise PermissionDenied
+        98	
+        99	        existing = _idempotent_message(locked, client_token)
+       100	        if existing is not None:
+       101	            return existing
+       102	
+       103	        now = clock.now()
+       104	        message = Message(
+       105	            dialog=locked,
+       106	            author=actor,
+       107	            author_role=AuthorRole.STAFF,
+       108	            text=text,
+       109	            created_at=now,
+       110	            client_token=client_token,
+       111	        )
+       112	        message.full_clean()
+       113	        message.save()
+       114	
+       115	        Dialog.objects.filter(pk=locked.pk).update(last_message_at=now, last_message_id=message.pk)
+       116	        return message
+       117	
+       118	
+       119	def mark_read(dialog_id: int, side: str, up_to_id: int) -> None:
+       120	    field = {"student": "student_read_id", "staff": "staff_read_id"}[side]
+  ── Thought for 7ms
+    I need to check the Message model's constraints on client_token. If there's a unique constraint on dialog and client_token together, then a staff member reusing a student's token would find no match under the per-author lookup, attempt an insert, and hit an IntegrityError.
+  ── Searched for client_token\|UniqueConstraint\|constraints in chat/models.py
+  ── Thought for 6s
+    The unique constraint is on (dialog, client_token), so binding per author means changing it to (dialog, author, client_token), which needs a new migration. Without that change, a staff reply reusing the same token would hit an IntegrityError and return a 500. Multiple staff in a faculty can reply on the same dialog, so the per-author constraint works there; I'm still working out how to do the swap on PostgreSQL with RemoveConstraint.
+
+    Now I'm checking the integer inputs coming from GET, POST, and URL kwargs. I want to grep for `int(` in the views and forms, and look at whether the `<int:pk>` converters are safe against huge values, since the pentest showed a 404 on one route but a crash on a ForeignKey filter.
+  ── Searched for int\(|\.GET|\.POST|kwargs\[|<int:|IntegerField|TypedChoiceField|ModelChoiceField in university
+  ── Read chat/views.py
+  ── Searched for _AFTER_RE in chat/views.py
+  ── Thought for 7s
+    I'm checking the integer bounds on the primary keys: up to 18 digits stays below the BigAutoField limit, so that's safe. Next I'm looking at how a huge `<int:pk>` in the URL is handled, and I expect Django to return a 404 rather than erroring.
+
+    I'm going through the remaining URL-kwarg cases with huge values (staff students, request types, schedule groups, map floors, chat) and expect Django to handle the exact pk lookups safely. The petitions type filter is the one that needs fixing, so I'm planning a small `parse_positive_int` helper capped at the 64-bit signed maximum, with invalid values ignored like non-numeric ones.
+
+    Next I'm considering whether the type filter would also break on PostgreSQL with a value past the 64-bit range, though either way the plan is to guard it before it reaches the query. I'm also checking whether the petitions templates render the help text with `|safe`, since that would make the comment hint an escaping issue.
+  ── Searched for help_text\|helptext in .
+  ── Thought for 17s
+    I'm checking whether the `comment_hint` text gets rendered unescaped, since the help text goes through `|safe` in Django's template, and I'll escape it. I already grepped the templates and found it only in help_text, so that seems to be the only spot. Next I'm moving on to item 3, the Cache-Control no-store header for logged-in users, and starting on the middleware for that.
+
+    I'm going to put a middleware in `core/middleware.py` that adds `no_store` and `private` to Cache-Control for logged-in users. Responses that already carry `no-store` will just merge cleanly with that. Static files go through WhiteNoise before the auth middleware runs, so they stay unchanged, and anonymous visitors are unaffected too.
+
+    I'm deciding between `patch_cache_control` and `add_never_cache_headers` for the middleware. The second is the better fit since it matches what existing views already send. I also noticed that the Back-button-after-logout behavior could be bfcache related, though cookie changes on logout should evict those pages anyway.
+
+    I'm weighing whether to apply the header only to responses that don't already have it, and I'm checking where the middleware should sit in the stack. Reading `request.user` triggers a session load, which adds `Vary: Cookie` even to public pages like `/health/`, so I'm considering how to avoid changing anonymous responses.
+
+    I'm checking how the session cookie interacts with the middleware: if there's no session cookie, the request is anonymous, so I can skip touching `request.user` and avoid adding `Vary: Cookie` to cookieless responses like `/health/`. Placement after SessionMiddleware is fine either way. Next up is item 4, a Content-Security-Policy middleware in `core/middleware.py`, since Django 5.2 doesn't ship one.
+
+    I'm now checking whether Django's admin templates still carry inline scripts or `style` attributes, since that decides how strict the Content-Security-Policy can be for the admin path.
+
+    I'm now checking Django's admin templates in the venv for inline `<script>` blocks without a `src`, `style=` attributes, and `onclick` handlers, since that determines how strict the CSP can be on the admin path. I want to see what 5.2 still emits before deciding on the policy.
+  ── Searched for <script(?![^>]*src)|<script>|<script [^>]*>[^<] in .
+  ── Thought for 5ms
+    I'm working out that inline style assignments via CSSOM are permitted under the CSP, since style-src governs style attributes in markup and setAttribute, not property writes; though innerHTML with style attributes would still be blocked. I also note change_list.html has an inline style block, and I'll check inline scripts with grep -P.
+  ── Searched for <script in .
+  ── Thought for 5s
+    I'm checking whether Django 5.2's admin pages ship any inline scripts. The three script tags I found all load from a src on a separate line, so they're external. The only inline piece looks like a `<style>` block, and only when no actions are present. I'm also wondering whether admin widgets or bundled JS like jQuery and select2 set inline style attributes.
+
+    I'm weighing a relaxed `style-src` policy for the admin path only, since inline style attributes from jQuery-based admin scripts would be blocked under `'self'` alone, while keeping scripts strict. Next I want to check our own templates and CSS for inline styles, `data:` image URIs, and inline handlers.
+  ── Thought for 6ms
+    Сейчас проверяю шаблоны проекта на встроенные скрипты, стили и data-адреса, которые может заблокировать строгая CSP.
+  ── Searched for style=|<style|<script|javascript:| on[a-z]+= in templates
+  ── Thought for 3s
+    I'm checking the SVG files and the floor plan for inline style attributes, and grep turns up none across the templates. The map's hatch pattern looks fine. For favicon.svg, I'm reasoning that the page's CSP doesn't apply inside an image, and since WhiteNoise serves static files before our middleware, no CSP header gets attached, so it's fine.
+
+    The DOMParser and importNode usage in chat.js doesn't conflict with CSP, and the error page templates extend the base, so they're covered too. Next I'm checking whether the `data:` source in `img-src` is actually needed, since none of our own code uses data URIs. Django admin's CSS pulls its SVG icons from static files, so the open question is whether anything in the admin stylesheets uses `data:`, which I'll grep for before deciding whether to keep it.
+  ── Searched for data: in js
+  ── Thought for 49s
+    I'm weighing whether to keep `data:` in the image source policy. The JS files likely just use "data:" as a jQuery attribute string, not as an image source. We found no data URIs, so I'm leaning toward dropping it and keeping `img-src 'self'` strict, though I'm still wondering whether browser-generated images need it.
+
+    I'm settling on `img-src 'self'` and dropping `data:`, since no data URIs turned up and the admin's widget CSS only pulls in a same-origin `@import`. The `frame-ancestors 'none'` setting lines up with the DENY header, and the admin's related-object popups are separate windows, so they aren't affected. `form-action 'self'` should be fine for login and logout POSTs on HTTPS, and `connect-src 'self'` covers chat polling.
+
+    I'm going to place the CSP middleware right after WhiteNoise and before SessionMiddleware, so static file responses stay untouched while responses from sessions, CSRF, auth, and the login redirects all get the header. For admin paths I'll detect them with a `request.path` check against `settings.ADMIN_URL`.
+
+    I'm settling the CSP details: the settings constants go in core/security.py, with the admin relaxation adding 'unsafe-inline' to style-src, and no env configuration. The header will only be set if the view hasn't already set one. The cache-control middleware goes at the bottom of the stack, and both classes will live in core/middleware.py. I also need to note that Django's debug 500 page uses inline scripts and styles, so it would break under this policy in DEBUG mode.
+
+    I'm deciding whether a DEBUG-mode exception would be affected by the CSP, since Django's technical error pages rely on inline styles and scripts. I'm weighing whether to skip the header for error responses in DEBUG, or to apply it everywhere and accept that local debug pages lose their styling.
+
+    I'm deciding whether to exempt DEBUG-mode error responses from the CSP, since Django's technical pages rely on inline styles and scripts. I'm leaning toward skipping the header for status codes 400 and up when DEBUG is on, which is small and easy to test with a DEBUG override. I'm also checking how WhiteNoise behaves under `runserver` in DEBUG.
+
+    I'm checking how the IP address gets stored, since the throttling key would be a string like "2001:db8::/64" and the column type matters for whether that value passes validation.
+
+    I'm settling the IP throttling key by keeping only the /64 network base address for IPv6, since storing "2001:db8::/64" in the column risks the value not reading back cleanly. IPv4-mapped IPv6 addresses will be treated as their IPv4 form, and I'll put this in a `throttle_key_for_ip(ip)` helper.
+
+    Now I'm working out how the nginx config should handle the catch-all and www server blocks.
+
+    Writing the nginx config for the catch-all and rate-limit zones...
+
+    I'm thinking about the nginx listen directives for the 443 default server. The http2 flag on listen behaves per address and port in this nginx version, so mixing it across server blocks on the same port could be a concern, and I'm still unsure how that interacts with ssl_reject_handshake.
+
+    I'm working out the nginx listen directives for the 443 catch-all server. I'll use the same `listen 443 ssl http2 default_server;` there and `listen 443 ssl http2;` in the domain servers, so the http2 setting stays consistent on that port. The test for nginx 1.24 checks for exactly that form.
+
+    Writing the www server blocks now: plain HTTP on port 80 serves the ACME challenge path and redirects everything else to the apex domain over HTTPS, and the 443 block does the same redirect using the shared certificate.
+
+    I'm going to merge the apex and www hosts into a single port-80 server, which serves the ACME path and redirects everything to the apex over HTTPS, so www only takes one hop. I'm leaving out HSTS on the www redirect since the apex already sets it.
+
+    Writing the nginx main server directives now: connection and request limits, plus a shared set of proxy headers that every location inherits.
+
+    I'm working through the nginx location blocks now: a regex location for login paths gets a per-IP request limit and proxies to the app, and a plain catch-all location proxies everything else to the same backend.
+
+    I'm going through the nginx rate limits next: a POST-only key keeps GET requests out of the login limiter, with a burst of 10 and nodelay so each IP gets about 10 quick attempts before it's throttled to one every six seconds. Blocked requests return 429, which is fine for a login page. Still checking how X-Real-IP is set from the remote address.
+
+    I'm adding the Bootstrap config's server_name for both the apex and www hosts, and I need to make sure the www DNS record is part of the setup steps. The certbot command will request a certificate covering both names, and the catch-all on port 80 returns 444 for unknown hosts, so the ACME requests need to arrive under the apex or www names to be matched.
+
+    I'm checking the nginx default-server setup for port 80, since a stock default site left enabled would clash with the catch-all. Then I'm considering whether I can validate the config syntax locally; nginx isn't installed here, so the real `nginx -t` check will have to run on the server.
+
+    I'm checking whether crossplane, an nginx config parser, can be installed in a temporary venv to lint the directive contexts and argument counts, since nginx itself isn't available here. Its analyzer may lag behind newer directives like ssl_reject_handshake, so I'll treat it as a partial check. I'll also see whether PyPI is reachable for pip-audit.
+  ── Thought for 8ms
+    Nginx не установлен локально, поэтому ставлю во временное окружение `pip-audit` и `crossplane`, чтобы собрать конфигурацию.
+  ── Ran cd $TMPDIR && rm -rf t016venv && python3 -m venv t016venv 2>&1 | tail -1; $TMPDIR/t016venv/bin/pip install -q pip-audit crossplane 2>&1 | tail -3; $TMPDIR/t016venv/bin/pip-audit --version; $TMPDIR/t016venv/bin/crossplane --version 2>&1 | head -1 (18s)
+    $ cd $TMPDIR && rm -rf t016venv && python3 -m venv t016venv 2>&1 | tail -1; $TMPDIR/t016venv/bin/pip install -q pip-audit crossplane 2>&1 | tail -3; $TMPDIR/t016venv/bin/pip-audit --version; $TMPDIR/t016venv/bin/crossplane --version 2>&1 | head -1
+    WARNING: Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'SSLCertVerificationError('OSStatus -26276')': /simple/pip-audit/
+    ERROR: Could not find a version that satisfies the requirement pip-audit (from versions: none)
+    ERROR: No matching distribution found for pip-audit
+    (eval):1: no such file or directory: /tmp/claude-501/t016venv/bin/pip-audit
+    (eval):1: no such file or directory: /tmp/claude-501/t016venv/bin/crossplane
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 5ms
+    I'm hitting an SSL certificate verification error, likely from the sandbox proxy's TLS setup. I'll try pip's `--use-feature=truststore` option, which uses the system trust store and may include the proxy's CA. If that fails, I could instead point the project venv's pip at the sandbox CA through an environment variable.
+  ── Ran cd $TMPDIR; env | grep -iE "SSL_CERT|REQUESTS_CA|NODE_EXTRA|PIP_CERT" | sed 's/=.*/=…/'; $TMPDIR/t016venv/bin/pip --version; $TMPDIR/t016venv/bin/pip install -q --use-feature=truststore pip-audit crossplane 2>&1 | tail -3; ls $TMPDIR/t016venv/bin | grep -E "pip-audit|crossplane" (14s)
+    $ cd $TMPDIR; env | grep -iE "SSL_CERT|REQUESTS_CA|NODE_EXTRA|PIP_CERT" | sed 's/=.*/=…/'; $TMPDIR/t016venv/bin/pip --version; $TMPDIR/t016venv/bin/pip install -q --use-feature=truststore pip-audit crossplane 2>&1 | tail -3; ls $TMPDIR/t016venv/bin | grep -E "pip-audit|crossplane"
+    pip 26.2.2 from /private/tmp/claude-501/t016venv/lib/python3.15/site-packages/pip (python 3.15)
+    WARNING: Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'SSLCertVerificationError('OSStatus -26276')': /simple/pip-audit/
+    ERROR: Could not find a version that satisfies the requirement pip-audit (from versions: none)
+    ERROR: No matching distribution found for pip-audit
+  ── Thought for 14ms
+    The Python here is 3.15, which doesn't matter much. The TLS error with OSStatus -26276 looks like a Security framework trust failure, possibly from trustd being blocked in the sandbox. I'll try pip from the project's .venv using the certifi bundle, and I'll create that venv with the project's Python 3.12.
+  ── Ran cd $TMPDIR; rm -rf t016venv; ~/hackatonproject/.venv/bin/python -m venv t016venv && $TMPDIR/t016venv/bin/pip install -q pip-audit crossplane 2>&1 | tail -3; ls $TMPDIR/t016venv/bin | grep -E "pip-audit|crossplane" (16s)
+    $ cd $TMPDIR; rm -rf t016venv; ~/hackatonproject/.venv/bin/python -m venv t016venv && $TMPDIR/t016venv/bin/pip install -q pip-audit crossplane 2>&1 | tail -3; ls $TMPDIR/t016venv/bin | grep -E "pip-audit|crossplane"
+    WARNING: Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'SSLCertVerificationError('OSStatus -26276')': /simple/pip-audit/
+    ERROR: Could not find a version that satisfies the requirement pip-audit (from versions: none)
+    ERROR: No matching distribution found for pip-audit
+  ── Thought for 189ms
+    The sandbox is blocking TLS interception, so the failure looks like a sandbox restriction from the proxy certificate. Installing a dev tool into the temp directory for verification fits the task's pip-audit requirement, so I'll retry with the sandbox disabled.
+
+── Assistant ───────────────────────────────────────────────
+The sandbox proxy breaks TLS to PyPI (certificate verify error). I retry the install into the temporary venv outside the sandbox.
+
+── Ran cd $TMPDIR; $TMPDIR/t016venv/bin/pip install -q pip-audit crossplane 2>&1 | tail -3; ls $TMPDIR/t016venv/bin | grep -E "pip-audit|crossplane"; $TMPDIR/t016venv/bin/pip-audit --version (Outside of sandbox) (3s, error)
+  $ cd $TMPDIR; $TMPDIR/t016venv/bin/pip install -q pip-audit crossplane 2>&1 | tail -3; ls $TMPDIR/t016venv/bin | grep -E "pip-audit|crossplane"; $TMPDIR/t016venv/bin/pip-audit --version
+  Permission for this action was denied by the Claude Code auto mode classifier. Reason: [Undermining Oversight]. If you have other tasks that don't depend on this action, continue working on those. IMPORTANT: You *may* attempt to accomplish this action using other tools that might naturally be used to accomplish this goal, e.g. using head instead of cat. But you *should not* attempt to work around this denial in malicious ways, e.g. do not use your ability to run tests to execute non-test actions. You should only try to work around this restriction in reasonable ways that do not attempt to bypass the intent behind this denial. If you believe this capability is essential to complete the user's request, first try a safer method. Get as much of the rest of the task done as you can, then STOP and explain to the user what you were trying to do and why you need this permission. Let the user decide how to proceed.
+  exit 1
+
+── Bash was denied automatically ───────────────────────────
+  [Undermining Oversight] (classifier)
+
+── Thought for 4ms ─────────────────────────────────────────
+  The pip-audit run was denied, so I'm looking at a different route. I could query the OSV vulnerability database with curl instead, though the same certificate problem might come up through the proxy. curl may carry its own CA bundle, so I'll try it against api.osv.dev.
+
+── Assistant ───────────────────────────────────────────────
+Running outside the sandbox was denied. I'll try a safer read-only path instead: a query to the OSV vulnerability database with curl.
+
+── Ran 6 commands, explored 1 list, 2 files, 1 search ──────
+  ── Ran cd $TMPDIR; for p in "Django 5.2.19" "django-environ 0.14.0" "whitenoise 6.12.0" "psycopg 3.3.8" "psycopg-binary 3.3.8" "gunicorn 26.2.0"; do set -- $p; printf '%s %s: ' $1 $2; curl -s --max-time 20 -X POST https://api.osv.dev/v1/query -d "{\"package\":{\"name\":\"$1\",\"ecosystem\":\"PyPI\"},\"version\":\"$2\"}" | head -c 300; echo; done (6s)
+    $ cd $TMPDIR; for p in "Django 5.2.19" "django-environ 0.14.0" "whitenoise 6.12.0" "psycopg 3.3.8" "psycopg-binary 3.3.8" "gunicorn 26.2.0"; do set -- $p; printf '%s %s: ' $1 $2; curl -s --max-time 20 -X POST https://api.osv.dev/v1/query -d "{\"package\":{\"name\":\"$1\",\"ecosystem\":\"PyPI\"},\"version\":\"$2\"}" | head -c 300; echo; done
+    Django 5.2.19 : {}
+    django-environ 0.14.0 : {}
+    whitenoise 6.12.0 : {}
+    psycopg 3.3.8 : {}
+    psycopg-binary 3.3.8 : {}
+    gunicorn 26.2.0 : {}
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 6ms
+    I'm checking the OSV database, the same source pip-audit uses by default, where an empty result means no known vulnerabilities, which is decent evidence. I also need to look at transitive dependencies, like asgiref and sqlparse under Django and typing-extensions under psycopg, and confirm their versions in the .venv.
+  ── Ran cd ~/hackatonproject; .venv/bin/pip freeze 2>/dev/null | grep -viE "^(ruff|pyyaml)=" ;
+    $ cd ~/hackatonproject; .venv/bin/pip freeze 2>/dev/null | grep -viE "^(ruff|pyyaml)=" ;
+    asgiref==3.13.0
+    Django==5.2.19
+    django-environ==0.14.0
+    gunicorn==26.2.0
+    psycopg==3.3.8
+    psycopg-binary==3.3.8
+    sqlparse==0.6.1
+    typing_extensions==4.16.0
+    whitenoise==6.12.0
+  ── Ran cd $TMPDIR; for p in "asgiref 3.13.0" "sqlparse 0.6.1" "typing-extensions 4.16.0" "packaging 24.0" ; do set -- $p; printf '%s %s: ' $1 $2; curl -s --max-time 20 -X POST https://api.osv.dev/v1/query -d "{\"package\":{\"name\":\"$1\",\"ecosystem\":\"PyPI\"},\"version\":\"$2\"}" | python3 -c "import sys,json; d=json.load(sys.stdin); print([v['id'] for v in d.get('vulns',[])])"; done; curl -s --max-time 20 -o /dev/null -w 'pypi json: %{http_code}\n' https://pypi.org/pypi/pip-audit/json (6s)
+    $ cd $TMPDIR; for p in "asgiref 3.13.0" "sqlparse 0.6.1" "typing-extensions 4.16.0" "packaging 24.0" ; do set -- $p; printf '%s %s: ' $1 $2; curl -s --max-time 20 -X POST https://api.osv.dev/v1/query -d "{\"package\":{\"name\":\"$1\",\"ecosystem\":\"PyPI\"},\"version\":\"$2\"}" | python3 -c "import sys,json; d=json.load(sys.stdin); print([v['id'] for v in d.get('vulns',[])])"; done; curl -s --max-time 20 -o /dev/null -w 'pypi json: %{http_code}\n' https://pypi.org/pypi/pip-audit/json
+    asgiref 3.13.0 : []
+    sqlparse 0.6.1 : []
+    typing-extensions 4.16.0 : []
+    packaging 24.0 : []
+    pypi json: 200
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 5ms
+    I'm running a positive control: querying OSV with Django 4.2.0, an old version with known vulnerabilities, to confirm the query actually returns results.
+  ── Ran curl -s --max-time 20 -X POST https://api.osv.dev/v1/query -d '{"package":{"name":"Django","ecosystem":"PyPI"},"version":"5.2.0"}' | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d.get('vulns',[])), 'vulns for Django 5.2.0')"; curl -s --max-time 20 https://pypi.org/pypi/pip-audit/json | python3 -c "import sys,json; d=json.load(sys.stdin); print('pip-audit latest', d['info']['version'], d['info']['requires_python']); import datetime; print(sorted(d['releases'])[-3:])" (4s)
+    $ curl -s --max-time 20 -X POST https://api.osv.dev/v1/query -d '{"package":{"name":"Django","ecosystem":"PyPI"},"version":"5.2.0"}' | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d.get('vulns',[])), 'vulns for Django 5.2.0')"; curl -s --max-time 20 https://pypi.org/pypi/pip-audit/json | python3 -c "import sys,json; d=json.load(sys.stdin); print('pip-audit latest', d['info']['version'], d['info']['requires_python']); import datetime; print(sorted(d['releases'])[-3:])"
+    70 vulns for Django 5.2.0
+    pip-audit latest 2.10.1 >=3.10
+    ['2.7.3', '2.8.0', '2.9.0']
+  ── Ran curl -s --max-time 20 https://pypi.org/pypi/pip-audit/json | python3 -c " import sys,json; d=json.load(sys.stdin) for v in ['2.9.0','2.10.0','2.10.1']:     r=d['releases'].get(v) or []     print(v, r[0]['upload_time'] if r else None) " (2s)
+    $ curl -s --max-time 20 https://pypi.org/pypi/pip-audit/json | python3 -c "
+  import sys,json; d=json.load(sys.stdin)
+  for v in ['2.9.0','2.10.0','2.10.1']:
+      r=d['releases'].get(v) or []
+      print(v, r[0]['upload_time'] if r else None)
+  "
+    2.9.0 2025-04-07T16:45:22
+    2.10.0 2025-12-01T23:42:39
+    2.10.1 2026-06-10T22:17:00
+  ── Thought for 52s
+    I'm weighing where to pin pip-audit 2.10.1 for the CI check, and whether requirements-dev.txt is the right home for it since it's dev-only and kept out of requirements.txt. Its many dependencies are the part I'm still thinking through.
+
+    I'm settling on a separate CI step that installs pip-audit 2.10.1 on its own, so the dev environment stays lean, then runs it against requirements.txt. Since pip-audit resolves transitive dependencies in a temporary venv, it needs network access, which CI already has, and I'll add it after the dependency install in the test job.
+
+    I'm weighing how to pass the backup script's database password without putting it on the command line, where every user could see it. The cleanest route is the libpq environment variables, since PGPASSWORD stays visible only to the same user and root, or a temporary 0600 passfile. I'll parse the DATABASE_URL in bash with a regex, which works because the password is plain hex and needs no URL decoding.
+
+    I'm checking that pg_dump gets its connection details without the password appearing anywhere in the process arguments, since the environment prefix keeps it out of `ps` output for other users. I also need the existing backup rules to stay intact, so I'm keeping the pg_dump, gzip, retention, and media-archive pieces as they are.
+
+    I'm leaning toward parsing DATABASE_URL in bash with a regex and failing with a clear message if it doesn't match, since the password is plain hex and needs no decoding. The env file already exports DATABASE_URL, so the parsing is all that's left to settle.
+
+    I'm checking whether the backup script can drop the password from the pg_dump command line, either by passing the password through PGPASSWORD or by stripping it from the URL with a regex and using separate host, port, user, and database options.
+
+    I'm planning a real functional test for the backup script: the env file path becomes overridable, a stub pg_dump on PATH records its arguments and confirms PGPASSWORD is set, and I'll check the password never appears in the arguments. The tar and find steps behave the same on both macOS and GNU, so the test should hold across platforms.
+
+    I'm setting up a functional test for the backup script: the env file path becomes overridable, a stub pg_dump on PATH records its arguments and checks that PGPASSWORD is set, and the test asserts the password never shows up in the arguments while the backup files still get created.
+
+    I'm checking that the gunicorn defaults are covered by the test, which asserts the secure scheme header mapping and leaves the forwarded allow list at its localhost default. Next I'm working through the systemd sandbox, deciding which paths the app actually writes to at runtime: the private media uploads, and the PostgreSQL connection over localhost TCP.
+
+    I'm checking the systemd sandbox paths: TCP to localhost Postgres is fine, and AF_UNIX stays allowed for journald logging. Python's bytecode writes into the read-only app directory will fail silently, which is harmless since the pyc files were already compiled by the manage.sh step and the pip install.
+
+    I'm checking which paths the sandbox needs to keep writable: PrivateTmp gives the service its own writable /tmp, which matters because Django spills larger uploads there and gunicorn uses it for worker heartbeat files.
+
+    I'm checking where the code writes at runtime, by grepping for `open(` calls in write mode, `tempfile` usage, and storage locations, since I can't run the systemd sandbox locally to confirm it.
+
+    I'm checking the systemd hardening flags next: PrivateDevices should still give a minimal /dev with /dev/shm, and the empty CapabilityBoundingSet is fine since the app doesn't need root to bind port 8000. I'm also keeping NoNewPrivileges, PrivateTmp, and ProtectHome in place.
+
+    I'm checking the ReadWritePaths entries: the two private media directories stay, and the backups folder isn't needed since cron handles that outside the unit. Both directories get created earlier, so the mount setup won't fail on missing paths. I can't run systemd-analyze on this macOS machine, so the team lead will verify the unit on the server.
+
+    I'm going to remove DEMO_PASSWORD from the env file after seed_demo runs on 2026-11-22, by adding a sed step to step 16 before the restart. I checked that only the seed_demo command reads it at runtime, and the env example still lists it, so the tests stay green. The smoke check in step 15 still has it available when it runs seed_demo on the trial database.
+
+    I'm checking the sudo and shell setup for the app user: since it has a nologin shell, I'm confirming that `sudo -u` still runs commands directly, that the restore step's explicit `bash -c` call works, and that cron uses /bin/sh, so none of it depends on the user's login shell.
+
+    I'm checking the deployment runbook's step 0 now: the SSH key should go to a personal sudo user rather than the service account, since the service account has no login shell and no key. I'll show `ssh-copy-id <sudo-user>@<server-ip>` in its place. I also want to note that the existing server's account still has a bash shell, so it needs to be switched to nologin.
+
+    I'm considering whether to add a short section for upgrading an existing server installed before TASK-016, since the lead will need to re-render nginx and apply the systemd changes there. A numbered section 21 after troubleshooting would fit the runbook's structure and the numbering test should still pass.
+
+    I'm deciding where the remaining runbook changes go: a new closing section for upgrading an existing server, placed after troubleshooting, so the earlier numbering stays intact. Then I'm turning to the nginx render steps 12 and 13, where the domain substitution has to cover both server names and the certificate request needs both domains.
+
+    I'm deciding to note the deviation from the lead's plan, keeping the runbook's nginx render free of the admin path, and recording that reasoning in the spec's decisions section so it's visible.
+
+    I'm adding tests for the IPv6 grouping: two addresses in the same /64 should share a lock, addresses in different /64s should not, and IPv4 behavior should stay unchanged. I'll also cover IPv4-mapped addresses, and first I need to see how the accounts tests are laid out.
+  ── Thought for 5ms
+    Зависимости проверены: OSV не нашёл уязвимостей ни в одной закреплённой версии. Дальше посмотрю тесты, которые нужно расширить.
+  ── Listed files in accounts/tests
+  ── Read accounts/tests/test_throttling.py
+  ── Thought for 6ms
+    I need to update the test for per-dialog uniqueness, since the constraint now covers dialog, author, and client token together. The author foreign key may be nullable with SET_NULL, so I'll check the model field. If author can be null, the unique constraint won't apply to those rows, which is acceptable.
+  ── Read chat/models.py
+  ── Thought for 3s
+    The new constraint will be named "chat_message_unique_author_client_token" over the dialog, author, and client_token fields. Migration chat/0002 comes from makemigrations, so I'll have the coder run it with the name message_token_per_author. Before that, I want to prototype everything in a temp copy, starting with the middleware in core/middleware.py: the content security policy and private cache pieces.
+
+    Next I'm working through the remaining pieces: the settings and middleware wiring, the throttling helper, the petition form escaping and ID parsing, the per-author chat constraint and its migration, the deploy files, and the tests.
+  ── Thought for 6ms
+    Всё нужное прочитано; теперь проверяю все изменения на временной копии проекта тестами, прежде чем передать их Кодеру.
+  ── Ran set -e; C=$TMPDIR/t016; rm -rf $C; mkdir -p $C; cd ~/hackatonproject; git archive HEAD | tar -x -C $C; cd $C; grep -n "never_cache\|patch_cache\|Cache-Control" -r --include='*.py' . | grep -v tests | head; sed -n 1,40p core/tests/test_production_settings.py
+    $ set -e; C=$TMPDIR/t016; rm -rf $C; mkdir -p $C; cd ~/hackatonproject; git archive HEAD | tar -x -C $C; cd $C; grep -n "never_cache\|patch_cache\|Cache-Control" -r --include='*.py' . | grep -v tests | head; sed -n 1,40p core/tests/test_production_settings.py
+    core/views.py:4:from django.views.decorators.cache import never_cache
+    core/views.py:28:@never_cache
+    chat/views.py:11:from django.views.decorators.cache import never_cache
+    chat/views.py:68:@method_decorator(never_cache, name="dispatch")
+    chat/views.py:113:@method_decorator(never_cache, name="dispatch")
+    chat/views.py:136:@method_decorator(never_cache, name="dispatch")
+    chat/views.py:147:@method_decorator(never_cache, name="dispatch")
+    chat/views.py:204:@method_decorator(never_cache, name="dispatch")
+    petitions/views.py:252:    response["Cache-Control"] = "private, no-store"
+    notifications/views.py:7:from django.views.decorators.cache import never_cache
+    import importlib.util
+    import os
+    from pathlib import Path
+    from types import ModuleType
+    from unittest import mock
+
+    import environ
+    from django.conf import settings
+    from django.core.exceptions import ImproperlyConfigured
+    from django.test import Client, SimpleTestCase, override_settings
+
+    SETTINGS_PATH = Path(settings.BASE_DIR) / "config" / "settings.py"
+
+    PRODUCTION_ENV = {
+        "DEBUG": "false",
+        "SECRET_KEY": "test-dummy-secret-key-not-for-production-0123456789abcdefghij",
+        "ALLOWED_HOSTS": "testserver",
+        "ADMIN_URL": "staff-panel/",
+    }
+
+
+    def _new_settings_module() -> ModuleType:
+        spec = importlib.util.spec_from_file_location("_hermetic_settings", SETTINGS_PATH)
+        assert spec is not None and spec.loader is not None
+        return importlib.util.module_from_spec(spec)
+
+
+    def _exec_settings(module: ModuleType, env_vars: dict[str, str]) -> None:
+        with mock.patch.dict(os.environ, env_vars, clear=True):
+            with mock.patch.object(environ.Env, "read_env", return_value=None):
+                module.__spec__.loader.exec_module(module)
+
+
+    def _load_production_settings() -> ModuleType:
+        module = _new_settings_module()
+        _exec_settings(module, PRODUCTION_ENV)
+        return module
+
+
+    class ProductionSettingsTests(SimpleTestCase):
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 5ms
+    The download endpoint already sets "private, no-store" on its own, and the never-cache middleware then merges in max-age=0, no-cache and must-revalidate, so the combined header should be fine. I still need to check whether any test asserts the Cache-Control value exactly, so I'm grepping for that.
+  ── Searched for Cache-Control\|Content-Security\|MIDDLEWARE in */tests
+
+── Assistant ───────────────────────────────────────────────
+Now I write the prototype code into the temporary copy.
+
+── Ran 8 commands ──────────────────────────────────────────
+  ── Ran set -e; C=$TMPDIR/t016; cd $C cat > core/middleware.py <<'EOF' """Security response headers: Content-Security-Policy and no-store for signed-in users.""" from collections.abc import Callable from django.conf import settings from django.http import HttpRequest, HttpResponse from django.utils.cache import add_never_cache_headers CSP_HEADER = "Content-Security-Policy" # Strict policy for every page of the site. Templates have no inline scripts, inline # styles, inline event handlers, external URLs or data: URIs (TASK-016). CONTENT_SECURITY_POLICY = (     "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; "     "font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; "     "form-action 'self'; frame-ancestors 'none'" ) # Django admin (superusers only, secret ADMIN_URL): the change list template has an inline # <style> block and the admin widgets write style attributes. Scripts stay strict. ADMIN_CONTENT_SECURITY_POLICY = CONTENT_SECURITY_POLICY.replace(     "style-src 'self'", "style-src 'self' 'unsafe-inline'" ) def content_security_policy_for(path: str) -> str:     if path.startswith("/" + settings.ADMIN_URL):         return ADMIN_CONTENT_SECURITY_POLICY     return CONTENT_SECURITY_POLICY class ContentSecurityPolicyMiddleware:     def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:         self.get_response = get_response     def __call__(self, request: HttpRequest) -> HttpResponse:         response = self.get_response(request)         # Django's technical error pages (DEBUG only) use inline styles and scripts.         if settings.DEBUG and response.status_code >= 400:             return response         if CSP_HEADER not in response:             response[CSP_HEADER] = content_security_policy_for(request.path_info)         return response class PrivateCacheMiddleware:     """Pages of a signed-in user must not stay in the browser cache after logout."""     def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:         self.get_response = get_response     def __call__(self, request: HttpRequest) -> HttpResponse:         response = self.get_response(request)         # Without a session cookie the user is anonymous; do not touch the session then.         if settings.SESSION_COOKIE_NAME not in request.COOKIES:             return response         user = getattr(request, "user", None)         if user is not None and user.is_authenticated:             add_never_cache_headers(response)         return response EOF python3 - <<'EOF' import pathlib p=pathlib.Path("config/settings.py"); t=p.read_text() old='''    "whitenoise.middleware.WhiteNoiseMiddleware",     "django.contrib.sessions.middleware.SessionMiddleware",''' new='''    "whitenoise.middleware.WhiteNoiseMiddleware",     "core.middleware.ContentSecurityPolicyMiddleware",     "django.contrib.sessions.middleware.SessionMiddleware",''' assert t.count(old)==1; t=t.replace(old,new) old='''    "django.contrib.auth.middleware.LoginRequiredMiddleware",     "django.contrib.messages.middleware.MessageMiddleware",     "django.middleware.clickjacking.XFrameOptionsMiddleware", ]''' new='''    "django.contrib.auth.middleware.LoginRequiredMiddleware",     "django.contrib.messages.middleware.MessageMiddleware",     "django.middleware.clickjacking.XFrameOptionsMiddleware",     "core.middleware.PrivateCacheMiddleware", ]''' assert t.count(old)==1; t=t.replace(old,new); p.write_text(t) EOF echo OK
+    $ set -e; C=$TMPDIR/t016; cd $C
+  cat > core/middleware.py <<'EOF'
+  """Security response headers: Content-Security-Policy and no-store for signed-in users."""
+
+  from collections.abc import Callable
+
+  from django.conf import settings
+  from django.http import HttpRequest, HttpResponse
+  from django.utils.cache import add_never_cache_headers
+
+  CSP_HEADER = "Content-Security-Policy"
+
+  # Strict policy for every page of the site. Templates have no inline scripts, inline
+  # styles, inline event handlers, external URLs or data: URIs (TASK-016).
+  CONTENT_SECURITY_POLICY = (
+      "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; "
+      "font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; "
+      "form-action 'self'; frame-ancestors 'none'"
+  )
+
+  # Django admin (superusers only, secret ADMIN_URL): the change list template has an inline
+  # <style> block and the admin widgets write style attributes. Scripts stay strict.
+  ADMIN_CONTENT_SECURITY_POLICY = CONTENT_SECURITY_POLICY.replace(
+      "style-src 'self'", "style-src 'self' 'unsafe-inline'"
+  )
+
+
+  def content_security_policy_for(path: str) -> str:
+      if path.startswith("/" + settings.ADMIN_URL):
+          return ADMIN_CONTENT_SECURITY_POLICY
+      return CONTENT_SECURITY_POLICY
+
+
+  class ContentSecurityPolicyMiddleware:
+      def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+          self.get_response = get_response
+
+      def __call__(self, request: HttpRequest) -> HttpResponse:
+          response = self.get_response(request)
+          # Django's technical error pages (DEBUG only) use inline styles and scripts.
+          if settings.DEBUG and response.status_code >= 400:
+              return response
+          if CSP_HEADER not in response:
+              response[CSP_HEADER] = content_security_policy_for(request.path_info)
+          return response
+
+
+  class PrivateCacheMiddleware:
+      """Pages of a signed-in user must not stay in the browser cache after logout."""
+
+      def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+          self.get_response = get_response
+
+      def __call__(self, request: HttpRequest) -> HttpResponse:
+          response = self.get_response(request)
+          # Without a session cookie the user is anonymous; do not touch the session then.
+          if settings.SESSION_COOKIE_NAME not in request.COOKIES:
+              return response
+          user = getattr(request, "user", None)
+          if user is not None and user.is_authenticated:
+              add_never_cache_headers(response)
+          return response
+  EOF
+  python3 - <<'EOF'
+  import pathlib
+  p=pathlib.Path("config/settings.py"); t=p.read_text()
+  old='''    "whitenoise.middleware.WhiteNoiseMiddleware",
+      "django.contrib.sessions.middleware.SessionMiddleware",'''
+  new='''    "whitenoise.middleware.WhiteNoiseMiddleware",
+      "core.middleware.ContentSecurityPolicyMiddleware",
+      "django.contrib.sessions.middleware.SessionMiddleware",'''
+  assert t.count(old)==1; t=t.replace(old,new)
+  old='''    "django.contrib.auth.middleware.LoginRequiredMiddleware",
+      "django.contrib.messages.middleware.MessageMiddleware",
+      "django.middleware.clickjacking.XFrameOptionsMiddleware",
+  ]'''
+  new='''    "django.contrib.auth.middleware.LoginRequiredMiddleware",
+      "django.contrib.messages.middleware.MessageMiddleware",
+      "django.middleware.clickjacking.XFrameOptionsMiddleware",
+      "core.middleware.PrivateCacheMiddleware",
+  ]'''
+  assert t.count(old)==1; t=t.replace(old,new); p.write_text(t)
+  EOF
+  echo OK
+    OK
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 5ms
+    I'm checking that the CSP middleware's position doesn't matter here, and that ADMIN_URL is "admin/" under DEBUG and in tests, which it is. I also note the test runner sets DEBUG to False. Next I'll move on to throttling.
+  ── Ran set -e; C=$TMPDIR/t016; cd $C python3 - <<'EOF' import pathlib def sub(path, old, new):     p=pathlib.Path(path); t=p.read_text(); assert t.count(old)==1,(path,old[:60]); p.write_text(t.replace(old,new)) sub("accounts/throttling.py", '''def is_locked(''', '''def throttle_ip(ip: str) -> str:     """Lockout key for a client address: IPv4 as is, IPv6 by its /64 network.     One IPv6 client usually owns a whole /64 and could take a new address for every     attempt. The key is the network address (a valid IP, e.g. "2001:db8:1:2::").     """     try:         address = ipaddress.ip_address(ip)     except ValueError:         return UNKNOWN_IP     if isinstance(address, ipaddress.IPv6Address):         if address.ipv4_mapped is not None:             return str(address.ipv4_mapped)         return str(ipaddress.IPv6Network((address, 64), strict=False).network_address)     return str(address) def is_locked(''') sub("accounts/forms.py", "from .throttling import get_client_ip, is_locked, register_failure, reset_failures",     "from .throttling import get_client_ip, is_locked, register_failure, reset_failures, throttle_ip") sub("accounts/forms.py", "        ip = get_client_ip(self.request)\n", "        ip = throttle_ip(get_client_ip(self.request))\n") sub("petitions/forms.py", "        self.fields[\"comment\"].help_text = request_type.comment_hint\n",     "        # Django renders help_text without escaping; the hint is admin-entered text.\n        self.fields[\"comment\"].help_text = escape(request_type.comment_hint)\n") EOF head -12 petitions/forms.py; head -15 petitions/views.py
+    $ set -e; C=$TMPDIR/t016; cd $C
+  python3 - <<'EOF'
+  import pathlib
+  def sub(path, old, new):
+      p=pathlib.Path(path); t=p.read_text(); assert t.count(old)==1,(path,old[:60]); p.write_text(t.replace(old,new))
+  sub("accounts/throttling.py", '''def is_locked(''', '''def throttle_ip(ip: str) -> str:
+      """Lockout key for a client address: IPv4 as is, IPv6 by its /64 network.
+
+      One IPv6 client usually owns a whole /64 and could take a new address for every
+      attempt. The key is the network address (a valid IP, e.g. "2001:db8:1:2::").
+      """
+      try:
+          address = ipaddress.ip_address(ip)
+      except ValueError:
+          return UNKNOWN_IP
+      if isinstance(address, ipaddress.IPv6Address):
+          if address.ipv4_mapped is not None:
+              return str(address.ipv4_mapped)
+          return str(ipaddress.IPv6Network((address, 64), strict=False).network_address)
+      return str(address)
+
+
+  def is_locked(''')
+  sub("accounts/forms.py", "from .throttling import get_client_ip, is_locked, register_failure, reset_failures",
+      "from .throttling import get_client_ip, is_locked, register_failure, reset_failures, throttle_ip")
+  sub("accounts/forms.py", "        ip = get_client_ip(self.request)\n", "        ip = throttle_ip(get_client_ip(self.request))\n")
+  sub("petitions/forms.py", "        self.fields[\"comment\"].help_text = request_type.comment_hint\n",
+      "        # Django renders help_text without escaping; the hint is admin-entered text.\n        self.fields[\"comment\"].help_text = escape(request_type.comment_hint)\n")
+  EOF
+  head -12 petitions/forms.py; head -15 petitions/views.py
+    """Forms for petitions."""
+
+    from django import forms
+
+    from petitions.files import validate_attachments
+    from petitions.models import MAX_COMMENT_LENGTH, SUBJECT_MAX_LENGTH, PetitionStatus, RequestType
+
+
+    class MultipleFileInput(forms.ClearableFileInput):
+        allow_multiple_selected = True
+
+
+    """Views for the petitions app."""
+
+    import logging
+
+    from django.contrib import messages
+    from django.core.exceptions import ValidationError
+    from django.db.models import Count, Prefetch
+    from django.http import FileResponse, Http404, HttpRequest, HttpResponse
+    from django.shortcuts import get_object_or_404, redirect
+    from django.views.decorators.http import require_GET
+    from django.views.generic import DetailView, FormView, ListView, TemplateView, View
+
+    from accounts.access import StaffRequiredMixin, StudentRequiredMixin, get_profile_for_role
+    from accounts.models import User
+    from petitions.forms import PetitionForm, StaffCommentForm, TransitionForm
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 3s
+    I'm checking that the forms import line fits the length limit, which it does at about 95 characters. Next I'm adding an `escape` import to petitions/forms.py, and I'm weighing whether the integer-parsing helper belongs in core/params.py or locally in petitions/views. Since only this one integer read needs it, I'm leaning toward core/params.py.
+
+    I'm settling on a module-level regex in petitions/views.py, matching the pattern chat already uses, with `[0-9]{1,18}` so the value stays within a safe integer range. Python's `\d` would accept non-ASCII digits, so I'm avoiding it and keeping the ASCII-only class.
+  ── Ran set -e; C=$TMPDIR/t016; cd $C python3 - <<'EOF' import pathlib def sub(path, old, new):     p=pathlib.Path(path); t=p.read_text(); assert t.count(old)==1,(path,old[:60]); p.write_text(t.replace(old,new)) sub("petitions/forms.py", "from django import forms\n", "from django import forms\nfrom django.utils.html import escape\n") sub("petitions/views.py", '"""Views for the petitions app."""\n\nimport logging\n', '"""Views for the petitions app."""\n\nimport logging\nimport re\n') sub("petitions/views.py", '''        type_id = self.request.GET.get("type", "")         if type_id:             try:                 qs = qs.filter(request_type_id=int(type_id))             except (TypeError, ValueError):                 pass ''', '''        type_id = self.request.GET.get("type", "")         # At most 18 digits: always inside the 64-bit id range of the database (PT1-F8).         if _TYPE_ID_RE.fullmatch(type_id):             qs = qs.filter(request_type_id=int(type_id)) ''') t=pathlib.Path("petitions/views.py").read_text() i=t.index("\nlogger = ") if "\nlogger = " in t else None print("logger at", i) EOF grep -n "^logger\|^_\|^[A-Z_]* = " petitions/views.py | head
+    $ set -e; C=$TMPDIR/t016; cd $C
+  python3 - <<'EOF'
+  import pathlib
+  def sub(path, old, new):
+      p=pathlib.Path(path); t=p.read_text(); assert t.count(old)==1,(path,old[:60]); p.write_text(t.replace(old,new))
+  sub("petitions/forms.py", "from django import forms\n", "from django import forms\nfrom django.utils.html import escape\n")
+  sub("petitions/views.py", '"""Views for the petitions app."""\n\nimport logging\n', '"""Views for the petitions app."""\n\nimport logging\nimport re\n')
+  sub("petitions/views.py", '''        type_id = self.request.GET.get("type", "")
+          if type_id:
+              try:
+                  qs = qs.filter(request_type_id=int(type_id))
+              except (TypeError, ValueError):
+                  pass
+  ''', '''        type_id = self.request.GET.get("type", "")
+          # At most 18 digits: always inside the 64-bit id range of the database (PT1-F8).
+          if _TYPE_ID_RE.fullmatch(type_id):
+              qs = qs.filter(request_type_id=int(type_id))
+  ''')
+  t=pathlib.Path("petitions/views.py").read_text()
+  i=t.index("\nlogger = ") if "\nlogger = " in t else None
+  print("logger at", i)
+  EOF
+  grep -n "^logger\|^_\|^[A-Z_]* = " petitions/views.py | head
+    logger at 1067
+    30:logger = logging.getLogger(__name__)
+    Shell cwd was reset to ~/hackatonproject
+  ── Ran set -e; C=$TMPDIR/t016; cd $C python3 - <<'EOF' import pathlib def sub(path, old, new):     p=pathlib.Path(path); t=p.read_text(); assert t.count(old)==1,(path,old[:60]); p.write_text(t.replace(old,new)) sub("petitions/views.py", "logger = logging.getLogger(__name__)\n", "logger = logging.getLogger(__name__)\n\n_TYPE_ID_RE = re.compile(r\"[0-9]{1,18}\")\n") sub("chat/services.py", '''def _idempotent_message(dialog: Dialog, client_token: UUID | None) -> Message | None:     if client_token is None:         return None     return dialog.messages.filter(client_token=client_token).first() ''', '''def _idempotent_message(dialog: Dialog, author: User, client_token: UUID | None) -> Message | None:     if client_token is None:         return None     return dialog.messages.filter(client_token=client_token, author=author).first() ''') sub("chat/services.py", "        existing = _idempotent_message(dialog, client_token)\n", "        existing = _idempotent_message(dialog, student.user, client_token)\n") sub("chat/services.py", "        existing = _idempotent_message(locked, client_token)\n", "        existing = _idempotent_message(locked, actor, client_token)\n") sub("chat/models.py", '''            models.UniqueConstraint(                 fields=["dialog", "client_token"],                 condition=models.Q(client_token__isnull=False),                 name="chat_message_unique_client_token",             ),''', '''            models.UniqueConstraint(                 fields=["dialog", "author", "client_token"],                 condition=models.Q(client_token__isnull=False),                 name="chat_message_unique_author_client_token",             ),''') EOF export DEBUG=true SECRET_KEY=x; ~/hackatonproject/.venv/bin/python manage.py makemigrations chat --name message_token_per_author 2>&1 | tail -4; cat chat/migrations/0002_message_token_per_author.py; ~/hackatonproject/.venv/bin/ruff check . ; ~/hackatonproject/.venv/bin/ruff format --check . | tail -3 (1s)
+    $ set -e; C=$TMPDIR/t016; cd $C
+  python3 - <<'EOF'
+  import pathlib
+  def sub(path, old, new):
+      p=pathlib.Path(path); t=p.read_text(); assert t.count(old)==1,(path,old[:60]); p.write_text(t.replace(old,new))
+  sub("petitions/views.py", "logger = logging.getLogger(__name__)\n", "logger = logging.getLogger(__name__)\n\n_TYPE_ID_RE = re.compile(r\"[0-9]{1,18}\")\n")
+  sub("chat/services.py", '''def _idempotent_message(dialog: Dialog, client_token: UUID | None) -> Message | None:
+      if client_token is None:
+          return None
+      return dialog.messages.filter(client_token=client_token).first()
+  ''', '''def _idempotent_message(dialog: Dialog, author: User, client_token: UUID | None) -> Message | None:
+      if client_token is None:
+          return None
+      return dialog.messages.filter(client_token=client_token, author=author).first()
+  ''')
+  sub("chat/services.py", "        existing = _idempotent_message(dialog, client_token)\n", "        existing = _idempotent_message(dialog, student.user, client_token)\n")
+  sub("chat/services.py", "        existing = _idempotent_message(locked, client_token)\n", "        existing = _idempotent_message(locked, actor, client_token)\n")
+  sub("chat/models.py", '''            models.UniqueConstraint(
+                  fields=["dialog", "client_token"],
+                  condition=models.Q(client_token__isnull=False),
+                  name="chat_message_unique_client_token",
+              ),''', '''            models.UniqueConstraint(
+                  fields=["dialog", "author", "client_token"],
+                  condition=models.Q(client_token__isnull=False),
+                  name="chat_message_unique_author_client_token",
+              ),''')
+  EOF
+  export DEBUG=true SECRET_KEY=x; ~/hackatonproject/.venv/bin/python manage.py makemigrations chat --name message_token_per_author 2>&1 | tail -4; cat chat/migrations/0002_message_token_per_author.py; ~/hackatonproject/.venv/bin/ruff check . ; ~/hackatonproject/.venv/bin/ruff format --check . | tail -3
+    Migrations for 'chat':
+      chat/migrations/0002_message_token_per_author.py
+        - Remove constraint chat_message_unique_client_token from model message
+        + Create constraint chat_message_unique_author_client_token on model message
+    # Generated by Django 5.2.19 on 2026-11-20 16:16
+
+    from django.conf import settings
+    from django.db import migrations, models
+
+
+    class Migration(migrations.Migration):
+
+        dependencies = [
+            ('chat', '0001_initial'),
+            migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+        ]
+
+        operations = [
+            migrations.RemoveConstraint(
+                model_name='message',
+                name='chat_message_unique_client_token',
+            ),
+            migrations.AddConstraint(
+                model_name='message',
+                constraint=models.UniqueConstraint(condition=models.Q(('client_token__isnull', False)), fields=('dialog', 'author', 'client_token'), name='chat_message_unique_author_client_token'),
+            ),
+        ]
+    All checks passed!
+    195 files already formatted
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 536ms
+    Next I'll run the full test suite to see which existing tests break, especially whether the per-dialog client token uniqueness test still holds.
+
+    The test-suite run is the next step, with the middleware ordering tests already confirmed passing.
+  ── Ran C=$TMPDIR/t016; cd $C; export DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop; L=$TMPDIR/test-t016-code-$(date +%Y%m%d-%H%M%S).log; ~/hackatonproject/.venv/bin/python manage.py test --parallel 2>&1 > $L 2>&1; grep -E "^Ran |^OK|^FAILED|^(FAIL|ERROR):" $L; echo $L; TZ=Europe/Moscow date +%H:%M (52s)
+    $ C=$TMPDIR/t016; cd $C; export DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop; L=$TMPDIR/test-t016-code-$(date +%Y%m%d-%H%M%S).log; ~/hackatonproject/.venv/bin/python manage.py test --parallel 2>&1 > $L 2>&1; grep -E "^Ran |^OK|^FAILED|^(FAIL|ERROR):" $L; echo $L; TZ=Europe/Moscow date +%H:%M
+    <persisted-output>
+    Output too large (86KB). Full output saved to: ~/.claude/projects/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tool-results/b3gczi4j0.txt
+
+    Preview (first 2KB):
+    Creating test database for alias 'default'...
+    Cloning test database for alias 'default'...
+    Cloning test database for alias 'default'...
+    Cloning test database for alias 'default'...
+    Cloning test database for alias 'default'...
+    Cloning test database for alias 'default'...
+    Cloning test database for alias 'default'...
+    Cloning test database for alias 'default'...
+    Cloning test database for alias 'default'...
+    ................................~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py:61: UserWarning: No directory at: /private/tmp/claude-501/t016/staticfiles/
+      mw_instance = middleware(adapted_handler)
+    ...................................~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py:61: UserWarning: No directory at: /private/tmp/claude-501/t016/staticfiles/
+      mw_instance = middleware(adapted_handler)
+    ~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py:61: UserWarning: No directory at: /private/tmp/claude-501/t016/staticfiles/
+      mw_instance = middleware(adapted_handler)
+    ~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py:61: UserWarning: No directory at: /private/tmp/claude-501/t016/staticfiles/
+      mw_instance = middleware(adapted_handler)
+    ~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py:61: UserWarning: No directory at: /private/tmp/claude-501/t016/staticfiles/
+      mw_instance = middleware(adapted_handler)
+    ~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py:61: UserWarning: No directory at: /private/tmp/claude-501/t016/staticfiles/
+      mw_instance = middleware(adapted_handler)
+    ~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py:61: UserWarning: No directory at: /private/tmp/claude-501/t016/staticfiles/
+    ...
+    </persisted-output>
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 6ms
+    I've got the redirection order wrong: `2>&1 > L` sends stderr to the old stdout before stdout moves to the file. I'll fix the order and rerun it.
+  ── Ran C=$TMPDIR/t016; cd $C; export DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop; L=$TMPDIR/test-t016-code-$(date +%Y%m%d-%H%M%S).log; ~/hackatonproject/.venv/bin/python manage.py test --parallel > $L 2>&1; grep -E "^Ran |^OK|^FAILED|^(FAIL|ERROR):" $L; echo $L; TZ=Europe/Moscow date +%H:%M (50s)
+    $ C=$TMPDIR/t016; cd $C; export DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop; L=$TMPDIR/test-t016-code-$(date +%Y%m%d-%H%M%S).log; ~/hackatonproject/.venv/bin/python manage.py test --parallel > $L 2>&1; grep -E "^Ran |^OK|^FAILED|^(FAIL|ERROR):" $L; echo $L; TZ=Europe/Moscow date +%H:%M
+    Ran 1141 tests in 47.923s
+    OK
+    /tmp/claude-501/test-t016-code-20261120-081725.log
+    19:18
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 1s
+    All 1141 tests pass with the code changes. Next I need to confirm that the admin works under the stricter CSP and that the student and staff pages raise no violations, so I'll run the dev server against the seeded database and check them in the browser.
+
+    I'm setting up the database and starting the dev server, then opening the pages in a headless browser to catch any CSP violations.
+  ── Thought for 6ms
+    Прототип проходит все 1141 тест; теперь проверяю CSP в браузере на страницах студента, сотрудника и админки.
+  ── Ran C=$TMPDIR/t016; cd $C; export DEBUG=true SECRET_KEY=dummy-key-for-local-check DATABASE_URL=sqlite:///$C/db.sqlite3 PRIVATE_MEDIA_ROOT=$C/pm DEMO_PASSWORD=Local-Demo-Pass-2026 ALLOWED_HOSTS=localhost,127.0.0.1; V=~/hackatonproject/.venv/bin/python; $V manage.py migrate -v0 && $V manage.py seed_demo > /dev/null && $V manage.py shell -c " from accounts.models import User u=User.objects.create_superuser('ptadmin', password='Admin-Local-2026!') from django.contrib.sessions.backends.db import SessionStore from django.contrib.auth import SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY for name in ['student1','staff1','ptadmin']:     x=User.objects.get(username=name); s=SessionStore(); s[SESSION_KEY]=str(x.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=x.get_session_auth_hash(); s.create(); print(name, s.session_key) " > $C/sessions.txt; cat $C/sessions.txt | sed 's/ .*/ <key>/'; ($V manage.py runserver 127.0.0.1:8791 --noreload > $C/rs.log 2>&1 &) ; sleep 3; curl -sI http://127.0.0.1:8791/login/ | grep -iE "^HTTP|content-security|cache-control" (9s)
+    $ C=$TMPDIR/t016; cd $C; export DEBUG=true SECRET_KEY=dummy-key-for-local-check DATABASE_URL=sqlite:///$C/db.sqlite3 PRIVATE_MEDIA_ROOT=$C/pm DEMO_PASSWORD=Local-Demo-Pass-2026 ALLOWED_HOSTS=localhost,127.0.0.1; V=~/hackatonproject/.venv/bin/python; $V manage.py migrate -v0 && $V manage.py seed_demo > /dev/null && $V manage.py shell -c "
+  from accounts.models import User
+  u=User.objects.create_superuser('ptadmin', password='Admin-Local-2026!')
+  from django.contrib.sessions.backends.db import SessionStore
+  from django.contrib.auth import SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY
+  for name in ['student1','staff1','ptadmin']:
+      x=User.objects.get(username=name); s=SessionStore(); s[SESSION_KEY]=str(x.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=x.get_session_auth_hash(); s.create(); print(name, s.session_key)
+  " > $C/sessions.txt; cat $C/sessions.txt | sed 's/ .*/ <key>/'; ($V manage.py runserver 127.0.0.1:8791 --noreload > $C/rs.log 2>&1 &) ; sleep 3; curl -sI http://127.0.0.1:8791/login/ | grep -iE "^HTTP|content-security|cache-control"
+    31 <key>
+
+    student1 <key>
+    staff1 <key>
+    ptadmin <key>
+    (eval):8: nice(5) failed: operation not permitted
+    HTTP/1.1 200 OK
+    Cache-Control: max-age=0, no-cache, no-store, must-revalidate, private
+    Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 16ms
+    The login page already sends no-cache headers, since LoginView uses never_cache, so that's covered. Next I'm moving on to browser automation and opening a session.
+  ── Ran cd ~/hackatonproject; bb browser-automation open --backend local --machine host_cuvmpv75p3 --headless --json 2>&1 | tail -5 (2s)
+    $ cd ~/hackatonproject; bb browser-automation open --backend local --machine host_cuvmpv75p3 --headless --json 2>&1 | tail -5
+    {"id":"f05cf45f-b820-4c43-8f18-ae5889d8db61","threadId":"thr_2imsg4kck2","hostId":"host_cuvmpv75p3","backend":"local","state":"ready","createdAt":1795191514969,"expiresAt":1795193314969,"previewDirective":"::browser-preview{session=\"f05cf45f-b820-4c43-8f18-ae5889d8db61\"}"}
+
+── Assistant ───────────────────────────────────────────────
+::browser-preview{session="f05cf45f-b820-4c43-8f18-ae5889d8db61"}
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Ran cd ~/hackatonproject; bb browser-automation --help 2>&1 | head -30; bb browser-automation run --help 2>&1 | head -30 (1s)
+    $ cd ~/hackatonproject; bb browser-automation --help 2>&1 | head -30; bb browser-automation run --help 2>&1 | head -30
+    bb browser-automation — Persistent DevBrowser desktop and headless sessions
+
+    Sessions belong to the thread that opened them. run, pages, and screenshot renew expiry to 30 minutes after use, capped at 8 hours from creation.
+    Desktop sessions also expire at their non-renewable control lease/connection deadline (at most 30 minutes).
+    list and live preview do not renew expiry. A stopped or expired session cannot be resumed; open a new one.
+
+    Usage:
+      bb browser-automation <command> [options]
+
+    Commands:
+      bb browser-automation open        Open a desktop or local headless session; --tab takes over an existing tab
+      bb browser-automation list        List this thread's browser sessions
+      bb browser-automation run         Run a trusted DevBrowser script; runs serialize per session
+      bb browser-automation pages       Inspect persistent named pages
+      bb browser-automation screenshot  Save a bounded JPEG in session tmp; return its path and host ID
+      bb browser-automation preview     Describe the live preview frame of a local headless session, without image bytes
+      bb browser-automation stop        Cancel queued and running work and release control; open a new session to resume
+      bb browser-automation close       Dispose owned browsers and tabs, preserving handed-off tabs
+
+    Run `bb browser-automation <command> --help` for a command's arguments and options.
+    bb browser-automation run — Run a trusted DevBrowser script; runs serialize per session
+
+    Usage:
+      bb browser-automation run <session-id> [--script <code>] [--script-file <path>] [--script-host <host-id>] [--timeout-ms <1000-120000>] [--timeout <duration>] [--thread <id>] [--json]
+
+    Scripts may return at most 4 screenshots per run, JPEG only, 500 KB combined;
+    anything larger or in another format fails the run. Output over 512 KB stops
+    the run with exit code 1 and keeps the session open.
+
+    Arguments:
+      <session-id>  Session id returned by `bb browser-automation open` (required)
+
+    Options:
+      --script <code>             DevBrowser script source
+      --script-file <path>        File holding the script, read from --script-host
+      --script-host <host-id>     Host that holds --script-file
+      --timeout-ms <1000-120000>  Run timeout in milliseconds (default: 30000)
+      --timeout <duration>        Run timeout as a duration (90s, 2m, 1500ms); a bare number is seconds (1-120) or milliseconds (1000-120000)
+      --thread <id>               Thread that owns the session; defaults to the invoking thread and cannot name another
+      --json                      Emit machine-readable JSON
+      --help, -h                  Show this help and exit
+
+    Rules:
+      Exactly one of:  --script, --script-file
+      --script-file    requires --script-host
+      --script-host    requires --script-file
+      At most one of:  --timeout, --timeout-ms
+  ── Thought for 4s
+    I'm putting together a script that sets the sessionid cookie for each role, visits the role's pages, and listens for Content Security Policy violations, using a securitypolicyviolation listener added through evaluateOnNewDocument. I'll have it return the collected data, and the URL list for the student role will come from the resolver.
+
+    Next I'm going through the remaining URLs for the staff and admin roles, and planning to pull same-origin links from the nav as a fallback when the exact paths aren't known. I also want to check admin under the strict policy to confirm the relaxation is needed, expecting no violations under the relaxed one. Session keys will be embedded into the generated script, since it may not be able to read a file from the browser context.
+  ── Ran C=$TMPDIR/t016; S1=$(awk '$1=="student1"{print $2}' $C/sessions.txt); S2=$(awk '$1=="staff1"{print $2}' $C/sessions.txt); S3=$(awk '$1=="ptadmin"{print $2}' $C/sessions.txt); cat > $C/csp.js <<EOF const page = await browser.getPage("main"); const base = "http://127.0.0.1:8791"; const out = {}; const violations = []; page.on("console", m => { const t = m.text(); if (/Content Security Policy|Refused to/i.test(t)) violations.push(page.url() + " :: " + t.slice(0, 200)); }); await page.evaluateOnNewDocument(() => {   document.addEventListener("securitypolicyviolation", e => { console.log("Refused to (event) " + e.violatedDirective + " " + e.blockedURI + " line " + e.lineNumber); }); }); async function visitRole(name, key, seeds, crawl) {   await page.deleteCookie({name: "sessionid", url: base});   await page.setCookie({name: "sessionid", value: key, url: base});   const seen = new Set(); const queue = [...seeds]; const codes = {};   while (queue.length && seen.size < 40) {     const path = queue.shift(); if (seen.has(path)) continue; seen.add(path);     const r = await page.goto(base + path, {waitUntil: "load"});     codes[path] = r ? r.status() : null;     await new Promise(res => setTimeout(res, 300));     if (crawl) {       const links = await page.evaluate(() => Array.from(document.querySelectorAll("a[href]")).map(a => a.getAttribute("href")).filter(h => h.startsWith("/") && !h.startsWith("//")));       for (const l of links) { const p = l.split("#")[0]; if (!seen.has(p) && !queue.includes(p) && !p.includes("/files/")) queue.push(p); }     }   }   out[name] = codes; } await visitRole("student1", "$S1", ["/"], true); await visitRole("staff1", "$S2", ["/"], true); await visitRole("ptadmin", "$S3", ["/admin/", "/admin/accounts/user/", "/admin/accounts/user/1/change/", "/admin/accounts/user/add/", "/admin/petitions/requesttype/", "/admin/petitions/requesttype/1/change/", "/admin/schedule/lessonchange/", "/admin/schedule/lessonchange/add/", "/admin/accounts/loginthrottle/", "/admin/notifications/announcement/add/", "/admin/password_change/"], false); return {pages: Object.fromEntries(Object.entries(out).map(([k,v]) => [k, Object.keys(v).length])), non200: Object.fromEntries(Object.entries(out).map(([k,v]) => [k, Object.entries(v).filter(([p,c]) => c !== 200)])), violations}; EOF cd ~/hackatonproject; bb browser-automation run f05cf45f-b820-4c43-8f18-ae5889d8db61 --script-file $C/csp.js --script-host host_cuvmpv75p3 --timeout 120s 2>&1 | tail -40 (33s)
+    $ C=$TMPDIR/t016; S1=$(awk '$1=="student1"{print $2}' $C/sessions.txt); S2=$(awk '$1=="staff1"{print $2}' $C/sessions.txt); S3=$(awk '$1=="ptadmin"{print $2}' $C/sessions.txt); cat > $C/csp.js <<EOF
+  const page = await browser.getPage("main");
+  const base = "http://127.0.0.1:8791";
+  const out = {};
+  const violations = [];
+  page.on("console", m => { const t = m.text(); if (/Content Security Policy|Refused to/i.test(t)) violations.push(page.url() + " :: " + t.slice(0, 200)); });
+  await page.evaluateOnNewDocument(() => {
+    document.addEventListener("securitypolicyviolation", e => { console.log("Refused to (event) " + e.violatedDirective + " " + e.blockedURI + " line " + e.lineNumber); });
+  });
+  async function visitRole(name, key, seeds, crawl) {
+    await page.deleteCookie({name: "sessionid", url: base});
+    await page.setCookie({name: "sessionid", value: key, url: base});
+    const seen = new Set(); const queue = [...seeds]; const codes = {};
+    while (queue.length && seen.size < 40) {
+      const path = queue.shift(); if (seen.has(path)) continue; seen.add(path);
+      const r = await page.goto(base + path, {waitUntil: "load"});
+      codes[path] = r ? r.status() : null;
+      await new Promise(res => setTimeout(res, 300));
+      if (crawl) {
+        const links = await page.evaluate(() => Array.from(document.querySelectorAll("a[href]")).map(a => a.getAttribute("href")).filter(h => h.startsWith("/") && !h.startsWith("//")));
+        for (const l of links) { const p = l.split("#")[0]; if (!seen.has(p) && !queue.includes(p) && !p.includes("/files/")) queue.push(p); }
+      }
+    }
+    out[name] = codes;
+  }
+  await visitRole("student1", "$S1", ["/"], true);
+  await visitRole("staff1", "$S2", ["/"], true);
+  await visitRole("ptadmin", "$S3", ["/admin/", "/admin/accounts/user/", "/admin/accounts/user/1/change/", "/admin/accounts/user/add/", "/admin/petitions/requesttype/", "/admin/petitions/requesttype/1/change/", "/admin/schedule/lessonchange/", "/admin/schedule/lessonchange/add/", "/admin/accounts/loginthrottle/", "/admin/notifications/announcement/add/", "/admin/password_change/"], false);
+  return {pages: Object.fromEntries(Object.entries(out).map(([k,v]) => [k, Object.keys(v).length])), non200: Object.fromEntries(Object.entries(out).map(([k,v]) => [k, Object.entries(v).filter(([p,c]) => c !== 200)])), violations};
+  EOF
+  cd ~/hackatonproject; bb browser-automation run f05cf45f-b820-4c43-8f18-ae5889d8db61 --script-file $C/csp.js --script-host host_cuvmpv75p3 --timeout 120s 2>&1 | tail -40
+    {"text":"{\n  \"pages\": {\n    \"student1\": 40,\n    \"staff1\": 40,\n    \"ptadmin\": 11\n  },\n  \"non200\": {\n    \"student1\": [],\n    \"staff1\": [],\n    \"ptadmin\": []\n  },\n  \"violations\": []\n}","images":[],"exitCode":0,"hostId":"host_cuvmpv75p3"}
+  ── Thought for 4s
+    No violations so far, but I still need to confirm the listener actually catches them. I'll run a positive control: on a student page, create an inline script element, which should trigger a violation, and also check the admin page under the strict policy.
+
+    I'm considering whether to just test the admin under a strict policy instead of relying on a relaxed one, since the stricter setup would be simpler if it holds up. Most admin pages have default actions, so I can't count on a page without them to check the inline-style case, and I'd need to crawl more than the main pages to be sure.
+
+── Assistant ───────────────────────────────────────────────
+No violations. Now a positive control (does the listener catch a violation?) and a run of the admin under the strict policy to see whether the relaxation is needed at all.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran C=$TMPDIR/t016; S3=$(awk '$1=="ptadmin"{print $2}' $C/sessions.txt); S1=$(awk '$1=="student1"{print $2}' $C/sessions.txt); cat > $C/csp2.js <<EOF const page = await browser.getPage("main"); const base = "http://127.0.0.1:8792"; const violations = []; page.removeAllListeners("console"); page.on("console", m => { const t = m.text(); if (/Content Security Policy|Refused to/i.test(t)) violations.push(page.url().replace(base,"") + " :: " + t.slice(0, 160)); }); await page.setCookie({name: "sessionid", value: "$S1", url: base}); await page.goto(base + "/", {waitUntil: "load"}); await page.evaluate(() => { const s = document.createElement("script"); s.textContent = "window.x=1"; document.body.appendChild(s); document.body.setAttribute("style", "color:red"); }); await new Promise(r => setTimeout(r, 300)); const control = violations.length; await page.setCookie({name: "sessionid", value: "$S3", url: base}); const pages = ["/admin/", "/admin/accounts/user/", "/admin/accounts/user/1/change/", "/admin/accounts/user/add/", "/admin/petitions/requesttype/", "/admin/petitions/requesttype/1/change/", "/admin/schedule/lessonchange/", "/admin/schedule/lessonchange/add/", "/admin/accounts/loginthrottle/", "/admin/notifications/announcement/add/", "/admin/password_change/", "/admin/chat/message/", "/admin/academics/currentmark/add/"]; const codes = {}; for (const p of pages) { const r = await page.goto(base + p, {waitUntil: "load"}); codes[p] = r.status(); await new Promise(r => setTimeout(r, 300));   // open calendar/clock widgets and collapse toggles if present   await page.evaluate(() => { document.querySelectorAll(".datetimeshortcuts a, .collapse-toggle, details summary").forEach(a => { try { a.click(); } catch (e) {} }); });   await new Promise(r => setTimeout(r, 200)); } const shot = await page.screenshot({type: "jpeg", quality: 50}); return {control, codes, violations}; EOF cd $C; sed 's/style-src '"'"'self'"'"' '"'"'unsafe-inline'"'"'/style-src '"'"'self'"'"'/' core/middleware.py > /dev/null; mkdir -p $TMPDIR/t016strict && cd ~/hackatonproject && rm -rf $TMPDIR/t016strict && cp -R $C $TMPDIR/t016strict && cd $TMPDIR/t016strict && python3 - <<'EOF' import pathlib p=pathlib.Path("core/middleware.py"); t=p.read_text() old='''ADMIN_CONTENT_SECURITY_POLICY = CONTENT_SECURITY_POLICY.replace(     "style-src 'self'", "style-src 'self' 'unsafe-inline'" )''' assert old in t; p.write_text(t.replace(old, "ADMIN_CONTENT_SECURITY_POLICY = CONTENT_SECURITY_POLICY")) EOF export DEBUG=true SECRET_KEY=dummy-key-for-local-check DATABASE_URL=sqlite:///$C/db.sqlite3 PRIVATE_MEDIA_ROOT=$C/pm ALLOWED_HOSTS=localhost,127.0.0.1; (~/hackatonproject/.venv/bin/python manage.py runserver 127.0.0.1:8792 --noreload > $TMPDIR/t016strict/rs.log 2>&1 &); sleep 3; curl -sI http://127.0.0.1:8792/login/ | grep -i content-security; cd ~/hackatonproject; bb browser-automation run f05cf45f-b820-4c43-8f18-ae5889d8db61 --script-file $C/csp2.js --script-host host_cuvmpv75p3 --timeout 120s 2>&1 | python3 -c "import sys,json; d=json.loads(sys.stdin.read()); print(d['text'])" (12s)
+    $ C=$TMPDIR/t016; S3=$(awk '$1=="ptadmin"{print $2}' $C/sessions.txt); S1=$(awk '$1=="student1"{print $2}' $C/sessions.txt); cat > $C/csp2.js <<EOF
+  const page = await browser.getPage("main");
+  const base = "http://127.0.0.1:8792";
+  const violations = [];
+  page.removeAllListeners("console");
+  page.on("console", m => { const t = m.text(); if (/Content Security Policy|Refused to/i.test(t)) violations.push(page.url().replace(base,"") + " :: " + t.slice(0, 160)); });
+  await page.setCookie({name: "sessionid", value: "$S1", url: base});
+  await page.goto(base + "/", {waitUntil: "load"});
+  await page.evaluate(() => { const s = document.createElement("script"); s.textContent = "window.x=1"; document.body.appendChild(s); document.body.setAttribute("style", "color:red"); });
+  await new Promise(r => setTimeout(r, 300));
+  const control = violations.length;
+  await page.setCookie({name: "sessionid", value: "$S3", url: base});
+  const pages = ["/admin/", "/admin/accounts/user/", "/admin/accounts/user/1/change/", "/admin/accounts/user/add/", "/admin/petitions/requesttype/", "/admin/petitions/requesttype/1/change/", "/admin/schedule/lessonchange/", "/admin/schedule/lessonchange/add/", "/admin/accounts/loginthrottle/", "/admin/notifications/announcement/add/", "/admin/password_change/", "/admin/chat/message/", "/admin/academics/currentmark/add/"];
+  const codes = {};
+  for (const p of pages) { const r = await page.goto(base + p, {waitUntil: "load"}); codes[p] = r.status(); await new Promise(r => setTimeout(r, 300));
+    // open calendar/clock widgets and collapse toggles if present
+    await page.evaluate(() => { document.querySelectorAll(".datetimeshortcuts a, .collapse-toggle, details summary").forEach(a => { try { a.click(); } catch (e) {} }); });
+    await new Promise(r => setTimeout(r, 200)); }
+  const shot = await page.screenshot({type: "jpeg", quality: 50});
+  return {control, codes, violations};
+  EOF
+  cd $C; sed 's/style-src '"'"'self'"'"' '"'"'unsafe-inline'"'"'/style-src '"'"'self'"'"'/' core/middleware.py > /dev/null; mkdir -p $TMPDIR/t016strict && cd ~/hackatonproject && rm -rf $TMPDIR/t016strict && cp -R $C $TMPDIR/t016strict && cd $TMPDIR/t016strict && python3 - <<'EOF'
+  import pathlib
+  p=pathlib.Path("core/middleware.py"); t=p.read_text()
+  old='''ADMIN_CONTENT_SECURITY_POLICY = CONTENT_SECURITY_POLICY.replace(
+      "style-src 'self'", "style-src 'self' 'unsafe-inline'"
+  )'''
+  assert old in t; p.write_text(t.replace(old, "ADMIN_CONTENT_SECURITY_POLICY = CONTENT_SECURITY_POLICY"))
+  EOF
+  export DEBUG=true SECRET_KEY=dummy-key-for-local-check DATABASE_URL=sqlite:///$C/db.sqlite3 PRIVATE_MEDIA_ROOT=$C/pm ALLOWED_HOSTS=localhost,127.0.0.1; (~/hackatonproject/.venv/bin/python manage.py runserver 127.0.0.1:8792 --noreload > $TMPDIR/t016strict/rs.log 2>&1 &); sleep 3; curl -sI http://127.0.0.1:8792/login/ | grep -i content-security; cd ~/hackatonproject; bb browser-automation run f05cf45f-b820-4c43-8f18-ae5889d8db61 --script-file $C/csp2.js --script-host host_cuvmpv75p3 --timeout 120s 2>&1 | python3 -c "import sys,json; d=json.loads(sys.stdin.read()); print(d['text'])"
+    (eval):30: nice(5) failed: operation not permitted
+    Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+    {
+      "control": 4,
+      "codes": {
+        "/admin/": 200,
+        "/admin/accounts/user/": 200,
+        "/admin/accounts/user/1/change/": 200,
+        "/admin/accounts/user/add/": 200,
+        "/admin/petitions/requesttype/": 200,
+        "/admin/petitions/requesttype/1/change/": 200,
+        "/admin/schedule/lessonchange/": 200,
+        "/admin/schedule/lessonchange/add/": 200,
+        "/admin/accounts/loginthrottle/": 200,
+        "/admin/notifications/announcement/add/": 200,
+        "/admin/password_change/": 200,
+        "/admin/chat/message/": 404,
+        "/admin/academics/currentmark/add/": 200
+      },
+      "violations": [
+        "/ :: Executing inline script violates the following Content Security Policy directive 'script-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-hUmDl3",
+        "/ :: Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-8f935d27G",
+        "/ :: Refused to (event) script-src-elem inline line 1",
+        "/ :: Refused to (event) style-src-attr inline line 1"
+      ]
+    }
+  ── Thought
+    The control check came back clean: four entries, and zero violations across 12 admin pages under the strict policy, including the date widgets. That suggests the relaxed admin policy may not be needed after all. The inline style in the change list only shows up when actions are disabled, so I need to find out whether any admin sets `actions = None`. I'll grep admin.py for that, and also check whether autocomplete_fields is pulling in select2.
+
+── Assistant ───────────────────────────────────────────────
+The listener works: 4 violations in the control. With the strict policy the 12 admin pages give no violations. I check whether any admin view can render the inline style or select2.
+
+── Explored 1 search, ran 1 command ────────────────────────
+  ── Searched for actions|autocomplete_fields|raw_id_fields|filter_horizontal|filter_vertical|prepopulated_fields|formfield_overrides|class Media|readonly|inlines in .
+  ── Thought for 2s
+    I'm checking why the inline style didn't show on the lessonchange page, since removing delete_selected leaves no actions. The template only adds the style when both actions_on_top and actions_on_bottom are false, and actions_on_top defaults to true, so it never rendered. Next I'm moving on to filter_horizontal on WeeklyLesson.
+
+    Next I'm checking filter_horizontal on WeeklyLesson in the schedule admin, which builds its widget with SelectFilter2.js, by loading the add page. I'll also look at the inlines in the chat dialog and petitions change pages, plus the user change page with the password widget. Then I'm running a broader admin crawl, covering every changelist, first change page, and add page reached from /admin/.
+  ── Ran C=$TMPDIR/t016; S3=$(awk '$1=="ptadmin"{print $2}' $C/sessions.txt); cat > $C/csp3.js <<EOF const page = await browser.getPage("main"); const base = "http://127.0.0.1:8792"; const violations = []; page.removeAllListeners("console"); page.on("console", m => { const t = m.text(); if (/Content Security Policy|Refused to/i.test(t)) violations.push(page.url().replace(base,"") + " :: " + t.slice(0, 160)); }); await page.setCookie({name: "sessionid", value: "$S3", url: base}); await page.goto(base + "/admin/", {waitUntil: "load"}); const models = await page.evaluate(() => Array.from(document.querySelectorAll("#content-main a[href]")).map(a => a.getAttribute("href")).filter(h => h.startsWith("/admin/") && !h.includes("logout"))); const seen = new Set(); const codes = {}; for (const m of [...new Set(models)]) {   if (seen.has(m)) continue; seen.add(m);   const r = await page.goto(base + m, {waitUntil: "load"}); codes[m] = r.status();   if (m.endsWith("/add/")) { await page.evaluate(() => document.querySelectorAll(".datetimeshortcuts a, .selector-chooser a, .collapse-toggle, summary").forEach(a => { try { a.click(); } catch (e) {} })); continue; }   const first = await page.evaluate(() => { const a = document.querySelector("#result_list tbody th a, #result_list tbody td a"); return a ? a.getAttribute("href") : null; });   if (first && !seen.has(first)) { seen.add(first); const r2 = await page.goto(base + first, {waitUntil: "load"}); codes[first] = r2.status();     await page.evaluate(() => document.querySelectorAll(".datetimeshortcuts a, .selector-chooser a, .collapse-toggle, summary, .add-row a").forEach(a => { try { a.click(); } catch (e) {} })); await new Promise(r => setTimeout(r, 200)); } } // changelist search, filters, select-all action checkbox await page.goto(base + "/admin/accounts/user/?q=stud", {waitUntil: "load"}); await page.evaluate(() => { const c = document.querySelector("#action-toggle"); if (c) c.click(); }); await new Promise(r => setTimeout(r, 300)); return {count: Object.keys(codes).length, non200: Object.entries(codes).filter(([p,c]) => c !== 200), violations}; EOF cd ~/hackatonproject; bb browser-automation run f05cf45f-b820-4c43-8f18-ae5889d8db61 --script-file $C/csp3.js --script-host host_cuvmpv75p3 --timeout 120s 2>&1 | python3 -c "import sys,json; d=json.loads(sys.stdin.read()); print(d.get('text', d))" (10s)
+    $ C=$TMPDIR/t016; S3=$(awk '$1=="ptadmin"{print $2}' $C/sessions.txt); cat > $C/csp3.js <<EOF
+  const page = await browser.getPage("main");
+  const base = "http://127.0.0.1:8792";
+  const violations = [];
+  page.removeAllListeners("console");
+  page.on("console", m => { const t = m.text(); if (/Content Security Policy|Refused to/i.test(t)) violations.push(page.url().replace(base,"") + " :: " + t.slice(0, 160)); });
+  await page.setCookie({name: "sessionid", value: "$S3", url: base});
+  await page.goto(base + "/admin/", {waitUntil: "load"});
+  const models = await page.evaluate(() => Array.from(document.querySelectorAll("#content-main a[href]")).map(a => a.getAttribute("href")).filter(h => h.startsWith("/admin/") && !h.includes("logout")));
+  const seen = new Set(); const codes = {};
+  for (const m of [...new Set(models)]) {
+    if (seen.has(m)) continue; seen.add(m);
+    const r = await page.goto(base + m, {waitUntil: "load"}); codes[m] = r.status();
+    if (m.endsWith("/add/")) { await page.evaluate(() => document.querySelectorAll(".datetimeshortcuts a, .selector-chooser a, .collapse-toggle, summary").forEach(a => { try { a.click(); } catch (e) {} })); continue; }
+    const first = await page.evaluate(() => { const a = document.querySelector("#result_list tbody th a, #result_list tbody td a"); return a ? a.getAttribute("href") : null; });
+    if (first && !seen.has(first)) { seen.add(first); const r2 = await page.goto(base + first, {waitUntil: "load"}); codes[first] = r2.status();
+      await page.evaluate(() => document.querySelectorAll(".datetimeshortcuts a, .selector-chooser a, .collapse-toggle, summary, .add-row a").forEach(a => { try { a.click(); } catch (e) {} })); await new Promise(r => setTimeout(r, 200)); }
+  }
+  // changelist search, filters, select-all action checkbox
+  await page.goto(base + "/admin/accounts/user/?q=stud", {waitUntil: "load"});
+  await page.evaluate(() => { const c = document.querySelector("#action-toggle"); if (c) c.click(); });
+  await new Promise(r => setTimeout(r, 300));
+  return {count: Object.keys(codes).length, non200: Object.entries(codes).filter(([p,c]) => c !== 200), violations};
+  EOF
+  cd ~/hackatonproject; bb browser-automation run f05cf45f-b820-4c43-8f18-ae5889d8db61 --script-file $C/csp3.js --script-host host_cuvmpv75p3 --timeout 120s 2>&1 | python3 -c "import sys,json; d=json.loads(sys.stdin.read()); print(d.get('text', d))"
+    {
+      "count": 69,
+      "non200": [],
+      "violations": []
+    }
+  ── Thought for 4s
+    I've confirmed all 69 admin pages load cleanly under the strict policy, with no violations after clicking through the widgets. I'm going with one strict policy everywhere, admin included, since it's simpler and tighter. The main thing still untested is whether some admin interaction I haven't exercised could break styling.
+
+    I'm leaning toward a strict policy for admin too, since the only admin user is the team lead and the evidence so far supports it. I'll add a test that admin pages carry the same policy and document a fallback in case it breaks something. Then I'll try to stop the servers I started earlier.
+
+── Assistant ───────────────────────────────────────────────
+The admin works under the strict policy: 69 pages, zero violations. So I choose one strict policy for the whole site, admin included. Stopping the test servers.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran pkill -f "runserver 127.0.0.1:879" ; sleep 1; curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8791/login/; curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8792/login/ (2s)
+    $ pkill -f "runserver 127.0.0.1:879" ; sleep 1; curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8791/login/; curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8792/login/
+    sysmon request failed with error: sysmond service not found
+    pkill: Cannot get process list
+    200
+    200
+  ── Thought for 1s
+    I can't kill these servers from inside the sandbox, and they're harmless local dev processes in a temp directory, so they'll likely stick around until reboot. I could look for a way to shut them down without the sandbox, or mention them to the user at the end. Running the kill with the sandbox disabled is an option too, since that's allowed with an explanation, but I'll come back to that later.
+
+    I'll check the PT1-F3 back-after-logout behaviour in the browser now, using the relaxed server on 8791, since it doesn't affect the cache test. The Cache-Control back-button check can wait until the end, and I may still need a server for it then.
+
+── Assistant ───────────────────────────────────────────────
+Before stopping the servers, I check PT1-F3 in the browser: after logout, Back must not show the grades page.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran C=$TMPDIR/t016; cat > $C/cache.js <<'EOF' const page = await browser.getPage("main"); const base = "http://127.0.0.1:8791"; await page.deleteCookie({name: "sessionid", url: base}); await page.goto(base + "/login/", {waitUntil: "load"}); await page.type("#id_username", "student1"); await page.type("#id_password", "Local-Demo-Pass-2026"); await Promise.all([page.waitForNavigation({waitUntil: "load"}), page.click("form button[type=submit], form input[type=submit]")]); const r = await page.goto(base + "/grades/", {waitUntil: "load"}); const cc = r.headers()["cache-control"]; const before = await page.evaluate(() => document.querySelector("h1") && document.querySelector("h1").textContent); await Promise.all([page.waitForNavigation({waitUntil: "load"}), page.evaluate(() => { const f = Array.from(document.querySelectorAll("form")).find(f => f.action.includes("/logout/")); f.submit(); })]); const afterLogout = page.url(); await page.goBack({waitUntil: "load"}).catch(() => null); await new Promise(r => setTimeout(r, 500)); const back = {url: page.url(), h1: await page.evaluate(() => document.querySelector("h1") && document.querySelector("h1").textContent)}; return {cc, before, afterLogout, back}; EOF cd ~/hackatonproject; bb browser-automation run f05cf45f-b820-4c43-8f18-ae5889d8db61 --script-file $C/cache.js --script-host host_cuvmpv75p3 --timeout 60s 2>&1 | python3 -c "import sys,json; d=json.loads(sys.stdin.read()); print(d.get('text', d))" (2s)
+    $ C=$TMPDIR/t016; cat > $C/cache.js <<'EOF'
+  const page = await browser.getPage("main");
+  const base = "http://127.0.0.1:8791";
+  await page.deleteCookie({name: "sessionid", url: base});
+  await page.goto(base + "/login/", {waitUntil: "load"});
+  await page.type("#id_username", "student1");
+  await page.type("#id_password", "Local-Demo-Pass-2026");
+  await Promise.all([page.waitForNavigation({waitUntil: "load"}), page.click("form button[type=submit], form input[type=submit]")]);
+  const r = await page.goto(base + "/grades/", {waitUntil: "load"});
+  const cc = r.headers()["cache-control"];
+  const before = await page.evaluate(() => document.querySelector("h1") && document.querySelector("h1").textContent);
+  await Promise.all([page.waitForNavigation({waitUntil: "load"}), page.evaluate(() => { const f = Array.from(document.querySelectorAll("form")).find(f => f.action.includes("/logout/")); f.submit(); })]);
+  const afterLogout = page.url();
+  await page.goBack({waitUntil: "load"}).catch(() => null);
+  await new Promise(r => setTimeout(r, 500));
+  const back = {url: page.url(), h1: await page.evaluate(() => document.querySelector("h1") && document.querySelector("h1").textContent)};
+  return {cc, before, afterLogout, back};
+  EOF
+  cd ~/hackatonproject; bb browser-automation run f05cf45f-b820-4c43-8f18-ae5889d8db61 --script-file $C/cache.js --script-host host_cuvmpv75p3 --timeout 60s 2>&1 | python3 -c "import sys,json; d=json.loads(sys.stdin.read()); print(d.get('text', d))"
+    {
+      "cc": "max-age=0, no-cache, no-store, must-revalidate, private",
+      "before": "Моя успеваемость",
+      "afterLogout": "http://127.0.0.1:8791/login/",
+      "back": {
+        "url": "http://127.0.0.1:8791/login/?next=/grades/",
+        "h1": "Вход"
+      }
+    }
+  ── Thought for 92ms
+    The login page is showing again now, so the page got re-requested. For killing the servers, I'll retry the command with the sandbox turned off, since the sandbox is what hides the process list. It may get denied again, so I'll try that just once.
+
+── Assistant ───────────────────────────────────────────────
+Back now shows the login page, not the grades. I stop the two temporary servers. The sandbox cannot see processes from earlier commands, so this command runs outside it.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran pkill -f "manage.py runserver 127.0.0.1:879[12]"; sleep 1; curl -s -o /dev/null -w '%{http_code} ' http://127.0.0.1:8791/login/; curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8792/login/ (Outside of sandbox) (1s, error)
+    $ pkill -f "manage.py runserver 127.0.0.1:879[12]"; sleep 1; curl -s -o /dev/null -w '%{http_code} ' http://127.0.0.1:8791/login/; curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8792/login/
+    Exit code 7
+    000 000
+    exit 7
+  ── Thought for 4ms
+    I'm switching the middleware to strict-only mode in the t016 copy, then I'll move on to deploying the files. Next I'm rewriting core/middleware.py in that copy.
+
+── Assistant ───────────────────────────────────────────────
+Servers stopped. Now I simplify the middleware to one policy and write the deploy part.
+
+── Ran 4 commands ──────────────────────────────────────────
+  ── Ran set -e; C=$TMPDIR/t016; cd $C; python3 - <<'EOF' import pathlib p=pathlib.Path("core/middleware.py"); t=p.read_text() old_a='''# Strict policy for every page of the site. Templates have no inline scripts, inline # styles, inline event handlers, external URLs or data: URIs (TASK-016). CONTENT_SECURITY_POLICY = (''' new_a='''# One strict policy for every page, the Django admin included (TASK-016): the templates # and the Django 5.2 admin have no inline scripts, inline styles, inline event handlers, # external URLs or data: URIs. CONTENT_SECURITY_POLICY = (''' assert old_a in t; t=t.replace(old_a,new_a) start=t.index("# Django admin (superusers only"); end=t.index("class ContentSecurityPolicyMiddleware") t=t[:start]+t[end:] t=t.replace("            response[CSP_HEADER] = content_security_policy_for(request.path_info)\n","            response[CSP_HEADER] = CONTENT_SECURITY_POLICY\n") p.write_text(t) EOF cat core/middleware.py | sed -n 1,40p; ~/hackatonproject/.venv/bin/ruff check core/middleware.py && ~/hackatonproject/.venv/bin/ruff format --check core/middleware.py (error)
+    $ set -e; C=$TMPDIR/t016; cd $C; python3 - <<'EOF'
+  import pathlib
+  p=pathlib.Path("core/middleware.py"); t=p.read_text()
+  old_a='''# Strict policy for every page of the site. Templates have no inline scripts, inline
+  # styles, inline event handlers, external URLs or data: URIs (TASK-016).
+  CONTENT_SECURITY_POLICY = ('''
+  new_a='''# One strict policy for every page, the Django admin included (TASK-016): the templates
+  # and the Django 5.2 admin have no inline scripts, inline styles, inline event handlers,
+  # external URLs or data: URIs.
+  CONTENT_SECURITY_POLICY = ('''
+  assert old_a in t; t=t.replace(old_a,new_a)
+  start=t.index("# Django admin (superusers only"); end=t.index("class ContentSecurityPolicyMiddleware")
+  t=t[:start]+t[end:]
+  t=t.replace("            response[CSP_HEADER] = content_security_policy_for(request.path_info)\n","            response[CSP_HEADER] = CONTENT_SECURITY_POLICY\n")
+  p.write_text(t)
+  EOF
+  cat core/middleware.py | sed -n 1,40p; ~/hackatonproject/.venv/bin/ruff check core/middleware.py && ~/hackatonproject/.venv/bin/ruff format --check core/middleware.py
+    Exit code 1
+    """Security response headers: Content-Security-Policy and no-store for signed-in users."""
+
+    from collections.abc import Callable
+
+    from django.conf import settings
+    from django.http import HttpRequest, HttpResponse
+    from django.utils.cache import add_never_cache_headers
+
+    CSP_HEADER = "Content-Security-Policy"
+
+    # One strict policy for every page, the Django admin included (TASK-016): the templates
+    # and the Django 5.2 admin have no inline scripts, inline styles, inline event handlers,
+    # external URLs or data: URIs.
+    CONTENT_SECURITY_POLICY = (
+        "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; "
+        "font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; "
+        "form-action 'self'; frame-ancestors 'none'"
+    )
+
+    class ContentSecurityPolicyMiddleware:
+        def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+            self.get_response = get_response
+
+        def __call__(self, request: HttpRequest) -> HttpResponse:
+            response = self.get_response(request)
+            # Django's technical error pages (DEBUG only) use inline styles and scripts.
+            if settings.DEBUG and response.status_code >= 400:
+                return response
+            if CSP_HEADER not in response:
+                response[CSP_HEADER] = CONTENT_SECURITY_POLICY
+            return response
+
+
+    class PrivateCacheMiddleware:
+        """Pages of a signed-in user must not stay in the browser cache after logout."""
+
+        def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+            self.get_response = get_response
+
+        def __call__(self, request: HttpRequest) -> HttpResponse:
+    All checks passed!
+    unformatted: File would be reformatted
+      --> core/middleware.py:20:1
+       |
+    19 |
+    20 +
+    21 | class ContentSecurityPolicyMiddleware:
+       |
+
+    1 file would be reformatted
+    exit 1
+  ── Thought for 2ms
+    I'm leaving the empty line alone, since it's only spacing and gets fixed with ruff format later. Next I'm weighing whether the DEBUG exemption for 404s is worth keeping, and I'm leaning toward keeping it because Django's technical 404 page is what shows in DEBUG anyway. After that, I'm moving on to writing the deploy files in the copy: nginx config, bootstrap, gunicorn, systemd, backup script, DEPLOY.md, and CI.
+  ── Ran set -e; C=$TMPDIR/t016; cd $C; ~/hackatonproject/.venv/bin/ruff format core/middleware.py >/dev/null cat > deploy/nginx/deanery.conf <<'EOF' # Deanery prototype. Static files are served by Django/WhiteNoise; nginx serves no project files. # PRIVATE_MEDIA_ROOT must never get a location here (attachments go through Django access checks). # This file is included inside the http {} block (sites-enabled), so the zones below are valid here. # Login forms: POST requests per client IP (PT1-F1). GET requests have an empty key: not limited. map $request_method $deanery_login_key {     POST    $binary_remote_addr;     default ""; } limit_req_zone $deanery_login_key zone=deanery_login:10m rate=10r/m; # Concurrent requests per client IP, whole site. limit_conn_zone $binary_remote_addr zone=deanery_conn:10m; # Requests by IP address or for any other host name: close the connection (PT1-F4). server {     listen 80 default_server;     listen [::]:80 default_server;     server_name _;     server_tokens off;     return 444; } server {     listen 443 ssl http2 default_server;     listen [::]:443 ssl http2 default_server;     server_name _;     server_tokens off;     ssl_reject_handshake on; } # HTTP for the domain and www: ACME challenges, everything else to the HTTPS domain. server {     listen 80;     listen [::]:80;     server_name example.com www.example.com;     server_tokens off;     location ^~ /.well-known/acme-challenge/ {         root /var/www/letsencrypt;         default_type "text/plain";     }     location / {         return 301 https://example.com$request_uri;     } } # HTTPS www: redirect to the domain. The certificate covers both names. server {     listen 443 ssl http2;     listen [::]:443 ssl http2;     server_name www.example.com;     server_tokens off;     ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;     ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;     ssl_protocols TLSv1.2 TLSv1.3;     ssl_prefer_server_ciphers off;     ssl_session_tickets off;     return 301 https://example.com$request_uri; } server {     listen 443 ssl http2;     listen [::]:443 ssl http2;     server_name example.com;     server_tokens off;     ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;     ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;     ssl_protocols TLSv1.2 TLSv1.3;     ssl_prefer_server_ciphers off;     ssl_session_cache shared:SSL:10m;     ssl_session_timeout 1d;     ssl_session_tickets off;     client_max_body_size 20m;     limit_conn deanery_conn 20;     limit_conn_status 429;     limit_req_status 429;     # Not set by Django; X-Frame-Options, nosniff, Referrer-Policy, CSP and HSTS come from Django.     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;     # Server level: every location below inherits these.     proxy_set_header Host $host;     proxy_set_header X-Real-IP $remote_addr;     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;     proxy_set_header X-Forwarded-Proto $scheme;     proxy_redirect off;     proxy_connect_timeout 5s;     proxy_read_timeout 60s;     # /login/ and the admin login /<ADMIN_URL>login/ (any path ending in /login/).     location ~ ^/(?:[A-Za-z0-9_-]+/)*login/$ {         limit_req zone=deanery_login burst=10 nodelay;         proxy_pass http://127.0.0.1:8000;     }     location / {         proxy_pass http://127.0.0.1:8000;     } } EOF python3 - <<'EOF' import pathlib def sub(path, old, new):     p=pathlib.Path(path); t=p.read_text(); assert t.count(old)==1,(path,old[:60]); p.write_text(t.replace(old,new)) sub("deploy/nginx/deanery-bootstrap.conf", "    server_name example.com;\n", "    server_name example.com www.example.com;\n") sub("deploy/gunicorn.conf.py", "control_socket_disable = True\n", "control_socket_disable = True\n# Trust only the scheme header that nginx always overwrites (PT1-F13).\nsecure_scheme_headers = {\"X-FORWARDED-PROTO\": \"https\"}\n") sub("deploy/systemd/deanery.service", """NoNewPrivileges=true PrivateTmp=true ProtectSystem=full ProtectHome=true ReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial """, """# Sandbox (PT1-F13). At run time the app writes only uploads to PRIVATE_MEDIA_ROOT and # temporary files (large uploads, gunicorn heartbeats) to its private /tmp. NoNewPrivileges=true PrivateTmp=true PrivateDevices=true ProtectSystem=strict ProtectHome=true ProtectKernelTunables=true ProtectControlGroups=true RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX CapabilityBoundingSet= ReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial """) EOF echo DONE
+    $ set -e; C=$TMPDIR/t016; cd $C; ~/hackatonproject/.venv/bin/ruff format core/middleware.py >/dev/null
+  cat > deploy/nginx/deanery.conf <<'EOF'
+  # Deanery prototype. Static files are served by Django/WhiteNoise; nginx serves no project files.
+  # PRIVATE_MEDIA_ROOT must never get a location here (attachments go through Django access checks).
+  # This file is included inside the http {} block (sites-enabled), so the zones below are valid here.
+
+  # Login forms: POST requests per client IP (PT1-F1). GET requests have an empty key: not limited.
+  map $request_method $deanery_login_key {
+      POST    $binary_remote_addr;
+      default "";
+  }
+  limit_req_zone $deanery_login_key zone=deanery_login:10m rate=10r/m;
+  # Concurrent requests per client IP, whole site.
+  limit_conn_zone $binary_remote_addr zone=deanery_conn:10m;
+
+  # Requests by IP address or for any other host name: close the connection (PT1-F4).
+  server {
+      listen 80 default_server;
+      listen [::]:80 default_server;
+      server_name _;
+      server_tokens off;
+      return 444;
+  }
+
+  server {
+      listen 443 ssl http2 default_server;
+      listen [::]:443 ssl http2 default_server;
+      server_name _;
+      server_tokens off;
+      ssl_reject_handshake on;
+  }
+
+  # HTTP for the domain and www: ACME challenges, everything else to the HTTPS domain.
+  server {
+      listen 80;
+      listen [::]:80;
+      server_name example.com www.example.com;
+      server_tokens off;
+
+      location ^~ /.well-known/acme-challenge/ {
+          root /var/www/letsencrypt;
+          default_type "text/plain";
+      }
+
+      location / {
+          return 301 https://example.com$request_uri;
+      }
+  }
+
+  # HTTPS www: redirect to the domain. The certificate covers both names.
+  server {
+      listen 443 ssl http2;
+      listen [::]:443 ssl http2;
+      server_name www.example.com;
+      server_tokens off;
+
+      ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;
+      ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
+      ssl_protocols TLSv1.2 TLSv1.3;
+      ssl_prefer_server_ciphers off;
+      ssl_session_tickets off;
+
+      return 301 https://example.com$request_uri;
+  }
+
+  server {
+      listen 443 ssl http2;
+      listen [::]:443 ssl http2;
+      server_name example.com;
+      server_tokens off;
+
+      ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;
+      ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
+      ssl_protocols TLSv1.2 TLSv1.3;
+      ssl_prefer_server_ciphers off;
+      ssl_session_cache shared:SSL:10m;
+      ssl_session_timeout 1d;
+      ssl_session_tickets off;
+
+      client_max_body_size 20m;
+
+      limit_conn deanery_conn 20;
+      limit_conn_status 429;
+      limit_req_status 429;
+
+      # Not set by Django; X-Frame-Options, nosniff, Referrer-Policy, CSP and HSTS come from Django.
+      add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+
+      # Server level: every location below inherits these.
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+      proxy_redirect off;
+      proxy_connect_timeout 5s;
+      proxy_read_timeout 60s;
+
+      # /login/ and the admin login /<ADMIN_URL>login/ (any path ending in /login/).
+      location ~ ^/(?:[A-Za-z0-9_-]+/)*login/$ {
+          limit_req zone=deanery_login burst=10 nodelay;
+          proxy_pass http://127.0.0.1:8000;
+      }
+
+      location / {
+          proxy_pass http://127.0.0.1:8000;
+      }
+  }
+  EOF
+  python3 - <<'EOF'
+  import pathlib
+  def sub(path, old, new):
+      p=pathlib.Path(path); t=p.read_text(); assert t.count(old)==1,(path,old[:60]); p.write_text(t.replace(old,new))
+  sub("deploy/nginx/deanery-bootstrap.conf", "    server_name example.com;\n", "    server_name example.com www.example.com;\n")
+  sub("deploy/gunicorn.conf.py", "control_socket_disable = True\n", "control_socket_disable = True\n# Trust only the scheme header that nginx always overwrites (PT1-F13).\nsecure_scheme_headers = {\"X-FORWARDED-PROTO\": \"https\"}\n")
+  sub("deploy/systemd/deanery.service", """NoNewPrivileges=true
+  PrivateTmp=true
+  ProtectSystem=full
+  ProtectHome=true
+  ReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial
+  """, """# Sandbox (PT1-F13). At run time the app writes only uploads to PRIVATE_MEDIA_ROOT and
+  # temporary files (large uploads, gunicorn heartbeats) to its private /tmp.
+  NoNewPrivileges=true
+  PrivateTmp=true
+  PrivateDevices=true
+  ProtectSystem=strict
+  ProtectHome=true
+  ProtectKernelTunables=true
+  ProtectControlGroups=true
+  RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+  CapabilityBoundingSet=
+  ReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial
+  """)
+  EOF
+  echo DONE
+    DONE
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 5s
+    I'm checking whether the nginx config can be validated without nginx itself: crossplane isn't installable, and nginx isn't available here. I'll quickly check whether docker exists, and otherwise leave the `nginx -t` run to the lead. There's also a likely problem: the port 443 server for www uses `ssl_session_cache shared:SSL:10m`, but that shared zone is already defined in the apex server, and nginx may reject the duplicate.
+
+    I'm double-checking the nginx setup for issues: the catch-all 443 server with `ssl_reject_handshake` doesn't need a certificate on nginx 1.19.4 and later, and the shared SSL cache zone is fine to reference from both servers. Then I'll look at whether docker is available to run a real validation.
+  ── Ran which docker podman nginx openresty 2>&1 | grep -v "not found"; ls /opt/homebrew/bin | grep -iE "nginx|docker" ; echo "--"; brew list 2>/dev/null | grep -i nginx
+    $ which docker podman nginx openresty 2>&1 | grep -v "not found"; ls /opt/homebrew/bin | grep -iE "nginx|docker" ; echo "--"; brew list 2>/dev/null | grep -i nginx
+    ~/.docker/bin/docker
+    --
+  ── Ran docker version --format '{{.Server.Version}}' 2>&1 | tail -2; docker images --format '{{.Repository}}:{{.Tag}}' 2>&1 | head
+    $ docker version --format '{{.Server.Version}}' 2>&1 | tail -2; docker images --format '{{.Repository}}:{{.Tag}}' 2>&1 | head
+    failed to connect to the docker API at unix://~/.docker/run/docker.sock; check if the path is correct and if the daemon is running: dial unix ~/.docker/run/docker.sock: connect: no such file or directory
+    failed to connect to the docker API at unix://~/.docker/run/docker.sock; check if the path is correct and if the daemon is running: dial unix ~/.docker/run/docker.sock: connect: no such file or directory
+  ── Thought for 4ms
+    The Docker daemon isn't running, so I'll skip that check and leave the nginx config test to the team lead on the server. Instead I'll write a static structural test in the tests directory, plus a simple brace-balance and directive check. After that I'm moving on to writing the new version of backup.sh.
+
+── Assistant ───────────────────────────────────────────────
+Docker is not running and nginx is not installed, so `nginx -t` will run on the server (Team lead). Now `backup.sh`.
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Ran set -e; C=$TMPDIR/t016; cd $C; python3 - <<'EOF' import pathlib def sub(path, old, new):     p=pathlib.Path(path); t=p.read_text(); assert t.count(old)==1,(path,old[:60]); p.write_text(t.replace(old,new)) sub("deploy/backup.sh", """KEEP_DAYS="${KEEP_DAYS:-7}" set -a . /etc/deanery/deanery.env set +a STAMP="$(date +%Y%m%d-%H%M%S)" mkdir -p "$BACKUP_DIR" pg_dump --no-owner --no-privileges "$DATABASE_URL" | gzip -9 > "$BACKUP_DIR/db-$STAMP.sql.gz" """, """KEEP_DAYS="${KEEP_DAYS:-7}" ENV_FILE="${DEANERY_ENV_FILE:-/etc/deanery/deanery.env}" set -a . "$ENV_FILE" set +a # The password goes to pg_dump through the libpq environment, never on the command line (PT1-F13). DB_URL_RE='^postgres(ql)?://([^:/@]+):([^@]+)@([^:/@]+):([0-9]+)/([^/?]+)$' if [[ ! "$DATABASE_URL" =~ $DB_URL_RE ]]; then     echo "backup failed: DATABASE_URL must look like postgres://user:password@host:port/name" >&2     exit 1 fi export PGUSER="${BASH_REMATCH[2]}" PGPASSWORD="${BASH_REMATCH[3]}" PGHOST="${BASH_REMATCH[4]}" export PGPORT="${BASH_REMATCH[5]}" PGDATABASE="${BASH_REMATCH[6]}" unset DATABASE_URL STAMP="$(date +%Y%m%d-%H%M%S)" mkdir -p "$BACKUP_DIR" pg_dump --no-owner --no-privileges | gzip -9 > "$BACKUP_DIR/db-$STAMP.sql.gz" """) EOF bash -n deploy/backup.sh && echo BASH_OK; cat -n deploy/backup.sh
+    $ set -e; C=$TMPDIR/t016; cd $C; python3 - <<'EOF'
+  import pathlib
+  def sub(path, old, new):
+      p=pathlib.Path(path); t=p.read_text(); assert t.count(old)==1,(path,old[:60]); p.write_text(t.replace(old,new))
+  sub("deploy/backup.sh", """KEEP_DAYS="${KEEP_DAYS:-7}"
+  set -a
+  . /etc/deanery/deanery.env
+  set +a
+  STAMP="$(date +%Y%m%d-%H%M%S)"
+  mkdir -p "$BACKUP_DIR"
+  pg_dump --no-owner --no-privileges "$DATABASE_URL" | gzip -9 > "$BACKUP_DIR/db-$STAMP.sql.gz"
+  """, """KEEP_DAYS="${KEEP_DAYS:-7}"
+  ENV_FILE="${DEANERY_ENV_FILE:-/etc/deanery/deanery.env}"
+  set -a
+  . "$ENV_FILE"
+  set +a
+  # The password goes to pg_dump through the libpq environment, never on the command line (PT1-F13).
+  DB_URL_RE='^postgres(ql)?://([^:/@]+):([^@]+)@([^:/@]+):([0-9]+)/([^/?]+)$'
+  if [[ ! "$DATABASE_URL" =~ $DB_URL_RE ]]; then
+      echo "backup failed: DATABASE_URL must look like postgres://user:password@host:port/name" >&2
+      exit 1
+  fi
+  export PGUSER="${BASH_REMATCH[2]}" PGPASSWORD="${BASH_REMATCH[3]}" PGHOST="${BASH_REMATCH[4]}"
+  export PGPORT="${BASH_REMATCH[5]}" PGDATABASE="${BASH_REMATCH[6]}"
+  unset DATABASE_URL
+  STAMP="$(date +%Y%m%d-%H%M%S)"
+  mkdir -p "$BACKUP_DIR"
+  pg_dump --no-owner --no-privileges | gzip -9 > "$BACKUP_DIR/db-$STAMP.sql.gz"
+  """)
+  EOF
+  bash -n deploy/backup.sh && echo BASH_OK; cat -n deploy/backup.sh
+    BASH_OK
+         1	#!/usr/bin/env bash
+         2	# Daily backup: gzip-compressed pg_dump + tar.gz of PRIVATE_MEDIA_ROOT; keeps KEEP_DAYS days.
+         3	set -euo pipefail
+         4	umask 077
+         5	# Start from / so the script works from any directory (find restores the start directory).
+         6	cd /
+         7	BACKUP_DIR="${BACKUP_DIR:-/srv/deanery/backups}"
+         8	KEEP_DAYS="${KEEP_DAYS:-7}"
+         9	ENV_FILE="${DEANERY_ENV_FILE:-/etc/deanery/deanery.env}"
+        10	set -a
+        11	. "$ENV_FILE"
+        12	set +a
+        13	# The password goes to pg_dump through the libpq environment, never on the command line (PT1-F13).
+        14	DB_URL_RE='^postgres(ql)?://([^:/@]+):([^@]+)@([^:/@]+):([0-9]+)/([^/?]+)$'
+        15	if [[ ! "$DATABASE_URL" =~ $DB_URL_RE ]]; then
+        16	    echo "backup failed: DATABASE_URL must look like postgres://user:password@host:port/name" >&2
+        17	    exit 1
+        18	fi
+        19	export PGUSER="${BASH_REMATCH[2]}" PGPASSWORD="${BASH_REMATCH[3]}" PGHOST="${BASH_REMATCH[4]}"
+        20	export PGPORT="${BASH_REMATCH[5]}" PGDATABASE="${BASH_REMATCH[6]}"
+        21	unset DATABASE_URL
+        22	STAMP="$(date +%Y%m%d-%H%M%S)"
+        23	mkdir -p "$BACKUP_DIR"
+        24	pg_dump --no-owner --no-privileges | gzip -9 > "$BACKUP_DIR/db-$STAMP.sql.gz"
+        25	tar -czf "$BACKUP_DIR/media-$STAMP.tar.gz" -C "$(dirname "$PRIVATE_MEDIA_ROOT")" "$(basename "$PRIVATE_MEDIA_ROOT")"
+        26	find "$BACKUP_DIR" -maxdepth 1 -type f \( -name 'db-*.sql.gz' -o -name 'media-*.tar.gz' \) -mtime +"$((KEEP_DAYS - 1))" -delete
+        27	echo "backup ok: $STAMP"
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 5s
+    The env file also exports SECRET_KEY and similar values into pg_dump's environment, which was already the case before this change. Using PGPASSWORD is acceptable here since the lead allowed it. I'm also checking how the secret scan in test_secret_scan handles the PGPASSWORD assignment in backup.sh.
+
+    I'm checking the secret-scan regex against backup.sh: the `export` line doesn't match the name pattern, and the random-string pattern doesn't trigger either. The DB URL regex in single quotes also looks right for the `=~` test. Next I'll write a functional test with a stub pg_dump and add a short comment noting that DEANERY_ENV_FILE is for tests.
+  ── Ran set -e; C=$TMPDIR/t016; cd $C; python3 - <<'EOF' import pathlib def sub(path, old, new):     p=pathlib.Path(path); t=p.read_text(); assert t.count(old)==1,(path,old[:60]); p.write_text(t.replace(old,new)) sub("deploy/backup.sh", 'ENV_FILE="${DEANERY_ENV_FILE:-/etc/deanery/deanery.env}"\n', '# DEANERY_ENV_FILE overrides the env file path (used by the tests).\nENV_FILE="${DEANERY_ENV_FILE:-/etc/deanery/deanery.env}"\n') EOF cat >> core/tests/test_deploy.py <<'EOF' class BackupScriptRunTests(SimpleTestCase):     """TASK-016: run backup.sh with a stub pg_dump; the password never reaches the command line."""     PASSWORD = "0123abcd4567ef89dummydbpass"     def test_password_not_on_command_line(self):         bash = shutil.which("bash")         if bash is None or shutil.which("tar") is None or shutil.which("gzip") is None:             self.skipTest("bash, tar or gzip not available")         with tempfile.TemporaryDirectory() as tmp:             root = Path(tmp)             (root / "bin").mkdir()             (root / "media" / "private_media").mkdir(parents=True)             (root / "media" / "private_media" / "a.pdf").write_bytes(b"%PDF-1.4")             stub = root / "bin" / "pg_dump"             stub.write_text(                 "#!/usr/bin/env bash\n"                 f'printf "%s\\n" "$@" > "{root}/args"\n'                 f'env | grep -E "^PG(USER|PASSWORD|HOST|PORT|DATABASE)=" | sort > "{root}/pgenv"\n'                 f'env | grep -c "^DATABASE_URL=" > "{root}/dburl" || true\n'                 'echo "-- dump"\n',                 encoding="utf-8",             )             stub.chmod(0o755)             env_file = root / "deanery.env"             env_file.write_text(                 f"DATABASE_URL=postgres://deanery:{self.PASSWORD}@localhost:5432/deanery_trial\n"                 f"PRIVATE_MEDIA_ROOT={root}/media/private_media\n",                 encoding="utf-8",             )             env = {                 "PATH": f"{root / 'bin'}{os.pathsep}{os.environ['PATH']}",                 "BACKUP_DIR": str(root / "backups"),                 "DEANERY_ENV_FILE": str(env_file),             }             result = subprocess.run(  # noqa: S603                 [bash, str(BACKUP_SH)], env=env, capture_output=True, text=True, timeout=60             )             self.assertEqual(result.returncode, 0, result.stderr)             self.assertIn("backup ok:", result.stdout)             args = (root / "args").read_text(encoding="utf-8")             self.assertNotIn(self.PASSWORD, args)             self.assertEqual(args.split(), ["--no-owner", "--no-privileges"])             self.assertEqual(                 (root / "pgenv").read_text(encoding="utf-8").split(),                 [                     "PGDATABASE=deanery_trial",                     "PGHOST=localhost",                     f"PGPASSWORD={self.PASSWORD}",                     "PGPORT=5432",                     "PGUSER=deanery",                 ],             )             self.assertEqual((root / "dburl").read_text(encoding="utf-8").strip(), "0")             names = sorted(p.name for p in (root / "backups").iterdir())             self.assertEqual(len(names), 2)             self.assertTrue(names[0].startswith("db-") and names[0].endswith(".sql.gz"))             self.assertTrue(names[1].startswith("media-") and names[1].endswith(".tar.gz"))     def test_bad_database_url_fails(self):         bash = shutil.which("bash")         if bash is None:             self.skipTest("bash not available")         with tempfile.TemporaryDirectory() as tmp:             env_file = Path(tmp) / "deanery.env"             env_file.write_text("DATABASE_URL=sqlite:///db.sqlite3\n", encoding="utf-8")             env = {                 "PATH": os.environ["PATH"],                 "BACKUP_DIR": str(Path(tmp) / "backups"),                 "DEANERY_ENV_FILE": str(env_file),             }             result = subprocess.run(  # noqa: S603                 [bash, str(BACKUP_SH)], env=env, capture_output=True, text=True, timeout=60             )             self.assertNotEqual(result.returncode, 0)             self.assertIn("DATABASE_URL must look like", result.stderr)             self.assertFalse((Path(tmp) / "backups").exists()) EOF sed -i '' 's/^import sys$/import sys\nimport tempfile/' core/tests/test_deploy.py; export DEBUG=true SECRET_KEY=x; ~/hackatonproject/.venv/bin/ruff check core/tests/test_deploy.py && ~/hackatonproject/.venv/bin/ruff format core/tests/test_deploy.py; ~/hackatonproject/.venv/bin/python manage.py test core.tests.test_deploy 2>&1 | grep -E "^Ran|^OK|^FAILED|^(FAIL|ERROR):|Error" | head (3s)
+    $ set -e; C=$TMPDIR/t016; cd $C; python3 - <<'EOF'
+  import pathlib
+  def sub(path, old, new):
+      p=pathlib.Path(path); t=p.read_text(); assert t.count(old)==1,(path,old[:60]); p.write_text(t.replace(old,new))
+  sub("deploy/backup.sh", 'ENV_FILE="${DEANERY_ENV_FILE:-/etc/deanery/deanery.env}"\n', '# DEANERY_ENV_FILE overrides the env file path (used by the tests).\nENV_FILE="${DEANERY_ENV_FILE:-/etc/deanery/deanery.env}"\n')
+  EOF
+  cat >> core/tests/test_deploy.py <<'EOF'
+
+
+  class BackupScriptRunTests(SimpleTestCase):
+      """TASK-016: run backup.sh with a stub pg_dump; the password never reaches the command line."""
+
+      PASSWORD = "0123abcd4567ef89dummydbpass"
+
+      def test_password_not_on_command_line(self):
+          bash = shutil.which("bash")
+          if bash is None or shutil.which("tar") is None or shutil.which("gzip") is None:
+              self.skipTest("bash, tar or gzip not available")
+          with tempfile.TemporaryDirectory() as tmp:
+              root = Path(tmp)
+              (root / "bin").mkdir()
+              (root / "media" / "private_media").mkdir(parents=True)
+              (root / "media" / "private_media" / "a.pdf").write_bytes(b"%PDF-1.4")
+              stub = root / "bin" / "pg_dump"
+              stub.write_text(
+                  "#!/usr/bin/env bash\n"
+                  f'printf "%s\\n" "$@" > "{root}/args"\n'
+                  f'env | grep -E "^PG(USER|PASSWORD|HOST|PORT|DATABASE)=" | sort > "{root}/pgenv"\n'
+                  f'env | grep -c "^DATABASE_URL=" > "{root}/dburl" || true\n'
+                  'echo "-- dump"\n',
+                  encoding="utf-8",
+              )
+              stub.chmod(0o755)
+              env_file = root / "deanery.env"
+              env_file.write_text(
+                  f"DATABASE_URL=postgres://deanery:{self.PASSWORD}@localhost:5432/deanery_trial\n"
+                  f"PRIVATE_MEDIA_ROOT={root}/media/private_media\n",
+                  encoding="utf-8",
+              )
+              env = {
+                  "PATH": f"{root / 'bin'}{os.pathsep}{os.environ['PATH']}",
+                  "BACKUP_DIR": str(root / "backups"),
+                  "DEANERY_ENV_FILE": str(env_file),
+              }
+              result = subprocess.run(  # noqa: S603
+                  [bash, str(BACKUP_SH)], env=env, capture_output=True, text=True, timeout=60
+              )
+              self.assertEqual(result.returncode, 0, result.stderr)
+              self.assertIn("backup ok:", result.stdout)
+              args = (root / "args").read_text(encoding="utf-8")
+              self.assertNotIn(self.PASSWORD, args)
+              self.assertEqual(args.split(), ["--no-owner", "--no-privileges"])
+              self.assertEqual(
+                  (root / "pgenv").read_text(encoding="utf-8").split(),
+                  [
+                      "PGDATABASE=deanery_trial",
+                      "PGHOST=localhost",
+                      f"PGPASSWORD={self.PASSWORD}",
+                      "PGPORT=5432",
+                      "PGUSER=deanery",
+                  ],
+              )
+              self.assertEqual((root / "dburl").read_text(encoding="utf-8").strip(), "0")
+              names = sorted(p.name for p in (root / "backups").iterdir())
+              self.assertEqual(len(names), 2)
+              self.assertTrue(names[0].startswith("db-") and names[0].endswith(".sql.gz"))
+              self.assertTrue(names[1].startswith("media-") and names[1].endswith(".tar.gz"))
+
+      def test_bad_database_url_fails(self):
+          bash = shutil.which("bash")
+          if bash is None:
+              self.skipTest("bash not available")
+          with tempfile.TemporaryDirectory() as tmp:
+              env_file = Path(tmp) / "deanery.env"
+              env_file.write_text("DATABASE_URL=sqlite:///db.sqlite3\n", encoding="utf-8")
+              env = {
+                  "PATH": os.environ["PATH"],
+                  "BACKUP_DIR": str(Path(tmp) / "backups"),
+                  "DEANERY_ENV_FILE": str(env_file),
+              }
+              result = subprocess.run(  # noqa: S603
+                  [bash, str(BACKUP_SH)], env=env, capture_output=True, text=True, timeout=60
+              )
+              self.assertNotEqual(result.returncode, 0)
+              self.assertIn("DATABASE_URL must look like", result.stderr)
+              self.assertFalse((Path(tmp) / "backups").exists())
+  EOF
+  sed -i '' 's/^import sys$/import sys\nimport tempfile/' core/tests/test_deploy.py; export DEBUG=true SECRET_KEY=x; ~/hackatonproject/.venv/bin/ruff check core/tests/test_deploy.py && ~/hackatonproject/.venv/bin/ruff format core/tests/test_deploy.py; ~/hackatonproject/.venv/bin/python manage.py test core.tests.test_deploy 2>&1 | grep -E "^Ran|^OK|^FAILED|^(FAIL|ERROR):|Error" | head
+    All checks passed!
+    1 file left unchanged
+    FAIL: test_http_redirects_to_https (core.tests.test_deploy.NginxTemplateTests.test_http_redirects_to_https)
+    AssertionError: 'return 301 https://$host$request_uri;' not found in '# Deanery prototype. Static files are served by Django/WhiteNoise; nginx serves no project files.\n# PRIVATE_MEDIA_ROOT must never get a location here (attachments go through Django access checks).\n# This file is included inside the http {} block (sites-enabled), so the zones below are valid here.\n\n# Login forms: POST requests per client IP (PT1-F1). GET requests have an empty key: not limited.\nmap $request_method $deanery_login_key {\n    POST    $binary_remote_addr;\n    default "";\n}\nlimit_req_zone $deanery_login_key zone=deanery_login:10m rate=10r/m;\n# Concurrent requests per client IP, whole site.\nlimit_conn_zone $binary_remote_addr zone=deanery_conn:10m;\n\n# Requests by IP address or for any other host name: close the connection (PT1-F4).\nserver {\n    listen 80 default_server;\n    listen [::]:80 default_server;\n    server_name _;\n    server_tokens off;\n    return 444;\n}\n\nserver {\n    listen 443 ssl http2 default_server;\n    listen [::]:443 ssl http2 default_server;\n    server_name _;\n    server_tokens off;\n    ssl_reject_handshake on;\n}\n\n# HTTP for the domain and www: ACME challenges, everything else to the HTTPS domain.\nserver {\n    listen 80;\n    listen [::]:80;\n    server_name example.com www.example.com;\n    server_tokens off;\n\n    location ^~ /.well-known/acme-challenge/ {\n        root /var/www/letsencrypt;\n        default_type "text/plain";\n    }\n\n    location / {\n        return 301 https://example.com$request_uri;\n    }\n}\n\n# HTTPS www: redirect to the domain. The certificate covers both names.\nserver {\n    listen 443 ssl http2;\n    listen [::]:443 ssl http2;\n    server_name www.example.com;\n    server_tokens off;\n\n    ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;\n    ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;\n    ssl_protocols TLSv1.2 TLSv1.3;\n    ssl_prefer_server_ciphers off;\n    ssl_session_tickets off;\n\n    return 301 https://example.com$request_uri;\n}\n\nserver {\n    listen 443 ssl http2;\n    listen [::]:443 ssl http2;\n    server_name example.com;\n    server_tokens off;\n\n    ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;\n    ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;\n    ssl_protocols TLSv1.2 TLSv1.3;\n    ssl_prefer_server_ciphers off;\n    ssl_session_cache shared:SSL:10m;\n    ssl_session_timeout 1d;\n    ssl_session_tickets off;\n\n    client_max_body_size 20m;\n\n    limit_conn deanery_conn 20;\n    limit_conn_status 429;\n    limit_req_status 429;\n\n    # Not set by Django; X-Frame-Options, nosniff, Referrer-Policy, CSP and HSTS come from Django.\n    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;\n\n    # Server level: every location below inherits these.\n    proxy_set_header Host $host;\n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    proxy_set_header X-Forwarded-Proto $scheme;\n    proxy_redirect off;\n    proxy_connect_timeout 5s;\n    proxy_read_timeout 60s;\n\n    # /login/ and the admin login /<ADMIN_URL>login/ (any path ending in /login/).\n    location ~ ^/(?:[A-Za-z0-9_-]+/)*login/$ {\n        limit_req zone=deanery_login burst=10 nodelay;\n        proxy_pass http://127.0.0.1:8000;\n    }\n\n    location / {\n        proxy_pass http://127.0.0.1:8000;\n    }\n}\n'
+    FAIL: test_hardening (core.tests.test_deploy.SystemdUnitTests.test_hardening)
+    AssertionError: 'ProtectSystem=full' not found in '[Unit]\nDescription=Deanery prototype (gunicorn)\nAfter=network.target postgresql.service\nWants=postgresql.service\n\n[Service]\nType=simple\nUser=<APP_USER>\nGroup=<APP_USER>\nWorkingDirectory=/srv/deanery/app\nEnvironmentFile=/etc/deanery/deanery.env\nExecStart=/srv/deanery/venv/bin/gunicorn -c deploy/gunicorn.conf.py config.wsgi:application\nRestart=on-failure\nRestartSec=5\nKillMode=mixed\nTimeoutStopSec=35\n# Sandbox (PT1-F13). At run time the app writes only uploads to PRIVATE_MEDIA_ROOT and\n# temporary files (large uploads, gunicorn heartbeats) to its private /tmp.\nNoNewPrivileges=true\nPrivateTmp=true\nPrivateDevices=true\nProtectSystem=strict\nProtectHome=true\nProtectKernelTunables=true\nProtectControlGroups=true\nRestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX\nCapabilityBoundingSet=\nReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial\n\n[Install]\nWantedBy=multi-user.target\n'
+    Ran 47 tests in 1.572s
+    FAILED (failures=2)
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 1s
+    The two expected failures need updating, and the backup tests pass with 47 run, including the two new ones. The backup functional test also passes on macOS despite the xattr tar warnings. I'm double-checking the password test: the `grep -c` call returns 0 and exits 1, which the `|| true` handles. Next I'm going to verify the gunicorn config with `gunicorn --check-config`.
+
+    Next I'm checking that gunicorn's `secure_scheme_headers` loads and that the forwarded-allow settings are fine. Then I'll turn to the runbook, reviewing the current DEPLOY.md steps 0, 6, 12, 13 and 16 before adding section 21.
+
+── Assistant ───────────────────────────────────────────────
+Expected: two old tests check the old nginx redirect and `ProtectSystem=full`, I'll update them in the spec. The new backup tests pass. Now the runbook.
+
+── Read docs/DEPLOY.md ─────────────────────────────────────
+  $ cd ~/hackatonproject; sed -n 1,40p docs/DEPLOY.md; grep -n "^## \|adduser\|certbot certonly\|seed_demo\|sites-enabled/default\|DEMO_PW\|ssh-copy-id\|ssh-keygen" docs/DEPLOY.md
+
+── Assistant ───────────────────────────────────────────────
+You've hit your 5-hour limit · resets 1pm (America/Los_Angeles)
+
+── Error ───────────────────────────────────────────────────
+  Provider rate limit reached
+  You've hit your 5-hour limit · resets 1pm (America/Los_Angeles)
+
+── Explored 1 file, 1 search ───────────────────────────────
+  ── Thought for 10ms
+    I'm going to make the runbook edits in the copy, starting by reading the relevant DEPLOY.md section at lines 160 to 240.
+  ── Read docs/DEPLOY.md
+  ── Thought for 8s
+    I'm adjusting the runbook copy: step 0 now asks for a domain with A records already pointing at the server, and the sudo user's SSH key gets set up with ssh-copy-id. I'm also noting that the service account gets no login shell and no SSH key, and changing step 6 to use /usr/sbin/nologin.
+
+    Next I'm working through the remaining runbook edits: the certbot command now covers both the bare domain and the www host, the smoke-test step gets a redirect check, a CSP header check, and a by-IP rejection check, and the demo password line gets removed from the env file after seeding. I'm also adding a one-time update section for servers installed before the earlier task, covering the shell change, the nginx re-render, and confirming the certificate includes both names.
+
+    I'm reworking the remaining runbook parts: the temporary www site file on the server needs removing so its server_name doesn't clash with the apex, then the systemd unit gets re-rendered, the daemon reloaded, and the service restarted. I'm also planning `systemd-analyze security` and `systemd-analyze verify` checks plus a smoke test, and I'm leaving the README alone. The CI section is starting to take shape with a dependency audit step after the install step.
+
+    Still writing the CI dependency audit step...
+  ── Searched for ci.yml\|workflows in .
+
+── Assistant ───────────────────────────────────────────────
+Now the runbook and CI edits in the copy.
+
+── Ran 4 commands ──────────────────────────────────────────
+  ── Ran set -e; C=$TMPDIR/t016; cd $C; python3 - <<'EOF' import pathlib def sub(path, old, new):     p=pathlib.Path(path); t=p.read_text(); assert t.count(old)==1,(path,old[:60]); p.write_text(t.replace(old,new)) md="docs/DEPLOY.md" sub(md, """- a domain whose `A` record already points at the server IP; - an SSH key you created and installed on the server: ```bash ssh-keygen -t ed25519 ssh-copy-id "$APP_USER"@<server-ip> ``` """, """- a domain whose `A` records for `$DOMAIN` and `www.$DOMAIN` already point at   the server IP; - an SSH key you created and installed for your own sudo user (never for   `$APP_USER`: the service account has no login shell and no SSH key): ```bash ssh-keygen -t ed25519 ssh-copy-id <your-sudo-user>@<server-ip> ``` """) sub(md, 'sudo adduser --system --group --home /srv/deanery --shell /bin/bash "$APP_USER"\n',         'sudo adduser --system --group --home /srv/deanery --shell /usr/sbin/nologin "$APP_USER"\n') sub(md, """``` ## 7. Python venv""", """``` `sudo -u "$APP_USER" <command>` still works with the `nologin` shell. ## 7. Python venv""") sub(md, 'sudo certbot certonly --webroot -w /var/www/letsencrypt -d "$DOMAIN" --email',         'sudo certbot certonly --webroot -w /var/www/letsencrypt -d "$DOMAIN" -d "www.$DOMAIN" --email') sub(md, """curl -sI http://$DOMAIN/ | head -1 curl -s https://$DOMAIN/health/ curl -s -o /dev/null -w '%{http_code}' https://$DOMAIN/private_media/ ``` Expected: `http://` → 301 to https; `/health/` → ok; `/private_media/` → 404. """, """curl -sI http://$DOMAIN/ | head -1 curl -sI https://www.$DOMAIN/ | grep -iE '^(HTTP|location)' curl -s https://$DOMAIN/health/ curl -s -o /dev/null -w '%{http_code}\\n' https://$DOMAIN/private_media/ curl -sI https://$DOMAIN/login/ | grep -i '^content-security-policy' curl -s -o /dev/null -w '%{http_code}\\n' -H 'Host: other.example' http://127.0.0.1/ ``` Expected: `http://` → 301 to https; `https://www.` → 301 to `https://$DOMAIN/`; `/health/` → ok; `/private_media/` → 404; the login page has a `Content-Security-Policy` header; a foreign Host → `000` (nginx closes the connection). """) sub(md, """$M migrate $M seed_demo sudo systemctl restart deanery ``` Run `seed_demo` exactly once;""", """$M migrate $M seed_demo sudo sed -i '/^DEMO_PASSWORD=/d' /etc/deanery/deanery.env sudo systemctl restart deanery ``` The app does not read `DEMO_PASSWORD` at run time; only `seed_demo` needs it, so it is removed from the env file right after seeding. Run `seed_demo` exactly once;""") t=pathlib.Path(md).read_text().rstrip("\n") t += """ ## 21. One-time hardening of a server installed before TASK-016 Run after the update procedure (step 17) has pulled the TASK-016 code. ```bash sudo usermod --shell /usr/sbin/nologin "$APP_USER" getent passwd "$APP_USER" sudo ls -la /srv/deanery/.ssh 2>/dev/null || echo "no .ssh directory" sudo certbot certificates ``` `getent` must end with `/usr/sbin/nologin`. `certbot certificates` must list both `$DOMAIN` and `www.$DOMAIN` for the certificate in `/etc/letsencrypt/live/$DOMAIN/`; if `www` is missing, run the `certbot certonly` command of step 12 with `--expand`. Remove the temporary `www` redirect site (it now lives in the template), then install the new nginx site and the new systemd unit: ```bash sudo rm /etc/nginx/sites-enabled/<temporary www site> sed "s/example.com/$DOMAIN/g" /srv/deanery/app/deploy/nginx/deanery.conf | sudo tee /etc/nginx/sites-available/deanery > /dev/null sudo nginx -t && sudo systemctl reload nginx sed "s/<APP_USER>/$APP_USER/g" /srv/deanery/app/deploy/systemd/deanery.service | sudo tee /etc/systemd/system/deanery.service > /dev/null sudo systemd-analyze verify /etc/systemd/system/deanery.service sudo systemctl daemon-reload && sudo systemctl restart deanery systemctl status deanery systemd-analyze security deanery | tail -1 ``` Then repeat the smoke check (step 15), upload and download a PDF as a student, and run `sudo -u "$APP_USER" /srv/deanery/app/deploy/backup.sh` once. """ pathlib.Path(md).write_text(t) ci=".github/workflows/ci.yml" sub(ci, """      - name: Install dependencies         run: python -m pip install -r requirements-dev.txt """, """      - name: Install dependencies         run: python -m pip install -r requirements-dev.txt       - name: Dependency audit         run: |           python -m pip install pip-audit==2.10.1           pip-audit --requirement requirements.txt --progress-spinner off """) EOF grep -n "^## " docs/DEPLOY.md | tail -4; ~/hackatonproject/.venv/bin/python -c "import yaml; d=yaml.safe_load(open('.github/workflows/ci.yml')); print([s.get('name') for s in d['jobs']['test']['steps']][:6])"
+    $ set -e; C=$TMPDIR/t016; cd $C; python3 - <<'EOF'
+  import pathlib
+  def sub(path, old, new):
+      p=pathlib.Path(path); t=p.read_text(); assert t.count(old)==1,(path,old[:60]); p.write_text(t.replace(old,new))
+  md="docs/DEPLOY.md"
+  sub(md, """- a domain whose `A` record already points at the server IP;
+  - an SSH key you created and installed on the server:
+
+  ```bash
+  ssh-keygen -t ed25519
+  ssh-copy-id "$APP_USER"@<server-ip>
+  ```
+  """, """- a domain whose `A` records for `$DOMAIN` and `www.$DOMAIN` already point at
+    the server IP;
+  - an SSH key you created and installed for your own sudo user (never for
+    `$APP_USER`: the service account has no login shell and no SSH key):
+
+  ```bash
+  ssh-keygen -t ed25519
+  ssh-copy-id <your-sudo-user>@<server-ip>
+  ```
+  """)
+  sub(md, 'sudo adduser --system --group --home /srv/deanery --shell /bin/bash "$APP_USER"\n',
+          'sudo adduser --system --group --home /srv/deanery --shell /usr/sbin/nologin "$APP_USER"\n')
+  sub(md, """```
+
+  ## 7. Python venv""", """```
+
+  `sudo -u "$APP_USER" <command>` still works with the `nologin` shell.
+
+  ## 7. Python venv""")
+  sub(md, 'sudo certbot certonly --webroot -w /var/www/letsencrypt -d "$DOMAIN" --email',
+          'sudo certbot certonly --webroot -w /var/www/letsencrypt -d "$DOMAIN" -d "www.$DOMAIN" --email')
+  sub(md, """curl -sI http://$DOMAIN/ | head -1
+  curl -s https://$DOMAIN/health/
+  curl -s -o /dev/null -w '%{http_code}' https://$DOMAIN/private_media/
+  ```
+
+  Expected: `http://` → 301 to https; `/health/` → ok; `/private_media/` → 404.
+  """, """curl -sI http://$DOMAIN/ | head -1
+  curl -sI https://www.$DOMAIN/ | grep -iE '^(HTTP|location)'
+  curl -s https://$DOMAIN/health/
+  curl -s -o /dev/null -w '%{http_code}\\n' https://$DOMAIN/private_media/
+  curl -sI https://$DOMAIN/login/ | grep -i '^content-security-policy'
+  curl -s -o /dev/null -w '%{http_code}\\n' -H 'Host: other.example' http://127.0.0.1/
+  ```
+
+  Expected: `http://` → 301 to https; `https://www.` → 301 to `https://$DOMAIN/`;
+  `/health/` → ok; `/private_media/` → 404; the login page has a
+  `Content-Security-Policy` header; a foreign Host → `000` (nginx closes the
+  connection).
+  """)
+  sub(md, """$M migrate
+  $M seed_demo
+  sudo systemctl restart deanery
+  ```
+
+  Run `seed_demo` exactly once;""", """$M migrate
+  $M seed_demo
+  sudo sed -i '/^DEMO_PASSWORD=/d' /etc/deanery/deanery.env
+  sudo systemctl restart deanery
+  ```
+
+  The app does not read `DEMO_PASSWORD` at run time; only `seed_demo` needs it, so
+  it is removed from the env file right after seeding.
+
+  Run `seed_demo` exactly once;""")
+  t=pathlib.Path(md).read_text().rstrip("\n")
+  t += """
+
+  ## 21. One-time hardening of a server installed before TASK-016
+
+  Run after the update procedure (step 17) has pulled the TASK-016 code.
+
+  ```bash
+  sudo usermod --shell /usr/sbin/nologin "$APP_USER"
+  getent passwd "$APP_USER"
+  sudo ls -la /srv/deanery/.ssh 2>/dev/null || echo "no .ssh directory"
+  sudo certbot certificates
+  ```
+
+  `getent` must end with `/usr/sbin/nologin`. `certbot certificates` must list
+  both `$DOMAIN` and `www.$DOMAIN` for the certificate in
+  `/etc/letsencrypt/live/$DOMAIN/`; if `www` is missing, run the `certbot
+  certonly` command of step 12 with `--expand`. Remove the temporary `www`
+  redirect site (it now lives in the template), then install the new nginx site
+  and the new systemd unit:
+
+  ```bash
+  sudo rm /etc/nginx/sites-enabled/<temporary www site>
+  sed "s/example.com/$DOMAIN/g" /srv/deanery/app/deploy/nginx/deanery.conf | sudo tee /etc/nginx/sites-available/deanery > /dev/null
+  sudo nginx -t && sudo systemctl reload nginx
+  sed "s/<APP_USER>/$APP_USER/g" /srv/deanery/app/deploy/systemd/deanery.service | sudo tee /etc/systemd/system/deanery.service > /dev/null
+  sudo systemd-analyze verify /etc/systemd/system/deanery.service
+  sudo systemctl daemon-reload && sudo systemctl restart deanery
+  systemctl status deanery
+  systemd-analyze security deanery | tail -1
+  ```
+
+  Then repeat the smoke check (step 15), upload and download a PDF as a student,
+  and run `sudo -u "$APP_USER" /srv/deanery/app/deploy/backup.sh` once.
+  """
+  pathlib.Path(md).write_text(t)
+  ci=".github/workflows/ci.yml"
+  sub(ci, """      - name: Install dependencies
+          run: python -m pip install -r requirements-dev.txt
+  """, """      - name: Install dependencies
+          run: python -m pip install -r requirements-dev.txt
+        - name: Dependency audit
+          run: |
+            python -m pip install pip-audit==2.10.1
+            pip-audit --requirement requirements.txt --progress-spinner off
+  """)
+  EOF
+  grep -n "^## " docs/DEPLOY.md | tail -4; ~/hackatonproject/.venv/bin/python -c "import yaml; d=yaml.safe_load(open('.github/workflows/ci.yml')); print([s.get('name') for s in d['jobs']['test']['steps']][:6])"
+    Traceback (most recent call last):
+      File "<stdin>", line 104, in <module>
+      File "<stdin>", line 3, in sub
+    AssertionError: ('.github/workflows/ci.yml', '      - name: Install dependencies\n        run: python -m pi')
+    267:## 18. HSTS
+    282:## 19. Resources
+    316:## 20. Troubleshooting
+    325:## 21. One-time hardening of a server installed before TASK-016
+    [None, None, 'Install dependencies', 'Shell syntax', 'gunicorn config', 'Ruff lint']
+    Shell cwd was reset to ~/hackatonproject
+  ── Ran C=$TMPDIR/t016; cd $C; grep -n "Install dependencies" -A3 .github/workflows/ci.yml | cat -A | head -8
+    $ C=$TMPDIR/t016; cd $C; grep -n "Install dependencies" -A3 .github/workflows/ci.yml | cat -A | head -8
+    cat: illegal option -- A
+    usage: cat [-belnstuv] [file ...]
+    Shell cwd was reset to ~/hackatonproject
+  ── Ran C=$TMPDIR/t016; cd $C; grep -n "Install dependencies" -A2 .github/workflows/ci.yml | cat -vet
+    $ C=$TMPDIR/t016; cd $C; grep -n "Install dependencies" -A2 .github/workflows/ci.yml | cat -vet
+    25:      - name: Install dependencies$
+    26-        run: python -m pip install -r requirements-dev.txt$
+    27-      - name: Shell syntax$
+    --$
+    86:      - name: Install dependencies$
+    87-        run: python -m pip install -r requirements-dev.txt$
+    88-      - name: Django check$
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 16ms
+    I'm noting that there are two jobs here, and I want to tie the test job to the "Shell syntax" step that follows it.
+  ── Ran C=$TMPDIR/t016; cd $C; python3 - <<'EOF' import pathlib p=pathlib.Path(".github/workflows/ci.yml"); t=p.read_text() old="""        run: python -m pip install -r requirements-dev.txt       - name: Shell syntax """ new="""        run: python -m pip install -r requirements-dev.txt       - name: Dependency audit         run: |           python -m pip install pip-audit==2.10.1           pip-audit --requirement requirements.txt --progress-spinner off       - name: Shell syntax """ assert t.count(old)==1; p.write_text(t.replace(old,new)) EOF ~/hackatonproject/.venv/bin/python -c "import yaml; d=yaml.safe_load(open('.github/workflows/ci.yml')); print([s.get('name') for s in d['jobs']['test']['steps']][:6])"; curl -s --max-time 20 https://pypi.org/pypi/pip-audit/2.10.1/json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['info']['version'], d['info']['requires_python'])" (2s)
+    $ C=$TMPDIR/t016; cd $C; python3 - <<'EOF'
+  import pathlib
+  p=pathlib.Path(".github/workflows/ci.yml"); t=p.read_text()
+  old="""        run: python -m pip install -r requirements-dev.txt
+        - name: Shell syntax
+  """
+  new="""        run: python -m pip install -r requirements-dev.txt
+        - name: Dependency audit
+          run: |
+            python -m pip install pip-audit==2.10.1
+            pip-audit --requirement requirements.txt --progress-spinner off
+        - name: Shell syntax
+  """
+  assert t.count(old)==1; p.write_text(t.replace(old,new))
+  EOF
+  ~/hackatonproject/.venv/bin/python -c "import yaml; d=yaml.safe_load(open('.github/workflows/ci.yml')); print([s.get('name') for s in d['jobs']['test']['steps']][:6])"; curl -s --max-time 20 https://pypi.org/pypi/pip-audit/2.10.1/json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['info']['version'], d['info']['requires_python'])"
+    [None, None, 'Install dependencies', 'Dependency audit', 'Shell syntax', 'gunicorn config']
+    2.10.1 >=3.10
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 29s
+    I'm confirming the `--progress-spinner off` flag is valid for pip-audit 2.10, and it is. Next I'm planning tests for every item, starting with a new CSP test class in `core/tests/test_middleware.py` that checks the exact policy across the login page, student and staff pages, the admin index, the chat polling fragment, and a 404 page with DEBUG off.
+
+    I'm planning a CSP check for the login, student, staff, admin, and chat polling pages, plus a 404 with DEBUG off, and I'll confirm DEBUG on skips the header. I'm also adding a template scan for inline scripts, styles, and handlers, plus a check that student pages get private no-store caching while an anonymous redirect gets none.
+
+    Next I'm looking at the remaining checks: anonymous requests with a stale session cookie should get no Cache-Control header, and I'm skipping a static-file test since WhiteNoise won't serve from finders under test settings. I'll cover static ordering with a middleware order test instead. Then I'm moving on to IPv4 and IPv6 throttling unit tests.
+
+    I'm adding IPv6 throttling tests now: a lock shared across addresses in the same /64, and a check that a different /64 isn't locked out.
+
+    I'm now writing the petitions tests: one checking that a comment hint containing HTML is escaped on the submit page, and a staff queue test where oversized or odd type filter values are ignored and return a normal response.
+
+    I'm checking the remaining URL-kwarg cases, with oversized IDs on the new-request, staff student, grades, schedule, and map floor routes, to confirm each returns a 404. After that I'm writing chat tests: one where a student and a staff member send the same client token and each gets their own message, and an update to the token uniqueness test so the same token is allowed across different authors.
+
+    I'm now writing the deploy tests: the HTTP block should redirect to HTTPS with a fixed example.com target instead of `$host`, and I'm adding a catch-all server check for default_server listeners on ports 80 and 443 with `return 444` and `ssl_reject_handshake on`. I'm also checking the www redirect server block on port 80.
+
+    I'm writing the nginx deploy checks now: the login rate-limit zone and limit_req directives, the connection limit, and a test that pulls the login location regex out of the file and runs it with Python's `re` against paths that should and shouldn't match.
+
+    I'm checking that the proxy header lines sit at the server level with four-space indentation, so they aren't inside any location block. Next I'm making sure no file paths or private media strings show up in the active config lines. Then I'm adding a test that the client body size limit comes before the rest of the settings.
+
+    I'm checking the nginx and deploy test expectations: the HTTP redirect now targets a fixed example.com address, the www block's 443 listener sits ahead of the client body size setting, and the bootstrap config should serve the www name too. I'm also confirming the ACME location appears in both server blocks, and I still need to add the secure scheme headers to the Gunicorn defaults and update the systemd hardening test for strict protection and the read-write paths.
+
+    I'm checking the runbook tests next: the service account should use the nologin shell and not bash, there should be no ssh-copy-id for the app user, the certificate step should cover both the domain and its www name, and the demo password should be removed only after seeding.
+
+    I'm checking the deploy and CI tests next: a step-reference test and a consecutive-numbering check, plus a test that the dependency audit step runs pip-audit pinned at 2.10.1 against requirements.txt. I'm also making sure settings.py never reads DEMO_PASSWORD at runtime.
+
+    I'm adding a check that `DEMO_PASSWORD` never shows up in the settings file, to the runbook test class. Next I'm checking the petitions and accounts test helpers, and whether the academics and schedule URLs accept huge values.
+
+── Assistant ───────────────────────────────────────────────
+Runbook and CI done in the copy. Now I check which URL kwargs give 404 with huge numbers, then write the tests.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran C=$TMPDIR/t016; cd $C; export DEBUG=true SECRET_KEY=dummy-key-for-local-check DATABASE_URL=sqlite:///$C/db.sqlite3 PRIVATE_MEDIA_ROOT=$C/pm ALLOWED_HOSTS=testserver; ~/hackatonproject/.venv/bin/python - 2>&1 <<'EOF' | grep -v WARNING import os, django os.environ.setdefault("DJANGO_SETTINGS_MODULE","config.settings"); django.setup() from django.test import Client from accounts.models import User H="99999999999999999999999999" for who, paths in [("student1", [f"/requests/new/{H}/", "/staff/requests/?type="+H]), ("staff1", [f"/staff/students/{H}/", f"/staff/students/{H}/grades/", f"/staff/students/{H}/grades/2026-autumn/", f"/staff/schedule/{H}/", f"/staff/schedule/{H}/2026-11-20/", "/staff/requests/?type="+H, "/staff/requests/?type=999999999999999999", "/staff/requests/?type=-1", "/staff/requests/?type=%D9%A3", f"/staff/chats/?after={H}"]), ("student1", [f"/map/floor/{H}/", f"/chat/updates/?after={H}", "/chat/updates/?after=999999999999999999"])]:     c=Client(raise_request_exception=False); c.force_login(User.objects.get(username=who))     for p in paths:         try: print(who, p[:60], c.get(p).status_code)         except Exception as e: print(who, p[:60], "EXC", type(e).__name__, e) EOF (1s)
+    $ C=$TMPDIR/t016; cd $C; export DEBUG=true SECRET_KEY=dummy-key-for-local-check DATABASE_URL=sqlite:///$C/db.sqlite3 PRIVATE_MEDIA_ROOT=$C/pm ALLOWED_HOSTS=testserver; ~/hackatonproject/.venv/bin/python - 2>&1 <<'EOF' | grep -v WARNING
+  import os, django
+  os.environ.setdefault("DJANGO_SETTINGS_MODULE","config.settings"); django.setup()
+  from django.test import Client
+  from accounts.models import User
+  H="99999999999999999999999999"
+  for who, paths in [("student1", [f"/requests/new/{H}/", "/staff/requests/?type="+H]), ("staff1", [f"/staff/students/{H}/", f"/staff/students/{H}/grades/", f"/staff/students/{H}/grades/2026-autumn/", f"/staff/schedule/{H}/", f"/staff/schedule/{H}/2026-11-20/", "/staff/requests/?type="+H, "/staff/requests/?type=999999999999999999", "/staff/requests/?type=-1", "/staff/requests/?type=%D9%A3", f"/staff/chats/?after={H}"]), ("student1", [f"/map/floor/{H}/", f"/chat/updates/?after={H}", "/chat/updates/?after=999999999999999999"])]:
+      c=Client(raise_request_exception=False); c.force_login(User.objects.get(username=who))
+      for p in paths:
+          try: print(who, p[:60], c.get(p).status_code)
+          except Exception as e: print(who, p[:60], "EXC", type(e).__name__, e)
+  EOF
+    Traceback (most recent call last):
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+        response = get_response(request)
+                   ^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+        response = wrapped_callback(request, *callback_args, **callback_kwargs)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/views/generic/base.py", line 105, in view
+        return self.dispatch(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/private/tmp/claude-501/t016/accounts/access.py", line 40, in dispatch
+        self.profile = get_profile_for_role(request.user, self.required_role)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/private/tmp/claude-501/t016/accounts/access.py", line 28, in get_profile_for_role
+        raise PermissionDenied
+    django.core.exceptions.PermissionDenied
+    student1 /requests/new/99999999999999999999999999/ 404
+    student1 /staff/requests/?type=99999999999999999999999999 403
+    staff1 /staff/students/99999999999999999999999999/ 404
+    staff1 /staff/students/99999999999999999999999999/grades/ 404
+    staff1 /staff/students/99999999999999999999999999/grades/2026-autum 404
+    staff1 /staff/schedule/99999999999999999999999999/ 404
+    staff1 /staff/schedule/99999999999999999999999999/2026-11-20/ 404
+    staff1 /staff/requests/?type=99999999999999999999999999 200
+    staff1 /staff/requests/?type=999999999999999999 200
+    staff1 /staff/requests/?type=-1 200
+    staff1 /staff/requests/?type=%D9%A3 200
+    staff1 /staff/chats/?after=99999999999999999999999999 200
+    student1 /map/floor/99999999999999999999999999/ 404
+    student1 /chat/updates/?after=99999999999999999999999999 400
+    student1 /chat/updates/?after=999999999999999999 204
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 11ms
+    The 403 traceback is just the logged rejection. The prototype fix already returns 200 for type "huge," and I still need to confirm on HEAD that the type filter produces a 500, which the pentest reported. Next I'll write the tests in the copy, so I'm checking the existing helpers and setUp patterns in the petitions and chat test files, starting with the staff queue and submit page classes in petitions/tests/test_views.py.
+
+── Assistant ───────────────────────────────────────────────
+The fix holds: every huge kwarg gives 404, the type filter gives 200. Now I check the test helpers I will reuse.
+
+── Explored 1 search, 1 file ───────────────────────────────
+  ── Searched for ^def \|^class  in chat/tests/helpers.py
+  ── Read petitions/tests/test_views.py
+  ── Thought for 676ms
+    I'm checking whether the hint text with straight quotes or angle brackets would get escaped and break the existing hint test, since the browser renders it the same but a string assertion might not. Then I'll run the full suite to see what fails. Now I'm writing the tests.
+
+    I'm going to put the new tests into the copy, adding them to the existing test files and creating a new middleware test file in core/tests.
+
+── Assistant ───────────────────────────────────────────────
+I write all the new tests into the copy now.
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Ran set -e; C=$TMPDIR/t016; cd $C cat > core/tests/test_middleware.py <<'EOF' """TASK-016: Content-Security-Policy and no-store for signed-in users (PT1-F3, PT1-F5).""" import re from pathlib import Path from django.conf import settings from django.http import HttpResponse from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings from django.urls import reverse from accounts.models import User from accounts.tests.helpers import make_faculty, make_group, make_staff, make_student from core.middleware import (     CONTENT_SECURITY_POLICY,     ContentSecurityPolicyMiddleware,     PrivateCacheMiddleware, ) EXPECTED_CSP = (     "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; "     "font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; "     "form-action 'self'; frame-ancestors 'none'" ) class ContentSecurityPolicyTests(TestCase):     @classmethod     def setUpTestData(cls):         fac = make_faculty("FX")         group = make_group(fac, "GX")         cls.student = make_student("csp_student", group, "SA")         cls.staff = make_staff("csp_staff", fac)         cls.admin = User.objects.create_superuser("csp_admin", password="Admin-Pass-2026!")     def test_policy_value(self):         self.assertEqual(CONTENT_SECURITY_POLICY, EXPECTED_CSP)     def test_anonymous_login_page(self):         response = self.client.get(reverse("accounts:login"))         self.assertEqual(response["Content-Security-Policy"], EXPECTED_CSP)     def test_student_page(self):         self.client.force_login(self.student)         response = self.client.get(reverse("accounts:profile"))         self.assertEqual(response.status_code, 200)         self.assertEqual(response["Content-Security-Policy"], EXPECTED_CSP)     def test_staff_page(self):         self.client.force_login(self.staff)         response = self.client.get(reverse("petitions:staff_queue"))         self.assertEqual(response.status_code, 200)         self.assertEqual(response["Content-Security-Policy"], EXPECTED_CSP)     def test_admin_page_same_policy(self):         self.client.force_login(self.admin)         response = self.client.get(reverse("admin:index"))         self.assertEqual(response.status_code, 200)         self.assertEqual(response["Content-Security-Policy"], EXPECTED_CSP)     def test_redirect_and_404(self):         self.assertEqual(             self.client.get("/grades/")["Content-Security-Policy"], EXPECTED_CSP         )         self.client.force_login(self.student)         response = self.client.get("/no-such-page/")         self.assertEqual(response.status_code, 404)         self.assertEqual(response["Content-Security-Policy"], EXPECTED_CSP)     @override_settings(DEBUG=True)     def test_debug_error_pages_without_policy(self):         self.client.force_login(self.student)         response = self.client.get("/no-such-page/")         self.assertEqual(response.status_code, 404)         self.assertNotIn("Content-Security-Policy", response)     def test_existing_header_kept(self):         def view(request):             response = HttpResponse("x")             response["Content-Security-Policy"] = "default-src 'none'"             return response         response = ContentSecurityPolicyMiddleware(view)(RequestFactory().get("/x/"))         self.assertEqual(response["Content-Security-Policy"], "default-src 'none'") class TemplatesFitPolicyTests(SimpleTestCase):     """The strict policy works only while templates stay free of inline code."""     FORBIDDEN = (         re.compile(r"<script(?![^>]*\ssrc=)[^>]*>", re.IGNORECASE),         re.compile(r"<style", re.IGNORECASE),         re.compile(r"\sstyle\s*=", re.IGNORECASE),         re.compile(r"\son[a-z]+\s*=", re.IGNORECASE),         re.compile(r"javascript:", re.IGNORECASE),         re.compile(r"""(?:src|href)\s*=\s*["']?(?:https?:)?//""", re.IGNORECASE),         re.compile(r"data:image", re.IGNORECASE),     )     def test_no_inline_code_in_templates(self):         base = Path(settings.BASE_DIR)         paths = sorted(base.glob("templates/**/*.html")) + sorted(             base.glob("*/templates/**/*.html")         )         self.assertGreater(len(paths), 30)         for path in paths:             text = path.read_text(encoding="utf-8")             for pattern in self.FORBIDDEN:                 self.assertIsNone(pattern.search(text), f"{path.relative_to(base)}: {pattern}") class PrivateCacheTests(TestCase):     @classmethod     def setUpTestData(cls):         fac = make_faculty("FX")         group = make_group(fac, "GX")         cls.student = make_student("cache_student", group, "SA")         cls.staff = make_staff("cache_staff", fac)     def _assert_no_store(self, response):         cache_control = response["Cache-Control"]         self.assertIn("no-store", cache_control)         self.assertIn("private", cache_control)     def test_student_pages_no_store(self):         self.client.force_login(self.student)         for name in ("accounts:profile", "academics:grades", "schedule:week"):             response = self.client.get(reverse(name))             self.assertEqual(response.status_code, 200, name)             self._assert_no_store(response)     def test_staff_page_no_store(self):         self.client.force_login(self.staff)         self._assert_no_store(self.client.get(reverse("petitions:staff_queue")))     def test_anonymous_unchanged(self):         response = self.client.get("/grades/")         self.assertEqual(response.status_code, 302)         self.assertNotIn("Cache-Control", response)     def test_stale_session_cookie_unchanged(self):         self.client.cookies[settings.SESSION_COOKIE_NAME] = "no-such-session"         response = self.client.get("/grades/")         self.assertEqual(response.status_code, 302)         self.assertNotIn("Cache-Control", response)     def test_no_session_access_without_cookie(self):         request = RequestFactory().get("/x/")         response = PrivateCacheMiddleware(lambda r: HttpResponse("x"))(request)         self.assertNotIn("Cache-Control", response)         self.assertFalse(hasattr(request, "user"))     def test_session_length_unchanged(self):         self.assertEqual(settings.SESSION_COOKIE_AGE, 14 * 24 * 3600) EOF grep -n "name=" academics/urls.py schedule/urls.py accounts/urls.py | head -20
+    $ set -e; C=$TMPDIR/t016; cd $C
+  cat > core/tests/test_middleware.py <<'EOF'
+  """TASK-016: Content-Security-Policy and no-store for signed-in users (PT1-F3, PT1-F5)."""
+
+  import re
+  from pathlib import Path
+
+  from django.conf import settings
+  from django.http import HttpResponse
+  from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
+  from django.urls import reverse
+
+  from accounts.models import User
+  from accounts.tests.helpers import make_faculty, make_group, make_staff, make_student
+  from core.middleware import (
+      CONTENT_SECURITY_POLICY,
+      ContentSecurityPolicyMiddleware,
+      PrivateCacheMiddleware,
+  )
+
+  EXPECTED_CSP = (
+      "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; "
+      "font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; "
+      "form-action 'self'; frame-ancestors 'none'"
+  )
+
+
+  class ContentSecurityPolicyTests(TestCase):
+      @classmethod
+      def setUpTestData(cls):
+          fac = make_faculty("FX")
+          group = make_group(fac, "GX")
+          cls.student = make_student("csp_student", group, "SA")
+          cls.staff = make_staff("csp_staff", fac)
+          cls.admin = User.objects.create_superuser("csp_admin", password="Admin-Pass-2026!")
+
+      def test_policy_value(self):
+          self.assertEqual(CONTENT_SECURITY_POLICY, EXPECTED_CSP)
+
+      def test_anonymous_login_page(self):
+          response = self.client.get(reverse("accounts:login"))
+          self.assertEqual(response["Content-Security-Policy"], EXPECTED_CSP)
+
+      def test_student_page(self):
+          self.client.force_login(self.student)
+          response = self.client.get(reverse("accounts:profile"))
+          self.assertEqual(response.status_code, 200)
+          self.assertEqual(response["Content-Security-Policy"], EXPECTED_CSP)
+
+      def test_staff_page(self):
+          self.client.force_login(self.staff)
+          response = self.client.get(reverse("petitions:staff_queue"))
+          self.assertEqual(response.status_code, 200)
+          self.assertEqual(response["Content-Security-Policy"], EXPECTED_CSP)
+
+      def test_admin_page_same_policy(self):
+          self.client.force_login(self.admin)
+          response = self.client.get(reverse("admin:index"))
+          self.assertEqual(response.status_code, 200)
+          self.assertEqual(response["Content-Security-Policy"], EXPECTED_CSP)
+
+      def test_redirect_and_404(self):
+          self.assertEqual(
+              self.client.get("/grades/")["Content-Security-Policy"], EXPECTED_CSP
+          )
+          self.client.force_login(self.student)
+          response = self.client.get("/no-such-page/")
+          self.assertEqual(response.status_code, 404)
+          self.assertEqual(response["Content-Security-Policy"], EXPECTED_CSP)
+
+      @override_settings(DEBUG=True)
+      def test_debug_error_pages_without_policy(self):
+          self.client.force_login(self.student)
+          response = self.client.get("/no-such-page/")
+          self.assertEqual(response.status_code, 404)
+          self.assertNotIn("Content-Security-Policy", response)
+
+      def test_existing_header_kept(self):
+          def view(request):
+              response = HttpResponse("x")
+              response["Content-Security-Policy"] = "default-src 'none'"
+              return response
+
+          response = ContentSecurityPolicyMiddleware(view)(RequestFactory().get("/x/"))
+          self.assertEqual(response["Content-Security-Policy"], "default-src 'none'")
+
+
+  class TemplatesFitPolicyTests(SimpleTestCase):
+      """The strict policy works only while templates stay free of inline code."""
+
+      FORBIDDEN = (
+          re.compile(r"<script(?![^>]*\ssrc=)[^>]*>", re.IGNORECASE),
+          re.compile(r"<style", re.IGNORECASE),
+          re.compile(r"\sstyle\s*=", re.IGNORECASE),
+          re.compile(r"\son[a-z]+\s*=", re.IGNORECASE),
+          re.compile(r"javascript:", re.IGNORECASE),
+          re.compile(r"""(?:src|href)\s*=\s*["']?(?:https?:)?//""", re.IGNORECASE),
+          re.compile(r"data:image", re.IGNORECASE),
+      )
+
+      def test_no_inline_code_in_templates(self):
+          base = Path(settings.BASE_DIR)
+          paths = sorted(base.glob("templates/**/*.html")) + sorted(
+              base.glob("*/templates/**/*.html")
+          )
+          self.assertGreater(len(paths), 30)
+          for path in paths:
+              text = path.read_text(encoding="utf-8")
+              for pattern in self.FORBIDDEN:
+                  self.assertIsNone(pattern.search(text), f"{path.relative_to(base)}: {pattern}")
+
+
+  class PrivateCacheTests(TestCase):
+      @classmethod
+      def setUpTestData(cls):
+          fac = make_faculty("FX")
+          group = make_group(fac, "GX")
+          cls.student = make_student("cache_student", group, "SA")
+          cls.staff = make_staff("cache_staff", fac)
+
+      def _assert_no_store(self, response):
+          cache_control = response["Cache-Control"]
+          self.assertIn("no-store", cache_control)
+          self.assertIn("private", cache_control)
+
+      def test_student_pages_no_store(self):
+          self.client.force_login(self.student)
+          for name in ("accounts:profile", "academics:grades", "schedule:week"):
+              response = self.client.get(reverse(name))
+              self.assertEqual(response.status_code, 200, name)
+              self._assert_no_store(response)
+
+      def test_staff_page_no_store(self):
+          self.client.force_login(self.staff)
+          self._assert_no_store(self.client.get(reverse("petitions:staff_queue")))
+
+      def test_anonymous_unchanged(self):
+          response = self.client.get("/grades/")
+          self.assertEqual(response.status_code, 302)
+          self.assertNotIn("Cache-Control", response)
+
+      def test_stale_session_cookie_unchanged(self):
+          self.client.cookies[settings.SESSION_COOKIE_NAME] = "no-such-session"
+          response = self.client.get("/grades/")
+          self.assertEqual(response.status_code, 302)
+          self.assertNotIn("Cache-Control", response)
+
+      def test_no_session_access_without_cookie(self):
+          request = RequestFactory().get("/x/")
+          response = PrivateCacheMiddleware(lambda r: HttpResponse("x"))(request)
+          self.assertNotIn("Cache-Control", response)
+          self.assertFalse(hasattr(request, "user"))
+
+      def test_session_length_unchanged(self):
+          self.assertEqual(settings.SESSION_COOKIE_AGE, 14 * 24 * 3600)
+  EOF
+  grep -n "name=" academics/urls.py schedule/urls.py accounts/urls.py | head -20
+    academics/urls.py:7:    path("grades/", views.StudentGradesView.as_view(), name="my_grades"),
+    academics/urls.py:8:    path("grades/<slug:term_code>/", views.StudentGradesView.as_view(), name="my_grades_term"),
+    academics/urls.py:12:        name="staff_student_grades",
+    academics/urls.py:17:        name="staff_student_grades_term",
+    accounts/urls.py:8:    path("login/", views.DeaneryLoginView.as_view(), name="login"),
+    accounts/urls.py:9:    path("logout/", auth_views.LogoutView.as_view(), name="logout"),
+    accounts/urls.py:10:    path("profile/", views.ProfileView.as_view(), name="profile"),
+    accounts/urls.py:11:    path("staff/students/", views.StaffStudentListView.as_view(), name="staff_student_list"),
+    accounts/urls.py:15:        name="staff_student_detail",
+    schedule/urls.py:10:    path("schedule/", views.TodayView.as_view(), name="today"),
+    schedule/urls.py:11:    path("schedule/week/", views.StudentWeekView.as_view(), name="week"),
+    schedule/urls.py:12:    path("schedule/week/<isodate:day>/", views.StudentWeekView.as_view(), name="week_of"),
+    schedule/urls.py:13:    path("staff/schedule/", views.StaffGroupListView.as_view(), name="staff_groups"),
+    schedule/urls.py:17:        name="staff_group_week",
+    schedule/urls.py:22:        name="staff_group_week_of",
+    Shell cwd was reset to ~/hackatonproject
+  ── Ran set -e; C=$TMPDIR/t016; cd $C; sed -i '' 's/"academics:grades", "schedule:week"/"academics:my_grades", "schedule:week"/' core/tests/test_middleware.py python3 - <<'EOF' import pathlib def sub(path, old, new):     p=pathlib.Path(path); t=p.read_text(); assert t.count(old)==1,(path,old[:60]); p.write_text(t.replace(old,new)) def append(path, text):     p=pathlib.Path(path); p.write_text(p.read_text().rstrip("\n")+"\n"+text) # accounts throttling sub("accounts/tests/test_throttling.py", "    register_failure,\n)", "    register_failure,\n    throttle_ip,\n)") sub("accounts/tests/test_throttling.py", '''    def test_locked_does_not_authenticate(self):''', '''    def test_ipv6_same_64_shares_lock(self):         # TASK-016 (PT1-F2): a new address in the same /64 does not get new attempts.         for host in ("1", "2", "3"):             self._post_login("u1", "wrong", REMOTE_ADDR=f"2001:db8:1:2::{host}")         response = self._post_login("u1", "Test-Pass-2026!", REMOTE_ADDR="2001:db8:1:2:ffff::9")         self.assertEqual(response.status_code, 200)         self.assertIn("Слишком много неудачных попыток", response.content.decode())         self.assertTrue(LoginThrottle.objects.filter(ip_address="2001:db8:1:2::").exists())     def test_ipv6_other_64_not_locked(self):         for _ in range(3):             self._post_login("u1", "wrong", REMOTE_ADDR="2001:db8:1:2::1")         response = self._post_login("u1", "Test-Pass-2026!", REMOTE_ADDR="2001:db8:1:3::1")         self.assertEqual(response.status_code, 302)     def test_no_lock_across_ipv4_addresses(self):         # User decision (plan.md 6b): no per-account lock across addresses.         for host in ("1", "2", "3", "4", "5", "6"):             self._post_login("u1", "wrong", REMOTE_ADDR=f"10.0.{host}.1")         response = self._post_login("u1", "Test-Pass-2026!", REMOTE_ADDR="10.0.9.1")         self.assertEqual(response.status_code, 302)     def test_locked_does_not_authenticate(self):''') append("accounts/tests/test_throttling.py", ''' class ThrottleIpTests(SimpleTestCase):     def test_ipv4_unchanged(self):         self.assertEqual(throttle_ip("203.0.113.7"), "203.0.113.7")     def test_ipv6_network_64(self):         self.assertEqual(throttle_ip("2001:db8:1:2:aaaa:bbbb:cccc:dddd"), "2001:db8:1:2::")         self.assertEqual(throttle_ip("2001:DB8:1:2::1"), "2001:db8:1:2::")     def test_ipv4_mapped_ipv6(self):         self.assertEqual(throttle_ip("::ffff:203.0.113.7"), "203.0.113.7")     def test_loopback_and_unknown(self):         self.assertEqual(throttle_ip("::1"), "::")         self.assertEqual(throttle_ip(UNKNOWN_IP), UNKNOWN_IP)         self.assertEqual(throttle_ip("not-an-ip"), UNKNOWN_IP) ''') sub("accounts/tests/test_throttling.py", "from django.test import RequestFactory, TestCase, override_settings", "from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings") # petitions append("petitions/tests/test_views.py", ''' class HardeningTests(FrozenClockMixin, TestCase):     """TASK-016: PT1-F7 (hint escaped) and PT1-F8 (out-of-range type filter)."""     HUGE = "9" * 25     def setUp(self):         self.fac = make_faculty("FX")         self.group = make_group(self.fac, "GX")         self.student = make_student("a", self.group, "SA").student_profile         self.staff = make_staff("sx", self.fac)         self.type = make_type()         self.other_type = make_type(name="Другая")         self.p1 = make_petition(self.student, self.type)         self.p2 = make_petition(self.student, self.other_type)     def test_comment_hint_escaped(self):         hint = '<img src=x onerror="alert(1)"> & <b>жирный</b>'         t = make_type(name="XSS", comment_required=True, hint=hint)         self.client.force_login(self.student.user)         content = self.client.get(reverse("petitions:submit", args=[t.pk])).content.decode()         self.assertNotIn("<img src=x", content)         self.assertNotIn("<b>жирный</b>", content)         self.assertIn("&lt;img src=x onerror=&quot;alert(1)&quot;&gt; &amp; &lt;b&gt;", content)     def test_plain_hint_unchanged(self):         t = make_type(name="Plain", comment_required=True, hint="Укажите причину «А»")         form = PetitionForm(request_type=t)         self.assertEqual(form.fields["comment"].help_text, "Укажите причину «А»")     def _queue(self, type_value):         self.client.force_login(self.staff)         response = self.client.get(reverse("petitions:staff_queue"), {"type": type_value})         self.assertEqual(response.status_code, 200, type_value)         return response.content.decode()     def test_type_filter_valid(self):         content = self._queue(str(self.type.pk))         self.assertIn(str(self.p1.short_id), content)         self.assertNotIn(str(self.p2.short_id), content)     def test_type_filter_out_of_range_ignored(self):         for value in (self.HUGE, "-1", "1e3", " 1", "\\u0663", "0x1", ""):             content = self._queue(value)             self.assertIn(str(self.p1.short_id), content, value)             self.assertIn(str(self.p2.short_id), content, value)     def test_type_filter_18_digits_empty(self):         content = self._queue("9" * 18)         self.assertNotIn(str(self.p1.short_id), content)         self.assertNotIn(str(self.p2.short_id), content)     def test_huge_url_ids_404(self):         self.client.force_login(self.student.user)         self.assertEqual(self.client.get(f"/requests/new/{self.HUGE}/").status_code, 404)         self.assertEqual(self.client.get(f"/map/floor/{self.HUGE}/").status_code, 404)         self.client.force_login(self.staff)         for path in (             f"/staff/students/{self.HUGE}/",             f"/staff/students/{self.HUGE}/grades/",             f"/staff/schedule/{self.HUGE}/",             f"/staff/schedule/{self.HUGE}/2026-11-16/",         ):             self.assertEqual(self.client.get(path).status_code, 404, path) ''') # chat sub("chat/tests/test_services.py", '''    def test_two_staff_replies_both_kept_in_id_order(self):''', '''    def test_same_token_other_author_kept(self):         # TASK-016 (PT1-F10): the token is looked up per author.         token = uuid.uuid4()         student_message = send_student_message(self.ax_profile, "Вопрос", token)         reply = send_staff_message(student_message.dialog, self.sx, "Ответ", token)         self.assertNotEqual(reply.pk, student_message.pk)         self.assertEqual(reply.author, self.sx)         self.assertEqual(reply.text, "Ответ")         self.assertEqual(Message.objects.filter(dialog=student_message.dialog).count(), 2)         # The same author with the same token still gets the existing message.         again = send_staff_message(student_message.dialog, self.sx, "Ответ", token)         self.assertEqual(again.pk, reply.pk)         self.assertEqual(Message.objects.filter(dialog=student_message.dialog).count(), 2)     def test_two_staff_replies_both_kept_in_id_order(self):''') sub("chat/tests/test_models.py", '''        # The same token in another dialog is fine.''', '''        # TASK-016: the same token from another author in the same dialog is fine.         Message.objects.create(             dialog=dialog,             author=self.staff,             author_role=AuthorRole.STAFF,             text="w",             client_token=token,         )         # The same token in another dialog is fine.''') sub("chat/tests/test_models.py", "        self.assertEqual(Message.objects.filter(dialog=dialog).count(), 3)\n", "        self.assertEqual(Message.objects.filter(dialog=dialog).count(), 4)\n") sub("chat/tests/test_models.py", "    def test_client_token_unique_per_dialog(self):", "    def test_client_token_unique_per_dialog_and_author(self):") EOF grep -n "^from\|^import" chat/tests/test_services.py | head; grep -n "self.staff\b" chat/tests/test_models.py | head -3
+    $ set -e; C=$TMPDIR/t016; cd $C; sed -i '' 's/"academics:grades", "schedule:week"/"academics:my_grades", "schedule:week"/' core/tests/test_middleware.py
+  python3 - <<'EOF'
+  import pathlib
+  def sub(path, old, new):
+      p=pathlib.Path(path); t=p.read_text(); assert t.count(old)==1,(path,old[:60]); p.write_text(t.replace(old,new))
+  def append(path, text):
+      p=pathlib.Path(path); p.write_text(p.read_text().rstrip("\n")+"\n"+text)
+  # accounts throttling
+  sub("accounts/tests/test_throttling.py", "    register_failure,\n)", "    register_failure,\n    throttle_ip,\n)")
+  sub("accounts/tests/test_throttling.py", '''    def test_locked_does_not_authenticate(self):''', '''    def test_ipv6_same_64_shares_lock(self):
+          # TASK-016 (PT1-F2): a new address in the same /64 does not get new attempts.
+          for host in ("1", "2", "3"):
+              self._post_login("u1", "wrong", REMOTE_ADDR=f"2001:db8:1:2::{host}")
+          response = self._post_login("u1", "Test-Pass-2026!", REMOTE_ADDR="2001:db8:1:2:ffff::9")
+          self.assertEqual(response.status_code, 200)
+          self.assertIn("Слишком много неудачных попыток", response.content.decode())
+          self.assertTrue(LoginThrottle.objects.filter(ip_address="2001:db8:1:2::").exists())
+
+      def test_ipv6_other_64_not_locked(self):
+          for _ in range(3):
+              self._post_login("u1", "wrong", REMOTE_ADDR="2001:db8:1:2::1")
+          response = self._post_login("u1", "Test-Pass-2026!", REMOTE_ADDR="2001:db8:1:3::1")
+          self.assertEqual(response.status_code, 302)
+
+      def test_no_lock_across_ipv4_addresses(self):
+          # User decision (plan.md 6b): no per-account lock across addresses.
+          for host in ("1", "2", "3", "4", "5", "6"):
+              self._post_login("u1", "wrong", REMOTE_ADDR=f"10.0.{host}.1")
+          response = self._post_login("u1", "Test-Pass-2026!", REMOTE_ADDR="10.0.9.1")
+          self.assertEqual(response.status_code, 302)
+
+      def test_locked_does_not_authenticate(self):''')
+  append("accounts/tests/test_throttling.py", '''
+
+  class ThrottleIpTests(SimpleTestCase):
+      def test_ipv4_unchanged(self):
+          self.assertEqual(throttle_ip("203.0.113.7"), "203.0.113.7")
+
+      def test_ipv6_network_64(self):
+          self.assertEqual(throttle_ip("2001:db8:1:2:aaaa:bbbb:cccc:dddd"), "2001:db8:1:2::")
+          self.assertEqual(throttle_ip("2001:DB8:1:2::1"), "2001:db8:1:2::")
+
+      def test_ipv4_mapped_ipv6(self):
+          self.assertEqual(throttle_ip("::ffff:203.0.113.7"), "203.0.113.7")
+
+      def test_loopback_and_unknown(self):
+          self.assertEqual(throttle_ip("::1"), "::")
+          self.assertEqual(throttle_ip(UNKNOWN_IP), UNKNOWN_IP)
+          self.assertEqual(throttle_ip("not-an-ip"), UNKNOWN_IP)
+  ''')
+  sub("accounts/tests/test_throttling.py", "from django.test import RequestFactory, TestCase, override_settings", "from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings")
+  # petitions
+  append("petitions/tests/test_views.py", '''
+
+  class HardeningTests(FrozenClockMixin, TestCase):
+      """TASK-016: PT1-F7 (hint escaped) and PT1-F8 (out-of-range type filter)."""
+
+      HUGE = "9" * 25
+
+      def setUp(self):
+          self.fac = make_faculty("FX")
+          self.group = make_group(self.fac, "GX")
+          self.student = make_student("a", self.group, "SA").student_profile
+          self.staff = make_staff("sx", self.fac)
+          self.type = make_type()
+          self.other_type = make_type(name="Другая")
+          self.p1 = make_petition(self.student, self.type)
+          self.p2 = make_petition(self.student, self.other_type)
+
+      def test_comment_hint_escaped(self):
+          hint = '<img src=x onerror="alert(1)"> & <b>жирный</b>'
+          t = make_type(name="XSS", comment_required=True, hint=hint)
+          self.client.force_login(self.student.user)
+          content = self.client.get(reverse("petitions:submit", args=[t.pk])).content.decode()
+          self.assertNotIn("<img src=x", content)
+          self.assertNotIn("<b>жирный</b>", content)
+          self.assertIn("&lt;img src=x onerror=&quot;alert(1)&quot;&gt; &amp; &lt;b&gt;", content)
+
+      def test_plain_hint_unchanged(self):
+          t = make_type(name="Plain", comment_required=True, hint="Укажите причину «А»")
+          form = PetitionForm(request_type=t)
+          self.assertEqual(form.fields["comment"].help_text, "Укажите причину «А»")
+
+      def _queue(self, type_value):
+          self.client.force_login(self.staff)
+          response = self.client.get(reverse("petitions:staff_queue"), {"type": type_value})
+          self.assertEqual(response.status_code, 200, type_value)
+          return response.content.decode()
+
+      def test_type_filter_valid(self):
+          content = self._queue(str(self.type.pk))
+          self.assertIn(str(self.p1.short_id), content)
+          self.assertNotIn(str(self.p2.short_id), content)
+
+      def test_type_filter_out_of_range_ignored(self):
+          for value in (self.HUGE, "-1", "1e3", " 1", "\\u0663", "0x1", ""):
+              content = self._queue(value)
+              self.assertIn(str(self.p1.short_id), content, value)
+              self.assertIn(str(self.p2.short_id), content, value)
+
+      def test_type_filter_18_digits_empty(self):
+          content = self._queue("9" * 18)
+          self.assertNotIn(str(self.p1.short_id), content)
+          self.assertNotIn(str(self.p2.short_id), content)
+
+      def test_huge_url_ids_404(self):
+          self.client.force_login(self.student.user)
+          self.assertEqual(self.client.get(f"/requests/new/{self.HUGE}/").status_code, 404)
+          self.assertEqual(self.client.get(f"/map/floor/{self.HUGE}/").status_code, 404)
+          self.client.force_login(self.staff)
+          for path in (
+              f"/staff/students/{self.HUGE}/",
+              f"/staff/students/{self.HUGE}/grades/",
+              f"/staff/schedule/{self.HUGE}/",
+              f"/staff/schedule/{self.HUGE}/2026-11-16/",
+          ):
+              self.assertEqual(self.client.get(path).status_code, 404, path)
+  ''')
+  # chat
+  sub("chat/tests/test_services.py", '''    def test_two_staff_replies_both_kept_in_id_order(self):''', '''    def test_same_token_other_author_kept(self):
+          # TASK-016 (PT1-F10): the token is looked up per author.
+          token = uuid.uuid4()
+          student_message = send_student_message(self.ax_profile, "Вопрос", token)
+          reply = send_staff_message(student_message.dialog, self.sx, "Ответ", token)
+          self.assertNotEqual(reply.pk, student_message.pk)
+          self.assertEqual(reply.author, self.sx)
+          self.assertEqual(reply.text, "Ответ")
+          self.assertEqual(Message.objects.filter(dialog=student_message.dialog).count(), 2)
+          # The same author with the same token still gets the existing message.
+          again = send_staff_message(student_message.dialog, self.sx, "Ответ", token)
+          self.assertEqual(again.pk, reply.pk)
+          self.assertEqual(Message.objects.filter(dialog=student_message.dialog).count(), 2)
+
+      def test_two_staff_replies_both_kept_in_id_order(self):''')
+  sub("chat/tests/test_models.py", '''        # The same token in another dialog is fine.''', '''        # TASK-016: the same token from another author in the same dialog is fine.
+          Message.objects.create(
+              dialog=dialog,
+              author=self.staff,
+              author_role=AuthorRole.STAFF,
+              text="w",
+              client_token=token,
+          )
+          # The same token in another dialog is fine.''')
+  sub("chat/tests/test_models.py", "        self.assertEqual(Message.objects.filter(dialog=dialog).count(), 3)\n", "        self.assertEqual(Message.objects.filter(dialog=dialog).count(), 4)\n")
+  sub("chat/tests/test_models.py", "    def test_client_token_unique_per_dialog(self):", "    def test_client_token_unique_per_dialog_and_author(self):")
+  EOF
+  grep -n "^from\|^import" chat/tests/test_services.py | head; grep -n "self.staff\b" chat/tests/test_models.py | head -3
+    3:import uuid
+    4:from datetime import timedelta
+    5:from unittest import mock
+    7:from django.core.exceptions import PermissionDenied, ValidationError
+    8:from django.db.models import QuerySet
+    9:from django.test import TestCase
+    11:from accounts.tests.helpers import make_staff
+    12:from chat.constants import FRAGMENT_LIMIT, HISTORY_LIMIT, RATE_LIMIT_MESSAGES
+    13:from chat.models import AuthorRole, Dialog, Message
+    14:from chat.services import (
+    74:            author=self.staff,
+    95:        b = add_message(dialog, self.staff, AuthorRole.STAFF)
+    100:        profile = StaffProfile.objects.get(user=self.staff)
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 14ms
+    I'm checking that the Python test string's "\u0663" escape comes out as the Arabic digit three. Next I'm writing the deploy tests, both updates to existing ones and new ones.
+
+── Assistant ───────────────────────────────────────────────
+Now the deploy tests.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran set -e; C=$TMPDIR/t016; cd $C; python3 - <<'EOF' import pathlib p=pathlib.Path("core/tests/test_deploy.py"); t=p.read_text() def sub(old,new):     global t     assert t.count(old)==1, old[:70]; t=t.replace(old,new) sub('''        self.assertIs(cfg["control_socket_disable"], True) ''','''        self.assertIs(cfg["control_socket_disable"], True)         # TASK-016 (PT1-F13): trust only X-Forwarded-Proto.         self.assertEqual(cfg["secure_scheme_headers"], {"X-FORWARDED-PROTO": "https"}) ''') sub('''    def test_http_redirects_to_https(self):         self.assertIn("return 301 https://$host$request_uri;", _read(NGINX_CONF)) ''','''    def test_http_redirects_to_https(self):         # TASK-016 (PT1-F4): the redirect target is the fixed domain, never $host.         text = _read(NGINX_CONF)         self.assertEqual(text.count("return 301 https://example.com$request_uri;"), 2)         self.assertNotIn("$host$request_uri", text)     def test_catch_all_servers(self):         text = _read(NGINX_CONF)         for line in (             "listen 80 default_server;",             "listen [::]:80 default_server;",             "return 444;",             "listen 443 ssl http2 default_server;",             "listen [::]:443 ssl http2 default_server;",             "ssl_reject_handshake on;",         ):             self.assertEqual(text.count(line), 1, line)         self.assertEqual(text.count("server_name _;"), 2)     def test_www_redirect_and_acme(self):         text = _read(NGINX_CONF)         self.assertIn("server_name example.com www.example.com;", text)         self.assertIn("server_name www.example.com;", text)         self.assertIn("server_name example.com www.example.com;", _read(NGINX_BOOTSTRAP))     def test_login_rate_limit(self):         text = _read(NGINX_CONF)         for line in (             "POST    $binary_remote_addr;",             'default "";',             "limit_req_zone $deanery_login_key zone=deanery_login:10m rate=10r/m;",             "limit_req zone=deanery_login burst=10 nodelay;",             "limit_req_status 429;",             "limit_conn_zone $binary_remote_addr zone=deanery_conn:10m;",             "limit_conn deanery_conn 20;",             "limit_conn_status 429;",         ):             self.assertEqual(text.count(line), 1, line)     def test_login_location_pattern(self):         match = re.search(r"location ~ (\\S+) \\{", _read(NGINX_CONF))         self.assertIsNotNone(match)         pattern = re.compile(match.group(1))         for path in ("/login/", "/staff-1a2b3c/login/", "/a/b_c/login/", "/admin/login/"):             self.assertIsNotNone(pattern.search(path), path)         for path in ("/login/x", "/logout/", "/loginx/", "/profile/", "/login"):             self.assertIsNone(pattern.search(path), path)     def test_proxy_headers_at_server_level(self):         lines = _read(NGINX_CONF).splitlines()         headers = [line for line in lines if "proxy_set_header" in line]         self.assertEqual(len(headers), 4)         for line in headers:             self.assertTrue(line.startswith("    proxy_set_header"), line)             self.assertFalse(line.startswith("        "), line)         self.assertEqual(sum("proxy_pass http://127.0.0.1:8000;" in line for line in lines), 2) ''') sub('''    def test_hardening(self):         unit = _read(SYSTEMD_UNIT)         self.assertIn("NoNewPrivileges=true", unit)         self.assertIn("ProtectSystem=full", unit)         self.assertIn("PrivateTmp=true", unit) ''','''    def test_hardening(self):         # TASK-016 (PT1-F13): ProtectSystem=strict and more sandboxing.         lines = _read(SYSTEMD_UNIT).splitlines()         for line in (             "NoNewPrivileges=true",             "PrivateTmp=true",             "PrivateDevices=true",             "ProtectSystem=strict",             "ProtectHome=true",             "ProtectKernelTunables=true",             "ProtectControlGroups=true",             "RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX",             "CapabilityBoundingSet=",             "ReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial",         ):             self.assertIn(line, lines)         self.assertNotIn("ProtectSystem=full", lines)         self.assertEqual(sum(line.startswith("ReadWritePaths=") for line in lines), 1) ''') sub('''    def test_no_daily_seed_cron(self):''','''    def test_service_account_nologin(self):         # TASK-016 (PT1-F6): no login shell and no SSH key for the service account.         text = _read(DEPLOY_MD)         self.assertIn('--shell /usr/sbin/nologin "$APP_USER"', text)         self.assertNotIn("--shell /bin/bash", text)         self.assertNotIn('ssh-copy-id "$APP_USER"', text)         self.assertIn('sudo usermod --shell /usr/sbin/nologin "$APP_USER"', text)     def test_certificate_for_www(self):         self.assertIn('-d "$DOMAIN" -d "www.$DOMAIN"', _read(DEPLOY_MD))     def test_demo_password_removed_after_seed(self):         text = _read(DEPLOY_MD)         section = text[text.index("## 16. ") : text.index("## 17. ")]         removal = "sudo sed -i '/^DEMO_PASSWORD=/d' /etc/deanery/deanery.env"         self.assertIn(removal, section)         self.assertLess(section.index("$M seed_demo"), section.index(removal))         self.assertLess(section.index(removal), section.index("sudo systemctl restart deanery"))         # The app itself never reads DEMO_PASSWORD.         self.assertNotIn("DEMO_PASSWORD", _read(BASE_DIR / "config" / "settings.py"))     def test_no_daily_seed_cron(self):''') t = t.rstrip("\n") + ''' class CiDependencyAuditTests(SimpleTestCase):     """TASK-016: pip-audit runs in CI in its own step; it is not a runtime dependency."""     def test_audit_step(self):         import yaml         ci = yaml.safe_load(_read(BASE_DIR / ".github" / "workflows" / "ci.yml"))         steps = {step.get("name"): step for step in ci["jobs"]["test"]["steps"]}         run = steps["Dependency audit"]["run"]         self.assertIn("pip install pip-audit==2.10.1", run)         self.assertIn("pip-audit --requirement requirements.txt", run)         self.assertNotIn("pip-audit", _read(BASE_DIR / "requirements.txt")) ''' p.write_text(t) EOF R=~/hackatonproject/.venv/bin/ruff; $R format . >/dev/null; $R check . && $R format --check . | tail -1; export DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop; unset DATABASE_URL PRIVATE_MEDIA_ROOT ALLOWED_HOSTS; L=$TMPDIR/test-t016-full-$(date +%Y%m%d-%H%M%S).log; ~/hackatonproject/.venv/bin/python manage.py test --parallel > $L 2>&1; grep -E "^Ran |^OK|^FAILED|^(FAIL|ERROR):" $L; echo $L; TZ=Europe/Moscow date +%H:%M (49s)
+    $ set -e; C=$TMPDIR/t016; cd $C; python3 - <<'EOF'
+  import pathlib
+  p=pathlib.Path("core/tests/test_deploy.py"); t=p.read_text()
+  def sub(old,new):
+      global t
+      assert t.count(old)==1, old[:70]; t=t.replace(old,new)
+  sub('''        self.assertIs(cfg["control_socket_disable"], True)
+  ''','''        self.assertIs(cfg["control_socket_disable"], True)
+          # TASK-016 (PT1-F13): trust only X-Forwarded-Proto.
+          self.assertEqual(cfg["secure_scheme_headers"], {"X-FORWARDED-PROTO": "https"})
+  ''')
+  sub('''    def test_http_redirects_to_https(self):
+          self.assertIn("return 301 https://$host$request_uri;", _read(NGINX_CONF))
+  ''','''    def test_http_redirects_to_https(self):
+          # TASK-016 (PT1-F4): the redirect target is the fixed domain, never $host.
+          text = _read(NGINX_CONF)
+          self.assertEqual(text.count("return 301 https://example.com$request_uri;"), 2)
+          self.assertNotIn("$host$request_uri", text)
+
+      def test_catch_all_servers(self):
+          text = _read(NGINX_CONF)
+          for line in (
+              "listen 80 default_server;",
+              "listen [::]:80 default_server;",
+              "return 444;",
+              "listen 443 ssl http2 default_server;",
+              "listen [::]:443 ssl http2 default_server;",
+              "ssl_reject_handshake on;",
+          ):
+              self.assertEqual(text.count(line), 1, line)
+          self.assertEqual(text.count("server_name _;"), 2)
+
+      def test_www_redirect_and_acme(self):
+          text = _read(NGINX_CONF)
+          self.assertIn("server_name example.com www.example.com;", text)
+          self.assertIn("server_name www.example.com;", text)
+          self.assertIn("server_name example.com www.example.com;", _read(NGINX_BOOTSTRAP))
+
+      def test_login_rate_limit(self):
+          text = _read(NGINX_CONF)
+          for line in (
+              "POST    $binary_remote_addr;",
+              'default "";',
+              "limit_req_zone $deanery_login_key zone=deanery_login:10m rate=10r/m;",
+              "limit_req zone=deanery_login burst=10 nodelay;",
+              "limit_req_status 429;",
+              "limit_conn_zone $binary_remote_addr zone=deanery_conn:10m;",
+              "limit_conn deanery_conn 20;",
+              "limit_conn_status 429;",
+          ):
+              self.assertEqual(text.count(line), 1, line)
+
+      def test_login_location_pattern(self):
+          match = re.search(r"location ~ (\\S+) \\{", _read(NGINX_CONF))
+          self.assertIsNotNone(match)
+          pattern = re.compile(match.group(1))
+          for path in ("/login/", "/staff-1a2b3c/login/", "/a/b_c/login/", "/admin/login/"):
+              self.assertIsNotNone(pattern.search(path), path)
+          for path in ("/login/x", "/logout/", "/loginx/", "/profile/", "/login"):
+              self.assertIsNone(pattern.search(path), path)
+
+      def test_proxy_headers_at_server_level(self):
+          lines = _read(NGINX_CONF).splitlines()
+          headers = [line for line in lines if "proxy_set_header" in line]
+          self.assertEqual(len(headers), 4)
+          for line in headers:
+              self.assertTrue(line.startswith("    proxy_set_header"), line)
+              self.assertFalse(line.startswith("        "), line)
+          self.assertEqual(sum("proxy_pass http://127.0.0.1:8000;" in line for line in lines), 2)
+  ''')
+  sub('''    def test_hardening(self):
+          unit = _read(SYSTEMD_UNIT)
+          self.assertIn("NoNewPrivileges=true", unit)
+          self.assertIn("ProtectSystem=full", unit)
+          self.assertIn("PrivateTmp=true", unit)
+  ''','''    def test_hardening(self):
+          # TASK-016 (PT1-F13): ProtectSystem=strict and more sandboxing.
+          lines = _read(SYSTEMD_UNIT).splitlines()
+          for line in (
+              "NoNewPrivileges=true",
+              "PrivateTmp=true",
+              "PrivateDevices=true",
+              "ProtectSystem=strict",
+              "ProtectHome=true",
+              "ProtectKernelTunables=true",
+              "ProtectControlGroups=true",
+              "RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX",
+              "CapabilityBoundingSet=",
+              "ReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial",
+          ):
+              self.assertIn(line, lines)
+          self.assertNotIn("ProtectSystem=full", lines)
+          self.assertEqual(sum(line.startswith("ReadWritePaths=") for line in lines), 1)
+  ''')
+  sub('''    def test_no_daily_seed_cron(self):''','''    def test_service_account_nologin(self):
+          # TASK-016 (PT1-F6): no login shell and no SSH key for the service account.
+          text = _read(DEPLOY_MD)
+          self.assertIn('--shell /usr/sbin/nologin "$APP_USER"', text)
+          self.assertNotIn("--shell /bin/bash", text)
+          self.assertNotIn('ssh-copy-id "$APP_USER"', text)
+          self.assertIn('sudo usermod --shell /usr/sbin/nologin "$APP_USER"', text)
+
+      def test_certificate_for_www(self):
+          self.assertIn('-d "$DOMAIN" -d "www.$DOMAIN"', _read(DEPLOY_MD))
+
+      def test_demo_password_removed_after_seed(self):
+          text = _read(DEPLOY_MD)
+          section = text[text.index("## 16. ") : text.index("## 17. ")]
+          removal = "sudo sed -i '/^DEMO_PASSWORD=/d' /etc/deanery/deanery.env"
+          self.assertIn(removal, section)
+          self.assertLess(section.index("$M seed_demo"), section.index(removal))
+          self.assertLess(section.index(removal), section.index("sudo systemctl restart deanery"))
+          # The app itself never reads DEMO_PASSWORD.
+          self.assertNotIn("DEMO_PASSWORD", _read(BASE_DIR / "config" / "settings.py"))
+
+      def test_no_daily_seed_cron(self):''')
+  t = t.rstrip("\n") + '''
+
+
+  class CiDependencyAuditTests(SimpleTestCase):
+      """TASK-016: pip-audit runs in CI in its own step; it is not a runtime dependency."""
+
+      def test_audit_step(self):
+          import yaml
+
+          ci = yaml.safe_load(_read(BASE_DIR / ".github" / "workflows" / "ci.yml"))
+          steps = {step.get("name"): step for step in ci["jobs"]["test"]["steps"]}
+          run = steps["Dependency audit"]["run"]
+          self.assertIn("pip install pip-audit==2.10.1", run)
+          self.assertIn("pip-audit --requirement requirements.txt", run)
+          self.assertNotIn("pip-audit", _read(BASE_DIR / "requirements.txt"))
+  '''
+  p.write_text(t)
+  EOF
+  R=~/hackatonproject/.venv/bin/ruff; $R format . >/dev/null; $R check . && $R format --check . | tail -1; export DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop; unset DATABASE_URL PRIVATE_MEDIA_ROOT ALLOWED_HOSTS; L=$TMPDIR/test-t016-full-$(date +%Y%m%d-%H%M%S).log; ~/hackatonproject/.venv/bin/python manage.py test --parallel > $L 2>&1; grep -E "^Ran |^OK|^FAILED|^(FAIL|ERROR):" $L; echo $L; TZ=Europe/Moscow date +%H:%M
+    All checks passed!
+    196 files already formatted
+    Ran 1181 tests in 47.161s
+    OK
+    /tmp/claude-501/test-t016-full-20261120-135146.log
+    00:52
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 915ms
+    I'm checking that `ruff format` only touched Python files, since it doesn't format markdown, so the docs are fine. The test run came out at 1181 passing, which is 1141 plus 40 new ones. Next I want to show the new tests fail against HEAD, so I'll copy them into a HEAD checkout and run those modules.
+
+    Next I'm running the migration on a seeded database to check the chat constraint against existing data, seeding demo data twice, and validating the gunicorn config.
+
+── Assistant ───────────────────────────────────────────────
+1181 tests OK on the copy. Now the counter-check: new tests against the HEAD code, plus the other verification commands.
+
+── Ran 2 commands, explored 2 searches ─────────────────────
+  ── Ran C=$TMPDIR/t016; H=$TMPDIR/t016head; rm -rf $H; mkdir -p $H; cd ~/hackatonproject; git archive HEAD | tar -x -C $H; for f in core/tests/test_middleware.py core/tests/test_deploy.py accounts/tests/test_throttling.py petitions/tests/test_views.py chat/tests/test_services.py chat/tests/test_models.py; do cp $C/$f $H/$f; done; cd $H; export DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop; L=$TMPDIR/test-t016-newtests-on-head-$(date +%Y%m%d-%H%M%S).log; ~/hackatonproject/.venv/bin/python manage.py test core.tests.test_middleware core.tests.test_deploy accounts.tests.test_throttling petitions.tests.test_views chat.tests.test_services chat.tests.test_models > $L 2>&1; grep -E "^Ran |^OK|^FAILED|^(FAIL|ERROR):" $L | sort | uniq -c | sort -rn | head -50; echo $L (4s)
+    $ C=$TMPDIR/t016; H=$TMPDIR/t016head; rm -rf $H; mkdir -p $H; cd ~/hackatonproject; git archive HEAD | tar -x -C $H; for f in core/tests/test_middleware.py core/tests/test_deploy.py accounts/tests/test_throttling.py petitions/tests/test_views.py chat/tests/test_services.py chat/tests/test_models.py; do cp $C/$f $H/$f; done; cd $H; export DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop; L=$TMPDIR/test-t016-newtests-on-head-$(date +%Y%m%d-%H%M%S).log; ~/hackatonproject/.venv/bin/python manage.py test core.tests.test_middleware core.tests.test_deploy accounts.tests.test_throttling petitions.tests.test_views chat.tests.test_services chat.tests.test_models > $L 2>&1; grep -E "^Ran |^OK|^FAILED|^(FAIL|ERROR):" $L | sort | uniq -c | sort -rn | head -50; echo $L
+    1 Ran 165 tests in 2.418s
+       1 FAILED (failures=14, errors=6)
+       1 FAIL: test_www_redirect_and_acme (core.tests.test_deploy.NginxTemplateTests.test_www_redirect_and_acme)
+       1 FAIL: test_service_account_nologin (core.tests.test_deploy.RunbookTests.test_service_account_nologin)
+       1 FAIL: test_same_token_other_author_kept (chat.tests.test_services.ServiceTests.test_same_token_other_author_kept)
+       1 FAIL: test_proxy_headers_at_server_level (core.tests.test_deploy.NginxTemplateTests.test_proxy_headers_at_server_level)
+       1 FAIL: test_password_not_on_command_line (core.tests.test_deploy.BackupScriptRunTests.test_password_not_on_command_line)
+       1 FAIL: test_login_rate_limit (core.tests.test_deploy.NginxTemplateTests.test_login_rate_limit)
+       1 FAIL: test_login_location_pattern (core.tests.test_deploy.NginxTemplateTests.test_login_location_pattern)
+       1 FAIL: test_http_redirects_to_https (core.tests.test_deploy.NginxTemplateTests.test_http_redirects_to_https)
+       1 FAIL: test_hardening (core.tests.test_deploy.SystemdUnitTests.test_hardening)
+       1 FAIL: test_demo_password_removed_after_seed (core.tests.test_deploy.RunbookTests.test_demo_password_removed_after_seed)
+       1 FAIL: test_comment_hint_escaped (petitions.tests.test_views.HardeningTests.test_comment_hint_escaped)
+       1 FAIL: test_certificate_for_www (core.tests.test_deploy.RunbookTests.test_certificate_for_www)
+       1 FAIL: test_catch_all_servers (core.tests.test_deploy.NginxTemplateTests.test_catch_all_servers)
+       1 FAIL: test_bad_database_url_fails (core.tests.test_deploy.BackupScriptRunTests.test_bad_database_url_fails)
+       1 ERROR: test_type_filter_out_of_range_ignored (petitions.tests.test_views.HardeningTests.test_type_filter_out_of_range_ignored)
+       1 ERROR: test_throttling (unittest.loader._FailedTest.test_throttling)
+       1 ERROR: test_middleware (unittest.loader._FailedTest.test_middleware)
+       1 ERROR: test_defaults (core.tests.test_deploy.GunicornConfigTests.test_defaults)
+       1 ERROR: test_client_token_unique_per_dialog_and_author (chat.tests.test_models.ModelTests.test_client_token_unique_per_dialog_and_author)
+       1 ERROR: test_audit_step (core.tests.test_deploy.CiDependencyAuditTests.test_audit_step)
+    /tmp/claude-501/test-t016-newtests-on-head-20261120-135242.log
+    Shell cwd was reset to ~/hackatonproject
+  ── Searched for ERROR: test_type_filter_out_of_range in /tmp/claude-501/test-t016-newtests-on-head-20261120-135242.log
+  ── Ran awk '/^ERROR: test_type_filter_out_of_range/,/^(FAIL|ERROR): test_t/' /tmp/claude-501/test-t016-newtests-on-head-20261120-135242.log | grep -E "^[A-Za-z]*Error" | head -3
+    $ awk '/^ERROR: test_type_filter_out_of_range/,/^(FAIL|ERROR): test_t/' /tmp/claude-501/test-t016-newtests-on-head-20261120-135242.log | grep -E "^[A-Za-z]*Error" | head -3
+    exit code 0
+  ── Searched for OverflowError\|too large in /tmp/claude-501/test-t016-newtests-on-head-20261120-135242.log
+  ── Thought for 2s
+    Checking which state the seeded database is in, since I'm not sure whether it was migrated before or after the chat changes.
+
+    I need to check the migration path on a database that was seeded before the chat changes. The database in the working copy already has migration 0002 applied, so I'll test against a fresh HEAD-seeded database: migrate and seed it with the HEAD code, copy it over, then migrate with the changed code and run the seed command twice. I'll also run the suite in parallel, check the gunicorn startup, and confirm makemigrations reports nothing new.
+
+── Assistant ───────────────────────────────────────────────
+All 20 failures on HEAD are the expected ones (the type filter gives `OverflowError` there). Now the migration on a database seeded with HEAD, `seed_demo` twice, and the remaining checks.
+
+── Ran 3 commands ──────────────────────────────────────────
+  ── Ran C=$TMPDIR/t016; H=$TMPDIR/t016head; V=~/hackatonproject/.venv/bin; export DEBUG=true SECRET_KEY=dummy-key-for-local-check DEMO_PASSWORD=Local-Demo-Pass-2026 PRIVATE_MEDIA_ROOT=$TMPDIR/t016mig-pm; DB=$TMPDIR/t016mig.sqlite3; rm -f $DB; export DATABASE_URL=sqlite:///$DB; (cd $H && $V/python manage.py migrate -v0 && $V/python manage.py seed_demo >/dev/null && $V/python manage.py shell -c "from chat.models import Message; print('msgs before', Message.objects.count(), Message.objects.exclude(client_token=None).count())"); cd $C; $V/python manage.py migrate 2>&1 | tail -2; $V/python manage.py seed_demo | tail -1; $V/python manage.py seed_demo | tail -1; $V/python manage.py shell -c "from chat.models import Message; print('msgs after', Message.objects.count())"; $V/python manage.py makemigrations --check --dry-run | tail -1; $V/gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application && echo GUNICORN_OK; bash -n deploy/backup.sh deploy/manage.sh && echo BASH_OK; DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ $V/python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1 (11s)
+    $ C=$TMPDIR/t016; H=$TMPDIR/t016head; V=~/hackatonproject/.venv/bin; export DEBUG=true SECRET_KEY=dummy-key-for-local-check DEMO_PASSWORD=Local-Demo-Pass-2026 PRIVATE_MEDIA_ROOT=$TMPDIR/t016mig-pm; DB=$TMPDIR/t016mig.sqlite3; rm -f $DB; export DATABASE_URL=sqlite:///$DB; (cd $H && $V/python manage.py migrate -v0 && $V/python manage.py seed_demo >/dev/null && $V/python manage.py shell -c "from chat.models import Message; print('msgs before', Message.objects.count(), Message.objects.exclude(client_token=None).count())"); cd $C; $V/python manage.py migrate 2>&1 | tail -2; $V/python manage.py seed_demo | tail -1; $V/python manage.py seed_demo | tail -1; $V/python manage.py shell -c "from chat.models import Message; print('msgs after', Message.objects.count())"; $V/python manage.py makemigrations --check --dry-run | tail -1; $V/gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application && echo GUNICORN_OK; bash -n deploy/backup.sh deploy/manage.sh && echo BASH_OK; DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ $V/python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1
+    31 objects imported automatically (use -v 2 for details).
+
+    msgs before 8 0
+    Running migrations:
+      Applying chat.0002_message_token_per_author... OK
+    Chat ready: 0 dialogs, 0 messages.
+    Chat ready: 0 dialogs, 0 messages.
+    31 objects imported automatically (use -v 2 for details).
+
+    msgs after 8
+    No changes detected
+    GUNICORN_OK
+    BASH_OK
+    System check identified 1 issue (1 silenced).
+    Shell cwd was reset to ~/hackatonproject
+  ── Ran C=$TMPDIR/t016; cd $C; V=~/hackatonproject/.venv/bin; env -i PATH=$PATH HOME=$HOME DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ $V/python manage.py check --deploy --fail-level WARNING 2>&1 | tail -15
+    $ C=$TMPDIR/t016; cd $C; V=~/hackatonproject/.venv/bin; env -i PATH=$PATH HOME=$HOME DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ $V/python manage.py check --deploy --fail-level WARNING 2>&1 | tail -15
+    System check identified no issues (1 silenced).
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 5ms
+    The SECRET_KEY problem from before came down to the short dummy key triggering W009, so that's settled. The client-token message creation and the constraint migration both check out. I can't run the PostgreSQL migration locally since there's no PG here, so I'm leaning on the CI test-postgres job to cover it. Next I'll run the tests with --parallel 2 once and then use run_tests_at.
+  ── Ran C=$TMPDIR/t016; cd $C; V=~/hackatonproject/.venv/bin; export DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop; unset DATABASE_URL PRIVATE_MEDIA_ROOT DEMO_PASSWORD; L=$TMPDIR/test-t016-p2-$(date +%Y%m%d-%H%M%S).log; $V/python manage.py test --parallel 2 > $L 2>&1; echo "p2: $(grep -E '^Ran |^OK|^FAILED' $L | tr '\n' ' ') $L"; L2=$TMPDIR/test-t016-frozen-$(date +%Y%m%d-%H%M%S).log; $V/python scripts/run_tests_at.py 2027-03-01T12:00:00 > $L2 2>&1; echo "frozen: $(grep -E '^Ran |^OK|^FAILED' $L2 | tr '\n' ' ') $L2"; grep -E "^(FAIL|ERROR):" $L $L2; TZ=Europe/Moscow date +%H:%M (3m 58s)
+    $ C=$TMPDIR/t016; cd $C; V=~/hackatonproject/.venv/bin; export DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop; unset DATABASE_URL PRIVATE_MEDIA_ROOT DEMO_PASSWORD; L=$TMPDIR/test-t016-p2-$(date +%Y%m%d-%H%M%S).log; $V/python manage.py test --parallel 2 > $L 2>&1; echo "p2: $(grep -E '^Ran |^OK|^FAILED' $L | tr '\n' ' ') $L"; L2=$TMPDIR/test-t016-frozen-$(date +%Y%m%d-%H%M%S).log; $V/python scripts/run_tests_at.py 2027-03-01T12:00:00 > $L2 2>&1; echo "frozen: $(grep -E '^Ran |^OK|^FAILED' $L2 | tr '\n' ' ') $L2"; grep -E "^(FAIL|ERROR):" $L $L2; TZ=Europe/Moscow date +%H:%M
+    p2: Ran 1181 tests in 79.463s OK  /tmp/claude-501/test-t016-p2-20261120-135324.log
+    frozen: Ran 1181 tests in 155.408s OK  /tmp/claude-501/test-t016-frozen-20261120-135445.log
+    00:57
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 1s
+    All the tests pass. Next I'm weighing whether to save the full reference diff as a patch file under docs/tasks, since the planner may only write there and the spec already carries exact code. The open question is whether the lead would commit it.
+
+    I'm going to include the product code exactly in the spec, along with the tests, since embedding code in the spec markdown is what this project already does. The spec will run long, so I'll generate the diff and copy it in for review.
+
+── Assistant ───────────────────────────────────────────────
+All runs are green: 1181 tests, `--parallel 2` and the frozen clock. I produce the diff of the copy against HEAD to put the exact code into the spec.
+
+── Ran 2 commands, explored 1 file ─────────────────────────
+  ── Ran cd $TMPDIR; H=t016head; C=t016; rm -rf t016base; mkdir t016base; cd ~/hackatonproject; git archive HEAD | tar -x -C $TMPDIR/t016base; cd $TMPDIR; diff -ruN -x __pycache__ -x '*.sqlite3' -x pm -x staticfiles -x 'sessions.txt' -x '*.js' -x '*.log' t016base t016 > t016.diff; grep "^diff\|^+++ " t016.diff | grep "^+++" | sed 's/\t.*//'; wc -l t016.diff
+    $ cd $TMPDIR; H=t016head; C=t016; rm -rf t016base; mkdir t016base; cd ~/hackatonproject; git archive HEAD | tar -x -C $TMPDIR/t016base; cd $TMPDIR; diff -ruN -x __pycache__ -x '*.sqlite3' -x pm -x staticfiles -x 'sessions.txt' -x '*.js' -x '*.log' t016base t016 > t016.diff; grep "^diff\|^+++ " t016.diff | grep "^+++" | sed 's/\t.*//'; wc -l t016.diff
+    +++ t016/.github/workflows/ci.yml
+    +++ t016/.ruff_cache/.gitignore
+    +++ t016/.ruff_cache/CACHEDIR.TAG
+    +++ t016/accounts/forms.py
+    +++ t016/accounts/tests/test_throttling.py
+    +++ t016/accounts/throttling.py
+    +++ t016/chat/migrations/0002_message_token_per_author.py
+    +++ t016/chat/models.py
+    +++ t016/chat/services.py
+    +++ t016/chat/tests/test_models.py
+    +++ t016/chat/tests/test_services.py
+    +++ t016/config/settings.py
+    +++ t016/core/middleware.py
+    +++ t016/core/tests/test_deploy.py
+    +++ t016/core/tests/test_middleware.py
+    +++ t016/deploy/backup.sh
+    +++ t016/deploy/gunicorn.conf.py
+    +++ t016/deploy/nginx/deanery-bootstrap.conf
+    +++ t016/deploy/nginx/deanery.conf
+    +++ t016/deploy/systemd/deanery.service
+    +++ t016/docs/DEPLOY.md
+    +++ t016/petitions/forms.py
+    +++ t016/petitions/tests/test_views.py
+    +++ t016/petitions/views.py
+        1191 t016.diff
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 3s
+    I'm weighing whether to have the patch live in a docs file so the coder can apply it with git, since that would sidestep the coder having to implement it. The exclusion of the '*.js' files is fine, since chat.js stays unchanged regardless.
+
+    I'm going to skip the patch-file route and write the spec with the code embedded directly, so the coder still does the implementing. For the test files I'll pull the exact formatted text from the copies, since ruff may have changed a few lines.
+  ── Ran cd $TMPDIR; diff -u t016base/core/tests/test_deploy.py t016/core/tests/test_deploy.py | grep -v "^ " | head -400 | sed -n 1,80p
+    $ cd $TMPDIR; diff -u t016base/core/tests/test_deploy.py t016/core/tests/test_deploy.py | grep -v "^ " | head -400 | sed -n 1,80p
+    --- t016base/core/tests/test_deploy.py	2026-11-20 08:09:55
+    +++ t016/core/tests/test_deploy.py	2026-11-20 13:51:46
+    @@ -12,6 +12,7 @@
+    +import tempfile
+    @@ -66,6 +67,8 @@
+    +        # TASK-016 (PT1-F13): trust only X-Forwarded-Proto.
+    +        self.assertEqual(cfg["secure_scheme_headers"], {"X-FORWARDED-PROTO": "https"})
+    @@ -110,8 +113,62 @@
+    -        self.assertIn("return 301 https://$host$request_uri;", _read(NGINX_CONF))
+    +        # TASK-016 (PT1-F4): the redirect target is the fixed domain, never $host.
+    +        text = _read(NGINX_CONF)
+    +        self.assertEqual(text.count("return 301 https://example.com$request_uri;"), 2)
+    +        self.assertNotIn("$host$request_uri", text)
+    +    def test_catch_all_servers(self):
+    +        text = _read(NGINX_CONF)
+    +        for line in (
+    +            "listen 80 default_server;",
+    +            "listen [::]:80 default_server;",
+    +            "return 444;",
+    +            "listen 443 ssl http2 default_server;",
+    +            "listen [::]:443 ssl http2 default_server;",
+    +            "ssl_reject_handshake on;",
+    +        ):
+    +            self.assertEqual(text.count(line), 1, line)
+    +        self.assertEqual(text.count("server_name _;"), 2)
+    +
+    +    def test_www_redirect_and_acme(self):
+    +        text = _read(NGINX_CONF)
+    +        self.assertIn("server_name example.com www.example.com;", text)
+    +        self.assertIn("server_name www.example.com;", text)
+    +        self.assertIn("server_name example.com www.example.com;", _read(NGINX_BOOTSTRAP))
+    +
+    +    def test_login_rate_limit(self):
+    +        text = _read(NGINX_CONF)
+    +        for line in (
+    +            "POST    $binary_remote_addr;",
+    +            'default "";',
+    +            "limit_req_zone $deanery_login_key zone=deanery_login:10m rate=10r/m;",
+    +            "limit_req zone=deanery_login burst=10 nodelay;",
+    +            "limit_req_status 429;",
+    +            "limit_conn_zone $binary_remote_addr zone=deanery_conn:10m;",
+    +            "limit_conn deanery_conn 20;",
+    +            "limit_conn_status 429;",
+    +        ):
+    +            self.assertEqual(text.count(line), 1, line)
+    +
+    +    def test_login_location_pattern(self):
+    +        match = re.search(r"location ~ (\S+) \{", _read(NGINX_CONF))
+    +        self.assertIsNotNone(match)
+    +        pattern = re.compile(match.group(1))
+    +        for path in ("/login/", "/staff-1a2b3c/login/", "/a/b_c/login/", "/admin/login/"):
+    +            self.assertIsNotNone(pattern.search(path), path)
+    +        for path in ("/login/x", "/logout/", "/loginx/", "/profile/", "/login"):
+    +            self.assertIsNone(pattern.search(path), path)
+    +
+    +    def test_proxy_headers_at_server_level(self):
+    +        lines = _read(NGINX_CONF).splitlines()
+    +        headers = [line for line in lines if "proxy_set_header" in line]
+    +        self.assertEqual(len(headers), 4)
+    +        for line in headers:
+    +            self.assertTrue(line.startswith("    proxy_set_header"), line)
+    +            self.assertFalse(line.startswith("        "), line)
+    +        self.assertEqual(sum("proxy_pass http://127.0.0.1:8000;" in line for line in lines), 2)
+    +
+    @@ -251,10 +308,23 @@
+    -        unit = _read(SYSTEMD_UNIT)
+    -        self.assertIn("NoNewPrivileges=true", unit)
+    -        self.assertIn("ProtectSystem=full", unit)
+    -        self.assertIn("PrivateTmp=true", unit)
+    +        # TASK-016 (PT1-F13): ProtectSystem=strict and more sandboxing.
+    +        lines = _read(SYSTEMD_UNIT).splitlines()
+    +        for line in (
+    +            "NoNewPrivileges=true",
+    +            "PrivateTmp=true",
+    +            "PrivateDevices=true",
+    +            "ProtectSystem=strict",
+    +            "ProtectHome=true",
+    +            "ProtectKernelTunables=true",
+    +            "ProtectControlGroups=true",
+    +            "RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX",
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 5ms
+    Ruff barely touched the test code, so I'm checking whether the middleware test's Content-Security-Policy assertion got collapsed onto one line. Next I'll look at the final redirect test and the middleware file, and print the backup test after formatting.
+  ── Read core/tests/test_middleware.py
+  ── Thought for 5s
+    I'm planning to keep the spec manageable by generating its code sections with a script rather than transcribing them by hand. The prose will use placeholders for prototype files and diffs, which a Python script will fill in to assemble the final document.
+
+    I'm laying out the spec's remaining pieces: the deployment files and the tests will be pulled in through placeholders that a script fills, while the other changed files will be covered by unified diffs. Next I'm writing the template itself, including the feasibility items, the test plan, the decisions with their deviation notes, and the test count going from 1141 to 1181.
+
+── Assistant ───────────────────────────────────────────────
+I assemble the spec from a template: I write the text, and a script inserts the exact code and diffs from the checked copy, so nothing is copied by hand.
+
+── Created 1 file, ran 2 commands ──────────────────────────
+  ── Created ~/.bb/thread-storage/t016_spec_template.md +404
+    --- /dev/null
+    +++ b~/.bb/thread-storage/t016_spec_template.md
+    +# TASK-016: security hardening from PENTEST-1
+    +
+    +Author: Planner. Assignee: Coder. Status: ready for implementation.
+    +Base: HEAD 851b3ee (clean tree except the Team lead's `plan.md`; do not touch it).
+    +Source: `docs/security/PENTEST-1.md` (findings PT1-F1 … PT1-F13).
+    +
+    +## 1. Goal
+    +
+    +Close the PENTEST-1 findings the user decided to fix. No Critical/High findings exist; this is hardening.
+    +
+    +### Acceptance criteria
+    +
+    +| ID | Finding | Criterion |
+    +|---|---|---|
+    +| AC1 | PT1-F1 | nginx limits `POST` requests to every path that ends in `/login/` (the site login and the admin login under any `ADMIN_URL`) to 10 per minute per client IP, burst 10, answer 429. GET requests are not limited. A site-wide limit of 20 concurrent requests per client IP answers 429. The `proxy_set_header` lines are at the `server` level, so every `location` inherits them. |
+    +| AC2 | PT1-F2 | The login lockout key for an IPv6 client is its /64 network address (e.g. `2001:db8:1:2::`); IPv4 is unchanged; an IPv4-mapped IPv6 address counts as its IPv4 address. No per-account lock across addresses (plan.md 6b). |
+    +| AC3 | PT1-F4 | nginx has catch-all `default_server` blocks: port 80 → `return 444`; port 443 → `ssl_reject_handshake on`. HTTP for the domain and `www` serves ACME and redirects with 301 to `https://<domain>$request_uri` (never `$host`). HTTPS `www` redirects with 301 to the domain. The bootstrap config answers ACME for both names. The runbook issues the certificate with `-d "$DOMAIN" -d "www.$DOMAIN"`. |
+    +| AC4 | PT1-F3 | Every response to a signed-in user has `Cache-Control` with `no-store` and `private` (Django's `add_never_cache_headers`). Responses to requests without a session cookie and static files are unchanged. `SESSION_COOKIE_AGE` stays 14 days. |
+    +| AC5 | PT1-F5 | Every response that passes Django's middleware carries exactly this header (admin included): `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'`. Exceptions: a response that already has the header keeps it; with `DEBUG=True`, responses with status ≥ 400 get no header (Django's technical error pages). No new dependency. |
+    +| AC6 | PT1-F7 | `RequestType.comment_hint` is HTML-escaped before it becomes the `help_text` of the comment field. |
+    +| AC7 | PT1-F8 | `?type=` on the staff queue is used only if it is 1–18 ASCII digits; any other value (also 19+ digits) is ignored like a non-numeric value. No HTTP 500. All other integer inputs are already safe (section 5, item 6) and get regression tests. |
+    +| AC8 | PT1-F10 | The chat idempotency token is looked up per author; the unique constraint becomes (`dialog`, `author`, `client_token`); migration `chat/0002_message_token_per_author`. |
+    +| AC9 | PT1-F13 | `deploy/backup.sh` passes the database password to `pg_dump` through the libpq environment, never on the command line; other behaviour is unchanged. `deploy/gunicorn.conf.py`: `secure_scheme_headers = {"X-FORWARDED-PROTO": "https"}`. `deploy/systemd/deanery.service`: `ProtectSystem=strict` and the sandbox options listed in F11. `docs/DEPLOY.md`: `DEMO_PASSWORD` is removed from the env file right after the one-time `seed_demo` on 2026-11-22. |
+    +| AC10 | PT1-F6 (part) | The runbook creates the service account with `--shell /usr/sbin/nologin` and has no SSH key step for it. A new runbook step 21 hardens a server installed before this task. |
+    +| AC11 | — | CI runs `pip-audit --requirement requirements.txt` in its own step with `pip-audit==2.10.1`, not in any requirements file. Nothing to fix today (section 5, item 9). |
+    +| AC12 | — | Full suite, `--parallel 2`, `run_tests_at.py`, ruff, `bash -n`, `gunicorn --check-config`, CI YAML, `makemigrations --check` all pass. |
+    +
+    +## 2. Out of scope
+    +
+    +- Accepted by the user: PT1-F6 rest, PT1-F9, PT1-F11, PT1-F12, TLS cipher list and OCSP, the HSTS raise.
+    +- Not requested: rejecting superusers in the public login form (PT1-F2 point 3), a per-username limit across
+    +  addresses (forbidden, plan.md 6b), shorter sessions, a `DisallowedHost` null logger (PT1-F4; the catch-all
+    +  servers keep foreign hosts away from Django), `psql "$DATABASE_URL"` in the manual restore command.
+    +- `plan.md`, `CHANGELOG.md`, `README.md`, `docs/security/*`, old specs.
+    +
+    +## 3. Design decisions
+    +
+    +- **D1. Login rate limit by path pattern, not by the admin path.** The limited location is the regex
+    +  `^/(?:[A-Za-z0-9_-]+/)*login/$`. It matches `/login/` and `/<ADMIN_URL>login/` for every valid `ADMIN_URL`
+    +  (`config/env_utils.py:33` allows `[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*`). This differs from the request ("the
+    +  runbook renders the admin path") on purpose: the secret admin path does not go into `/etc/nginx` (world-readable),
+    +  the template needs no extra placeholder, and a changed `ADMIN_URL` needs no nginx change. The only other paths
+    +  the pattern matches do not exist (404 from Django).
+    +- **D2. Only POST is counted, burst 10.** A `map` gives an empty key for every method except POST; nginx does not
+    +  count requests with an empty key. So loading the login page never costs a slot, and jurors behind one NAT
+    +  address can sign in together (10 at once, then one per 6 s). One failed login costs ≈ 0.2 s CPU (PENTEST-1), so
+    +  one address can use at most ≈ 3 % of one CPU after the burst.
+    +- **D3. limit_conn 20** per address for the whole HTTPS site (HTTP/2 counts every active stream). A page loads
+    +  ≈ 7 files; static responses take milliseconds.
+    +- **D4. Zones in the site file.** `map`, `limit_req_zone` and `limit_conn_zone` must be in the `http` context.
+    +  Ubuntu's `nginx.conf` includes `sites-enabled/*` inside `http {}`, so they stay in `deploy/nginx/deanery.conf`;
+    +  no change to the stock `nginx.conf`.
+    +- **D5. Catch-all 443 with `ssl_reject_handshake on`** (nginx ≥ 1.19.4; Ubuntu 24.04 has 1.24): no certificate in
+    +  that block, the TLS handshake for an unknown SNI or no SNI fails, so the domain is not revealed for the IP. Both
+    +  catch-all blocks use the same `listen` options as the domain blocks (`ssl http2`), the 1.24 syntax the existing
+    +  test requires. The stock `default` site is already removed in step 12 (two `default_server` on one port would
+    +  fail `nginx -t`).
+    +- **D6. One CSP for the whole site, the admin included.** Measured (section 5, item 4): with the strict policy,
+    +  69 Django admin pages (every model's list, first change page, add page; date, time, `filter_horizontal`,
+    +  inline "add row" widgets clicked) and 40 student + 40 staff pages give zero CSP violations in Chrome. Django 5.2's
+    +  admin has no inline scripts (`<script id=… src=…>` only) and its single inline `<style>` (`change_list.html:16`)
+    +  renders only when a `ModelAdmin` sets both `actions_on_top` and `actions_on_bottom` to false — none does. Admin
+    +  JavaScript changes styles through CSSOM (`el.style.x = …`), which CSP allows. So no relaxed admin policy is
+    +  needed. If a future admin page needs it, the fallback is `style-src 'self' 'unsafe-inline'` for the admin path
+    +  only (scripts stay strict).
+    +- **D7. No `data:` in `img-src`.** No template, CSS or JS of the project uses a `data:` URI (grep, section 5,
+    +  item 4); the favicon is `static/img/favicon.svg`, the logo and the bell are inline SVG markup (allowed). CSS
+    +  `url(#map-hatch)` refers to an element in the page, not a fetch.
+    +- **D8. CSP middleware position:** right after WhiteNoise. WhiteNoise answers static files before it, so static
+    +  files are unchanged; every Django response (views, redirects of `LoginRequiredMiddleware`, CSRF 403, 404/500)
+    +  passes through it. With `DEBUG=True` responses with status ≥ 400 are skipped because Django's technical pages
+    +  use inline CSS/JS; production has `DEBUG=False`.
+    +- **D9. no-store middleware position:** last in `MIDDLEWARE` (after authentication). It returns early when the
+    +  request has no session cookie, so it never touches the session of anonymous requests (no new `Vary: Cookie`).
+    +  It uses `add_never_cache_headers` (the same headers as the existing `never_cache` views). Chrome check: after
+    +  logout, Back shows the login page, not `/grades/` (section 5, item 5).
+    +- **D10. IPv6 key = network address of the /64** (`str(IPv6Network((addr, 64), strict=False).network_address)`),
+    +  a valid IP for the existing `GenericIPAddressField` (`inet` on PostgreSQL): no migration. The new function
+    +  `throttle_ip()` is applied in the form; `get_client_ip()` stays unchanged (its tests stay).
+    +- **D11. Type filter by regex**, the same pattern as the chat `after` parameter (`chat/views.py:34`): 1–18 ASCII
+    +  digits always fit the 64-bit id range of SQLite and PostgreSQL. `[0-9]` (not `\d`) rejects non-ASCII digits.
+    +- **D12. Chat token per author** needs the constraint change: with the old (`dialog`, `client_token`) constraint a
+    +  staff reply that reuses a student's token would raise `IntegrityError` (HTTP 500) instead of being silently
+    +  dropped. Existing rows satisfy the new, wider constraint (checked on a seeded database).
+    +- **D13. backup.sh: libpq environment.** The script parses `DATABASE_URL` (`postgres://user:pass@host:port/name`,
+    +  the format of `.env.production.example`; the password is hex from `openssl rand -hex 24`) and exports
+    +  `PGUSER PGPASSWORD PGHOST PGPORT PGDATABASE`, then runs `pg_dump --no-owner --no-privileges` without a URL and
+    +  unsets `DATABASE_URL`. On Linux the environment of a process is readable only by its owner and root
+    +  (`/proc/<pid>/environ`), the command line by everybody (`ps`). A URL that does not match stops the script with a
+    +  clear message before any file is written. A new optional variable `DEANERY_ENV_FILE` (default
+    +  `/etc/deanery/deanery.env`) lets the tests run the real script with a stub `pg_dump`.
+    +- **D14. systemd sandbox: what the app writes at run time.** (a) Uploads into `PRIVATE_MEDIA_ROOT`
+    +  (`core/storage.py`) — the two directories in `ReadWritePaths`. (b) Temporary files: Django spools uploads larger
+    +  than 2.5 MB to `tempfile.gettempdir()` (`/tmp`), gunicorn's worker heartbeat files go to `/tmp` — `PrivateTmp=true`
+    +  gives a private writable `/tmp` even with `ProtectSystem=strict`. (c) Logs go to stdout/stderr (journald) —
+    +  file descriptors opened by systemd. (d) The database over TCP `localhost:5432` (`AF_INET`/`AF_INET6`). Nothing
+    +  else: sessions, cache (local memory), static files (collected before, read-only), `.pyc` files (written by
+    +  `manage.sh` runs outside the unit; a failed write of `__pycache__` is silent). Grep evidence in section 5,
+    +  item 7. Port 8000 needs no capability, so `CapabilityBoundingSet=` is empty. `ReadWritePaths` directories must
+    +  exist (step 6 creates both).
+    +- **D15. pip-audit pinned in the CI step** (2.10.1, 2026-06-10, Python ≥ 3.10). It is not in
+    +  `requirements-dev.txt`, so local environments stay small. It resolves `requirements.txt` in its own temporary
+    +  environment.
+    +
+    +## 4. Files and functions
+    +
+    +Create: `core/middleware.py`, `core/tests/test_middleware.py`, `chat/migrations/0002_message_token_per_author.py`
+    +(generate it, do not write it by hand: `python manage.py makemigrations chat --name message_token_per_author`).
+    +Change: `config/settings.py`, `accounts/throttling.py`, `accounts/forms.py`, `petitions/forms.py`,
+    +`petitions/views.py`, `chat/models.py`, `chat/services.py`, `deploy/nginx/deanery.conf`,
+    +`deploy/nginx/deanery-bootstrap.conf`, `deploy/gunicorn.conf.py`, `deploy/systemd/deanery.service`,
+    +`deploy/backup.sh`, `docs/DEPLOY.md`, `.github/workflows/ci.yml`, and the tests in section 7.
+    +
+    +The code below is the exact code that passed all checks in section 5 (the diffs are against HEAD 851b3ee; apply
+    +them by editing the files, never with git commands). Keep comments as written.
+    +
+    +### F1. `core/middleware.py` (new)
+    +
+    +```python
+    +{{FILE:core/middleware.py}}
+    +```
+    +
+    +### F2. `config/settings.py` — middleware order
+    +
+    +```diff
+    +{{DIFF:config/settings.py}}
+    +```
+    +
+    +### F3. `accounts/throttling.py::throttle_ip` and `accounts/forms.py`
+    +
+    +```diff
+    +{{DIFF:accounts/throttling.py}}
+    +```
+    +
+    +```diff
+    +{{DIFF:accounts/forms.py}}
+    +```
+    +
+    +### F4. `petitions/forms.py` — escaped hint
+    +
+    +```diff
+    +{{DIFF:petitions/forms.py}}
+    +```
+    +
+    +### F5. `petitions/views.py::StaffQueueView.get_queryset` — type filter
+    +
+    +```diff
+    +{{DIFF:petitions/views.py}}
+    +```
+    +
+    +### F6. `chat/services.py::_idempotent_message` and `chat/models.py`
+    +
+    +```diff
+    +{{DIFF:chat/services.py}}
+    +```
+    +
+    +```diff
+    +{{DIFF:chat/models.py}}
+    +```
+    +
+    +Then generate the migration; the generated file must contain exactly these operations:
+    +
+    +```python
+    +{{FILE:chat/migrations/0002_message_token_per_author.py}}
+    +```
+    +
+    +### F7. `deploy/nginx/deanery.conf` (whole file)
+    +
+    +```nginx
+    +{{FILE:deploy/nginx/deanery.conf}}
+    +```
+    +
+    +### F8. `deploy/nginx/deanery-bootstrap.conf`
+    +
+    +```diff
+    +{{DIFF:deploy/nginx/deanery-bootstrap.conf}}
+    +```
+    +
+    +### F9. `deploy/gunicorn.conf.py`
+    +
+    +```diff
+    +{{DIFF:deploy/gunicorn.conf.py}}
+    +```
+    +
+    +### F10. `deploy/backup.sh` (whole file; keep mode 755, edit in place)
+    +
+    +```bash
+    +{{FILE:deploy/backup.sh}}
+    +```
+    +
+    +### F11. `deploy/systemd/deanery.service` (whole file)
+    +
+    +```ini
+    +{{FILE:deploy/systemd/deanery.service}}
+    +```
+    +
+    +### F12. `docs/DEPLOY.md`
+    +
+    +Changes: step 0 (A records for `$DOMAIN` and `www.$DOMAIN`; SSH key for your own sudo user, never for
+    +`$APP_USER`), step 6 (`--shell /usr/sbin/nologin` and one sentence), step 12 (`-d "$DOMAIN" -d "www.$DOMAIN"`),
+    +step 15 (three more smoke checks), step 16 (remove `DEMO_PASSWORD` after `seed_demo`), new step 21 at the end.
+    +Steps 0–20 keep their numbers. Do not run `ruff format` on `docs/`.
+    +
+    +```diff
+    +{{DIFF:docs/DEPLOY.md}}
+    +```
+    +
+    +### F13. `.github/workflows/ci.yml`
+    +
+    +```diff
+    +{{DIFF:.github/workflows/ci.yml}}
+    +```
+    +
+    +## 5. Feasibility check
+    +
+    +1. **Baseline** — HEAD 851b3ee copy (`git archive`, no `.env`): 1141 tests OK (TASK-015-FIX count; the commits
+    +   after it change only docs).
+    +2. **Full change applied** — copy `$TMPDIR/t016` with F1–F13 and the tests of section 7:
+    +   `manage.py test --parallel` → `Ran 1181 tests … OK` (`$TMPDIR/test-t016-full-20261120-135146.log`, 00:52 MSK
+    +   21.11); `--parallel 2` → 1181 OK (`$TMPDIR/test-t016-p2-20261120-135324.log`); `scripts/run_tests_at.py
+    +   2027-03-01T12:00:00` → 1181 OK (`$TMPDIR/test-t016-frozen-20261120-135445.log`, 00:57 MSK). `ruff check .`
+    +   and `ruff format --check .` clean. The code-only part (F1–F6, no new tests) also passed the old 1141 tests
+    +   (`$TMPDIR/test-t016-code-20261120-081725.log`): no existing behaviour broke.
+    +3. **New tests fail on HEAD** — the new and changed test modules against the HEAD code: 14 failures + 6 errors,
+    +   all expected: every new nginx/systemd/runbook/backup/gunicorn/CI test, `test_comment_hint_escaped`,
+    +   `test_same_token_other_author_kept`, `test_client_token_unique_per_dialog_and_author` (IntegrityError),
+    +   `test_type_filter_out_of_range_ignored` (`OverflowError: Python int too large to convert to SQLite INTEGER`
+    +   — the PENTEST-1 500), import errors of `test_middleware` and `test_throttling` (`throttle_ip`, `core.middleware`
+    +   missing). Tests that pass on HEAD are regression guards (huge URL ids → 404, 18-digit type → empty list, no
+    +   lock across IPv4 addresses) (`$TMPDIR/test-t016-newtests-on-head-20261120-135242.log`).
+    +4. **CSP in a real browser** — headless Chrome (bb browser-automation) on `runserver` with a seeded temporary
+    +   database: crawl of 40 pages as `student1` and 40 as `staff1` (all links from the pages, 200 each) → zero
+    +   violations (console "Refused to…" and `securitypolicyviolation` events). Positive control: an injected inline
+    +   script and a `style` attribute on `/` → 4 violation reports, so the listener works. Admin with the strict
+    +   policy: 69 pages (all models; list, first change page, add page; date/time shortcuts, `filter_horizontal`
+    +   chooser, inline "add row" clicked; user list search and select-all) → zero violations. Grep: no `<script>`
+    +   without `src`, no `style=`/`<style`, no `on…=` handlers, no `javascript:`, no external URL, no `data:` in
+    +   project templates, CSS or JS (`static/js/chat.js` uses `DOMParser`/`importNode`, allowed).
+    +5. **No-store in a real browser** — log in as `student1`, open `/grades/` (`Cache-Control: max-age=0, no-cache,
+    +   no-store, must-revalidate, private`), log out, press Back → `/login/?next=/grades/` with "Вход", not the grades.
+    +   PENTEST-1 showed the grades page here.
+    +6. **Integer inputs** — with HEAD code every URL kwarg with 26 digits gives 404 (Django 5.2 handles out-of-range
+    +   primary-key lookups): `/requests/new/<n>/`, `/staff/students/<n>/`, `…/grades/`, `…/grades/<term>/`,
+    +   `/staff/schedule/<n>/`, `/staff/schedule/<n>/<date>/`, `/map/floor/<n>/` (Python membership check). Chat
+    +   `after` is limited to 18 digits (`chat/views.py:34`, 400 otherwise). Forms use `ChoiceField`/`UUIDField`/
+    +   `DateField` only. The only unsafe read is `petitions/views.py:135` (F5).
+    +7. **Run-time writes (D14)** — grep of non-test code for `open(`, `tempfile`, `mkdir`, `write`, `FileSystemStorage`,
+    +   `.save(` on storages: only `core/storage.py` (`PRIVATE_MEDIA_ROOT`) and `petitions/files.py` through it.
+    +   `CACHES` not set (local memory). `STATIC_ROOT` filled by `collectstatic` before start. gunicorn 26:
+    +   `worker_tmp_dir` default → `/tmp`; `control_socket_disable = True` (no `$HOME/.gunicorn`). `gunicorn
+    +   --check-config` with F9 → OK; `secure_scheme_headers` accepted.
+    +8. **backup.sh** — real script, stub `pg_dump` on `PATH`, temporary env file (test F14 below): exit 0, both
+    +   archives written, `pg_dump` arguments exactly `--no-owner --no-privileges`, the password only in `PGPASSWORD`,
+    +   `DATABASE_URL` not in `pg_dump`'s environment. A `sqlite:///` URL → exit ≠ 0 with the message, no backup
+    +   directory created. `bash -n` OK. Works on macOS (BSD tar/find) and is written for GNU tools (CI, server).
+    +9. **Dependencies** — `pip-audit` could not be installed here (sandbox TLS to PyPI fails; running outside the
+    +   sandbox was denied). Instead the OSV database (pip-audit's data source) was queried for every installed runtime
+    +   package: Django 5.2.19, django-environ 0.14.0, whitenoise 6.12.0, psycopg 3.3.8, psycopg-binary 3.3.8,
+    +   gunicorn 26.2.0, asgiref 3.13.0, sqlparse 0.6.1, typing-extensions 4.16.0 → no known vulnerability. Control:
+    +   Django 5.2.0 → 70 entries, so the query works. pip-audit 2.10.1 exists on PyPI (2026-06-10, Python ≥ 3.10;
+    +   CI uses 3.12). Expected first CI result: no findings.
+    +10. **Migration and seeding** — a database migrated and seeded with HEAD (8 chat messages), then migrated with the
+    +    change: `chat.0002_message_token_per_author… OK`; `seed_demo` twice → no error, 8 messages;
+    +    `makemigrations --check` → No changes. `check --deploy --fail-level WARNING` with CI-like env → no issues.
+    +    PostgreSQL: the CI `test-postgres` job runs the migrations (no PostgreSQL locally).
+    +11. **Not available locally:** nginx (`nginx -t` on the rendered config) and `systemd-analyze verify` (macOS).
+    +    The Team lead runs both on the server (runbook step 21). Docker is installed but its daemon is not running.
+    +
+    +## 6. Implementation order
+    +
+    +1. F1 + F2, then `core/tests/test_middleware.py` (F14.1).
+    +2. F3, F4, F5, F6 + migration, with their tests (F14.2–F14.4).
+    +3. F7–F11 (deploy), F12 (runbook), F13 (CI), with the deploy tests (F14.5).
+    +4. `ruff format` on the changed Python files (never on `docs/`), `ruff check .`.
+    +5. Verification (section 8).
+    +
+    +## 7. Test plan
+    +
+    +### Traceability
+    +
+    +| AC | Tests |
+    +|---|---|
+    +| AC1 | `core/tests/test_deploy.py::NginxTemplateTests::test_login_rate_limit`, `::test_login_location_pattern`, `::test_proxy_headers_at_server_level`, `::test_proxy_headers` (unchanged) |
+    +| AC2 | `accounts/tests/test_throttling.py::ThrottleIpTests` (4 tests), `LoginThrottleTests::test_ipv6_same_64_shares_lock`, `::test_ipv6_other_64_not_locked`, `::test_no_lock_across_ipv4_addresses`; existing `::test_lock_is_per_ip`, `::test_xff_*` |
+    +| AC3 | `NginxTemplateTests::test_catch_all_servers`, `::test_www_redirect_and_acme`, `::test_http_redirects_to_https` (changed), `::test_acme_location_in_both` (unchanged); `RunbookTests::test_certificate_for_www` |
+    +| AC4 | `core/tests/test_middleware.py::PrivateCacheTests` (6 tests) |
+    +| AC5 | `core/tests/test_middleware.py::ContentSecurityPolicyTests` (8 tests), `::TemplatesFitPolicyTests::test_no_inline_code_in_templates` |
+    +| AC6 | `petitions/tests/test_views.py::HardeningTests::test_comment_hint_escaped`, `::test_plain_hint_unchanged`; existing `FormTests::test_hint_*` |
+    +| AC7 | `HardeningTests::test_type_filter_valid`, `::test_type_filter_out_of_range_ignored`, `::test_type_filter_18_digits_empty`, `::test_huge_url_ids_404`; existing chat `after` tests |
+    +| AC8 | `chat/tests/test_services.py::ServiceTests::test_same_token_other_author_kept`, `chat/tests/test_models.py::ModelTests::test_client_token_unique_per_dialog_and_author` (renamed, extended); existing `::test_same_client_token_returns_existing` |
+    +| AC9 | `BackupScriptRunTests::test_password_not_on_command_line`, `::test_bad_database_url_fails`, existing `ShellScriptTests` (all 5); `GunicornConfigTests::test_defaults` (extended); `SystemdUnitTests::test_hardening` (changed); `RunbookTests::test_demo_password_removed_after_seed` |
+    +| AC10 | `RunbookTests::test_service_account_nologin`; `RunbookTests::test_steps_numbered_consecutively` (0..21) |
+    +| AC11 | `CiDependencyAuditTests::test_audit_step` |
+    +| AC12 | section 8 |
+    +
+    +### Access matrix (headers)
+    +
+    +| Request | CSP | Cache-Control added |
+    +|---|---|---|
+    +| anonymous, no cookie (`/login/`, redirect from `/grades/`) | yes | no |
+    +| stale session cookie | yes | no |
+    +| student / staff page | yes | `no-store, private` |
+    +| superuser admin page | yes (same policy) | `no-store, private` |
+    +| static file (WhiteNoise) | no (not tested; WhiteNoise answers before the middleware, D8) | no |
+    +| `DEBUG=True` 404 | no | — |
+    +
+    +### Edge cases
+    +
+    +IPv6 upper case, IPv4-mapped, loopback `::1` → `::`, invalid address → `0.0.0.0`; type filter `-1`, `1e3`,
+    +leading space, Arabic-Indic digit, `0x1`, empty, 18 vs 25 digits; chat: same author + same token → existing
+    +message, other author + same token → new message; backup with a non-PostgreSQL URL; template scan for every inline
+    +form that CSP blocks.
+    +
+    +### Changed existing tests (with reason)
+    +
+    +| Test | Change | Reason |
+    +|---|---|---|
+    +| `NginxTemplateTests::test_http_redirects_to_https` | `$host` redirect → fixed domain, twice | AC3 |
+    +| `SystemdUnitTests::test_hardening` | `ProtectSystem=full` → `strict` + new options | AC9 |
+    +| `GunicornConfigTests::test_defaults` | + `secure_scheme_headers` | AC9 |
+    +| `chat/tests/test_models.py::test_client_token_unique_per_dialog` | renamed `…_and_author`; + other author with the same token allowed; count 3 → 4 | AC8 |
+    +
+    +Test count: 1141 → 1181 (+40).
+    +
+    +### F14. Test code (exact)
+    +
+    +F14.1 `core/tests/test_middleware.py` (new):
+    +
+    +```python
+    +{{FILE:core/tests/test_middleware.py}}
+    +```
+    +
+    +F14.2 `accounts/tests/test_throttling.py`:
+    +
+    +```diff
+    +{{DIFF:accounts/tests/test_throttling.py}}
+    +```
+    +
+    +F14.3 `petitions/tests/test_views.py` (append):
+    +
+    +```diff
+    +{{DIFF:petitions/tests/test_views.py}}
+    +```
+    +
+    +F14.4 `chat/tests/test_services.py` and `chat/tests/test_models.py`:
+    +
+    +```diff
+    +{{DIFF:chat/tests/test_services.py}}
+    +```
+    +
+    +```diff
+    +{{DIFF:chat/tests/test_models.py}}
+    +```
+    +
+    +F14.5 `core/tests/test_deploy.py`:
+    +
+    +```diff
+    +{{DIFF:core/tests/test_deploy.py}}
+    +```
+    +
+    +## 8. Verification (Coder, then Reviewer)
+    +
+    +```bash
+    +.venv/bin/python manage.py test --parallel 2>&1 | tee "$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log" | tail -3
+    +.venv/bin/python manage.py test --parallel 2 2>&1 | tee "$TMPDIR/test-p2-$(date +%Y%m%d-%H%M%S).log" | tail -3
+    +.venv/bin/python scripts/run_tests_at.py 2027-03-01T12:00:00 2>&1 | tee "$TMPDIR/test-frozen-$(date +%Y%m%d-%H%M%S).log" | tail -3
+    +.venv/bin/ruff check . && .venv/bin/ruff format --check .
+    +bash -n deploy/backup.sh deploy/manage.sh
+    +.venv/bin/gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application
+    +.venv/bin/python manage.py check
+    +.venv/bin/python manage.py makemigrations --check --dry-run
+    +.venv/bin/python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('CI YAML OK')"
+    +test -x deploy/backup.sh && echo EXEC_OK
+    +which nginx systemd-analyze pip-audit || echo "not available locally: say so in the REPORT"
+    +git status --short
+    +```
+    +
+    +Migration on a seeded temporary database (never on the project `db.sqlite3`):
+    +
+    +```bash
+    +export DATABASE_URL="sqlite:///$TMPDIR/t016-mig.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t016-mig-media" DEMO_PASSWORD=Local-Demo-Pass-2026
+    +.venv/bin/python manage.py migrate && .venv/bin/python manage.py seed_demo && .venv/bin/python manage.py seed_demo
+    +unset DATABASE_URL PRIVATE_MEDIA_ROOT DEMO_PASSWORD
+    +```
+    +
+    +Expected: `Ran 1181 tests … OK` three times; ruff clean; `GUNICORN` OK; `No changes detected`; `EXEC_OK`.
+    +`git status` shows only the files of section 4, the new migration and `docs/tasks/TASK-016.md` (plus the Team
+    +lead's `plan.md`). If you can run `pip-audit -r requirements.txt` in a temporary venv, add its output to the
+    +REPORT; if not, say so. Never read `.env`. Report every failing run with the test name, Moscow time and a
+    +traceback excerpt.
+    +
+    +After APPROVE (Team lead, not the Coder): check every page in a browser for CSP errors (student, staff, admin),
+    +then apply runbook step 21 on the server (`nginx -t`, `systemd-analyze verify`, `systemd-analyze security`).
+    +
+    +## 9. Risks
+    +
+    +- **nginx config not validated by nginx here** (section 5, item 11). Mitigation: `nginx -t` before reload in
+    +  step 21; the old site file stays in place until `tee` overwrites it — keep a copy first
+    +  (`sudo cp /etc/nginx/sites-available/deanery /root/deanery.nginx.bak`).
+    +- **`ProtectSystem=strict` blocks an unknown write** → the unit fails or uploads fail. Mitigation: D14 list;
+    +  step 21 uploads and downloads a PDF after the restart; rollback = previous unit file.
+    +- **CSP breaks an untested admin widget** → the fallback in D6.
+    +- **429 for jurors behind one NAT** if more than 10 sign in within seconds (D2) — they retry after 6 s.
+    +- **pip-audit reports a new advisory later** → CI turns red; that is the purpose; fix by upgrading the pin.
+  ── Thought for 5s
+    I'm checking whether runbook step 21 covers the nginx backup copy, since right now I only mention it under risks. It may be better to fold the nginx and unit backup commands into step 21 of DEPLOY.md before I generate the file. The step 21 text also references `--expand`, which seems fine.
+
+    I'm double-checking the test counts I cited: ContentSecurityPolicyTests has 8 tests and PrivateCacheTests has 6, both matching. The 1141 baseline came from a code-only run on the copy, not HEAD itself, which is close enough. Next I want to confirm the claim that the recent commits only touched docs, using a diff against d80fc4b.
+  ── Ran cd ~/hackatonproject; git diff --stat d80fc4b HEAD | tail -8; cd $TMPDIR/t016; python3 - <<'EOF' import pathlib p=pathlib.Path("docs/DEPLOY.md"); t=p.read_text() old="""sudo rm /etc/nginx/sites-enabled/<temporary www site> """ new="""sudo cp /etc/nginx/sites-available/deanery /root/deanery.nginx.bak sudo cp /etc/systemd/system/deanery.service /root/deanery.service.bak sudo rm /etc/nginx/sites-enabled/<temporary www site> """ assert t.count(old)==1; p.write_text(t.replace(old,new)) EOF echo ok
+    $ cd ~/hackatonproject; git diff --stat d80fc4b HEAD | tail -8; cd $TMPDIR/t016; python3 - <<'EOF'
+  import pathlib
+  p=pathlib.Path("docs/DEPLOY.md"); t=p.read_text()
+  old="""sudo rm /etc/nginx/sites-enabled/<temporary www site>
+  """
+  new="""sudo cp /etc/nginx/sites-available/deanery /root/deanery.nginx.bak
+  sudo cp /etc/systemd/system/deanery.service /root/deanery.service.bak
+  sudo rm /etc/nginx/sites-enabled/<temporary www site>
+  """
+  assert t.count(old)==1; p.write_text(t.replace(old,new))
+  EOF
+  echo ok
+    CHANGELOG.md                           |     6 +
+     docs/process/README.md                 |     1 +
+     docs/process/dialogs/01-team-lead.md   |  2308 ++++-
+     docs/process/dialogs/06-pentester.md   | 14062 +++++++++++++++++++++++++++++++
+     docs/security/PENTEST-1-run1-medium.md |   165 +
+     docs/security/PENTEST-1.md             |   490 ++
+     plan.md                                |     6 +-
+     10 files changed, 17090 insertions(+), 5 deletions(-)
+    ok
+    Shell cwd was reset to ~/hackatonproject
+  ── Ran cd ~/hackatonproject; git diff --stat d80fc4b HEAD | head -4
+    $ cd ~/hackatonproject; git diff --stat d80fc4b HEAD | head -4
+    .bb/AGENTS.md                          |     4 +-
+     .bb/roles/lead.md                      |     5 +
+     .claude/agents/pentester.md            |    48 +
+     CHANGELOG.md                           |     6 +
+
+── Assistant ───────────────────────────────────────────────
+Only docs and agent files changed since TASK-015-FIX, so the 1141 baseline holds. Now I assemble the spec and re-run the deploy tests after the step 21 edit.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran cd $TMPDIR; export DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop; (cd t016 && ~/hackatonproject/.venv/bin/python manage.py test core.tests.test_deploy 2>&1 | grep -E "^Ran|^OK|^FAILED"); ~/hackatonproject/.venv/bin/python - <<'EOF' import re, subprocess, pathlib, os T=os.environ["TMPDIR"] base=pathlib.Path(T)/"t016base"; new=pathlib.Path(T)/"t016" tpl=pathlib.Path("~/.bb/thread-storage/t016_spec_template.md").read_text() def file_(m):     return (new/m.group(1)).read_text().rstrip("\n") def diff_(m):     p=m.group(1)     r=subprocess.run(["diff","-u","--label","a/"+p,"--label","b/"+p,str(base/p),str(new/p)],capture_output=True,text=True)     assert r.returncode==1, p     return r.stdout.rstrip("\n") out=re.sub(r"\{\{FILE:([^}]+)\}\}", file_, tpl) out=re.sub(r"\{\{DIFF:([^}]+)\}\}", diff_, out) assert "{{" not in out pathlib.Path("~/hackatonproject/docs/tasks/TASK-016.md").write_text(out) print(len(out.splitlines()), "lines") EOF grep -c '```' ~/hackatonproject/docs/tasks/TASK-016.md (3s)
+    $ cd $TMPDIR; export DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop; (cd t016 && ~/hackatonproject/.venv/bin/python manage.py test core.tests.test_deploy 2>&1 | grep -E "^Ran|^OK|^FAILED"); ~/hackatonproject/.venv/bin/python - <<'EOF'
+  import re, subprocess, pathlib, os
+  T=os.environ["TMPDIR"]
+  base=pathlib.Path(T)/"t016base"; new=pathlib.Path(T)/"t016"
+  tpl=pathlib.Path("~/.bb/thread-storage/t016_spec_template.md").read_text()
+  def file_(m):
+      return (new/m.group(1)).read_text().rstrip("\n")
+  def diff_(m):
+      p=m.group(1)
+      r=subprocess.run(["diff","-u","--label","a/"+p,"--label","b/"+p,str(base/p),str(new/p)],capture_output=True,text=True)
+      assert r.returncode==1, p
+      return r.stdout.rstrip("\n")
+  out=re.sub(r"\{\{FILE:([^}]+)\}\}", file_, tpl)
+  out=re.sub(r"\{\{DIFF:([^}]+)\}\}", diff_, out)
+  assert "{{" not in out
+  pathlib.Path("~/hackatonproject/docs/tasks/TASK-016.md").write_text(out)
+  print(len(out.splitlines()), "lines")
+  EOF
+  grep -c '```' ~/hackatonproject/docs/tasks/TASK-016.md
+    Ran 56 tests in 1.489s
+    OK
+    1519 lines
+    61
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 2s
+    I'm checking the fence count, which comes out odd at 61, so something is unbalanced. The likely cause is a DEPLOY.md diff whose embedded ```bash lines, indented by a single space, would close a fence early and break the rendering.
+
+    The fix is to switch the affected blocks to four-backtick fences, so the inner triple backticks can't close them early. I'll apply that through a regex wrap during assembly instead of editing the template by hand.
+
+── Assistant ───────────────────────────────────────────────
+The DEPLOY.md diff contains its own code fences, so they break the Markdown blocks. I switch these blocks to four-backtick fences.
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Ran cd $TMPDIR; ~/hackatonproject/.venv/bin/python - <<'EOF' import re, subprocess, pathlib, os T=os.environ["TMPDIR"] base=pathlib.Path(T)/"t016base"; new=pathlib.Path(T)/"t016" tpl=pathlib.Path("~/.bb/thread-storage/t016_spec_template.md").read_text() tpl=re.sub(r"```(\w+)\n(\{\{(?:FILE|DIFF):[^}]+\}\})\n```", r"````\1\n\2\n````", tpl) def file_(m): return (new/m.group(1)).read_text().rstrip("\n") def diff_(m):     p=m.group(1)     r=subprocess.run(["diff","-u","--label","a/"+p,"--label","b/"+p,str(base/p),str(new/p)],capture_output=True,text=True)     assert r.returncode==1, p     return r.stdout.rstrip("\n") out=re.sub(r"\{\{FILE:([^}]+)\}\}", file_, tpl) out=re.sub(r"\{\{DIFF:([^}]+)\}\}", diff_, out) assert "{{" not in out and "````" in out # sanity: no 4-backtick sequence inside embedded content pathlib.Path("~/hackatonproject/docs/tasks/TASK-016.md").write_text(out) lines=out.splitlines() fence=None; bad=0 for l in lines:     s=l.strip() if not l.startswith("    ") else None     if fence is None:         m=re.match(r"^(`{3,})", l)         if m: fence=m.group(1)     else:         if re.match(r"^ {0,3}"+fence+r"`*\s*$", l): fence=None print("unclosed" if fence else "fences balanced", len(lines)) EOF grep -n '^````' ~/hackatonproject/docs/tasks/TASK-016.md | wc -l (1s)
+    $ cd $TMPDIR; ~/hackatonproject/.venv/bin/python - <<'EOF'
+  import re, subprocess, pathlib, os
+  T=os.environ["TMPDIR"]
+  base=pathlib.Path(T)/"t016base"; new=pathlib.Path(T)/"t016"
+  tpl=pathlib.Path("~/.bb/thread-storage/t016_spec_template.md").read_text()
+  tpl=re.sub(r"```(\w+)\n(\{\{(?:FILE|DIFF):[^}]+\}\})\n```", r"````\1\n\2\n````", tpl)
+  def file_(m): return (new/m.group(1)).read_text().rstrip("\n")
+  def diff_(m):
+      p=m.group(1)
+      r=subprocess.run(["diff","-u","--label","a/"+p,"--label","b/"+p,str(base/p),str(new/p)],capture_output=True,text=True)
+      assert r.returncode==1, p
+      return r.stdout.rstrip("\n")
+  out=re.sub(r"\{\{FILE:([^}]+)\}\}", file_, tpl)
+  out=re.sub(r"\{\{DIFF:([^}]+)\}\}", diff_, out)
+  assert "{{" not in out and "````" in out
+  # sanity: no 4-backtick sequence inside embedded content
+  pathlib.Path("~/hackatonproject/docs/tasks/TASK-016.md").write_text(out)
+  lines=out.splitlines()
+  fence=None; bad=0
+  for l in lines:
+      s=l.strip() if not l.startswith("    ") else None
+      if fence is None:
+          m=re.match(r"^(`{3,})", l)
+          if m: fence=m.group(1)
+      else:
+          if re.match(r"^ {0,3}"+fence+r"`*\s*$", l): fence=None
+  print("unclosed" if fence else "fences balanced", len(lines))
+  EOF
+  grep -n '^````' ~/hackatonproject/docs/tasks/TASK-016.md | wc -l
+    fences balanced 1519
+          44
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 1s
+    I'm going through the spec's diff for the deploy test, which is large but expected. Next I'll skim the DEPLOY.md changes and check the header rendering. I also want to confirm the spec has no secrets: there are no session keys, and the DEMO_PASSWORD is a local test value, the kind earlier task docs used, which production must not reuse.
+
+    The DEMO_PASSWORD is a local test value, so it's fine for now, though I could swap it for something obviously dummy. Next I'm checking git status to confirm that docs/tasks/TASK-016.md is the only new file.
+  ── Ran cd ~/hackatonproject; git status --short; grep -n "^### \|^## " docs/tasks/TASK-016.md | head -50; grep -c "dummydbpass\|sessionid" docs/tasks/TASK-016.md
+    $ cd ~/hackatonproject; git status --short; grep -n "^### \|^## " docs/tasks/TASK-016.md | head -50; grep -c "dummydbpass\|sessionid" docs/tasks/TASK-016.md
+    M plan.md
+    ?? docs/tasks/TASK-016.md
+    7:## 1. Goal
+    11:### Acceptance criteria
+    28:## 2. Out of scope
+    36:## 3. Design decisions
+    105:## 4. Files and functions
+    117:### F1. `core/middleware.py` (new)
+    171:### F2. `config/settings.py` — middleware order
+    194:### F3. `accounts/throttling.py::throttle_ip` and `accounts/forms.py`
+    248:### F4. `petitions/forms.py` — escaped hint
+    273:### F5. `petitions/views.py::StaffQueueView.get_queryset` — type filter
+    313:### F6. `chat/services.py::_idempotent_message` and `chat/models.py`
+    396:### F7. `deploy/nginx/deanery.conf` (whole file)
+    506:### F8. `deploy/nginx/deanery-bootstrap.conf`
+    522:### F9. `deploy/gunicorn.conf.py`
+    535:### F10. `deploy/backup.sh` (whole file; keep mode 755, edit in place)
+    568:### F11. `deploy/systemd/deanery.service` (whole file)
+    604:### F12. `docs/DEPLOY.md`
+    732:### F13. `.github/workflows/ci.yml`
+    750:## 5. Feasibility check
+    805:## 6. Implementation order
+    813:## 7. Test plan
+    815:### Traceability
+    832:### Access matrix (headers)
+    843:### Edge cases
+    850:### Changed existing tests (with reason)
+    861:### F14. Test code (exact)
+    1476:## 8. Verification (Coder, then Reviewer)
+    1510:## 9. Risks
+    1
+  ── Thought for 3s
+    I'm noting that the migration's generated-by timestamp is fine, since the coder produces its own. Next I'm weighing whether to tell the lead about the two deviations, the regex-versus-admin-path choice and the missing admin relaxation, and whether they belong in my final response.
+
+    I'm still weighing whether to message the lead about the deviation, since the admin path doesn't match the "renders the admin path" request. It doesn't read as an acknowledgement, and the lead did ask me, so I'll send a short REPORT to them.
+
+── Assistant ───────────────────────────────────────────────
+The spec is ready (1519 lines, the code blocks are balanced). I hand it over to the Coder.
+
+── Ran cd ~/hackatonproject; bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF' [TASK-016] Planner -> Coder: TASK Spec: docs/tasks/TASK-016.md (base HEAD 851b3ee). Security hardening from docs/security/PENTEST-1.md: CSP + no-store middleware (core/middleware.py), IPv6 /64 lockout key, escaped comment_hint, safe ?type= filter, chat token per author (+ generated migration chat/0002_message_token_per_author), nginx rate limits / catch-all / www, gunicorn secure_scheme_headers, systemd sandbox, backup.sh without the password on the command line, runbook changes (new step 21), pip-audit step in CI. Every change is given as exact code or a unified diff against HEAD that passed all checks on a copy (section 5). Apply the diffs by editing files; no git commands. Generate the migration with makemigrations, do not write it by hand. Expected: 1141 -> 1181 tests OK with --parallel, --parallel 2 and run_tests_at.py. Verification in section 8 (nginx/systemd-analyze/pip-audit are not available locally: say so in the REPORT). Never read .env; do not touch plan.md. EOF bb thread tell thr_4izdzwetb4 --message-file - <<'EOF' [TASK-016] Planner -> Team lead: REPORT Spec docs/tasks/TASK-016.md is with the Coder. Two decisions differ from your request (justified in D1 and D6): 1. nginx login limit uses one regex location `^/(?:[A-Za-z0-9_-]+/)*login/$` instead of rendering the admin path: the secret ADMIN_URL stays out of world-readable /etc/nginx and an ADMIN_URL change needs no nginx change. Only POST is counted (empty map key for other methods), 10r/m, burst 10 (jurors behind one NAT). 2. One strict CSP for the whole site, admin included: 69 admin pages (widgets clicked) + 80 student/staff pages in Chrome gave zero violations; Django 5.2 admin has no inline scripts and its only inline <style> is not rendered by our ModelAdmins. img-src has no data: (none used). Fallback if an admin page breaks: 'unsafe-inline' for style-src under the admin path only. pip-audit could not run here (sandbox TLS; running outside the sandbox was denied); OSV lookup of all 9 runtime packages found no advisories. nginx -t and systemd-analyze are for you on the server (new runbook step 21 lists the commands and backups of the old files). EOF (1s)
+  $ cd ~/hackatonproject; bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF'
+[TASK-016] Planner -> Coder: TASK
+Spec: docs/tasks/TASK-016.md (base HEAD 851b3ee). Security hardening from docs/security/PENTEST-1.md: CSP + no-store middleware (core/middleware.py), IPv6 /64 lockout key, escaped comment_hint, safe ?type= filter, chat token per author (+ generated migration chat/0002_message_token_per_author), nginx rate limits / catch-all / www, gunicorn secure_scheme_headers, systemd sandbox, backup.sh without the password on the command line, runbook changes (new step 21), pip-audit step in CI.
+Every change is given as exact code or a unified diff against HEAD that passed all checks on a copy (section 5). Apply the diffs by editing files; no git commands. Generate the migration with makemigrations, do not write it by hand.
+Expected: 1141 -> 1181 tests OK with --parallel, --parallel 2 and run_tests_at.py. Verification in section 8 (nginx/systemd-analyze/pip-audit are not available locally: say so in the REPORT). Never read .env; do not touch plan.md.
+EOF
+bb thread tell thr_4izdzwetb4 --message-file - <<'EOF'
+[TASK-016] Planner -> Team lead: REPORT
+Spec docs/tasks/TASK-016.md is with the Coder. Two decisions differ from your request (justified in D1 and D6):
+1. nginx login limit uses one regex location `^/(?:[A-Za-z0-9_-]+/)*login/$` instead of rendering the admin path: the secret ADMIN_URL stays out of world-readable /etc/nginx and an ADMIN_URL change needs no nginx change. Only POST is counted (empty map key for other methods), 10r/m, burst 10 (jurors behind one NAT).
+2. One strict CSP for the whole site, admin included: 69 admin pages (widgets clicked) + 80 student/staff pages in Chrome gave zero violations; Django 5.2 admin has no inline scripts and its only inline <style> is not rendered by our ModelAdmins. img-src has no data: (none used). Fallback if an admin page breaks: 'unsafe-inline' for style-src under the admin path only.
+pip-audit could not run here (sandbox TLS; running outside the sandbox was denied); OSV lookup of all 9 runtime packages found no advisories. nginx -t and systemd-analyze are for you on the server (new runbook step 21 lists the commands and backups of the old files).
+EOF
+  Thread thr_ng6cbgatm6 steered
+  Thread thr_4izdzwetb4 steered
+
+── Assistant ───────────────────────────────────────────────
+Я написал спецификацию [TASK-016](docs/tasks/TASK-016.md) и передал её Кодеру. Все изменения я сначала проверил на временной копии проекта. На копии все прогоны прошли: полный, с `--parallel 2` и с замороженным временем — 1181 тест OK. Сейчас в проекте 1141.
+
+**Что сделает Кодер:**
+- **Вход (PT1-F1, PT1-F2).** nginx ограничит отправку формы входа: 10 попыток в минуту с одного адреса, сразу допускается до 10. Ещё один лимит: не больше 20 одновременных запросов с адреса на весь сайт. Для IPv6 блокировка считается по всей сети /64, а не по одному адресу.
+- **Чужие хосты и `www` (PT1-F4).** Запросы по IP и с чужим доменом nginx закрывает без ответа. `www` перенаправляет на основной домен, сертификат выпускается на оба имени.
+- **Кэш (PT1-F3).** Страницы вошедшего пользователя не сохраняются в браузере. Я проверил в Chrome: после выхода кнопка «Назад» открывает вход, а не оценки.
+- **CSP (PT1-F5).** Одна строгая политика на весь сайт, включая админку.
+- **Мелкие исправления.**
+  - Подсказка к комментарию экранируется.
+  - Огромное число в фильтре `?type=` больше не даёт ошибку 500.
+  - Токен чата проверяется отдельно для каждого автора. Для этого нужна миграция.
+- **Сервер (PT1-F13, PT1-F6).**
+  - `backup.sh` передаёт пароль базы через переменные окружения, а не в командной строке.
+  - Песочница systemd стала строже.
+  - gunicorn доверяет только заголовку `X-Forwarded-Proto`.
+  - У служебной учётной записи нет входной оболочки.
+  - `DEMO_PASSWORD` удаляется из env-файла после заполнения демо-данных.
+- **CI.** Добавлен отдельный шаг с `pip-audit`.
+
+**Где я отступил от запроса тимлида.** Тимлиду я отправил отчёт об этом.
+- **Лимит входа.** Вместо секретного пути админки в конфиге nginx стоит одно правило на все адреса, которые заканчиваются на `/login/`. Так секретный путь не попадает в `/etc/nginx`, который могут читать все пользователи сервера.
+- **CSP для админки.** Отдельная мягкая политика не нужна. В Chrome я проверил 69 страниц админки, 40 страниц студента и 40 страниц сотрудника: нарушений нет. Контрольная вставка встроенного скрипта нарушения показала, значит, проверка их ловит.
+
+**Что я не смог проверить здесь:**
+- `pip-audit` не установился: песочница ломает TLS к PyPI, а запуск без песочницы классификатор запретил. Вместо этого я проверил все 9 пакетов, нужных приложению, по базе уязвимостей OSV. Уязвимостей нет.
+- nginx и `systemd-analyze` здесь не установлены. Тимлид проверит их на сервере по новому шагу 21 инструкции. В этом шаге есть резервные копии старых файлов.

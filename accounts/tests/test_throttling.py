@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from unittest import mock
 
 from django.http import HttpRequest
-from django.test import RequestFactory, TestCase, override_settings
+from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -13,6 +13,7 @@ from accounts.throttling import (
     is_locked,
     normalize_username,
     register_failure,
+    throttle_ip,
 )
 
 
@@ -96,6 +97,28 @@ class LoginThrottleTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("Слишком много неудачных попыток", response.content.decode())
 
+    def test_ipv6_same_64_shares_lock(self):
+        # TASK-016 (PT1-F2): a new address in the same /64 does not get new attempts.
+        for host in ("1", "2", "3"):
+            self._post_login("u1", "wrong", REMOTE_ADDR=f"2001:db8:1:2::{host}")
+        response = self._post_login("u1", "Test-Pass-2026!", REMOTE_ADDR="2001:db8:1:2:ffff::9")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Слишком много неудачных попыток", response.content.decode())
+        self.assertTrue(LoginThrottle.objects.filter(ip_address="2001:db8:1:2::").exists())
+
+    def test_ipv6_other_64_not_locked(self):
+        for _ in range(3):
+            self._post_login("u1", "wrong", REMOTE_ADDR="2001:db8:1:2::1")
+        response = self._post_login("u1", "Test-Pass-2026!", REMOTE_ADDR="2001:db8:1:3::1")
+        self.assertEqual(response.status_code, 302)
+
+    def test_no_lock_across_ipv4_addresses(self):
+        # User decision (plan.md 6b): no per-account lock across addresses.
+        for host in ("1", "2", "3", "4", "5", "6"):
+            self._post_login("u1", "wrong", REMOTE_ADDR=f"10.0.{host}.1")
+        response = self._post_login("u1", "Test-Pass-2026!", REMOTE_ADDR="10.0.9.1")
+        self.assertEqual(response.status_code, 302)
+
     def test_locked_does_not_authenticate(self):
         for _ in range(3):
             self._post_login("u1", "wrong")
@@ -155,3 +178,20 @@ class ThrottlingUnitTests(TestCase):
         register_failure("u1", "10.0.0.1", t_late)
         row = LoginThrottle.objects.get(username_key="u1", ip_address="10.0.0.1")
         self.assertEqual(row.failures, 1)
+
+
+class ThrottleIpTests(SimpleTestCase):
+    def test_ipv4_unchanged(self):
+        self.assertEqual(throttle_ip("203.0.113.7"), "203.0.113.7")
+
+    def test_ipv6_network_64(self):
+        self.assertEqual(throttle_ip("2001:db8:1:2:aaaa:bbbb:cccc:dddd"), "2001:db8:1:2::")
+        self.assertEqual(throttle_ip("2001:DB8:1:2::1"), "2001:db8:1:2::")
+
+    def test_ipv4_mapped_ipv6(self):
+        self.assertEqual(throttle_ip("::ffff:203.0.113.7"), "203.0.113.7")
+
+    def test_loopback_and_unknown(self):
+        self.assertEqual(throttle_ip("::1"), "::")
+        self.assertEqual(throttle_ip(UNKNOWN_IP), UNKNOWN_IP)
+        self.assertEqual(throttle_ip("not-an-ip"), UNKNOWN_IP)

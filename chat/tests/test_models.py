@@ -47,7 +47,7 @@ class ModelTests(TestCase):
                     dialog=dialog, author=self.student, author_role="bad", text="x"
                 )
 
-    def test_client_token_unique_per_dialog(self):
+    def test_client_token_unique_per_dialog_and_author(self):
         dialog = make_dialog(self.profile)
         other = make_dialog(self.other_profile)
         token = uuid.uuid4()
@@ -68,6 +68,14 @@ class ModelTests(TestCase):
                     text="y",
                     client_token=token,
                 )
+        # TASK-016: the same token from another author in the same dialog is fine.
+        Message.objects.create(
+            dialog=dialog,
+            author=self.staff,
+            author_role=AuthorRole.STAFF,
+            text="w",
+            client_token=token,
+        )
         # The same token in another dialog is fine.
         Message.objects.create(
             dialog=other,
@@ -79,7 +87,7 @@ class ModelTests(TestCase):
         # Many NULL tokens are fine.
         add_message(dialog, self.student, AuthorRole.STUDENT)
         add_message(dialog, self.student, AuthorRole.STUDENT)
-        self.assertEqual(Message.objects.filter(dialog=dialog).count(), 3)
+        self.assertEqual(Message.objects.filter(dialog=dialog).count(), 4)
 
     def test_ordering_by_id(self):
         dialog = make_dialog(self.profile)

@@ -95883,3 +95883,3173 @@ TASK-015-FIX выполнена полностью и отправлена Ре�
 - `ruff check`/`format --check` — чисто; `bash -n` OK; `EXEC_OK`; `gunicorn --check-config` exit 0; `check`/`makemigrations` — без замечаний.
 
 `git diff --stat` содержит только три целевых файла + `plan.md` (Team lead). Жду вердикт Ревьюера.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_2imsg4kck2]
+
+[TASK-016] Planner -> Coder: TASK
+Spec: docs/tasks/TASK-016.md (base HEAD 851b3ee). Security hardening from docs/security/PENTEST-1.md: CSP + no-store middleware (core/middleware.py), IPv6 /64 lockout key, escaped comment_hint, safe ?type= filter, chat token per author (+ generated migration chat/0002_message_token_per_author), nginx rate limits / catch-all / www, gunicorn secure_scheme_headers, systemd sandbox, backup.sh without the password on the command line, runbook changes (new step 21), pip-audit step in CI.
+Every change is given as exact code or a unified diff against HEAD that passed all checks on a copy (section 5). Apply the diffs by editing files; no git commands. Generate the migration with makemigrations, do not write it by hand.
+Expected: 1141 -> 1181 tests OK with --parallel, --parallel 2 and run_tests_at.py. Verification in section 8 (nginx/systemd-analyze/pip-audit are not available locally: say so in the REPORT). Never read .env; do not touch plan.md.
+
+── Worked for (9m 54s) ─────────────────────────────────────
+  ── Ran 31 tools, edited 21 files, ran 3 commands, explored 1 search
+    ── Read file read
+      # TASK-016: security hardening from PENTEST-1
+
+      Author: Planner. Assignee: Coder. Status: ready for implementation.
+      Base: HEAD 851b3ee (clean tree except the Team lead's `plan.md`; do not touch it).
+      Source: `docs/security/PENTEST-1.md` (findings PT1-F1 … PT1-F13).
+
+      ## 1. Goal
+
+      Close the PENTEST-1 findings the user decided to fix. No Critical/High findings exist; this is hardening.
+
+      ### Acceptance criteria
+
+      | ID | Finding | Criterion |
+      |---|---|---|
+      | AC1 | PT1-F1 | nginx limits `POST` requests to every path that ends in `/login/` (the site login and the admin login under any `ADMIN_URL`) to 10 per minute per client IP, burst 10, answer 429. GET requests are not limited. A site-wide limit of 20 concurrent requests per client IP answers 429. The `proxy_set_header` lines are at the `server` level, so every `location` inherits them. |
+      | AC2 | PT1-F2 | The login lockout key for an IPv6 client is its /64 network address (e.g. `2001:db8:1:2::`); IPv4 is unchanged; an IPv4-mapped IPv6 address counts as its IPv4 address. No per-account lock across addresses (plan.md 6b). |
+      | AC3 | PT1-F4 | nginx has catch-all `default_server` blocks: port 80 → `return 444`; port 443 → `ssl_reject_handshake on`. HTTP for the domain and `www` serves ACME and redirects with 301 to `https://<domain>$request_uri` (never `$host`). HTTPS `www` redirects with 301 to the domain. The bootstrap config answers ACME for both names. The runbook issues the certificate with `-d "$DOMAIN" -d "www.$DOMAIN"`. |
+      | AC4 | PT1-F3 | Every response to a signed-in user has `Cache-Control` with `no-store` and `private` (Django's `add_never_cache_headers`). Responses to requests without a session cookie and static files are unchanged. `SESSION_COOKIE_AGE` stays 14 days. |
+      | AC5 | PT1-F5 | Every response that passes Django's middleware carries exactly this header (admin included): `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'
+
+      [... output truncated by retention policy; showing beginning and end ...]
+
+      teCacheMiddleware(lambda r: HttpResponse("x"))(request)
+              self.assertNotIn("Cache-Control", response)
+              self.assertFalse(hasattr(request, "user"))
+
+          def test_session_length_unchanged(self):
+              self.assertEqual(settings.SESSION_COOKIE_AGE, 14 * 24 * 3600)
+      ````
+
+      F14.2 `accounts/tests/test_throttling.py`:
+
+      ````diff
+      --- a/accounts/tests/test_throttling.py
+      +++ b/accounts/tests/test_throttling.py
+      @@ -2,7 +2,7 @@
+       from unittest import mock
+       
+       from django.http import HttpRequest
+      -from django.test import RequestFactory, TestCase, override_settings
+      +from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
+       from django.urls import reverse
+       from django.utils import timezone
+       
+      @@ -13,6 +13,7 @@
+           is_locked,
+           normalize_username,
+           register_failure,
+      +    throttle_ip,
+       )
+       
+       
+      @@ -96,6 +97,28 @@
+               self.assertEqual(response.status_code, 200)
+               self.assertIn("Слишком много неудачных попыток", response.content.decode())
+       
+      +    def test_ipv6_same_64_shares_lock(self):
+      +        # TASK-016 (PT1-F2): a new address in the same /64 does not get new attempts.
+      +        for host in ("1", "2", "3"):
+      +            self._post_login("u1", "wrong", REMOTE_ADDR=f"2001:db8:1:2::{host}")
+      +        response = self._post_login("u1", "Test-Pass-2026!", REMOTE_ADDR="2001:db8:1:2:ffff::9")
+      +        self.assertEqual(response.status_code, 200)
+      +        self.assertIn("Слишком много неудачных попыток", response.content.decode())
+      +        self.assertTrue(LoginThrottle.objects.filter(ip_address="2001:db8:1:2::").exists())
+      +
+      +    def test_ipv6_other_64_not_locked(self):
+      +        for _ in range(3):
+      +            self._post_login("u1", "wrong", REMOTE_ADDR="2001:db8:1:2::1")
+      +        response = self._post_login("u1", "Test-Pass-2026!", REMOTE_ADDR="2001:db8:1:3::1")
+      +        self.assertEqual(response.status_code, 302)
+      +
+      +    def test_no_lock_across_ipv4_addresses(self):
+      +        # User decision (plan.md 6b): no per-account lock across addresses.
+      +        for host in ("1", "2", "3", "4", "5", "6"):
+    ── Thought for 458ms
+      The spec is huge. I need to read the rest of it (from line 1063 onward) to get the full F14 test code and the rest of section 7 and 8.
+    ── Read file read
+      +            self._post_login("u1", "wrong", REMOTE_ADDR=f"10.0.{host}.1")
+      +        response = self._post_login("u1", "Test-Pass-2026!", REMOTE_ADDR="10.0.9.1")
+      +        self.assertEqual(response.status_code, 302)
+      +
+           def test_locked_does_not_authenticate(self):
+               for _ in range(3):
+                   self._post_login("u1", "wrong")
+      @@ -155,3 +178,20 @@
+               register_failure("u1", "10.0.0.1", t_late)
+               row = LoginThrottle.objects.get(username_key="u1", ip_address="10.0.0.1")
+               self.assertEqual(row.failures, 1)
+      +
+      +
+      +class ThrottleIpTests(SimpleTestCase):
+      +    def test_ipv4_unchanged(self):
+      +        self.assertEqual(throttle_ip("203.0.113.7"), "203.0.113.7")
+      +
+      +    def test_ipv6_network_64(self):
+      +        self.assertEqual(throttle_ip("2001:db8:1:2:aaaa:bbbb:cccc:dddd"), "2001:db8:1:2::")
+      +        self.assertEqual(throttle_ip("2001:DB8:1:2::1"), "2001:db8:1:2::")
+      +
+      +    def test_ipv4_mapped_ipv6(self):
+      +        self.assertEqual(throttle_ip("::ffff:203.0.113.7"), "203.0.113.7")
+      +
+      +    def test_loopback_and_unknown(self):
+      +        self.assertEqual(throttle_ip("::1"), "::")
+      +        self.assertEqual(throttle_ip(UNKNOWN_IP), UNKNOWN_IP)
+      +        self.assertEqual(throttle_ip("not-an-ip"), UNKNOWN_IP)
+      ````
+
+      F14.3 `petitions/tests/test_views.py` (append):
+
+      ````diff
+      --- a/petitions/tests/test_views.py
+      +++ b/petitions/tests/test_views.py
+      @@ -927,3 +927,68 @@
+               self.assertIn(f'href="/staff/requests/{self.p1.public_id}/"', queue)
+               self.assertIn("GX", queue)
+               self.assertIn("файлов:", queue)
+      +
+      +
+      +class HardeningTests(FrozenClockMixin, TestCase):
+      +    """TASK-016: PT1-F7 (hint escaped) and PT1-F8 (out-of-range type filter)."""
+      +
+      +    HUGE = "9" * 25
+      +
+      +    def setUp(self):
+      +        self.fac = make_faculty("FX")
+      +        self.group = make_group(self.fac, "GX")
+      +        self.student = make_student("a", self.group, "SA").student_profile
+      +        self.staff = make_staff("sx", self.fac)
+      +        self.type = make_type()
+      +        self.other_type = make_type(name="Другая")
+      +        self.p1 = make_petition(self.student, self.type)
+      +        self.p2 = make_petition(self.student, self.other_type)
+      +
+      +    def test_comment_hint_escaped(self):
+      +        hint = '<img src=x onerror="alert(1)"> & <b>жирный</b>'
+      +        t = make_type(name="XSS", comment_required=True, hint=hint)
+      +        self.client.force_login(self.student.user)
+      +        content = self.client.get(reverse("petitions:submit", args=[t.pk])).content.decode()
+      +        self.assertNotIn("<img src=x", content)
+      +        self.assertNotIn("<b>жирный</b>", content)
+      +        self.assertIn("&lt;img src=x onerror=&quot;alert(1)&quot;&gt; &amp; &lt;b&gt;", content)
+      +
+      +    def test_plain_hint_unchanged(self):
+      +        t = make_type(name="Plain", comment_required=True, hint="Укажите причину «А»")
+      +        form = PetitionForm(request_type=t)
+      +        self.assertEqual(form.fields["comment"].help_text, "Укажите причину «А»")
+      +
+      +    def _queue(self, type_value):
+      +        self.client.force_login(self.staff)
+      +        response = self.client.get(reverse("petitions:staff_queue"), {"type": type_value})
+      +        self.assertEqual(response.status_code, 200, type_value)
+      +        return response.content.decode()
+      +
+      +    def test_type_filter_valid(self):
+      +        content = self._queue(str(self.type.pk))
+      +        self.assertIn(str(self.p1.short_id), content)
+      +        self.assertNotIn(str(self.p2.short_id), content)
+      +
+      +    def test_type_filter_out_of_range_ignored(self):
+      +        for value in (self.HUGE, "-1", "1e3", " 1", "\u0663", "0x1", ""):
+      +            content = self._queue(value)
+      +            self.assertIn(str(self.p1.short_id), content, value)
+      +            self.assertIn(str(self.p2.short_id), content, value)
+      +
+      +    def test_type_filter_18_digits_empty(self):
+      +        content = self._queue("9" * 18)
+      +        self.assertNotIn(str(self.p1.short_id), content)
+      +        self.assertNotIn(str(self.p2.short_id), content)
+      +
+      +    def test_huge_url_ids_404(self):
+      +        self.client.force_login(self.student.user)
+      +        self.assertEqual(self.client.get(f"/requests/new/{self.HUGE}/").status_code, 404)
+      +        self.assertEqual(self.client.get(f"/map/floor/{self.HUGE}/").status_code, 404)
+      +        self.client.force_login(self.staff)
+      +        for path in (
+      +            f"/staff/students/{self.HUGE}/",
+      +            f"/staff/students/{self.HUGE}/grades/",
+      +            f"/staff/schedule/{self.HUGE}/",
+      +            f"/staff/schedule/{self.HUGE}/2026-11-16/",
+      +        ):
+      +            self.assertEqual(self.client.get(path).status_code, 404, path)
+      ````
+
+      F14.4 `chat/tests/test_services.py` and `chat/tests/test_models.py`:
+
+      ````diff
+      --- a/chat/tests/test_services.py
+      +++ b/chat/tests/test_services.py
+      @@ -94,6 +94,20 @@
+                   send_student_message(self.ax_profile, "заполнение", uuid.uuid4())
+               self.assertEqual(send_student_message(self.ax_profile, "Привет", token).pk, first.pk)
+       
+      +    def test_same_token_other_author_kept(self):
+      +        # TASK-016 (PT1-F10): the token is looked up per author.
+      +        token = uuid.uuid4()
+      +        student_message = send_student_message(self.ax_profile, "Вопрос", token)
+      +        reply = send_staff_message(student_message.dialog, self.sx, "Ответ", token)
+      +        self.assertNotEqual(reply.pk, student_message.pk)
+      +        self.assertEqual(reply.author, self.sx)
+      +        self.assertEqual(reply.text, "Ответ")
+      +        self.assertEqual(Message.objects.filter(dialog=student_message.dialog).count(), 2)
+      +        # The same author with the same token still gets the existing message.
+      +        again = send_staff_message(student_message.dialog, self.sx, "Ответ", token)
+      +        self.assertEqual(again.pk, reply.pk)
+      +        self.assertEqual(Message.objects.filter(dialog=student_message.dialog).count(), 2)
+      +
+           def test_two_staff_replies_both_kept_in_id_order(self):
+               sx2 = make_staff("sx2", self.fx)
+               dialog = make_dialog(self.ax_profile)
+      ````
+
+      ````diff
+      --- a/chat/tests/test_models.py
+      +++ b/chat/tests/test_models.py
+      @@ -47,7 +47,7 @@
+                           dialog=dialog, author=self.student, author_role="bad", text="x"
+                       )
+       
+      -    def test_client_token_unique_per_dialog(self):
+      +    def test_client_token_unique_per_dialog_and_author(self):
+               dialog = make_dialog(self.profile)
+               other = make_dialog(self.other_profile)
+               token = uuid.uuid4()
+      @@ -68,6 +68,14 @@
+                           text="y",
+                           client_token=token,
+                       )
+      +        # TASK-016: the same token from another author in the same dialog is fine.
+      +        Message.objects.create(
+      +            dialog=dialog,
+      +            author=self.staff,
+      +            author_role=AuthorRole.STAFF,
+      +            text="w",
+      +            client_token=token,
+      +        )
+               # The same token in another dialog is fine.
+               Message.objects.create(
+                   dialog=other,
+      @@ -79,7 +87,7 @@
+               # Many NULL tokens are fine.
+               add_message(dialog, self.student, AuthorRole.STUDENT)
+               add_message(dialog, self.student, AuthorRole.STUDENT)
+      -        self.assertEqual(Message.objects.filter(dialog=dialog).count(), 3)
+      +        self.assertEqual(Message.objects.filter(dialog=dialog).count(), 4)
+       
+           def test_ordering_by_id(self):
+               dialog = make_dialog(self.profile)
+      ````
+
+      F14.5 `core/tests/test_deploy.py`:
+
+      ````diff
+      --- a/core/tests/test_deploy.py
+      +++ b/core/tests/test_deploy.py
+      @@ -12,6 +12,7 @@
+       import shutil
+       import subprocess
+       import sys
+      +import tempfile
+       from pathlib import Path
+       from unittest import mock
+       
+      @@ -66,6 +67,8 @@
+               self.assertEqual(cfg["accesslog"], "-")
+               self.assertEqual(cfg["errorlog"], "-")
+               self.assertIs(cfg["control_socket_disable"], True)
+      +        # TASK-016 (PT1-F13): trust only X-Forwarded-Proto.
+      +        self.assertEqual(cfg["secure_scheme_headers"], {"X-FORWARDED-PROTO": "https"})
+       
+           def test_env_override(self):
+               cfg = self._load_config({"GUNICORN_WORKERS": "3", "GUNICORN_BIND": "127.0.0.1:9000"})
+      @@ -110,8 +113,62 @@
+                       self.assertNotIn(forbidden, active, f"{path.name}: {forbidden}")
+       
+           def test_http_redirects_to_https(self):
+      -        self.assertIn("return 301 https://$host$request_uri;", _read(NGINX_CONF))
+      +        # TASK-016 (PT1-F4): the redirect target is the fixed domain, never $host.
+      +        text = _read(NGINX_CONF)
+      +        self.assertEqual(text.count("return 301 https://example.com$request_uri;"), 2)
+      +        self.assertNotIn("$host$request_uri", text)
+       
+      +    def test_catch_all_servers(self):
+      +        text = _read(NGINX_CONF)
+      +        for line in (
+      +            "listen 80 default_server;",
+      +            "listen [::]:80 default_server;",
+      +            "return 444;",
+      +            "listen 443 ssl http2 default_server;",
+      +            "listen [::]:443 ssl http2 default_server;",
+      +            "ssl_reject_handshake on;",
+      +        ):
+      +            self.assertEqual(text.count(line), 1, line)
+      +        self.assertEqual(text.count("server_name _;"), 2)
+      +
+      +    def test_www_redirect_and_acme(self):
+      +        text = _read(NGINX_CONF)
+      +        self.assertIn("server_name example.com www.example.com;", text)
+      +        self.assertIn("server_name www.example.com;", text)
+      +        self.assertIn("server_name example.com www.example.com;", _read(NGINX_BOOTSTRAP))
+      +
+      +    def test_login_rate_limit(self):
+      +        text = _read(NGINX_CONF)
+      +        for line in (
+      +            "POST    $binary_remote_addr;",
+      +            'default "";',
+      +            "limit_req_zone $deanery_login_key zone=deanery_login:10m rate=10r/m;",
+      +            "limit_req zone=deanery_login burst=10 nodelay;",
+      +            "limit_req_status 429;",
+      +            "limit_conn_zone $binary_remote_addr zone=deanery_conn:10m;",
+      +            "limit_conn deanery_conn 20;",
+      +            "limit_conn_status 429;",
+      +        ):
+      +            self.assertEqual(text.count(line), 1, line)
+      +
+      +    def test_login_location_pattern(self):
+      +        match = re.search(r"location ~ (\S+) \{", _read(NGINX_CONF))
+      +        self.assertIsNotNone(match)
+      +        pattern = re.compile(match.group(1))
+      +        for path in ("/login/", "/staff-1a2b3c/login/", "/a/b_c/login/", "/admin/login/"):
+      +            self.assertIsNotNone(pattern.search(path), path)
+      +        for path in ("/login/x", "/logout/", "/loginx/", "/profile/", "/login"):
+      +            self.assertIsNone(pattern.search(path), path)
+      +
+      +    def test_proxy_headers_at_server_level(self):
+      +        lines = _read(NGINX_CONF).splitlines()
+      +        headers = [line for line in lines if "proxy_set_header" in line]
+      +        self.assertEqual(len(headers), 4)
+      +        for line in headers:
+      +            self.assertTrue(line.startswith("    proxy_set_header"), line)
+      +            self.assertFalse(line.startswith("        "), line)
+      +        self.assertEqual(sum("proxy_pass http://127.0.0.1:8000;" in line for line in lines), 2)
+      +
+           def test_acme_location_in_both(self):
+               for path in (NGINX_CONF, NGINX_BOOTSTRAP):
+                   self.assertIn("location ^~ /.well-known/acme-challenge/", _read(path), path.name)
+      @@ -251,10 +308,23 @@
+               self.assertIn("-c deploy/gunicorn.conf.py config.wsgi:application", _read(SYSTEMD_UNIT))
+       
+           def test_hardening(self):
+      -        unit = _read(SYSTEMD_UNIT)
+      -        self.assertIn("NoNewPrivileges=true", unit)
+      -        self.assertIn("ProtectSystem=full", unit)
+      -        self.assertIn("PrivateTmp=true", unit)
+      +        # TASK-016 (PT1-F13): ProtectSystem=strict and more sandboxing.
+      +        lines = _read(SYSTEMD_UNIT).splitlines()
+      +        for line in (
+      +            "NoNewPrivileges=true",
+      +            "PrivateTmp=true",
+      +            "PrivateDevices=true",
+      +            "ProtectSystem=strict",
+      +            "ProtectHome=true",
+      +            "ProtectKernelTunables=true",
+      +            "ProtectControlGroups=true",
+      +            "RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX",
+      +            "CapabilityBoundingSet=",
+      +            "ReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial",
+      +        ):
+      +            self.assertIn(line, lines)
+      +        self.assertNotIn("ProtectSystem=full", lines)
+      +        self.assertEqual(sum(line.startswith("ReadWritePaths=") for line in lines), 1)
+       
+       
+       class SmallFilesTests(SimpleTestCase):
+      @@ -435,6 +505,27 @@
+                   "PasswordAuthentication",
+               ):
+                   self.assertIn(topic, text, topic)
+      +
+      +    def test_service_account_nologin(self):
+      +        # TASK-016 (PT1-F6): no login shell and no SSH key for the service account.
+      +        text = _read(DEPLOY_MD)
+      +        self.assertIn('--shell /usr/sbin/nologin "$APP_USER"', text)
+      +        self.assertNotIn("--shell /bin/bash", text)
+      +        self.assertNotIn('ssh-copy-id "$APP_USER"', text)
+      +        self.assertIn('sudo usermod --shell /usr/sbin/nologin "$APP_USER"', text)
+      +
+      +    def test_certificate_for_www(self):
+      +        self.assertIn('-d "$DOMAIN" -d "www.$DOMAIN"', _read(DEPLOY_MD))
+      +
+      +    def test_demo_password_removed_after_seed(self):
+      +        text = _read(DEPLOY_MD)
+      +        section = text[text.index("## 16. ") : text.index("## 17. ")]
+      +        removal = "sudo sed -i '/^DEMO_PASSWORD=/d' /etc/deanery/deanery.env"
+      +        self.assertIn(removal, section)
+      +        self.assertLess(section.index("$M seed_demo"), section.index(removal))
+      +        self.assertLess(section.index(removal), section.index("sudo systemctl restart deanery"))
+      +        # The app itself never reads DEMO_PASSWORD.
+      +        self.assertNotIn("DEMO_PASSWORD", _read(BASE_DIR / "config" / "settings.py"))
+       
+           def test_no_daily_seed_cron(self):
+               for line in _read(DEPLOY_MD).splitlines():
+      @@ -504,3 +595,96 @@
+               section = text[text.index("## 19. Resources") : text.index("## 20. Troubleshooting")]
+               for fragment in ("GUNICORN_WORKERS=5", "min(5, 13)", "512 MB", "20 GB", "10%"):
+                   self.assertIn(fragment, section, fragment)
+      +
+      +
+      +class BackupScriptRunTests(SimpleTestCase):
+      +    """TASK-016: run backup.sh with a stub pg_dump; the password never reaches the command line."""
+      +
+      +    PASSWORD = "0123abcd4567ef89dummydbpass"
+      +
+      +    def test_password_not_on_command_line(self):
+      +        bash = shutil.which("bash")
+      +        if bash is None or shutil.which("tar") is None or shutil.which("gzip") is None:
+      +            self.skipTest("bash, tar or gzip not available")
+      +        with tempfile.TemporaryDirectory() as tmp:
+      +            root = Path(tmp)
+      +            (root / "bin").mkdir()
+      +            (root / "media" / "private_media").mkdir(parents=True)
+      +            (root / "media" / "private_media" / "a.pdf").write_bytes(b"%PDF-1.4")
+      +            stub = root / "bin" / "pg_dump"
+      +            stub.write_text(
+      +                "#!/usr/bin/env bash\n"
+      +                f'printf "%s\\n" "$@" > "{root}/args"\n'
+      +                f'env | grep -E "^PG(USER|PASSWORD|HOST|PORT|DATABASE)=" | sort > "{root}/pgenv"\n'
+      +                f'env | grep -c "^DATABASE_URL=" > "{root}/dburl" || true\n'
+      +                'echo "-- dump"\n',
+      +                encoding="utf-8",
+      +            )
+      +            stub.chmod(0o755)
+      +            env_file = root / "deanery.env"
+      +            env_file.write_text(
+      +                f"DATABASE_URL=postgres://deanery:{self.PASSWORD}@localhost:5432/deanery_trial\n"
+      +                f"PRIVATE_MEDIA_ROOT={root}/media/private_media\n",
+      +                encoding="utf-8",
+      +            )
+      +            env = {
+      +                "PATH": f"{root / 'bin'}{os.pathsep}{os.environ['PATH']}",
+      +                "BACKUP_DIR": str(root / "backups"),
+      +                "DEANERY_ENV_FILE": str(env_file),
+      +            }
+      +            result = subprocess.run(  # noqa: S603
+      +                [bash, str(BACKUP_SH)], env=env, capture_output=True, text=True, timeout=60
+      +            )
+      +            self.assertEqual(result.returncode, 0, result.stderr)
+      +            self.assertIn("backup ok:", result.stdout)
+      +            args = (root / "args").read_text(encoding="utf-8")
+      +            self.assertNotIn(self.PASSWORD, args)
+      +            self.assertEqual(args.split(), ["--no-owner", "--no-privileges"])
+      +            self.assertEqual(
+      +                (root / "pgenv").read_text(encoding="utf-8").split(),
+      +                [
+      +                    "PGDATABASE=deanery_trial",
+      +                    "PGHOST=localhost",
+      +                    f"PGPASSWORD={self.PASSWORD}",
+      +                    "PGPORT=5432",
+      +                    "PGUSER=deanery",
+      +                ],
+      +            )
+      +            self.assertEqual((root / "dburl").read_text(encoding="utf-8").strip(), "0")
+      +            names = sorted(p.name for p in (root / "backups").iterdir())
+      +            self.assertEqual(len(names), 2)
+      +            self.assertTrue(names[0].startswith("db-") and names[0].endswith(".sql.gz"))
+      +            self.assertTrue(names[1].startswith("media-") and names[1].endswith(".tar.gz"))
+      +
+      +    def test_bad_database_url_fails(self):
+      +        bash = shutil.which("bash")
+      +        if bash is None:
+      +            self.skipTest("bash not available")
+      +        with tempfile.TemporaryDirectory() as tmp:
+      +            env_file = Path(tmp) / "deanery.env"
+      +            env_file.write_text("DATABASE_URL=sqlite:///db.sqlite3\n", encoding="utf-8")
+      +            env = {
+      +                "PATH": os.environ["PATH"],
+      +                "BACKUP_DIR": str(Path(tmp) / "backups"),
+      +                "DEANERY_ENV_FILE": str(env_file),
+      +            }
+      +            result = subprocess.run(  # noqa: S603
+      +                [bash, str(BACKUP_SH)], env=env, capture_output=True, text=True, timeout=60
+      +            )
+      +            self.assertNotEqual(result.returncode, 0)
+      +            self.assertIn("DATABASE_URL must look like", result.stderr)
+      +            self.assertFalse((Path(tmp) / "backups").exists())
+      +
+      +
+      +class CiDependencyAuditTests(SimpleTestCase):
+      +    """TASK-016: pip-audit runs in CI in its own step; it is not a runtime dependency."""
+      +
+      +    def test_audit_step(self):
+      +        import yaml
+      +
+      +        ci = yaml.safe_load(_read(BASE_DIR / ".github" / "workflows" / "ci.yml"))
+      +        steps = {step.get("name"): step for step in ci["jobs"]["test"]["steps"]}
+      +        run = steps["Dependency audit"]["run"]
+      +        self.assertIn("pip install pip-audit==2.10.1", run)
+      +        self.assertIn("pip-audit --requirement requirements.txt", run)
+      +        self.assertNotIn("pip-audit", _read(BASE_DIR / "requirements.txt"))
+      ````
+
+      ## 8. Verification (Coder, then Reviewer)
+
+      ```bash
+      .venv/bin/python manage.py test --parallel 2>&1 | tee "$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log" | tail -3
+      .venv/bin/python manage.py test --parallel 2 2>&1 | tee "$TMPDIR/test-p2-$(date +%Y%m%d-%H%M%S).log" | tail -3
+      .venv/bin/python scripts/run_tests_at.py 2027-03-01T12:00:00 2>&1 | tee "$TMPDIR/test-frozen-$(date +%Y%m%d-%H%M%S).log" | tail -3
+      .venv/bin/ruff check . && .venv/bin/ruff format --check .
+      bash -n deploy/backup.sh deploy/manage.sh
+      .venv/bin/gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application
+      .venv/bin/python manage.py check
+      .venv/bin/python manage.py makemigrations --check --dry-run
+      .venv/bin/python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('CI YAML OK')"
+      test -x deploy/backup.sh && echo EXEC_OK
+      which nginx systemd-analyze pip-audit || echo "not available locally: say so in the REPORT"
+      git status --short
+      ```
+
+      Migration on a seeded temporary database (never on the project `db.sqlite3`):
+
+      ```bash
+      export DATABASE_URL="sqlite:///$TMPDIR/t016-mig.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t016-mig-media" DEMO_PASSWORD=Local-Demo-Pass-2026
+      .venv/bin/python manage.py migrate && .venv/bin/python manage.py seed_demo && .venv/bin/python manage.py seed_demo
+      unset DATABASE_URL PRIVATE_MEDIA_ROOT DEMO_PASSWORD
+      ```
+
+      Expected: `Ran 1181 tests … OK` three times; ruff clean; `GUNICORN` OK; `No changes detected`; `EXEC_OK`.
+      `git status` shows only the files of section 4, the new migration and `docs/tasks/TASK-016.md` (plus the Team
+      lead's `plan.md`). If you can run `pip-audit -r requirements.txt` in a temporary venv, add its output to the
+      REPORT; if not, say so. Never read `.env`. Report every failing run with the test name, Moscow time and a
+      traceback excerpt.
+
+      After APPROVE (Team lead, not the Coder): check every page in a browser for CSP errors (student, staff, admin),
+      then apply runbook step 21 on the server (`nginx -t`, `systemd-analyze verify`, `systemd-analyze security`).
+
+      ## 9. Risks
+
+      - **nginx config not validated by nginx here** (section 5, item 11). Mitigation: `nginx -t` before reload in
+        step 21; the old site file stays in place until `tee` overwrites it — keep a copy first
+        (`sudo cp /etc/nginx/sites-available/deanery /root/deanery.nginx.bak`).
+      - **`ProtectSystem=strict` blocks an unknown write** → the unit fails or uploads fail. Mitigation: D14 list;
+        step 21 uploads and downloads a PDF after the restart; rollback = previous unit file.
+      - **CSP breaks an untested admin widget** → the fallback in D6.
+      - **429 for jurors behind one NAT** if more than 10 sign in within seconds (D2) — they retry after 6 s.
+      - **pip-audit reports a new advisory later** → CI turns red; that is the purpose; fix by upgrading the pin.
+    ── Thought for 1s
+      This is a large task. I have the full spec now. Let me set up a todo list and start implementing.
+
+      Let me plan the order:
+      1. F1 (core/middleware.py new), F2 (settings.py), F14.1 (test_middleware.py)
+      2. F3 (throttling.py, forms.py), F14.2 (test_throttling.py)
+      3. F4 (petitions/forms.py), F5 (petitions/views.py), F14.3 (test_views.py)
+      4. F6 (chat/services.py, chat/models.py) + migration, F14.4 (test_services, test_models)
+      5. F7-F11 (deploy files), F12 (runbook), F13 (CI), F14.5 (test_deploy.py)
+      6. ruff format + check
+      7. Verification
+
+      Let me start reading the relevant files. First, let me read the files I need to modify.
+
+      Let me start with F1 (new middleware file), F2 settings, F3 throttling/forms.
+
+      I'll read the files in parallel.
+    ── Ran tool 6 todos
+      {"output":"[\n  {\n    \"content\": \"F1 middleware + F2 settings + F14.1 test_middleware\",\n    \"status\": \"in_progress\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"F3 throttling/forms + F14.2 test_throttling\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"F4 petitions/forms + F5 views + F14.3 test_views\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"F6 chat + migration + F14.4 tests\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"F7-F11 deploy + F12 runbook + F13 CI + F14.5 test_deploy\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"ruff format/check + verification (section 8)\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  }\n]","metadata":{"todos":[{"content":"F1 middleware + F2 settings + F14.1 test_middleware","status":"in_progress","priority":"high"},{"content":"F3 throttling/forms + F14.2 test_throttling","status":"pending","priority":"high"},{"content":"F4 petitions/forms + F5 views + F14.3 test_views","status":"pending","priority":"high"},{"content":"F6 chat + migration + F14.4 tests","status":"pending","priority":"high"},{"content":"F7-F11 deploy + F12 runbook + F13 CI + F14.5 test_deploy","status":"pending","priority":"high"},{"content":"ruff format/check + verification (section 8)","status":"pending","priority":"high"}],"truncated":false}}
+    ── Created core/middleware.py
+    ── Read file read
+      AUTH_USER_MODEL = "accounts.User"
+
+      MIDDLEWARE = [
+          "django.middleware.security.SecurityMiddleware",
+          "whitenoise.middleware.WhiteNoiseMiddleware",
+          "django.contrib.sessions.middleware.SessionMiddleware",
+          "django.middleware.common.CommonMiddleware",
+          "django.middleware.csrf.CsrfViewMiddleware",
+          "django.contrib.auth.middleware.AuthenticationMiddleware",
+          "django.contrib.auth.middleware.LoginRequiredMiddleware",
+          "django.contrib.messages.middleware.MessageMiddleware",
+          "django.middleware.clickjacking.XFrameOptionsMiddleware",
+      ]
+
+      LOGIN_URL = "accounts:login"
+      LOGIN_REDIRECT_URL = "accounts:profile"
+      LOGOUT_REDIRECT_URL = "accounts:login"
+
+      ROOT_URLCONF = "config.urls"
+    ── Edited config/settings.py +1
+      --- a~/hackatonproject/config/settings.py
+      +++ b~/hackatonproject/config/settings.py
+      +    "core.middleware.ContentSecurityPolicyMiddleware",
+    ── Edited config/settings.py +1
+      --- a~/hackatonproject/config/settings.py
+      +++ b~/hackatonproject/config/settings.py
+      +    "core.middleware.PrivateCacheMiddleware",
+    ── Created core/tests/test_middleware.py
+    ── Thought for 342ms
+      Now F3: throttling.py and forms.py. Let me read them.
+    ── Read file read
+      """Login brute-force throttling keyed by (normalized username, client IP)."""
+
+      import ipaddress
+      from datetime import datetime, timedelta
+
+      from django.conf import settings
+      from django.db import transaction
+      from django.http import HttpRequest
+
+      from .models import LoginThrottle
+
+      # Sentinel for "client IP unknown"; not a bind address.
+      UNKNOWN_IP = "0.0.0.0"  # noqa: S104
+
+
+      def normalize_username(username: str) -> str:
+          return username.strip().casefold()[:150]
+
+
+      def get_client_ip(request: HttpRequest | None) -> str:
+          if request is None:
+              return UNKNOWN_IP
+          header = settings.CLIENT_IP_HEADER
+          candidate = ""
+          if header == "HTTP_X_REAL_IP":
+              candidate = request.META.get(header, "").strip()
+          elif header == "HTTP_X_FORWARDED_FOR":
+              raw = request.META.get(header, "")
+              if raw:
+                  candidate = raw.split(",")[-1].strip()
+          if candidate:
+              try:
+                  ipaddress.ip_address(candidate)
+                  return candidate
+              except ValueError:
+                  pass
+          remote = request.META.get("REMOTE_ADDR", "")
+          try:
+              ipaddress.ip_address(remote)
+              return remote
+          except ValueError:
+              return UNKNOWN_IP
+
+
+      def is_locked(username: str, ip: str, now: datetime) -> bool:
+          return LoginThrottle.objects.filter(
+              username_key=normalize_username(username), ip_address=ip, locked_until__gt=now
+          ).exists()
+
+
+      def register_failure(username: str, ip: str, now: datetime) -> None:
+          key = normalize_username(username)
+          window = timedelta(seconds=settings.LOGIN_LOCKOUT_SECONDS)
+          with transaction.atomic():
+              # Opportunistic cleanup of expired rows (personal data, retained <= ~1 day).
+              stale_ts = now - max(window, timedelta(days=1))
+              LoginThrottle.objects.filter(
+                  last_failure_at__lt=stale_ts, locked_until__isnull=True
+              ).delete()
+              LoginThrottle.objects.filter(locked_until__lt=now - timedelta(days=1)).delete()
+
+              row, _ = LoginThrottle.objects.get_or_create(
+                  username_key=key,
+                  ip_address=ip,
+                  defaults={"first_failure_at": now, "last_failure_at": now},
+              )
+              row = LoginThrottle.objects.select_for_update().get(pk=row.pk)
+              if (row.locked_until is not None and row.locked_until <= now) or (
+                  row.first_failure_at <= now - window
+              ):
+                  row.failures = 0
+                  row.first_failure_at = now
+                  row.locked_until = None
+              row.failures += 1
+              row.last_failure_at = now
+              if row.failures >= settings.LOGIN_FAILURE_LIMIT:
+                  row.locked_until = now + window
+              row.save()
+
+
+      def reset_failures(username: str, ip: str) -> None:
+          LoginThrottle.objects.filter(username_key=normalize_username(username), ip_address=ip).delete()
+    ── Edited accounts/throttling.py +17
+      --- a~/hackatonproject/accounts/throttling.py
+      +++ b~/hackatonproject/accounts/throttling.py
+      +def throttle_ip(ip: str) -> str:
+      +    """Lockout key for a client address: IPv4 as is, IPv6 by its /64 network.
+      +
+      +    One IPv6 client usually owns a whole /64 and could take a new address for every
+      +    attempt. The key is the network address (a valid IP, e.g. "2001:db8:1:2::").
+      +    """
+      +    try:
+      +        address = ipaddress.ip_address(ip)
+      +    except ValueError:
+      +        return UNKNOWN_IP
+      +    if isinstance(address, ipaddress.IPv6Address):
+      +        if address.ipv4_mapped is not None:
+      +            return str(address.ipv4_mapped)
+      +        return str(ipaddress.IPv6Network((address, 64), strict=False).network_address)
+      +    return str(address)
+      +
+      +
+    ── Read file read
+      from typing import Any
+
+      from django.contrib.admin.forms import AdminAuthenticationForm
+      from django.contrib.auth.forms import AuthenticationForm
+      from django.core.exceptions import ValidationError
+      from django.utils import timezone
+      from django.utils.decorators import method_decorator
+      from django.views.decorators.debug import sensitive_variables
+
+      from .throttling import get_client_ip, is_locked, register_failure, reset_failures
+
+
+      class ThrottledLoginFormMixin:
+          error_messages = {
+              **AuthenticationForm.error_messages,
+              "locked": "Слишком много неудачных попыток входа. Попробуйте позже.",
+          }
+
+          @method_decorator(sensitive_variables())
+          def clean(self) -> dict[str, Any]:
+              username = self.cleaned_data.get("username") or ""
+              ip = get_client_ip(self.request)
+              now = timezone.now()
+              if username and is_locked(username, ip, now):
+                  raise ValidationError(self.error_messages["locked"], code="locked")
+              try:
+                  cleaned = super().clean()
+              except ValidationError:
+                  if username:
+                      register_failure(username, ip, now)
+                  raise
+              if username:
+                  reset_failures(username, ip)
+              return cleaned
+
+
+      class ThrottledAuthenticationForm(ThrottledLoginFormMixin, AuthenticationForm):
+          pass
+
+
+      class ThrottledAdminAuthenticationForm(ThrottledLoginFormMixin, AdminAuthenticationForm):
+          pass
+    ── Edited accounts/forms.py +1 -1
+      --- a~/hackatonproject/accounts/forms.py
+      +++ b~/hackatonproject/accounts/forms.py
+      -from .throttling import get_client_ip, is_locked, register_failure, reset_failures
+      +from .throttling import get_client_ip, is_locked, register_failure, reset_failures, throttle_ip
+    ── Edited accounts/forms.py +1 -1
+      --- a~/hackatonproject/accounts/forms.py
+      +++ b~/hackatonproject/accounts/forms.py
+      -        ip = get_client_ip(self.request)
+      +        ip = throttle_ip(get_client_ip(self.request))
+    ── Thought for 240ms
+      Now F14.2 test_throttling.py. Let me read the current test file.
+    ── Read file read
+      from datetime import datetime, timedelta
+      from unittest import mock
+
+      from django.http import HttpRequest
+      from django.test import RequestFactory, TestCase, override_settings
+      from django.urls import reverse
+      from django.utils import timezone
+
+      from accounts.models import LoginThrottle, User
+      from accounts.throttling import (
+          UNKNOWN_IP,
+          get_client_ip,
+          is_locked,
+          normalize_username,
+          register_failure,
+      )
+
+
+      @override_settings(LOGIN_FAILURE_LIMIT=3, LOGIN_LOCKOUT_SECONDS=900, CLIENT_IP_HEADER="")
+      class LoginThrottleTests(TestCase):
+          @classmethod
+          def setUpTestData(cls):
+              cls.user = User.objects.create_user(username="u1", role=User.Role.STUDENT)
+              cls.user.set_password("Test-Pass-2026!")
+              cls.user.save()
+
+          def _post_login(self, username, password, **extra):
+              return self.client.post(
+                  reverse("accounts:login"), {"username": username, "password": password}, **extra
+              )
+
+          def test_lockout_after_limit(self):
+              for _ in range(3):
+                  self._post_login("u1", "wrong")
+              response = self._post_login("u1", "Test-Pass-2026!")
+              self.assertEqual(response.status_code, 200)
+              self.assertIn("Слишком много неудачных попыток", response.content.decode())
+              self.assertNotIn("_auth_user_id", self.client.session)
+
+          def test_lock_is_per_ip(self):
+              for _ in range(3):
+                  self._post_login("u1", "wrong", REMOTE_ADDR="10.0.0.1")
+              response = self._post_login("u1", "Test-Pass-2026!", REMOTE_ADDR="10.0.0.2")
+              self.assertEqual(response.status_code, 302)
+
+          def test_lock_expires(self):
+              t0 = datetime(2026, 11, 16, 10, 0, tzinfo=timezone.get_current_timezone())
+              with mock.patch("django.utils.timezone.now", return_value=t0):
+                  for _ in range(3):
+                      self._post_login("u1", "wrong")
+              t1 = t0 + timedelta(seconds=901)
+              with mock.patch("django.utils.timezone.now", return_value=t1):
+                  response = self._post_login("u1", "Test-Pass-2026!")
+              self.assertEqual(response.status_code, 302)
+
+          def test_success_resets_counter(self):
+              for _ in range(2):
+                  self._post_login("u1", "wrong")
+              self._post_login("u1", "Test-Pass-2026!")
+              self.client.post(reverse("accounts:logout"))
+              for _ in range(2):
+                  self._post_login("u1", "wrong")
+              response = self._post_login("u1", "Test-Pass-2026!")
+              self.assertEqual(response.status_code, 302)
+
+          def test_messages_do_not_reveal_user_existence(self):
+              r1 = self._post_login("u1", "wrong")
+              r2 = self._post_login("nobody", "wrong")
+              err1 = list(r1.context["form"].non_field_errors())
+              err2 = list(r2.context["form"].non_field_errors())
+              self.assertEqual(err1, err2)
+
+          def test_xff_ignored_by_default(self):
+              for xff in ("1.1.1.1", "2.2.2.2", "3.3.3.3"):
+                  self._post_login("u1", "wrong", REMOTE_ADDR="10.0.0.1", HTTP_X_FORWARDED_FOR=xff)
+              response = self._post_login("u1", "Test-Pass-2026!", REMOTE_ADDR="10.0.0.1")
+              self.assertEqual(response.status_code, 200)
+              self.assertIn("Слишком много неудачных попыток", response.content.decode())
+
+          @override_settings(CLIENT_IP_HEADER="HTTP_X_FORWARDED_FOR")
+          def test_xff_used_when_enabled(self):
+              for _ in range(3):
+                  self._post_login("u1", "wrong", REMOTE_ADDR="10.0.0.1", HTTP_X_FORWARDED_FOR="5.5.5.5")
+              response = self._post_login(
+                  "u1", "Test-Pass-2026!", REMOTE_ADDR="10.0.0.1", HTTP_X_FORWARDED_FOR="6.6.6.6"
+              )
+              self.assertEqual(response.status_code, 302)
+
+          def test_admin_login_protected(self):
+              User.objects.create_superuser("root", password="Admin-Pass-2026!")
+              for _ in range(3):
+                  self.client.post(reverse("admin:login"), {"username": "root", "password": "wrong"})
+              response = self.client.post(
+                  reverse("admin:login"), {"username": "root", "password": "Admin-Pass-2026!"}
+              )
+              self.assertEqual(response.status_code, 200)
+              self.assertIn("Слишком много неудачных попыток", response.content.decode())
+
+          def test_locked_does_not_authenticate(self):
+              for _ in range(3):
+                  self._post_login("u1", "wrong")
+              with mock.patch("django.contrib.auth.forms.authenticate") as auth_mock:
+                  self._post_login("u1", "Test-Pass-2026!")
+              auth_mock.assert_not_called()
+
+
+      class ThrottlingUnitTests(TestCase):
+          def test_normalize_username(self):
+              self.assertEqual(normalize_username("  Student1 "), "student1")
+
+          def test_get_client_ip_none(self):
+              self.assertEqual(get_client_ip(None), UNKNOWN_IP)
+
+          def test_get_client_ip_default_ignores_headers(self):
+              request = RequestFactory().get("/", REMOTE_ADDR="10.0.0.1", HTTP_X_FORWARDED_FOR="1.1.1.1")
+              self.assertEqual(get_client_ip(request), "10.0.0.1")
+
+          @override_settings(CLIENT_IP_HEADER="HTTP_X_REAL_IP")
+          def test_get_client_ip_real_ip(self):
+              request = RequestFactory().get("/", REMOTE_ADDR="10.0.0.1", HTTP_X_REAL_IP="5.5.5.5")
+              self.assertEqual(get_client_ip(request), "5.5.5.5")
+
+          @override_settings(CLIENT_IP_HEADER="HTTP_X_FORWARDED_FOR")
+          def test_get_client_ip_xff_last(self):
+              request = RequestFactory().get(
+                  "/", REMOTE_ADDR="10.0.0.1", HTTP_X_FORWARDED_FOR="1.1.1.1, 2.2.2.2"
+              )
+              self.assertEqual(get_client_ip(request), "2.2.2.2")
+
+          @override_settings(CLIENT_IP_HEADER="HTTP_X_REAL_IP")
+          def test_get_client_ip_invalid_header_falls_back(self):
+              request = RequestFactory().get("/", REMOTE_ADDR="10.0.0.1", HTTP_X_REAL_IP="not-an-ip")
+              self.assertEqual(get_client_ip(request), "10.0.0.1")
+
+          def test_get_client_ip_missing_remote_addr(self):
+              request = HttpRequest()
+              request.META = {}
+              self.assertEqual(get_client_ip(request), UNKNOWN_IP)
+
+          @override_settings(LOGIN_FAILURE_LIMIT=3, LOGIN_LOCKOUT_SECONDS=900)
+          def test_register_failure_sets_lock_at_limit(self):
+              t0 = datetime(2026, 11, 16, 10, 0, tzinfo=timezone.get_current_timezone())
+              for _ in range(3):
+                  register_failure("u1", "10.0.0.1", t0)
+              row = LoginThrottle.objects.get(username_key="u1", ip_address="10.0.0.1")
+              self.assertEqual(row.failures, 3)
+              self.assertEqual(row.locked_until, t0 + timedelta(seconds=900))
+              self.assertTrue(is_locked("u1", "10.0.0.1", t0))
+
+          @override_settings(LOGIN_FAILURE_LIMIT=3, LOGIN_LOCKOUT_SECONDS=900)
+          def test_register_failure_old_window_restarts(self):
+              t0 = datetime(2026, 11, 16, 10, 0, tzinfo=timezone.get_current_timezone())
+              register_failure("u1", "10.0.0.1", t0)
+              t_late = t0 + timedelta(seconds=901)
+              register_failure("u1", "10.0.0.1", t_late)
+              row = LoginThrottle.objects.get(username_key="u1", ip_address="10.0.0.1")
+              self.assertEqual(row.failures, 1)
+    ── Thought for 5s
+      Now apply F14.2 diffs to test_throttling.py:
+
+      1. Import line: `from django.test import RequestFactory, TestCase, override_settings` → add `SimpleTestCase`.
+      2. Add `throttle_ip` to the import from accounts.throttling.
+      3. Add three test methods after `test_locked_does_not_authenticate` (before the blank line at line 105-106).
+
+      Wait, let me check the diff more carefully. The diff shows:
+
+      ```
+      @@ -2,7 +2,7 @@
+       from unittest import mock
+       
+       from django.http import HttpRequest
+      -from django.test import RequestFactory, TestCase, override_settings
+      +from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
+      ```
+
+      ```
+      @@ -13,6 +13,7 @@
+           is_locked,
+           normalize_username,
+           register_failure,
+      +    throttle_ip,
+       )
+      ```
+
+      ```
+      @@ -96,6 +97,28 @@
+               self.assertEqual(response.status_code, 200)
+               self.assertIn("Слишком много неудачных попыток", response.content.decode())
+       
+      +    def test_ipv6_same_64_shares_lock(self):
+      +        ...
+      +    def test_ipv6_other_64_not_locked(self):
+      +        ...
+      +    def test_no_lock_across_ipv4_addresses(self):
+      +        for host in ("1", "2", "3", "4", "5", "6"):
+      +            self._post_login("u1", "wrong", REMOTE_ADDR=f"10.0.{host}.1")
+      +        response = self._post_login("u1", "Test-Pass-2026!", REMOTE_ADDR="10.0.9.1")
+      +        self.assertEqual(response.status_code, 302)
+      +
+           def test_locked_does_not_authenticate(self):
+      ```
+
+      So the three new methods are inserted after `test_admin_login_protected` (which ends with `self.assertIn("Слишком много неудачных попыток", response.content.decode())`) and before `test_locked_does_not_authenticate`.
+
+      Wait, let me look at the context. The `@@ -96,6 +97,28 @@` hunk context is:
+      ```
+               self.assertEqual(response.status_code, 200)
+               self.assertIn("Слишком много неудачных попыток", response.content.decode())
+       
+      +    def test_ipv6_same_64_shares_lock(self):
+      ...
+      +    def test_no_lock_across_ipv4_addresses(self):
+      +        for host in ("1", "2", "3", "4", "5", "6"):
+      +            self._post_login("u1", "wrong", REMOTE_ADDR=f"10.0.{host}.1")
+      +        response = self._post_login("u1", "Test-Pass-2026!", REMOTE_ADDR="10.0.9.1")
+      +        self.assertEqual(response.status_code, 302)
+      +
+           def test_locked_does_not_authenticate(self):
+      ```
+
+      So this is after `test_admin_login_protected` (lines 96-97 in HEAD) and before `test_locked_does_not_authenticate` (line 99).
+
+      Actually wait, line 96-97 in HEAD: line 96 is `self.assertEqual(response.status_code, 200)`, line 97 is `self.assertIn("Слишком много неудачных попыток", ...)`. That's the end of `test_admin_login_protected`. So the new methods go after `test_admin_login_protected`.
+
+      Then F14.2 also adds ThrottleIpTests class at the end (after ThrottlingUnitTests, at the end of file).
+
+      ```
+      @@ -155,3 +178,20 @@
+               register_failure("u1", "10.0.0.1", t_late)
+               row = LoginThrottle.objects.get(username_key="u1", ip_address="10.0.0.1")
+               self.assertEqual(row.failures, 1)
+       
+      +
+      +class ThrottleIpTests(SimpleTestCase):
+      +    def test_ipv4_unchanged(self):
+      +        self.assertEqual(throttle_ip("203.0.113.7"), "203.0.113.7")
+      +
+      +    def test_ipv6_network_64(self):
+      +        self.assertEqual(throttle_ip("2001:db8:1:2:aaaa:bbbb:cccc:dddd"), "2001:db8:1:2::")
+      +        self.assertEqual(throttle_ip("2001:DB8:1:2::1"), "2001:db8:1:2::")
+      +
+      +    def test_ipv4_mapped_ipv6(self):
+      +        self.assertEqual(throttle_ip("::ffff:203.0.113.7"), "203.0.113.7")
+      +
+      +    def test_loopback_and_unknown(self):
+      +        self.assertEqual(throttle_ip("::1"), "::")
+      +        self.assertEqual(throttle_ip(UNKNOWN_IP), UNKNOWN_IP)
+      +        self.assertEqual(throttle_ip("not-an-ip"), UNKNOWN_IP)
+      ```
+
+      Let me apply these edits.
+    ── Edited accounts/tests/test_throttling.py +1 -1
+      --- a~/hackatonproject/accounts/tests/test_throttling.py
+      +++ b~/hackatonproject/accounts/tests/test_throttling.py
+      -from django.test import RequestFactory, TestCase, override_settings
+      +from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
+    ── Edited accounts/tests/test_throttling.py +1
+      --- a~/hackatonproject/accounts/tests/test_throttling.py
+      +++ b~/hackatonproject/accounts/tests/test_throttling.py
+      +    throttle_ip,
+    ── Edited accounts/tests/test_throttling.py +22
+      --- a~/hackatonproject/accounts/tests/test_throttling.py
+      +++ b~/hackatonproject/accounts/tests/test_throttling.py
+      +    def test_ipv6_same_64_shares_lock(self):
+      +        # TASK-016 (PT1-F2): a new address in the same /64 does not get new attempts.
+      +        for host in ("1", "2", "3"):
+      +            self._post_login("u1", "wrong", REMOTE_ADDR=f"2001:db8:1:2::{host}")
+      +        response = self._post_login("u1", "Test-Pass-2026!", REMOTE_ADDR="2001:db8:1:2:ffff::9")
+      +        self.assertEqual(response.status_code, 200)
+      +        self.assertIn("Слишком много неудачных попыток", response.content.decode())
+      +        self.assertTrue(LoginThrottle.objects.filter(ip_address="2001:db8:1:2::").exists())
+      +
+      +    def test_ipv6_other_64_not_locked(self):
+      +        for _ in range(3):
+      +            self._post_login("u1", "wrong", REMOTE_ADDR="2001:db8:1:2::1")
+      +        response = self._post_login("u1", "Test-Pass-2026!", REMOTE_ADDR="2001:db8:1:3::1")
+      +        self.assertEqual(response.status_code, 302)
+      +
+      +    def test_no_lock_across_ipv4_addresses(self):
+      +        # User decision (plan.md 6b): no per-account lock across addresses.
+      +        for host in ("1", "2", "3", "4", "5", "6"):
+      +            self._post_login("u1", "wrong", REMOTE_ADDR=f"10.0.{host}.1")
+      +        response = self._post_login("u1", "Test-Pass-2026!", REMOTE_ADDR="10.0.9.1")
+      +        self.assertEqual(response.status_code, 302)
+      +
+    ── Edited accounts/tests/test_throttling.py +17
+      --- a~/hackatonproject/accounts/tests/test_throttling.py
+      +++ b~/hackatonproject/accounts/tests/test_throttling.py
+      +
+      +
+      +class ThrottleIpTests(SimpleTestCase):
+      +    def test_ipv4_unchanged(self):
+      +        self.assertEqual(throttle_ip("203.0.113.7"), "203.0.113.7")
+      +
+      +    def test_ipv6_network_64(self):
+      +        self.assertEqual(throttle_ip("2001:db8:1:2:aaaa:bbbb:cccc:dddd"), "2001:db8:1:2::")
+      +        self.assertEqual(throttle_ip("2001:DB8:1:2::1"), "2001:db8:1:2::")
+      +
+      +    def test_ipv4_mapped_ipv6(self):
+      +        self.assertEqual(throttle_ip("::ffff:203.0.113.7"), "203.0.113.7")
+      +
+      +    def test_loopback_and_unknown(self):
+      +        self.assertEqual(throttle_ip("::1"), "::")
+      +        self.assertEqual(throttle_ip(UNKNOWN_IP), UNKNOWN_IP)
+      +        self.assertEqual(throttle_ip("not-an-ip"), UNKNOWN_IP)
+    ── Thought for 401ms
+      Now F4 (petitions/forms.py), F5 (petitions/views.py). Let me read them.
+    ── Read file read
+      """Forms for petitions."""
+
+      from django import forms
+
+      from petitions.files import validate_attachments
+      from petitions.models import MAX_COMMENT_LENGTH, SUBJECT_MAX_LENGTH, PetitionStatus, RequestType
+
+
+      class MultipleFileInput(forms.ClearableFileInput):
+          allow_multiple_selected = True
+
+
+      class MultipleFileField(forms.FileField):
+          def __init__(self, *args, **kwargs):
+              kwargs.setdefault("widget", MultipleFileInput(attrs={"accept": "application/pdf,.pdf"}))
+              super().__init__(*args, **kwargs)
+
+          def clean(self, data, initial=None):
+              if not data:
+                  return []
+              items = data if isinstance(data, (list, tuple)) else [data]
+              return [super().clean(item, initial) for item in items]
+
+
+      class PetitionForm(forms.Form):
+          subject = forms.CharField(
+              label="Тип",
+              max_length=SUBJECT_MAX_LENGTH,
+              help_text="Что именно нужно, например: «Справка о периоде обучения».",
+              error_messages={"required": "Укажите, что именно нужно."},
+          )
+          comment = forms.CharField(
+              label="Комментарий",
+              required=False,
+              max_length=MAX_COMMENT_LENGTH,
+              widget=forms.Textarea(attrs={"rows": 4}),
+          )
+          files = MultipleFileField(
+              label="PDF-файлы (необязательно, до 3 файлов по 5 МБ)", required=False
+          )
+
+          def __init__(self, *args, request_type: RequestType, **kwargs):
+              super().__init__(*args, **kwargs)
+              self.request_type = request_type
+              self.fields["comment"].required = request_type.comment_required
+              self.fields["comment"].help_text = request_type.comment_hint
+              if not request_type.subject_required:
+                  del self.fields["subject"]
+
+          def clean_subject(self):
+              subject = " ".join((self.cleaned_data.get("subject") or "").split())
+              if not subject:
+                  raise forms.ValidationError("Укажите, что именно нужно.")
+              return subject
+    ── Edited petitions/forms.py +1
+      --- a~/hackatonproject/petitions/forms.py
+      +++ b~/hackatonproject/petitions/forms.py
+      +from django.utils.html import escape
+    ── Edited petitions/forms.py +2 -1
+      --- a~/hackatonproject/petitions/forms.py
+      +++ b~/hackatonproject/petitions/forms.py
+      -        self.fields["comment"].help_text = request_type.comment_hint
+      +        # Django renders help_text without escaping; the hint is admin-entered text.
+      +        self.fields["comment"].help_text = escape(request_type.comment_hint)
+    ── Read file read
+      """Views for the petitions app."""
+
+      import logging
+
+      from django.contrib import messages
+      from django.core.exceptions import ValidationError
+      from django.db.models import Count, Prefetch
+      from django.http import FileResponse, Http404, HttpRequest, HttpResponse
+      from django.shortcuts import get_object_or_404, redirect
+      from django.views.decorators.http import require_GET
+      from django.views.generic import DetailView, FormView, ListView, TemplateView, View
+
+      from accounts.access import StaffRequiredMixin, StudentRequiredMixin, get_profile_for_role
+      from accounts.models import User
+      from petitions.forms import PetitionForm, StaffCommentForm, TransitionForm
+      from petitions.models import (
+          STATUS_VALUES,
+          Petition,
+          PetitionComment,
+          PetitionStatus,
+          PetitionStatusChange,
+          RequestKind,
+          RequestType,
+      )
+      from petitions.selectors import attachments_visible_to, petitions_visible_to
+      from petitions.services import add_staff_comment, change_status, submit_petition
+      from petitions.workflow import ACTION_LABELS, OPEN_STATUSES, allowed_transitions
+
+      logger = logging.getLogger(__name__)
+
+
+      class CatalogView(StudentRequiredMixin, TemplateView):
+          template_name = "petitions/catalog.html"
+
+          def get_context_data(self, **kwargs):
+              context = super().get_context_data(**kwargs)
+              types = RequestType.objects.filter(is_active=True).order_by("subject_required", "name")
+              context["certificates"] = types.filter(kind=RequestKind.CERTIFICATE)
+              context["applications"] = types.filter(kind=RequestKind.APPLICATION)
+              return context
+    ── Read file read
+      qs = qs.filter(status__in=OPEN_STATUSES)
+              elif status == "all":
+                  pass
+              elif status in STATUS_VALUES:
+                  qs = qs.filter(status=status)
+              else:
+                  qs = qs.filter(status__in=OPEN_STATUSES)
+              type_id = self.request.GET.get("type", "")
+              if type_id:
+                  try:
+                      qs = qs.filter(request_type_id=int(type_id))
+                  except (TypeError, ValueError):
+                      pass
+              return qs.order_by("created_at").annotate(attachment_count=Count("attachments"))
+
+          def get_context_data(self, **kwargs):
+              context = super().get_context_data(**kwargs)
+              context["status_choices"] = [("open", "Открытые"), ("all", "Все")] + list(
+                  PetitionStatus.choices
+              )
+              context["selected_status"] = self.request.GET.get("status", "open")
+              context["selected_type"] = self.request.GET.get("type", "")
+              context["types"] = RequestType.objects.all()
+              return context
+
+
+      class StaffPetitionDetailView(StaffRequiredMixin, DetailView):
+          model = Petition
+          template_name = "petitions/staff_detail.html"
+          slug_field = "public_id"
+          slug_url_kwarg = "public_id"
+
+          def get_queryset(self):
+              return (
+                  petitions_visible_to(self.request.user)
+                  .select_related("student__user")
+                  .prefetch_related(
+                      Prefetch(
+                          "history",
+                          queryset=PetitionStatusChange.objects.select_related("actor__staff_profile"),
+    ── Edited petitions/views.py +1
+      --- a~/hackatonproject/petitions/views.py
+      +++ b~/hackatonproject/petitions/views.py
+      +import re
+    ── Edited petitions/views.py +2
+      --- a~/hackatonproject/petitions/views.py
+      +++ b~/hackatonproject/petitions/views.py
+      +_TYPE_ID_RE = re.compile(r"[0-9]{1,18}")
+      +
+    ── Edited petitions/views.py +3 -5
+      --- a~/hackatonproject/petitions/views.py
+      +++ b~/hackatonproject/petitions/views.py
+      -        if type_id:
+      -            try:
+      -                qs = qs.filter(request_type_id=int(type_id))
+      -            except (TypeError, ValueError):
+      -                pass
+      +        # At most 18 digits: always inside the 64-bit id range of the database (PT1-F8).
+      +        if _TYPE_ID_RE.fullmatch(type_id):
+      +            qs = qs.filter(request_type_id=int(type_id))
+    ── Thought for 277ms
+      Now F14.3 test_views.py. Let me read the end of the file to append.
+    ── Read file read
+      self.assertIn(f'<span class="meta-item">№ {self.p2.short_id}&nbsp;·</span>', row)
+
+          def test_staff_row_structure(self):
+              content = self._staff_queue()
+              subject = f'<p class="petition-subject">{self.long_title}</p>'
+              self.assertIn(subject, content)
+              row_start = content.rindex('<li class="petition">', 0, content.index(subject))
+              row = content[row_start : content.index("</li>", row_start)]
+              self.assertLess(row.index('<a class="petition-title"'), row.index(subject))
+              self.assertLess(row.index(subject), row.index('<p class="petition-meta">'))
+              self.assertIn("файлов: 0", row)
+
+          def test_catalog_blocks(self):
+              self.client.force_login(self.student.user)
+              content = self.client.get(reverse("petitions:catalog")).content.decode()
+              self.assertIn('<p class="catalog-term">Срок: до 5 рабочих дней</p>', content)
+              self.assertIn('<a class="catalog-title"', content)
+              main = _part(content, "<main", "</main>")
+              self.assertNotIn(" — ", main)
+              self.assertNotIn("·", main)
+
+          def test_texts_and_links_kept(self):
+              content = self._student_list()
+              self.assertIn(f'href="/requests/{self.p1.public_id}/"', content)
+              self.assertIn("В работе", content)
+              self.assertIn("готовность:", content)
+              queue = self._staff_queue()
+              self.assertIn(f'href="/staff/requests/{self.p1.public_id}/"', queue)
+              self.assertIn("GX", queue)
+              self.assertIn("файлов:", queue)
+    ── Read file read
+      import re
+      import uuid
+      from datetime import timedelta
+
+      from django.core.files.base import ContentFile
+      from django.core.files.uploadedfile import SimpleUploadedFile
+      from django.db import connection
+      from django.test import Client, TestCase
+      from django.test.utils import CaptureQueriesContext
+      from django.urls import reverse
+      from django.utils import timezone
+
+      from accounts.models import User
+      from accounts.tests.helpers import make_faculty, make_group, make_staff, make_student
+      from core.testing import FrozenClockMixin
+      from petitions.files import store_attachment
+      from petitions.forms import PetitionForm
+      from petitions.models import Petition, PetitionComment, PetitionStatusChange
+      from petitions.services import add_staff_comment, change_status
+      from petitions.tests.helpers import fake_upload, make_petition, make_type, pdf_upload
+
+
+      class AccessMatrixTests(FrozenClockMixin, TestCase):
+          def setUp(self):
+              self.fac_x = make_faculty("FX")
+              self.fac_y = make_faculty("FY")
+              self.group_x = make_group(self.fac_x, "GX")
+              self.group_y = make_group(self.fac_y, "GY")
+              self.student_a = make_student("a", self.group_x, "SA").student_profile
+              self.student_a2 = make_student("a2", self.group_x, "SA2").student_profile
+              self.student_b = make_student("b", self.group_y, "SB").student_profile
+              self.staff_sx = make_staff("sx", self.fac_x)
+              self.staff_sy = make_staff("sy", self.fac_y)
+              self.admin = User.objects.create_superuser(username="admin")
+              self.type = make_type()
+              self.inactive = make_type(name="Inactive")
+              self.inactive.is_active = False
+              self.inactive.save()
+              self.pa = make_petition(self.student_a, self.type)
+              self.pa2 = make_petition(self.student_a2, self.type)
+              self.pb = make_petition(self.student_b, self.type)
+
+          def _login(self, user):
+              self.client.force_login(user)
+    ── Thought for 2s
+      The imports at the top of test_views.py already include `make_faculty, make_group, make_staff, make_student`, `make_type`, `make_petition`, `PetitionForm`, `reverse`, `TestCase`, `FrozenClockMixin`. All needed for HardeningTests. 
+
+      The HardeningTests uses `self.student` as a StudentProfile (make_student returns User with student_profile). Let me check: in the F14.3 diff, `self.student = make_student("a", self.group, "SA").student_profile`. And `self.p1 = make_petition(self.student, self.type)`. make_petition expects a student profile. Good.
+
+      Also `make_type(name="XSS", comment_required=True, hint=hint)` — need to check the make_type helper signature accepts `hint` and `name` and `comment_required`. Let me check helpers.
+    ── Read file read
+      """Plain helper functions for petition tests."""
+
+      from datetime import date
+
+      from django.core.files.uploadedfile import SimpleUploadedFile
+      from django.utils import timezone
+
+      from petitions.models import (
+          Petition,
+          PetitionStatusChange,
+          RequestType,
+      )
+
+
+      def pdf_upload(name="doc.pdf", size=None, content_type="application/pdf"):
+          if size is None:
+              content = b"%PDF-1.4\n%%EOF"
+          else:
+              content = b"%PDF-1.4\n" + b"0" * (size - len(b"%PDF-1.4\n%%EOF")) + b"%%EOF"
+          return SimpleUploadedFile(name, content, content_type=content_type)
+
+
+      def fake_upload(name, content, content_type):
+          return SimpleUploadedFile(name, content, content_type=content_type)
+
+
+      def make_type(
+          name="Справка",
+          kind="certificate",
+          days=3,
+          comment_required=False,
+          hint="",
+          subject_required=False,
+      ):
+          return RequestType.objects.create(
+              name=name,
+              kind=kind,
+              processing_days=days,
+              comment_required=comment_required,
+              comment_hint=hint,
+              subject_required=subject_required,
+          )
+
+
+      def make_petition(student_profile, request_type, status="submitted", created_at=None):
+          ts = created_at or timezone.now()
+          petition = Petition.objects.create(
+              student=student_profile,
+              request_type=request_type,
+              status=status,
+              created_at=ts,
+              status_changed_at=ts,
+              expected_ready_date=date(2026, 11, 23),
+          )
+          PetitionStatusChange.objects.create(
+              petition=petition,
+              from_status="",
+              to_status=status,
+              actor=student_profile.user,
+              created_at=ts,
+          )
+          return petition
+    ── Thought for 420ms
+      `make_type` accepts `hint` and `name`, `comment_required`. Good. `make_petition(student_profile, request_type)`. Good.
+
+      Now append HardeningTests to test_views.py.
+    ── Edited petitions/tests/test_views.py +65
+      --- a~/hackatonproject/petitions/tests/test_views.py
+      +++ b~/hackatonproject/petitions/tests/test_views.py
+      +
+      +
+      +class HardeningTests(FrozenClockMixin, TestCase):
+      +    """TASK-016: PT1-F7 (hint escaped) and PT1-F8 (out-of-range type filter)."""
+      +
+      +    HUGE = "9" * 25
+      +
+      +    def setUp(self):
+      +        self.fac = make_faculty("FX")
+      +        self.group = make_group(self.fac, "GX")
+      +        self.student = make_student("a", self.group, "SA").student_profile
+      +        self.staff = make_staff("sx", self.fac)
+      +        self.type = make_type()
+      +        self.other_type = make_type(name="Другая")
+      +        self.p1 = make_petition(self.student, self.type)
+      +        self.p2 = make_petition(self.student, self.other_type)
+      +
+      +    def test_comment_hint_escaped(self):
+      +        hint = '<img src=x onerror="alert(1)"> & <b>жирный</b>'
+      +        t = make_type(name="XSS", comment_required=True, hint=hint)
+      +        self.client.force_login(self.student.user)
+      +        content = self.client.get(reverse("petitions:submit", args=[t.pk])).content.decode()
+      +        self.assertNotIn("<img src=x", content)
+      +        self.assertNotIn("<b>жирный</b>", content)
+      +        self.assertIn("&lt;img src=x onerror=&quot;alert(1)&quot;&gt; &amp; &lt;b&gt;", content)
+      +
+      +    def test_plain_hint_unchanged(self):
+      +        t = make_type(name="Plain", comment_required=True, hint="Укажите причину «А»")
+      +        form = PetitionForm(request_type=t)
+      +        self.assertEqual(form.fields["comment"].help_text, "Укажите причину «А»")
+      +
+      +    def _queue(self, type_value):
+      +        self.client.force_login(self.staff)
+      +        response = self.client.get(reverse("petitions:staff_queue"), {"type": type_value})
+      +        self.assertEqual(response.status_code, 200, type_value)
+      +        return response.content.decode()
+      +
+      +    def test_type_filter_valid(self):
+      +        content = self._queue(str(self.type.pk))
+      +        self.assertIn(str(self.p1.short_id), content)
+      +        self.assertNotIn(str(self.p2.short_id), content)
+      +
+      +    def test_type_filter_out_of_range_ignored(self):
+      +        for value in (self.HUGE, "-1", "1e3", " 1", "\u0663", "0x1", ""):
+      +            content = self._queue(value)
+      +            self.assertIn(str(self.p1.short_id), content, value)
+      +            self.assertIn(str(self.p2.short_id), content, value)
+      +
+      +    def test_type_filter_18_digits_empty(self):
+      +        content = self._queue("9" * 18)
+      +        self.assertNotIn(str(self.p1.short_id), content)
+      +        self.assertNotIn(str(self.p2.short_id), content)
+      +
+      +    def test_huge_url_ids_404(self):
+      +        self.client.force_login(self.student.user)
+      +        self.assertEqual(self.client.get(f"/requests/new/{self.HUGE}/").status_code, 404)
+      +        self.assertEqual(self.client.get(f"/map/floor/{self.HUGE}/").status_code, 404)
+      +        self.client.force_login(self.staff)
+      +        for path in (
+      +            f"/staff/students/{self.HUGE}/",
+      +            f"/staff/students/{self.HUGE}/grades/",
+      +            f"/staff/schedule/{self.HUGE}/",
+      +            f"/staff/schedule/{self.HUGE}/2026-11-16/",
+      +        ):
+      +            self.assertEqual(self.client.get(path).status_code, 404, path)
+    ── Thought for 309ms
+      Now F6: chat/services.py and chat/models.py + migration. Let me read them.
+    ── Read file read
+      """Chat services: sending messages, read markers and history loading."""
+
+      from datetime import timedelta
+      from uuid import UUID
+
+      from django.core.exceptions import PermissionDenied, ValidationError
+      from django.db import transaction
+
+      from accounts.access import get_profile_for_role
+      from accounts.models import StudentProfile, User
+      from core import clock
+
+      from .constants import (
+          FRAGMENT_LIMIT,
+          HISTORY_LIMIT,
+          MESSAGE_MAX_LENGTH,
+          RATE_LIMIT_MESSAGES,
+          RATE_LIMIT_MINUTES,
+      )
+      from .models import AuthorRole, Dialog, Message
+      from .selectors import dialogs_visible_to
+
+
+      def normalize_text(text: str) -> str:
+          return text.replace("\r\n", "\n").replace("\r", "\n").strip()
+
+
+      def text_errors(text: str) -> list[str]:
+          if not text:
+              return ["Сообщение пустое."]
+          if len(text) > MESSAGE_MAX_LENGTH:
+              return [f"Сообщение длиннее {MESSAGE_MAX_LENGTH} символов."]
+          return []
+
+
+      def _idempotent_message(dialog: Dialog, client_token: UUID | None) -> Message | None:
+          if client_token is None:
+              return None
+          return dialog.messages.filter(client_token=client_token).first()
+
+
+      def send_student_message(student: StudentProfile, text: str, client_token: UUID | None) -> Message:
+          text = normalize_text(text)
+          errors = text_errors(text)
+          if errors:
+              raise ValidationError(errors)
+
+          with transaction.atomic():
+              dialog, _ = Dialog.objects.get_or_create(student=student)
+              dialog = Dialog.objects.select_for_update().get(pk=dialog.pk)
+
+              existing = _idempotent_message(dialog, client_token)
+              if existing is not None:
+                  return existing
+
+              now = clock.now()
+              recent = Message.objects.filter(
+                  author_id=student.user_id,
+                  author_role=AuthorRole.STUDENT,
+                  created_at__gt=now - timedelta(minutes=RATE_LIMIT_MINUTES),
+              ).count()
+              if recent >= RATE_LIMIT_MESSAGES:
+                  raise ValidationError(
+                      f"Можно отправить не больше {RATE_LIMIT_MESSAGES} сообщений "
+                      f"за {RATE_LIMIT_MINUTES} минут. Подождите немного."
+                  )
+
+              message = Message(
+                  dialog=dialog,
+                  author=student.user,
+                  author_role=AuthorRole.STUDENT,
+                  text=text,
+                  created_at=now,
+                  client_token=client_token,
+              )
+              message.full_clean()
+              message.save()
+
+              Dialog.objects.filter(pk=dialog.pk).update(last_message_at=now, last_message_id=message.pk)
+              return message
+
+
+      def send_staff_message(
+          dialog: Dialog, actor: User, text: str, client_token: UUID | None
+      ) -> Message:
+          get_profile_for_role(actor, User.Role.STAFF)
+          text = normalize_text(text)
+          errors = text_errors(text)
+          if errors:
+              raise ValidationError(errors)
+
+          with transaction.atomic():
+              locked = (
+                  dialogs_visible_to(actor).select_for_update(of=("self",)).filter(pk=dialog.pk).first()
+              )
+              if locked is None:
+                  raise PermissionDenied
+
+              existing = _idempotent_message(locked, client_token)
+              if existing is not None:
+                  return existing
+
+              now = clock.now()
+              message = Message(
+                  dialog=locked,
+                  author=actor,
+                  author_role=AuthorRole.STAFF,
+                  text=text,
+                  created_at=now,
+                  client_token=client_token,
+    ── Edited chat/services.py +2 -2
+      --- a~/hackatonproject/chat/services.py
+      +++ b~/hackatonproject/chat/services.py
+      -def _idempotent_message(dialog: Dialog, client_token: UUID | None) -> Message | None:
+      +def _idempotent_message(dialog: Dialog, author: User, client_token: UUID | None) -> Message | None:
+      -    return dialog.messages.filter(client_token=client_token).first()
+      +    return dialog.messages.filter(client_token=client_token, author=author).first()
+    ── Edited chat/services.py +1 -1
+      --- a~/hackatonproject/chat/services.py
+      +++ b~/hackatonproject/chat/services.py
+      -        existing = _idempotent_message(dialog, client_token)
+      +        existing = _idempotent_message(dialog, student.user, client_token)
+    ── Edited chat/services.py +1 -1
+      --- a~/hackatonproject/chat/services.py
+      +++ b~/hackatonproject/chat/services.py
+      -        existing = _idempotent_message(locked, client_token)
+      +        existing = _idempotent_message(locked, actor, client_token)
+    ── Read file read
+      client_token = models.UUIDField(null=True, blank=True, editable=False)
+          seed_key = models.SlugField(max_length=40, blank=True, default="", editable=False)
+
+          class Meta:
+              ordering = ["id"]
+              indexes = [
+                  models.Index(fields=["dialog", "id"], name="chat_msg_dialog_id_idx"),
+                  models.Index(fields=["author", "created_at"], name="chat_msg_author_time_idx"),
+              ]
+              constraints = [
+                  models.CheckConstraint(
+                      condition=~models.Q(text=""), name="chat_message_text_not_empty"
+                  ),
+                  models.CheckConstraint(
+                      condition=models.Q(author_role__in=["student", "staff"]),
+                      name="chat_message_author_role_value",
+                  ),
+                  models.UniqueConstraint(
+                      fields=["dialog", "client_token"],
+                      condition=models.Q(client_token__isnull=False),
+                      name="chat_message_unique_client_token",
+                  ),
+                  models.UniqueConstraint(
+                      fields=["seed_key"],
+                      condition=~models.Q(seed_key=""),
+                      name="chat_message_unique_seed_key",
+                  ),
+              ]
+              verbose_name = "сообщение"
+              verbose_name_plural = "сообщения"
+
+          def __str__(self) -> str:
+              return f"{self.get_author_role_display()}: {self.text[:40]}"
+    ── Edited chat/models.py +2 -2
+      --- a~/hackatonproject/chat/models.py
+      +++ b~/hackatonproject/chat/models.py
+      -                fields=["dialog", "client_token"],
+      +                fields=["dialog", "author", "client_token"],
+      -                name="chat_message_unique_client_token",
+      +                name="chat_message_unique_author_client_token",
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && python manage.py makemigrations chat --name message_token_per_author 2>&1 | tail -5
+      $ cd ~/hackatonproject && source .venv/bin/activate && python manage.py makemigrations chat --name message_token_per_author 2>&1 | tail -5
+      Migrations for 'chat':
+        chat/migrations/0002_message_token_per_author.py
+          - Remove constraint chat_message_unique_client_token from model message
+          + Create constraint chat_message_unique_author_client_token on model message
+    ── Read file read
+      # Generated by Django 5.2.19 on 2026-11-20 22:02
+
+      from django.conf import settings
+      from django.db import migrations, models
+
+
+      class Migration(migrations.Migration):
+
+          dependencies = [
+              ('chat', '0001_initial'),
+              migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+          ]
+
+          operations = [
+              migrations.RemoveConstraint(
+                  model_name='message',
+                  name='chat_message_unique_client_token',
+              ),
+              migrations.AddConstraint(
+                  model_name='message',
+                  constraint=models.UniqueConstraint(condition=models.Q(('client_token__isnull', False)), fields=('dialog', 'author', 'client_token'), name='chat_message_unique_author_client_token'),
+              ),
+          ]
+    ── Thought for 458ms
+      The generated migration matches the expected structure (the timestamp differs, which is fine — it's generated). Now F14.4 test_services.py and test_models.py.
+
+      Let me read the relevant sections.
+    ── Read file read
+      def test_staff_no_rate_limit(self):
+              dialog = make_dialog(self.ax_profile)
+              for _ in range(25):
+                  send_staff_message(dialog, self.sx, "ответ", uuid.uuid4())
+              self.assertEqual(Message.objects.filter(dialog=dialog).count(), 25)
+
+          def test_same_client_token_returns_existing(self):
+              token = uuid.uuid4()
+              first = send_student_message(self.ax_profile, "Привет", token)
+              second = send_student_message(self.ax_profile, "Привет", token)
+              self.assertEqual(first.pk, second.pk)
+              self.assertEqual(Message.objects.filter(dialog=first.dialog).count(), 1)
+              # A repeated token does not count towards the rate limit.
+              for _ in range(RATE_LIMIT_MESSAGES - 1):
+                  send_student_message(self.ax_profile, "заполнение", uuid.uuid4())
+              self.assertEqual(send_student_message(self.ax_profile, "Привет", token).pk, first.pk)
+
+          def test_two_staff_replies_both_kept_in_id_order(self):
+              sx2 = make_staff("sx2", self.fx)
+              dialog = make_dialog(self.ax_profile)
+              first = send_staff_message(dialog, self.sx, "первый", None)
+              second = send_staff_message(dialog, sx2, "второй", None)
+              self.assertLess(first.pk, second.pk)
+              self.assertEqual(Message.objects.filter(dialog=dialog).count(), 2)
+              dialog.refresh_from_db()
+              self.assertEqual(dialog.last_message_id, second.pk)
+
+          def test_send_locks_dialog(self):
+              orig = QuerySet.select_for_update
+              with mock.patch.object(
+                  QuerySet, "select_for_update", autospec=True, side_effect=orig
+              ) as spy:
+                  send_student_message(self.ax_profile, "студент", None)
+                  dialog = Dialog.objects.get(student=self.ax_profile)
+                  send_staff_message(dialog, self.sx, "ответ", None)
+              self.assertEqual(spy.call_count, 2)
+
+          def test_staff_cannot_write_other_faculty(self):
+              dialog = make_dialog(self.ax_profile)
+              with self.assertRaises(PermissionDenied):
+    ── Edited chat/tests/test_services.py +14
+      --- a~/hackatonproject/chat/tests/test_services.py
+      +++ b~/hackatonproject/chat/tests/test_services.py
+      +    def test_same_token_other_author_kept(self):
+      +        # TASK-016 (PT1-F10): the token is looked up per author.
+      +        token = uuid.uuid4()
+      +        student_message = send_student_message(self.ax_profile, "Вопрос", token)
+      +        reply = send_staff_message(student_message.dialog, self.sx, "Ответ", token)
+      +        self.assertNotEqual(reply.pk, student_message.pk)
+      +        self.assertEqual(reply.author, self.sx)
+      +        self.assertEqual(reply.text, "Ответ")
+      +        self.assertEqual(Message.objects.filter(dialog=student_message.dialog).count(), 2)
+      +        # The same author with the same token still gets the existing message.
+      +        again = send_staff_message(student_message.dialog, self.sx, "Ответ", token)
+      +        self.assertEqual(again.pk, reply.pk)
+      +        self.assertEqual(Message.objects.filter(dialog=student_message.dialog).count(), 2)
+      +
+    ── Read file read
+      )
+
+          def test_db_rejects_bad_role(self):
+              dialog = make_dialog(self.profile)
+              with self.assertRaises(IntegrityError):
+                  with transaction.atomic():
+                      Message.objects.create(
+                          dialog=dialog, author=self.student, author_role="bad", text="x"
+                      )
+
+          def test_client_token_unique_per_dialog(self):
+              dialog = make_dialog(self.profile)
+              other = make_dialog(self.other_profile)
+              token = uuid.uuid4()
+              Message.objects.create(
+                  dialog=dialog,
+                  author=self.student,
+                  author_role=AuthorRole.STUDENT,
+                  text="x",
+                  client_token=token,
+              )
+              # Same token in the same dialog is rejected.
+              with self.assertRaises(IntegrityError):
+                  with transaction.atomic():
+                      Message.objects.create(
+                          dialog=dialog,
+                          author=self.student,
+                          author_role=AuthorRole.STUDENT,
+                          text="y",
+                          client_token=token,
+                      )
+              # The same token in another dialog is fine.
+              Message.objects.create(
+                  dialog=other,
+                  author=self.other_student,
+                  author_role=AuthorRole.STUDENT,
+                  text="z",
+                  client_token=token,
+              )
+              # Many NULL tokens are fine.
+              add_message(dialog, self.student, AuthorRole.STUDENT)
+              add_message(dialog, self.student, AuthorRole.STUDENT)
+              self.assertEqual(Message.objects.filter(dialog=dialog).count(), 3)
+
+          def test_ordering_by_id(self):
+              dialog = make_dialog(self.profile)
+              a = add_message(dialog, self.student, AuthorRole.STUDENT)
+              b = add_message(dialog, self.staff, AuthorRole.STAFF)
+              c = add_message(dialog, self.student, AuthorRole.STUDENT)
+              self.assertEqual(list(Message.objects.values_list("id", flat=True)), [a.pk, b.pk, c.pk])
+    ── Edited chat/tests/test_models.py +10 -2
+      --- a~/hackatonproject/chat/tests/test_models.py
+      +++ b~/hackatonproject/chat/tests/test_models.py
+      -    def test_client_token_unique_per_dialog(self):
+      +    def test_client_token_unique_per_dialog_and_author(self):
+      +        # TASK-016: the same token from another author in the same dialog is fine.
+      +        Message.objects.create(
+      +            dialog=dialog,
+      +            author=self.staff,
+      +            author_role=AuthorRole.STAFF,
+      +            text="w",
+      +            client_token=token,
+      +        )
+      -        self.assertEqual(Message.objects.filter(dialog=dialog).count(), 3)
+      +        self.assertEqual(Message.objects.filter(dialog=dialog).count(), 4)
+    ── Thought for 365ms
+      Now F7-F11 deploy files, F12 runbook, F13 CI, F14.5 test_deploy.py.
+
+      Let me do F7 (whole nginx deanery.conf). I need to read the current file first to overwrite it.
+    ── Read file read
+      # Deanery prototype. Static files are served by Django/WhiteNoise; nginx serves no project files.
+      # PRIVATE_MEDIA_ROOT must never get a location here (attachments go through Django access checks).
+      server {
+          listen 80;
+          listen [::]:80;
+          server_name example.com;
+          server_tokens off;
+
+          location ^~ /.well-known/acme-challenge/ {
+              root /var/www/letsencrypt;
+              default_type "text/plain";
+          }
+
+          location / {
+              return 301 https://$host$request_uri;
+          }
+      }
+
+      server {
+          listen 443 ssl http2;
+          listen [::]:443 ssl http2;
+          server_name example.com;
+          server_tokens off;
+
+          ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;
+          ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
+          ssl_protocols TLSv1.2 TLSv1.3;
+          ssl_prefer_server_ciphers off;
+          ssl_session_cache shared:SSL:10m;
+          ssl_session_timeout 1d;
+          ssl_session_tickets off;
+
+          client_max_body_size 20m;
+
+          # Not set by Django; X-Frame-Options, nosniff, Referrer-Policy and HSTS come from Django.
+          add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+
+          location / {
+              proxy_pass http://127.0.0.1:8000;
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $scheme;
+              proxy_redirect off;
+              proxy_connect_timeout 5s;
+              proxy_read_timeout 60s;
+          }
+      }
+    ── Edited deploy/nginx/deanery.conf
+    ── Edited deploy/nginx/deanery-bootstrap.conf +1 -1
+      --- a~/hackatonproject/deploy/nginx/deanery-bootstrap.conf
+      +++ b~/hackatonproject/deploy/nginx/deanery-bootstrap.conf
+      -    server_name example.com;
+      +    server_name example.com www.example.com;
+    ── Read file read
+      """gunicorn settings for the deanery prototype (loaded with -c deploy/gunicorn.conf.py).
+
+      Workers: 5 for 2 vCPU / ~2 GB RAM: min(2 * vCPU + 1, (free RAM MB - 300) // 90) = min(5, 13).
+      Other server: set GUNICORN_WORKERS in /etc/deanery/deanery.env by the same formula.
+      """
+
+      import os
+
+      bind = os.environ.get("GUNICORN_BIND", "127.0.0.1:8000")
+      workers = max(1, int(os.environ.get("GUNICORN_WORKERS", "5")))
+      timeout = 30
+      graceful_timeout = 30
+      keepalive = 5
+      max_requests = 1000
+      max_requests_jitter = 100
+      accesslog = "-"
+      errorlog = "-"
+      loglevel = "info"
+      capture_output = True
+      control_socket_disable = True
+    ── Edited deploy/gunicorn.conf.py +2
+      --- a~/hackatonproject/deploy/gunicorn.conf.py
+      +++ b~/hackatonproject/deploy/gunicorn.conf.py
+      +# Trust only the scheme header that nginx always overwrites (PT1-F13).
+      +secure_scheme_headers = {"X-FORWARDED-PROTO": "https"}
+    ── Read file read
+      #!/usr/bin/env bash
+      # Daily backup: gzip-compressed pg_dump + tar.gz of PRIVATE_MEDIA_ROOT; keeps KEEP_DAYS days.
+      set -euo pipefail
+      umask 077
+      # Start from / so the script works from any directory (find restores the start directory).
+      cd /
+      BACKUP_DIR="${BACKUP_DIR:-/srv/deanery/backups}"
+      KEEP_DAYS="${KEEP_DAYS:-7}"
+      set -a
+      . /etc/deanery/deanery.env
+      set +a
+      STAMP="$(date +%Y%m%d-%H%M%S)"
+      mkdir -p "$BACKUP_DIR"
+      pg_dump --no-owner --no-privileges "$DATABASE_URL" | gzip -9 > "$BACKUP_DIR/db-$STAMP.sql.gz"
+      tar -czf "$BACKUP_DIR/media-$STAMP.tar.gz" -C "$(dirname "$PRIVATE_MEDIA_ROOT")" "$(basename "$PRIVATE_MEDIA_ROOT")"
+      find "$BACKUP_DIR" -maxdepth 1 -type f \( -name 'db-*.sql.gz' -o -name 'media-*.tar.gz' \) -mtime +"$((KEEP_DAYS - 1))" -delete
+      echo "backup ok: $STAMP"
+    ── Edited deploy/backup.sh
+    ── Thought for 273ms
+      Now F11 systemd deanery.service (whole file). Let me read and write.
+    ── Read file read
+      [Unit]
+      Description=Deanery prototype (gunicorn)
+      After=network.target postgresql.service
+      Wants=postgresql.service
+
+      [Service]
+      Type=simple
+      User=<APP_USER>
+      Group=<APP_USER>
+      WorkingDirectory=/srv/deanery/app
+      EnvironmentFile=/etc/deanery/deanery.env
+      ExecStart=/srv/deanery/venv/bin/gunicorn -c deploy/gunicorn.conf.py config.wsgi:application
+      Restart=on-failure
+      RestartSec=5
+      KillMode=mixed
+      TimeoutStopSec=35
+      NoNewPrivileges=true
+      PrivateTmp=true
+      ProtectSystem=full
+      ProtectHome=true
+      ReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial
+
+      [Install]
+      WantedBy=multi-user.target
+    ── Edited deploy/systemd/deanery.service
+    ── Thought for 1s
+      Now F12 docs/DEPLOY.md. This is a diff. Let me apply the changes. I need to read the current DEPLOY.md sections to find the exact text. Note: since TASK-015, DEPLOY.md was changed. Let me read the relevant parts.
+
+      The diff hunks:
+      1. Lines 20-29 (step 0 "You need" section).
+      2. Lines 83-85 area (step 6 adduser).
+      3. Line 167 area (step 12 certbot).
+      4. Lines 200-211 (step 15 smoke check).
+      5. Lines 230-240 (step 16 seed_demo).
+      6. End of file (step 21).
+
+      Let me read the current file to get exact context.
+    ── Read file read
+      ## 0. Before you start
+
+      You need:
+
+      - a domain whose `A` record already points at the server IP;
+      - an SSH key you created and installed on the server:
+
+      ```bash
+      ssh-keygen -t ed25519
+      ssh-copy-id "$APP_USER"@<server-ip>
+      ```
+
+      Keep one SSH session open until step 4 (SSH hardening) is verified.
+
+      ## 1. Memory and swap check
+
+      The provider already created a 512 MB swap. Check that it is active; do not
+    ── Edited docs/DEPLOY.md +5 -3
+      --- a~/hackatonproject/docs/DEPLOY.md
+      +++ b~/hackatonproject/docs/DEPLOY.md
+      -- a domain whose `A` record already points at the server IP;
+      -- an SSH key you created and installed on the server:
+      +- a domain whose `A` records for `$DOMAIN` and `www.$DOMAIN` already point at
+      +  the server IP;
+      +- an SSH key you created and installed for your own sudo user (never for
+      +  `$APP_USER`: the service account has no login shell and no SSH key):
+      -ssh-copy-id "$APP_USER"@<server-ip>
+      +ssh-copy-id <your-sudo-user>@<server-ip>
+    ── Read file read
+      ```
+
+      ## 6. App user, directories, code
+
+      ```bash
+      sudo adduser --system --group --home /srv/deanery --shell /bin/bash "$APP_USER"
+      sudo -u "$APP_USER" git clone "$REPO_URL" /srv/deanery/app
+      sudo -u "$APP_USER" mkdir -p /srv/deanery/private_media /srv/deanery/private_media_trial /srv/deanery/backups
+      sudo chmod 750 /srv/deanery/private_media /srv/deanery/private_media_trial && sudo chmod 700 /srv/deanery/backups
+      sudo mkdir -p /var/www/letsencrypt
+      ```
+
+      ## 7. Python venv
+
+      ```bash
+    ── Edited docs/DEPLOY.md +3 -1
+      --- a~/hackatonproject/docs/DEPLOY.md
+      +++ b~/hackatonproject/docs/DEPLOY.md
+      -sudo adduser --system --group --home /srv/deanery --shell /bin/bash "$APP_USER"
+      +sudo adduser --system --group --home /srv/deanery --shell /usr/sbin/nologin "$APP_USER"
+      +
+      +`sudo -u "$APP_USER" <command>` still works with the `nologin` shell.
+    ── Read file read
+      ```bash
+      sed "s/example.com/$DOMAIN/g" /srv/deanery/app/deploy/nginx/deanery-bootstrap.conf | sudo tee /etc/nginx/sites-available/deanery > /dev/null
+      sudo ln -sf /etc/nginx/sites-available/deanery /etc/nginx/sites-enabled/deanery
+      sudo rm -f /etc/nginx/sites-enabled/default
+      sudo nginx -t && sudo systemctl reload nginx
+      sudo certbot certonly --webroot -w /var/www/letsencrypt -d "$DOMAIN" --email <your e-mail> --agree-tos --no-eff-email --deploy-hook "systemctl reload nginx"
+      ```
+
+      ## 13. nginx full site
+    ── Edited docs/DEPLOY.md +1 -1
+      --- a~/hackatonproject/docs/DEPLOY.md
+      +++ b~/hackatonproject/docs/DEPLOY.md
+      -sudo certbot certonly --webroot -w /var/www/letsencrypt -d "$DOMAIN" --email <your e-mail> --agree-tos --no-eff-email --deploy-hook "systemctl reload nginx"
+      +sudo certbot certonly --webroot -w /var/www/letsencrypt -d "$DOMAIN" -d "www.$DOMAIN" --email <your e-mail> --agree-tos --no-eff-email --deploy-hook "systemctl reload nginx"
+    ── Read file read
+      sudo -u "$APP_USER" bash -c 'set -a; . /etc/deanery/deanery.env; gunzip -c /srv/deanery/backups/db-<STAMP>.sql.gz | psql "$DATABASE_URL"'
+      sudo -u "$APP_USER" bash -c 'tar -xzf /srv/deanery/backups/media-<STAMP>.tar.gz -C /srv/deanery'
+      ```
+
+      ## 15. Smoke check
+
+      ```bash
+      curl -sI http://$DOMAIN/ | head -1
+      curl -s https://$DOMAIN/health/
+      curl -s -o /dev/null -w '%{http_code}' https://$DOMAIN/private_media/
+      ```
+
+      Expected: `http://` → 301 to https; `/health/` → ok; `/private_media/` → 404.
+      In the browser: the login page, the admin at `https://$DOMAIN/<ADMIN_URL>`.
+      On the **trial** database run `$M seed_demo` once, then open one page per role
+      (student: Расписание, Заявки, Чат; staff: Заявки, Чаты); upload a PDF to a
+      request (checks `client_max_body_size`) and download it.
+
+      ## 16. Final database on 2026-11-22 (once)
+
+      Create the final database (the `deanery` role already exists from step 8):
+
+      ```bash
+      sudo -u postgres psql -v ON_ERROR_STOP=1 \
+        -c "CREATE DATABASE deanery OWNER deanery ENCODING 'UTF8' TEMPLATE template0;"
+      ```
+
+      Switch the env file from the trial database to the final one (this runs days
+      later, in a new shell, so re-define `M`):
+    ── Edited docs/DEPLOY.md +8 -2
+      --- a~/hackatonproject/docs/DEPLOY.md
+      +++ b~/hackatonproject/docs/DEPLOY.md
+      +curl -sI https://www.$DOMAIN/ | grep -iE '^(HTTP|location)'
+      -curl -s -o /dev/null -w '%{http_code}' https://$DOMAIN/private_media/
+      +curl -s -o /dev/null -w '%{http_code}\n' https://$DOMAIN/private_media/
+      +curl -sI https://$DOMAIN/login/ | grep -i '^content-security-policy'
+      +curl -s -o /dev/null -w '%{http_code}\n' -H 'Host: other.example' http://127.0.0.1/
+      -Expected: `http://` → 301 to https; `/health/` → ok; `/private_media/` → 404.
+      +Expected: `http://` → 301 to https; `https://www.` → 301 to `https://$DOMAIN/`;
+      +`/health/` → ok; `/private_media/` → 404; the login page has a
+      +`Content-Security-Policy` header; a foreign Host → `000` (nginx closes the
+      +connection).
+    ── Read file read
+      sudo sed -i \
+        -e 's|@localhost:5432/deanery_trial$|@localhost:5432/deanery|' \
+        -e 's|^PRIVATE_MEDIA_ROOT=.*|PRIVATE_MEDIA_ROOT=/srv/deanery/private_media|' \
+        /etc/deanery/deanery.env
+      M="sudo -u $APP_USER /srv/deanery/app/deploy/manage.sh"
+      $M migrate
+      $M seed_demo
+      sudo systemctl restart deanery
+      ```
+
+      Run `seed_demo` exactly once; do not schedule it as a recurring job. Repeat
+      step 15 (without seeding). Optionally drop `deanery_trial` and empty
+      `private_media_trial` after 2026-11-28.
+
+      ## 17. Update procedure
+
+      ```bash
+      sudo -u "$APP_USER" git -C /srv/deanery/app pull --ff-only
+      sudo -u "$APP_USER" /srv/deanery/venv/bin/pip install -r /srv/deanery/app/requirements.txt
+      $M migrate
+      $M collectstatic --noinput
+      $M check --deploy --fail-level WARNING
+      sudo systemctl restart deanery
+      ```
+
+      Then repeat the smoke check (step 15).
+
+      ## 18. HSTS
+
+      After the site works over HTTPS for a day, raise the HSTS max-age in the env
+    ── Edited docs/DEPLOY.md +4
+      --- a~/hackatonproject/docs/DEPLOY.md
+      +++ b~/hackatonproject/docs/DEPLOY.md
+      +sudo sed -i '/^DEMO_PASSWORD=/d' /etc/deanery/deanery.env
+      +
+      +The app does not read `DEMO_PASSWORD` at run time; only `seed_demo` needs it, so
+      +it is removed from the env file right after seeding.
+    ── Thought for 324ms
+      Now append step 21 at the end of the file. Let me read the end of the file.
+    ── Read file read
+      If pages are slow or memory is full (`free -h` shows little available memory
+      and the swap is in use), lower `GUNICORN_WORKERS` in `/etc/deanery/deanery.env`
+      and run `sudo systemctl restart deanery`. On a bigger server raise it by the
+      same formula.
+
+      ## 20. Troubleshooting
+
+      - 502 Bad Gateway → `journalctl -u deanery`.
+      - 400 Bad Request → check `ALLOWED_HOSTS`.
+      - CSRF failure → `CSRF_TRUSTED_ORIGINS` must use `https://`.
+      - 413 Request Entity Too Large → `client_max_body_size` (20m).
+      - Locked logins / wrong client IP → `CLIENT_IP_HEADER` and the `X-Real-IP`
+        header set by nginx.
+    ── Edited docs/DEPLOY.md +34
+      --- a~/hackatonproject/docs/DEPLOY.md
+      +++ b~/hackatonproject/docs/DEPLOY.md
+      +
+      +## 21. One-time hardening of a server installed before TASK-016
+      +
+      +Run after the update procedure (step 17) has pulled the TASK-016 code.
+      +
+      +```bash
+      +sudo usermod --shell /usr/sbin/nologin "$APP_USER"
+      +getent passwd "$APP_USER"
+      +sudo ls -la /srv/deanery/.ssh 2>/dev/null || echo "no .ssh directory"
+      +sudo certbot certificates
+      +```
+      +
+      +`getent` must end with `/usr/sbin/nologin`. `certbot certificates` must list
+      +both `$DOMAIN` and `www.$DOMAIN` for the certificate in
+      +`/etc/letsencrypt/live/$DOMAIN/`; if `www` is missing, run the `certbot
+      +certonly` command of step 12 with `--expand`. Remove the temporary `www`
+      +redirect site (it now lives in the template), then install the new nginx site
+      +and the new systemd unit:
+      +
+      +```bash
+      +sudo cp /etc/nginx/sites-available/deanery /root/deanery.nginx.bak
+      +sudo cp /etc/systemd/system/deanery.service /root/deanery.service.bak
+      +sudo rm /etc/nginx/sites-enabled/<temporary www site>
+      +sed "s/example.com/$DOMAIN/g" /srv/deanery/app/deploy/nginx/deanery.conf | sudo tee /etc/nginx/sites-available/deanery > /dev/null
+      +sudo nginx -t && sudo systemctl reload nginx
+      +sed "s/<APP_USER>/$APP_USER/g" /srv/deanery/app/deploy/systemd/deanery.service | sudo tee /etc/systemd/system/deanery.service > /dev/null
+      +sudo systemd-analyze verify /etc/systemd/system/deanery.service
+      +sudo systemctl daemon-reload && sudo systemctl restart deanery
+      +systemctl status deanery
+      +systemd-analyze security deanery | tail -1
+      +```
+      +
+      +Then repeat the smoke check (step 15), upload and download a PDF as a student,
+      +and run `sudo -u "$APP_USER" /srv/deanery/app/deploy/backup.sh` once.
+    ── Thought for 219ms
+      Now F13 CI yml. Let me read it.
+    ── Read file read
+      name: CI
+
+      on:
+        push:
+        pull_request:
+
+      permissions:
+        contents: read
+
+      jobs:
+        test:
+          runs-on: ubuntu-latest
+          env:
+            DEBUG: "true"
+            SECRET_KEY: "ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop"
+          steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-python@v5
+              with:
+                python-version: "3.12"
+                cache: pip
+                cache-dependency-path: |
+                  requirements.txt
+                  requirements-dev.txt
+            - name: Install dependencies
+              run: python -m pip install -r requirements-dev.txt
+            - name: Shell syntax
+              run: bash -n deploy/backup.sh deploy/manage.sh
+            - name: gunicorn config
+              run: gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application
+            - name: Ruff lint
+              run: ruff check .
+            - name: Ruff format
+              run: ruff format --check .
+            - name: Django check
+              run: python manage.py check
+            - name: Missing migrations
+              run: python manage.py makemigrations --check --dry-run
+            - name: Tests
+              run: python manage.py test
+            - name: Tests with a frozen far-future clock
+              run: python scripts/run_tests_at.py 2027-03-01T12:00:00
+            - name: Migrate and seed demo data twice
+              env:
+                DEMO_PASSWORD: "ci-dummy-demo-password-2026"
+              run: |
+                python manage.py migrate --noinput
+                python manage.py seed_demo
+                python manage.py seed_demo
+            - name: Deploy check (production-like env)
+              env:
+                DEBUG: "false"
+                ALLOWED_HOSTS: "example.com"
+                ADMIN_URL: "ci-staff-panel/"
+              run: python manage.py check --deploy --fail-level WARNING
+
+        test-postgres:
+          runs-on: ubuntu-latest
+          services:
+            postgres:
+              image: postgres:16
+              env:
+                POSTGRES_USER: deanery
+                POSTGRES_PASSWORD: ci-only-postgres-password
+                POSTGRES_DB: deanery
+              ports:
+                - 5432:5432
+              options: >-
+                --health-cmd "pg_isready -U deanery"
+                --health-interval 5s
+                --health-timeout 5s
+                --health-retries 10
+          env:
+            DEBUG: "true"
+            SECRET_KEY: "ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop"
+            DATABASE_URL: "postgres://deanery:ci-only-postgres-password@localhost:5432/deanery"
+          steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-python@v5
+              with:
+                python-version: "3.12"
+                cache: pip
+                cache-dependency-path: |
+                  requirements.txt
+                  requirements-dev.txt
+            - name: Install dependencies
+              run: python -m pip install -r requirements-dev.txt
+            - name: Django check
+              run: python manage.py check --database default
+            - name: Missing migrations
+              run: python manage.py makemigrations --check --dry-run
+            - name: Tests (PostgreSQL)
+              run: python manage.py test
+            - name: Tests with a frozen Moscow midnight clock (PostgreSQL)
+              run: python scripts/run_tests_at.py 2026-11-18T00:00:00
+            - name: Migrate and seed demo data twice (PostgreSQL)
+              env:
+                DEMO_PASSWORD: "ci-dummy-demo-password-2026"
+              run: |
+                python manage.py migrate --noinput
+                python manage.py seed_demo
+                python manage.py seed_demo
+    ── Edited .github/workflows/ci.yml +4
+      --- a~/hackatonproject/.github/workflows/ci.yml
+      +++ b~/hackatonproject/.github/workflows/ci.yml
+      +      - name: Dependency audit
+      +        run: |
+      +          python -m pip install pip-audit==2.10.1
+      +          pip-audit --requirement requirements.txt --progress-spinner off
+    ── Thought for 604ms
+      Now F14.5 test_deploy.py. This is a large diff. Let me apply the changes carefully. Let me read the current test_deploy.py to know exact context.
+
+      I already saw the test_deploy.py earlier in TASK-015-FIX. But it's been modified. Let me read the whole current file to apply the F14.5 diff accurately.
+    ── Read file read
+      """Deployment artefacts: gunicorn, nginx, systemd, scripts, env example, runbook.
+
+      These tests read repository files relative to ``settings.BASE_DIR`` and never
+      read a developer ``.env``. They are safe to run on any machine (no server,
+      no nginx, no gunicorn, no PostgreSQL required).
+      """
+
+      import os
+      import re
+      import runpy
+      import shlex
+      import shutil
+      import subprocess
+      import sys
+      from pathlib import Path
+      from unittest import mock
+
+      from django.conf import settings
+      from django.test import SimpleTestCase
+
+      BASE_DIR = Path(settings.BASE_DIR)
+      DEPLOY_DIR = BASE_DIR / "deploy"
+
+      NGINX_CONF = DEPLOY_DIR / "nginx" / "deanery.conf"
+      NGINX_BOOTSTRAP = DEPLOY_DIR / "nginx" / "deanery-bootstrap.conf"
+      GUNICORN_CONF = DEPLOY_DIR / "gunicorn.conf.py"
+      SYSTEMD_UNIT = DEPLOY_DIR / "systemd" / "deanery.service"
+      SSH_HARDENING = DEPLOY_DIR / "ssh" / "10-deanery-hardening.conf"
+      CRON = DEPLOY_DIR / "cron" / "deanery-backup"
+      BACKUP_SH = DEPLOY_DIR / "backup.sh"
+      MANAGE_SH = DEPLOY_DIR / "manage.sh"
+
+      ENV_EXAMPLE = BASE_DIR / ".env.production.example"
+      DEPLOY_MD = BASE_DIR / "docs" / "DEPLOY.md"
+
+      # The sed `-e` rules of the "Environment file" step (docs/DEPLOY.md); kept here so the
+      # test can run them.
+      ENV_FILE_SED_EXPRS = (
+          "s/example\\.com/$DOMAIN/g",
+          "s|replace-me-with-secrets-token-urlsafe-50-generated-on-the-server|$SECRET|",
+          "s|REPLACE_ME_DB_PASSWORD|$DB_PASS|",
+          "s|@localhost:5432/deanery$|@localhost:5432/deanery_trial|",
+          "s|^PRIVATE_MEDIA_ROOT=.*|PRIVATE_MEDIA_ROOT=/srv/deanery/private_media_trial|",
+          "s|staff-panel-change-me/|$ADMIN_PATH|",
+          "s|REPLACE_ME_DEMO_PASSWORD|$DEMO_PW|",
+      )
+
+
+      def _read(path: Path) -> str:
+          return path.read_text(encoding="utf-8")
+
+
+      class GunicornConfigTests(SimpleTestCase):
+          def _load_config(self, overrides: dict[str, str] | None = None):
+              base = {k: v for k, v in os.environ.items() if not k.startswith("GUNICORN_")}
+              base.update(overrides or {})
+              with mock.patch.dict(os.environ, base, clear=True):
+                  return runpy.run_path(str(GUNICORN_CONF))
+
+          def test_defaults(self):
+              cfg = self._load_config()
+              self.assertEqual(cfg["bind"], "127.0.0.1:8000")
+              self.assertEqual(cfg["workers"], 5)  # TASK-015: 2 vCPU / ~2 GB server
+              self.assertEqual(cfg["timeout"], 30)
+              self.assertEqual(cfg["graceful_timeout"], 30)
+              self.assertEqual(cfg["accesslog"], "-")
+              self.assertEqual(cfg["errorlog"], "-")
+              self.assertIs(cfg["control_socket_disable"], True)
+
+          def test_env_override(self):
+              cfg = self._load_config({"GUNICORN_WORKERS": "3", "GUNICORN_BIND": "127.0.0.1:9000"})
+              self.assertEqual(cfg["workers"], 3)
+              self.assertEqual(cfg["bind"], "127.0.0.1:9000")
+
+          def test_workers_at_least_one(self):
+              cfg = self._load_config({"GUNICORN_WORKERS": "0"})
+              self.assertEqual(cfg["workers"], 1)
+
+          def test_bind_is_loopback_by_default(self):
+              self.assertEqual(self._load_config()["bind"], "127.0.0.1:8000")
+
+
+      class NginxTemplateTests(SimpleTestCase):
+          def test_full_config_body_size(self):
+              text = _read(NGINX_CONF)
+              self.assertEqual(text.count("client_max_body_size 20m;"), 1)
+              self.assertGreater(
+                  text.index("client_max_body_size 20m;"), text.index("listen 443 ssl http2;")
+              )
+
+          def test_no_project_files_served(self):
+              for path in (NGINX_CONF, NGINX_BOOTSTRAP):
+                  text = _read(path)
+                  for line in text.splitlines():
+                      stripped = line.strip()
+                      if stripped.startswith("root ") or stripped.startswith("alias "):
+                          self.assertEqual(stripped, "root /var/www/letsencrypt;", path.name)
+                  self.assertNotIn("alias ", text, path.name)
+                  # Forbidden only in directives, not in the "# PRIVATE_MEDIA_ROOT must never…" comment.
+                  active = "\n".join(
+                      line for line in text.splitlines() if not line.lstrip().startswith("#")
+                  )
+                  for forbidden in (
+                      "private_media",
+                      "PRIVATE_MEDIA",
+                      "/srv/deanery",
+                      "location /static",
+                      "location /media",
+                  ):
+                      self.assertNotIn(forbidden, active, f"{path.name}: {forbidden}")
+
+          def test_http_redirects_to_https(self):
+              self.assertIn("return 301 https://$host$request_uri;", _read(NGINX_CONF))
+
+          def test_acme_location_in_both(self):
+              for path in (NGINX_CONF, NGINX_BOOTSTRAP):
+                  self.assertIn("location ^~ /.well-known/acme-challenge/", _read(path), path.name)
+
+          def test_proxy_headers(self):
+              text = _read(NGINX_CONF)
+              for header in (
+                  "proxy_set_header Host $host;",
+                  "proxy_set_header X-Real-IP $remote_addr;",
+                  "proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;",
+                  "proxy_set_header X-Forwarded-Proto $scheme;",
+                  "proxy_pass http://127.0.0.1:8000;",
+              ):
+                  self.assertIn(header, text)
+
+          def test_no_headers_owned_by_django(self):
+              owned = (
+                  "X-Frame-Options",
+                  "Strict-Transport-Security",
+                  "X-Content-Type-Options",
+                  "Referrer-Policy",
+              )
+              for line in _read(NGINX_CONF).splitlines():
+                  if "add_header" in line:
+                      for header in owned:
+                          self.assertNotIn(header, line)
+
+          def test_http2_syntax_for_nginx_1_24(self):
+              text = _read(NGINX_CONF)
+              self.assertIn("listen 443 ssl http2;", text)
+              self.assertNotIn("http2 on;", text)
+
+          def test_bootstrap_has_no_tls_server(self):
+              self.assertNotIn("listen 443", _read(NGINX_BOOTSTRAP))
+
+
+      def _parsed_env_variables() -> set[str]:
+          env_call = re.compile(r'env\.(?:str|bool|int|list|db)\(\s*"([A-Z][A-Z0-9_]*)"')
+          os_env = re.compile(r'os\.environ(?:\.get\(|\[)\s*"([A-Z][A-Z0-9_]*)"')
+          names: set[str] = set()
+          names.update(env_call.findall(_read(BASE_DIR / "config" / "settings.py")))
+          for path in BASE_DIR.glob("*/management/commands/*.py"):
+              names.update(os_env.findall(_read(path)))
+          names.update(os_env.findall(_read(GUNICORN_CONF)))
+          names.discard("DJANGO_SETTINGS_MODULE")
+          return names
+
+
+      def _parse_env(text: str) -> dict[str, str]:
+          values: dict[str, str] = {}
+          for line in text.splitlines():
+              m = re.match(r"^([A-Z][A-Z0-9_]*)=(.*)$", line)
+              if m:
+                  values[m.group(1)] = m.group(2)
+          return values
+
+
+      def _example_values() -> dict[str, str]:
+          return _parse_env(_read(ENV_EXAMPLE))
+
+
+      class EnvExampleTests(SimpleTestCase):
+          KNOWN = {
+              "DEBUG",
+              "SECRET_KEY",
+              "ALLOWED_HOSTS",
+              "CSRF_TRUSTED_ORIGINS",
+              "ADMIN_URL",
+              "LOGIN_FAILURE_LIMIT",
+              "LOGIN_LOCKOUT_SECONDS",
+              "CLIENT_IP_HEADER",
+              "DATABASE_URL",
+              "PRIVATE_MEDIA_ROOT",
+              "SECURE_SSL_REDIRECT",
+              "SECURE_HSTS_SECONDS",
+              "SECURE_HSTS_INCLUDE_SUBDOMAINS",
+              "SECURE_HSTS_PRELOAD",
+              "LOG_LEVEL",
+              "DEMO_PASSWORD",
+              "GUNICORN_WORKERS",
+              "GUNICORN_BIND",
+          }
+
+          def test_parser_finds_known_variables(self):
+              self.assertTrue(self.KNOWN <= _parsed_env_variables())
+
+          def test_lists_every_env_variable(self):
+              self.assertTrue(_parsed_env_variables() <= set(_example_values()))
+
+          def test_every_variable_has_comment(self):
+              lines = _read(ENV_EXAMPLE).splitlines()
+              key_lines = [i for i, line in enumerate(lines) if re.match(r"^[A-Z][A-Z0-9_]*=", line)]
+              for i in key_lines:
+                  self.assertTrue(
+                      any(lines[j].lstrip().startswith("#") for j in (i - 1, i - 2, i - 3) if j >= 0),
+                      f"line {i + 1} has no comment within 3 lines",
+                  )
+
+          def test_production_values(self):
+              values = _example_values()
+              self.assertEqual(values["DEBUG"], "false")
+              self.assertEqual(values["CLIENT_IP_HEADER"], "X-Real-IP")
+              self.assertIn("proxy_set_header X-Real-IP", _read(NGINX_CONF))
+              self.assertTrue(values["DATABASE_URL"].startswith("postgres://"))
+              for origin in values["CSRF_TRUSTED_ORIGINS"].split(","):
+                  self.assertTrue(origin.startswith("https://"))
+              self.assertEqual(values["SECURE_HSTS_PRELOAD"], "false")
+              self.assertEqual(values["GUNICORN_WORKERS"], "5")  # TASK-015: 2 vCPU / ~2 GB server
+
+          def test_deploy_check_passes_with_example_values(self):
+              env = {"PATH": os.environ["PATH"], **_example_values()}
+              result = subprocess.run(
+                  [sys.executable, "manage.py", "check", "--deploy", "--fail-level", "WARNING"],
+                  cwd=str(BASE_DIR),
+                  env=env,
+                  capture_output=True,
+                  text=True,
+                  timeout=120,
+              )
+              self.assertEqual(result.returncode, 0, result.stderr)
+              self.assertIn("System check identified no issues", result.stdout)
+
+
+      class SystemdUnitTests(SimpleTestCase):
+          def test_runs_as_app_user(self):
+              unit = _read(SYSTEMD_UNIT)
+              self.assertIn("User=<APP_USER>", unit)
+              self.assertNotIn("User=root", unit)
+
+          def test_restart_on_failure(self):
+              self.assertIn("Restart=on-failure", _read(SYSTEMD_UNIT))
+
+          def test_environment_file_outside_repo(self):
+              self.assertIn("EnvironmentFile=/etc/deanery/deanery.env", _read(SYSTEMD_UNIT))
+
+          def test_exec_uses_repo_config(self):
+              self.assertIn("-c deploy/gunicorn.conf.py config.wsgi:application", _read(SYSTEMD_UNIT))
+
+          def test_hardening(self):
+              unit = _read(SYSTEMD_UNIT)
+              self.assertIn("NoNewPrivileges=true", unit)
+              self.assertIn("ProtectSystem=full", unit)
+              self.assertIn("PrivateTmp=true", unit)
+
+
+      class SmallFilesTests(SimpleTestCase):
+          def test_ssh_hardening(self):
+              self.assertIn("PasswordAuthentication no", _read(SSH_HARDENING))
+              self.assertTrue(SSH_HARDENING.name.startswith("10-"))
+
+          def test_cron_daily_backup(self):
+              lines = [
+                  line
+                  for line in _read(CRON).splitlines()
+                  if line.strip() and not line.lstrip().startswith("#")
+              ]
+              self.assertEqual(len(lines), 1)
+              self.assertIn("deploy/backup.sh", lines[0])
+              self.assertIn("<APP_USER>", lines[0])
+              self.assertIn("logger", lines[0])
+
+
+      class ShellScriptTests(SimpleTestCase):
+          def test_bash_syntax(self):
+              bash = shutil.which("bash")
+              if bash is None:
+                  self.skipTest("bash not available")
+              result = subprocess.run(  # noqa: S603
+                  [bash, "-n", str(BACKUP_SH), str(MANAGE_SH)], capture_output=True, text=True
+              )
+              self.assertEqual(result.returncode, 0, result.stderr)
+
+          def test_scripts_executable(self):
+              self.assertTrue(os.access(BACKUP_SH, os.X_OK))
+              self.assertTrue(os.access(MANAGE_SH, os.X_OK))
+
+          def test_backup_rules(self):
+              backup = _read(BACKUP_SH)
+              for fragment in (
+                  "pg_dump",
+                  "| gzip",
+                  "KEEP_DAYS:-7",
+                  "-mtime",
+                  "-delete",
+                  "tar -czf",
+                  "PRIVATE_MEDIA_ROOT",
+              ):
+                  self.assertIn(fragment, backup)
+
+          def test_backup_runs_from_root_directory(self):
+              # TASK-015-FIX: "sudo -u <APP_USER> backup.sh" from /root failed in find.
+              lines = [line.strip() for line in _read(BACKUP_SH).splitlines()]
+              self.assertIn("cd /", lines)
+              cd_index = lines.index("cd /")
+              for command in ("pg_dump", "tar -czf", "find "):
+                  first = next(i for i, line in enumerate(lines) if line.startswith(command))
+                  self.assertLess(cd_index, first, command)
+
+          def test_manage_uses_env_file(self):
+              manage = _read(MANAGE_SH)
+              self.assertIn(". /etc/deanery/deanery.env", manage)
+              self.assertIn("set -euo pipefail", manage)
+
+
+      def _secret_scan_paths() -> list[Path]:
+          paths = [
+              p
+              for p in DEPLOY_DIR.rglob("*")
+              if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc"
+          ]
+          paths.extend([ENV_EXAMPLE, DEPLOY_MD])
+          return paths
+
+
+      class SecretScanTests(SimpleTestCase):
+          def test_no_private_keys_or_known_tokens(self):
+              patterns = (
+                  r"-----BEGIN [A-Z ]*PRIVATE KEY-----",
+                  r"ssh-(?:rsa|ed25519|ecdsa)[^\n]* AAAA",
+                  r"AKIA[0-9A-Z]{16}",
+                  r"ghp_[A-Za-z0-9]{20,}",
+                  r"xox[baprs]-",
+              )
+              for path in _secret_scan_paths():
+                  text = _read(path)
+                  for pattern in patterns:
+                      self.assertIsNone(re.search(pattern, text), f"{path.name}: {pattern}")
+
+          def test_no_long_random_strings(self):
+              pattern = re.compile(r"[A-Za-z0-9+=]{32,}")
+              for path in _secret_scan_paths():
+                  self.assertIsNone(pattern.search(_read(path)), path.name)
+
+          def test_secret_like_assignments_are_placeholders(self):
+              secret_name = re.compile(
+                  r"^([A-Za-z0-9_]*?(?:SECRET|PASSWORD|TOKEN|KEY)[A-Za-z0-9_]*)=(.*)$"
+              )
+
+              def is_placeholder(value: str) -> bool:
+                  return (
+                      value == ""
+                      or "REPLACE" in value
+                      or "replace-me" in value
+                      or "change-me" in value
+                      or "<" in value
+                      or value.startswith("$(")
+                      or value.startswith("$")
+                  )
+
+              for path in _secret_scan_paths():
+                  for line in _read(path).splitlines():
+                      m = secret_name.match(line)
+                      if m:
+                          self.assertTrue(is_placeholder(m.group(2)), f"{path.name}: {m.group(1)}")
+                      if line.startswith("DATABASE_URL="):
+                          value = line[len("DATABASE_URL=") :]
+                          self.assertTrue("REPLACE" in value or "$" in value, path.name)
+
+          def test_no_real_ip_addresses(self):
+              ipv4 = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}\b")
+              allowed = {"127.0.0.1", "0.0.0.0"}  # noqa: S104
+              for path in _secret_scan_paths():
+                  for match in ipv4.findall(_read(path)):
+                      self.assertIn(match, allowed, f"{path.name}: {match}")
+
+
+      class RunbookTests(SimpleTestCase):
+          def test_swap_check_before_packages(self):
+              text = _read(DEPLOY_MD)
+              self.assertLess(text.index("swapon --show"), text.index("apt -y install"))
+
+          def test_no_swap_creation(self):
+              text = _read(DEPLOY_MD)
+              for fragment in ("fallocate", "mkswap", "/etc/fstab", "vm.swappiness"):
+                  self.assertNotIn(fragment, text, fragment)
+
+          def test_steps_numbered_consecutively(self):
+              numbers = re.findall(r"^## (\d+)\. ", _read(DEPLOY_MD), re.MULTILINE)
+              self.assertEqual(numbers, [str(i) for i in range(len(numbers))])
+
+          def test_step_references(self):
+              text = _read(DEPLOY_MD)
+              titles = dict(re.findall(r"^## (\d+)\. (.+)$", text, re.MULTILINE))
+              references = (
+                  (text, r"until step (\d+) is verified", "SSH: keys only"),
+                  (text, r"until step (\d+) \(SSH hardening\)", "SSH: keys only"),
+                  (text, r"right after step (\d+), once the repo", "App user, directories, code"),
+                  (text, r"already exists from step (\d+)\)", "PostgreSQL (trial database)"),
+                  (text, r"Repeat\s+step (\d+) \(without seeding\)", "Smoke check"),
+                  (text, r"repeat the smoke check \(step (\d+)\)", "Smoke check"),
+                  (
+                      _read(NGINX_BOOTSTRAP),
+                      r"docs/DEPLOY\.md step (\d+)\)",
+                      "nginx bootstrap + certificate",
+                  ),
+              )
+              for source, pattern, title in references:
+                  match = re.search(pattern, source)
+                  self.assertIsNotNone(match, pattern)
+                  self.assertEqual(titles.get(match.group(1)), title, pattern)
+
+          def test_required_topics(self):
+              text = _read(DEPLOY_MD)
+              for topic in (
+                  "swapon --show",
+                  "ufw",
+                  "certbot certonly --webroot",
+                  "certbot renew --dry-run",
+                  "chmod 600",
+                  "token_urlsafe",
+                  "openssl rand -hex 24",
+                  "check --deploy",
+                  "collectstatic",
+                  "seed_demo",
+                  "2026-11-22",
+                  "deanery_trial",
+                  "free -h",
+                  "df -h",
+                  "journalctl --disk-usage",
+                  "SECURE_HSTS_SECONDS=31536000",
+                  "PasswordAuthentication",
+              ):
+                  self.assertIn(topic, text, topic)
+
+          def test_no_daily_seed_cron(self):
+              for line in _read(DEPLOY_MD).splitlines():
+                  if "cron" in line:
+                      self.assertNotIn("seed_demo", line)
+
+          def test_env_file_sed_produces_trial_env(self):
+              bash = shutil.which("bash")
+              if bash is None:
+                  self.skipTest("bash not available")
+              doc = _read(DEPLOY_MD)
+              for expr in ENV_FILE_SED_EXPRS:
+                  self.assertIn(expr, doc, f"missing sed rule: {expr}")
+              sed_args = " ".join(f'-e "{expr}"' for expr in ENV_FILE_SED_EXPRS)
+              script = (
+                  'export DOMAIN="deanery.example.org"; '
+                  'export SECRET="dummy-secret-value"; '
+                  'export DB_PASS="dummy-db-pass"; '
+                  'export ADMIN_PATH="staff-dummy1234/"; '
+                  'export DEMO_PW="dummy-demo-pass"; '
+                  f"sed {sed_args} {shlex.quote(str(ENV_EXAMPLE))}"
+              )
+              result = subprocess.run(  # noqa: S603
+                  [bash, "-c", script], capture_output=True, text=True, timeout=30
+              )
+              self.assertEqual(result.returncode, 0, result.stderr)
+              values = _parse_env(result.stdout)
+              self.assertEqual(
+                  values["DATABASE_URL"], "postgres://deanery:dummy-db-pass@localhost:5432/deanery_trial"
+              )
+              self.assertEqual(values["PRIVATE_MEDIA_ROOT"], "/srv/deanery/private_media_trial")
+              self.assertEqual(values["ALLOWED_HOSTS"], "deanery.example.org")
+              for value in values.values():
+                  self.assertNotIn("REPLACE", value)
+                  self.assertNotIn("replace-me", value)
+                  self.assertNotIn("change-me", value)
+
+          def test_no_relative_deploy_paths(self):
+              for line in _read(DEPLOY_MD).splitlines():
+                  stripped = line.strip()
+                  self.assertFalse(
+                      stripped.startswith("sudo install -m 644 deploy/"), f"relative path: {stripped}"
+                  )
+                  if stripped.startswith("sed "):
+                      self.assertNotIn(" deploy/", stripped, f"relative path: {stripped}")
+
+
+      class OldServerLimitsTests(SimpleTestCase):
+          """TASK-015: the server has 2 vCPU, ~2 GB RAM, a 20 GB disk and a provider swap."""
+
+          FORBIDDEN = ("1 GB", "1 vCPU", "10 GB", "swapfile", "50-deanery.conf", "SystemMaxUse")
+
+          def test_no_old_server_values(self):
+              for path in _secret_scan_paths():
+                  text = _read(path)
+                  for fragment in self.FORBIDDEN:
+                      self.assertNotIn(fragment, text, f"{path.name}: {fragment}")
+
+          def test_no_shared_buffers_warning(self):
+              self.assertNotIn("shared_buffers", _read(DEPLOY_MD))
+
+          def test_journald_override_removed(self):
+              self.assertFalse((DEPLOY_DIR / "journald").exists())
+
+          def test_resources_section(self):
+              text = _read(DEPLOY_MD)
+              section = text[text.index("## 19. Resources") : text.index("## 20. Troubleshooting")]
+              for fragment in ("GUNICORN_WORKERS=5", "min(5, 13)", "512 MB", "20 GB", "10%"):
+                  self.assertIn(fragment, section, fragment)
+    ── Thought for 1s
+      Now I'll apply the F14.5 diff. The diff hunks are:
+
+      1. Add `import tempfile` after `import sys`.
+      2. GunicornConfigTests.test_defaults: add `secure_scheme_headers` assertion after `control_socket_disable`.
+      3. test_http_redirects_to_https changed + add test_catch_all_servers, test_www_redirect_and_acme, test_login_rate_limit, test_login_location_pattern, test_proxy_headers_at_server_level.
+      4. test_hardening changed.
+      5. RunbookTests: add test_service_account_nologin, test_certificate_for_www, test_demo_password_removed_after_seed.
+      6. Append BackupScriptRunTests and CiDependencyAuditTests at end.
+
+      Let me apply each.
+
+      1. Import tempfile.
+    ── Edited core/tests/test_deploy.py +1
+      --- a~/hackatonproject/core/tests/test_deploy.py
+      +++ b~/hackatonproject/core/tests/test_deploy.py
+      +import tempfile
+    ── Edited core/tests/test_deploy.py +2
+      --- a~/hackatonproject/core/tests/test_deploy.py
+      +++ b~/hackatonproject/core/tests/test_deploy.py
+      +        # TASK-016 (PT1-F13): trust only X-Forwarded-Proto.
+      +        self.assertEqual(cfg["secure_scheme_headers"], {"X-FORWARDED-PROTO": "https"})
+    ── Edited core/tests/test_deploy.py +55 -1
+      --- a~/hackatonproject/core/tests/test_deploy.py
+      +++ b~/hackatonproject/core/tests/test_deploy.py
+      -        self.assertIn("return 301 https://$host$request_uri;", _read(NGINX_CONF))
+      +        # TASK-016 (PT1-F4): the redirect target is the fixed domain, never $host.
+      +        text = _read(NGINX_CONF)
+      +        self.assertEqual(text.count("return 301 https://example.com$request_uri;"), 2)
+      +        self.assertNotIn("$host$request_uri", text)
+      +
+      +    def test_catch_all_servers(self):
+      +        text = _read(NGINX_CONF)
+      +        for line in (
+      +            "listen 80 default_server;",
+      +            "listen [::]:80 default_server;",
+      +            "return 444;",
+      +            "listen 443 ssl http2 default_server;",
+      +            "listen [::]:443 ssl http2 default_server;",
+      +            "ssl_reject_handshake on;",
+      +        ):
+      +            self.assertEqual(text.count(line), 1, line)
+      +        self.assertEqual(text.count("server_name _;"), 2)
+      +
+      +    def test_www_redirect_and_acme(self):
+      +        text = _read(NGINX_CONF)
+      +        self.assertIn("server_name example.com www.example.com;", text)
+      +        self.assertIn("server_name www.example.com;", text)
+      +        self.assertIn("server_name example.com www.example.com;", _read(NGINX_BOOTSTRAP))
+      +
+      +    def test_login_rate_limit(self):
+      +        text = _read(NGINX_CONF)
+      +        for line in (
+      +            "POST    $binary_remote_addr;",
+      +            'default "";',
+      +            "limit_req_zone $deanery_login_key zone=deanery_login:10m rate=10r/m;",
+      +            "limit_req zone=deanery_login burst=10 nodelay;",
+      +            "limit_req_status 429;",
+      +            "limit_conn_zone $binary_remote_addr zone=deanery_conn:10m;",
+      +            "limit_conn deanery_conn 20;",
+      +            "limit_conn_status 429;",
+      +        ):
+      +            self.assertEqual(text.count(line), 1, line)
+      +
+      +    def test_login_location_pattern(self):
+      +        match = re.search(r"location ~ (\S+) \{", _read(NGINX_CONF))
+      +        self.assertIsNotNone(match)
+      +        pattern = re.compile(match.group(1))
+      +        for path in ("/login/", "/staff-1a2b3c/login/", "/a/b_c/login/", "/admin/login/"):
+      +            self.assertIsNotNone(pattern.search(path), path)
+      +        for path in ("/login/x", "/logout/", "/loginx/", "/profile/", "/login"):
+      +            self.assertIsNone(pattern.search(path), path)
+      +
+      +    def test_proxy_headers_at_server_level(self):
+      +        lines = _read(NGINX_CONF).splitlines()
+      +        headers = [line for line in lines if "proxy_set_header" in line]
+      +        self.assertEqual(len(headers), 4)
+      +        for line in headers:
+      +            self.assertTrue(line.startswith("    proxy_set_header"), line)
+      +            self.assertFalse(line.startswith("        "), line)
+      +        self.assertEqual(sum("proxy_pass http://127.0.0.1:8000;" in line for line in lines), 2)
+    ── Edited core/tests/test_deploy.py +17 -4
+      --- a~/hackatonproject/core/tests/test_deploy.py
+      +++ b~/hackatonproject/core/tests/test_deploy.py
+      -        unit = _read(SYSTEMD_UNIT)
+      -        self.assertIn("NoNewPrivileges=true", unit)
+      -        self.assertIn("ProtectSystem=full", unit)
+      -        self.assertIn("PrivateTmp=true", unit)
+      +        # TASK-016 (PT1-F13): ProtectSystem=strict and more sandboxing.
+      +        lines = _read(SYSTEMD_UNIT).splitlines()
+      +        for line in (
+      +            "NoNewPrivileges=true",
+      +            "PrivateTmp=true",
+      +            "PrivateDevices=true",
+      +            "ProtectSystem=strict",
+      +            "ProtectHome=true",
+      +            "ProtectKernelTunables=true",
+      +            "ProtectControlGroups=true",
+      +            "RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX",
+      +            "CapabilityBoundingSet=",
+      +            "ReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial",
+      +        ):
+      +            self.assertIn(line, lines)
+      +        self.assertNotIn("ProtectSystem=full", lines)
+      +        self.assertEqual(sum(line.startswith("ReadWritePaths=") for line in lines), 1)
+    ── Thought for 1s
+      Now add the three new RunbookTests methods. The diff inserts them after test_required_topics (the hunk context shows after `self.assertIn(topic, text, topic)` which is the end of test_required_topics, before test_no_daily_seed_cron).
+
+      Actually let me look at the diff context again:
+
+      ```
+      @@ -435,6 +505,27 @@
+                    "PasswordAuthentication",
+                ):
+                    self.assertIn(topic, text, topic)
+       
+      +    def test_service_account_nologin(self):
+      +        ...
+      +    def test_certificate_for_www(self):
+      +        ...
+      +    def test_demo_password_removed_after_seed(self):
+      +        ...
+      +
+           def test_no_daily_seed_cron(self):
+      ```
+
+      So they're inserted after test_required_topics, before test_no_daily_seed_cron.
+    ── Edited core/tests/test_deploy.py +21
+      --- a~/hackatonproject/core/tests/test_deploy.py
+      +++ b~/hackatonproject/core/tests/test_deploy.py
+      +    def test_service_account_nologin(self):
+      +        # TASK-016 (PT1-F6): no login shell and no SSH key for the service account.
+      +        text = _read(DEPLOY_MD)
+      +        self.assertIn('--shell /usr/sbin/nologin "$APP_USER"', text)
+      +        self.assertNotIn("--shell /bin/bash", text)
+      +        self.assertNotIn('ssh-copy-id "$APP_USER"', text)
+      +        self.assertIn('sudo usermod --shell /usr/sbin/nologin "$APP_USER"', text)
+      +
+      +    def test_certificate_for_www(self):
+      +        self.assertIn('-d "$DOMAIN" -d "www.$DOMAIN"', _read(DEPLOY_MD))
+      +
+      +    def test_demo_password_removed_after_seed(self):
+      +        text = _read(DEPLOY_MD)
+      +        section = text[text.index("## 16. ") : text.index("## 17. ")]
+      +        removal = "sudo sed -i '/^DEMO_PASSWORD=/d' /etc/deanery/deanery.env"
+      +        self.assertIn(removal, section)
+      +        self.assertLess(section.index("$M seed_demo"), section.index(removal))
+      +        self.assertLess(section.index(removal), section.index("sudo systemctl restart deanery"))
+      +        # The app itself never reads DEMO_PASSWORD.
+      +        self.assertNotIn("DEMO_PASSWORD", _read(BASE_DIR / "config" / "settings.py"))
+      +
+    ── Thought for 175ms
+      Now append BackupScriptRunTests and CiDependencyAuditTests at the end of the file.
+    ── Edited core/tests/test_deploy.py +93
+      --- a~/hackatonproject/core/tests/test_deploy.py
+      +++ b~/hackatonproject/core/tests/test_deploy.py
+      +
+      +
+      +class BackupScriptRunTests(SimpleTestCase):
+      +    """TASK-016: run backup.sh with a stub pg_dump; the password never reaches the command line."""
+      +
+      +    PASSWORD = "0123abcd4567ef89dummydbpass"
+      +
+      +    def test_password_not_on_command_line(self):
+      +        bash = shutil.which("bash")
+      +        if bash is None or shutil.which("tar") is None or shutil.which("gzip") is None:
+      +            self.skipTest("bash, tar or gzip not available")
+      +        with tempfile.TemporaryDirectory() as tmp:
+      +            root = Path(tmp)
+      +            (root / "bin").mkdir()
+      +            (root / "media" / "private_media").mkdir(parents=True)
+      +            (root / "media" / "private_media" / "a.pdf").write_bytes(b"%PDF-1.4")
+      +            stub = root / "bin" / "pg_dump"
+      +            stub.write_text(
+      +                "#!/usr/bin/env bash\n"
+      +                f'printf "%s\\n" "$@" > "{root}/args"\n'
+      +                f'env | grep -E "^PG(USER|PASSWORD|HOST|PORT|DATABASE)=" | sort > "{root}/pgenv"\n'
+      +                f'env | grep -c "^DATABASE_URL=" > "{root}/dburl" || true\n'
+      +                'echo "-- dump"\n',
+      +                encoding="utf-8",
+      +            )
+      +            stub.chmod(0o755)
+      +            env_file = root / "deanery.env"
+      +            env_file.write_text(
+      +                f"DATABASE_URL=postgres://deanery:{self.PASSWORD}@localhost:5432/deanery_trial\n"
+      +                f"PRIVATE_MEDIA_ROOT={root}/media/private_media\n",
+      +                encoding="utf-8",
+      +            )
+      +            env = {
+      +                "PATH": f"{root / 'bin'}{os.pathsep}{os.environ['PATH']}",
+      +                "BACKUP_DIR": str(root / "backups"),
+      +                "DEANERY_ENV_FILE": str(env_file),
+      +            }
+      +            result = subprocess.run(  # noqa: S603
+      +                [bash, str(BACKUP_SH)], env=env, capture_output=True, text=True, timeout=60
+      +            )
+      +            self.assertEqual(result.returncode, 0, result.stderr)
+      +            self.assertIn("backup ok:", result.stdout)
+      +            args = (root / "args").read_text(encoding="utf-8")
+      +            self.assertNotIn(self.PASSWORD, args)
+      +            self.assertEqual(args.split(), ["--no-owner", "--no-privileges"])
+      +            self.assertEqual(
+      +                (root / "pgenv").read_text(encoding="utf-8").split(),
+      +                [
+      +                    "PGDATABASE=deanery_trial",
+      +                    "PGHOST=localhost",
+      +                    f"PGPASSWORD={self.PASSWORD}",
+      +                    "PGPORT=5432",
+      +                    "PGUSER=deanery",
+      +                ],
+      +            )
+      +            self.assertEqual((root / "dburl").read_text(encoding="utf-8").strip(), "0")
+      +            names = sorted(p.name for p in (root / "backups").iterdir())
+      +            self.assertEqual(len(names), 2)
+      +            self.assertTrue(names[0].startswith("db-") and names[0].endswith(".sql.gz"))
+      +            self.assertTrue(names[1].startswith("media-") and names[1].endswith(".tar.gz"))
+      +
+      +    def test_bad_database_url_fails(self):
+      +        bash = shutil.which("bash")
+      +        if bash is None:
+      +            self.skipTest("bash not available")
+      +        with tempfile.TemporaryDirectory() as tmp:
+      +            env_file = Path(tmp) / "deanery.env"
+      +            env_file.write_text("DATABASE_URL=sqlite:///db.sqlite3\n", encoding="utf-8")
+      +            env = {
+      +                "PATH": os.environ["PATH"],
+      +                "BACKUP_DIR": str(Path(tmp) / "backups"),
+      +                "DEANERY_ENV_FILE": str(env_file),
+      +            }
+      +            result = subprocess.run(  # noqa: S603
+      +                [bash, str(BACKUP_SH)], env=env, capture_output=True, text=True, timeout=60
+      +            )
+      +            self.assertNotEqual(result.returncode, 0)
+      +            self.assertIn("DATABASE_URL must look like", result.stderr)
+      +            self.assertFalse((Path(tmp) / "backups").exists())
+      +
+      +
+      +class CiDependencyAuditTests(SimpleTestCase):
+      +    """TASK-016: pip-audit runs in CI in its own step; it is not a runtime dependency."""
+      +
+      +    def test_audit_step(self):
+      +        import yaml
+      +
+      +        ci = yaml.safe_load(_read(BASE_DIR / ".github" / "workflows" / "ci.yml"))
+      +        steps = {step.get("name"): step for step in ci["jobs"]["test"]["steps"]}
+      +        run = steps["Dependency audit"]["run"]
+      +        self.assertIn("pip install pip-audit==2.10.1", run)
+      +        self.assertIn("pip-audit --requirement requirements.txt", run)
+      +        self.assertNotIn("pip-audit", _read(BASE_DIR / "requirements.txt"))
+    ── Ran tool 1 todos
+      {"output":"[\n  {\n    \"content\": \"F1 middleware + F2 settings + F14.1 test_middleware\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"F3 throttling/forms + F14.2 test_throttling\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"F4 petitions/forms + F5 views + F14.3 test_views\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"F6 chat + migration + F14.4 tests\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"F7-F11 deploy + F12 runbook + F13 CI + F14.5 test_deploy\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"ruff format/check + verification (section 8)\",\n    \"status\": \"in_progress\",\n    \"priority\": \"high\"\n  }\n]","metadata":{"todos":[{"content":"F1 middleware + F2 settings + F14.1 test_middleware","status":"completed","priority":"high"},{"content":"F3 throttling/forms + F14.2 test_throttling","status":"completed","priority":"high"},{"content":"F4 petitions/forms + F5 views + F14.3 test_views","status":"completed","priority":"high"},{"content":"F6 chat + migration + F14.4 tests","status":"completed","priority":"high"},{"content":"F7-F11 deploy + F12 runbook + F13 CI + F14.5 test_deploy","status":"completed","priority":"high"},{"content":"ruff format/check + verification (section 8)","status":"in_progress","priority":"high"}],"truncated":false}}
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff format core/middleware.py core/tests/test_middleware.py accounts/throttling.py accounts/forms.py accounts/tests/test_throttling.py petitions/forms.py petitions/views.py petitions/tests/test_views.py chat/services.py chat/models.py chat/tests/test_services.py chat/tests/test_models.py core/tests/test_deploy.py 2>&1 | tail -5 && ruff check . 2>&1 | tail -3
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff format core/middleware.py core/tests/test_middleware.py accounts/throttling.py accounts/forms.py accounts/tests/test_throttling.py petitions/forms.py petitions/views.py petitions/tests/test_views.py chat/services.py chat/models.py chat/tests/test_services.py chat/tests/test_models.py core/tests/test_deploy.py 2>&1 | tail -5 && ruff check . 2>&1 | tail -3
+      13 files left unchanged
+      All checks passed!
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test --parallel 2>&1 | tee "$TMPDIR/test-$TS.log" | tail -3 (46s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test --parallel 2>&1 | tee "$TMPDIR/test-$TS.log" | tail -3
+      Destroying test database for alias 'default'...
+      Destroying test database for alias 'default'...
+      Destroying test database for alias 'default'...
+    ── Searched for Ran |^OK|FAILED|ERROR: in $TMPDIR/test-2026*.log
+
+  ── Assistant
+  1181 tests OK with `--parallel`. Now the other two runs:
+
+  ── Ran 3 commands
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test --parallel 2 2>&1 | tee "$TMPDIR/test-p2-$TS.log" | tail -3 (1m 19s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python manage.py test --parallel 2 2>&1 | tee "$TMPDIR/test-p2-$TS.log" | tail -3
+      Destroying test database for alias 'default'...
+      Destroying test database for alias 'default'...
+      Destroying test database for alias 'default'...
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python scripts/run_tests_at.py 2027-03-01T12:00:00 2>&1 | tee "$TMPDIR/test-frozen-$TS.log" | tail -3 (2m 35s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && python scripts/run_tests_at.py 2027-03-01T12:00:00 2>&1 | tee "$TMPDIR/test-frozen-$TS.log" | tail -3
+      Requests ready: 7 types, 8 requests, 3 attachments.
+      Notifications ready: 9 announcements.
+      Chat ready: 3 dialogs, 8 messages.
+    ── Ran cd ~/hackatonproject && for f in $(ls -1t "$TMPDIR"/test-p2-*.log "$TMPDIR"/test-frozen-*.log 2>/dev/null | head -2); do echo "=== $f ==="; grep -E "Ran |^OK|FAILED|ERROR:" "$f" | tail -3; done
+      $ cd ~/hackatonproject && for f in $(ls -1t "$TMPDIR"/test-p2-*.log "$TMPDIR"/test-frozen-*.log 2>/dev/null | head -2); do echo "=== $f ==="; grep -E "Ran |^OK|FAILED|ERROR:" "$f" | tail -3; done
+      === /var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T//test-frozen-20261121-010655.log ===
+      Ran 1181 tests in 153.327s
+      OK
+      === /var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T//test-p2-20261121-010534.log ===
+      Ran 1181 tests in 77.368s
+      OK
+
+  ── Assistant
+  All three test runs pass (1181 tests each). Now the remaining verification commands:
+
+  ── Ran 5 commands, ran 1 tool
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && ruff check . 2>&1 | tail -1 && ruff format --check . 2>&1 | tail -1 && bash -n deploy/backup.sh deploy/manage.sh && echo "bash -n OK" && gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application && echo "gunicorn OK" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('CI YAML OK')" && test -x deploy/backup.sh && echo EXEC_OK (2s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && ruff check . 2>&1 | tail -1 && ruff format --check . 2>&1 | tail -1 && bash -n deploy/backup.sh deploy/manage.sh && echo "bash -n OK" && gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application && echo "gunicorn OK" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('CI YAML OK')" && test -x deploy/backup.sh && echo EXEC_OK
+      All checks passed!
+      196 files already formatted
+      bash -n OK
+      gunicorn OK
+      System check identified no issues (0 silenced).
+      No changes detected
+      CI YAML OK
+      EXEC_OK
+    ── Ran cd ~/hackatonproject && which nginx systemd-analyze pip-audit 2>&1 || echo "not available locally: say so in the REPORT"
+      $ cd ~/hackatonproject && which nginx systemd-analyze pip-audit 2>&1 || echo "not available locally: say so in the REPORT"
+      nginx not found
+      systemd-analyze not found
+      pip-audit not found
+      not available locally: say so in the REPORT
+    ── Ran cd ~/hackatonproject && source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/t016-mig.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t016-mig-media" DEMO_PASSWORD=Local-Demo-Pass-2026 && python manage.py migrate 2>&1 | tail -2 && python manage.py seed_demo 2>&1 | grep -E "Requests ready|Chat ready" && python manage.py seed_demo 2>&1 | grep -E "Requests ready|Chat ready"; unset DATABASE_URL PRIVATE_MEDIA_ROOT DEMO_PASSWORD (6s)
+      $ cd ~/hackatonproject && source .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/t016-mig.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t016-mig-media" DEMO_PASSWORD=Local-Demo-Pass-2026 && python manage.py migrate 2>&1 | tail -2 && python manage.py seed_demo 2>&1 | grep -E "Requests ready|Chat ready" && python manage.py seed_demo 2>&1 | grep -E "Requests ready|Chat ready"; unset DATABASE_URL PRIVATE_MEDIA_ROOT DEMO_PASSWORD
+      Applying university.0003_room_number_format_and_map_cell... OK
+        Applying university.0004_remove_room_map_cell... OK
+      Requests ready: 7 types, 8 requests, 3 attachments.
+      Chat ready: 3 dialogs, 8 messages.
+      Requests ready: 7 types, 0 requests, 0 attachments.
+      Chat ready: 0 dialogs, 0 messages.
+    ── Thought for 1s
+      The migration on a fresh temporary DB works, and seeding is idempotent. 
+
+      Wait, I should verify the migration from a PRE-change DB (chat with 0001_initial seeded) applies 0002 cleanly. The spec's section 8 migration command is just `migrate && seed_demo && seed_demo` on a fresh DB (which applies all migrations including 0002). That's what I did. The feasibility check (section 5 item 10) mentions a DB migrated+seeded with HEAD then migrated with the change, but the section 8 verification only requires the fresh DB migrate+seed twice. I've done the section 8 command. Good.
+
+      Now git status.
+    ── Ran cd ~/hackatonproject && git status --short && echo "---" && TZ=Europe/Moscow date '+%H:%M MSK %d.%m.%Y'
+      $ cd ~/hackatonproject && git status --short && echo "---" && TZ=Europe/Moscow date '+%H:%M MSK %d.%m.%Y'
+      M .github/workflows/ci.yml
+       M accounts/forms.py
+       M accounts/tests/test_throttling.py
+       M accounts/throttling.py
+       M chat/models.py
+       M chat/services.py
+       M chat/tests/test_models.py
+       M chat/tests/test_services.py
+       M config/settings.py
+       M core/tests/test_deploy.py
+       M deploy/backup.sh
+       M deploy/gunicorn.conf.py
+       M deploy/nginx/deanery-bootstrap.conf
+       M deploy/nginx/deanery.conf
+       M deploy/systemd/deanery.service
+       M docs/DEPLOY.md
+       M petitions/forms.py
+       M petitions/tests/test_views.py
+       M petitions/views.py
+       M plan.md
+      ?? chat/migrations/0002_message_token_per_author.py
+      ?? core/middleware.py
+      ?? core/tests/test_middleware.py
+      ?? docs/tasks/TASK-016.md
+      ---
+      01:09 MSK 21.11.2026
+    ── Thought for 2s
+      The git status matches the expected files of section 4, plus:
+      - The new migration `chat/migrations/0002_message_token_per_author.py`
+      - New `core/middleware.py`, `core/tests/test_middleware.py`
+      - `docs/tasks/TASK-016.md` (spec, not mine)
+      - `plan.md` (Team lead's file, not mine)
+
+      All files match the spec's section 4 list:
+      Create: core/middleware.py, core/tests/test_middleware.py, chat/migrations/0002_message_token_per_author.py ✓
+      Change: config/settings.py, accounts/throttling.py, accounts/forms.py, petitions/forms.py, petitions/views.py, chat/models.py, chat/services.py, deploy/nginx/deanery.conf, deploy/nginx/deanery-bootstrap.conf, deploy/gunicorn.conf.py, deploy/systemd/deanery.service, deploy/backup.sh, docs/DEPLOY.md, .github/workflows/ci.yml, tests in section 7 (accounts/tests/test_throttling.py, petitions/tests/test_views.py, chat/tests/test_services.py, chat/tests/test_models.py, core/tests/test_deploy.py) ✓
+
+      Everything matches. Now send the REPORT.
+
+      Log paths:
+      - test-20261121-010443.log (--parallel)
+      - test-p2-20261121-010534.log (--parallel 2)
+      - test-frozen-20261121-010655.log (run_tests_at)
+
+      Moscow times: Let me get exact times. The first run was at ~01:04-01:05, p2 at 01:05, frozen at 01:06. I got "01:09 MSK" at the git status check. Let me report approximate times. Actually I should be precise. The logs have timestamps in the filename (01:04:43, 01:05:34, 01:06:55). Let me report those.
+    ── Ran cd ~/hackatonproject && bb thread tell thr_cpuae9aqw3 --message-file - <<'EOF' [TASK-016] Coder -> Reviewer: REPORT Spec: docs/tasks/TASK-016.md (base HEAD 851b3ee). Security hardening from PENTEST-1. ## What was done (F1-F13 + F14 tests, exact spec code) - F1 `core/middleware.py` (new): ContentSecurityPolicyMiddleware + PrivateCacheMiddleware. - F2 `config/settings.py`: CSP middleware after WhiteNoise; PrivateCacheMiddleware last. - F3 `accounts/throttling.py::throttle_ip` (IPv4 as-is, IPv6 /64, v4-mapped) + `accounts/forms.py` applies it. - F4 `petitions/forms.py`: escaped `comment_hint` via `django.utils.html.escape`. - F5 `petitions/views.py`: `?type=` only if `[0-9]{1,18}` fullmatch. - F6 `chat/services.py` `_idempotent_message` per author + `chat/models.py` constraint (dialog, author, client_token); migration `chat/0002_message_token_per_author` GENERATED with `makemigrations` (RemoveConstraint + AddConstraint). - F7 `deploy/nginx/deanery.conf` (whole file): login rate limit (POST, 10r/m burst 10), limit_conn 20, catch-all 80/443, www redirect, ACME for both names. - F8 bootstrap server_name adds www. F9 gunicorn `secure_scheme_headers`. F10 backup.sh libpq env (no password on cmdline). F11 systemd sandbox (ProtectSystem=strict, etc.). F12 runbook (nologin, www cert, smoke checks, DEMO_PASSWORD removal, new step 21). F13 CI pip-audit step. - F14 tests: `core/tests/test_middleware.py` (new), `accounts/tests/test_throttling.py`, `petitions/tests/test_views.py`, `chat/tests/test_services.py`, `chat/tests/test_models.py`, `core/tests/test_deploy.py` — all per spec. ## Verification (section 8) — all green - `manage.py test --parallel` -> **Ran 1181 tests … OK** — `$TMPDIR/test-20261121-010443.log` (01:05 MSK). - `manage.py test --parallel 2` -> **Ran 1181 tests … OK** — `$TMPDIR/test-p2-20261121-010534.log` (01:06 MSK). - `scripts/run_tests_at.py 2027-03-01T12:00:00` -> **Ran 1181 tests … OK** — `$TMPDIR/test-frozen-20261121-010655.log` (01:08 MSK). - `ruff check .` clean; `ruff format --check .` 196 files formatted. - `bash -n deploy/backup.sh deploy/manage.sh` OK; `gunicorn --check-config` exit 0; `manage.py check` no issues; `makemigrations --check --dry-run` No changes; CI YAML OK; `EXEC_OK`. - Migration + seed twice on a temp DB (`sqlite:///$TMPDIR/t016-mig.sqlite3`): `0002_message_token_per_author` applied, `seed_demo` idempotent (7 types/8 requests then 0 requests). ## Not available locally (as the spec anticipates) - `nginx`, `systemd-analyze`, and `pip-audit` are not installed here, so `nginx -t` / `systemd-analyze verify|security` / a real `pip-audit -r requirements.txt` run could not be executed. Per section 5 item 11, the Team lead runs these on the server (runbook step 21). Section 5 item 9 already queried the OSV database manually (no known vulnerabilities). ## git status (mine; plan.md and TASK-016.md are Team lead / Planner files) M .github/workflows/ci.yml, accounts/forms.py, accounts/tests/test_throttling.py, accounts/throttling.py, chat/models.py, chat/services.py, chat/tests/test_models.py, chat/tests/test_services.py, config/settings.py, core/tests/test_deploy.py, deploy/backup.sh, deploy/gunicorn.conf.py, deploy/nginx/deanery-bootstrap.conf, deploy/nginx/deanery.conf, deploy/systemd/deanery.service, docs/DEPLOY.md, petitions/forms.py, petitions/tests/test_views.py, petitions/views.py; plus plan.md (Team lead). Untracked: chat/migrations/0002_message_token_per_author.py, core/middleware.py, core/tests/test_middleware.py, docs/tasks/TASK-016.md. EOF (7s)
+      $ cd ~/hackatonproject && bb thread tell thr_cpuae9aqw3 --message-file - <<'EOF'
+    [TASK-016] Coder -> Reviewer: REPORT
+    Spec: docs/tasks/TASK-016.md (base HEAD 851b3ee). Security hardening from PENTEST-1.
+
+    ## What was done (F1-F13 + F14 tests, exact spec code)
+    - F1 `core/middleware.py` (new): ContentSecurityPolicyMiddleware + PrivateCacheMiddleware.
+    - F2 `config/settings.py`: CSP middleware after WhiteNoise; PrivateCacheMiddleware last.
+    - F3 `accounts/throttling.py::throttle_ip` (IPv4 as-is, IPv6 /64, v4-mapped) + `accounts/forms.py` applies it.
+    - F4 `petitions/forms.py`: escaped `comment_hint` via `django.utils.html.escape`.
+    - F5 `petitions/views.py`: `?type=` only if `[0-9]{1,18}` fullmatch.
+    - F6 `chat/services.py` `_idempotent_message` per author + `chat/models.py` constraint (dialog, author, client_token); migration `chat/0002_message_token_per_author` GENERATED with `makemigrations` (RemoveConstraint + AddConstraint).
+    - F7 `deploy/nginx/deanery.conf` (whole file): login rate limit (POST, 10r/m burst 10), limit_conn 20, catch-all 80/443, www redirect, ACME for both names.
+    - F8 bootstrap server_name adds www. F9 gunicorn `secure_scheme_headers`. F10 backup.sh libpq env (no password on cmdline). F11 systemd sandbox (ProtectSystem=strict, etc.). F12 runbook (nologin, www cert, smoke checks, DEMO_PASSWORD removal, new step 21). F13 CI pip-audit step.
+    - F14 tests: `core/tests/test_middleware.py` (new), `accounts/tests/test_throttling.py`, `petitions/tests/test_views.py`, `chat/tests/test_services.py`, `chat/tests/test_models.py`, `core/tests/test_deploy.py` — all per spec.
+
+    ## Verification (section 8) — all green
+    - `manage.py test --parallel` -> **Ran 1181 tests … OK** — `$TMPDIR/test-20261121-010443.log` (01:05 MSK).
+    - `manage.py test --parallel 2` -> **Ran 1181 tests … OK** — `$TMPDIR/test-p2-20261121-010534.log` (01:06 MSK).
+    - `scripts/run_tests_at.py 2027-03-01T12:00:00` -> **Ran 1181 tests … OK** — `$TMPDIR/test-frozen-20261121-010655.log` (01:08 MSK).
+    - `ruff check .` clean; `ruff format --check .` 196 files formatted.
+    - `bash -n deploy/backup.sh deploy/manage.sh` OK; `gunicorn --check-config` exit 0; `manage.py check` no issues; `makemigrations --check --dry-run` No changes; CI YAML OK; `EXEC_OK`.
+    - Migration + seed twice on a temp DB (`sqlite:///$TMPDIR/t016-mig.sqlite3`): `0002_message_token_per_author` applied, `seed_demo` idempotent (7 types/8 requests then 0 requests).
+
+    ## Not available locally (as the spec anticipates)
+    - `nginx`, `systemd-analyze`, and `pip-audit` are not installed here, so `nginx -t` / `systemd-analyze verify|security` / a real `pip-audit -r requirements.txt` run could not be executed. Per section 5 item 11, the Team lead runs these on the server (runbook step 21). Section 5 item 9 already queried the OSV database manually (no known vulnerabilities).
+
+    ## git status (mine; plan.md and TASK-016.md are Team lead / Planner files)
+    M .github/workflows/ci.yml, accounts/forms.py, accounts/tests/test_throttling.py, accounts/throttling.py, chat/models.py, chat/services.py, chat/tests/test_models.py, chat/tests/test_services.py, config/settings.py, core/tests/test_deploy.py, deploy/backup.sh, deploy/gunicorn.conf.py, deploy/nginx/deanery-bootstrap.conf, deploy/nginx/deanery.conf, deploy/systemd/deanery.service, docs/DEPLOY.md, petitions/forms.py, petitions/tests/test_views.py, petitions/views.py; plus plan.md (Team lead).
+    Untracked: chat/migrations/0002_message_token_per_author.py, core/middleware.py, core/tests/test_middleware.py, docs/tasks/TASK-016.md.
+    EOF
+      Thread thr_cpuae9aqw3 steered
+    ── Ran tool 0 todos
+      {"output":"[\n  {\n    \"content\": \"F1 middleware + F2 settings + F14.1 test_middleware\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"F3 throttling/forms + F14.2 test_throttling\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"F4 petitions/forms + F5 views + F14.3 test_views\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"F6 chat + migration + F14.4 tests\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"F7-F11 deploy + F12 runbook + F13 CI + F14.5 test_deploy\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"ruff format/check + verification (section 8)\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  }\n]","metadata":{"todos":[{"content":"F1 middleware + F2 settings + F14.1 test_middleware","status":"completed","priority":"high"},{"content":"F3 throttling/forms + F14.2 test_throttling","status":"completed","priority":"high"},{"content":"F4 petitions/forms + F5 views + F14.3 test_views","status":"completed","priority":"high"},{"content":"F6 chat + migration + F14.4 tests","status":"completed","priority":"high"},{"content":"F7-F11 deploy + F12 runbook + F13 CI + F14.5 test_deploy","status":"completed","priority":"high"},{"content":"ruff format/check + verification (section 8)","status":"completed","priority":"high"}],"truncated":false}}
+
+── Assistant ───────────────────────────────────────────────
+TASK-016 полностью выполнена по спецификации и отправлена Ревьюеру.
+
+## Что сделано (F1–F13 + тесты F14)
+
+**Код приложения**
+- `core/middleware.py` — CSP + no-store middleware; `config/settings.py` — порядок middleware.
+- `accounts/throttling.py::throttle_ip` (IPv6 /64, v4-mapped) + применение в форме.
+- `petitions/forms.py` — экранирование `comment_hint`; `petitions/views.py` — безопасный `?type=` фильтр.
+- `chat/services.py`/`models.py` — токен идемпотентности по автору + сгенерированная миграция `0002_message_token_per_author`.
+
+**Deploy/runbook/CI**
+- nginx: rate-limit логина (POST 10r/m burst 10), limit_conn 20, catch-all серверы, редирект www, ACME для обоих имён.
+- gunicorn `secure_scheme_headers`, backup.sh через libpq-окружение (без пароля в командной строке), systemd sandbox (`ProtectSystem=strict` и др.).
+- Runbook: nologin, сертификат для www, доп. smoke-проверки, удаление `DEMO_PASSWORD`, новый шаг 21. CI: шаг `pip-audit`.
+
+## Проверка (раздел 8) — всё зелёное
+
+- `--parallel`, `--parallel 2`, `run_tests_at.py` → каждый **1181 тест OK**.
+- `ruff check`/`format --check`, `bash -n`, `gunicorn --check-config`, `check`, `makemigrations --check`, CI YAML — чисто.
+- Миграция + двойной `seed_demo` на временной БД — идемпотентно.
+
+В REPORT отметил, что `nginx`, `systemd-analyze` и `pip-audit` локально недоступны (по спеке их запускает Team lead на сервере, шаг 21). Жду вердикт Ревьюера.

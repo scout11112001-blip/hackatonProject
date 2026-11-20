@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.debug import sensitive_variables
 
-from .throttling import get_client_ip, is_locked, register_failure, reset_failures
+from .throttling import get_client_ip, is_locked, register_failure, reset_failures, throttle_ip
 
 
 class ThrottledLoginFormMixin:
@@ -19,7 +19,7 @@ class ThrottledLoginFormMixin:
     @method_decorator(sensitive_variables())
     def clean(self) -> dict[str, Any]:
         username = self.cleaned_data.get("username") or ""
-        ip = get_client_ip(self.request)
+        ip = throttle_ip(get_client_ip(self.request))
         now = timezone.now()
         if username and is_locked(username, ip, now):
             raise ValidationError(self.error_messages["locked"], code="locked")

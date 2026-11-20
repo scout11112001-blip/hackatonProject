@@ -24304,10 +24304,709 @@ Cleanup: all local servers are stopped and the browser session is closed. $TMPDI
 ── User ────────────────────────────────────────────────────
 Да, отправляй
 
-── Running 1 command ───────────────────────────────────────
+── Ran 4 commands ──────────────────────────────────────────
   ── Thought for 2s
     I need to commit the untracked docs/security/ reports before sending, since the planner's feasibility check expects a clean tree apart from plan.md and CHANGELOG. I'll commit docs/security together with plan.md as the PENTEST-1 reports commit, and also check whether the pentester dialog export should go in as 06-pentester.
 
     I'm going to export the pentester log as 06-pentester.md, and I need to check whether `bb thread log --all` still includes the run1 content. If it doesn't, I'll prepend the run1 dialog I saved separately, then check the file size.
-  ── Running O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder" "thr_kqfp9kn6jk:06-pentester"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && grep -c "Готов работать пентестером и жду запрос" "$O/06-pentester.md"; wc -c "$O/06-pentester.md"
+  ── Ran O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder" "thr_kqfp9kn6jk:06-pentester"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && grep -c "Готов работать пентестером и жду запрос" "$O/06-pentester.md"; wc -c "$O/06-pentester.md" (4s)
     $ O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder" "thr_kqfp9kn6jk:06-pentester"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && grep -c "Готов работать пентестером и жду запрос" "$O/06-pentester.md"; wc -c "$O/06-pentester.md"
+    0
+      711243 /tmp/claude-501/dialogs-1795190969/06-pentester.md
+  ── Ran O=$(ls -dt $TMPDIR/dialogs-* | head -1) && R1=~/.bb/thread-storage/thr_4izdzwetb4/pentest/pentester-run1-dialog.md && { printf '# Pentester dialog\n\nRun 1 of PENTEST-1 (medium reasoning) is first; the thread context was then cleared and run 2 (max reasoning) follows.\n\n## Run 1 (before context clear, 2026-11-19/20)\n\n'; cat "$R1"; printf '\n\n## Run 2 (after context clear, 2026-11-20)\n\n'; cat "$O/06-pentester.md"; } > "$O/06-pentester.tmp" && mv "$O/06-pentester.tmp" "$O/06-pentester.md" && .venv/bin/python -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)     t=t.replace('[id скрыт]','[id скрыт]')     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     t=t.replace('[IP пользователя скрыт]','[IP пользователя скрыт]')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~','[IP пользователя скрыт]') if k in t]     assert not bad,(f,bad)     assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f     assert not re.search(r'Demo-[0-9a-f]{12}',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF rm -rf "$O"; grep -n "05-ui-coder" docs/process/README.md | head -2 (3s)
+    $ O=$(ls -dt $TMPDIR/dialogs-* | head -1) && R1=~/.bb/thread-storage/thr_4izdzwetb4/pentest/pentester-run1-dialog.md && { printf '# Pentester dialog\n\nRun 1 of PENTEST-1 (medium reasoning) is first; the thread context was then cleared and run 2 (max reasoning) follows.\n\n## Run 1 (before context clear, 2026-11-19/20)\n\n'; cat "$R1"; printf '\n\n## Run 2 (after context clear, 2026-11-20)\n\n'; cat "$O/06-pentester.md"; } > "$O/06-pentester.tmp" && mv "$O/06-pentester.tmp" "$O/06-pentester.md" && .venv/bin/python -I - "$O" <<'EOF'
+  import os,re,sys
+  d=sys.argv[1]; out='docs/process/dialogs'
+  for f in sorted(os.listdir(d)):
+      t=open(os.path.join(d,f),encoding='utf-8').read()
+      t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)
+      t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)
+      t=t.replace('[id скрыт]','[id скрыт]')
+      t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')
+      t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)
+      t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')
+      t=t.replace('[IP пользователя скрыт]','[IP пользователя скрыт]')
+      bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~','[IP пользователя скрыт]') if k in t]
+      assert not bad,(f,bad)
+      assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f
+      assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f
+      assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f
+      assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f
+      assert not re.search(r'Demo-[0-9a-f]{12}',t),f
+      open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
+  EOF
+  rm -rf "$O"; grep -n "05-ui-coder" docs/process/README.md | head -2
+    01-team-lead.md 2407 KB
+    02-planner.md 2140 KB
+    03-coder-deepseek.md 5778 KB
+    04-reviewer.md 1461 KB
+    05-ui-coder.md 687 KB
+    06-pentester.md 882 KB
+    14:| `05-ui-coder.md` | Кодер интерфейса: оформление, проверка страниц по скриншотам | Claude Opus 5.5 (Claude Code) |
+  ── Ran .venv/bin/python - <<'EOF' p='docs/process/README.md' s=open(p,encoding='utf-8').read() old='| `05-ui-coder.md` | Кодер интерфейса: оформление, проверка страниц по скриншотам | Claude Opus 5.5 (Claude Code) |' assert s.count(old)==1 s=s.replace(old, old+'\n| `06-pentester.md` | Пентестер: проверка безопасности (PENTEST-1: прогон 1 на среднем уровне рассуждений, затем прогон 2 с чистым контекстом на максимальном) | Claude Opus 5.5 (Claude Code) |') open(p,'w',encoding='utf-8').write(s) p='CHANGELOG.md' s=open(p,encoding='utf-8').read() head='# История изменений\n\nФормат: одна запись на задачу или изменение настройки. Новые записи сверху.\n\n' assert s.startswith(head) entry='''## 2026-11-20 ### Безопасность: пентест приложения (PENTEST-1) и HTTPS - Шестой агент «Пентестер» (Claude Opus) проверил приложение на временной базе: доступ к чужим данным по всем ролям, CSRF, XSS, инъекции, подмена домена и заголовков, загрузка файлов. Критичных и высоких уязвимостей нет. - Прогон 1 на среднем уровне рассуждений (`docs/security/PENTEST-1-run1-medium.md`) пропустил главный риск. По решению пользователя контекст очищен, та же задача выполнена на максимальном уровне (`docs/security/PENTEST-1.md`): найдена перегрузка процессора через форму входа (средний риск) и ещё 6 новых замечаний. Исправления — TASK-016. - Сайт открыт по HTTPS: `https://digital-student-services.ru` (сертификат Let's Encrypt на домен и `www`); вход во все 5 демо-аккаунтов проверен на сервере. ''' s=head+entry+s[len(head):] open(p,'w',encoding='utf-8').write(s) EOF git add docs/security docs/process CHANGELOG.md plan.md && git status --short | grep -v "^[AM] "; git commit -q -F - <<'EOF' Security: PENTEST-1 reports (two runs) and HTTPS live - docs/security/PENTEST-1.md: local pentest, run 2 (cleared context, max   reasoning): no Critical/High; Medium: CPU exhaustion via failed logins;   5 Low, 7 Info. - docs/security/PENTEST-1-run1-medium.md: run 1 (medium reasoning) kept   for comparison; it missed the Medium finding. - Process docs: CHANGELOG, plan, dialogs (new 06-pentester.md). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com> EOF git log --oneline -1; git status --short | wc -l (Outside of sandbox) (1s)
+    $ .venv/bin/python - <<'EOF'
+  p='docs/process/README.md'
+  s=open(p,encoding='utf-8').read()
+  old='| `05-ui-coder.md` | Кодер интерфейса: оформление, проверка страниц по скриншотам | Claude Opus 5.5 (Claude Code) |'
+  assert s.count(old)==1
+  s=s.replace(old, old+'\n| `06-pentester.md` | Пентестер: проверка безопасности (PENTEST-1: прогон 1 на среднем уровне рассуждений, затем прогон 2 с чистым контекстом на максимальном) | Claude Opus 5.5 (Claude Code) |')
+  open(p,'w',encoding='utf-8').write(s)
+  p='CHANGELOG.md'
+  s=open(p,encoding='utf-8').read()
+  head='# История изменений\n\nФормат: одна запись на задачу или изменение настройки. Новые записи сверху.\n\n'
+  assert s.startswith(head)
+  entry='''## 2026-11-20
+  ### Безопасность: пентест приложения (PENTEST-1) и HTTPS
+  - Шестой агент «Пентестер» (Claude Opus) проверил приложение на временной базе: доступ к чужим данным по всем ролям, CSRF, XSS, инъекции, подмена домена и заголовков, загрузка файлов. Критичных и высоких уязвимостей нет.
+  - Прогон 1 на среднем уровне рассуждений (`docs/security/PENTEST-1-run1-medium.md`) пропустил главный риск. По решению пользователя контекст очищен, та же задача выполнена на максимальном уровне (`docs/security/PENTEST-1.md`): найдена перегрузка процессора через форму входа (средний риск) и ещё 6 новых замечаний. Исправления — TASK-016.
+  - Сайт открыт по HTTPS: `https://digital-student-services.ru` (сертификат Let's Encrypt на домен и `www`); вход во все 5 демо-аккаунтов проверен на сервере.
+
+  '''
+  s=head+entry+s[len(head):]
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  git add docs/security docs/process CHANGELOG.md plan.md && git status --short | grep -v "^[AM] "; git commit -q -F - <<'EOF'
+  Security: PENTEST-1 reports (two runs) and HTTPS live
+
+  - docs/security/PENTEST-1.md: local pentest, run 2 (cleared context, max
+    reasoning): no Critical/High; Medium: CPU exhaustion via failed logins;
+    5 Low, 7 Info.
+  - docs/security/PENTEST-1-run1-medium.md: run 1 (medium reasoning) kept
+    for comparison; it missed the Medium finding.
+  - Process docs: CHANGELOG, plan, dialogs (new 06-pentester.md).
+
+  Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+  EOF
+  git log --oneline -1; git status --short | wc -l
+    851b3ee Security: PENTEST-1 reports (two runs) and HTTPS live
+           0
+  ── Ran bb thread tell thr_2imsg4kck2 --message-file - < ~/.bb/thread-storage/thr_4izdzwetb4/TASK-016.txt && .venv/bin/python - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() row=[l for l in s.split('\n') if l.startswith('| TASK-015-FIX |')][0] new='| TASK-016 | Безопасность по PENTEST-1: лимиты входа и соединений в nginx, закрытие чужих доменов и `www` → основной адрес, запрет кэша, CSP, мелкие исправления, изоляция systemd, `pip-audit` в CI (исполнитель — Кодер на DeepSeek) | В работе |' assert s.count(row)==1 s=s.replace(row, row+'\n'+new) s=s.replace('Черновик исправлений TASK-016 ждёт решения пользователя.','TASK-016 (исправления) в работе.') open(p,'w',encoding='utf-8').write(s) EOF grep -c "TASK-016" plan.md; GIT_TERMINAL_PROMPT=0 git push -q origin main 2>&1 | tail -1; git rev-list --count origin/main..main (Outside of sandbox) (9s)
+    $ bb thread tell thr_2imsg4kck2 --message-file - < ~/.bb/thread-storage/thr_4izdzwetb4/TASK-016.txt && .venv/bin/python - <<'EOF'
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  row=[l for l in s.split('\n') if l.startswith('| TASK-015-FIX |')][0]
+  new='| TASK-016 | Безопасность по PENTEST-1: лимиты входа и соединений в nginx, закрытие чужих доменов и `www` → основной адрес, запрет кэша, CSP, мелкие исправления, изоляция systemd, `pip-audit` в CI (исполнитель — Кодер на DeepSeek) | В работе |'
+  assert s.count(row)==1
+  s=s.replace(row, row+'\n'+new)
+  s=s.replace('Черновик исправлений TASK-016 ждёт решения пользователя.','TASK-016 (исправления) в работе.')
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  grep -c "TASK-016" plan.md; GIT_TERMINAL_PROMPT=0 git push -q origin main 2>&1 | tail -1; git rev-list --count origin/main..main
+    Thread thr_2imsg4kck2 steered
+    2
+    0
+
+── Assistant ───────────────────────────────────────────────
+Я отправил TASK-016 Планировщику, исполнитель — Кодер на DeepSeek. В `plan.md` задача отмечена как «В работе».
+
+**Перед отправкой:**
+- Оба отчёта Пентестера и обновлённые диалоги вошли в коммит `851b3ee`, и он уже на GitHub. Сделал это заранее: рабочая папка должна быть чистой, иначе Планировщик остановится на проверке.
+- В архиве диалогов появился `06-pentester.md`: прогон 1, затем прогон 2 после очистки контекста. Личные данные скрыты, как обычно.
+- В `CHANGELOG.md` есть запись о пентесте и запуске HTTPS.
+
+После одобрения Ревьюера я проверю все страницы в браузере на ошибки CSP, включая админку. Потом применю изменения nginx и systemd на сервере и запущу PENTEST-2. Для PENTEST-2 нужен прямой доступ с Mac к серверу, перед запуском напишу.
+
+── User ────────────────────────────────────────────────────
+Следующим после закрытия 016 (с FIX) будет небольшой task с правками:
+1) Нужен просмотр пароля при входе. Желательно сделать красивую и читаемую иконку глаза в пиксельном стиле
+2) Раздел "Заявки" переименовать в "Документы", соответственно везде заменить "заявка".
+3) Справку в военкомат заменить на справку о поступлении, комментарий сделать опциональным
+4) В разделе "Другое заявление" есть подсказка: "Что именно нужно, например: «Справка о периоде обучения»." Замени справку на какое-нибудь заявление.
+
+── Ran 2 commands, created 1 file ──────────────────────────
+  ── Thought for 22s
+    I'm logging this as the TASK-017 draft and need to pin down how the password visibility toggle should work. The project only allows JavaScript for chat polling, so I'm checking whether a CSS-only approach is possible. Changing the input type isn't something CSS can do, and the workarounds I'm considering, like two inputs or `-webkit-text-security`, look non-standard and not secure enough to rely on.
+
+    I'm weighing whether to add a small JavaScript file for the password toggle, since the project otherwise forbids JS. The CSS-only options look unreliable: `-webkit-text-security` is non-standard with uncertain Firefox support, and masking a text input would break password managers. I'm leaning toward a minimal progressive-enhancement script with an accessible button, but that needs the user's decision.
+
+    Now I'm working out the wording for the "Заявки" rename: whether "Документы" fits every place the old term appears, what to do with "Подать заявку" since a student requests a document rather than submitting one, and whether the staff queue and URLs should change too. I'm leaning toward changing only visible text and keeping URLs and code names.
+
+    I'm settling on a term map for the rename, deciding where "документ" fits and where "запрос" reads better, since a student orders a document rather than submitting one. I'll ask the user to confirm the wording before applying it.
+
+    Next I'm going to replace the old "Справка в военкомат" with "Справка о поступлении" and decide whether it gets an optional comment hint, with processing kept at 3 days. The tricky part is the existing trial database: the seed script doesn't update records that already exist, so renaming it there would leave the old type active next to a new one, and I need to decide whether a data migration or deactivating the old type is the cleaner fix.
+
+    Now I'm checking the "Другое заявление" hint, which looks like the same subject-field help text reused for both catalog types, and I'm deciding whether that needs its own wording.
+
+    The subject hint needs to be different for the "Другое заявление" type, so I'm weighing whether to key it off the kind of request or add a dedicated field. I'm leaning toward keying it by kind in the form, and I'll suggest a sample hint like "Заявление на индивидуальный учебный план" for that type. On the work split, the password eye icon and its small script fall to the UI side, while the text renames across templates could go either way, and the seed and data changes clearly belong to the coder.
+
+    I'm going through the rest of the rename and the two other items: checking the current login template for the password field and counting how many "заяв" strings are in the templates to gauge the work. I'm also noting that the home page already has a "Документы" button, so the rename fits with what's there, and that the JS question still needs the user's decision.
+  ── Ran echo "templates with заяв: $(grep -rl -i 'заяв' --include='*.html' . --exclude-dir=.venv --exclude-dir=docs | wc -l)"; echo "lines in templates: $(grep -rn -i 'заяв' --include='*.html' . --exclude-dir=.venv --exclude-dir=docs | wc -l)"; echo "lines in py (non-test): $(grep -rn -i 'заяв' --include='*.py' . --exclude-dir=.venv --exclude-dir=docs --exclude-dir=tests --exclude-dir=migrations | wc -l)"; grep -rhn -o -i -E "[А-Яа-яё ]{0,20}заяв[а-яё]*[А-Яа-яё «»]{0,20}" --include='*.html' --include='*.py' . --exclude-dir=.venv --exclude-dir=docs --exclude-dir=tests --exclude-dir=migrations | sed 's/^[0-9]*://' | sort | uniq -c | sort -rn | head -30; grep -rn "Что именно нужно" --include='*.py' . --exclude-dir=.venv | head -3 (2s)
+    $ echo "templates with заяв: $(grep -rl -i 'заяв' --include='*.html' . --exclude-dir=.venv --exclude-dir=docs | wc -l)"; echo "lines in templates: $(grep -rn -i 'заяв' --include='*.html' . --exclude-dir=.venv --exclude-dir=docs | wc -l)"; echo "lines in py (non-test): $(grep -rn -i 'заяв' --include='*.py' . --exclude-dir=.venv --exclude-dir=docs --exclude-dir=tests --exclude-dir=migrations | wc -l)"; grep -rhn -o -i -E "[А-Яа-яё ]{0,20}заяв[а-яё]*[А-Яа-яё «»]{0,20}" --include='*.html' --include='*.py' . --exclude-dir=.venv --exclude-dir=docs --exclude-dir=tests --exclude-dir=migrations | sed 's/^[0-9]*://' | sort | uniq -c | sort -rn | head -30; grep -rn "Что именно нужно" --include='*.py' . --exclude-dir=.venv | head -3
+    templates with заяв:        8
+    lines in templates:       18
+    lines in py (non-test):       35
+       5 Заявки
+       5 Заявка «
+       4 заявка
+       3 Заявка
+       2 вид заявки
+       2 Подать заявку
+       2 Мои заявки
+       2 Заявление на повторную промеж
+       2 Заявление на академический от
+       2 Для этой заявки комментарий обязате
+       1 приложения к заявкам
+       1 приложение к заявке
+       1 ментарий деканата к заявке «
+       1 заявки
+       1 виды заявок
+       1 Этот вид заявки сейчас недоступен
+       1 Отправить заявку
+       1 Нельзя перевести заявку из «
+       1 К заявке
+       1 Заявок пока нет
+       1 Заявок нет
+       1 Заявления
+       1 Заявлений пока нет
+       1 Заявление о предоставлении ак
+       1 Заявление о повторной сдаче п
+       1 Заявление
+       1 Заявка уже изменена
+       1 Заявка подана
+       1 Заявка 
+       1 Если нужного заявления нет в списке
+    petitions/forms.py:29:        help_text="Что именно нужно, например: «Справка о периоде обучения».",
+  ── Created ~/.bb/thread-storage/thr_4izdzwetb4/TASK-017.txt +15
+    --- /dev/null
+    +++ b~/.bb/thread-storage/thr_4izdzwetb4/TASK-017.txt
+    +[TASK-017] Team lead -> Planner: TASK  (DRAFT, not approved yet; send after TASK-016 and its FIX are closed)
+    +Approved by the user. Write the spec `docs/tasks/TASK-017.md` and hand it to the UI coder.
+    +Assignee: UI coder (thr_pgcwc2dwnn)
+    +
+    +## Context
+    +Small user-requested changes (20.11). Apply your "Feasibility check" and "Test plan" sections.
+    +
+    +## Items
+    +1. Login page: show/hide password toggle with a readable pixel-style eye icon (our own drawing: inline SVG of rects, `shape-rendering: crispEdges`, two states: open eye / crossed eye), WCAG AA, 44 px tap target, `aria-pressed` and a Russian accessible name ("Показать пароль" / "Скрыть пароль"), visible focus. JavaScript: (DECISION PENDING) a tiny progressive-enhancement script in `static/js/` that switches the input type; without JS the button is hidden and the form works as now; CSP from TASK-016 must allow it (external file only). Password managers and autocomplete keep working.
+    +2. Rename the student-facing section "Заявки" to "Документы" and replace the word "заявка" in all user-visible text (templates, messages, form errors, notifications, page titles, nav, staff pages, admin verbose names) by the term map below (DECISION PENDING). URLs, URL names, Python names, model and app names stay unchanged. Words "заявление/заявления" (a kind of document) stay.
+    +3. Request type "Справка в военкомат" -> "Справка о поступлении" (certificate, comment OPTIONAL, hint "Можно указать, куда нужна справка.", processing days 3, description proposal: "Подтверждает зачисление в университет."). Existing databases (local, trial on the server): the old type must not stay visible next to the new one (rename or deactivate by a data migration; choose and justify); a fresh database after `seed_demo` has only the new type; `seed_demo` stays idempotent.
+    +4. The "Тип" field hint must fit the kind: "Другая справка" keeps «Справка о периоде обучения»; "Другое заявление" gets an application example, e.g. «Заявление на индивидуальный учебный план» (`petitions/forms.py:29` is one text for both today).
+    +
+    +## Verification
+    +All existing verification commands; tests for every changed text (including that no user-visible "заявк" remains outside the allowed words), the toggle markup and accessibility attributes, the data migration on a database seeded before the change, `seed_demo` twice. Visual check: login 360/1024 (toggle both states, keyboard), nav and every renamed page for a student and staff.
+  ── Ran .venv/bin/python - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() row=[l for l in s.split('\n') if l.startswith('| TASK-016 |')][0] new='| TASK-017 | Глаз для показа пароля (пиксельная иконка); «Заявки» → «Документы» во всём тексте; «Справка в военкомат» → «Справка о поступлении» (комментарий необязателен); пример «Типа» для «Другого заявления» (исполнитель — Кодер интерфейса) | Запланирована (после TASK-016 и её FIX) |' assert s.count(row)==1 s=s.replace(row, row+'\n'+new) open(p,'w',encoding='utf-8').write(s) EOF grep -c "TASK-017" plan.md (2s)
+    $ .venv/bin/python - <<'EOF'
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  row=[l for l in s.split('\n') if l.startswith('| TASK-016 |')][0]
+  new='| TASK-017 | Глаз для показа пароля (пиксельная иконка); «Заявки» → «Документы» во всём тексте; «Справка в военкомат» → «Справка о поступлении» (комментарий необязателен); пример «Типа» для «Другого заявления» (исполнитель — Кодер интерфейса) | Запланирована (после TASK-016 и её FIX) |'
+  assert s.count(row)==1
+  s=s.replace(row, row+'\n'+new)
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  grep -c "TASK-017" plan.md
+    1
+
+── Assistant ───────────────────────────────────────────────
+Я записал задачу как TASK-017 со статусом «после TASK-016 и её FIX». Черновик лежит в `TASK-017.txt`. Исполнителем предлагаю Кодера интерфейса: почти всё здесь — видимый текст и иконка.
+
+До отправки нужно решить два вопроса.
+
+**1. Показ пароля требует JavaScript.** Без JavaScript поле пароля нельзя переключить в обычный текст: CSS этого не умеет. Сейчас JavaScript в проекте есть только в чате. Предлагаю маленький отдельный файл:
+- кнопка с иконкой глаза переключает поле «пароль ↔ текст»;
+- без JavaScript кнопка просто не показывается, вход работает как сейчас;
+- CSP из TASK-016 такой файл разрешает, потому что скрипт внешний, а не встроенный.
+
+Иконку нарисуем сами в стиле логотипа, в двух вариантах: открытый и перечёркнутый глаз. У кнопки будет понятное название для экранного диктора: «Показать пароль» / «Скрыть пароль». Разрешаете этот JavaScript?
+
+**2. Чем заменить «заявку».** Слово «заявка» встречается примерно в 50 строках: 18 в шаблонах, 35 в Python. Если заменить его на «документ» буквально, местами получится неверный смысл: «Подать документ» звучит так, будто студент сам приносит документ. Предлагаю словарь:
+
+| Сейчас | Станет |
+|---|---|
+| Заявки (меню, раздел) | Документы |
+| Мои заявки | Мои документы |
+| Подать заявку / Отправить заявку | Заказать документ / Отправить запрос |
+| Заявка подана | Запрос отправлен |
+| Заявка «…» (статус, уведомления) | Запрос «…» |
+| Заявок пока нет | Документов пока нет |
+| Для этой заявки комментарий обязателен | Для этого документа комментарий обязателен |
+| вид заявки (админка) | вид документа |
+
+Слова «заявление» и «заявления» остаются: это вид документа, а не раздел. Адреса страниц (`/requests/`) и названия в коде тоже не меняются: это скрыто от людей, а переименование только добавит риск.
+
+**Ещё по задаче:**
+- **Справка о поступлении:** комментарий необязательный, подсказка «Можно указать, куда нужна справка.», срок до 3 дней, описание «Подтверждает зачисление в университет.». На пробной базе сервера и в вашей локальной базе старая «Справка в военкомат» не останется рядом с новой. В итоговой базе 22.11 будет только новая.
+- **Пример для «Другого заявления»:** «Заявление на индивидуальный учебный план». У «Другой справки» останется «Справка о периоде обучения».
+
+Если согласны со всем, ответьте «да» — тогда отправлю задачу после TASK-016. Если что-то поменять, напишите что.
+
+── User ────────────────────────────────────────────────────
+Да
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran F=~/.bb/thread-storage/thr_4izdzwetb4/TASK-017.txt && .venv/bin/python - "$F" <<'EOF' import sys p=sys.argv[1] s=open(p,encoding='utf-8').read() s=s.replace('[TASK-017] Team lead -> Planner: TASK  (DRAFT, not approved yet; send after TASK-016 and its FIX are closed)','[TASK-017] Team lead -> Planner: TASK') s=s.replace('JavaScript: (DECISION PENDING) a tiny progressive-enhancement script','JavaScript (user decision 20.11, allowed): a tiny progressive-enhancement script') old='by the term map below (DECISION PENDING).' assert old in s s=s.replace(old,'''by this term map (user decision 20.11; adapt grammar where needed and list every changed string in the spec):    - "Заявки" (nav, section, page titles, home/staff buttons) -> "Документы"; "Мои заявки" -> "Мои документы"    - "Подать заявку" -> "Заказать документ"; "Отправить заявку" -> "Отправить запрос"    - "Заявка подана" -> "Запрос отправлен"; "Заявка «…»" (status, notifications, comments) -> "Запрос «…»"    - "Заявок пока нет" / "Заявок нет" -> "Документов пока нет" / "Документов нет"    - "Для этой заявки комментарий обязателен" -> "Для этого документа комментарий обязателен"    - admin: "вид заявки" / "виды заявок" -> "вид документа" / "виды документов"; other "заявка" forms -> "запрос" (or "документ" where it reads better)''') s=s.replace('3. Request type "Справка в военкомат" -> "Справка о поступлении" (certificate, comment OPTIONAL, hint "Можно указать, куда нужна справка.", processing days 3, description proposal: "Подтверждает зачисление в университет.").','3. Request type "Справка в военкомат" -> "Справка о поступлении" (user decision: certificate, comment OPTIONAL, hint "Можно указать, куда нужна справка.", processing days 3, description "Подтверждает зачисление в университет.").') s=s.replace('"Другое заявление" gets an application example, e.g. «Заявление на индивидуальный учебный план»','"Другое заявление" gets «Заявление на индивидуальный учебный план» (user decision)') s+='\n## Order\nSend after TASK-016 and its FIX tasks are committed; the working tree must be clean.\n' open(p,'w',encoding='utf-8').write(s) EOF grep -c "DECISION PENDING\|DRAFT" "$F"; .venv/bin/python - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() s=s.replace('| Запланирована (после TASK-016 и её FIX) |','| Одобрена, отправка после TASK-016 и её FIX |') anchor=[l for l in s.split('\n') if l.startswith('- 20.11.2026: видео не делаем')][0] s=s.replace(anchor,'- 20.11.2026: TASK-017 одобрена: маленький JavaScript для показа пароля (без него кнопка скрыта); словарь замены «заявка» → «документ»/«запрос» (адреса и код не меняются); «Справка о поступлении» вместо «Справки в военкомат», комментарий необязателен; пример «Заявление на индивидуальный учебный план».\n'+anchor) open(p,'w',encoding='utf-8').write(s) EOF grep -c "TASK-017 одобрена" plan.md (1s)
+    $ F=~/.bb/thread-storage/thr_4izdzwetb4/TASK-017.txt && .venv/bin/python - "$F" <<'EOF'
+  import sys
+  p=sys.argv[1]
+  s=open(p,encoding='utf-8').read()
+  s=s.replace('[TASK-017] Team lead -> Planner: TASK  (DRAFT, not approved yet; send after TASK-016 and its FIX are closed)','[TASK-017] Team lead -> Planner: TASK')
+  s=s.replace('JavaScript: (DECISION PENDING) a tiny progressive-enhancement script','JavaScript (user decision 20.11, allowed): a tiny progressive-enhancement script')
+  old='by the term map below (DECISION PENDING).'
+  assert old in s
+  s=s.replace(old,'''by this term map (user decision 20.11; adapt grammar where needed and list every changed string in the spec):
+     - "Заявки" (nav, section, page titles, home/staff buttons) -> "Документы"; "Мои заявки" -> "Мои документы"
+     - "Подать заявку" -> "Заказать документ"; "Отправить заявку" -> "Отправить запрос"
+     - "Заявка подана" -> "Запрос отправлен"; "Заявка «…»" (status, notifications, comments) -> "Запрос «…»"
+     - "Заявок пока нет" / "Заявок нет" -> "Документов пока нет" / "Документов нет"
+     - "Для этой заявки комментарий обязателен" -> "Для этого документа комментарий обязателен"
+     - admin: "вид заявки" / "виды заявок" -> "вид документа" / "виды документов"; other "заявка" forms -> "запрос" (or "документ" where it reads better)''')
+  s=s.replace('3. Request type "Справка в военкомат" -> "Справка о поступлении" (certificate, comment OPTIONAL, hint "Можно указать, куда нужна справка.", processing days 3, description proposal: "Подтверждает зачисление в университет.").','3. Request type "Справка в военкомат" -> "Справка о поступлении" (user decision: certificate, comment OPTIONAL, hint "Можно указать, куда нужна справка.", processing days 3, description "Подтверждает зачисление в университет.").')
+  s=s.replace('"Другое заявление" gets an application example, e.g. «Заявление на индивидуальный учебный план»','"Другое заявление" gets «Заявление на индивидуальный учебный план» (user decision)')
+  s+='\n## Order\nSend after TASK-016 and its FIX tasks are committed; the working tree must be clean.\n'
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  grep -c "DECISION PENDING\|DRAFT" "$F"; .venv/bin/python - <<'EOF'
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  s=s.replace('| Запланирована (после TASK-016 и её FIX) |','| Одобрена, отправка после TASK-016 и её FIX |')
+  anchor=[l for l in s.split('\n') if l.startswith('- 20.11.2026: видео не делаем')][0]
+  s=s.replace(anchor,'- 20.11.2026: TASK-017 одобрена: маленький JavaScript для показа пароля (без него кнопка скрыта); словарь замены «заявка» → «документ»/«запрос» (адреса и код не меняются); «Справка о поступлении» вместо «Справки в военкомат», комментарий необязателен; пример «Заявление на индивидуальный учебный план».\n'+anchor)
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  grep -c "TASK-017 одобрена" plan.md
+    0
+    1
+  ── Thought for 8ms
+    I'm fixing a merged line on line 16, where two sentences ran together around the URL names, by inserting a line break there.
+
+── User ────────────────────────────────────────────────────
+Не, стоп
+steer
+
+── Edited ~/.bb/thread-storage/thr_4izdzwetb4/TASK-017.txt +2 -1
+  --- a~/.bb/thread-storage/thr_4izdzwetb4/TASK-017.txt
+  +++ b~/.bb/thread-storage/thr_4izdzwetb4/TASK-017.txt
+  -(or "документ" where it reads better) URLs, URL names, Python names, model and app names stay unchanged.
+  +(or "документ" where it reads better)
+  +   URLs, URL names, Python names, model and app names stay unchanged.
+
+── Assistant ───────────────────────────────────────────────
+Остановился. TASK-017 никому не отправлена. Изменились только 2 моих файла:
+- черновик `TASK-017.txt`: в нём ваши решения и словарь замены;
+- `plan.md`: статус «Одобрена, отправка после TASK-016 и её FIX» и запись решений в журнал.
+
+Что поправить?
+
+── User ────────────────────────────────────────────────────
+Извини, не дочитал - посмотри, где "запрос" уместен, если лучше подходит "заявление" - используй это слово
+
+── Explored 1 search, ran 1 command ────────────────────────
+  ── Thought for 2s
+    I'm checking where "запрос" appears and whether "заявление" would read better in each spot. In the catalog, "Справки" are certificates and "Заявления" are applications, so the fit depends on the item. For "Отправить запрос," a submitted application like "Заявление на академический отпуск" would naturally be "отправить заявление," while a certificate request would keep a different wording.
+
+    I'm going through the strings that say "запрос" to see where "заявление" fits better. A certificate request would stay "заказать справку," while a submitted application would read naturally as "отправить заявление." I'm considering making the wording depend on the item's kind, and I'll list the exact strings with their file and line numbers to map each one.
+  ── Searched for заявк\|заявок in .
+  ── Thought for 22s
+    I'm sorting out the two item types here: a certificate (справка) versus an application (заявление). The name in «» is the type itself, like «Справка об обучении» or «Заявление на академический отпуск». I'm checking whether a notification can just use that name directly, and I'm noticing a gender agreement problem between the feminine «Справка» and the verb "взята".
+
+    I'm weighing whether a generic noun like «документ» could sidestep the gender agreement, but it reads oddly since a rejected request isn't really a document. For applications, «Заявление … отклонено» sounds more natural, so I'm leaning toward a kind-aware choice of noun and agreement.
+
+    I'm comparing where a generic word works against where the specific kind is known, so the gender agreement follows the item type. Where the kind is clear (the form, the submitted page, notifications), I'll use "справка" or "заявление"; where it's mixed, like navigation and list titles, "документ" fits both.
+
+    I'm settling on "Оформить документ" as the catalog title, since it fits both certificates and applications. For the form's submit button and the submitted-page wording, I'll switch to the kind-specific nouns: "Заказать справку" and "Справка заказана" for certificates, "Подать заявление" and "Заявление подано" for applications.
+
+    I'm settling the remaining labels: the staff detail heading and the request-info section get a neutral "Документ" or "Сведения" so they don't fix a gender, while the error messages switch "заявки" to "документа" and "изменён".
+
+    I'm settling the error messages: the "заявки" wording becomes "документа" so it covers both certificates and applications. For the open-requests limit, I'm going with "У вас уже 3 документа этого вида в работе." For the transfer error, "Нельзя перевести документ из «…» в «…»" works as is.
+
+    Next I'm going through the admin labels and the remaining wording: the "заявка" model becomes "документ" and "заявки" becomes "документы" throughout, and the attachment wording follows the same switch. The notification tag moves to "Документы" like the other labels, and the chat hint in demo.py gets rewritten as an instruction to order the certificate in the "Документы" section.
+
+    I'm going through the staff and student screens now: the staff home button and queue headings move to "Документы", and the filter and empty-state wording follows the same switch. On the student side, "Мои заявки" becomes "Мои документы", the submit link becomes "Оформить документ", and the empty message reads "Документов пока нет". I'm also weighing whether "запрос" is needed anywhere, leaning toward dropping it in favor of "заявление" where it fits.
+
+    Next I'm settling on the term map for TASK-017, item 2: "справка" for certificates and "заявление" for applications where the kind is known, and "документ" where it's mixed. Since the user already agreed to this direction and asked me to decide, I'll finalize the map now and show it, without asking again. TASK-017 can't go out until TASK-016 is done anyway.
+  ── Ran F=~/.bb/thread-storage/thr_4izdzwetb4/TASK-017.txt && .venv/bin/python - "$F" <<'EOF' import sys,re p=sys.argv[1] s=open(p,encoding='utf-8').read() start=s.index('2. Rename the student-facing section') end=s.index('3. Request type') new='''2. Rename the section "Заявки" to "Документы" and replace the word "заявка" in all user-visible text (templates, messages, form errors, notifications, page titles, nav, staff pages, admin verbose names). User decision 20.11: no "запрос"; where the kind of the item is known use the kind's own noun with correct Russian agreement - certificate -> "справка" (feminine), application -> "заявление" (neuter); where the items are mixed use "документ". The full map (file:line from grep on 20.11; adapt only grammar):    - nav (`templates/includes/site_nav_items.html:7`, `:12`), staff home button (`core/templates/core/home.html:30`), staff queue h1 (`petitions/templates/petitions/staff_queue.html:3`), app name (`petitions/apps.py:7`): "Заявки" -> "Документы"    - `my_list.html:3`, `submitted.html:8`: "Мои заявки" -> "Мои документы"; `my_list.html:15`: "Заявок пока нет." -> "Документов пока нет."; `staff_queue.html:35`: "Заявок нет." -> "Документов нет."    - `catalog.html:3` h1 and `my_list.html:4` link: "Подать заявку" -> "Оформить документ"    - `form.html:9` submit button, by kind: "Заказать справку" / "Подать заявление"    - `submitted.html:3` h1, by kind: "Справка заказана" / "Заявление подано"; `submitted.html:7`: "К заявке" -> "К справке" / "К заявлению"    - `staff_detail.html:3` h1, by kind: "Справка № …" / "Заявление № …"; `staff_detail.html:8` h2 "Заявка" -> "Документ"    - `staff_queue.html:14` and admin "вид заявки"/"виды заявок" (`petitions/models.py:61-62`, `:90`): "вид документа" / "виды документов"    - admin verbose names `petitions/models.py:117-118`, `:137`, `:157`, `:184`: "заявка"/"заявки" -> "документ"/"документы"; `:148-149`: "приложение к заявке"/"приложения к заявкам" -> "файл к документу"/"файлы к документам"    - `petitions/services.py:28`: "Заявка уже изменена, обновите страницу." -> "Документ уже изменён, обновите страницу."; `:66`: "Этот вид заявки сейчас недоступен." -> "Этот вид документа сейчас недоступен."; `:70` and `petitions/forms.py:59`: "Для этой заявки комментарий обязателен." -> by kind "Для этой справки …" / "Для этого заявления комментарий обязателен."; `:91`: "У вас уже N открытые заявки этого вида." -> "У вас уже N документа этого вида в работе." (correct plural forms for N); `:143`: "Нельзя перевести заявку из «…» в «…»" -> "Нельзя перевести документ из «…» в «…»"    - notifications `notifications/sources.py:30-33`, `:147`: drop the generic noun, the type name is the subject with kind agreement: certificate - "«{name}» взята в работу" / "«{name}» готова — заберите её в деканате" / "«{name}» выдана" / "«{name}» отклонена" / "«{name}»: статус «…»"; application - "взято в работу" / "готово — заберите его в деканате" / "выдано" / "отклонено"; `:177`: "Комментарий деканата к заявке «{name}»" -> "Комментарий деканата: «{name}»"; tags `:134`, `:161`: "Заявка" -> "Документы"    - demo chat `chat/demo.py:52`: "Подайте заявку «Справка об обучении» …" -> "Закажите справку об обучении в разделе «Документы» …" (existing databases keep the old demo message; `seed_demo` does not update existing rows - acceptable)    URLs, URL names, Python names, model and app labels stay unchanged. Words "заявление/заявления" as a kind ("Заявления" section, type names) stay. ''' s=s[:start]+new+s[end:] open(p,'w',encoding='utf-8').write(s) EOF grep -c "запрос" "$F"; .venv/bin/python - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() old='словарь замены «заявка» → «документ»/«запрос» (адреса и код не меняются)' assert s.count(old)==1 s=s.replace(old,'«заявка» заменяется по виду: «справка» или «заявление» там, где вид известен, «документ» — где виды вместе; слово «запрос» не используется (адреса и код не меняются)') open(p,'w',encoding='utf-8').write(s) EOF grep -c "слово «запрос» не используется" plan.md (1s)
+    $ F=~/.bb/thread-storage/thr_4izdzwetb4/TASK-017.txt && .venv/bin/python - "$F" <<'EOF'
+  import sys,re
+  p=sys.argv[1]
+  s=open(p,encoding='utf-8').read()
+  start=s.index('2. Rename the student-facing section')
+  end=s.index('3. Request type')
+  new='''2. Rename the section "Заявки" to "Документы" and replace the word "заявка" in all user-visible text (templates, messages, form errors, notifications, page titles, nav, staff pages, admin verbose names). User decision 20.11: no "запрос"; where the kind of the item is known use the kind's own noun with correct Russian agreement - certificate -> "справка" (feminine), application -> "заявление" (neuter); where the items are mixed use "документ". The full map (file:line from grep on 20.11; adapt only grammar):
+     - nav (`templates/includes/site_nav_items.html:7`, `:12`), staff home button (`core/templates/core/home.html:30`), staff queue h1 (`petitions/templates/petitions/staff_queue.html:3`), app name (`petitions/apps.py:7`): "Заявки" -> "Документы"
+     - `my_list.html:3`, `submitted.html:8`: "Мои заявки" -> "Мои документы"; `my_list.html:15`: "Заявок пока нет." -> "Документов пока нет."; `staff_queue.html:35`: "Заявок нет." -> "Документов нет."
+     - `catalog.html:3` h1 and `my_list.html:4` link: "Подать заявку" -> "Оформить документ"
+     - `form.html:9` submit button, by kind: "Заказать справку" / "Подать заявление"
+     - `submitted.html:3` h1, by kind: "Справка заказана" / "Заявление подано"; `submitted.html:7`: "К заявке" -> "К справке" / "К заявлению"
+     - `staff_detail.html:3` h1, by kind: "Справка № …" / "Заявление № …"; `staff_detail.html:8` h2 "Заявка" -> "Документ"
+     - `staff_queue.html:14` and admin "вид заявки"/"виды заявок" (`petitions/models.py:61-62`, `:90`): "вид документа" / "виды документов"
+     - admin verbose names `petitions/models.py:117-118`, `:137`, `:157`, `:184`: "заявка"/"заявки" -> "документ"/"документы"; `:148-149`: "приложение к заявке"/"приложения к заявкам" -> "файл к документу"/"файлы к документам"
+     - `petitions/services.py:28`: "Заявка уже изменена, обновите страницу." -> "Документ уже изменён, обновите страницу."; `:66`: "Этот вид заявки сейчас недоступен." -> "Этот вид документа сейчас недоступен."; `:70` and `petitions/forms.py:59`: "Для этой заявки комментарий обязателен." -> by kind "Для этой справки …" / "Для этого заявления комментарий обязателен."; `:91`: "У вас уже N открытые заявки этого вида." -> "У вас уже N документа этого вида в работе." (correct plural forms for N); `:143`: "Нельзя перевести заявку из «…» в «…»" -> "Нельзя перевести документ из «…» в «…»"
+     - notifications `notifications/sources.py:30-33`, `:147`: drop the generic noun, the type name is the subject with kind agreement: certificate - "«{name}» взята в работу" / "«{name}» готова — заберите её в деканате" / "«{name}» выдана" / "«{name}» отклонена" / "«{name}»: статус «…»"; application - "взято в работу" / "готово — заберите его в деканате" / "выдано" / "отклонено"; `:177`: "Комментарий деканата к заявке «{name}»" -> "Комментарий деканата: «{name}»"; tags `:134`, `:161`: "Заявка" -> "Документы"
+     - demo chat `chat/demo.py:52`: "Подайте заявку «Справка об обучении» …" -> "Закажите справку об обучении в разделе «Документы» …" (existing databases keep the old demo message; `seed_demo` does not update existing rows - acceptable)
+     URLs, URL names, Python names, model and app labels stay unchanged. Words "заявление/заявления" as a kind ("Заявления" section, type names) stay.
+  '''
+  s=s[:start]+new+s[end:]
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  grep -c "запрос" "$F"; .venv/bin/python - <<'EOF'
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  old='словарь замены «заявка» → «документ»/«запрос» (адреса и код не меняются)'
+  assert s.count(old)==1
+  s=s.replace(old,'«заявка» заменяется по виду: «справка» или «заявление» там, где вид известен, «документ» — где виды вместе; слово «запрос» не используется (адреса и код не меняются)')
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  grep -c "слово «запрос» не используется" plan.md
+    1
+    1
+
+── Assistant ───────────────────────────────────────────────
+Я посмотрел каждое место, где сейчас «заявка». Слово «запрос» оказалось нигде не нужным, поэтому я убрал его совсем. Правило такое:
+- если ясно, что это справка, пишем «справка»;
+- если ясно, что это заявление, пишем «заявление»;
+- если в одном месте собраны и справки, и заявления, пишем «документ».
+
+| Где | Сейчас | Станет |
+|---|---|---|
+| Меню, кнопка у сотрудника, очередь | Заявки | Документы |
+| Список студента | Мои заявки / Заявок пока нет | Мои документы / Документов пока нет |
+| Каталог и ссылка | Подать заявку | Оформить документ |
+| Кнопка в форме | Отправить заявку | **Заказать справку** / **Подать заявление** |
+| После отправки | Заявка подана / К заявке | **Справка заказана** / **Заявление подано**; К справке / К заявлению |
+| Карточка у сотрудника | Заявка № … | **Справка № …** / **Заявление № …** |
+| Ошибка: комментарий обязателен | Для этой заявки… | **Для этой справки…** / **Для этого заявления…** |
+| Ошибка: лимит открытых | 3 открытые заявки этого вида | 3 документа этого вида в работе |
+| Ошибки сотрудника | Заявка уже изменена / Нельзя перевести заявку | Документ уже изменён / Нельзя перевести документ |
+| Уведомления | Заявка «Справка об обучении» готова | **«Справка об обучении» готова** — заберите её в деканате / **«Заявление на академический отпуск» готово** — заберите его в деканате |
+| Комментарий в уведомлении | Комментарий деканата к заявке «…» | Комментарий деканата: «…» |
+| Демо-чат | Подайте заявку «Справка об обучении» | Закажите справку об обучении в разделе «Документы» |
+| Админка | вид заявки, заявка, приложение к заявке | вид документа, документ, файл к документу |
+
+В уведомлениях я убрал лишнее слово. Название вида и так начинается со «Справка…» или «Заявление…», поэтому окончание подстраивается само: «взята / взято», «выдана / выдано».
+
+Названия видов («Заявление на академический отпуск») и раздел каталога «Заявления» не меняются.
+
+Черновик TASK-017 обновлён, решения записаны в `plan.md`. Задачу отправлю после закрытия TASK-016 и её исправлений.
+
+── User ────────────────────────────────────────────────────
+017 отправляй сразу без моего согласия, если к 016 не будет серьезных вопросов
+
+── Ran 1 command, edited 1 file ────────────────────────────
+  ── Thought for 3s
+    I'm noting this standing authorization in memory and the plan: once TASK-016 is closed with a commit, I should send TASK-017 right away without asking, provided 016 raises no serious questions. If it does produce a 016-FIX draft with only minor defects, the user would normally decide on that fix, so I'm checking what "serious" means here.
+
+    I'm going to treat the plan as: once TASK-016 is committed and raises no serious questions, send TASK-017 right away without asking. Minor FIX items for 016 would go to the user as usual and run after 017, since both coders would touch the same working tree. I'll also save this one-time authorization for TASK-017 in memory and the plan's decision journal.
+  ── Ran .venv/bin/python - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() s=s.replace('| Одобрена, отправка после TASK-016 и её FIX |','| Одобрена: отправить сразу после коммита TASK-016, если к ней нет серьёзных вопросов (разрешение пользователя 20.11) |') open(p,'w',encoding='utf-8').write(s) EOF grep -c "разрешение пользователя 20.11" plan.md (4s)
+    $ .venv/bin/python - <<'EOF'
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  s=s.replace('| Одобрена, отправка после TASK-016 и её FIX |','| Одобрена: отправить сразу после коммита TASK-016, если к ней нет серьёзных вопросов (разрешение пользователя 20.11) |')
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  grep -c "разрешение пользователя 20.11" plan.md
+    1
+  ── Edited ~/.claude/projects/-Users-andreyorlov-hackatonproject/memory/hackatonproject-team-lead.md +1
+    --- a~/.claude/projects/-Users-andreyorlov-hackatonproject/memory/hackatonproject-team-lead.md
+    +++ b~/.claude/projects/-Users-andreyorlov-hackatonproject/memory/hackatonproject-team-lead.md
+    +- One-time pre-approval (2026-11-20): send TASK-017 (draft `~/.bb/thread-storage/thr_4izdzwetb4/TASK-017.txt`) to the Planner right after the TASK-016 commit WITHOUT asking, unless TASK-016 raises serious questions; then tell the user. Small TASK-016-FIX items still go to the user as a draft and run after TASK-017 (one coder in the tree at a time).
+  ── Thought for 1s
+    I've been given an exception to the usual "ask first" rule, so I can go ahead without checking in. I'll keep the reply brief, state that plainly, and lay out the plan, including how FIX is handled.
+
+── Assistant ───────────────────────────────────────────────
+Хорошо. Если по TASK-016 не будет серьёзных вопросов, я отправлю TASK-017 сразу после её коммита, без вашего согласия, и потом напишу вам.
+
+**Как я это понимаю:**
+- **Серьёзный вопрос** — это решение, которое меняет поведение сайта или архитектуру, например спор о том, как CSP работает в админке. Тогда я сначала спрошу вас.
+- **Мелкие недочёты TASK-016** пришлю вам черновиком FIX, как обычно. Делать их будем после TASK-017: в рабочей папке одновременно работает только один исполнитель.
+
+Разрешение я записал в `plan.md` и в память.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_2imsg4kck2]
+
+[TASK-016] Planner -> Team lead: REPORT
+Spec docs/tasks/TASK-016.md is with the Coder. Two decisions differ from your request (justified in D1 and D6):
+1. nginx login limit uses one regex location `^/(?:[A-Za-z0-9_-]+/)*login/$` instead of rendering the admin path: the secret ADMIN_URL stays out of world-readable /etc/nginx and an ADMIN_URL change needs no nginx change. Only POST is counted (empty map key for other methods), 10r/m, burst 10 (jurors behind one NAT).
+2. One strict CSP for the whole site, admin included: 69 admin pages (widgets clicked) + 80 student/staff pages in Chrome gave zero violations; Django 5.2 admin has no inline scripts and its only inline <style> is not rendered by our ModelAdmins. img-src has no data: (none used). Fallback if an admin page breaks: 'unsafe-inline' for style-src under the admin path only.
+pip-audit could not run here (sandbox TLS; running outside the sandbox was denied); OSV lookup of all 9 runtime packages found no advisories. nginx -t and systemd-analyze are for you on the server (new runbook step 21 lists the commands and backups of the old files).
+
+── Thought for 3s ──────────────────────────────────────────
+  I'm weighing the two deviations, starting with the regex location for login paths. It matches any path ending in "login/", so it covers both /login/ and admin-prefixed variants, which keeps the ADMIN_URL secret out of the nginx config. Counting only POST requests with a 10 requests-per-minute rate and burst of 10 seems reasonable, though the pattern would also match deeper nested paths, and I'm still considering whether that matters.
+
+  I'm accepting the login-path regex and the single strict CSP as they stand, since both look like improvements on the original request. Nothing there needs a reply to the Planner, and pip-audit is left for CI, so I'll just tell the user briefly in Russian that both deviations are fine.
+
+── Assistant ───────────────────────────────────────────────
+Планировщик передал TASK-016 Кодеру. Он отступил от моего запроса в двух местах. Оба решения лучше исходных, я с ними согласен, и задача идёт дальше без изменений.
+
+1. **Лимит входа в nginx.** Одно правило с шаблоном адреса для всех страниц входа, вместо того чтобы прописывать в nginx путь к админке. Так секретный путь к админке не попадает в настройки nginx, которые на сервере может прочитать любой пользователь. Если путь к админке поменяется, nginx трогать не придётся. Считаются только отправки формы (POST): 10 в минуту, запас 10. Так жюри из одной сети не упрётся в лимит.
+2. **Один строгий CSP на весь сайт, включая админку.** Планировщик сам открыл в Chrome 69 страниц админки и 80 страниц студента и сотрудника. Нарушений нет. Если какая-то страница админки всё же сломается, для неё одной разрешим встроенные стили.
+
+Проверку зависимостей у себя он запустить не смог, её проверит CI на GitHub. По базе уязвимостей OSV все 9 пакетов чистые.
+
+Проверку nginx (`nginx -t`) и systemd на сервере я сделаю сам, когда буду ставить изменения. Новый шаг 21 в `docs/DEPLOY.md` описывает эти команды и резервные копии старых файлов.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_cpuae9aqw3]
+
+[TASK-016] Reviewer -> Team lead: APPROVE
+
+Spec: docs/tasks/TASK-016.md (base 851b3ee). Round 1. Changes are uncommitted. git status shows exactly the section 4 files plus the new migration, core/middleware.py, core/tests/test_middleware.py, the spec and your plan.md. requirements*.txt are unchanged.
+
+## Code vs spec (script compare)
+- Whole files byte-identical to the spec: core/middleware.py, core/tests/test_middleware.py, deploy/nginx/deanery.conf, deploy/backup.sh (mode 755), deploy/systemd/deanery.service.
+- The migration has exactly the spec operations.
+- Every spec diff (settings, throttling, forms, views, chat, bootstrap, gunicorn, DEPLOY.md, ci.yml, 4 test files) gives exactly the same +/- lines. test_deploy.py differs only in blank lines (ruff format).
+
+## Runs (all OK, no failures)
+- --parallel, 01:10 MSK 21.11 ($TMPDIR/test-t016-rev-par-20261120-141011.log): Ran 1181 tests ... OK
+- --parallel 2, 01:11 MSK ($TMPDIR/test-t016-rev-p2-20261120-141058.log): Ran 1181 tests ... OK
+- run_tests_at.py 2027-03-01T12:00:00, 01:12 MSK ($TMPDIR/test-t016-rev-frozen-20261120-141217.log): Ran 1181 tests ... OK
+- ruff check and format --check OK (196 files); bash -n, gunicorn --check-config, check, makemigrations --check, CI YAML and EXEC_OK all OK.
+
+## Browser check (headless Chrome, runserver, temp seeded DB)
+- Zero CSP violations (securitypolicyviolation listener + console) on:
+  - 95 student pages (home, schedule weeks, map floors and rooms, grades, requests list/detail, 7 submit forms, chat, notifications, profile);
+  - 78 staff pages (queue, request detail, chats, announcements, students and grades, schedule);
+  - 70 Django admin pages (every app index, model list, add page, request type and petition change pages).
+- Chat works under the policy: a student send (form POST) is fine; a staff reply inserted in the DB reached the open student page through the JS poll (fetch + DOMParser) in 2 s, with no violation.
+- Positive control on the same listener: an injected inline <script> and a style attribute were blocked and reported (the script did not run).
+- No-store: log in as student2, open /grades/, log out, press Back -> /login/?next=/grades/ "Вход", not the grades.
+- Static file response has no CSP header (WhiteNoise answers first).
+
+## Mutations (temp copy). 10 of 11 were caught:
+- Hint not escaped -> test_comment_hint_escaped.
+- isdigit() instead of the 18-digit regex -> test_type_filter_out_of_range_ignored (ERROR, OverflowError).
+- Token lookup not per author -> test_same_token_other_author_kept.
+- Old (dialog, client_token) constraint -> same test (IntegrityError).
+- throttle_ip not applied -> test_ipv6_same_64_shares_lock.
+- /48 instead of /64 -> 3 tests.
+- PrivateCacheMiddleware removed from settings -> 2 tests.
+- CSP on DEBUG error pages -> test_debug_error_pages_without_policy.
+- backup.sh passes the URL on the command line -> test_password_not_on_command_line.
+- style= in base.html -> test_no_inline_code_in_templates.
+
+The one survivor is equivalent, not a gap: removing the session-cookie guard in PrivateCacheMiddleware changes nothing. Without a cookie the user is anonymous anyway. Django's LoginRequiredMiddleware.process_view already reads request.user on every request, so the guard only saves a lookup.
+
+## Notes (non-blocking; your decision)
+1. IPv6 and nginx. The nginx limits (limit_req for login, limit_conn 20) key on $binary_remote_addr, which is the full /128 address. A client that owns an IPv6 /64 can rotate addresses and bypass the nginx login rate limit and the connection limit. The Django lockout per (username, /64) still holds, so brute force on one account stays limited; only the CPU/flood protection of PT1-F1 is weaker.
+   - This matters only if the server is reachable over IPv6: nginx listens on [::]:443, so the question is whether the host has a public IPv6 address. Check `ip -6 addr show scope global` on the server.
+   - If it has one: either accept the gap, or key the nginx zones by the /64 through a `map` on $remote_addr. A map on the text form is not exact for compressed addresses, so it would need care.
+2. ReadWritePaths in the systemd unit needs both /srv/deanery/private_media and /srv/deanery/private_media_trial to exist. If someone deletes private_media_trial after 2026-11-28 (the runbook only says "empty" it), the unit fails to start (namespace setup error). Prefixing the paths with "-" would make them optional. Step 21 on the live server will show it at once anyway.
+3. Django's built-in CSRF failure page (no 403_csrf.html in the project) uses an inline <style>. With the new CSP it renders unstyled in production. This is cosmetic only: the text is still shown.
+4. Not verifiable locally (as the spec says): nginx -t, systemd-analyze verify/security, a real pip-audit run. All three run in runbook step 21 and in CI. After step 21, run backup.sh once: the new DATABASE_URL regex needs the postgres://user:pass@host:port/name form, which the example env file uses.
+
+plan.md is modified in the tree (your file) — remember it in the commit.
+
+── Ran 4 commands ──────────────────────────────────────────
+  ── Thought for 2s
+    I'm going through the remaining steps: run the checks and tests, do a browser check of the CSP and pages, then commit, push, and apply on the server, followed by nginx config test, systemd, backup, and a smoke check. After that I'd send TASK-017, which is pre-approved if nothing serious comes up. On the reviewer notes, the IPv6 point doesn't apply since the server has no global IPv6, and I'm weighing whether the ReadWritePaths "-" prefix issue is small enough to just fix as its own item.
+
+    I'm checking the git status and looking at step 21 on the server next. I'll start the tests in the background and run a local browser check of the login, admin, and chat pages for CSP. Since there are no serious open questions, I'll send TASK-017 right after the commit.
+  ── Ran git status --short && . .venv/bin/activate && L="$TMPDIR/test-lead16-$(date +%Y%m%d-%H%M%S).log" && echo "$L" > "$TMPDIR/lead16log" && ( { python manage.py check; DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ python manage.py check --deploy --fail-level WARNING; echo "deploy-check=$?"; python manage.py makemigrations --check --dry-run; echo "makemigrations=$?"; ruff check . && ruff format --check .; echo "ruff=$?"; bash -n deploy/backup.sh deploy/manage.sh; echo "bash-n=$?"; gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application; echo "gunicorn-config=$?"; python manage.py test --parallel 2 2>&1; echo "parallel=$?"; python scripts/run_tests_at.py 2026-11-22T00:00:00 2>&1; echo "midnight=$?"; } > "$L" 2>&1 ) > /dev/null 2>&1 & sed -n '/^## 21\./,$p' docs/DEPLOY.md | head -80
+    $ git status --short && . .venv/bin/activate && L="$TMPDIR/test-lead16-$(date +%Y%m%d-%H%M%S).log" && echo "$L" > "$TMPDIR/lead16log" && ( { python manage.py check; DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ python manage.py check --deploy --fail-level WARNING; echo "deploy-check=$?"; python manage.py makemigrations --check --dry-run; echo "makemigrations=$?"; ruff check . && ruff format --check .; echo "ruff=$?"; bash -n deploy/backup.sh deploy/manage.sh; echo "bash-n=$?"; gunicorn --check-config -c deploy/gunicorn.conf.py config.wsgi:application; echo "gunicorn-config=$?"; python manage.py test --parallel 2 2>&1; echo "parallel=$?"; python scripts/run_tests_at.py 2026-11-22T00:00:00 2>&1; echo "midnight=$?"; } > "$L" 2>&1 ) > /dev/null 2>&1 &
+  sed -n '/^## 21\./,$p' docs/DEPLOY.md | head -80
+    M .github/workflows/ci.yml
+     M accounts/forms.py
+     M accounts/tests/test_throttling.py
+     M accounts/throttling.py
+     M chat/models.py
+     M chat/services.py
+     M chat/tests/test_models.py
+     M chat/tests/test_services.py
+     M config/settings.py
+     M core/tests/test_deploy.py
+     M deploy/backup.sh
+     M deploy/gunicorn.conf.py
+     M deploy/nginx/deanery-bootstrap.conf
+     M deploy/nginx/deanery.conf
+     M deploy/systemd/deanery.service
+     M docs/DEPLOY.md
+     M petitions/forms.py
+     M petitions/tests/test_views.py
+     M petitions/views.py
+     M plan.md
+    ?? chat/migrations/0002_message_token_per_author.py
+    ?? core/middleware.py
+    ?? core/tests/test_middleware.py
+    ?? docs/tasks/TASK-016.md
+    (eval):1: nice(5) failed: operation not permitted
+    ## 21. One-time hardening of a server installed before TASK-016
+
+    Run after the update procedure (step 17) has pulled the TASK-016 code.
+
+    ```bash
+    sudo usermod --shell /usr/sbin/nologin "$APP_USER"
+    getent passwd "$APP_USER"
+    sudo ls -la /srv/deanery/.ssh 2>/dev/null || echo "no .ssh directory"
+    sudo certbot certificates
+    ```
+
+    `getent` must end with `/usr/sbin/nologin`. `certbot certificates` must list
+    both `$DOMAIN` and `www.$DOMAIN` for the certificate in
+    `/etc/letsencrypt/live/$DOMAIN/`; if `www` is missing, run the `certbot
+    certonly` command of step 12 with `--expand`. Remove the temporary `www`
+    redirect site (it now lives in the template), then install the new nginx site
+    and the new systemd unit:
+
+    ```bash
+    sudo cp /etc/nginx/sites-available/deanery /root/deanery.nginx.bak
+    sudo cp /etc/systemd/system/deanery.service /root/deanery.service.bak
+    sudo rm /etc/nginx/sites-enabled/<temporary www site>
+    sed "s/example.com/$DOMAIN/g" /srv/deanery/app/deploy/nginx/deanery.conf | sudo tee /etc/nginx/sites-available/deanery > /dev/null
+    sudo nginx -t && sudo systemctl reload nginx
+    sed "s/<APP_USER>/$APP_USER/g" /srv/deanery/app/deploy/systemd/deanery.service | sudo tee /etc/systemd/system/deanery.service > /dev/null
+    sudo systemd-analyze verify /etc/systemd/system/deanery.service
+    sudo systemctl daemon-reload && sudo systemctl restart deanery
+    systemctl status deanery
+    systemd-analyze security deanery | tail -1
+    ```
+
+    Then repeat the smoke check (step 15), upload and download a PDF as a student,
+    and run `sudo -u "$APP_USER" /srv/deanery/app/deploy/backup.sh` once.
+  ── Thought for 9ms
+    I'm going to check the Content Security Policy in a local browser while the tests run, focusing on login, home, chat, and admin. The reviewer already covered this thoroughly, so I'll keep it light and take a few screenshots. I'm weighing whether to run the dev server with DEBUG on, since CSP should still apply there, which the reviewer noted.
+
+    I'll run a quick curl to confirm the CSP header is present before relying on the DEBUG server.
+  ── Ran . .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/lead16.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/lead16-media" && rm -f "$TMPDIR/lead16.sqlite3" && mkdir -p "$TMPDIR/lead16-media" && python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py shell -c " import json, secrets from django.contrib.sessions.backends.db import SessionStore from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY U=get_user_model(); U.objects.create_superuser('lead_check', password=secrets.token_urlsafe(24)); out={} for n in ['student1','staff1','lead_check']:     u=U.objects.get(username=n); s=SessionStore()     s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create(); out[n]=s.session_key json.dump(out, open('$TMPDIR/sess16.json','w')) " 2>&1 | grep -v imported (5s)
+    $ . .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/lead16.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/lead16-media" && rm -f "$TMPDIR/lead16.sqlite3" && mkdir -p "$TMPDIR/lead16-media" && python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py shell -c "
+  import json, secrets
+  from django.contrib.sessions.backends.db import SessionStore
+  from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY
+  U=get_user_model(); U.objects.create_superuser('lead_check', password=secrets.token_urlsafe(24)); out={}
+  for n in ['student1','staff1','lead_check']:
+      u=U.objects.get(username=n); s=SessionStore()
+      s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create(); out[n]=s.session_key
+  json.dump(out, open('$TMPDIR/sess16.json','w'))
+  " 2>&1 | grep -v imported
+    Chat ready: 3 dialogs, 8 messages.
+  ── Ran . .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/lead16.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/lead16-media" DEBUG=true && exec python manage.py runserver 127.0.0.1:8777 --noreload (3s)
+    $ . .venv/bin/activate && export DATABASE_URL="sqlite:///$TMPDIR/lead16.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/lead16-media" DEBUG=true && exec python manage.py runserver 127.0.0.1:8777 --noreload
+    Command running in background with ID: bi3c6a8bu. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/cd5ed7da-25b5-4cd2-9583-7d4b5890835a/tasks/bi3c6a8bu.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran sleep 4; curl -sI http://127.0.0.1:8777/login/ | grep -i -E "^(content-security-policy|cache-control)" | cut -c1-200; bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -1 > "$TMPDIR/bopen.json"; ~/hackatonproject/.venv/bin/python -c "import json;d=json.load(open('$TMPDIR/bopen.json'));print(d.get('sessionId') or d.get('id'));print(d.get('previewDirective',''))" | tee "$TMPDIR/bopen.txt"; head -1 "$TMPDIR/bopen.txt" > "$TMPDIR/bsess" (6s)
+    $ sleep 4; curl -sI http://127.0.0.1:8777/login/ | grep -i -E "^(content-security-policy|cache-control)" | cut -c1-200; bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -1 > "$TMPDIR/bopen.json"; ~/hackatonproject/.venv/bin/python -c "import json;d=json.load(open('$TMPDIR/bopen.json'));print(d.get('sessionId') or d.get('id'));print(d.get('previewDirective',''))" | tee "$TMPDIR/bopen.txt"; head -1 "$TMPDIR/bopen.txt" > "$TMPDIR/bsess"
+    Cache-Control: max-age=0, no-cache, no-store, must-revalidate, private
+    Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-anc
+    d222eddf-9b2d-4421-befd-82efe2c333df
+    ::browser-preview{session="d222eddf-9b2d-4421-befd-82efe2c333df"}
+
+── Assistant ───────────────────────────────────────────────
+::browser-preview{session="d222eddf-9b2d-4421-befd-82efe2c333df"}
+
+── Ran 3 commands, explored 2 files ────────────────────────
+  ── Ran cat > "$TMPDIR/c16.js" <<'EOF' const p = await browser.getPage('main'); const B = 'http://127.0.0.1:8777'; const res = {violations: []}; await p.evaluateOnNewDocument(() => { window.__v = []; document.addEventListener('securitypolicyviolation', e => window.__v.push(e.violatedDirective + ' ' + (e.blockedURI || '') )); }); p.on('console', m => { if (/Content Security Policy|Refused/.test(m.text())) res.violations.push(m.text().slice(0, 140)); }); const as = async (k) => { await p.deleteCookie({name: 'sessionid', domain: '127.0.0.1'}); if (k) await p.setCookie({name: 'sessionid', value: k, domain: '127.0.0.1', path: '/'}); }; const visit = async (u) => { const r = await p.goto(B + u, {waitUntil: 'networkidle0'}); const v = await p.evaluate(() => window.__v); if (v.length) res.violations.push(u + ': ' + v.join('; ')); return r.status(); }; await p.setViewport({width: 360, height: 780, deviceScaleFactor: 1}); await as(null); res.login = await visit('/login/'); await p.shot({type: 'jpeg', maxEdge: 960, quality: 70}); await as('__K1__'); res.pages = {}; for (const u of ['/', '/schedule/', '/schedule/week/', '/map/room/room-101/', '/grades/', '/requests/', '/requests/new/', '/requests/new/1/', '/chat/', '/notifications/', '/profile/']) res.pages[u] = await visit(u); await p.goto(B + '/chat/', {waitUntil: 'networkidle0'}); await p.type('textarea', 'Проверка CSP тимлидом'); await Promise.all([p.waitForNavigation({waitUntil: 'networkidle0'}), p.evaluate(() => document.querySelector('main form').requestSubmit())]); res.chatSent = await p.evaluate(() => document.querySelector('main').innerText.includes('Проверка CSP тимлидом')); await p.shot({type: 'jpeg', maxEdge: 960, quality: 70}); await as('__KS__'); for (const u of ['/', '/staff/requests/', '/staff/chats/', '/staff/announcements/', '/staff/students/', '/staff/schedule/']) res.pages['staff ' + u] = await visit(u); await as('__KA__'); await p.setViewport({width: 1280, height: 800, deviceScaleFactor: 1}); for (const u of ['/admin/', '/admin/petitions/requesttype/', '/admin/petitions/requesttype/1/change/', '/admin/schedule/lessonchange/add/', '/admin/accounts/user/']) res.pages['admin ' + u] = await visit(u); await p.goto(B + '/admin/schedule/lessonchange/add/', {waitUntil: 'networkidle0'}); res.adminStyled = await p.evaluate(() => getComputedStyle(document.querySelector('#header') || document.body).backgroundColor); await p.shot({type: 'jpeg', maxEdge: 1280, quality: 70}); console.log(JSON.stringify(res)); EOF J=$TMPDIR/sess16.json; PY=~/hackatonproject/.venv/bin/python; K1=$($PY -c "import json;print(json.load(open('$J'))['student1'])"); KS=$($PY -c "import json;print(json.load(open('$J'))['staff1'])"); KA=$($PY -c "import json;print(json.load(open('$J'))['lead_check'])"); sed -i '' "s/__K1__/$K1/; s/__KS__/$KS/; s/__KA__/$KA/" "$TMPDIR/c16.js"; bb browser-automation run $(cat $TMPDIR/bsess) --timeout 120s --json --script "$(cat $TMPDIR/c16.js)" > $TMPDIR/c16.out 2>&1; $PY -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d.get("text") or d);[print(i["path"]) for i in d.get("images",[])]' $TMPDIR/c16.out 2>/dev/null || head -c 2500 $TMPDIR/c16.out (25s)
+    $ cat > "$TMPDIR/c16.js" <<'EOF'
+  const p = await browser.getPage('main');
+  const B = 'http://127.0.0.1:8777';
+  const res = {violations: []};
+  await p.evaluateOnNewDocument(() => { window.__v = []; document.addEventListener('securitypolicyviolation', e => window.__v.push(e.violatedDirective + ' ' + (e.blockedURI || '') )); });
+  p.on('console', m => { if (/Content Security Policy|Refused/.test(m.text())) res.violations.push(m.text().slice(0, 140)); });
+  const as = async (k) => { await p.deleteCookie({name: 'sessionid', domain: '127.0.0.1'}); if (k) await p.setCookie({name: 'sessionid', value: k, domain: '127.0.0.1', path: '/'}); };
+  const visit = async (u) => { const r = await p.goto(B + u, {waitUntil: 'networkidle0'}); const v = await p.evaluate(() => window.__v); if (v.length) res.violations.push(u + ': ' + v.join('; ')); return r.status(); };
+  await p.setViewport({width: 360, height: 780, deviceScaleFactor: 1});
+  await as(null);
+  res.login = await visit('/login/');
+  await p.shot({type: 'jpeg', maxEdge: 960, quality: 70});
+  await as('__K1__');
+  res.pages = {};
+  for (const u of ['/', '/schedule/', '/schedule/week/', '/map/room/room-101/', '/grades/', '/requests/', '/requests/new/', '/requests/new/1/', '/chat/', '/notifications/', '/profile/']) res.pages[u] = await visit(u);
+  await p.goto(B + '/chat/', {waitUntil: 'networkidle0'});
+  await p.type('textarea', 'Проверка CSP тимлидом');
+  await Promise.all([p.waitForNavigation({waitUntil: 'networkidle0'}), p.evaluate(() => document.querySelector('main form').requestSubmit())]);
+  res.chatSent = await p.evaluate(() => document.querySelector('main').innerText.includes('Проверка CSP тимлидом'));
+  await p.shot({type: 'jpeg', maxEdge: 960, quality: 70});
+  await as('__KS__');
+  for (const u of ['/', '/staff/requests/', '/staff/chats/', '/staff/announcements/', '/staff/students/', '/staff/schedule/']) res.pages['staff ' + u] = await visit(u);
+  await as('__KA__');
+  await p.setViewport({width: 1280, height: 800, deviceScaleFactor: 1});
+  for (const u of ['/admin/', '/admin/petitions/requesttype/', '/admin/petitions/requesttype/1/change/', '/admin/schedule/lessonchange/add/', '/admin/accounts/user/']) res.pages['admin ' + u] = await visit(u);
+  await p.goto(B + '/admin/schedule/lessonchange/add/', {waitUntil: 'networkidle0'});
+  res.adminStyled = await p.evaluate(() => getComputedStyle(document.querySelector('#header') || document.body).backgroundColor);
+  await p.shot({type: 'jpeg', maxEdge: 1280, quality: 70});
+  console.log(JSON.stringify(res));
+  EOF
+  J=$TMPDIR/sess16.json; PY=~/hackatonproject/.venv/bin/python; K1=$($PY -c "import json;print(json.load(open('$J'))['student1'])"); KS=$($PY -c "import json;print(json.load(open('$J'))['staff1'])"); KA=$($PY -c "import json;print(json.load(open('$J'))['lead_check'])"); sed -i '' "s/__K1__/$K1/; s/__KS__/$KS/; s/__KA__/$KA/" "$TMPDIR/c16.js"; bb browser-automation run $(cat $TMPDIR/bsess) --timeout 120s --json --script "$(cat $TMPDIR/c16.js)" > $TMPDIR/c16.out 2>&1; $PY -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d.get("text") or d);[print(i["path"]) for i in d.get("images",[])]' $TMPDIR/c16.out 2>/dev/null || head -c 2500 $TMPDIR/c16.out
+    {"violations":[],"login":200,"pages":{"/":200,"/schedule/":200,"/schedule/week/":200,"/map/room/room-101/":200,"/grades/":200,"/requests/":200,"/requests/new/":200,"/requests/new/1/":200,"/chat/":200,"/notifications/":200,"/profile/":200,"staff /":200,"staff /staff/requests/":200,"staff /staff/chats/":200,"staff /staff/announcements/":200,"staff /staff/students/":200,"staff /staff/schedule/":200,"admin /admin/":200,"admin /admin/petitions/requesttype/":200,"admin /admin/petitions/requesttype/1/change/":200,"admin /admin/schedule/lessonchange/add/":200,"admin /admin/accounts/user/":200},"chatSent":true,"adminStyled":"rgb(65, 118, 144)"}
+
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-9n0HgY/db-Zc80gV/tmp/shot-1795213079910-1.jpg
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-9n0HgY/db-Zc80gV/tmp/shot-1795213092663-2.jpg
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-9n0HgY/db-Zc80gV/tmp/shot-1795213102878-3.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-9n0HgY/db-Zc80gV/tmp/shot-1795213102878-3.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-9n0HgY/db-Zc80gV/tmp/shot-1795213092663-2.jpg
+  ── Ran B=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-9n0HgY/db-Zc80gV/tmp && D=docs/process/screenshots && cp $B/shot-1795213092663-2.jpg $D/2026-11-21_74_chat-under-csp_student1.jpg && cp $B/shot-1795213102878-3.jpg $D/2026-11-21_75_admin-under-csp_superuser.jpg && .venv/bin/python - <<'EOF' p='docs/process/README.md' s=open(p,encoding='utf-8').read() anchor=[l for l in s.split('\n') if l.startswith('| `2026-11-19_73_')][0] rows=[ ('2026-11-21_74_chat-under-csp_student1','21.11.2026','После TASK-016 (защита по итогам пентеста)','Чат под строгим CSP: сообщение отправлено, страница оформлена, нарушений CSP нет (проверены 11 страниц студента, 6 сотрудника, 5 админки)'), ('2026-11-21_75_admin-under-csp_superuser','21.11.2026','После TASK-016','Админка Django под тем же строгим CSP (временный суперпользователь на временной базе): стили и виджеты работают'), ] new='\n'.join(f'| `{n}.jpg` | {d} | {st} | {t} |' for n,d,st,t in rows) assert s.count(anchor)==1 s=s.replace(anchor, anchor+'\n'+new) open(p,'w',encoding='utf-8').write(s) EOF L=$(cat $TMPDIR/lead16log); grep -E "^(Ran|OK|FAILED)|=[0-9a-z-]+$" "$L" (1s)
+    $ B=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-9n0HgY/db-Zc80gV/tmp && D=docs/process/screenshots && cp $B/shot-1795213092663-2.jpg $D/2026-11-21_74_chat-under-csp_student1.jpg && cp $B/shot-1795213102878-3.jpg $D/2026-11-21_75_admin-under-csp_superuser.jpg && .venv/bin/python - <<'EOF'
+  p='docs/process/README.md'
+  s=open(p,encoding='utf-8').read()
+  anchor=[l for l in s.split('\n') if l.startswith('| `2026-11-19_73_')][0]
+  rows=[
+  ('2026-11-21_74_chat-under-csp_student1','21.11.2026','После TASK-016 (защита по итогам пентеста)','Чат под строгим CSP: сообщение отправлено, страница оформлена, нарушений CSP нет (проверены 11 страниц студента, 6 сотрудника, 5 админки)'),
+  ('2026-11-21_75_admin-under-csp_superuser','21.11.2026','После TASK-016','Админка Django под тем же строгим CSP (временный суперпользователь на временной базе): стили и виджеты работают'),
+  ]
+  new='\n'.join(f'| `{n}.jpg` | {d} | {st} | {t} |' for n,d,st,t in rows)
+  assert s.count(anchor)==1
+  s=s.replace(anchor, anchor+'\n'+new)
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  L=$(cat $TMPDIR/lead16log); grep -E "^(Ran|OK|FAILED)|=[0-9a-z-]+$" "$L"
+    deploy-check=0
+    makemigrations=0
+    ruff=0
+    bash-n=0
+    gunicorn-config=0
+  ── Thought for 3ms
+    I'll clean up the browser and server while the tests run, then wait for them to finish. Once they pass, I'll commit and push, apply the step 17 update and step 21 on the server, and finally send TASK-017.
+  ── Ran bb browser-automation stop d222eddf-9b2d-4421-befd-82efe2c333df >/dev/null 2>&1; pkill -f "runserver 127.0.0.1:8777" 2>/dev/null; rm -rf "$TMPDIR/lead16.sqlite3" "$TMPDIR/lead16-media" "$TMPDIR/sess16.json" "$TMPDIR/c16.js" "$TMPDIR/c16.out"; L=$(cat $TMPDIR/lead16log); until grep -q "^midnight=" "$L"; do sleep 5; done; grep -E "^(Ran|OK|FAILED)|=[0-9a-z-]+$" "$L"; TZ=Europe/Moscow date (2m 49s)
+    $ bb browser-automation stop d222eddf-9b2d-4421-befd-82efe2c333df >/dev/null 2>&1; pkill -f "runserver 127.0.0.1:8777" 2>/dev/null; rm -rf "$TMPDIR/lead16.sqlite3" "$TMPDIR/lead16-media" "$TMPDIR/sess16.json" "$TMPDIR/c16.js" "$TMPDIR/c16.out"; L=$(cat $TMPDIR/lead16log); until grep -q "^midnight=" "$L"; do sleep 5; done; grep -E "^(Ran|OK|FAILED)|=[0-9a-z-]+$" "$L"; TZ=Europe/Moscow date
+    deploy-check=0
+    makemigrations=0
+    ruff=0
+    bash-n=0
+    gunicorn-config=0
+    Ran 1181 tests in 80.120s
+    OK
+    parallel=0
+    Ran 1181 tests in 154.055s
+    OK
+    midnight=0
+    Sat Nov 21 01:21:26 MSK 2026
+
+── Assistant ───────────────────────────────────────────────
+Тесты прошли: 1181. Делаю коммит и ставлю изменения на сервер.
+
+── Running .venv/bin/python - <<'EOF' p='CHANGELOG.md' s=open(p,encoding='utf-8').read() head='# История изменений\n\nФормат: одна запись на задачу или изменение настройки. Новые записи сверху.\n\n' assert s.startswith(head) entry='''## 2026-11-21 ### TASK-016: защита по итогам пентеста (PENTEST-1) - nginx: лимит отправки формы входа (10 в минуту на IP, только POST, одно правило для обычного входа и админки — путь к админке не попадает в настройки nginx) и не больше 20 соединений с одного IP; запросы к чужим доменам и по IP закрываются (`444`, `ssl_reject_handshake`); `www` → основной адрес в шаблоне. - Блокировка входа для IPv6 считается по сети /64. Блокировку аккаунта со всех IP не делали, чтобы никто не мог закрыть жюри вход. - Строгий Content-Security-Policy на весь сайт, включая админку; запрет кэша (`no-store`) для вошедших пользователей — после выхода кнопка «Назад» не показывает оценки. - Исправлено: подсказка вида заявки экранируется; огромное число в фильтре больше не даёт 500; токен повтора в чате привязан к автору (миграция `chat/0002`). - Деплой: пароль базы не виден в списке процессов при резервном копировании; gunicorn доверяет только `X-Forwarded-Proto`; изоляция службы в systemd; служебный пользователь без входа в оболочку; `DEMO_PASSWORD` убирается с сервера после заполнения базы; проверка уязвимостей зависимостей (`pip-audit`) в CI; шаг 21 инструкции для уже установленного сервера. - Исполнитель — Кодер на DeepSeek. Ревью: 1 раунд, без замечаний; у Ревьюера 0 нарушений CSP на 243 страницах. Проверка тимлида: 22 страницы студента, сотрудника и админки без нарушений CSP, чат работает. Всего тестов: 1181. ''' s=head+entry+s[len(head):] open(p,'w',encoding='utf-8').write(s) p='plan.md' s=open(p,encoding='utf-8').read() row=[l for l in s.split('\n') if l.startswith('| TASK-016 |')][0] assert row.endswith('| В работе |') s=s.replace(row, row[:-len('| В работе |')]+'| Готово |') s=s.replace('TASK-016 (исправления) в работе.','TASK-016 закрыта 21.11; на сервер ставится шагом 21.') open(p,'w',encoding='utf-8').write(s) EOF O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && { printf '# Pentester dialog\n\nRun 1 of PENTEST-1 (medium reasoning) is first; the thread context was then cleared and run 2 (max reasoning) follows.\n\n## Run 1 (before context clear, 2026-11-19/20)\n\n'; cat ~/.bb/thread-storage/thr_4izdzwetb4/pentest/pentester-run1-dialog.md; printf '\n\n## Run 2 (after context clear, 2026-11-20)\n\n'; bb thread log thr_kqfp9kn6jk --all --format verbose; } > "$O/06-pentester.md" && .venv/bin/python -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)     t=t.replace('[id скрыт]','[id скрыт]')     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     t=t.replace('[IP пользователя скрыт]','[IP пользователя скрыт]')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~','[IP пользователя скрыт]') if k in t]     assert not bad,(f,bad)     assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f     assert not re.search(r'Demo-[0-9a-f]{12}',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF rm -rf "$O"
+  $ .venv/bin/python - <<'EOF'
+p='CHANGELOG.md'
+s=open(p,encoding='utf-8').read()
+head='# История изменений\n\nФормат: одна запись на задачу или изменение настройки. Новые записи сверху.\n\n'
+assert s.startswith(head)
+entry='''## 2026-11-21
+### TASK-016: защита по итогам пентеста (PENTEST-1)
+- nginx: лимит отправки формы входа (10 в минуту на IP, только POST, одно правило для обычного входа и админки — путь к админке не попадает в настройки nginx) и не больше 20 соединений с одного IP; запросы к чужим доменам и по IP закрываются (`444`, `ssl_reject_handshake`); `www` → основной адрес в шаблоне.
+- Блокировка входа для IPv6 считается по сети /64. Блокировку аккаунта со всех IP не делали, чтобы никто не мог закрыть жюри вход.
+- Строгий Content-Security-Policy на весь сайт, включая админку; запрет кэша (`no-store`) для вошедших пользователей — после выхода кнопка «Назад» не показывает оценки.
+- Исправлено: подсказка вида заявки экранируется; огромное число в фильтре больше не даёт 500; токен повтора в чате привязан к автору (миграция `chat/0002`).
+- Деплой: пароль базы не виден в списке процессов при резервном копировании; gunicorn доверяет только `X-Forwarded-Proto`; изоляция службы в systemd; служебный пользователь без входа в оболочку; `DEMO_PASSWORD` убирается с сервера после заполнения базы; проверка уязвимостей зависимостей (`pip-audit`) в CI; шаг 21 инструкции для уже установленного сервера.
+- Исполнитель — Кодер на DeepSeek. Ревью: 1 раунд, без замечаний; у Ревьюера 0 нарушений CSP на 243 страницах. Проверка тимлида: 22 страницы студента, сотрудника и админки без нарушений CSP, чат работает. Всего тестов: 1181.
+
+'''
+s=head+entry+s[len(head):]
+open(p,'w',encoding='utf-8').write(s)
+p='plan.md'
+s=open(p,encoding='utf-8').read()
+row=[l for l in s.split('\n') if l.startswith('| TASK-016 |')][0]
+assert row.endswith('| В работе |')
+s=s.replace(row, row[:-len('| В работе |')]+'| Готово |')
+s=s.replace('TASK-016 (исправления) в работе.','TASK-016 закрыта 21.11; на сервер ставится шагом 21.')
+open(p,'w',encoding='utf-8').write(s)
+EOF
+O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && { printf '# Pentester dialog\n\nRun 1 of PENTEST-1 (medium reasoning) is first; the thread context was then cleared and run 2 (max reasoning) follows.\n\n## Run 1 (before context clear, 2026-11-19/20)\n\n'; cat ~/.bb/thread-storage/thr_4izdzwetb4/pentest/pentester-run1-dialog.md; printf '\n\n## Run 2 (after context clear, 2026-11-20)\n\n'; bb thread log thr_kqfp9kn6jk --all --format verbose; } > "$O/06-pentester.md" && .venv/bin/python -I - "$O" <<'EOF'
+import os,re,sys
+d=sys.argv[1]; out='docs/process/dialogs'
+for f in sorted(os.listdir(d)):
+    t=open(os.path.join(d,f),encoding='utf-8').read()
+    t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)
+    t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)
+    t=t.replace('[id скрыт]','[id скрыт]')
+    t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')
+    t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)
+    t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')
+    t=t.replace('[IP пользователя скрыт]','[IP пользователя скрыт]')
+    bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~','[IP пользователя скрыт]') if k in t]
+    assert not bad,(f,bad)
+    assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f
+    assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f
+    assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f
+    assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f
+    assert not re.search(r'Demo-[0-9a-f]{12}',t),f
+    open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
+EOF
+rm -rf "$O"

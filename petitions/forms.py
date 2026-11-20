@@ -1,6 +1,7 @@
 """Forms for petitions."""
 
 from django import forms
+from django.utils.html import escape
 
 from petitions.files import validate_attachments
 from petitions.models import MAX_COMMENT_LENGTH, SUBJECT_MAX_LENGTH, PetitionStatus, RequestType
@@ -43,7 +44,8 @@ class PetitionForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.request_type = request_type
         self.fields["comment"].required = request_type.comment_required
-        self.fields["comment"].help_text = request_type.comment_hint
+        # Django renders help_text without escaping; the hint is admin-entered text.
+        self.fields["comment"].help_text = escape(request_type.comment_hint)
         if not request_type.subject_required:
             del self.fields["subject"]
 

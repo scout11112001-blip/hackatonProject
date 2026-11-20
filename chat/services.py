@@ -33,10 +33,10 @@ def text_errors(text: str) -> list[str]:
     return []
 
 
-def _idempotent_message(dialog: Dialog, client_token: UUID | None) -> Message | None:
+def _idempotent_message(dialog: Dialog, author: User, client_token: UUID | None) -> Message | None:
     if client_token is None:
         return None
-    return dialog.messages.filter(client_token=client_token).first()
+    return dialog.messages.filter(client_token=client_token, author=author).first()
 
 
 def send_student_message(student: StudentProfile, text: str, client_token: UUID | None) -> Message:
@@ -49,7 +49,7 @@ def send_student_message(student: StudentProfile, text: str, client_token: UUID 
         dialog, _ = Dialog.objects.get_or_create(student=student)
         dialog = Dialog.objects.select_for_update().get(pk=dialog.pk)
 
-        existing = _idempotent_message(dialog, client_token)
+        existing = _idempotent_message(dialog, student.user, client_token)
         if existing is not None:
             return existing
 
@@ -96,7 +96,7 @@ def send_staff_message(
         if locked is None:
             raise PermissionDenied
 
-        existing = _idempotent_message(locked, client_token)
+        existing = _idempotent_message(locked, actor, client_token)
         if existing is not None:
             return existing
 

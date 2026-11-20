@@ -1,6 +1,7 @@
 """Views for the petitions app."""
 
 import logging
+import re
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
@@ -27,6 +28,8 @@ from petitions.services import add_staff_comment, change_status, submit_petition
 from petitions.workflow import ACTION_LABELS, OPEN_STATUSES, allowed_transitions
 
 logger = logging.getLogger(__name__)
+
+_TYPE_ID_RE = re.compile(r"[0-9]{1,18}")
 
 
 class CatalogView(StudentRequiredMixin, TemplateView):
@@ -130,11 +133,9 @@ class StaffQueueView(StaffRequiredMixin, ListView):
         else:
             qs = qs.filter(status__in=OPEN_STATUSES)
         type_id = self.request.GET.get("type", "")
-        if type_id:
-            try:
-                qs = qs.filter(request_type_id=int(type_id))
-            except (TypeError, ValueError):
-                pass
+        # At most 18 digits: always inside the 64-bit id range of the database (PT1-F8).
+        if _TYPE_ID_RE.fullmatch(type_id):
+            qs = qs.filter(request_type_id=int(type_id))
         return qs.order_by("created_at").annotate(attachment_count=Count("attachments"))
 
     def get_context_data(self, **kwargs):

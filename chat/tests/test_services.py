@@ -94,6 +94,20 @@ class ServiceTests(FrozenClockMixin, TestCase):
             send_student_message(self.ax_profile, "заполнение", uuid.uuid4())
         self.assertEqual(send_student_message(self.ax_profile, "Привет", token).pk, first.pk)
 
+    def test_same_token_other_author_kept(self):
+        # TASK-016 (PT1-F10): the token is looked up per author.
+        token = uuid.uuid4()
+        student_message = send_student_message(self.ax_profile, "Вопрос", token)
+        reply = send_staff_message(student_message.dialog, self.sx, "Ответ", token)
+        self.assertNotEqual(reply.pk, student_message.pk)
+        self.assertEqual(reply.author, self.sx)
+        self.assertEqual(reply.text, "Ответ")
+        self.assertEqual(Message.objects.filter(dialog=student_message.dialog).count(), 2)
+        # The same author with the same token still gets the existing message.
+        again = send_staff_message(student_message.dialog, self.sx, "Ответ", token)
+        self.assertEqual(again.pk, reply.pk)
+        self.assertEqual(Message.objects.filter(dialog=student_message.dialog).count(), 2)
+
     def test_two_staff_replies_both_kept_in_id_order(self):
         sx2 = make_staff("sx2", self.fx)
         dialog = make_dialog(self.ax_profile)

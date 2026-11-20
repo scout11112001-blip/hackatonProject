@@ -12,6 +12,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from unittest import mock
 
@@ -66,6 +67,8 @@ class GunicornConfigTests(SimpleTestCase):
         self.assertEqual(cfg["accesslog"], "-")
         self.assertEqual(cfg["errorlog"], "-")
         self.assertIs(cfg["control_socket_disable"], True)
+        # TASK-016 (PT1-F13): trust only X-Forwarded-Proto.
+        self.assertEqual(cfg["secure_scheme_headers"], {"X-FORWARDED-PROTO": "https"})
 
     def test_env_override(self):
         cfg = self._load_config({"GUNICORN_WORKERS": "3", "GUNICORN_BIND": "127.0.0.1:9000"})
@@ -110,7 +113,61 @@ class NginxTemplateTests(SimpleTestCase):
                 self.assertNotIn(forbidden, active, f"{path.name}: {forbidden}")
 
     def test_http_redirects_to_https(self):
-        self.assertIn("return 301 https://$host$request_uri;", _read(NGINX_CONF))
+        # TASK-016 (PT1-F4): the redirect target is the fixed domain, never $host.
+        text = _read(NGINX_CONF)
+        self.assertEqual(text.count("return 301 https://example.com$request_uri;"), 2)
+        self.assertNotIn("$host$request_uri", text)
+
+    def test_catch_all_servers(self):
+        text = _read(NGINX_CONF)
+        for line in (
+            "listen 80 default_server;",
+            "listen [::]:80 default_server;",
+            "return 444;",
+            "listen 443 ssl http2 default_server;",
+            "listen [::]:443 ssl http2 default_server;",
+            "ssl_reject_handshake on;",
+        ):
+            self.assertEqual(text.count(line), 1, line)
+        self.assertEqual(text.count("server_name _;"), 2)
+
+    def test_www_redirect_and_acme(self):
+        text = _read(NGINX_CONF)
+        self.assertIn("server_name example.com www.example.com;", text)
+        self.assertIn("server_name www.example.com;", text)
+        self.assertIn("server_name example.com www.example.com;", _read(NGINX_BOOTSTRAP))
+
+    def test_login_rate_limit(self):
+        text = _read(NGINX_CONF)
+        for line in (
+            "POST    $binary_remote_addr;",
+            'default "";',
+            "limit_req_zone $deanery_login_key zone=deanery_login:10m rate=10r/m;",
+            "limit_req zone=deanery_login burst=10 nodelay;",
+            "limit_req_status 429;",
+            "limit_conn_zone $binary_remote_addr zone=deanery_conn:10m;",
+            "limit_conn deanery_conn 20;",
+            "limit_conn_status 429;",
+        ):
+            self.assertEqual(text.count(line), 1, line)
+
+    def test_login_location_pattern(self):
+        match = re.search(r"location ~ (\S+) \{", _read(NGINX_CONF))
+        self.assertIsNotNone(match)
+        pattern = re.compile(match.group(1))
+        for path in ("/login/", "/staff-1a2b3c/login/", "/a/b_c/login/", "/admin/login/"):
+            self.assertIsNotNone(pattern.search(path), path)
+        for path in ("/login/x", "/logout/", "/loginx/", "/profile/", "/login"):
+            self.assertIsNone(pattern.search(path), path)
+
+    def test_proxy_headers_at_server_level(self):
+        lines = _read(NGINX_CONF).splitlines()
+        headers = [line for line in lines if "proxy_set_header" in line]
+        self.assertEqual(len(headers), 4)
+        for line in headers:
+            self.assertTrue(line.startswith("    proxy_set_header"), line)
+            self.assertFalse(line.startswith("        "), line)
+        self.assertEqual(sum("proxy_pass http://127.0.0.1:8000;" in line for line in lines), 2)
 
     def test_acme_location_in_both(self):
         for path in (NGINX_CONF, NGINX_BOOTSTRAP):
@@ -251,10 +308,23 @@ class SystemdUnitTests(SimpleTestCase):
         self.assertIn("-c deploy/gunicorn.conf.py config.wsgi:application", _read(SYSTEMD_UNIT))
 
     def test_hardening(self):
-        unit = _read(SYSTEMD_UNIT)
-        self.assertIn("NoNewPrivileges=true", unit)
-        self.assertIn("ProtectSystem=full", unit)
-        self.assertIn("PrivateTmp=true", unit)
+        # TASK-016 (PT1-F13): ProtectSystem=strict and more sandboxing.
+        lines = _read(SYSTEMD_UNIT).splitlines()
+        for line in (
+            "NoNewPrivileges=true",
+            "PrivateTmp=true",
+            "PrivateDevices=true",
+            "ProtectSystem=strict",
+            "ProtectHome=true",
+            "ProtectKernelTunables=true",
+            "ProtectControlGroups=true",
+            "RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX",
+            "CapabilityBoundingSet=",
+            "ReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial",
+        ):
+            self.assertIn(line, lines)
+        self.assertNotIn("ProtectSystem=full", lines)
+        self.assertEqual(sum(line.startswith("ReadWritePaths=") for line in lines), 1)
 
 
 class SmallFilesTests(SimpleTestCase):
@@ -436,6 +506,27 @@ class RunbookTests(SimpleTestCase):
         ):
             self.assertIn(topic, text, topic)
 
+    def test_service_account_nologin(self):
+        # TASK-016 (PT1-F6): no login shell and no SSH key for the service account.
+        text = _read(DEPLOY_MD)
+        self.assertIn('--shell /usr/sbin/nologin "$APP_USER"', text)
+        self.assertNotIn("--shell /bin/bash", text)
+        self.assertNotIn('ssh-copy-id "$APP_USER"', text)
+        self.assertIn('sudo usermod --shell /usr/sbin/nologin "$APP_USER"', text)
+
+    def test_certificate_for_www(self):
+        self.assertIn('-d "$DOMAIN" -d "www.$DOMAIN"', _read(DEPLOY_MD))
+
+    def test_demo_password_removed_after_seed(self):
+        text = _read(DEPLOY_MD)
+        section = text[text.index("## 16. ") : text.index("## 17. ")]
+        removal = "sudo sed -i '/^DEMO_PASSWORD=/d' /etc/deanery/deanery.env"
+        self.assertIn(removal, section)
+        self.assertLess(section.index("$M seed_demo"), section.index(removal))
+        self.assertLess(section.index(removal), section.index("sudo systemctl restart deanery"))
+        # The app itself never reads DEMO_PASSWORD.
+        self.assertNotIn("DEMO_PASSWORD", _read(BASE_DIR / "config" / "settings.py"))
+
     def test_no_daily_seed_cron(self):
         for line in _read(DEPLOY_MD).splitlines():
             if "cron" in line:
@@ -504,3 +595,96 @@ class OldServerLimitsTests(SimpleTestCase):
         section = text[text.index("## 19. Resources") : text.index("## 20. Troubleshooting")]
         for fragment in ("GUNICORN_WORKERS=5", "min(5, 13)", "512 MB", "20 GB", "10%"):
             self.assertIn(fragment, section, fragment)
+
+
+class BackupScriptRunTests(SimpleTestCase):
+    """TASK-016: run backup.sh with a stub pg_dump; the password never reaches the command line."""
+
+    PASSWORD = "0123abcd4567ef89dummydbpass"
+
+    def test_password_not_on_command_line(self):
+        bash = shutil.which("bash")
+        if bash is None or shutil.which("tar") is None or shutil.which("gzip") is None:
+            self.skipTest("bash, tar or gzip not available")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "bin").mkdir()
+            (root / "media" / "private_media").mkdir(parents=True)
+            (root / "media" / "private_media" / "a.pdf").write_bytes(b"%PDF-1.4")
+            stub = root / "bin" / "pg_dump"
+            stub.write_text(
+                "#!/usr/bin/env bash\n"
+                f'printf "%s\\n" "$@" > "{root}/args"\n'
+                f'env | grep -E "^PG(USER|PASSWORD|HOST|PORT|DATABASE)=" | sort > "{root}/pgenv"\n'
+                f'env | grep -c "^DATABASE_URL=" > "{root}/dburl" || true\n'
+                'echo "-- dump"\n',
+                encoding="utf-8",
+            )
+            stub.chmod(0o755)
+            env_file = root / "deanery.env"
+            env_file.write_text(
+                f"DATABASE_URL=postgres://deanery:{self.PASSWORD}@localhost:5432/deanery_trial\n"
+                f"PRIVATE_MEDIA_ROOT={root}/media/private_media\n",
+                encoding="utf-8",
+            )
+            env = {
+                "PATH": f"{root / 'bin'}{os.pathsep}{os.environ['PATH']}",
+                "BACKUP_DIR": str(root / "backups"),
+                "DEANERY_ENV_FILE": str(env_file),
+            }
+            result = subprocess.run(  # noqa: S603
+                [bash, str(BACKUP_SH)], env=env, capture_output=True, text=True, timeout=60
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("backup ok:", result.stdout)
+            args = (root / "args").read_text(encoding="utf-8")
+            self.assertNotIn(self.PASSWORD, args)
+            self.assertEqual(args.split(), ["--no-owner", "--no-privileges"])
+            self.assertEqual(
+                (root / "pgenv").read_text(encoding="utf-8").split(),
+                [
+                    "PGDATABASE=deanery_trial",
+                    "PGHOST=localhost",
+                    f"PGPASSWORD={self.PASSWORD}",
+                    "PGPORT=5432",
+                    "PGUSER=deanery",
+                ],
+            )
+            self.assertEqual((root / "dburl").read_text(encoding="utf-8").strip(), "0")
+            names = sorted(p.name for p in (root / "backups").iterdir())
+            self.assertEqual(len(names), 2)
+            self.assertTrue(names[0].startswith("db-") and names[0].endswith(".sql.gz"))
+            self.assertTrue(names[1].startswith("media-") and names[1].endswith(".tar.gz"))
+
+    def test_bad_database_url_fails(self):
+        bash = shutil.which("bash")
+        if bash is None:
+            self.skipTest("bash not available")
+        with tempfile.TemporaryDirectory() as tmp:
+            env_file = Path(tmp) / "deanery.env"
+            env_file.write_text("DATABASE_URL=sqlite:///db.sqlite3\n", encoding="utf-8")
+            env = {
+                "PATH": os.environ["PATH"],
+                "BACKUP_DIR": str(Path(tmp) / "backups"),
+                "DEANERY_ENV_FILE": str(env_file),
+            }
+            result = subprocess.run(  # noqa: S603
+                [bash, str(BACKUP_SH)], env=env, capture_output=True, text=True, timeout=60
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("DATABASE_URL must look like", result.stderr)
+            self.assertFalse((Path(tmp) / "backups").exists())
+
+
+class CiDependencyAuditTests(SimpleTestCase):
+    """TASK-016: pip-audit runs in CI in its own step; it is not a runtime dependency."""
+
+    def test_audit_step(self):
+        import yaml
+
+        ci = yaml.safe_load(_read(BASE_DIR / ".github" / "workflows" / "ci.yml"))
+        steps = {step.get("name"): step for step in ci["jobs"]["test"]["steps"]}
+        run = steps["Dependency audit"]["run"]
+        self.assertIn("pip install pip-audit==2.10.1", run)
+        self.assertIn("pip-audit --requirement requirements.txt", run)
+        self.assertNotIn("pip-audit", _read(BASE_DIR / "requirements.txt"))
