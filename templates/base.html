@@ -14,7 +14,7 @@
   <a class="skip-link" href="#main">Перейти к содержимому</a>
   <header class="site-header">
     <a class="site-brand" href="{% url 'core:home' %}">{% include "includes/icon_cap.html" %}<span class="site-title"><span class="site-title-line">Цифровой</span> <span class="site-title-line">деканат</span></span></a>
-    {% if user.is_student %}{% notifications_badge as badge %}{% chat_unread_badge as chat_badge %}{% endif %}
+    {% if user.is_student %}{% notifications_badge as badge %}{% chat_unread_badge as chat_badge %}{% elif user.is_deanery_staff %}{% chat_unread_badge as chat_badge %}{% endif %}
     <nav class="site-nav site-nav--wide" aria-label="Основная навигация">
       {% block nav %}{% if user.is_authenticated %}{% include "includes/site_nav_items.html" %}{% endif %}{% endblock %}
     </nav>

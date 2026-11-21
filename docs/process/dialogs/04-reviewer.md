@@ -21787,20 +21787,17 @@ Never read .env; plan.md not touched.
 About the `.DS_Store` errors in the UI coder's TASK-018 report: I deleted all Finder `.DS_Store` files in the project (an environment problem, not TASK-018 code). Run the tests on the working tree as is. Review TASK-018 only; the `_secret_scan_paths` hardening is out of its scope.
 steer
 
-── Ran for f in $TMPDIR/test-rev018-copy-*-2026112115411*.log; do echo "== $f"; grep -E "^Ran|^OK|^FAILED|Error" "$f" | tail -3; done; find . -name .DS_Store -not -path './.venv/*' | head (error)
-  $ for f in $TMPDIR/test-rev018-copy-*-2026112115411*.log; do echo "== $f"; grep -E "^Ran|^OK|^FAILED|Error" "$f" | tail -3; done; find . -name .DS_Store -not -path './.venv/*' | head
-  Exit code 1
-  (eval):1: no matches found: /tmp/claude-501/test-rev018-copy-*-2026112115411*.log
-  exit 1
-
-── Explored 1 list ─────────────────────────────────────────
+── Ran 10 commands, explored 1 list, 1 search ──────────────
+  ── Ran for f in $TMPDIR/test-rev018-copy-*-2026112115411*.log; do echo "== $f"; grep -E "^Ran|^OK|^FAILED|Error" "$f" | tail -3; done; find . -name .DS_Store -not -path './.venv/*' | head (error)
+    $ for f in $TMPDIR/test-rev018-copy-*-2026112115411*.log; do echo "== $f"; grep -E "^Ran|^OK|^FAILED|Error" "$f" | tail -3; done; find . -name .DS_Store -not -path './.venv/*' | head
+    Exit code 1
+    (eval):1: no matches found: /tmp/claude-501/test-rev018-copy-*-2026112115411*.log
+    exit 1
   ── Listed files in $TMPDIR
   ── Thought for 5s
     I'm copying the files over, and the stray .DS_Store is gone from the working tree. Next I'll run the working tree tests in the background while I set up mutations on the copy, starting with dropping the active-student filter in the staff unread count, then removing the author_role filter, then pointing the staff read pointer at the student one.
 
     I'm going through the remaining mutations, like removing the elif in base.html, stripping the badge from the nav items, and making the chat unread count return 0 on the staff branch. I also want to check that removing the role check in the staff count still fails the zero-query test, and that changing the staff_members join to any staff would trip the own-faculty test. After that I'll look at whether the deanery staff check could let a superuser through, by reading the accounts model.
-
-── Ran 1 command ───────────────────────────────────────────
   ── Ran TS=$(date +%Y%m%d-%H%M%S); (.venv/bin/python manage.py test --parallel > "$TMPDIR/test-rev018-wt2-full-$TS.log" 2>&1; .venv/bin/python manage.py test --parallel 2 > "$TMPDIR/test-rev018-wt2-p2-$TS.log" 2>&1; echo done > "$TMPDIR/rev018-wt2-done") &  grep -n "is_deanery_staff\|is_student" -A4 accounts/models.py | head -30; sed -n 1,60p chat/selectors.py
     $ TS=$(date +%Y%m%d-%H%M%S); (.venv/bin/python manage.py test --parallel > "$TMPDIR/test-rev018-wt2-full-$TS.log" 2>&1; .venv/bin/python manage.py test --parallel 2 > "$TMPDIR/test-rev018-wt2-p2-$TS.log" 2>&1; echo done > "$TMPDIR/rev018-wt2-done") & 
   grep -n "is_deanery_staff\|is_student" -A4 accounts/models.py | head -30; sed -n 1,60p chat/selectors.py
@@ -21875,13 +21872,9 @@ steer
         ).count()
   ── Thought
     I need to check the students_visible_to function to confirm the join rule covers everything it should, including group or program filters, archived students, and enrollment status.
-
-── Explored 1 search ───────────────────────────────────────
   ── Searched for def students_visible_to in accounts/selectors.py
   ── Thought
     Три полных прогона копии прошли: 1245 тестов, всё OK. Сейчас запускаю мутации, а тесты идут на рабочем дереве.
-
-── Running 4 commands ──────────────────────────────────────
   ── Ran C=$TMPDIR/rev-018; cd "$C" && export DEBUG=true SECRET_KEY=mut-dummy-key-018-abcdefghijklmnopqrstuvwxyz; P=~/hackatonproject/.venv/bin/python mut(){ f=$1; old=$2; new=$3; n=$($P -c "import sys;print(open(sys.argv[1]).read().count(sys.argv[2]))" "$f" "$old"); [ "$n" = 1 ] || { echo "BAD COUNT $n in $f"; return 1; }; cp "$f" "$f.revbak"; $P -c "import sys;p=sys.argv[1];t=open(p).read();open(p,'w').write(t.replace(sys.argv[2],sys.argv[3]))" "$f" "$old" "$new"; } rest(){ for b in $(find . -name '*.revbak'); do mv "$b" "${b%.revbak}"; done; } run(){ name=$1; shift; out=$($P manage.py test "$@" 2>&1); echo "M[$name]: $(echo "$out" | grep -E '^(FAILED|OK)')  $(echo "$out" | grep -oE '^(FAIL|ERROR): test_\w+' | sort -u | tr '\n' ' ')"; rest; } T="chat.tests.test_selectors chat.tests.test_views core.tests.test_stars" mut chat/selectors.py '        dialog__student__user__is_active=True,         author_role=AuthorRole.STUDENT,' '        author_role=AuthorRole.STUDENT,' && run active $T mut chat/selectors.py 'id__gt=F("dialog__staff_read_id")' 'id__gt=F("dialog__student_read_id")' && run readid $T mut chat/selectors.py 'faculty__staff_members__user_id=user.pk' 'faculty__staff_members__isnull=False' && run anyfac $T mut chat/selectors.py 'or user.role != User.Role.STAFF:         return 0     return Message.objects.filter(         dialog__student__group' ':         return 0     return Message.objects.filter(         dialog__student__group' && run rolecheck $T mut chat/selectors.py '        return staff_unread_count(user)     return 0' '        return 0     return 0' && run staffbranch $T mut chat/selectors.py '    return 0 def' '    return staff_unread_count(user) def' 2>/dev/null; rest mut chat/selectors.py '        return staff_unread_count(user)     return 0' '        return staff_unread_count(user)     return student_unread_count(user) + 1' && run adminfall $T mut templates/base.html '{% elif user.is_deanery_staff %}{% chat_unread_badge as chat_badge %}' '' && run baseelif $T mut templates/base.html '{% elif user.is_deanery_staff %}' '{% elif user.is_authenticated %}' && run baseauth $T mut templates/includes/site_nav_items.html 'Чаты{% if chat_badge %} ({{ chat_badge }}){% endif %}' 'Чаты' && run navitem $T mut static/css/theme.css '    z-index: -1;     background-image: var(--stars-a-image);' '    z-index: 0;     background-image: var(--stars-a-image);' && run zindex core.tests.test_stars mut static/css/theme.css '      82% 378px,' '      8% 378px,' && run starcol core.tests.test_stars mut static/css/theme.css '      38% 32px,' '      38% 1700px,' && run staroob core.tests.test_stars mut static/css/theme.css '  body::before,   body::after {     display: none;   }   .site-main::before,' '  .site-main::before,' && run nohide core.tests.test_stars mut static/css/theme.css '    background-image: var(--stars-a-image), var(--stars-b-image), var(--stars-c-image);' '    background-image: var(--stars-a-image), var(--stars-b-image);' && run tier100 core.tests.test_stars (17s)
     $ C=$TMPDIR/rev-018; cd "$C" && export DEBUG=true SECRET_KEY=mut-dummy-key-018-abcdefghijklmnopqrstuvwxyz; P=~/hackatonproject/.venv/bin/python
   mut(){ f=$1; old=$2; new=$3; n=$($P -c "import sys;print(open(sys.argv[1]).read().count(sys.argv[2]))" "$f" "$old"); [ "$n" = 1 ] || { echo "BAD COUNT $n in $f"; return 1; }; cp "$f" "$f.revbak"; $P -c "import sys;p=sys.argv[1];t=open(p).read();open(p,'w').write(t.replace(sys.argv[2],sys.argv[3]))" "$f" "$old" "$new"; }
@@ -22040,3 +22033,233 @@ steer
     ?? docs/process/dialogs/07-pentester-2.md
     ?? docs/security/PENTEST-3.md
     ?? docs/tasks/TASK-018.md
+  ── Thought for 3ms
+    New files have shown up in the docs folders: the dialogs, TASK-017.md, and PENTEST-3.md. They likely belong to the lead or another agent rather than the UI coder, but I'll quickly check the TASK-017.md diff to see whether the UI coder touched it.
+  ── Ran cd ~/hackatonproject; git diff --stat -- docs/; ls -la --time-style=+%H:%M docs/process/dialogs/ docs/security/PENTEST-3.md 2>/dev/null || ls -lT docs/process/dialogs/ docs/security/PENTEST-3.md; git diff docs/tasks/TASK-017.md | head -20 (2s)
+    $ cd ~/hackatonproject; git diff --stat -- docs/; ls -la --time-style=+%H:%M docs/process/dialogs/ docs/security/PENTEST-3.md 2>/dev/null || ls -lT docs/process/dialogs/ docs/security/PENTEST-3.md; git diff docs/tasks/TASK-017.md | head -20
+    docs/process/dialogs/01-team-lead.md      | 3273 +++++++++-
+     docs/process/dialogs/02-planner.md        | 2756 ++++++++-
+     docs/process/dialogs/03-coder-deepseek.md |   18 +-
+     docs/process/dialogs/04-reviewer.md       |  810 ++-
+     docs/process/dialogs/05-ui-coder.md       |  713 ++-
+     docs/process/dialogs/06-pentester.md      | 9238 ++++++++++++++++++++++++++++-
+     docs/tasks/TASK-017.md                    |    2 +-
+     7 files changed, 16197 insertions(+), 613 deletions(-)
+    -rw-r--r--@ 1 [user]  staff  32104 Nov 21 15:45:04 2026 docs/security/PENTEST-3.md
+
+    docs/process/dialogs/:
+    total 34864
+    -rw-r--r--@ 1 [user]  staff  3543167 Nov 21 15:49:34 2026 01-team-lead.md
+    -rw-r--r--@ 1 [user]  staff  3226306 Nov 21 15:49:34 2026 02-planner.md
+    -rw-r--r--@ 1 [user]  staff  6248508 Nov 21 15:49:35 2026 03-coder-deepseek.md
+    -rw-r--r--@ 1 [user]  staff  1840548 Nov 21 15:49:36 2026 04-reviewer.md
+    -rw-r--r--@ 1 [user]  staff  1069710 Nov 21 15:49:36 2026 05-ui-coder.md
+    -rw-r--r--@ 1 [user]  staff  1802175 Nov 21 15:49:36 2026 06-pentester.md
+    -rw-r--r--@ 1 [user]  staff   102401 Nov 21 15:49:36 2026 07-pentester-2.md
+    diff --git a/docs/tasks/TASK-017.md b/docs/tasks/TASK-017.md
+    index cf87ffe..71958a0 100644
+    --- a/docs/tasks/TASK-017.md
+    +++ b/docs/tasks/TASK-017.md
+    @@ -1792,7 +1792,7 @@ Migrations on a database seeded **before** the change (never on the project `db.
+     ```bash
+     mkdir -p "$TMPDIR/t017-before" && git archive HEAD | tar -x -C "$TMPDIR/t017-before"
+     export DATABASE_URL="sqlite:///$TMPDIR/t017.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t017-media" DEMO_PASSWORD=Local-Demo-Pass-2026 DEBUG=true SECRET_KEY=dummy-local
+    -(cd "$TMPDIR/t017-before" && ~/hackatonproject/.venv/bin/python manage.py migrate -v0 && ~/hackatonproject/.venv/bin/python manage.py seed_demo)
+    +(cd "$TMPDIR/t017-before" && ~/hackatonproject/.venv/bin/python manage.py migrate -v0 && ~/hackatonproject/.venv/bin/python manage.py seed_demo)
+     .venv/bin/python manage.py migrate && .venv/bin/python manage.py seed_demo && .venv/bin/python manage.py seed_demo
+     .venv/bin/python manage.py shell -c "from petitions.models import RequestType as R; print(sorted(R.objects.values_list('name', flat=True)))"
+     unset DATABASE_URL PRIVATE_MEDIA_ROOT DEMO_PASSWORD
+  ── Thought for 5ms
+    I'm setting aside the lead's dialog exports since they aren't part of TASK-018, and I'll flag that they should be left out of the commit. Next is the browser check: I'll seed a temporary database, start the dev server, and verify the layout at 1024, 1280, and 1920 widths, plus a quick computed-style comparison at 360 and the staff badge, without over-testing since I'm trusting the UI coder's byte-identical claim.
+  ── Ran export DATABASE_URL=sqlite:///$TMPDIR/rev-t018.sqlite3 PRIVATE_MEDIA_ROOT=$TMPDIR/rev-t018-private DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true SECRET_KEY=rev-dummy-018-abcdefghijklmnopqrstuvwxyz; rm -f $TMPDIR/rev-t018.sqlite3; .venv/bin/python manage.py migrate -v0 && .venv/bin/python manage.py seed_demo | tail -2 && .venv/bin/python manage.py shell -c " from importlib import import_module from django.conf import settings from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY S=import_module(settings.SESSION_ENGINE).SessionStore U=get_user_model() for n in ('student1','staff1'):     u=U.objects.get(username=n); s=S(); s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create(); print(n,s.session_key) from chat.selectors import staff_unread_count; print('staff1 unread', staff_unread_count(U.objects.get(username='staff1'))) " (5s)
+    $ export DATABASE_URL=sqlite:///$TMPDIR/rev-t018.sqlite3 PRIVATE_MEDIA_ROOT=$TMPDIR/rev-t018-private DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true SECRET_KEY=rev-dummy-018-abcdefghijklmnopqrstuvwxyz; rm -f $TMPDIR/rev-t018.sqlite3; .venv/bin/python manage.py migrate -v0 && .venv/bin/python manage.py seed_demo | tail -2 && .venv/bin/python manage.py shell -c "
+  from importlib import import_module
+  from django.conf import settings
+  from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY
+  S=import_module(settings.SESSION_ENGINE).SessionStore
+  U=get_user_model()
+  for n in ('student1','staff1'):
+      u=U.objects.get(username=n); s=S(); s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create(); print(n,s.session_key)
+  from chat.selectors import staff_unread_count; print('staff1 unread', staff_unread_count(U.objects.get(username='staff1')))
+  "
+    Notifications ready: 9 announcements.
+    Chat ready: 3 dialogs, 8 messages.
+    31 objects imported automatically (use -v 2 for details).
+
+    student1 l3glir5j1vtnytzzqa948xwlnh3go8g7
+    staff1 hjx0tb6fo54kx7f91q8fq0wgr4s6bmtk
+    staff1 unread 1
+  ── Thought for 4ms
+    Тесты на рабочем дереве проходят (1245, OK, и с `--parallel`, и с `--parallel 2`), линтеры чистые, а из мутаций выжили только две эквивалентные. Теперь проверяю страницы в браузере.
+  ── Ran export DATABASE_URL=sqlite:///$TMPDIR/rev-t018.sqlite3 PRIVATE_MEDIA_ROOT=$TMPDIR/rev-t018-private DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true SECRET_KEY=rev-dummy-018-abcdefghijklmnopqrstuvwxyz; exec .venv/bin/python manage.py runserver 127.0.0.1:8778 --noreload > $TMPDIR/rev-t018-server.log 2>&1 (1s)
+    $ export DATABASE_URL=sqlite:///$TMPDIR/rev-t018.sqlite3 PRIVATE_MEDIA_ROOT=$TMPDIR/rev-t018-private DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true SECRET_KEY=rev-dummy-018-abcdefghijklmnopqrstuvwxyz; exec .venv/bin/python manage.py runserver 127.0.0.1:8778 --noreload > $TMPDIR/rev-t018-server.log 2>&1
+    Command running in background with ID: b667bvc9t. Output is being written to: /private/tmp/claude-501/-Users-[user]-hackatonproject/1b82abfd-15ab-43f1-83e4-5dfc8c062949/tasks/b667bvc9t.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran until curl -s -o /dev/null http://127.0.0.1:8778/login/; do sleep 1; done; bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json (4s)
+    $ until curl -s -o /dev/null http://127.0.0.1:8778/login/; do sleep 1; done; bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json
+    {"id":"6ad13697-f367-422f-8095-73bc0c23b57f","threadId":"thr_cpuae9aqw3","hostId":"host_cuvmpv75p3","backend":"local","state":"ready","createdAt":1795304998429,"expiresAt":1795306798429,"previewDirective":"::browser-preview{session=\"6ad13697-f367-422f-8095-73bc0c23b57f\"}"}
+
+── Assistant ───────────────────────────────────────────────
+::browser-preview{session="6ad13697-f367-422f-8095-73bc0c23b57f"}
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran mkdir -p $TMPDIR/rev-t018-shots && cat > $TMPDIR/rev-t018-geo.js <<'EOF' const p = await browser.getPage("main"); const out = []; const B = "http://127.0.0.1:8778"; async function geo(label){   return await p.evaluate((label)=>{     const m=document.querySelector(".site-main"), r=m.getBoundingClientRect();     const h=document.querySelector(".site-header").getBoundingClientRect(), f=document.querySelector(".site-footer").getBoundingClientRect();     const sb=getComputedStyle(m,"::before"), sa=getComputedStyle(m,"::after"), bb=getComputedStyle(document.body,"::before");     return {label, vw:innerWidth, sw:document.documentElement.scrollWidth, cw:document.documentElement.clientWidth,       main:[Math.round(r.left),Math.round(r.right),Math.round(r.top+scrollY),Math.round(r.height)],       header:[Math.round(h.bottom+scrollY)], footerTop:Math.round(f.top+scrollY),       before:[sb.content,sb.width,sb.right,sb.zIndex,sb.pointerEvents,sb.backgroundImage.split("linear-gradient").length-1],       after:[sa.content,sa.width,sa.left,sa.backgroundImage.split("linear-gradient").length-1],       bodyBefore:bb.display};   },label); } for (const w of [360,1024,1280,1600,1920]) {   await p.setViewport({width:w,height:900});   await p.deleteCookie({name:"sessionid",url:B});   await p.goto(B+"/login/");   out.push(await geo("login"));   await p.setCookie({name:"sessionid",value:"l3glir5j1vtnytzzqa948xwlnh3go8g7",url:B});   await p.goto(B+"/notifications/");   out.push(await geo("notif"));   if (w>=1024) await p.shot({type:"jpeg",maxEdge:1600,quality:70,fullPage:false}); } return out; EOF bb browser-automation run 6ad13697-f367-422f-8095-73bc0c23b57f --script-file $TMPDIR/rev-t018-geo.js --script-host host_cuvmpv75p3 --timeout 120s 2>&1 | head -c 6000 (2s)
+    $ mkdir -p $TMPDIR/rev-t018-shots && cat > $TMPDIR/rev-t018-geo.js <<'EOF'
+  const p = await browser.getPage("main");
+  const out = [];
+  const B = "http://127.0.0.1:8778";
+  async function geo(label){
+    return await p.evaluate((label)=>{
+      const m=document.querySelector(".site-main"), r=m.getBoundingClientRect();
+      const h=document.querySelector(".site-header").getBoundingClientRect(), f=document.querySelector(".site-footer").getBoundingClientRect();
+      const sb=getComputedStyle(m,"::before"), sa=getComputedStyle(m,"::after"), bb=getComputedStyle(document.body,"::before");
+      return {label, vw:innerWidth, sw:document.documentElement.scrollWidth, cw:document.documentElement.clientWidth,
+        main:[Math.round(r.left),Math.round(r.right),Math.round(r.top+scrollY),Math.round(r.height)],
+        header:[Math.round(h.bottom+scrollY)], footerTop:Math.round(f.top+scrollY),
+        before:[sb.content,sb.width,sb.right,sb.zIndex,sb.pointerEvents,sb.backgroundImage.split("linear-gradient").length-1],
+        after:[sa.content,sa.width,sa.left,sa.backgroundImage.split("linear-gradient").length-1],
+        bodyBefore:bb.display};
+    },label);
+  }
+  for (const w of [360,1024,1280,1600,1920]) {
+    await p.setViewport({width:w,height:900});
+    await p.deleteCookie({name:"sessionid",url:B});
+    await p.goto(B+"/login/");
+    out.push(await geo("login"));
+    await p.setCookie({name:"sessionid",value:"l3glir5j1vtnytzzqa948xwlnh3go8g7",url:B});
+    await p.goto(B+"/notifications/");
+    out.push(await geo("notif"));
+    if (w>=1024) await p.shot({type:"jpeg",maxEdge:1600,quality:70,fullPage:false});
+  }
+  return out;
+  EOF
+  bb browser-automation run 6ad13697-f367-422f-8095-73bc0c23b57f --script-file $TMPDIR/rev-t018-geo.js --script-host host_cuvmpv75p3 --timeout 120s 2>&1 | head -c 6000
+    {"text":"[\n  {\n    \"label\": \"login\",\n    \"vw\": 360,\n    \"sw\": 360,\n    \"cw\": 360,\n    \"main\": [\n      0,\n      360,\n      80,\n      385\n    ],\n    \"header\": [\n      80\n    ],\n    \"footerTop\": 465,\n    \"before\": [\n      \"none\",\n      \"auto\",\n      \"auto\",\n      \"auto\",\n      \"auto\",\n      0\n    ],\n    \"after\": [\n      \"none\",\n      \"auto\",\n      \"auto\",\n      0\n    ],\n    \"bodyBefore\": \"block\"\n  },\n  {\n    \"label\": \"notif\",\n    \"vw\": 360,\n    \"sw\": 360,\n    \"cw\": 360,\n    \"main\": [\n      0,\n      360,\n      152,\n      4270\n    ],\n    \"header\": [\n      152\n    ],\n    \"footerTop\": 4422,\n    \"before\": [\n      \"none\",\n      \"auto\",\n      \"auto\",\n      \"auto\",\n      \"auto\",\n      0\n    ],\n    \"after\": [\n      \"none\",\n      \"auto\",\n      \"auto\",\n      0\n    ],\n    \"bodyBefore\": \"block\"\n  },\n  {\n    \"label\": \"login\",\n    \"vw\": 1024,\n    \"sw\": 1024,\n    \"cw\": 1024,\n    \"main\": [\n      32,\n      992,\n      96,\n      410\n    ],\n    \"header\": [\n      96\n    ],\n    \"footerTop\": 506,\n    \"before\": [\n      \"\\\"\\\"\",\n      \"16px\",\n      \"960px\",\n      \"-1\",\n      \"none\",\n      8\n    ],\n    \"after\": [\n      \"\\\"\\\"\",\n      \"16px\",\n      \"960px\",\n      8\n    ],\n    \"bodyBefore\": \"none\"\n  },\n  {\n    \"label\": \"notif\",\n    \"vw\": 1024,\n    \"sw\": 1024,\n    \"cw\": 1024,\n    \"main\": [\n      32,\n      992,\n      108,\n      3446\n    ],\n    \"header\": [\n      108\n    ],\n    \"footerTop\": 3554,\n    \"before\": [\n      \"\\\"\\\"\",\n      \"16px\",\n      \"960px\",\n      \"-1\",\n      \"none\",\n      8\n    ],\n    \"after\": [\n      \"\\\"\\\"\",\n      \"16px\",\n      \"960px\",\n      8\n    ],\n    \"bodyBefore\": \"none\"\n  },\n  {\n    \"label\": \"login\",\n    \"vw\": 1280,\n    \"sw\": 1280,\n    \"cw\": 1280,\n    \"main\": [\n      160,\n      1120,\n      96,\n      410\n    ],\n    \"header\": [\n      96\n    ],\n    \"footerTop\": 506,\n    \"before\": [\n      \"\\\"\\\"\",\n      \"144px\",\n      \"960px\",\n      \"-1\",\n      \"none\",\n      16\n    ],\n    \"after\": [\n      \"\\\"\\\"\",\n      \"144px\",\n      \"960px\",\n      16\n    ],\n    \"bodyBefore\": \"none\"\n  },\n  {\n    \"label\": \"notif\",\n    \"vw\": 1280,\n    \"sw\": 1280,\n    \"cw\": 1280,\n    \"main\": [\n      160,\n      1120,\n      108,\n      3446\n    ],\n    \"header\": [\n      108\n    ],\n    \"footerTop\": 3554,\n    \"before\": [\n      \"\\\"\\\"\",\n      \"144px\",\n      \"960px\",\n      \"-1\",\n      \"none\",\n      16\n    ],\n    \"after\": [\n      \"\\\"\\\"\",\n      \"144px\",\n      \"960px\",\n      16\n    ],\n    \"bodyBefore\": \"none\"\n  },\n  {\n    \"label\": \"login\",\n    \"vw\": 1600,\n    \"sw\": 1600,\n    \"cw\": 1600,\n    \"main\": [\n      320,\n      1280,\n      96,\n      410\n    ],\n    \"header\": [\n      96\n    ],\n    \"footerTop\": 506,\n    \"before\": [\n      \"\\\"\\\"\",\n      \"304px\",\n      \"960px\",\n      \"-1\",\n      \"none\",\n      26\n    ],\n    \"after\": [\n      \"\\\"\\\"\",\n      \"304px\",\n      \"960px\",\n      26\n    ],\n    \"bodyBefore\": \"none\"\n  },\n  {\n    \"label\": \"notif\",\n    \"vw\": 1600,\n    \"sw\": 1600,\n    \"cw\": 1600,\n    \"main\": [\n      320,\n      1280,\n      108,\n      3446\n    ],\n    \"header\": [\n      108\n    ],\n    \"footerTop\": 3554,\n    \"before\": [\n      \"\\\"\\\"\",\n      \"304px\",\n      \"960px\",\n      \"-1\",\n      \"none\",\n      26\n    ],\n    \"after\": [\n      \"\\\"\\\"\",\n      \"304px\",\n      \"960px\",\n      26\n    ],\n    \"bodyBefore\": \"none\"\n  },\n  {\n    \"label\": \"login\",\n    \"vw\": 1920,\n    \"sw\": 1920,\n    \"cw\": 1920,\n    \"main\": [\n      480,\n      1440,\n      96,\n      410\n    ],\n    \"header\": [\n      96\n    ],\n    \"footerTop\": 506,\n    \"before\": [\n      \"\\\"\\\"\",\n      \"464px\",\n      \"960px\",\n      \"-1\",\n      \"none\",\n      26\n    ],\n    \"after\": [\n      \"\\\"\\\"\",\n      \"464px\",\n      \"960px\",\n      26\n    ],\n    \"bodyBefore\": \"none\"\n  },\n  {\n    \"label\": \"notif\",\n    \"vw\": 1920,\n    \"sw\": 1920,\n    \"cw\": 1920,\n    \"main\": [\n      480,\n      1440,\n      108,\n      3446\n    ],\n    \"header\": [\n      108\n    ],\n    \"footerTop\": 3554,\n    \"before\": [\n      \"\\\"\\\"\",\n      \"464px\",\n      \"960px\",\n      \"-1\",\n      \"none\",\n      26\n    ],\n    \"after\": [\n      \"\\\"\\\"\",\n      \"464px\",\n      \"960px\",\n      26\n    ],\n    \"bodyBefore\": \"none\"\n  }\n]","images":[{"path":"/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-u5HHZC/db-7e662Q/tmp/shot-1795305011794-1.jpg","mimeType":"image/jpeg","width":1024,"height":900},{"path":"/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-u5HHZC/db-7e662Q/tmp/shot-1795305011955-2.jpg","mimeType":"image/jpeg","width":1280,"height":900},{"path":"/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-u5HHZC/db-7e662Q/tmp/shot-1795305012097-3.jpg","mimeType":"image/jpeg","width":1600,"height":900},{"path":"/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-u5HHZC/db-7e662Q/tmp/shot-1795305012244-4.jpg","mimeType":"image/jpeg","width":1600,"height":750}],"exitCode":0,"hostId":"host_cuvmpv75p3"}
+  ── Thought for 5ms
+    I've confirmed the geometry checks out: the layers sit at right: 960px, which is 100% of the 960px column, and the width matches. The left edge works out to 480 − 464 = 16px at 1920 wide, so that's fine. Next I'll check the 1920 screenshot.
+
+── Explored 2 files ────────────────────────────────────────
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-u5HHZC/db-7e662Q/tmp/shot-1795305012244-4.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-u5HHZC/db-7e662Q/tmp/shot-1795305011794-1.jpg
+  ── Thought for 6ms
+    I've confirmed the stars are scattered beside the column, so that part's fine. Next I need to check the staff badge at 1024 and 360 widths, the menu at 360, and whether the count drops after a dialog opens. I'll also look at the dialog link on the staff chats page, then run a quick script.
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Ran cat > $TMPDIR/rev-t018-staff.js <<'EOF' const p = await browser.getPage("main"); const B = "http://127.0.0.1:8778"; const out = []; await p.setCookie({name:"sessionid",value:"hjx0tb6fo54kx7f91q8fq0wgr4s6bmtk",url:B}); await p.setViewport({width:1024,height:900}); await p.goto(B+"/staff/chats/"); const nav = () => p.evaluate(()=>({items:[...document.querySelectorAll("nav a")].map(a=>a.textContent.trim()).filter(t=>t.startsWith("Чат")), header:Math.round(document.querySelector(".site-header").getBoundingClientRect().height)})); out.push(await nav()); await p.shot({type:"jpeg",maxEdge:1024,quality:70}); const href = await p.evaluate(()=>[...document.querySelectorAll("main a")].map(a=>a.getAttribute("href")).find(h=>/\/staff\/chats\/[^/]+\/$/.test(h))); out.push(href); await p.goto(B+href); out.push(await nav()); await p.goto(B+"/profile/"); out.push(await nav()); return out; EOF bb browser-automation run 6ad13697-f367-422f-8095-73bc0c23b57f --script-file $TMPDIR/rev-t018-staff.js --script-host host_cuvmpv75p3 --timeout 120s 2>&1 | head -c 3000 (1s)
+    $ cat > $TMPDIR/rev-t018-staff.js <<'EOF'
+  const p = await browser.getPage("main");
+  const B = "http://127.0.0.1:8778";
+  const out = [];
+  await p.setCookie({name:"sessionid",value:"hjx0tb6fo54kx7f91q8fq0wgr4s6bmtk",url:B});
+  await p.setViewport({width:1024,height:900});
+  await p.goto(B+"/staff/chats/");
+  const nav = () => p.evaluate(()=>({items:[...document.querySelectorAll("nav a")].map(a=>a.textContent.trim()).filter(t=>t.startsWith("Чат")), header:Math.round(document.querySelector(".site-header").getBoundingClientRect().height)}));
+  out.push(await nav());
+  await p.shot({type:"jpeg",maxEdge:1024,quality:70});
+  const href = await p.evaluate(()=>[...document.querySelectorAll("main a")].map(a=>a.getAttribute("href")).find(h=>/\/staff\/chats\/[^/]+\/$/.test(h)));
+  out.push(href);
+  await p.goto(B+href);
+  out.push(await nav());
+  await p.goto(B+"/profile/");
+  out.push(await nav());
+  return out;
+  EOF
+  bb browser-automation run 6ad13697-f367-422f-8095-73bc0c23b57f --script-file $TMPDIR/rev-t018-staff.js --script-host host_cuvmpv75p3 --timeout 120s 2>&1 | head -c 3000
+    {"text":"[\n  {\n    \"items\": [\n      \"Чаты (1)\",\n      \"Чаты (1)\"\n    ],\n    \"header\": 96\n  },\n  \"/staff/chats/a4250628-e23c-4b3b-b959-04cee9b70945/\",\n  {\n    \"items\": [\n      \"Чаты\",\n      \"Чаты\"\n    ],\n    \"header\": 96\n  },\n  {\n    \"items\": [\n      \"Чаты\",\n      \"Чаты\"\n    ],\n    \"header\": 96\n  }\n]","images":[{"path":"/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-u5HHZC/db-7e662Q/tmp/shot-1795305025176-5.jpg","mimeType":"image/jpeg","width":1024,"height":900}],"exitCode":0,"hostId":"host_cuvmpv75p3"}
+  ── Thought for 4ms
+    Staff1 now shows "Чаты (1)" in both menus, and opening the dialog clears it back to "Чаты" as expected. The UI coder has also verified the 99+ case, so the check is complete. Next I'll close the browser, stop the server, and clean up.
+  ── Ran bb browser-automation close 6ad13697-f367-422f-8095-73bc0c23b57f >/dev/null 2>&1; echo closed (3s)
+    $ bb browser-automation close 6ad13697-f367-422f-8095-73bc0c23b57f >/dev/null 2>&1; echo closed
+    closed
+
+── Stopped task ────────────────────────────────────────────
+  {"message":"Successfully stopped task: b667bvc9t (export DATABASE_URL=sqlite:///$TMPDIR/rev-t018.sqlite3 PRIVATE_MEDIA_ROOT=$TMPDIR/rev-t018-private DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true SECRET_KEY=rev-dummy-018-abcdefghijklmnopqrstuvwxyz; exec .venv/bin/python manage.py runserver 127.0.0.1:8778 --noreload > $TMPDIR/rev-t018-server.log 2>&1)","task_id":"b667bvc9t","task_type":"local_bash","command":"export DATABASE_URL=sqlite:///$TMPDIR/rev-t018.sqlite3 PRIVATE_MEDIA_ROOT=$TMPDIR/rev-t018-private DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true SECRET_KEY=rev-dummy-018-abcdefghijklmnopqrstuvwxyz; exec .venv/bin/python manage.py runserver 127.0.0.1:8778 --noreload > $TMPDIR/rev-t018-server.log 2>&1"}
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran rm -r $TMPDIR/rev-018 $TMPDIR/rev-t018.sqlite3 $TMPDIR/rev-t018-private 2>/dev/null; rm -f $TMPDIR/rev018-wt2-done; cd ~/hackatonproject && git status --short | grep -v '^ M docs/process\|^?? docs/process\|PENTEST-3' ; date
+    $ rm -r $TMPDIR/rev-018 $TMPDIR/rev-t018.sqlite3 $TMPDIR/rev-t018-private 2>/dev/null; rm -f $TMPDIR/rev018-wt2-done; cd ~/hackatonproject && git status --short | grep -v '^ M docs/process\|^?? docs/process\|PENTEST-3' ; date
+    M chat/selectors.py
+     M chat/templatetags/chat_tags.py
+     M chat/tests/test_selectors.py
+     M chat/tests/test_views.py
+     M static/css/theme.css
+     M templates/base.html
+     M templates/includes/site_nav_items.html
+    ?? core/tests/test_stars.py
+    ?? docs/tasks/TASK-018.md
+    Sat Nov 21 15:50:34 PST 2026
+  ── Thought for 1s
+    I'm checking whether TASK-017.md is just missing from the filtered output, since my grep only excluded the process and PENTEST-3 entries. Converting the run timestamps from local PST to MSK by adding 11 hours: the wt failure at 15:40:33 is 02:40 MSK on the 22nd, the deploy serial at 15:41:05 is 02:41, and the copy runs from 15:41:14 to 15:46:13 fall between 02:41 and 02:46.
+
+    The wt2 run at 15:46:39 PST corresponds to 02:46 to 02:49 MSK, so it fits the same window as the copy runs. That leaves APPROVE as the next step.
+
+── Ran bb thread tell thr_4izdzwetb4 --message-file - <<'EOF' [TASK-018] Reviewer -> Team lead: APPROVE Round 1. Spec docs/tasks/TASK-018.md, report from the UI coder. ## Spec conformance All F1-F5 code blocks compared with `git diff -U0 094dd55`: the +/- lines match exactly in all 8 files, and core/tests/test_stars.py is byte-identical to the spec. TASK-018 changes only the 7 spec files plus the new test file. ## Tests (Moscow time, 22.11) - Failed run, recorded as the rules require: working tree before your .DS_Store cleanup, `manage.py test --parallel` at 02:40 -> `TypeError: cannot pickle 'traceback' object` ($TMPDIR/test-rev018-wt-20261121-154033.log). The serial run of core.tests.test_deploy at 02:41 ($TMPDIR/test-rev018-deploy-20261121-154105.log) gave the same 5 errors the UI coder reported: OldServerLimitsTests.test_no_old_server_values and SecretScanTests.test_no_long_random_strings / test_no_private_keys_or_known_tokens / test_no_real_ip_addresses / test_secret_like_assignments_are_placeholders. Each one is `UnicodeDecodeError: 'utf-8' codec can't decode byte 0x80 in position 3131` in core/tests/test_deploy.py:51 `_read`, caused by deploy/.DS_Store. This is environment only, not TASK-018. - Clean copy (no .DS_Store), 02:41-02:46: `--parallel` 1245 OK, `--parallel 2` 1245 OK, `scripts/run_tests_at.py 2027-03-01T12:00:00` 1245 OK ($TMPDIR/test-rev018-copy-{full,p2,future}-20261121-154114.log). - Working tree after your cleanup, 02:46-02:49: `--parallel` 1245 OK, `--parallel 2` 1245 OK ($TMPDIR/test-rev018-wt2-{full,p2}-20261121-154639.log). - `ruff check .` clean, `ruff format --check .` 203 files, `check` no issues, `makemigrations --check` No changes. - Count 1217 -> 1245 (+28), as in the spec. ## Mutations (copy): 15 killed, 2 survived, both equivalent Killed: - staff_unread_count without the is_active join - staff_read_id -> student_read_id - any faculty's staff instead of user_id=user.pk - the role guard removed (fails assertNumQueries(0)) - chat_unread_count staff branch -> 0 - admin fallback != 0 - base.html elif removed - nav item without the badge - tag back to student_unread_count - CSS z-index -1 -> 0 - one star moved into a column - star y outside the tile - body::before/after not hidden - the 100rem tier missing group c Survived, both equivalent: - `{% elif user.is_authenticated %}` instead of is_deanery_staff: for admin, chat_unread_count returns 0 with no query. - adding staff_unread_count to the student count: it returns 0 for students. ## Security and logic - The staff count uses the same rule as dialogs_visible_to / students_visible_to: own faculty through the one-to-one StaffProfile, active students only, student messages after the shared staff_read_id. - No other faculty leaks. A staff user without a profile gets 0. Admin and anonymous users trigger no query. - The count is one COUNT query (test_one_query, test_staff_page_constant_in_dialogs). ## Own browser check Temp seeded DB, runserver, headless Chrome. - 1024/1280/1600/1920: layer widths 16/144/304/464 px, `right: 100%` / `left: 100%` of the 960 px column. Gradient layers 8/16/26/26. z-index -1, pointer-events none, body::before display none. scrollWidth == clientWidth everywhere. - 360: the layers are not generated (content none) and body::before is still shown. - Screenshots at 1024 and 1600: stars are scattered on both sides and none are over the column or the header. - staff1 at 1024: "Чаты (1)" in both menus, header 96 px. After the dialog is opened, it shows "Чаты" in both menus, also on /profile/. ## Notes (non-blocking) - The working tree also has changes outside TASK-018: docs/process/dialogs/* (modified), docs/process/dialogs/07-pentester-2.md and docs/security/PENTEST-3.md (untracked). They are not part of this task; keep them out of the TASK-018 commit if you want. - Not checked by me: the 99+ cap in the browser. The UI coder checked it, and NavTests::test_staff_chat_count_cap covers it. EOF
+  $ bb thread tell thr_4izdzwetb4 --message-file - <<'EOF'
+[TASK-018] Reviewer -> Team lead: APPROVE
+
+Round 1. Spec docs/tasks/TASK-018.md, report from the UI coder.
+
+## Spec conformance
+All F1-F5 code blocks compared with `git diff -U0 094dd55`: the +/- lines match exactly in all 8 files, and core/tests/test_stars.py is byte-identical to the spec. TASK-018 changes only the 7 spec files plus the new test file.
+
+## Tests (Moscow time, 22.11)
+- Failed run, recorded as the rules require: working tree before your .DS_Store cleanup, `manage.py test --parallel` at 02:40 -> `TypeError: cannot pickle 'traceback' object` ($TMPDIR/test-rev018-wt-20261121-154033.log). The serial run of core.tests.test_deploy at 02:41 ($TMPDIR/test-rev018-deploy-20261121-154105.log) gave the same 5 errors the UI coder reported: OldServerLimitsTests.test_no_old_server_values and SecretScanTests.test_no_long_random_strings / test_no_private_keys_or_known_tokens / test_no_real_ip_addresses / test_secret_like_assignments_are_placeholders. Each one is `UnicodeDecodeError: 'utf-8' codec can't decode byte 0x80 in position 3131` in core/tests/test_deploy.py:51 `_read`, caused by deploy/.DS_Store. This is environment only, not TASK-018.
+- Clean copy (no .DS_Store), 02:41-02:46: `--parallel` 1245 OK, `--parallel 2` 1245 OK, `scripts/run_tests_at.py 2027-03-01T12:00:00` 1245 OK ($TMPDIR/test-rev018-copy-{full,p2,future}-20261121-154114.log).
+- Working tree after your cleanup, 02:46-02:49: `--parallel` 1245 OK, `--parallel 2` 1245 OK ($TMPDIR/test-rev018-wt2-{full,p2}-20261121-154639.log).
+- `ruff check .` clean, `ruff format --check .` 203 files, `check` no issues, `makemigrations --check` No changes.
+- Count 1217 -> 1245 (+28), as in the spec.
+
+## Mutations (copy): 15 killed, 2 survived, both equivalent
+Killed:
+- staff_unread_count without the is_active join
+- staff_read_id -> student_read_id
+- any faculty's staff instead of user_id=user.pk
+- the role guard removed (fails assertNumQueries(0))
+- chat_unread_count staff branch -> 0
+- admin fallback != 0
+- base.html elif removed
+- nav item without the badge
+- tag back to student_unread_count
+- CSS z-index -1 -> 0
+- one star moved into a column
+- star y outside the tile
+- body::before/after not hidden
+- the 100rem tier missing group c
+Survived, both equivalent:
+- `{% elif user.is_authenticated %}` instead of is_deanery_staff: for admin, chat_unread_count returns 0 with no query.
+- adding staff_unread_count to the student count: it returns 0 for students.
+
+## Security and logic
+- The staff count uses the same rule as dialogs_visible_to / students_visible_to: own faculty through the one-to-one StaffProfile, active students only, student messages after the shared staff_read_id.
+- No other faculty leaks. A staff user without a profile gets 0. Admin and anonymous users trigger no query.
+- The count is one COUNT query (test_one_query, test_staff_page_constant_in_dialogs).
+
+## Own browser check
+Temp seeded DB, runserver, headless Chrome.
+- 1024/1280/1600/1920: layer widths 16/144/304/464 px, `right: 100%` / `left: 100%` of the 960 px column. Gradient layers 8/16/26/26. z-index -1, pointer-events none, body::before display none. scrollWidth == clientWidth everywhere.
+- 360: the layers are not generated (content none) and body::before is still shown.
+- Screenshots at 1024 and 1600: stars are scattered on both sides and none are over the column or the header.
+- staff1 at 1024: "Чаты (1)" in both menus, header 96 px. After the dialog is opened, it shows "Чаты" in both menus, also on /profile/.
+
+## Notes (non-blocking)
+- The working tree also has changes outside TASK-018: docs/process/dialogs/* (modified), docs/process/dialogs/07-pentester-2.md and docs/security/PENTEST-3.md (untracked). They are not part of this task; keep them out of the TASK-018 commit if you want.
+- Not checked by me: the 99+ cap in the browser. The UI coder checked it, and NavTests::test_staff_chat_count_cap covers it.
+EOF
+  Thread thr_4izdzwetb4 steered
+
+── Assistant ───────────────────────────────────────────────
+Я одобрил TASK-018 с первого раунда и отправил APPROVE тимлиду.
+
+- **Код:** все блоки кода из спеки совпадают с изменениями в рабочем дереве. Файл `core/tests/test_stars.py` совпадает со спекой байт в байт.
+- **Тесты:** 1245, все прошли. На рабочем дереве после удаления `.DS_Store` прошли `--parallel` и `--parallel 2`. На чистой копии прошли ещё три прогона, один из них с датой 2027 года.
+- **Сбой:** до удаления `.DS_Store` прогон в 02:40 МСК упал. Пять тестов в `core.tests.test_deploy` споткнулись о файл `deploy/.DS_Store`. Это проблема окружения, а не задачи. Тимлид удалил эти файлы, и тесты прошли.
+- **Линтеры и проверки Django:** ошибок нет.
+- **Мутации:** тесты поймали 15 из 17. Две выжившие ничего не меняют в поведении, поэтому пробелом в тестах не считаются.
+- **Браузер:**
+  - На ширине от 1024 px звёзды разбросаны по обоим полям. На колонку и шапку они не попадают, горизонтальной прокрутки нет.
+  - На 360 px всё как раньше.
+  - Сотрудник видит «Чаты (1)» в обоих меню. Когда он открывает диалог, счётчик пропадает.
+  - Предел «99+» в браузере проверил UI-кодер, я его не повторял. Это место закрывает тест.
+
+Ещё я сообщил тимлиду, что в дереве есть файлы не из этой задачи: `docs/process/dialogs/*` и `docs/security/PENTEST-3.md`. Их лучше не включать в коммит TASK-018.
+
+Временные файлы удалены, сервер и браузер остановлены. Жду следующий REPORT.

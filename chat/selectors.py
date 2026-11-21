@@ -57,3 +57,33 @@ def student_unread_count(user: AbstractBaseUser | AnonymousUser) -> int:
         author_role=AuthorRole.STAFF,
         id__gt=F("dialog__student_read_id"),
     ).count()
+
+
+def staff_unread_count(user: AbstractBaseUser | AnonymousUser) -> int:
+    """Unread student messages in the dialogs this staff member can see (TASK-018).
+
+    Same rule as the "new" count of ``staff_dialog_list``: student messages after the shared
+    read marker ``staff_read_id``. The dialog filter is the rule of ``dialogs_visible_to``
+    (active students of the staff member's faculty) written as joins, so the menu badge is one
+    COUNT query on every page; ``StaffUnreadCountTests.test_matches_visibility_rule`` keeps
+    the two in step.
+    """
+    if not user.is_authenticated or not user.is_active or user.role != User.Role.STAFF:
+        return 0
+    return Message.objects.filter(
+        dialog__student__group__program__faculty__staff_members__user_id=user.pk,
+        dialog__student__user__is_active=True,
+        author_role=AuthorRole.STUDENT,
+        id__gt=F("dialog__staff_read_id"),
+    ).count()
+
+
+def chat_unread_count(user: AbstractBaseUser | AnonymousUser) -> int:
+    """Count for the "Чат (n)" / "Чаты (n)" menu item; 0 for every other role."""
+    if not user.is_authenticated or not user.is_active:
+        return 0
+    if user.role == User.Role.STUDENT:
+        return student_unread_count(user)
+    if user.role == User.Role.STAFF:
+        return staff_unread_count(user)
+    return 0

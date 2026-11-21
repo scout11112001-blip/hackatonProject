@@ -1,10 +1,19 @@
 """Selector tests for the chat app."""
 
 from django.contrib.auth.models import AnonymousUser
+from django.db.models import F
 from django.test import TestCase
 
-from chat.models import AuthorRole
-from chat.selectors import dialogs_visible_to, staff_dialog_list, student_unread_count
+from accounts.models import User
+from accounts.tests.helpers import make_staff, make_student
+from chat.models import AuthorRole, Message
+from chat.selectors import (
+    chat_unread_count,
+    dialogs_visible_to,
+    staff_dialog_list,
+    staff_unread_count,
+    student_unread_count,
+)
 from chat.tests.helpers import add_message, make_dialog
 from core.testing import FrozenClockMixin
 from notifications.tests.helpers import make_world
@@ -80,3 +89,118 @@ class SelectorTests(FrozenClockMixin, TestCase):
             self.assertEqual(student_unread_count(self.w.sx), 0)
         with self.assertNumQueries(0):
             self.assertEqual(student_unread_count(AnonymousUser()), 0)
+
+
+class StaffUnreadCountTests(FrozenClockMixin, TestCase):
+    """TASK-018: the "Чаты (n)" count, same rule as the "new" count of the staff chat list."""
+
+    frozen_now = NOW
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.w = make_world()
+        cls.ax_dialog = make_dialog(cls.w.ax_profile)
+        cls.bx_dialog = make_dialog(cls.w.bx_profile)
+        cls.ay_dialog = make_dialog(cls.w.ay_profile)
+
+    def test_counts_own_faculty_only(self):
+        add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+        add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+        add_message(self.bx_dialog, self.w.bx, AuthorRole.STUDENT)
+        for _ in range(4):
+            add_message(self.ay_dialog, self.w.ay, AuthorRole.STUDENT)
+        self.assertEqual(staff_unread_count(self.w.sx), 3)
+        self.assertEqual(staff_unread_count(self.w.sy), 4)
+
+    def test_staff_messages_not_counted(self):
+        add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+        add_message(self.ax_dialog, self.w.sx, AuthorRole.STAFF)
+        sx2 = make_staff("sx2", self.w.fx)
+        add_message(self.bx_dialog, sx2, AuthorRole.STAFF)
+        self.assertEqual(staff_unread_count(self.w.sx), 1)
+        self.assertEqual(staff_unread_count(sx2), 1)
+
+    def test_same_as_staff_list(self):
+        add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+        reply = add_message(self.ax_dialog, self.w.sx, AuthorRole.STAFF)
+        add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+        add_message(self.bx_dialog, self.w.bx, AuthorRole.STUDENT)
+        self.ax_dialog.staff_read_id = reply.pk
+        self.ax_dialog.save(update_fields=["staff_read_id"])
+        listed = sum(d.unread for d in staff_dialog_list(self.w.sx))
+        self.assertEqual(listed, 2)
+        self.assertEqual(staff_unread_count(self.w.sx), listed)
+
+    def test_shared_read_marker(self):
+        sx2 = make_staff("sx2", self.w.fx)
+        first = add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+        self.assertEqual(staff_unread_count(self.w.sx), 1)
+        self.assertEqual(staff_unread_count(sx2), 1)
+        # One staff member reads the dialog: the count drops for every staff member of the faculty.
+        self.ax_dialog.staff_read_id = first.pk
+        self.ax_dialog.save(update_fields=["staff_read_id"])
+        self.assertEqual(staff_unread_count(self.w.sx), 0)
+        self.assertEqual(staff_unread_count(sx2), 0)
+        add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+        self.assertEqual(staff_unread_count(self.w.sx), 1)
+
+    def test_inactive_student_not_counted(self):
+        add_message(self.bx_dialog, self.w.bx, AuthorRole.STUDENT)
+        self.w.bx.is_active = False
+        self.w.bx.save(update_fields=["is_active"])
+        self.assertEqual(staff_unread_count(self.w.sx), 0)
+
+    def test_staff_without_profile_zero(self):
+        orphan = User.objects.create_user(username="orphan", role=User.Role.STAFF)
+        add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+        self.assertEqual(staff_unread_count(orphan), 0)
+
+    def test_other_roles_zero_without_query(self):
+        add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+        for user in (self.w.ax, self.w.root, AnonymousUser()):
+            with self.subTest(user=str(user)), self.assertNumQueries(0):
+                self.assertEqual(staff_unread_count(user), 0)
+
+    def test_matches_visibility_rule(self):
+        sx2 = make_staff("sx2", self.w.fx)
+        orphan = User.objects.create_user(username="orphan", role=User.Role.STAFF)
+        cx_dialog = make_dialog(self.w.cx_profile)
+        add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+        add_message(self.bx_dialog, self.w.bx, AuthorRole.STUDENT)
+        add_message(cx_dialog, self.w.cx, AuthorRole.STUDENT)
+        add_message(cx_dialog, self.w.sx, AuthorRole.STAFF)
+        add_message(self.ay_dialog, self.w.ay, AuthorRole.STUDENT)
+        self.w.bx.is_active = False
+        self.w.bx.save(update_fields=["is_active"])
+        for user in (self.w.sx, sx2, self.w.sy, orphan):
+            expected = Message.objects.filter(
+                dialog__in=dialogs_visible_to(user),
+                author_role=AuthorRole.STUDENT,
+                id__gt=F("dialog__staff_read_id"),
+            ).count()
+            with self.subTest(user=user.username):
+                self.assertEqual(staff_unread_count(user), expected)
+        self.assertEqual(staff_unread_count(self.w.sx), 2)
+
+    def test_one_query(self):
+        add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+        user = User.objects.get(pk=self.w.sx.pk)
+        with self.assertNumQueries(1):
+            self.assertEqual(staff_unread_count(user), 1)
+        for i in range(5):
+            student = make_student(f"extra{i}", self.w.gx1, f"ST-EX-{i}")
+            dialog = make_dialog(student.student_profile)
+            add_message(dialog, student, AuthorRole.STUDENT)
+        user = User.objects.get(pk=self.w.sx.pk)
+        with self.assertNumQueries(1):
+            self.assertEqual(staff_unread_count(user), 6)
+
+    def test_chat_unread_count_by_role(self):
+        add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+        add_message(self.bx_dialog, self.w.sx, AuthorRole.STAFF)
+        self.assertEqual(chat_unread_count(self.w.sx), 1)
+        self.assertEqual(chat_unread_count(self.w.bx), 1)
+        self.assertEqual(chat_unread_count(self.w.ax), 0)
+        with self.assertNumQueries(0):
+            self.assertEqual(chat_unread_count(self.w.root), 0)
+            self.assertEqual(chat_unread_count(AnonymousUser()), 0)

@@ -94,6 +94,179 @@ body::after {
   }
 }
 
+/* Wide screens (TASK-018): the side stars are scattered over the free margins on both sides
+   of the content column. Each margin is a layer beside .site-main, so stars are never beside
+   the header or the footer. A star is a 3 px background tile: x in % of the margin width
+   (counted from the window edge), y in px from the top of the content column, repeated every
+   1600 px down the page. The 1rem kept free at the window edge keeps the layer inside the
+   viewport also with a classic scrollbar (100vw includes it). Breakpoints come from the
+   60rem content column: from 64rem the margin layer is at least 1rem wide (8 stars per side
+   in 1600 px), from 80rem at least 9rem (16 stars), from 100rem at least 19rem (26 stars).
+   The groups a, b and c are nested, so a wider screen only adds stars. */
+@media (min-width: 64rem) {
+  body::before,
+  body::after {
+    display: none;
+  }
+
+  .site-main::before,
+  .site-main::after {
+    --star-yellow: linear-gradient(var(--color-star-yellow) 0 3px, transparent 3px);
+    --star-lilac: linear-gradient(var(--color-star-lilac) 0 3px, transparent 3px);
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: calc(50vw - 50% - 1rem);
+    pointer-events: none;
+    z-index: -1;
+    background-image: var(--stars-a-image);
+    background-position: var(--stars-a-position);
+    background-size: 3px 1600px;
+    background-repeat: no-repeat repeat;
+  }
+
+  .site-main::before {
+    right: 100%;
+    --stars-a-image:
+      var(--star-yellow),
+      var(--star-lilac),
+      var(--star-lilac),
+      var(--star-lilac),
+      var(--star-yellow),
+      var(--star-lilac),
+      var(--star-yellow),
+      var(--star-yellow);
+    --stars-a-position:
+      94% 80px,
+      10% 118px,
+      87% 458px,
+      13% 572px,
+      76% 902px,
+      3% 1014px,
+      25% 1298px,
+      85% 1458px;
+    --stars-b-image:
+      var(--star-yellow),
+      var(--star-lilac),
+      var(--star-lilac),
+      var(--star-yellow),
+      var(--star-lilac),
+      var(--star-yellow),
+      var(--star-yellow),
+      var(--star-lilac);
+    --stars-b-position:
+      57% 224px,
+      26% 332px,
+      50% 562px,
+      96% 702px,
+      28% 738px,
+      69% 1092px,
+      91% 1272px,
+      32% 1544px;
+    --stars-c-image:
+      var(--star-yellow),
+      var(--star-lilac),
+      var(--star-yellow),
+      var(--star-yellow),
+      var(--star-lilac),
+      var(--star-lilac),
+      var(--star-lilac),
+      var(--star-yellow),
+      var(--star-lilac),
+      var(--star-yellow);
+    --stars-c-position:
+      66% 344px,
+      34% 428px,
+      63% 780px,
+      37% 910px,
+      44% 1024px,
+      19% 1154px,
+      59% 1218px,
+      9% 1226px,
+      52% 1344px,
+      45% 1430px;
+  }
+
+  .site-main::after {
+    left: 100%;
+    --stars-a-image:
+      var(--star-yellow),
+      var(--star-yellow),
+      var(--star-lilac),
+      var(--star-yellow),
+      var(--star-lilac),
+      var(--star-lilac),
+      var(--star-yellow),
+      var(--star-lilac);
+    --stars-a-position:
+      6% 182px,
+      82% 378px,
+      34% 518px,
+      25% 756px,
+      96% 1020px,
+      4% 1194px,
+      25% 1468px,
+      96% 1518px;
+    --stars-b-image:
+      var(--star-yellow),
+      var(--star-lilac),
+      var(--star-yellow),
+      var(--star-lilac),
+      var(--star-lilac),
+      var(--star-lilac),
+      var(--star-yellow),
+      var(--star-yellow);
+    --stars-b-position:
+      38% 32px,
+      90% 80px,
+      59% 194px,
+      55% 668px,
+      88% 748px,
+      19% 976px,
+      69% 1136px,
+      75% 1284px;
+    --stars-c-image:
+      var(--star-lilac),
+      var(--star-yellow),
+      var(--star-yellow),
+      var(--star-yellow),
+      var(--star-lilac),
+      var(--star-yellow),
+      var(--star-yellow),
+      var(--star-lilac),
+      var(--star-lilac),
+      var(--star-lilac);
+    --stars-c-position:
+      76% 272px,
+      26% 306px,
+      48% 402px,
+      96% 570px,
+      9% 638px,
+      78% 868px,
+      46% 894px,
+      31% 1090px,
+      10% 1318px,
+      50% 1394px;
+  }
+}
+
+@media (min-width: 80rem) {
+  .site-main::before,
+  .site-main::after {
+    background-image: var(--stars-a-image), var(--stars-b-image);
+    background-position: var(--stars-a-position), var(--stars-b-position);
+  }
+}
+
+@media (min-width: 100rem) {
+  .site-main::before,
+  .site-main::after {
+    background-image: var(--stars-a-image), var(--stars-b-image), var(--stars-c-image);
+    background-position: var(--stars-a-position), var(--stars-b-position), var(--stars-c-position);
+  }
+}
+
 /* Links and focus. */
 a {
   color: var(--color-link);

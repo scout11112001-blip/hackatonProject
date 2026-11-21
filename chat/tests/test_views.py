@@ -7,13 +7,14 @@ from unittest import mock
 from django.contrib.messages import constants
 from django.contrib.messages.storage.base import Message as FrameworkMessage
 from django.db import connection
-from django.test import Client, TestCase
+from django.template import RequestContext, Template
+from django.test import Client, RequestFactory, TestCase
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from accounts.models import User
 from accounts.tests.helpers import make_staff, make_student
-from chat.constants import RATE_LIMIT_MESSAGES
+from chat.constants import CHAT_BADGE_CAP, RATE_LIMIT_MESSAGES
 from chat.models import AuthorRole, Dialog, Message
 from chat.selectors import student_unread_count
 from chat.tests.helpers import add_message, make_dialog
@@ -644,6 +645,68 @@ class NavTests(FrozenClockMixin, TestCase):
         content = self.client.get("/profile/").content.decode()
         self.assertIn('href="/staff/chats/"', content)
 
+    def test_staff_chat_count(self):
+        # TASK-018: "Чаты (n)" for staff, in the wide and the compact menu.
+        dialog = make_dialog(self.w.ax_profile)
+        add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+        add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+        add_message(dialog, self.w.sx, AuthorRole.STAFF)
+        self.client.force_login(self.w.sx)
+        content = self.client.get("/profile/").content.decode()
+        self.assertEqual(content.count(">Чаты (2)</a>"), 2)
+
+    def test_staff_chat_without_count(self):
+        dialog = make_dialog(self.w.ax_profile)
+        add_message(dialog, self.w.sx, AuthorRole.STAFF)
+        self.client.force_login(self.w.sx)
+        content = self.client.get("/profile/").content.decode()
+        self.assertEqual(content.count(">Чаты</a>"), 2)
+
+    def test_staff_chat_other_faculty_not_counted(self):
+        dialog = make_dialog(self.w.ay_profile)
+        add_message(dialog, self.w.ay, AuthorRole.STUDENT)
+        self.client.force_login(self.w.sx)
+        content = self.client.get("/profile/").content.decode()
+        self.assertEqual(content.count(">Чаты</a>"), 2)
+
+    def test_staff_chat_count_cap(self):
+        dialog = make_dialog(self.w.ax_profile)
+        Message.objects.bulk_create(
+            Message(dialog=dialog, author=self.w.ax, author_role=AuthorRole.STUDENT, text=f"m{i}")
+            for i in range(CHAT_BADGE_CAP + 1)
+        )
+        self.client.force_login(self.w.sx)
+        content = self.client.get("/profile/").content.decode()
+        self.assertEqual(content.count(f">Чаты ({CHAT_BADGE_CAP}+)</a>"), 2)
+
+    def test_staff_chat_count_drops_when_colleague_reads(self):
+        sx2 = make_staff("sx2", self.w.fx)
+        dialog = make_dialog(self.w.ax_profile)
+        add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+        self.client.force_login(self.w.sx)
+        self.assertEqual(self.client.get("/profile/").content.decode().count(">Чаты (1)</a>"), 2)
+        other = Client()
+        other.force_login(sx2)
+        self.assertEqual(other.get(f"/staff/chats/{dialog.public_id}/").status_code, 200)
+        self.assertEqual(self.client.get("/profile/").content.decode().count(">Чаты</a>"), 2)
+
+    def test_student_badge_ignores_unread_for_staff(self):
+        dialog = make_dialog(self.w.ax_profile)
+        add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+        self.client.force_login(self.w.ax)
+        content = self.client.get("/profile/").content.decode()
+        self.assertEqual(content.count(">Чат</a>"), 2)
+
+    def test_badge_tag_empty_for_superuser(self):
+        dialog = make_dialog(self.w.ax_profile)
+        add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+        request = RequestFactory().get("/")
+        request.user = self.w.root
+        rendered = Template("{% load chat_tags %}[{% chat_unread_badge %}]").render(
+            RequestContext(request)
+        )
+        self.assertEqual(rendered, "[]")
+
     def test_badge_includes_chat_reply(self):
         dialog = make_dialog(self.w.ax_profile)
         add_message(dialog, self.w.sx, AuthorRole.STAFF)
@@ -716,6 +779,19 @@ class QueryCountTests(FrozenClockMixin, TestCase):
         with self.assertNumQueries(4):
             badge_for_user(user)
             student_unread_count(user)
+
+    def test_staff_page_constant_in_dialogs(self):
+        # TASK-018: the staff badge is one COUNT query, independent of dialogs and messages.
+        self.client.force_login(self.w.sx)
+        add_message(self.dialog, self.w.ax, AuthorRole.STUDENT)
+        one = _query_count(lambda: self.client.get("/profile/"))
+        for i in range(5):
+            student = make_student(f"badge{i}", self.w.gx1, f"REC-B-{i}")
+            d = make_dialog(student.student_profile)
+            add_message(d, student, AuthorRole.STUDENT)
+            add_message(d, student, AuthorRole.STUDENT)
+        six = _query_count(lambda: self.client.get("/profile/"))
+        self.assertEqual(one, six)
 
     def test_header_staff_no_chat_query(self):
         user = User.objects.get(pk=self.w.sx.pk)
