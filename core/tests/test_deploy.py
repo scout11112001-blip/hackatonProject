@@ -320,7 +320,8 @@ class SystemdUnitTests(SimpleTestCase):
             "ProtectControlGroups=true",
             "RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX",
             "CapabilityBoundingSet=",
-            "ReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial",
+            # TASK-016-FIX: "-" skips a missing directory instead of failing the unit.
+            "ReadWritePaths=-/srv/deanery/private_media -/srv/deanery/private_media_trial",
         ):
             self.assertIn(line, lines)
         self.assertNotIn("ProtectSystem=full", lines)

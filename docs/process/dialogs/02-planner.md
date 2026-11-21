@@ -30202,3 +30202,1048 @@ The toggle works by keyboard, login succeeds, no CSP violations. I take a screen
 - **Название кнопки пароля не меняется.** Кнопка всегда называется «Показать пароль», а состояние передаёт `aria-pressed`. Если менять и название, экранный диктор скажет «Скрыть пароль, нажата» — это сбивает с толку. Зрячие пользователи видят состояние по иконке.
 
 После переименования старые заявки этого вида на пробной базе сервера покажут новое название «Справка о поступлении».
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-016-FIX] Team lead -> Planner: TASK
+Approved by the user. Write the spec `docs/tasks/TASK-016-FIX.md` and hand it to the UI coder.
+Assignee: UI coder (thr_pgcwc2dwnn)
+
+## Context
+Non-blocking notes from the TASK-016 and TASK-017 reviews (Reviewer, 21.11) and the Team lead's browser check of TASK-017. Apply your "Feasibility check" and "Test plan" sections.
+
+## Items
+1. `deploy/systemd/deanery.service`: prefix both `ReadWritePaths` entries with `-` so the unit still starts if `private_media_trial` is removed after 2026-11-28 (today a missing path is a namespace setup error); update the deploy test.
+2. CSRF failure page: Django's built-in CSRF failure page uses an inline `<style>`, so under the strict CSP it renders unstyled. Add a themed `templates/403_csrf.html` (same look as our 403 page, Russian text: the form is out of date, go back, reload and try again; no inline code); test that it is used and carries no inline style.
+
+3. Password eye icon (TASK-017, user wants it "beautiful and readable"): today the 12x8 icon reads as a capsule with a square inside (vertical sides 4 px, square pupil), see `docs/process/screenshots/2026-11-21_76_login-password-hidden.jpg`. Redraw both states as a clear almond-shaped eye with pointed corners, a round pupil (and a highlight pixel if it fits), and a clear diagonal slash for the "shown" state; check at 360 px with deviceScaleFactor 1 and 2 that it reads as an eye; keep size, tap target, crispEdges and the tests.
+4. `static/js/password-toggle.js`: a static test that the submit handler resets the field to "password" (`setShown(false)`), the one mutation the Reviewer's run did not catch.
+
+## Accepted as is
+IPv6 keying of the nginx zones by /128: the server has no public IPv6 (checked 20.11), so it does not apply.
+
+── Ran 1 command, explored 1 file ──────────────────────────
+  ── Ran cd ~/hackatonproject; git log --oneline -4; git status --short; ls templates/*.html; cat templates/403.html; cat templates/includes/icon_eye.html templates/includes/icon_eye_off.html; grep -n "CSRF_FAILURE_VIEW" -r config; grep -n "ReadWritePaths" deploy/systemd/deanery.service core/tests/test_deploy.py (2s)
+    $ cd ~/hackatonproject; git log --oneline -4; git status --short; ls templates/*.html; cat templates/403.html; cat templates/includes/icon_eye.html templates/includes/icon_eye_off.html; grep -n "CSRF_FAILURE_VIEW" -r config; grep -n "ReadWritePaths" deploy/systemd/deanery.service core/tests/test_deploy.py
+    30eab5c Plan: TASK-017 on the server
+    e157a7d TASK-017: password visibility toggle, "Документы" wording, "Справка о поступлении"
+    16399ea TASK-016: security hardening from PENTEST-1
+    851b3ee Security: PENTEST-1 reports (two runs) and HTTPS live
+     M plan.md
+    templates/403.html
+    templates/404.html
+    templates/500.html
+    templates/base.html
+    {% extends "base.html" %}
+    {% block title %}Доступ запрещён{% endblock %}
+    {% block content %}
+      <h1>Доступ запрещён</h1>
+      <p>У вас нет доступа к этой странице.</p>
+      <p><a class="btn" href="{% url 'core:home' %}">На главную</a></p>
+    {% endblock %}
+    <svg class="icon-eye" viewBox="0 0 12 8" width="36" height="24" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><g fill="currentColor"><rect x="3" y="0" width="6" height="1"/><rect x="1" y="1" width="2" height="1"/><rect x="9" y="1" width="2" height="1"/><rect x="0" y="2" width="1" height="4"/><rect x="11" y="2" width="1" height="4"/><rect x="4" y="2" width="4" height="4"/><rect x="1" y="6" width="2" height="1"/><rect x="9" y="6" width="2" height="1"/><rect x="3" y="7" width="6" height="1"/></g></svg>
+    <svg class="icon-eye-off" viewBox="0 0 12 8" width="36" height="24" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><g fill="currentColor"><rect x="3" y="0" width="6" height="1"/><rect x="1" y="1" width="2" height="1"/><rect x="9" y="1" width="2" height="1"/><rect x="0" y="2" width="1" height="4"/><rect x="11" y="2" width="1" height="4"/><rect x="1" y="6" width="2" height="1"/><rect x="9" y="6" width="2" height="1"/><rect x="3" y="7" width="6" height="1"/><rect x="0" y="0" width="2" height="1"/><rect x="3" y="2" width="2" height="1"/><rect x="4" y="3" width="2" height="1"/><rect x="6" y="4" width="2" height="1"/><rect x="7" y="5" width="2" height="1"/><rect x="10" y="7" width="2" height="1"/></g></svg>
+    core/tests/test_deploy.py:323:            "ReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial",
+    core/tests/test_deploy.py:327:        self.assertEqual(sum(line.startswith("ReadWritePaths=") for line in lines), 1)
+    deploy/systemd/deanery.service:28:ReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial
+  ── Thought for 2s
+    I'm checking how Django's csrf_failure view picks its template: it looks for "403_csrf.html" in the project's templates first and falls back to the built-in one if that's missing.
+
+    I'm checking whether the CSRF failure page gets the request in its context. The built-in view renders its template from a plain dict, so things like `user` and `request` from context processors may be missing, which could break `base.html`. I want to confirm that in the Django source.
+  ── Read .venv/lib/python3.12/site-packages/django/views/csrf.py
+  ── Thought for 24s
+    I'm checking how Django orders its middleware here, since CSRF's process_view runs after the earlier process_request hooks, and I'm wondering whether the authentication middleware has a process_request at all.
+
+    Next I'm checking that AuthenticationMiddleware's process_request sets request.user before CSRF's process_view runs, so the user is available on the 403 page. Then I'm drafting the Russian 403_csrf template with a short note that the form is out of date and to reload and resubmit.
+
+    Next I'm checking the test for the new 403 page: it should POST to /login/ with CSRF enforced, expect a 403 that renders the 403_csrf template, and confirm the CSP header and stylesheet links are present. I'm also noting that the existing template-policy scan will pick up the new file automatically. Then I'm turning to the systemd unit, where the ReadWritePaths line needs both private media paths prefixed with a dash so they are optional.
+
+    Now I'm weighing whether to redraw the eye icon on a finer grid, since a 12x8 layout makes the almond corners too blunt at 36x24.
+
+    Still working out the pixel-art eye: an 18x12 grid at 2px per cell should give the almond more room than the 12x8 version, with space for a round pupil, a highlight, and the slash.
+
+    Still sketching the almond outline, now trying a taller lens with the top edge at row 1 and the bottom at row 10.
+
+    Now I'm sketching the pupil as a rounded block in the middle of the eye, leaving one cell open so it reads as a highlight.
+
+    I'm checking whether the slash can be drawn as a gap rather than an erase, since the icon is single-colour and I can't paint over the eye.
+
+    Still working out the slash: I'm computing the line from the top-left to the bottom-right corner and marking which eye cells it crosses, then carving a one-cell gap on either side so it reads clearly against the icon.
+
+    I'm rendering the eye icon on a dark background, first at 1x and then at 2x, by loading it as a data URL so I can screenshot it. I'm also deciding whether the slash's gap should be one cell or two to read clearly.
+
+── Assistant ───────────────────────────────────────────────
+Пункт 3 — перерисовать глаз. Генерирую пиксельные иконки скриптом и смотрю их в браузере в реальном размере.
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Ran mkdir -p $TMPDIR/t016fix; cat > $TMPDIR/t016fix/eye.py <<'EOF' import sys W, H = 18, 12 def cells_from(rows):     s=set()     for y,row in enumerate(rows):         for x,ch in enumerate(row):             if ch=="#": s.add((x,y))     return s EYE = [  "..................",  ".......####.......",  ".....##....##.....",  "...##..####..##...",  "..#...#.####..#...",  "##....######....##",  "##....######....##",  "..#...######..#...",  "...##..####..##...",  ".....##....##.....",  ".......####.......",  "..................", ] eye = cells_from(EYE) # slash for the "shown" state: top-left to bottom-right, 2 cells wide, with a 1-cell gap slash=set(); gap=set() for y in range(H):     x = round(1 + y * 15 / 11)     slash |= {(x, y), (x + 1, y)}     gap |= {(x - 1, y), (x + 2, y)} off = (eye - gap - slash) | slash def rects(cells):     out=[]     for y in range(H):         xs=sorted(x for x,yy in cells if yy==y)         i=0         while i<len(xs):             j=i             while j+1<len(xs) and xs[j+1]==xs[j]+1: j+=1             out.append(f'<rect x="{xs[i]}" y="{y}" width="{xs[j]-xs[i]+1}" height="1"/>')             i=j+1     return "".join(out) def svg(cls, cells):     return (f'<svg class="{cls}" viewBox="0 0 {W} {H}" width="36" height="24" shape-rendering="crispEdges" '             f'aria-hidden="true" focusable="false"><g fill="currentColor">{rects(cells)}</g></svg>') open(sys.argv[1]+"/icon_eye.html","w").write(svg("icon-eye", eye)+"\n") open(sys.argv[1]+"/icon_eye_off.html","w").write(svg("icon-eye-off", off)+"\n") for name,c in (("eye",eye),("off",off)):     print(name)     for y in range(H): print("".join("#" if (x,y) in c else "." for x in range(W))) EOF python3 $TMPDIR/t016fix/eye.py $TMPDIR/t016fix
+    $ mkdir -p $TMPDIR/t016fix; cat > $TMPDIR/t016fix/eye.py <<'EOF'
+  import sys
+  W, H = 18, 12
+  def cells_from(rows):
+      s=set()
+      for y,row in enumerate(rows):
+          for x,ch in enumerate(row):
+              if ch=="#": s.add((x,y))
+      return s
+  EYE = [
+   "..................",
+   ".......####.......",
+   ".....##....##.....",
+   "...##..####..##...",
+   "..#...#.####..#...",
+   "##....######....##",
+   "##....######....##",
+   "..#...######..#...",
+   "...##..####..##...",
+   ".....##....##.....",
+   ".......####.......",
+   "..................",
+  ]
+  eye = cells_from(EYE)
+  # slash for the "shown" state: top-left to bottom-right, 2 cells wide, with a 1-cell gap
+  slash=set(); gap=set()
+  for y in range(H):
+      x = round(1 + y * 15 / 11)
+      slash |= {(x, y), (x + 1, y)}
+      gap |= {(x - 1, y), (x + 2, y)}
+  off = (eye - gap - slash) | slash
+  def rects(cells):
+      out=[]
+      for y in range(H):
+          xs=sorted(x for x,yy in cells if yy==y)
+          i=0
+          while i<len(xs):
+              j=i
+              while j+1<len(xs) and xs[j+1]==xs[j]+1: j+=1
+              out.append(f'<rect x="{xs[i]}" y="{y}" width="{xs[j]-xs[i]+1}" height="1"/>')
+              i=j+1
+      return "".join(out)
+  def svg(cls, cells):
+      return (f'<svg class="{cls}" viewBox="0 0 {W} {H}" width="36" height="24" shape-rendering="crispEdges" '
+              f'aria-hidden="true" focusable="false"><g fill="currentColor">{rects(cells)}</g></svg>')
+  open(sys.argv[1]+"/icon_eye.html","w").write(svg("icon-eye", eye)+"\n")
+  open(sys.argv[1]+"/icon_eye_off.html","w").write(svg("icon-eye-off", off)+"\n")
+  for name,c in (("eye",eye),("off",off)):
+      print(name)
+      for y in range(H): print("".join("#" if (x,y) in c else "." for x in range(W)))
+  EOF
+  python3 $TMPDIR/t016fix/eye.py $TMPDIR/t016fix
+    eye
+    ..................
+    .......####.......
+    .....##....##.....
+    ...##..####..##...
+    ..#...#.####..#...
+    ##....######....##
+    ##....######....##
+    ..#...######..#...
+    ...##..####..##...
+    .....##....##.....
+    .......####.......
+    ..................
+    off
+    .##...............
+    ..##...####.......
+    ....##.....##.....
+    ...#.##.###..##...
+    ..#...##.###..#...
+    ##....#.##.#....##
+    ##....##.##.....##
+    ..#...####.##.#...
+    ...##..####.##....
+    .....##....#.##...
+    .......####....##.
+    ................##
+  ── Thought for 1s
+    The eye drawing has a rough draft I need to check: the iris rows seem to sit right under the eyelid, though there's a gap above them that looks clear. The ASCII version reads fine, but the off-center version looks messy, so I want to see it rendered in a browser before deciding what to change.
+
+    I want a thinner slash, one cell wide with a one-cell gap, and a cleaner stair shape. I'll render a few candidates in the browser and compare them.
+  ── Ran cd ~/hackatonproject; bb browser-automation list 2>&1 | tail -3; bb browser-automation open --backend local --machine host_cuvmpv75p3 --headless --json 2>&1 | tail -1 (3s)
+    $ cd ~/hackatonproject; bb browser-automation list 2>&1 | tail -3; bb browser-automation open --backend local --machine host_cuvmpv75p3 --headless --json 2>&1 | tail -1
+    [{"id":"c746c061-20dd-414c-82ba-92564e503d29","threadId":"thr_2imsg4kck2","hostId":"host_cuvmpv75p3","backend":"local","state":"closed","createdAt":1795030119721,"expiresAt":1795031993609},{"id":"f05cf45f-b820-4c43-8f18-ae5889d8db61","threadId":"thr_2imsg4kck2","hostId":"host_cuvmpv75p3","backend":"local","state":"closed","createdAt":1795191514969,"expiresAt":1795193446871},{"id":"f1cdf8c9-db12-40f0-b6db-e28a7a31896c","threadId":"thr_2imsg4kck2","hostId":"host_cuvmpv75p3","backend":"local","state":"closed","createdAt":1795214293931,"expiresAt":1795216111125}]
+    {"id":"23c842f0-384a-4c3c-b235-222d879ac4bc","threadId":"thr_2imsg4kck2","hostId":"host_cuvmpv75p3","backend":"local","state":"ready","createdAt":1795253096011,"expiresAt":1795254896011,"previewDirective":"::browser-preview{session=\"23c842f0-384a-4c3c-b235-222d879ac4bc\"}"}
+
+── Assistant ───────────────────────────────────────────────
+::browser-preview{session="23c842f0-384a-4c3c-b235-222d879ac4bc"}
+
+── Ran 4 commands, explored 2 files ────────────────────────
+  ── Ran D=$TMPDIR/t016fix; cat > $D/gen.py <<'EOF' import sys, json H, W = 12, 18 def cells(rows): return {(x,y) for y,r in enumerate(rows) for x,ch in enumerate(r) if ch=="#"} def rects(c):     out=[]     for y in range(H):         xs=sorted(x for x,yy in c if yy==y); i=0         while i<len(xs):             j=i             while j+1<len(xs) and xs[j+1]==xs[j]+1: j+=1             out.append(f'<rect x="{xs[i]}" y="{y}" width="{xs[j]-xs[i]+1}" height="1"/>'); i=j+1     return "".join(out) def svg(cls,c,w=36,h=24): return f'<svg class="{cls}" viewBox="0 0 {W} {H}" width="{w}" height="{h}" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><g fill="currentColor">{rects(c)}</g></svg>' EYE_A = [  "..................",  "......######......",  "....##......##....",  "..##....##....##..",  ".#.....####.....#.",  "#.....###.##.....#",  "#.....######.....#",  ".#.....####.....#.",  "..##....##....##..",  "....##......##....",  "......######......",  "..................", ] EYE_B = [  "..................",  "......######......",  "....##......##....",  "..##...####...##..",  ".#....##..##....#.",  "#.....#.####.....#",  "#.....######.....#",  ".#....######....#.",  "..##...####...##..",  "....##......##....",  "......######......",  "..................", ] OFF_SLASH = [ (y, x) for y,x in [] ] def off(eye):     e=cells(eye)     # slash from (2,0) to (15,11): one cell per row with a 2-cell step, gap of one cell on each side     sl=set(); gap=set()     for y in range(H):         x=round(2+ y*13/11)         sl|={(x,y),(x+1,y)}         gap|={(x-1,y),(x+2,y)}     return (e-gap-sl)|sl out={} for name,eye in (("A",EYE_A),("B",EYE_B)):     out[name]=(svg("icon-eye",cells(eye)), svg("icon-eye-off",off(eye))) json.dump(out, open(sys.argv[1],"w")) for name,eye in (("A",EYE_A),("B",EYE_B)):     o=off(eye); print(name); [print("".join("#" if (x,y) in o else "." for x in range(W))) for y in range(H)] EOF python3 $D/gen.py $D/icons.json
+    $ D=$TMPDIR/t016fix; cat > $D/gen.py <<'EOF'
+  import sys, json
+  H, W = 12, 18
+  def cells(rows): return {(x,y) for y,r in enumerate(rows) for x,ch in enumerate(r) if ch=="#"}
+  def rects(c):
+      out=[]
+      for y in range(H):
+          xs=sorted(x for x,yy in c if yy==y); i=0
+          while i<len(xs):
+              j=i
+              while j+1<len(xs) and xs[j+1]==xs[j]+1: j+=1
+              out.append(f'<rect x="{xs[i]}" y="{y}" width="{xs[j]-xs[i]+1}" height="1"/>'); i=j+1
+      return "".join(out)
+  def svg(cls,c,w=36,h=24): return f'<svg class="{cls}" viewBox="0 0 {W} {H}" width="{w}" height="{h}" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><g fill="currentColor">{rects(c)}</g></svg>'
+  EYE_A = [
+   "..................",
+   "......######......",
+   "....##......##....",
+   "..##....##....##..",
+   ".#.....####.....#.",
+   "#.....###.##.....#",
+   "#.....######.....#",
+   ".#.....####.....#.",
+   "..##....##....##..",
+   "....##......##....",
+   "......######......",
+   "..................",
+  ]
+  EYE_B = [
+   "..................",
+   "......######......",
+   "....##......##....",
+   "..##...####...##..",
+   ".#....##..##....#.",
+   "#.....#.####.....#",
+   "#.....######.....#",
+   ".#....######....#.",
+   "..##...####...##..",
+   "....##......##....",
+   "......######......",
+   "..................",
+  ]
+  OFF_SLASH = [ (y, x) for y,x in [] ]
+  def off(eye):
+      e=cells(eye)
+      # slash from (2,0) to (15,11): one cell per row with a 2-cell step, gap of one cell on each side
+      sl=set(); gap=set()
+      for y in range(H):
+          x=round(2+ y*13/11)
+          sl|={(x,y),(x+1,y)}
+          gap|={(x-1,y),(x+2,y)}
+      return (e-gap-sl)|sl
+  out={}
+  for name,eye in (("A",EYE_A),("B",EYE_B)):
+      out[name]=(svg("icon-eye",cells(eye)), svg("icon-eye-off",off(eye)))
+  json.dump(out, open(sys.argv[1],"w"))
+  for name,eye in (("A",EYE_A),("B",EYE_B)):
+      o=off(eye); print(name); [print("".join("#" if (x,y) in o else "." for x in range(W))) for y in range(H)]
+  EOF
+  python3 $D/gen.py $D/icons.json
+    A
+    ..##..............
+    ...##.######......
+    ....##......##....
+    ..##..##.#....##..
+    .#.....##.#.....#.
+    #.....#.##.#.....#
+    #.....##.##......#
+    .#.....##.##....#.
+    ..##....##.##.##..
+    ....##.......##...
+    ......######..##..
+    ...............##.
+    B
+    ..##..............
+    ...##.######......
+    ....##......##....
+    ..##..##.##...##..
+    .#.....##.##....#.
+    #.....#.##.#.....#
+    #.....##.##......#
+    .#....###.##....#.
+    ..##...###.##.##..
+    ....##.......##...
+    ......######..##..
+    ...............##.
+  ── Thought for 2s
+    I'm weighing whether the slash through the pupil is what's making the eye look messy, and whether a stair-stepped 45° diagonal on a square grid would read better than the current shape. I'll render both versions in the browser to compare them side by side.
+
+    I'm working out the cell coordinates for a 45° diagonal, where each row shifts the slash one column, and picking the neighboring gap cells on either side. I'll render two off-eye variants to compare: a 2-wide slope and a 1-wide 45° line with gaps.
+  ── Ran D=$TMPDIR/t016fix; cat >> $D/gen.py <<'EOF' def off45(eye, width):     e=cells(eye); sl=set(); gap=set()     for y in range(H):         x=3+y         sl|={(x+k,y) for k in range(width)}         gap|={(x-1,y),(x+width,y)}     return (e-gap-sl)|sl for name,eye in (("A",EYE_A),("B",EYE_B)):     for wdt in (1,2):         out[f"{name}45w{wdt}"]=(svg("icon-eye",cells(eye)), svg("icon-eye-off",off45(eye,wdt))) json.dump(out, open(sys.argv[1],"w")) EOF python3 $D/gen.py $D/icons.json > /dev/null; python3 - <<EOF import json d=json.load(open("$D/icons.json")) cards="" for k,(a,b) in d.items():     cards+=f'<div class="card"><p>{k}</p><button class="t">{a}</button><button class="t">{b}</button></div>' html=f'''<!doctype html><html><head><style> body{{background:#120a2a;color:#f3ecff;font:14px sans-serif;margin:8px}} .card{{display:inline-block;margin:6px;padding:6px;border:1px solid #5a3fa3}} .t{{width:62px;height:44px;background:rgba(36,22,78,.88);color:#f3ecff;border:3px solid #5a3fa3;display:inline-flex;align-items:center;justify-content:center;margin:2px}} </style></head><body>{cards}</body></html>''' open("$D/preview.html","w").write(html) print(len(html)) EOF cat > $D/prev.js <<EOF const page = await browser.getPage("main"); const html = $(python3 -c "import json;print(json.dumps(open('$D/preview.html').read()))"); await page.setViewport({width: 360, height: 400, deviceScaleFactor: 1}); await page.setContent(html, {waitUntil: "load"}); return "ok"; EOF cd ~/hackatonproject; bb browser-automation run 23c842f0-384a-4c3c-b235-222d879ac4bc --script-file $D/prev.js --script-host host_cuvmpv75p3 --timeout 30s >/dev/null && bb browser-automation screenshot 23c842f0-384a-4c3c-b235-222d879ac4bc --json | python3 -c "import sys,json; print(json.load(sys.stdin)['images'][0]['path'])" (2s)
+    $ D=$TMPDIR/t016fix; cat >> $D/gen.py <<'EOF'
+
+  def off45(eye, width):
+      e=cells(eye); sl=set(); gap=set()
+      for y in range(H):
+          x=3+y
+          sl|={(x+k,y) for k in range(width)}
+          gap|={(x-1,y),(x+width,y)}
+      return (e-gap-sl)|sl
+  for name,eye in (("A",EYE_A),("B",EYE_B)):
+      for wdt in (1,2):
+          out[f"{name}45w{wdt}"]=(svg("icon-eye",cells(eye)), svg("icon-eye-off",off45(eye,wdt)))
+  json.dump(out, open(sys.argv[1],"w"))
+  EOF
+  python3 $D/gen.py $D/icons.json > /dev/null; python3 - <<EOF
+  import json
+  d=json.load(open("$D/icons.json"))
+  cards=""
+  for k,(a,b) in d.items():
+      cards+=f'<div class="card"><p>{k}</p><button class="t">{a}</button><button class="t">{b}</button></div>'
+  html=f'''<!doctype html><html><head><style>
+  body{{background:#120a2a;color:#f3ecff;font:14px sans-serif;margin:8px}}
+  .card{{display:inline-block;margin:6px;padding:6px;border:1px solid #5a3fa3}}
+  .t{{width:62px;height:44px;background:rgba(36,22,78,.88);color:#f3ecff;border:3px solid #5a3fa3;display:inline-flex;align-items:center;justify-content:center;margin:2px}}
+  </style></head><body>{cards}</body></html>'''
+  open("$D/preview.html","w").write(html)
+  print(len(html))
+  EOF
+  cat > $D/prev.js <<EOF
+  const page = await browser.getPage("main");
+  const html = $(python3 -c "import json;print(json.dumps(open('$D/preview.html').read()))");
+  await page.setViewport({width: 360, height: 400, deviceScaleFactor: 1});
+  await page.setContent(html, {waitUntil: "load"});
+  return "ok";
+  EOF
+  cd ~/hackatonproject; bb browser-automation run 23c842f0-384a-4c3c-b235-222d879ac4bc --script-file $D/prev.js --script-host host_cuvmpv75p3 --timeout 30s >/dev/null && bb browser-automation screenshot 23c842f0-384a-4c3c-b235-222d879ac4bc --json | python3 -c "import sys,json; print(json.load(sys.stdin)['images'][0]['path'])"
+    17673
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-1ZG3ZS/db-L7sDnj/tmp/shot-1795253120736-1.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-1ZG3ZS/db-L7sDnj/tmp/shot-1795253120736-1.jpg
+  ── Thought for 877ms
+    I'm checking how the ring-iris icon with a highlight reads at small size, where it looks like an eye but the pupil looks like a filled diamond. To judge it properly I'll render the icons at a larger size in a separate preview, since a screenshot at higher device pixel ratio won't help here.
+
+    The pixel-level inspection is the step that matters here, so I'm rendering the icons enlarged in a separate preview rather than relying on a screenshot.
+  ── Ran D=$TMPDIR/t016fix; python3 - <<EOF import json d=json.load(open("$D/icons.json")) cards="" for k in ("A","B","B45w1","B45w2"):     a,b=d[k]     a=a.replace('width="36" height="24"','width="108" height="72"'); b=b.replace('width="36" height="24"','width="108" height="72"')     cards+=f'<div class="card"><p>{k}</p>{a}{b}</div>' open("$D/zoom.html","w").write(f'<!doctype html><html><head><style>body{{background:#24164e;color:#f3ecff;font:12px sans-serif;margin:4px}}.card{{display:inline-block;margin:2px}}p{{margin:0}}</style></head><body>{cards}</body></html>') EOF cat > $D/zoom.js <<EOF const page = await browser.getPage("main"); await page.setViewport({width: 480, height: 400, deviceScaleFactor: 1}); await page.setContent($(python3 -c "import json;print(json.dumps(open('$D/zoom.html').read()))"), {waitUntil: "load"}); return "ok"; EOF cd ~/hackatonproject; bb browser-automation run 23c842f0-384a-4c3c-b235-222d879ac4bc --script-file $D/zoom.js --script-host host_cuvmpv75p3 --timeout 30s >/dev/null && bb browser-automation screenshot 23c842f0-384a-4c3c-b235-222d879ac4bc --json | python3 -c "import sys,json; print(json.load(sys.stdin)['images'][0]['path'])" (2s)
+    $ D=$TMPDIR/t016fix; python3 - <<EOF
+  import json
+  d=json.load(open("$D/icons.json"))
+  cards=""
+  for k in ("A","B","B45w1","B45w2"):
+      a,b=d[k]
+      a=a.replace('width="36" height="24"','width="108" height="72"'); b=b.replace('width="36" height="24"','width="108" height="72"')
+      cards+=f'<div class="card"><p>{k}</p>{a}{b}</div>'
+  open("$D/zoom.html","w").write(f'<!doctype html><html><head><style>body{{background:#24164e;color:#f3ecff;font:12px sans-serif;margin:4px}}.card{{display:inline-block;margin:2px}}p{{margin:0}}</style></head><body>{cards}</body></html>')
+  EOF
+  cat > $D/zoom.js <<EOF
+  const page = await browser.getPage("main");
+  await page.setViewport({width: 480, height: 400, deviceScaleFactor: 1});
+  await page.setContent($(python3 -c "import json;print(json.dumps(open('$D/zoom.html').read()))"), {waitUntil: "load"});
+  return "ok";
+  EOF
+  cd ~/hackatonproject; bb browser-automation run 23c842f0-384a-4c3c-b235-222d879ac4bc --script-file $D/zoom.js --script-host host_cuvmpv75p3 --timeout 30s >/dev/null && bb browser-automation screenshot 23c842f0-384a-4c3c-b235-222d879ac4bc --json | python3 -c "import sys,json; print(json.load(sys.stdin)['images'][0]['path'])"
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-1ZG3ZS/db-L7sDnj/tmp/shot-1795253131570-2.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-1ZG3ZS/db-L7sDnj/tmp/shot-1795253131570-2.jpg
+  ── Thought for 4s
+    The open eye with its round pupil and highlight works well, but the crossed versions get cluttered where the slash runs over the pupil. I'm considering an eye-off design instead: a diagonal slash with a gap on either side, and the pupil partly hidden behind it.
+
+    I'm weighing whether the off state should keep the pupil at all. If I fill it solid, the gaps split it into two pieces that might just read as hatching. Dropping the pupil entirely would leave a clean almond outline with a slash, though many icon sets keep it. I'll render both the outline-only version and the solid-pupil version to compare.
+  ── Ran D=$TMPDIR/t016fix; cat >> $D/gen.py <<'EOF' OUTLINE = [r[:6] + "".join("." for _ in r[6:12]) + r[12:] if 3 <= i <= 8 else r for i, r in enumerate(EYE_B)] FULL = [r.replace("##..##", "######").replace("#.####", "######") for r in EYE_B] for name, eye in (("E_outline", OUTLINE), ("C_full", FULL)):     for wdt in (1, 2):         out[f"{name}w{wdt}"] = (svg("icon-eye", cells(EYE_B)), svg("icon-eye-off", off45(eye, wdt))) json.dump(out, open(sys.argv[1], "w")) for name, eye in (("E_outline", OUTLINE), ("C_full", FULL)):     o = off45(eye, 2); print(name); [print("".join("#" if (x, y) in o else "." for x in range(W))) for y in range(H)] EOF python3 $D/gen.py $D/icons.json | tail -26; python3 - <<EOF import json d=json.load(open("$D/icons.json")) big=""; small="" for k in ("B","E_outlinew1","E_outlinew2","C_fullw1","C_fullw2"):     a,b=d[k]     big+=f'<div class="card"><p>{k}</p>'+a.replace('width="36" height="24"','width="108" height="72"')+b.replace('width="36" height="24"','width="108" height="72"')+'</div>'     small+=f'<span class="t">{a}</span><span class="t">{b}</span> ' open("$D/zoom2.html","w").write(f'<!doctype html><html><head><style>body{{background:#24164e;color:#f3ecff;font:12px sans-serif;margin:4px}}.card{{display:inline-block;margin:2px}}p{{margin:0}}.t{{display:inline-flex;width:56px;height:38px;align-items:center;justify-content:center;border:3px solid #5a3fa3;margin:2px}}</style></head><body>{big}<div>{small}</div></body></html>') EOF cat > $D/zoom2.js <<EOF const page = await browser.getPage("main"); await page.setViewport({width: 480, height: 420, deviceScaleFactor: 1}); await page.setContent($(python3 -c "import json;print(json.dumps(open('$D/zoom2.html').read()))"), {waitUntil: "load"}); return "ok"; EOF cd ~/hackatonproject; bb browser-automation run 23c842f0-384a-4c3c-b235-222d879ac4bc --script-file $D/zoom2.js --script-host host_cuvmpv75p3 --timeout 30s >/dev/null && bb browser-automation screenshot 23c842f0-384a-4c3c-b235-222d879ac4bc --json | python3 -c "import sys,json; print(json.load(sys.stdin)['images'][0]['path'])" (2s)
+    $ D=$TMPDIR/t016fix; cat >> $D/gen.py <<'EOF'
+
+  OUTLINE = [r[:6] + "".join("." for _ in r[6:12]) + r[12:] if 3 <= i <= 8 else r for i, r in enumerate(EYE_B)]
+  FULL = [r.replace("##..##", "######").replace("#.####", "######") for r in EYE_B]
+  for name, eye in (("E_outline", OUTLINE), ("C_full", FULL)):
+      for wdt in (1, 2):
+          out[f"{name}w{wdt}"] = (svg("icon-eye", cells(EYE_B)), svg("icon-eye-off", off45(eye, wdt)))
+  json.dump(out, open(sys.argv[1], "w"))
+  for name, eye in (("E_outline", OUTLINE), ("C_full", FULL)):
+      o = off45(eye, 2); print(name); [print("".join("#" if (x, y) in o else "." for x in range(W))) for y in range(H)]
+  EOF
+  python3 $D/gen.py $D/icons.json | tail -26; python3 - <<EOF
+  import json
+  d=json.load(open("$D/icons.json"))
+  big=""; small=""
+  for k in ("B","E_outlinew1","E_outlinew2","C_fullw1","C_fullw2"):
+      a,b=d[k]
+      big+=f'<div class="card"><p>{k}</p>'+a.replace('width="36" height="24"','width="108" height="72"')+b.replace('width="36" height="24"','width="108" height="72"')+'</div>'
+      small+=f'<span class="t">{a}</span><span class="t">{b}</span> '
+  open("$D/zoom2.html","w").write(f'<!doctype html><html><head><style>body{{background:#24164e;color:#f3ecff;font:12px sans-serif;margin:4px}}.card{{display:inline-block;margin:2px}}p{{margin:0}}.t{{display:inline-flex;width:56px;height:38px;align-items:center;justify-content:center;border:3px solid #5a3fa3;margin:2px}}</style></head><body>{big}<div>{small}</div></body></html>')
+  EOF
+  cat > $D/zoom2.js <<EOF
+  const page = await browser.getPage("main");
+  await page.setViewport({width: 480, height: 420, deviceScaleFactor: 1});
+  await page.setContent($(python3 -c "import json;print(json.dumps(open('$D/zoom2.html').read()))"), {waitUntil: "load"});
+  return "ok";
+  EOF
+  cd ~/hackatonproject; bb browser-automation run 23c842f0-384a-4c3c-b235-222d879ac4bc --script-file $D/zoom2.js --script-host host_cuvmpv75p3 --timeout 30s >/dev/null && bb browser-automation screenshot 23c842f0-384a-4c3c-b235-222d879ac4bc --json | python3 -c "import sys,json; print(json.load(sys.stdin)['images'][0]['path'])"
+    E_outline
+    ...##.............
+    ....##.#####......
+    .....##.....##....
+    ..##..##......##..
+    .#.....##.......#.
+    #.......##.......#
+    #........##......#
+    .#........##....#.
+    ..##.......##.##..
+    ....##......##....
+    ......######.##...
+    ..............##..
+    C_full
+    ...##.............
+    ....##.#####......
+    .....##.....##....
+    ..##..##.##...##..
+    .#.....##.##....#.
+    #.....#.##.#.....#
+    #.....##.##......#
+    .#....###.##....#.
+    ..##...###.##.##..
+    ....##......##....
+    ......######.##...
+    ..............##..
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-1ZG3ZS/db-L7sDnj/tmp/shot-1795253149322-3.jpg
+  ── Thought for 21ms
+    The full replacement didn't take: the C_full result is identical to B. I'll check the screenshot to see what's actually on screen.
+
+── Assistant ───────────────────────────────────────────────
+Подбираю рисунок перечёркнутого глаза: смотрю варианты в увеличении и в реальном размере.
+
+── Explored 2 files, ran 1 command ─────────────────────────
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-1ZG3ZS/db-L7sDnj/tmp/shot-1795253149322-3.jpg
+  ── Thought for 8s
+    I'm weighing whether a crossed-out eye with a clean two-pixel slash reads clearly at actual size, even though the slash breaks the outline in places. I'm also wondering if people would expect the crossed eye to still show a pupil, and I'm sorting out the order of the small icon variants in the first row.
+
+    I'm settling on the outline eye with the clean two-pixel slash as the "off" state, since it stays readable at actual size. I'm reasoning that it still works without a pupil, the way common eye-off icons do, and I'll keep the 36x24 size while changing the viewBox to 18x12. I'll also need to check how it renders at 2x density on the login page later.
+
+    I'm checking that the pupil and highlight in the filled eye read correctly in the zoomed view. Next I'll set up the prototype copy at that commit with all four items and test the login page at 1x and 2x density.
+  ── Thought for 5ms
+    Выбрала открытый глаз (миндалевидный контур, круглый зрачок с бликом) и закрытый (контур с диагональю в две клетки, без зрачка). Сейчас собираю прототип всех четырёх пунктов на копии HEAD.
+  ── Ran set -e; D=$TMPDIR/t016fix; C=$TMPDIR/t016fixc; rm -rf $C; mkdir -p $C; cd ~/hackatonproject; git archive HEAD | tar -x -C $C; cat >> $D/gen.py <<'EOF' if len(sys.argv) > 2:     target = sys.argv[2]     open(target + "/icon_eye.html", "w").write(svg("icon-eye", cells(EYE_B)) + "\n")     open(target + "/icon_eye_off.html", "w").write(svg("icon-eye-off", off45(OUTLINE, 2)) + "\n") EOF python3 $D/gen.py $D/icons.json $C/templates/includes > /dev/null; cat $C/templates/includes/icon_eye.html $C/templates/includes/icon_eye_off.html; cd $C; python3 - <<'EOF' import pathlib def sub(path, old, new, count=1):     p=pathlib.Path(path); t=p.read_text(); assert t.count(old)==count,(path,old[:70],t.count(old)); p.write_text(t.replace(old,new)) sub("deploy/systemd/deanery.service", "ReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial\n",     "# \"-\": a missing directory (e.g. private_media_trial removed after 2026-11-28) is skipped.\nReadWritePaths=-/srv/deanery/private_media -/srv/deanery/private_media_trial\n") sub("core/tests/test_deploy.py", '            "ReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial",\n',     '            # TASK-016-FIX: "-" skips a missing directory instead of failing the unit.\n            "ReadWritePaths=-/srv/deanery/private_media -/srv/deanery/private_media_trial",\n') pathlib.Path("templates/403_csrf.html").write_text('''{% extends "base.html" %} {% block title %}Форма устарела{% endblock %} {% block content %}   <h1>Форма устарела</h1>   <p>Данные формы не приняты: страница была открыта слишком давно или браузер не сохранил cookie.</p>   <p>Вернитесь назад, обновите страницу и отправьте форму ещё раз.</p>   <p><a class="btn" href="{% url 'core:home' %}">На главную</a></p> {% endblock %} ''') EOF grep -n "ReadWritePaths" deploy/systemd/deanery.service docs/DEPLOY.md | head; grep -n "def setShown\|submit" static/js/password-toggle.js
+    $ set -e; D=$TMPDIR/t016fix; C=$TMPDIR/t016fixc; rm -rf $C; mkdir -p $C; cd ~/hackatonproject; git archive HEAD | tar -x -C $C; cat >> $D/gen.py <<'EOF'
+
+  if len(sys.argv) > 2:
+      target = sys.argv[2]
+      open(target + "/icon_eye.html", "w").write(svg("icon-eye", cells(EYE_B)) + "\n")
+      open(target + "/icon_eye_off.html", "w").write(svg("icon-eye-off", off45(OUTLINE, 2)) + "\n")
+  EOF
+  python3 $D/gen.py $D/icons.json $C/templates/includes > /dev/null; cat $C/templates/includes/icon_eye.html $C/templates/includes/icon_eye_off.html; cd $C; python3 - <<'EOF'
+  import pathlib
+  def sub(path, old, new, count=1):
+      p=pathlib.Path(path); t=p.read_text(); assert t.count(old)==count,(path,old[:70],t.count(old)); p.write_text(t.replace(old,new))
+  sub("deploy/systemd/deanery.service", "ReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial\n",
+      "# \"-\": a missing directory (e.g. private_media_trial removed after 2026-11-28) is skipped.\nReadWritePaths=-/srv/deanery/private_media -/srv/deanery/private_media_trial\n")
+  sub("core/tests/test_deploy.py", '            "ReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial",\n',
+      '            # TASK-016-FIX: "-" skips a missing directory instead of failing the unit.\n            "ReadWritePaths=-/srv/deanery/private_media -/srv/deanery/private_media_trial",\n')
+  pathlib.Path("templates/403_csrf.html").write_text('''{% extends "base.html" %}
+  {% block title %}Форма устарела{% endblock %}
+  {% block content %}
+    <h1>Форма устарела</h1>
+    <p>Данные формы не приняты: страница была открыта слишком давно или браузер не сохранил cookie.</p>
+    <p>Вернитесь назад, обновите страницу и отправьте форму ещё раз.</p>
+    <p><a class="btn" href="{% url 'core:home' %}">На главную</a></p>
+  {% endblock %}
+  ''')
+  EOF
+  grep -n "ReadWritePaths" deploy/systemd/deanery.service docs/DEPLOY.md | head; grep -n "def setShown\|submit" static/js/password-toggle.js
+    <svg class="icon-eye" viewBox="0 0 18 12" width="36" height="24" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><g fill="currentColor"><rect x="6" y="1" width="6" height="1"/><rect x="4" y="2" width="2" height="1"/><rect x="12" y="2" width="2" height="1"/><rect x="2" y="3" width="2" height="1"/><rect x="7" y="3" width="4" height="1"/><rect x="14" y="3" width="2" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="6" y="4" width="2" height="1"/><rect x="10" y="4" width="2" height="1"/><rect x="16" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="8" y="5" width="4" height="1"/><rect x="17" y="5" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/><rect x="6" y="6" width="6" height="1"/><rect x="17" y="6" width="1" height="1"/><rect x="1" y="7" width="1" height="1"/><rect x="6" y="7" width="6" height="1"/><rect x="16" y="7" width="1" height="1"/><rect x="2" y="8" width="2" height="1"/><rect x="7" y="8" width="4" height="1"/><rect x="14" y="8" width="2" height="1"/><rect x="4" y="9" width="2" height="1"/><rect x="12" y="9" width="2" height="1"/><rect x="6" y="10" width="6" height="1"/></g></svg>
+    <svg class="icon-eye-off" viewBox="0 0 18 12" width="36" height="24" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><g fill="currentColor"><rect x="3" y="0" width="2" height="1"/><rect x="4" y="1" width="2" height="1"/><rect x="7" y="1" width="5" height="1"/><rect x="5" y="2" width="2" height="1"/><rect x="12" y="2" width="2" height="1"/><rect x="2" y="3" width="2" height="1"/><rect x="6" y="3" width="2" height="1"/><rect x="14" y="3" width="2" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="7" y="4" width="2" height="1"/><rect x="16" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="8" y="5" width="2" height="1"/><rect x="17" y="5" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/><rect x="9" y="6" width="2" height="1"/><rect x="17" y="6" width="1" height="1"/><rect x="1" y="7" width="1" height="1"/><rect x="10" y="7" width="2" height="1"/><rect x="16" y="7" width="1" height="1"/><rect x="2" y="8" width="2" height="1"/><rect x="11" y="8" width="2" height="1"/><rect x="14" y="8" width="2" height="1"/><rect x="4" y="9" width="2" height="1"/><rect x="12" y="9" width="2" height="1"/><rect x="6" y="10" width="6" height="1"/><rect x="13" y="10" width="2" height="1"/><rect x="14" y="11" width="2" height="1"/></g></svg>
+    deploy/systemd/deanery.service:29:ReadWritePaths=-/srv/deanery/private_media -/srv/deanery/private_media_trial
+    20:      input.form.addEventListener("submit", function () {
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 4ms
+    I'm checking the eye outline's right side on row 8, where the lid and slash sit at x14-15 and x11-12, and that looks fine. The top edge on row 1 has a gap at x6 because of the slash, which is also acceptable. Next I want to look at how the submit handler is written now, since the UI coder may have changed it, so I'll read the file.
+  ── Read static/js/password-toggle.js
+
+── Assistant ───────────────────────────────────────────────
+Пишу тесты для пунктов 2–4 и прогоняю всё на копии.
+
+── Ran 3 commands ──────────────────────────────────────────
+  ── Ran set -e; C=$TMPDIR/t016fixc; cd $C; sed -n 1,20p core/tests/test_errors.py; python3 - <<'EOF' import pathlib def sub(path, old, new, count=1):     p=pathlib.Path(path); t=p.read_text(); assert t.count(old)==count,(path,old[:70],t.count(old)); p.write_text(t.replace(old,new)) sub("accounts/tests/test_login_page.py", '''    def test_css(self):''', '''    def test_submit_resets_to_password(self):         # TASK-016-FIX: the submit handler must call setShown(false) (Reviewer's missed mutation).         js = (BASE / "static/js/password-toggle.js").read_text(encoding="utf-8")         match = re.search(             r'input\\.form\\.addEventListener\\(\\s*"submit",\\s*function\\s*\\(\\)\\s*\\{(.*?)\\}\\s*\\);',             js,             re.DOTALL,         )         self.assertIsNotNone(match)         self.assertEqual(match.group(1).strip(), "setShown(false);")         setter = re.search(r"function setShown\\(shown\\)\\s*\\{(.*?)\\n    \\}", js, re.DOTALL)         self.assertIsNotNone(setter)         self.assertIn('input.type = shown ? "text" : "password";', setter.group(1))     def test_css(self):''') sub("accounts/tests/test_login_page.py", '''    def test_icons(self):         for name in ("icon_eye.html", "icon_eye_off.html"):             svg = (BASE / "templates/includes" / name).read_text(encoding="utf-8")''', '''    def test_icons(self):         for name in ("icon_eye.html", "icon_eye_off.html"):             svg = (BASE / "templates/includes" / name).read_text(encoding="utf-8")             # TASK-016-FIX: 18 x 12 grid drawn at 36 x 24 CSS px (2 px per cell).             self.assertIn('viewBox="0 0 18 12" width="36" height="24"', svg)''') EOF python3 - <<'EOF' import pathlib p=pathlib.Path("accounts/tests/test_login_page.py"); t=p.read_text() t=t.rstrip("\n")+''' class EyeIconDrawingTests(SimpleTestCase):     """TASK-016-FIX: an almond eye with a round pupil; the "shown" state is crossed out."""     @staticmethod     def _cells(name):         svg = (BASE / "templates/includes" / name).read_text(encoding="utf-8")         cells = set()         for x, y, w, h in re.findall(             r'<rect x="(\\d+)" y="(\\d+)" width="(\\d+)" height="(\\d+)"/>', svg         ):             for dx in range(int(w)):                 for dy in range(int(h)):                     cells.add((int(x) + dx, int(y) + dy))         return cells     def test_open_eye_shape(self):         cells = self._cells("icon_eye.html")         # Pointed corners: the outermost columns hold only the two middle rows.         self.assertEqual({y for x, y in cells if x == 0}, {5, 6})         self.assertEqual({y for x, y in cells if x == 17}, {5, 6})         # Symmetric lids: the outline is mirrored left/right.         outline = {(x, y) for x, y in cells if x < 6 or x > 11 or y in (1, 10)}         self.assertEqual(outline, {(17 - x, y) for x, y in outline})         # Round pupil: 4 wide at the top and bottom rows, 6 wide in the middle, a highlight gap.         pupil = {(x, y) for x, y in cells if 6 <= x <= 11 and 3 <= y <= 8}         self.assertEqual({x for x, y in pupil if y == 3}, {7, 8, 9, 10})         self.assertEqual({x for x, y in pupil if y == 8}, {7, 8, 9, 10})         self.assertEqual({x for x, y in pupil if y in (6, 7)}, set(range(6, 12)))         self.assertLess(len(pupil), 32)  # not a filled square: the highlight is empty     def test_crossed_eye_has_diagonal(self):         cells = self._cells("icon_eye_off.html")         for y in range(12):             self.assertIn((3 + y, y), cells, y)             self.assertIn((4 + y, y), cells, y)             self.assertNotIn((2 + y, y), cells, y)             self.assertNotIn((5 + y, y), cells, y)         # The same pointed corners as the open eye.         self.assertEqual({y for x, y in cells if x == 0}, {5, 6})         self.assertEqual({y for x, y in cells if x == 17}, {5, 6}) ''' p.write_text(t+"\n") EOF python3 - <<'EOF' import pathlib p=pathlib.Path("core/tests/test_errors.py"); t=p.read_text() t=t.rstrip("\n")+''' class CsrfFailurePageTests(TestCase):     """TASK-016-FIX: a themed CSRF failure page instead of Django's page with inline CSS."""     def test_csrf_failure_uses_project_template(self):         client = Client(enforce_csrf_checks=True)         response = client.post(reverse("accounts:login"), {"username": "a", "password": "b"})         self.assertEqual(response.status_code, 403)         self.assertTemplateUsed(response, "403_csrf.html")         self.assertTemplateUsed(response, "base.html")         content = response.content.decode()         self.assertIn("<h1>Форма устарела</h1>", content)         self.assertIn("Вернитесь назад, обновите страницу и отправьте форму ещё раз.", content)         self.assertIn('href="/static/css/theme.css"', content)         self.assertNotIn("<style", content)         self.assertNotIn("CSRF", content)         self.assertIn("Content-Security-Policy", response)     def test_template_has_no_inline_code(self):         text = (Path(settings.BASE_DIR) / "templates" / "403_csrf.html").read_text(encoding="utf-8")         for forbidden in ("<style", "style=", "<script", " on"):             self.assertNotIn(forbidden, text) ''' p.write_text(t+"\n") EOF head -12 core/tests/test_errors.py
+    $ set -e; C=$TMPDIR/t016fixc; cd $C; sed -n 1,20p core/tests/test_errors.py; python3 - <<'EOF'
+  import pathlib
+  def sub(path, old, new, count=1):
+      p=pathlib.Path(path); t=p.read_text(); assert t.count(old)==count,(path,old[:70],t.count(old)); p.write_text(t.replace(old,new))
+  sub("accounts/tests/test_login_page.py", '''    def test_css(self):''', '''    def test_submit_resets_to_password(self):
+          # TASK-016-FIX: the submit handler must call setShown(false) (Reviewer's missed mutation).
+          js = (BASE / "static/js/password-toggle.js").read_text(encoding="utf-8")
+          match = re.search(
+              r'input\\.form\\.addEventListener\\(\\s*"submit",\\s*function\\s*\\(\\)\\s*\\{(.*?)\\}\\s*\\);',
+              js,
+              re.DOTALL,
+          )
+          self.assertIsNotNone(match)
+          self.assertEqual(match.group(1).strip(), "setShown(false);")
+          setter = re.search(r"function setShown\\(shown\\)\\s*\\{(.*?)\\n    \\}", js, re.DOTALL)
+          self.assertIsNotNone(setter)
+          self.assertIn('input.type = shown ? "text" : "password";', setter.group(1))
+
+      def test_css(self):''')
+  sub("accounts/tests/test_login_page.py", '''    def test_icons(self):
+          for name in ("icon_eye.html", "icon_eye_off.html"):
+              svg = (BASE / "templates/includes" / name).read_text(encoding="utf-8")''', '''    def test_icons(self):
+          for name in ("icon_eye.html", "icon_eye_off.html"):
+              svg = (BASE / "templates/includes" / name).read_text(encoding="utf-8")
+              # TASK-016-FIX: 18 x 12 grid drawn at 36 x 24 CSS px (2 px per cell).
+              self.assertIn('viewBox="0 0 18 12" width="36" height="24"', svg)''')
+  EOF
+  python3 - <<'EOF'
+  import pathlib
+  p=pathlib.Path("accounts/tests/test_login_page.py"); t=p.read_text()
+  t=t.rstrip("\n")+'''
+
+
+  class EyeIconDrawingTests(SimpleTestCase):
+      """TASK-016-FIX: an almond eye with a round pupil; the "shown" state is crossed out."""
+
+      @staticmethod
+      def _cells(name):
+          svg = (BASE / "templates/includes" / name).read_text(encoding="utf-8")
+          cells = set()
+          for x, y, w, h in re.findall(
+              r'<rect x="(\\d+)" y="(\\d+)" width="(\\d+)" height="(\\d+)"/>', svg
+          ):
+              for dx in range(int(w)):
+                  for dy in range(int(h)):
+                      cells.add((int(x) + dx, int(y) + dy))
+          return cells
+
+      def test_open_eye_shape(self):
+          cells = self._cells("icon_eye.html")
+          # Pointed corners: the outermost columns hold only the two middle rows.
+          self.assertEqual({y for x, y in cells if x == 0}, {5, 6})
+          self.assertEqual({y for x, y in cells if x == 17}, {5, 6})
+          # Symmetric lids: the outline is mirrored left/right.
+          outline = {(x, y) for x, y in cells if x < 6 or x > 11 or y in (1, 10)}
+          self.assertEqual(outline, {(17 - x, y) for x, y in outline})
+          # Round pupil: 4 wide at the top and bottom rows, 6 wide in the middle, a highlight gap.
+          pupil = {(x, y) for x, y in cells if 6 <= x <= 11 and 3 <= y <= 8}
+          self.assertEqual({x for x, y in pupil if y == 3}, {7, 8, 9, 10})
+          self.assertEqual({x for x, y in pupil if y == 8}, {7, 8, 9, 10})
+          self.assertEqual({x for x, y in pupil if y in (6, 7)}, set(range(6, 12)))
+          self.assertLess(len(pupil), 32)  # not a filled square: the highlight is empty
+
+      def test_crossed_eye_has_diagonal(self):
+          cells = self._cells("icon_eye_off.html")
+          for y in range(12):
+              self.assertIn((3 + y, y), cells, y)
+              self.assertIn((4 + y, y), cells, y)
+              self.assertNotIn((2 + y, y), cells, y)
+              self.assertNotIn((5 + y, y), cells, y)
+          # The same pointed corners as the open eye.
+          self.assertEqual({y for x, y in cells if x == 0}, {5, 6})
+          self.assertEqual({y for x, y in cells if x == 17}, {5, 6})
+  '''
+  p.write_text(t+"\n")
+  EOF
+  python3 - <<'EOF'
+  import pathlib
+  p=pathlib.Path("core/tests/test_errors.py"); t=p.read_text()
+  t=t.rstrip("\n")+'''
+
+
+  class CsrfFailurePageTests(TestCase):
+      """TASK-016-FIX: a themed CSRF failure page instead of Django's page with inline CSS."""
+
+      def test_csrf_failure_uses_project_template(self):
+          client = Client(enforce_csrf_checks=True)
+          response = client.post(reverse("accounts:login"), {"username": "a", "password": "b"})
+          self.assertEqual(response.status_code, 403)
+          self.assertTemplateUsed(response, "403_csrf.html")
+          self.assertTemplateUsed(response, "base.html")
+          content = response.content.decode()
+          self.assertIn("<h1>Форма устарела</h1>", content)
+          self.assertIn("Вернитесь назад, обновите страницу и отправьте форму ещё раз.", content)
+          self.assertIn('href="/static/css/theme.css"', content)
+          self.assertNotIn("<style", content)
+          self.assertNotIn("CSRF", content)
+          self.assertIn("Content-Security-Policy", response)
+
+      def test_template_has_no_inline_code(self):
+          text = (Path(settings.BASE_DIR) / "templates" / "403_csrf.html").read_text(encoding="utf-8")
+          for forbidden in ("<style", "style=", "<script", " on"):
+              self.assertNotIn(forbidden, text)
+  '''
+  p.write_text(t+"\n")
+  EOF
+  head -12 core/tests/test_errors.py
+    """Themed error pages (TASK-012, AC13)."""
+
+    from pathlib import Path
+
+    from django.conf import settings
+    from django.test import RequestFactory, TestCase
+    from django.views.defaults import server_error
+
+    from accounts.tests.helpers import make_faculty, make_group, make_staff, make_student
+
+
+    class ErrorPageTests(TestCase):
+        @classmethod
+        def setUpTestData(cls):
+            cls.faculty = make_faculty("FX")
+            cls.group = make_group(cls.faculty, "GX")
+            cls.student = make_student("stu", cls.group, "REC-1")
+            cls.staff = make_staff("stf", cls.faculty)
+
+        def test_404_anonymous(self):
+    """Themed error pages (TASK-012, AC13)."""
+
+    from pathlib import Path
+
+    from django.conf import settings
+    from django.test import RequestFactory, TestCase
+    from django.views.defaults import server_error
+
+    from accounts.tests.helpers import make_faculty, make_group, make_staff, make_student
+
+
+    class ErrorPageTests(TestCase):
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 3ms
+    I'm checking whether the " on" substring could appear in the Russian template text, and I'm deciding to switch to a regex like `\son[a-z]+=` to catch event-handler attributes instead. I'm also adding the Client and reverse imports.
+  ── Ran set -e; C=$TMPDIR/t016fixc; cd $C; python3 - <<'EOF' import pathlib p=pathlib.Path("core/tests/test_errors.py"); t=p.read_text() t=t.replace('from django.test import RequestFactory, TestCase\n','from django.test import Client, RequestFactory, TestCase\nfrom django.urls import reverse\n') t=t.replace('''        for forbidden in ("<style", "style=", "<script", " on"):             self.assertNotIn(forbidden, text)''','''        for forbidden in ("<style", "style=", "<script", "javascript:"):             self.assertNotIn(forbidden, text)         self.assertNotRegex(text, r"\\son[a-z]+\\s*=")''') p.write_text(t) EOF R=~/hackatonproject/.venv/bin/ruff; $R format core accounts >/dev/null; $R check . | tail -3; export DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop; unset DATABASE_URL; L=$TMPDIR/test-t016fix-$(date +%Y%m%d-%H%M%S).log; ~/hackatonproject/.venv/bin/python manage.py test --parallel > $L 2>&1; grep -E "^Ran |^OK|^FAILED|^(FAIL|ERROR):" $L; echo $L; TZ=Europe/Moscow date +%H:%M (50s)
+    $ set -e; C=$TMPDIR/t016fixc; cd $C; python3 - <<'EOF'
+  import pathlib
+  p=pathlib.Path("core/tests/test_errors.py"); t=p.read_text()
+  t=t.replace('from django.test import RequestFactory, TestCase\n','from django.test import Client, RequestFactory, TestCase\nfrom django.urls import reverse\n')
+  t=t.replace('''        for forbidden in ("<style", "style=", "<script", " on"):
+              self.assertNotIn(forbidden, text)''','''        for forbidden in ("<style", "style=", "<script", "javascript:"):
+              self.assertNotIn(forbidden, text)
+          self.assertNotRegex(text, r"\\son[a-z]+\\s*=")''')
+  p.write_text(t)
+  EOF
+  R=~/hackatonproject/.venv/bin/ruff; $R format core accounts >/dev/null; $R check . | tail -3; export DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop; unset DATABASE_URL; L=$TMPDIR/test-t016fix-$(date +%Y%m%d-%H%M%S).log; ~/hackatonproject/.venv/bin/python manage.py test --parallel > $L 2>&1; grep -E "^Ran |^OK|^FAILED|^(FAIL|ERROR):" $L; echo $L; TZ=Europe/Moscow date +%H:%M
+    All checks passed!
+    Ran 1217 tests in 47.756s
+    OK
+    /tmp/claude-501/test-t016fix-20261121-012638.log
+    12:27
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 589ms
+    I'm checking whether the baseline is 1212 tests, since TASK-017 may have added more from the UI work. I'm planning to run the new tests against the HEAD files to confirm they fail there, and get a clean baseline count from a full HEAD run.
+
+    The baseline run on HEAD still needs to happen, so I'll run it alongside the new-test check.
+  ── Ran H=$TMPDIR/t016fixh; rm -rf $H; mkdir -p $H; cd ~/hackatonproject; git archive HEAD | tar -x -C $H; cd $H; export DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop; unset DATABASE_URL; V=~/hackatonproject/.venv/bin/python; L=$TMPDIR/test-t016fix-head-$(date +%Y%m%d-%H%M%S).log; $V manage.py test --parallel > $L 2>&1; echo "HEAD: $(grep -E '^Ran |^OK|^FAILED' $L | tr '\n' ' ')"; for f in core/tests/test_errors.py accounts/tests/test_login_page.py core/tests/test_deploy.py; do cp $TMPDIR/t016fixc/$f $f; done; L2=$TMPDIR/test-t016fix-newtests-on-head-$(date +%Y%m%d-%H%M%S).log; $V manage.py test core.tests.test_errors accounts.tests.test_login_page core.tests.test_deploy > $L2 2>&1; grep -E "^Ran |^OK|^FAILED|^(FAIL|ERROR):" $L2; echo $L $L2 (52s)
+    $ H=$TMPDIR/t016fixh; rm -rf $H; mkdir -p $H; cd ~/hackatonproject; git archive HEAD | tar -x -C $H; cd $H; export DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop; unset DATABASE_URL; V=~/hackatonproject/.venv/bin/python; L=$TMPDIR/test-t016fix-head-$(date +%Y%m%d-%H%M%S).log; $V manage.py test --parallel > $L 2>&1; echo "HEAD: $(grep -E '^Ran |^OK|^FAILED' $L | tr '\n' ' ')"; for f in core/tests/test_errors.py accounts/tests/test_login_page.py core/tests/test_deploy.py; do cp $TMPDIR/t016fixc/$f $f; done; L2=$TMPDIR/test-t016fix-newtests-on-head-$(date +%Y%m%d-%H%M%S).log; $V manage.py test core.tests.test_errors accounts.tests.test_login_page core.tests.test_deploy > $L2 2>&1; grep -E "^Ran |^OK|^FAILED|^(FAIL|ERROR):" $L2; echo $L $L2
+    HEAD: Ran 1212 tests in 47.144s OK 
+    ERROR: test_template_has_no_inline_code (core.tests.test_errors.CsrfFailurePageTests.test_template_has_no_inline_code)
+    FAIL: test_csrf_failure_uses_project_template (core.tests.test_errors.CsrfFailurePageTests.test_csrf_failure_uses_project_template)
+    FAIL: test_crossed_eye_has_diagonal (accounts.tests.test_login_page.EyeIconDrawingTests.test_crossed_eye_has_diagonal)
+    FAIL: test_open_eye_shape (accounts.tests.test_login_page.EyeIconDrawingTests.test_open_eye_shape)
+    FAIL: test_icons (accounts.tests.test_login_page.LoginToggleStaticTests.test_icons)
+    FAIL: test_hardening (core.tests.test_deploy.SystemdUnitTests.test_hardening)
+    Ran 74 tests in 1.057s
+    FAILED (failures=5, errors=1)
+    /tmp/claude-501/test-t016fix-head-20261121-012735.log /tmp/claude-501/test-t016fix-newtests-on-head-20261121-012824.log
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 86ms
+    The test for submit resetting to password already passes on HEAD, so it acts as a guard. I'll check it by mutating the code, either flipping setShown(false) to setShown(true) or removing the call, and confirm the test fails in the H copy.
+
+── Assistant ───────────────────────────────────────────────
+Тест сброса типа поля проходит на HEAD, потому что скрипт уже верный. Проверяю мутацией, что тест ловит ошибку.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran H=$TMPDIR/t016fixh; cd $H; export DEBUG=true SECRET_KEY=x; V=~/hackatonproject/.venv/bin/python; cp static/js/password-toggle.js $TMPDIR/pt.bak; for m in 's/        setShown(false);/        setShown(true);/' 's/        setShown(false);/        \/\/ setShown(false);/' 's/input.type = shown ? "text" : "password";/input.type = "text";/'; do cp $TMPDIR/pt.bak static/js/password-toggle.js; sed -i '' "$m" static/js/password-toggle.js; printf '%s -> ' "$m"; $V manage.py test accounts.tests.test_login_page.LoginToggleStaticTests.test_submit_resets_to_password 2>&1 | grep -E "^OK|^FAILED"; done; cp $TMPDIR/pt.bak static/js/password-toggle.js (2s)
+    $ H=$TMPDIR/t016fixh; cd $H; export DEBUG=true SECRET_KEY=x; V=~/hackatonproject/.venv/bin/python; cp static/js/password-toggle.js $TMPDIR/pt.bak; for m in 's/        setShown(false);/        setShown(true);/' 's/        setShown(false);/        \/\/ setShown(false);/' 's/input.type = shown ? "text" : "password";/input.type = "text";/'; do cp $TMPDIR/pt.bak static/js/password-toggle.js; sed -i '' "$m" static/js/password-toggle.js; printf '%s -> ' "$m"; $V manage.py test accounts.tests.test_login_page.LoginToggleStaticTests.test_submit_resets_to_password 2>&1 | grep -E "^OK|^FAILED"; done; cp $TMPDIR/pt.bak static/js/password-toggle.js
+    s/        setShown(false);/        setShown(true);/ -> FAILED (failures=1)
+    s/        setShown(false);/        \/\/ setShown(false);/ -> FAILED (failures=1)
+    s/input.type = shown ? "text" : "password";/input.type = "text";/ -> FAILED (failures=1)
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 8ms
+    I'm going to check the login page visually with the new icons at 360px wide, at both 1x and 2x pixel density, and confirm the CSRF error page renders properly. To do that I'll start the dev server on copy C against a temporary database, running migrations and seeding it quickly, then take the screenshots.
+
+── Assistant ───────────────────────────────────────────────
+Тест ловит все три мутации. Смотрю страницу входа с новыми иконками (360 px, масштаб 1 и 2) и страницу ошибки CSRF.
+
+── Ran 4 commands, explored 2 files, 1 list ────────────────
+  ── Ran C=$TMPDIR/t016fixc; cd $C; export DEBUG=true SECRET_KEY=dummy-key-for-local-check DATABASE_URL=sqlite:///$TMPDIR/t016fix.sqlite3 PRIVATE_MEDIA_ROOT=$TMPDIR/t016fix-pm ALLOWED_HOSTS=localhost,127.0.0.1 DEMO_PASSWORD=Local-Demo-Pass-2026; V=~/hackatonproject/.venv/bin/python; rm -f $TMPDIR/t016fix.sqlite3; $V manage.py migrate -v0 && $V manage.py seed_demo >/dev/null; ($V manage.py runserver 127.0.0.1:8794 --noreload > $C/rs.log 2>&1 &); sleep 3; curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8794/login/ cat > $C/v.js <<'EOF' const page = await browser.getPage("main"); const base = "http://127.0.0.1:8794"; const dpr = DPR, shown = SHOWN; await page.deleteCookie({name: "sessionid", url: base}); await page.setViewport({width: 360, height: 420, deviceScaleFactor: dpr}); await page.goto(base + "/login/", {waitUntil: "load"}); if (shown) { await page.type("#id_password", "secret"); await page.click("[data-password-toggle]"); } await page.evaluate(() => document.activeElement && document.activeElement.blur()); return "ok"; EOF echo ready (7s)
+    $ C=$TMPDIR/t016fixc; cd $C; export DEBUG=true SECRET_KEY=dummy-key-for-local-check DATABASE_URL=sqlite:///$TMPDIR/t016fix.sqlite3 PRIVATE_MEDIA_ROOT=$TMPDIR/t016fix-pm ALLOWED_HOSTS=localhost,127.0.0.1 DEMO_PASSWORD=Local-Demo-Pass-2026; V=~/hackatonproject/.venv/bin/python; rm -f $TMPDIR/t016fix.sqlite3; $V manage.py migrate -v0 && $V manage.py seed_demo >/dev/null; ($V manage.py runserver 127.0.0.1:8794 --noreload > $C/rs.log 2>&1 &); sleep 3; curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8794/login/
+  cat > $C/v.js <<'EOF'
+  const page = await browser.getPage("main");
+  const base = "http://127.0.0.1:8794";
+  const dpr = DPR, shown = SHOWN;
+  await page.deleteCookie({name: "sessionid", url: base});
+  await page.setViewport({width: 360, height: 420, deviceScaleFactor: dpr});
+  await page.goto(base + "/login/", {waitUntil: "load"});
+  if (shown) { await page.type("#id_password", "secret"); await page.click("[data-password-toggle]"); }
+  await page.evaluate(() => document.activeElement && document.activeElement.blur());
+  return "ok";
+  EOF
+  echo ready
+    (eval):1: nice(5) failed: operation not permitted
+    200
+    ready
+    Shell cwd was reset to ~/hackatonproject
+  ── Ran C=$TMPDIR/t016fixc; S=23c842f0-384a-4c3c-b235-222d879ac4bc; cd ~/hackatonproject; for v in "1 false" "1 true" "2 false" "2 true"; do set -- $v; sed -e "s/DPR/$1/" -e "s/SHOWN/$2/" $C/v.js > $C/v_$1_$2.js; bb browser-automation run $S --script-file $C/v_$1_$2.js --script-host host_cuvmpv75p3 --timeout 30s >/dev/null; echo "$1 $2 $(bb browser-automation screenshot $S --json | python3 -c "import sys,json; print(json.load(sys.stdin)['images'][0]['path'])")"; done (4s)
+    $ C=$TMPDIR/t016fixc; S=23c842f0-384a-4c3c-b235-222d879ac4bc; cd ~/hackatonproject; for v in "1 false" "1 true" "2 false" "2 true"; do set -- $v; sed -e "s/DPR/$1/" -e "s/SHOWN/$2/" $C/v.js > $C/v_$1_$2.js; bb browser-automation run $S --script-file $C/v_$1_$2.js --script-host host_cuvmpv75p3 --timeout 30s >/dev/null; echo "$1 $2 $(bb browser-automation screenshot $S --json | python3 -c "import sys,json; print(json.load(sys.stdin)['images'][0]['path'])")"; done
+    1 false  /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-1ZG3ZS/db-L7sDnj/tmp/shot-1795253330693-4.jpg
+    1 true  /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-1ZG3ZS/db-L7sDnj/tmp/shot-1795253331535-5.jpg
+    2 false  /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-1ZG3ZS/db-L7sDnj/tmp/shot-1795253332361-6.jpg
+    2 true  /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-1ZG3ZS/db-L7sDnj/tmp/shot-1795253333196-7.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-1ZG3ZS/db-L7sDnj/tmp/shot-1795253330693-4.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-1ZG3ZS/db-L7sDnj/tmp/shot-1795253333196-7.jpg
+  ── Thought for 5ms
+    The page still seems to show the old setContent output, so the navigation probably didn't happen. I'm wondering whether page.goto to 127.0.0.1:8794 errored, since the run output was suppressed. The earlier session used setContent and goto should work, so I'll rerun with output visible.
+  ── Ran C=$TMPDIR/t016fixc; cd ~/hackatonproject; bb browser-automation run 23c842f0-384a-4c3c-b235-222d879ac4bc --script-file $C/v_1_false.js --script-host host_cuvmpv75p3 --timeout 30s 2>&1 | tail -5; curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8794/login/
+    $ C=$TMPDIR/t016fixc; cd ~/hackatonproject; bb browser-automation run 23c842f0-384a-4c3c-b235-222d879ac4bc --script-file $C/v_1_false.js --script-host host_cuvmpv75p3 --timeout 30s 2>&1 | tail -5; curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8794/login/
+    HTTP 404: Path does not exist: /tmp/claude-501/t016fixc/v_1_false.js
+    200
+  ── Thought for 760ms
+    I'm checking whether the sed output files actually exist, since the browser host reports that the path is missing. Earlier paths under $TMPDIR/t016fix worked, and $C was set before the loop, so I'm wondering whether the loop's `set -- $v` changed something.
+
+    I'm going to check whether those sed output files are actually on disk, since the browser host can't find them.
+  ── Listed files in $TMPDIR/t016fixc/v*.js
+  ── Thought for 4ms
+    I'm noting that zsh doesn't word-split an unquoted variable in `set -- $v`, so I'll write an explicit loop to split the value instead.
+  ── Ran C=$TMPDIR/t016fixc; S=23c842f0-384a-4c3c-b235-222d879ac4bc; rm -f "$C"/v_*; cd ~/hackatonproject; for d in 1 2; do for s in false true; do sed -e "s/DPR/$d/" -e "s/SHOWN/$s/" $C/v.js > $C/v_${d}_${s}.js; bb browser-automation run $S --script-file $C/v_${d}_${s}.js --script-host host_cuvmpv75p3 --timeout 30s | tail -c 80; echo " $d $s $(bb browser-automation screenshot $S --json | python3 -c "import sys,json; print(json.load(sys.stdin)['images'][0]['path'])")"; done; done (4s)
+    $ C=$TMPDIR/t016fixc; S=23c842f0-384a-4c3c-b235-222d879ac4bc; rm -f "$C"/v_*; cd ~/hackatonproject; for d in 1 2; do for s in false true; do sed -e "s/DPR/$d/" -e "s/SHOWN/$s/" $C/v.js > $C/v_${d}_${s}.js; bb browser-automation run $S --script-file $C/v_${d}_${s}.js --script-host host_cuvmpv75p3 --timeout 30s | tail -c 80; echo " $d $s $(bb browser-automation screenshot $S --json | python3 -c "import sys,json; print(json.load(sys.stdin)['images'][0]['path'])")"; done; done
+    {"text":"ok","images":[],"exitCode":0,"hostId":"host_cuvmpv75p3"}
+     1 false /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-1ZG3ZS/db-L7sDnj/tmp/shot-1795253349785-8.jpg
+    {"text":"ok","images":[],"exitCode":0,"hostId":"host_cuvmpv75p3"}
+     1 true /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-1ZG3ZS/db-L7sDnj/tmp/shot-1795253350747-9.jpg
+    {"text":"ok","images":[],"exitCode":0,"hostId":"host_cuvmpv75p3"}
+     2 false /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-1ZG3ZS/db-L7sDnj/tmp/shot-1795253351601-10.jpg
+    {"text":"ok","images":[],"exitCode":0,"hostId":"host_cuvmpv75p3"}
+     2 true /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-1ZG3ZS/db-L7sDnj/tmp/shot-1795253352481-11.jpg
+
+── Assistant ───────────────────────────────────────────────
+Снимки готовы, смотрю новый глаз на странице входа.
+
+── Explored 2 files ────────────────────────────────────────
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-1ZG3ZS/db-L7sDnj/tmp/shot-1795253349785-8.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-1ZG3ZS/db-L7sDnj/tmp/shot-1795253352481-11.jpg
+  ── Thought for 5ms
+    I've confirmed both icons read clearly as an eye and a crossed eye. Next I want to check the CSRF behavior on the login page, by sending a POST without the cookie and through the browser with the csrftoken cookie removed.
+
+── Assistant ───────────────────────────────────────────────
+Глаз и перечёркнутый глаз читаются хорошо при обоих масштабах. Проверяю страницу ошибки CSRF в браузере.
+
+── Ran 3 commands, explored 1 file ─────────────────────────
+  ── Ran C=$TMPDIR/t016fixc; cat > $C/csrf.js <<'EOF' const page = await browser.getPage("main"); const base = "http://127.0.0.1:8794"; const violations = []; page.removeAllListeners("console"); page.on("console", m => { const t = m.text(); if (/Content Security Policy|Refused to/i.test(t)) violations.push(t.slice(0, 120)); }); await page.setViewport({width: 360, height: 640, deviceScaleFactor: 1}); await page.goto(base + "/login/", {waitUntil: "load"}); await page.deleteCookie({name: "csrftoken", url: base}); await page.type("#id_username", "student1"); await page.type("#id_password", "x"); const [resp] = await Promise.all([page.waitForNavigation({waitUntil: "load"}), page.click("form button[type=submit]")]); const h1 = await page.evaluate(() => document.querySelector("h1").textContent); const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundImage.slice(0, 40)); return {status: resp.status(), h1, bg, violations}; EOF cd ~/hackatonproject; bb browser-automation run 23c842f0-384a-4c3c-b235-222d879ac4bc --script-file $C/csrf.js --script-host host_cuvmpv75p3 --timeout 30s | python3 -c "import sys,json; print(json.load(sys.stdin)['text'])"; bb browser-automation screenshot 23c842f0-384a-4c3c-b235-222d879ac4bc --json | python3 -c "import sys,json; print(json.load(sys.stdin)['images'][0]['path'])" (1s)
+    $ C=$TMPDIR/t016fixc; cat > $C/csrf.js <<'EOF'
+  const page = await browser.getPage("main");
+  const base = "http://127.0.0.1:8794";
+  const violations = [];
+  page.removeAllListeners("console");
+  page.on("console", m => { const t = m.text(); if (/Content Security Policy|Refused to/i.test(t)) violations.push(t.slice(0, 120)); });
+  await page.setViewport({width: 360, height: 640, deviceScaleFactor: 1});
+  await page.goto(base + "/login/", {waitUntil: "load"});
+  await page.deleteCookie({name: "csrftoken", url: base});
+  await page.type("#id_username", "student1");
+  await page.type("#id_password", "x");
+  const [resp] = await Promise.all([page.waitForNavigation({waitUntil: "load"}), page.click("form button[type=submit]")]);
+  const h1 = await page.evaluate(() => document.querySelector("h1").textContent);
+  const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundImage.slice(0, 40));
+  return {status: resp.status(), h1, bg, violations};
+  EOF
+  cd ~/hackatonproject; bb browser-automation run 23c842f0-384a-4c3c-b235-222d879ac4bc --script-file $C/csrf.js --script-host host_cuvmpv75p3 --timeout 30s | python3 -c "import sys,json; print(json.load(sys.stdin)['text'])"; bb browser-automation screenshot 23c842f0-384a-4c3c-b235-222d879ac4bc --json | python3 -c "import sys,json; print(json.load(sys.stdin)['images'][0]['path'])"
+    {
+      "status": 403,
+      "h1": "Форма устарела",
+      "bg": "linear-gradient(rgb(18, 10, 42) 0%, rgb(",
+      "violations": []
+    }
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-1ZG3ZS/db-L7sDnj/tmp/shot-1795253365114-12.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-1ZG3ZS/db-L7sDnj/tmp/shot-1795253365114-12.jpg
+  ── Thought for 2s
+    I'm stopping the server with the sandbox disabled, then running the tests with --parallel 2 only, since the suite is small, plus ruff. After that I'll assemble the spec, which should be shorter. I also want to confirm whether DEPLOY.md mentions ReadWritePaths; my grep found nothing. The TASK-016 spec still says the ReadWritePaths directories must exist, but that's an older spec and I'm leaving it alone.
+
+    I'm checking the systemd documentation on the "-" prefix for ReadWritePaths: entries marked that way are ignored when they don't exist, so the spec's requirement that those directories exist doesn't hold for prefixed entries.
+  ── Thought for 6ms
+    Страница CSRF выведена в общем оформлении, нарушений CSP нет. Сейчас останавливаю тестовый сервер, он вне песочницы, и запускаю последние прогоны.
+  ── Ran pkill -f "manage.py runserver 127.0.0.1:8794"; sleep 1; curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8794/login/ (Outside of sandbox) (1s, error)
+    $ pkill -f "manage.py runserver 127.0.0.1:8794"; sleep 1; curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8794/login/
+    Exit code 7
+    000
+    exit 7
+  ── Ran C=$TMPDIR/t016fixc; cd $C; export DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop; unset DATABASE_URL PRIVATE_MEDIA_ROOT DEMO_PASSWORD; V=~/hackatonproject/.venv/bin/python; L=$TMPDIR/test-t016fix-p2-$(date +%Y%m%d-%H%M%S).log; $V manage.py test --parallel 2 > $L 2>&1; echo "p2: $(grep -E '^Ran |^OK|^FAILED' $L | tr '\n' ' ') $L"; ~/hackatonproject/.venv/bin/ruff format --check . | tail -1; $V manage.py makemigrations --check --dry-run | tail -1; TZ=Europe/Moscow date +%H:%M; rm -rf $TMPDIR/t016fixb; mkdir $TMPDIR/t016fixb; cd ~/hackatonproject; git archive HEAD | tar -x -C $TMPDIR/t016fixb; cd $TMPDIR; diff -rq -x __pycache__ -x '*.sqlite3' -x .ruff_cache -x 'v*.js' -x csrf.js -x rs.log t016fixb t016fixc (1m 21s)
+    $ C=$TMPDIR/t016fixc; cd $C; export DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop; unset DATABASE_URL PRIVATE_MEDIA_ROOT DEMO_PASSWORD; V=~/hackatonproject/.venv/bin/python; L=$TMPDIR/test-t016fix-p2-$(date +%Y%m%d-%H%M%S).log; $V manage.py test --parallel 2 > $L 2>&1; echo "p2: $(grep -E '^Ran |^OK|^FAILED' $L | tr '\n' ' ') $L"; ~/hackatonproject/.venv/bin/ruff format --check . | tail -1; $V manage.py makemigrations --check --dry-run | tail -1; TZ=Europe/Moscow date +%H:%M; rm -rf $TMPDIR/t016fixb; mkdir $TMPDIR/t016fixb; cd ~/hackatonproject; git archive HEAD | tar -x -C $TMPDIR/t016fixb; cd $TMPDIR; diff -rq -x __pycache__ -x '*.sqlite3' -x .ruff_cache -x 'v*.js' -x csrf.js -x rs.log t016fixb t016fixc
+    p2: Ran 1217 tests in 78.134s OK  /tmp/claude-501/test-t016fix-p2-20261121-012938.log
+    202 files already formatted
+    No changes detected
+    12:30
+    Files t016fixb/accounts/tests/test_login_page.py and t016fixc/accounts/tests/test_login_page.py differ
+    Files t016fixb/core/tests/test_deploy.py and t016fixc/core/tests/test_deploy.py differ
+    Files t016fixb/core/tests/test_errors.py and t016fixc/core/tests/test_errors.py differ
+    Files t016fixb/deploy/systemd/deanery.service and t016fixc/deploy/systemd/deanery.service differ
+    Only in t016fixc/templates: 403_csrf.html
+    Files t016fixb/templates/includes/icon_eye.html and t016fixc/templates/includes/icon_eye.html differ
+    Files t016fixb/templates/includes/icon_eye_off.html and t016fixc/templates/includes/icon_eye_off.html differ
+  ── Thought for 6ms
+    I'm checking the timestamp: the date reads 12:30 MSK, while the earlier timezone output said 12:27, which is fine since the filename times are local sandbox time. Next I'll write the spec template, put it together, and hand it over, with the ASCII grids of the icons included so the spec is clearer.
+
+── Assistant ───────────────────────────────────────────────
+Всё зелёное: 1217 тестов, `--parallel 2`, линтер, миграции не нужны. Пишу спецификацию.
+
+── Created 1 file, ran 2 commands ──────────────────────────
+  ── Created ~/.bb/thread-storage/t016fix_spec_template.md +203
+    --- /dev/null
+    +++ b~/.bb/thread-storage/t016fix_spec_template.md
+    +# TASK-016-FIX: systemd paths optional, themed CSRF page, readable eye icon, submit-reset test
+    +
+    +Author: Planner. Assignee: UI coder. Status: ready for implementation.
+    +Base: HEAD 30eab5c (TASK-017 committed; clean tree except the Team lead's `plan.md`; do not touch it).
+    +
+    +## 1. Goal
+    +
+    +Non-blocking notes from the TASK-016/TASK-017 reviews and the Team lead's browser check (21.11).
+    +
+    +### Acceptance criteria
+    +
+    +| ID | Criterion |
+    +|---|---|
+    +| AC1 | `deploy/systemd/deanery.service`: `ReadWritePaths=-/srv/deanery/private_media -/srv/deanery/private_media_trial` (both prefixed with `-`, systemd then skips a missing path instead of failing the namespace setup), with a one-line comment. The deploy test checks the new line. |
+    +| AC2 | A CSRF failure renders the themed page `templates/403_csrf.html` (extends `base.html`, like `403.html`): h1 "Форма устарела", Russian text (the form is out of date; go back, reload, send again), a "На главную" button. No inline style/script/handlers. Status 403, CSP header present, no CSP violation in the browser. |
+    +| AC3 | The eye icons are redrawn: an almond eye with pointed corners, a round pupil with a highlight pixel (state "password hidden"); the same almond outline with a clear diagonal slash (state "password shown"). Same size (36 × 24 CSS px), same classes, `<rect>` only, `crispEdges`, `currentColor`, `aria-hidden`, `focusable="false"`. Readable at 360 px with deviceScaleFactor 1 and 2. Tap target, toggle behaviour and all TASK-017 tests unchanged. |
+    +| AC4 | A static test proves the submit handler of `static/js/password-toggle.js` calls exactly `setShown(false)` and `setShown` sets `type` by `shown ? "text" : "password"`. The script itself is not changed. |
+    +| AC5 | All verification commands pass; visual check reported (section 8). |
+    +
+    +## 2. Out of scope
+    +
+    +IPv6 /128 keying of the nginx zones (accepted: no public IPv6). Any other page, script or deploy file. `docs/DEPLOY.md`
+    +(it does not mention `ReadWritePaths`; the Team lead re-installs the unit with runbook step 21 commands).
+    +
+    +## 3. Design decisions
+    +
+    +- **D1. `-` prefix** (systemd.exec(5): "Paths in ReadWritePaths= … may be prefixed with "-", in which case they
+    +  will be ignored when they do not exist"). With a missing `private_media` the app still starts and only uploads
+    +  fail with a logged error — better than a unit that does not start; the Team lead accepted both prefixes.
+    +- **D2. `403_csrf.html` is Django's own hook.** `django.views.csrf.csrf_failure` (Django 5.2) loads
+    +  `CSRF_FAILURE_TEMPLATE_NAME = "403_csrf.html"` first and renders it with `request=request`, so context
+    +  processors run and `base.html` works (nav, user, messages). Only when the template is missing does it use the
+    +  built-in page with inline CSS. No setting or view is needed. The text does not say "CSRF" (users do not know
+    +  the term).
+    +- **D3. The new icon grid is 18 × 12 cells drawn at 36 × 24 px** (2 CSS px per cell; 4 device px at scale 2).
+    +  12 × 8 cells (3 px) is too coarse for pointed corners and a round pupil. The drawings below were chosen from five
+    +  variants in Chrome: a slash through the pupil (with or without gaps) turned into noise at real size; the
+    +  crossed state therefore keeps the almond outline and drops the pupil, and the slash is 2 cells wide at 45°
+    +  with a 1-cell gap on both sides, so it cuts the outline cleanly.
+    +
+    +  Open eye (`icon_eye.html`), `#` = filled cell:
+    +
+    +  ```
+    +  ..................
+    +  ......######......
+    +  ....##......##....
+    +  ..##...####...##..
+    +  .#....##..##....#.
+    +  #.....#.####.....#
+    +  #.....######.....#
+    +  .#....######....#.
+    +  ..##...####...##..
+    +  ....##......##....
+    +  ......######......
+    +  ..................
+    +  ```
+    +
+    +  Crossed eye (`icon_eye_off.html`):
+    +
+    +  ```
+    +  ...##.............
+    +  ....##.#####......
+    +  .....##.....##....
+    +  ..##..##......##..
+    +  .#.....##.......#.
+    +  #.......##.......#
+    +  #........##......#
+    +  .#........##....#.
+    +  ..##.......##.##..
+    +  ....##......##....
+    +  ......######.##...
+    +  ..............##..
+    +  ```
+    +
+    +  Each row's runs of `#` are one `<rect height="1">` (the files below are exactly that). You may adjust a few
+    +  cells after your own look, but the drawing tests (F4) must stay green: pointed corners (only rows 5–6 in the
+    +  first and last column), mirrored lids, round pupil (rows 3 and 8: 4 cells; rows 6–7: 6 cells; an empty
+    +  highlight cell), and the slash cells `(3+y, y)`, `(4+y, y)` with empty `(2+y, y)`, `(5+y, y)` in every row.
+    +- **D4. The submit-reset test parses the handler body** with a regular expression and requires it to be exactly
+    +  `setShown(false);`. Mutation check: replacing it with `setShown(true);`, commenting it out, or setting
+    +  `input.type = "text"` in `setShown` each makes the test fail.
+    +
+    +## 4. Files and functions
+    +
+    +Create: `templates/403_csrf.html`. Replace: `templates/includes/icon_eye.html`,
+    +`templates/includes/icon_eye_off.html`. Change: `deploy/systemd/deanery.service`, `core/tests/test_deploy.py`,
+    +`core/tests/test_errors.py`, `accounts/tests/test_login_page.py`. Diffs are against HEAD 30eab5c; edit by hand, no
+    +git commands.
+    +
+    +### F1. `deploy/systemd/deanery.service`
+    +
+    +````diff
+    +{{DIFF:deploy/systemd/deanery.service}}
+    +````
+    +
+    +### F2. `templates/403_csrf.html` (new)
+    +
+    +````django
+    +{{FILE:templates/403_csrf.html}}
+    +````
+    +
+    +### F3. Icons (whole files)
+    +
+    +`templates/includes/icon_eye.html`:
+    +
+    +````html
+    +{{FILE:templates/includes/icon_eye.html}}
+    +````
+    +
+    +`templates/includes/icon_eye_off.html`:
+    +
+    +````html
+    +{{FILE:templates/includes/icon_eye_off.html}}
+    +````
+    +
+    +### F4. Tests
+    +
+    +`core/tests/test_deploy.py` (`SystemdUnitTests::test_hardening`):
+    +
+    +````diff
+    +{{DIFF:core/tests/test_deploy.py}}
+    +````
+    +
+    +`core/tests/test_errors.py` (new class `CsrfFailurePageTests`):
+    +
+    +````diff
+    +{{DIFF:core/tests/test_errors.py}}
+    +````
+    +
+    +`accounts/tests/test_login_page.py` (new `LoginToggleStaticTests::test_submit_resets_to_password`, the viewBox
+    +check in `::test_icons`, new class `EyeIconDrawingTests`):
+    +
+    +````diff
+    +{{DIFF:accounts/tests/test_login_page.py}}
+    +````
+    +
+    +## 5. Feasibility check
+    +
+    +1. **Baseline** — HEAD 30eab5c copy (`git archive`, no `.env`): `manage.py test --parallel` → `Ran 1212 tests …
+    +   OK` (`$TMPDIR/test-t016fix-head-20261121-012735.log`).
+    +2. **Full change applied** (copy `$TMPDIR/t016fixc`): `--parallel` → `Ran 1217 tests … OK`
+    +   (`$TMPDIR/test-t016fix-20261121-012638.log`, 12:27 MSK 21.11); `--parallel 2` → 1217 OK
+    +   (`$TMPDIR/test-t016fix-p2-20261121-012938.log`, 12:30 MSK). `ruff check .`, `ruff format --check .` clean;
+    +   `makemigrations --check` → No changes.
+    +3. **New tests on HEAD** — 5 failures + 1 error, all expected: `test_hardening` (old line),
+    +   `CsrfFailurePageTests` ×2 (no template: Django's page with `<style>`; file missing), `test_icons` (viewBox),
+    +   `EyeIconDrawingTests` ×2. `test_submit_resets_to_password` passes on HEAD (the script is already right) and
+    +   fails on the three mutations of D4 (`$TMPDIR/test-t016fix-newtests-on-head-20261121-012824.log`).
+    +4. **Browser** (runserver on a seeded temporary database, headless Chrome): login at 360 px, scale 1 and 2,
+    +   both states — the open eye reads as an eye with a round pupil, the crossed state as a crossed-out eye; toggle
+    +   44 px high, behaviour unchanged. CSRF: deleting the `csrftoken` cookie and submitting the login form → 403,
+    +   h1 "Форма устарела", the themed background and button, zero CSP violations.
+    +5. **Django source** — `django/views/csrf.py::csrf_failure` (5.2.19): `loader.get_template("403_csrf.html")`,
+    +   `t.render(request=request)`; fallback to the built-in page only on `TemplateDoesNotExist`.
+    +6. **systemd** — not available locally (macOS); semantics from systemd.exec(5). The Team lead runs
+    +   `systemd-analyze verify` when installing the unit (runbook step 21 commands).
+    +7. **Safety** — no `.env` read; temporary databases only; the project tree was not modified by this check.
+    +
+    +## 6. Implementation order
+    +
+    +F1 + its test → F2 + `CsrfFailurePageTests` → F3 + icon tests → the submit-reset test → `ruff format` on the
+    +changed test files (never on `docs/`) → verification and visual check.
+    +
+    +## 7. Test plan
+    +
+    +| AC | Tests |
+    +|---|---|
+    +| AC1 | `core/tests/test_deploy.py::SystemdUnitTests::test_hardening` (changed: the `-` line; still exactly one `ReadWritePaths=` line) |
+    +| AC2 | `core/tests/test_errors.py::CsrfFailurePageTests::test_csrf_failure_uses_project_template` (403, `403_csrf.html` and `base.html` used, h1/text, theme CSS link, no `<style`, no "CSRF", CSP header), `::test_template_has_no_inline_code`; `core/tests/test_middleware.py::TemplatesFitPolicyTests` (unchanged, now also scans the new template) |
+    +| AC3 | `accounts/tests/test_login_page.py::EyeIconDrawingTests::test_open_eye_shape`, `::test_crossed_eye_has_diagonal`, `LoginToggleStaticTests::test_icons` (+ viewBox/size), `LoginToggleMarkupTests::test_two_pixel_icons` (unchanged) |
+    +| AC4 | `LoginToggleStaticTests::test_submit_resets_to_password` |
+    +
+    +Edge cases: CSRF failure for an anonymous user (login form) — the page renders without nav; a missing
+    +`private_media_trial` (systemd skips it); icons at scale 1 and 2.
+    +
+    +Test count: 1212 → 1217 (+5).
+    +
+    +## 8. Verification (UI coder, then Reviewer)
+    +
+    +```bash
+    +.venv/bin/python manage.py test --parallel 2>&1 | tee "$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log" | tail -3
+    +.venv/bin/python manage.py test --parallel 2 2>&1 | tee "$TMPDIR/test-p2-$(date +%Y%m%d-%H%M%S).log" | tail -3
+    +.venv/bin/ruff check . && .venv/bin/ruff format --check .
+    +.venv/bin/python manage.py check
+    +.venv/bin/python manage.py makemigrations --check --dry-run
+    +git status --short
+    +```
+    +
+    +Visual check (temporary seeded database, `runserver`, headless browser; report screenshots):
+    +- Login at 360 × 780 with deviceScaleFactor 1 and 2, and 1024 × 768: both toggle states; the icon must read as an
+    +  eye / a crossed-out eye.
+    +- CSRF page: open `/login/`, delete the `csrftoken` cookie, submit → the themed 403 page at 360 and 1024; no CSP
+    +  violation in the console. Also once as a signed-in student (e.g. a chat or request form after deleting the
+    +  cookie): nav is shown.
+    +
+    +Report test counts, log paths and Moscow times; report every failing run with the test name and a traceback
+    +excerpt. Never read `.env`; do not touch `plan.md`.
+    +
+    +## 9. Risks
+    +
+    +- The icon is a taste decision: the drawings passed the Team lead's criteria in Chrome; the user may still ask
+    +  for changes — then only the two icon files and `EyeIconDrawingTests` change.
+    +- `-` on `private_media` hides a missing upload directory at start; uploads then fail and are logged.
+  ── Thought for 6ms
+    I'm checking that the ASCII grids in the template line up with the generated files: the open-eye grid matches EYE_B, and the crossed version matches the E_outline output from earlier. Then I'll assemble the final result.
+  ── Ran cd $TMPDIR; ~/hackatonproject/.venv/bin/python - <<'EOF' import re, subprocess, pathlib, os T=os.environ["TMPDIR"] base=pathlib.Path(T)/"t016fixb"; new=pathlib.Path(T)/"t016fixc" tpl=pathlib.Path("~/.bb/thread-storage/t016fix_spec_template.md").read_text() def file_(m): return (new/m.group(1)).read_text().rstrip("\n") def diff_(m):     p=m.group(1)     r=subprocess.run(["diff","-u","--label","a/"+p,"--label","b/"+p,str(base/p),str(new/p)],capture_output=True,text=True)     assert r.returncode==1, p     return r.stdout.rstrip("\n") out=re.sub(r"\{\{FILE:([^}]+)\}\}", file_, tpl) out=re.sub(r"\{\{DIFF:([^}]+)\}\}", diff_, out) assert "{{FILE" not in out and "{{DIFF" not in out pathlib.Path("~/hackatonproject/docs/tasks/TASK-016-FIX.md").write_text(out) fence=None for l in out.splitlines():     s=l.lstrip(" ")     ind=len(l)-len(s)     if fence is None:         m=re.match(r"^(`{3,})", s) if ind<=3 else None         if m: fence=m.group(1)     elif ind<=3 and re.match(fence+r"`*\s*$", s): fence=None print("unclosed" if fence else "fences balanced", len(out.splitlines())) EOF cd ~/hackatonproject; git status --short (1s)
+    $ cd $TMPDIR; ~/hackatonproject/.venv/bin/python - <<'EOF'
+  import re, subprocess, pathlib, os
+  T=os.environ["TMPDIR"]
+  base=pathlib.Path(T)/"t016fixb"; new=pathlib.Path(T)/"t016fixc"
+  tpl=pathlib.Path("~/.bb/thread-storage/t016fix_spec_template.md").read_text()
+  def file_(m): return (new/m.group(1)).read_text().rstrip("\n")
+  def diff_(m):
+      p=m.group(1)
+      r=subprocess.run(["diff","-u","--label","a/"+p,"--label","b/"+p,str(base/p),str(new/p)],capture_output=True,text=True)
+      assert r.returncode==1, p
+      return r.stdout.rstrip("\n")
+  out=re.sub(r"\{\{FILE:([^}]+)\}\}", file_, tpl)
+  out=re.sub(r"\{\{DIFF:([^}]+)\}\}", diff_, out)
+  assert "{{FILE" not in out and "{{DIFF" not in out
+  pathlib.Path("~/hackatonproject/docs/tasks/TASK-016-FIX.md").write_text(out)
+  fence=None
+  for l in out.splitlines():
+      s=l.lstrip(" ")
+      ind=len(l)-len(s)
+      if fence is None:
+          m=re.match(r"^(`{3,})", s) if ind<=3 else None
+          if m: fence=m.group(1)
+      elif ind<=3 and re.match(fence+r"`*\s*$", s): fence=None
+  print("unclosed" if fence else "fences balanced", len(out.splitlines()))
+  EOF
+  cd ~/hackatonproject; git status --short
+    fences balanced 346
+     M plan.md
+    ?? docs/tasks/TASK-016-FIX.md
+  ── Ran cd ~/hackatonproject; bb thread tell thr_pgcwc2dwnn --message-file - <<'EOF' [TASK-016-FIX] Planner -> UI coder: TASK Spec: docs/tasks/TASK-016-FIX.md (base HEAD 30eab5c). Four small items, exact code given (passed 1217 tests on a copy): - systemd: "-" before both ReadWritePaths entries + deploy test. - templates/403_csrf.html: Django loads it automatically on a CSRF failure (renders with request, so base.html works); themed, no inline code; 2 tests. - New eye icons: 18x12 grid at 36x24 px, almond eye with a round pupil and highlight; crossed state = outline + clean 2-cell 45° slash (pixel maps in D3; checked in Chrome at 360 px, scale 1 and 2). Drawing tests in EyeIconDrawingTests. - Static test that the submit handler is exactly setShown(false) (mutation-checked). The script does not change. Expected 1212 -> 1217 tests. Visual check in section 8 (login both states at scale 1/2, CSRF page). Do not touch plan.md; never read .env. EOF
+    $ cd ~/hackatonproject; bb thread tell thr_pgcwc2dwnn --message-file - <<'EOF'
+  [TASK-016-FIX] Planner -> UI coder: TASK
+  Spec: docs/tasks/TASK-016-FIX.md (base HEAD 30eab5c). Four small items, exact code given (passed 1217 tests on a copy):
+  - systemd: "-" before both ReadWritePaths entries + deploy test.
+  - templates/403_csrf.html: Django loads it automatically on a CSRF failure (renders with request, so base.html works); themed, no inline code; 2 tests.
+  - New eye icons: 18x12 grid at 36x24 px, almond eye with a round pupil and highlight; crossed state = outline + clean 2-cell 45° slash (pixel maps in D3; checked in Chrome at 360 px, scale 1 and 2). Drawing tests in EyeIconDrawingTests.
+  - Static test that the submit handler is exactly setShown(false) (mutation-checked). The script does not change.
+  Expected 1212 -> 1217 tests. Visual check in section 8 (login both states at scale 1/2, CSRF page). Do not touch plan.md; never read .env.
+  EOF
+    Thread thr_pgcwc2dwnn steered
+
+── Assistant ───────────────────────────────────────────────
+Я написал спецификацию [TASK-016-FIX](docs/tasks/TASK-016-FIX.md) и передал её UI-кодеру. Все четыре пункта я сначала проверил на копии проекта: 1217 тестов OK, в том числе с `--parallel 2`. Сейчас в проекте 1212.
+
+**Что сделает UI-кодер:**
+1. **systemd.** Перед обеими папками в `ReadWritePaths` появится «-». Тогда служба запустится, даже если после 28.11 удалить `private_media_trial`.
+2. **Страница ошибки CSRF.** Новый шаблон `templates/403_csrf.html` в оформлении сайта: «Форма устарела. Вернитесь назад, обновите страницу и отправьте форму ещё раз». Django подхватывает этот шаблон сам, настройки менять не нужно. Я проверил в браузере: ошибка 403, обычный фон и кнопка, CSP ничего не блокирует.
+3. **Новый глаз.** Сетка стала мельче: 18×12 клеток при прежнем размере 36×24 px.
+   - Открытое состояние: миндалевидный глаз с острыми уголками и круглым зрачком с бликом.
+   - Перечёркнутое состояние: тот же контур и чистая диагональ. Зрачок я убрал. Я сравнил пять вариантов: с зрачком под чертой иконка в реальном размере превращается в шум.
+   - На 360 px при масштабе 1 и 2 обе иконки хорошо читаются.
+4. **Тест отправки формы.** Он проверяет, что перед отправкой поле снова становится полем пароля. Сам скрипт уже верный, поэтому тест проходит и сейчас. Я испортил скрипт тремя способами — тест каждый раз падает.
+
+Пункт про IPv6 в nginx тимлид оставил как есть.
+
+── User ────────────────────────────────────────────────────
+/compact
+
+── Context compacted ───────────────────────────────────────
+
+── Assistant ───────────────────────────────────────────────
+Error during compaction: You've hit your 5-hour limit · resets 5:30am (America/Los_Angeles)
+
+── Error ───────────────────────────────────────────────────
+  Provider rate limit reached
+  Claude Code rate limit rejected; type five_hour; resetsAt 1795267800; overage rejected; overage disabled: org_level_disabled
+
+── Provider authorization failed ───────────────────────────
+
+── Thought ─────────────────────────────────────────────────
+  The user says "please continue" after a compaction failed. Nothing is pending for me since TASK-016-FIX was handed over, so I'll just report the current state briefly in Russian. I'm considering a quick check of bb status for new messages, though it isn't strictly needed.
+
+── Assistant ───────────────────────────────────────────────
+У меня нет незаконченной работы: спецификация TASK-016-FIX у UI-кодера. Сжатие контекста не сработало из-за лимита, но это не мешает продолжать.
+
+Где сейчас задачи:
+- **TASK-016-FIX** — спецификацию [TASK-016-FIX](docs/tasks/TASK-016-FIX.md) я передал UI-кодеру. Жду его вопросов. Если вопрос придёт, я дополню спецификацию и отвечу.
+- **TASK-015, TASK-016, TASK-017** закоммичены, по ним от меня ничего не нужно.
+
+Новую задачу я начну, когда тимлид её пришлёт.

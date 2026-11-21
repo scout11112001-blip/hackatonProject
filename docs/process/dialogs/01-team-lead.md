@@ -25616,49 +25616,381 @@ plan.md is modified in the tree (your file) — remember it in the commit.
 ── Assistant ───────────────────────────────────────────────
 Тесты TASK-017 прошли: 1212. Делаю коммит и ставлю задачу на сервер.
 
-── Running .venv/bin/python - <<'EOF' p='CHANGELOG.md' s=open(p,encoding='utf-8').read() anchor='## 2026-11-21\n### TASK-016:' entry='''## 2026-11-21 ### TASK-017: показ пароля, раздел «Документы», «Справка о поступлении» - Вход: кнопка с пиксельным глазом показывает и скрывает пароль (маленький внешний скрипт; без JavaScript кнопка скрыта, вход работает как раньше; одно название «Показать пароль» и состояние `aria-pressed`). - Раздел «Заявки» стал «Документы». Слова «заявка» на сайте больше нет: где вид известен — «справка» или «заявление», где виды вместе — «документ». Статусы и кнопки согласуются с видом («Справка … Подана», «Заявление … Подано», «Отметить готовым»). - «Справка в военкомат» переименована в «Справку о поступлении» (миграция, комментарий необязателен). У «Другого заявления» свой пример: «Заявление на индивидуальный учебный план». - Исполнитель — Кодер интерфейса. Ревью: 1 раунд, без замечаний. Проверка тимлида в браузере: вход с показом пароля, страницы студента и сотрудника без «заявк», без нарушений CSP. Всего тестов: 1212. ### TASK-016:''' assert s.count(anchor)==1 s=s.replace(anchor, entry) open(p,'w',encoding='utf-8').write(s) p='plan.md' s=open(p,encoding='utf-8').read() row=[l for l in s.split('\n') if l.startswith('| TASK-017 |')][0] assert row.endswith('| В работе |') s=s.replace(row, row[:-len('| В работе |')]+'| Готово |') s=s.replace('TASK-017 в работе (Кодер интерфейса).','TASK-017 закрыта 21.11.') open(p,'w',encoding='utf-8').write(s) EOF O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && { printf '# Pentester dialog\n\nRun 1 of PENTEST-1 (medium reasoning) is first; the thread context was then cleared and run 2 (max reasoning) follows.\n\n## Run 1 (before context clear, 2026-11-19/20)\n\n'; cat ~/.bb/thread-storage/thr_4izdzwetb4/pentest/pentester-run1-dialog.md; printf '\n\n## Run 2 (after context clear, 2026-11-20)\n\n'; bb thread log thr_kqfp9kn6jk --all --format verbose; } > "$O/06-pentester.md" && .venv/bin/python -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)     t=t.replace('[id скрыт]','[id скрыт]')     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     t=t.replace('[IP пользователя скрыт]','[IP пользователя скрыт]')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~','[IP пользователя скрыт]') if k in t]     assert not bad,(f,bad)     assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f     assert not re.search(r'Demo-[0-9a-f]{12}',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF rm -rf "$O"
-  $ .venv/bin/python - <<'EOF'
-p='CHANGELOG.md'
-s=open(p,encoding='utf-8').read()
-anchor='## 2026-11-21\n### TASK-016:'
-entry='''## 2026-11-21
-### TASK-017: показ пароля, раздел «Документы», «Справка о поступлении»
-- Вход: кнопка с пиксельным глазом показывает и скрывает пароль (маленький внешний скрипт; без JavaScript кнопка скрыта, вход работает как раньше; одно название «Показать пароль» и состояние `aria-pressed`).
-- Раздел «Заявки» стал «Документы». Слова «заявка» на сайте больше нет: где вид известен — «справка» или «заявление», где виды вместе — «документ». Статусы и кнопки согласуются с видом («Справка … Подана», «Заявление … Подано», «Отметить готовым»).
-- «Справка в военкомат» переименована в «Справку о поступлении» (миграция, комментарий необязателен). У «Другого заявления» свой пример: «Заявление на индивидуальный учебный план».
-- Исполнитель — Кодер интерфейса. Ревью: 1 раунд, без замечаний. Проверка тимлида в браузере: вход с показом пароля, страницы студента и сотрудника без «заявк», без нарушений CSP. Всего тестов: 1212.
+── Ran 4 commands ──────────────────────────────────────────
+  ── Ran .venv/bin/python - <<'EOF' p='CHANGELOG.md' s=open(p,encoding='utf-8').read() anchor='## 2026-11-21\n### TASK-016:' entry='''## 2026-11-21 ### TASK-017: показ пароля, раздел «Документы», «Справка о поступлении» - Вход: кнопка с пиксельным глазом показывает и скрывает пароль (маленький внешний скрипт; без JavaScript кнопка скрыта, вход работает как раньше; одно название «Показать пароль» и состояние `aria-pressed`). - Раздел «Заявки» стал «Документы». Слова «заявка» на сайте больше нет: где вид известен — «справка» или «заявление», где виды вместе — «документ». Статусы и кнопки согласуются с видом («Справка … Подана», «Заявление … Подано», «Отметить готовым»). - «Справка в военкомат» переименована в «Справку о поступлении» (миграция, комментарий необязателен). У «Другого заявления» свой пример: «Заявление на индивидуальный учебный план». - Исполнитель — Кодер интерфейса. Ревью: 1 раунд, без замечаний. Проверка тимлида в браузере: вход с показом пароля, страницы студента и сотрудника без «заявк», без нарушений CSP. Всего тестов: 1212. ### TASK-016:''' assert s.count(anchor)==1 s=s.replace(anchor, entry) open(p,'w',encoding='utf-8').write(s) p='plan.md' s=open(p,encoding='utf-8').read() row=[l for l in s.split('\n') if l.startswith('| TASK-017 |')][0] assert row.endswith('| В работе |') s=s.replace(row, row[:-len('| В работе |')]+'| Готово |') s=s.replace('TASK-017 в работе (Кодер интерфейса).','TASK-017 закрыта 21.11.') open(p,'w',encoding='utf-8').write(s) EOF O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && { printf '# Pentester dialog\n\nRun 1 of PENTEST-1 (medium reasoning) is first; the thread context was then cleared and run 2 (max reasoning) follows.\n\n## Run 1 (before context clear, 2026-11-19/20)\n\n'; cat ~/.bb/thread-storage/thr_4izdzwetb4/pentest/pentester-run1-dialog.md; printf '\n\n## Run 2 (after context clear, 2026-11-20)\n\n'; bb thread log thr_kqfp9kn6jk --all --format verbose; } > "$O/06-pentester.md" && .venv/bin/python -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)     t=t.replace('[id скрыт]','[id скрыт]')     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     t=t.replace('[IP пользователя скрыт]','[IP пользователя скрыт]')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~','[IP пользователя скрыт]') if k in t]     assert not bad,(f,bad)     assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f     assert not re.search(r'Demo-[0-9a-f]{12}',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF rm -rf "$O" (7s)
+    $ .venv/bin/python - <<'EOF'
+  p='CHANGELOG.md'
+  s=open(p,encoding='utf-8').read()
+  anchor='## 2026-11-21\n### TASK-016:'
+  entry='''## 2026-11-21
+  ### TASK-017: показ пароля, раздел «Документы», «Справка о поступлении»
+  - Вход: кнопка с пиксельным глазом показывает и скрывает пароль (маленький внешний скрипт; без JavaScript кнопка скрыта, вход работает как раньше; одно название «Показать пароль» и состояние `aria-pressed`).
+  - Раздел «Заявки» стал «Документы». Слова «заявка» на сайте больше нет: где вид известен — «справка» или «заявление», где виды вместе — «документ». Статусы и кнопки согласуются с видом («Справка … Подана», «Заявление … Подано», «Отметить готовым»).
+  - «Справка в военкомат» переименована в «Справку о поступлении» (миграция, комментарий необязателен). У «Другого заявления» свой пример: «Заявление на индивидуальный учебный план».
+  - Исполнитель — Кодер интерфейса. Ревью: 1 раунд, без замечаний. Проверка тимлида в браузере: вход с показом пароля, страницы студента и сотрудника без «заявк», без нарушений CSP. Всего тестов: 1212.
 
-### TASK-016:'''
-assert s.count(anchor)==1
-s=s.replace(anchor, entry)
-open(p,'w',encoding='utf-8').write(s)
+  ### TASK-016:'''
+  assert s.count(anchor)==1
+  s=s.replace(anchor, entry)
+  open(p,'w',encoding='utf-8').write(s)
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  row=[l for l in s.split('\n') if l.startswith('| TASK-017 |')][0]
+  assert row.endswith('| В работе |')
+  s=s.replace(row, row[:-len('| В работе |')]+'| Готово |')
+  s=s.replace('TASK-017 в работе (Кодер интерфейса).','TASK-017 закрыта 21.11.')
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && { printf '# Pentester dialog\n\nRun 1 of PENTEST-1 (medium reasoning) is first; the thread context was then cleared and run 2 (max reasoning) follows.\n\n## Run 1 (before context clear, 2026-11-19/20)\n\n'; cat ~/.bb/thread-storage/thr_4izdzwetb4/pentest/pentester-run1-dialog.md; printf '\n\n## Run 2 (after context clear, 2026-11-20)\n\n'; bb thread log thr_kqfp9kn6jk --all --format verbose; } > "$O/06-pentester.md" && .venv/bin/python -I - "$O" <<'EOF'
+  import os,re,sys
+  d=sys.argv[1]; out='docs/process/dialogs'
+  for f in sorted(os.listdir(d)):
+      t=open(os.path.join(d,f),encoding='utf-8').read()
+      t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)
+      t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)
+      t=t.replace('[id скрыт]','[id скрыт]')
+      t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')
+      t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)
+      t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')
+      t=t.replace('[IP пользователя скрыт]','[IP пользователя скрыт]')
+      bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~','[IP пользователя скрыт]') if k in t]
+      assert not bad,(f,bad)
+      assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f
+      assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f
+      assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f
+      assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f
+      assert not re.search(r'Demo-[0-9a-f]{12}',t),f
+      open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
+  EOF
+  rm -rf "$O"
+    01-team-lead.md 2572 KB
+    02-planner.md 2652 KB
+    03-coder-deepseek.md 5938 KB
+    04-reviewer.md 1630 KB
+    05-ui-coder.md 850 KB
+    06-pentester.md 882 KB
+  ── Ran git add -A . ':!db.sqlite3' && git status --short | grep -v "^[AMDR] "; git diff --cached --stat | tail -1; git commit -q -F - <<'EOF' TASK-017: password visibility toggle, "Документы" wording, "Справка о поступлении" - Login: pixel eye toggle (external progressive-enhancement script, hidden   without JS, one accessible name with aria-pressed). - "Заявки" -> "Документы"; no "заявка" in user-visible text: the kind's own   noun where known ("справка" / "заявление"), "документ" where mixed;   status labels and actions agree with the noun (petitions/wording.py). - "Справка в военкомат" renamed in place to "Справка о поступлении"   (data migration, optional comment); application subject example. - Process docs: screenshots 76-80, CHANGELOG, plan, dialogs. Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com> EOF git log --oneline -1; git status --short | wc -l; GIT_TERMINAL_PROMPT=0 git push -q origin main 2>&1 | tail -1; git rev-list --count origin/main..main (Outside of sandbox) (5s)
+    $ git add -A . ':!db.sqlite3' && git status --short | grep -v "^[AMDR] "; git diff --cached --stat | tail -1; git commit -q -F - <<'EOF'
+  TASK-017: password visibility toggle, "Документы" wording, "Справка о поступлении"
+
+  - Login: pixel eye toggle (external progressive-enhancement script, hidden
+    without JS, one accessible name with aria-pressed).
+  - "Заявки" -> "Документы"; no "заявка" in user-visible text: the kind's own
+    noun where known ("справка" / "заявление"), "документ" where mixed;
+    status labels and actions agree with the noun (petitions/wording.py).
+  - "Справка в военкомат" renamed in place to "Справка о поступлении"
+    (data migration, optional comment); application subject example.
+  - Process docs: screenshots 76-80, CHANGELOG, plan, dialogs.
+
+  Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+  EOF
+  git log --oneline -1; git status --short | wc -l; GIT_TERMINAL_PROMPT=0 git push -q origin main 2>&1 | tail -1; git rev-list --count origin/main..main
+    The following paths are ignored by one of your .gitignore files:
+    db.sqlite3
+    hint: Use -f if you really want to add them.
+    hint: Turn this message off by running
+    hint: "git config advice.addIgnoredFile false"
+     52 files changed, 8219 insertions(+), 112 deletions(-)
+    e157a7d TASK-017: password visibility toggle, "Документы" wording, "Справка о поступлении"
+           0
+    0
+  ── Ran git show --stat HEAD | grep -E "db.sqlite3|\.env|private_media" || echo "no secret/local files in commit"; for i in 1 2 3; do ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=20 -o ServerAliveInterval=30 root@136.148.83.222 'bash -s' <<'EOF' && break; sleep 5; done set -euo pipefail cd /srv/deanery APP_USER=deanery; D=digital-student-services.ru M="sudo -u $APP_USER /srv/deanery/app/deploy/manage.sh" sudo -u "$APP_USER" git -C /srv/deanery/app pull -q --ff-only && sudo -u "$APP_USER" git -C /srv/deanery/app log --oneline -1 sudo -u "$APP_USER" /srv/deanery/venv/bin/pip install -q -r /srv/deanery/app/requirements.txt $M migrate --noinput 2>&1 | grep -E "Applying|No migrations" | tail -4 $M collectstatic --noinput 2>&1 | tail -1 $M check --deploy --fail-level WARNING systemctl restart deanery && sleep 4 && systemctl is-active deanery $M shell -c " from petitions.models import RequestType print('types:', ', '.join(t.name for t in RequestType.objects.filter(is_active=True).order_by('kind','name'))) " 2>/dev/null | tail -1 printf "health: "; curl -s https://$D/health/; echo printf "login has toggle: "; curl -s https://$D/login/ | grep -c 'password-toggle' printf "toggle js: "; curl -s -o /dev/null -w "%{http_code}\n" "https://$D$(curl -s https://$D/login/ | grep -o '/static/js/password-toggle[^"]*\.js' | head -1)" EOF (Outside of sandbox) (23s)
+    $ git show --stat HEAD | grep -E "db.sqlite3|\.env|private_media" || echo "no secret/local files in commit"; for i in 1 2 3; do ssh -i ~/.ssh/hackaton_lead -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=20 -o ServerAliveInterval=30 root@136.148.83.222 'bash -s' <<'EOF' && break; sleep 5; done
+  set -euo pipefail
+  cd /srv/deanery
+  APP_USER=deanery; D=digital-student-services.ru
+  M="sudo -u $APP_USER /srv/deanery/app/deploy/manage.sh"
+  sudo -u "$APP_USER" git -C /srv/deanery/app pull -q --ff-only && sudo -u "$APP_USER" git -C /srv/deanery/app log --oneline -1
+  sudo -u "$APP_USER" /srv/deanery/venv/bin/pip install -q -r /srv/deanery/app/requirements.txt
+  $M migrate --noinput 2>&1 | grep -E "Applying|No migrations" | tail -4
+  $M collectstatic --noinput 2>&1 | tail -1
+  $M check --deploy --fail-level WARNING
+  systemctl restart deanery && sleep 4 && systemctl is-active deanery
+  $M shell -c "
+  from petitions.models import RequestType
+  print('types:', ', '.join(t.name for t in RequestType.objects.filter(is_active=True).order_by('kind','name')))
+  " 2>/dev/null | tail -1
+  printf "health: "; curl -s https://$D/health/; echo
+  printf "login has toggle: "; curl -s https://$D/login/ | grep -c 'password-toggle'
+  printf "toggle js: "; curl -s -o /dev/null -w "%{http_code}\n" "https://$D$(curl -s https://$D/login/ | grep -o '/static/js/password-toggle[^"]*\.js' | head -1)"
+  EOF
+    no secret/local files in commit
+    e157a7d TASK-017: password visibility toggle, "Документы" wording, "Справка о поступлении"
+      Applying petitions.0004_documents_wording... OK
+      Applying petitions.0005_admission_certificate... OK
+    3 static files copied to '/srv/deanery/app/staticfiles', 132 unmodified, 375 post-processed.
+    System check identified no issues (1 silenced).
+    active
+    types: Другое заявление, Заявление на академический отпуск, Заявление на повторную промежуточную аттестацию, Другая справка, Справка для стипендиального отдела, Справка об обучении, Справка о поступлении
+    health: {"status": "ok"}
+    login has toggle: 2
+    toggle js: 200
+  ── Ran .venv/bin/python - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() s=s.replace('Код на сервере — 16399ea.','Код на сервере — e157a7d.') s=s.replace('TASK-017 закрыта 21.11.','TASK-017 закрыта 21.11 и поставлена на сервер (миграции petitions 0004–0005, «Справка о поступлении» на месте).') open(p,'w',encoding='utf-8').write(s) EOF F=~/.bb/thread-storage/thr_4izdzwetb4/TASK-016-FIX.txt && .venv/bin/python - "$F" <<'EOF' import sys p=sys.argv[1] s=open(p,encoding='utf-8').read() s=s.replace('[TASK-016-FIX] Team lead -> Planner: TASK  (DRAFT, waiting for the user; send after TASK-017 is committed)','[TASK-016-FIX] Team lead -> Planner: TASK  (DRAFT, waiting for the user)') s=s.replace('Non-blocking notes from the TASK-016 review (Reviewer, 21.11).','Non-blocking notes from the TASK-016 and TASK-017 reviews (Reviewer, 21.11) and the Team lead\'s browser check of TASK-017.') s=s.replace('## Accepted as is','''3. Password eye icon (TASK-017, user wants it "beautiful and readable"): today the 12x8 icon reads as a capsule with a square inside (vertical sides 4 px, square pupil), see `docs/process/screenshots/2026-11-21_76_login-password-hidden.jpg`. Redraw both states as a clear almond-shaped eye with pointed corners, a round pupil (and a highlight pixel if it fits), and a clear diagonal slash for the "shown" state; check at 360 px with deviceScaleFactor 1 and 2 that it reads as an eye; keep size, tap target, crispEdges and the tests. 4. `static/js/password-toggle.js`: a static test that the submit handler resets the field to "password" (`setShown(false)`), the one mutation the Reviewer's run did not catch. ## Accepted as is''') open(p,'w',encoding='utf-8').write(s) EOF grep -c "almond" "$F" (1s)
+    $ .venv/bin/python - <<'EOF'
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  s=s.replace('Код на сервере — 16399ea.','Код на сервере — e157a7d.')
+  s=s.replace('TASK-017 закрыта 21.11.','TASK-017 закрыта 21.11 и поставлена на сервер (миграции petitions 0004–0005, «Справка о поступлении» на месте).')
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  F=~/.bb/thread-storage/thr_4izdzwetb4/TASK-016-FIX.txt && .venv/bin/python - "$F" <<'EOF'
+  import sys
+  p=sys.argv[1]
+  s=open(p,encoding='utf-8').read()
+  s=s.replace('[TASK-016-FIX] Team lead -> Planner: TASK  (DRAFT, waiting for the user; send after TASK-017 is committed)','[TASK-016-FIX] Team lead -> Planner: TASK  (DRAFT, waiting for the user)')
+  s=s.replace('Non-blocking notes from the TASK-016 review (Reviewer, 21.11).','Non-blocking notes from the TASK-016 and TASK-017 reviews (Reviewer, 21.11) and the Team lead\'s browser check of TASK-017.')
+  s=s.replace('## Accepted as is','''3. Password eye icon (TASK-017, user wants it "beautiful and readable"): today the 12x8 icon reads as a capsule with a square inside (vertical sides 4 px, square pupil), see `docs/process/screenshots/2026-11-21_76_login-password-hidden.jpg`. Redraw both states as a clear almond-shaped eye with pointed corners, a round pupil (and a highlight pixel if it fits), and a clear diagonal slash for the "shown" state; check at 360 px with deviceScaleFactor 1 and 2 that it reads as an eye; keep size, tap target, crispEdges and the tests.
+  4. `static/js/password-toggle.js`: a static test that the submit handler resets the field to "password" (`setShown(false)`), the one mutation the Reviewer's run did not catch.
+
+  ## Accepted as is''')
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  grep -c "almond" "$F"
+    1
+
+── Assistant ───────────────────────────────────────────────
+TASK-017 закрыта (коммит `e157a7d`), отправлена на GitHub и стоит на сервере.
+
+**Проверка:**
+- Ревьюер одобрил задачу с первого раунда. Его мутационные тесты поймали 7 испорченных версий кода из 8.
+- Мои прогоны: 1212 тестов, параллельно и на границе полуночи, без ошибок.
+- В браузере:
+  - **Вход:** кнопка с глазом 44 px стоит рядом с паролем. Нажатие показывает пароль, глаз становится перечёркнутым, вход проходит. Нарушений CSP нет.
+  - **Студент:** «Мои документы», «Оформить документ», кнопка «Подать заявление». Статусы согласуются с видом: «Справка … Подана», «Выдана».
+  - **Сотрудник:** раздел «Документы», фильтр «Подан / Готов / Выдан / Отклонён». В карточке «Заявление № …» и «Отклонено, Подано: …».
+  - Слова «заявка» не осталось ни на одной проверенной странице.
+- **Сервер:** обе миграции прошли, «Справка о поступлении» на месте, кнопка глаза и её скрипт отдаются.
+- Скриншоты 76–80 лежат в `docs/process`.
+
+**Недочёт, который я нашёл сам.** Глаз нечитаемый: на скриншоте 76 он похож на «капсулу с квадратом» вместо глаза. Вы просили красивую и читаемую иконку, поэтому я добавил перерисовку в черновик fix.
+
+**Черновик TASK-016-FIX** (исполнитель — Кодер интерфейса). Рекомендую исправить все 4 пункта:
+1. Служба на сервере не должна падать, если после 28.11 удалить пробную папку. Это один символ в настройке systemd.
+2. Своя оформленная страница ошибки CSRF. Сейчас из-за строгого CSP она показывается без стилей.
+3. **Перерисовать глаз:** миндалевидная форма с острыми уголками, круглый зрачок, чёткая косая черта в состоянии «пароль виден».
+4. Тест на то, что при отправке формы пароль снова скрывается. Это единственная порча кода, которую не поймали тесты Ревьюера.
+
+Отправлять TASK-016-FIX?
+
+── User ────────────────────────────────────────────────────
+Согласен с правками, отправляй
+
+── Ran git status --short && F=~/.bb/thread-storage/thr_4izdzwetb4/TASK-016-FIX.txt && sed -i '' '1s/  (DRAFT, waiting for the user)//' "$F" && head -1 "$F" && git add plan.md && git commit -q -m "Plan: TASK-017 on the server Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" && git status --short | wc -l && bb thread tell thr_2imsg4kck2 --message-file - < "$F" && .venv/bin/python - <<'EOF' p='plan.md' s=open(p,encoding='utf-8').read() row=[l for l in s.split('\n') if l.startswith('| TASK-017 |')][0] new='| TASK-016-FIX | Служба systemd без пробной папки, своя страница ошибки CSRF, новый глаз показа пароля, тест скрытия пароля при отправке (исполнитель — Кодер интерфейса) | В работе |' assert s.count(row)==1 s=s.replace(row, row+'\n'+new) open(p,'w',encoding='utf-8').write(s) EOF grep -c "TASK-016-FIX" plan.md (Outside of sandbox) (2s)
+  $ git status --short && F=~/.bb/thread-storage/thr_4izdzwetb4/TASK-016-FIX.txt && sed -i '' '1s/  (DRAFT, waiting for the user)//' "$F" && head -1 "$F" && git add plan.md && git commit -q -m "Plan: TASK-017 on the server
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" && git status --short | wc -l && bb thread tell thr_2imsg4kck2 --message-file - < "$F" && .venv/bin/python - <<'EOF'
 p='plan.md'
 s=open(p,encoding='utf-8').read()
 row=[l for l in s.split('\n') if l.startswith('| TASK-017 |')][0]
-assert row.endswith('| В работе |')
-s=s.replace(row, row[:-len('| В работе |')]+'| Готово |')
-s=s.replace('TASK-017 в работе (Кодер интерфейса).','TASK-017 закрыта 21.11.')
+new='| TASK-016-FIX | Служба systemd без пробной папки, своя страница ошибки CSRF, новый глаз показа пароля, тест скрытия пароля при отправке (исполнитель — Кодер интерфейса) | В работе |'
+assert s.count(row)==1
+s=s.replace(row, row+'\n'+new)
 open(p,'w',encoding='utf-8').write(s)
 EOF
-O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && { printf '# Pentester dialog\n\nRun 1 of PENTEST-1 (medium reasoning) is first; the thread context was then cleared and run 2 (max reasoning) follows.\n\n## Run 1 (before context clear, 2026-11-19/20)\n\n'; cat ~/.bb/thread-storage/thr_4izdzwetb4/pentest/pentester-run1-dialog.md; printf '\n\n## Run 2 (after context clear, 2026-11-20)\n\n'; bb thread log thr_kqfp9kn6jk --all --format verbose; } > "$O/06-pentester.md" && .venv/bin/python -I - "$O" <<'EOF'
-import os,re,sys
-d=sys.argv[1]; out='docs/process/dialogs'
-for f in sorted(os.listdir(d)):
-    t=open(os.path.join(d,f),encoding='utf-8').read()
-    t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)
-    t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)
-    t=t.replace('[id скрыт]','[id скрыт]')
-    t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')
-    t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)
-    t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')
-    t=t.replace('[IP пользователя скрыт]','[IP пользователя скрыт]')
-    bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~','[IP пользователя скрыт]') if k in t]
-    assert not bad,(f,bad)
-    assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f
-    assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f
-    assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f
-    assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f
-    assert not re.search(r'Demo-[0-9a-f]{12}',t),f
-    open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
-EOF
-rm -rf "$O"
+grep -c "TASK-016-FIX" plan.md
+  M plan.md
+  [TASK-016-FIX] Team lead -> Planner: TASK
+         0
+  Thread thr_2imsg4kck2 steered
+  1
+  [This command modified 1 file you've previously read: ../.bb/thread-storage/thr_4izdzwetb4/TASK-016-FIX.txt. Call Read before editing.]
+
+── Assistant ───────────────────────────────────────────────
+Я отправил TASK-016-FIX Планировщику, исполнитель — Кодер интерфейса. В ней 4 пункта:
+1. служба systemd запускается и без пробной папки;
+2. своя оформленная страница ошибки CSRF;
+3. новый глаз: миндалевидный, с круглым зрачком и чёткой косой чертой;
+4. тест, что пароль скрывается при отправке формы.
+
+Перед отправкой я сделал коммит обновлённого `plan.md`, чтобы рабочая папка была чистой. В плане задача отмечена как «В работе».
+
+Когда Ревьюер её одобрит, я сам проверю глаз в браузере и сделаю коммит. Потом поставлю правку systemd на сервер.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_cpuae9aqw3]
+
+[TASK-016-FIX] Reviewer -> Team lead: APPROVE
+
+Spec: docs/tasks/TASK-016-FIX.md (base 30eab5c). Round 1, UI coder. Changes are uncommitted. git status: 6 M + new templates/403_csrf.html, plus your plan.md and the spec. static/js/password-toggle.js is unchanged.
+
+## Code vs spec (script compare)
+- These files are byte-identical to the spec: templates/403_csrf.html, icon_eye.html, icon_eye_off.html.
+- The 4 diffs (deanery.service, test_deploy, test_errors, test_login_page) give exactly the spec +/- lines.
+
+## Runs (all OK, no failures)
+- --parallel, 04:35 MSK 21.11 ($TMPDIR/test-t016fix-rev-par-20261121-013503.log): Ran 1217 tests ... OK
+- --parallel 2, 04:36 MSK ($TMPDIR/test-t016fix-rev-p2-20261121-013552.log): Ran 1217 tests ... OK
+- ruff check and format --check OK (202 files); check and makemigrations --check OK.
+
+## Mutations (temp copy). 5 of 5 were caught:
+- Pupil highlight filled -> test_open_eye_shape.
+- Slash gap filled -> test_crossed_eye_has_diagonal.
+- 403_csrf.html removed -> 2 CsrfFailurePageTests (Django's built-in page with <style>).
+- "-" dropped from one ReadWritePaths path -> test_hardening.
+- Submit handler calls setShown(true) -> test_submit_resets_to_password. This closes my TASK-017 note.
+
+## Visual
+- The UI coder's device-pixel clips at scale 2 read clearly: an almond eye with a round pupil and highlight; the crossed state is the outline with a clean 45° slash.
+- The 360 px login page and the CSRF page as a signed-in student look right: nav, theme, "На главную".
+- CSP on the CSRF 403:
+  - test_csrf_failure_uses_project_template asserts the header (tests run with DEBUG=False);
+  - the UI coder also confirmed 0 violations on a DEBUG=false server.
+
+## Not verifiable here
+systemd-analyze verify (macOS): run it when you install the unit (step 21 commands).
+
+plan.md is modified in the tree (your file) — remember it in the commit.
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Thought
+    I'm going through the rest of the plan: running the tests, checking the eye in the browser at a larger close-up, verifying the CSRF page, then committing and pushing. After that comes the deploy: pulling, running collectstatic, updating the systemd unit, verifying, and restarting.
+  ── Ran git status --short && . .venv/bin/activate && L="$TMPDIR/test-lead16fix-$(date +%Y%m%d-%H%M%S).log" && echo "$L" > "$TMPDIR/lead16fixlog" && ( { python manage.py check; DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ python manage.py check --deploy --fail-level WARNING; echo "deploy-check=$?"; python manage.py makemigrations --check --dry-run; echo "makemigrations=$?"; ruff check . && ruff format --check .; echo "ruff=$?"; python manage.py test --parallel 2 2>&1; echo "parallel=$?"; python scripts/run_tests_at.py 2026-11-22T00:00:00 2>&1; echo "midnight=$?"; } > "$L" 2>&1 ) > /dev/null 2>&1 & cd ~/hackatonproject && git diff deploy/systemd/deanery.service | grep "^[-+]" ; cat templates/includes/icon_eye.html 2>/dev/null | head -30; find . -name "icon_eye*.html" -not -path "./.venv/*" (1s)
+    $ git status --short && . .venv/bin/activate && L="$TMPDIR/test-lead16fix-$(date +%Y%m%d-%H%M%S).log" && echo "$L" > "$TMPDIR/lead16fixlog" && ( { python manage.py check; DEBUG=false ALLOWED_HOSTS=example.com ADMIN_URL=ci-staff-panel/ python manage.py check --deploy --fail-level WARNING; echo "deploy-check=$?"; python manage.py makemigrations --check --dry-run; echo "makemigrations=$?"; ruff check . && ruff format --check .; echo "ruff=$?"; python manage.py test --parallel 2 2>&1; echo "parallel=$?"; python scripts/run_tests_at.py 2026-11-22T00:00:00 2>&1; echo "midnight=$?"; } > "$L" 2>&1 ) > /dev/null 2>&1 &
+  cd ~/hackatonproject && git diff deploy/systemd/deanery.service | grep "^[-+]" ; cat templates/includes/icon_eye.html 2>/dev/null | head -30; find . -name "icon_eye*.html" -not -path "./.venv/*"
+    M accounts/tests/test_login_page.py
+     M core/tests/test_deploy.py
+     M core/tests/test_errors.py
+     M deploy/systemd/deanery.service
+     M plan.md
+     M templates/includes/icon_eye.html
+     M templates/includes/icon_eye_off.html
+    ?? docs/tasks/TASK-016-FIX.md
+    ?? templates/403_csrf.html
+    (eval):1: nice(5) failed: operation not permitted
+    --- a/deploy/systemd/deanery.service
+    +++ b/deploy/systemd/deanery.service
+    -ReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial
+    +# "-": a missing directory (e.g. private_media_trial removed after 2026-11-28) is skipped.
+    +ReadWritePaths=-/srv/deanery/private_media -/srv/deanery/private_media_trial
+    <svg class="icon-eye" viewBox="0 0 18 12" width="36" height="24" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><g fill="currentColor"><rect x="6" y="1" width="6" height="1"/><rect x="4" y="2" width="2" height="1"/><rect x="12" y="2" width="2" height="1"/><rect x="2" y="3" width="2" height="1"/><rect x="7" y="3" width="4" height="1"/><rect x="14" y="3" width="2" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="6" y="4" width="2" height="1"/><rect x="10" y="4" width="2" height="1"/><rect x="16" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="8" y="5" width="4" height="1"/><rect x="17" y="5" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/><rect x="6" y="6" width="6" height="1"/><rect x="17" y="6" width="1" height="1"/><rect x="1" y="7" width="1" height="1"/><rect x="6" y="7" width="6" height="1"/><rect x="16" y="7" width="1" height="1"/><rect x="2" y="8" width="2" height="1"/><rect x="7" y="8" width="4" height="1"/><rect x="14" y="8" width="2" height="1"/><rect x="4" y="9" width="2" height="1"/><rect x="12" y="9" width="2" height="1"/><rect x="6" y="10" width="6" height="1"/></g></svg>
+    ./templates/includes/icon_eye_off.html
+    ./templates/includes/icon_eye.html
+  ── Thought for 4ms
+    I'm going to render the icon at a large scale in the browser to check it, setting the SVG inside a plain page scaled up ten times. Then I'll do a quick render of both icons, the 360px login version and the large one.
+  ── Ran E1=$(cat templates/includes/icon_eye.html | sed 's/width="36" height="24"/width="216" height="144"/' | tr -d '\n'); E2=$(cat templates/includes/icon_eye_off.html | sed 's/width="36" height="24"/width="216" height="144"/' | tr -d '\n'); E3=$(cat templates/includes/icon_eye.html | tr -d '\n'); E4=$(cat templates/includes/icon_eye_off.html | tr -d '\n'); ~/hackatonproject/.venv/bin/python - "$E1" "$E2" "$E3" "$E4" > "$TMPDIR/eyes.html" <<'EOF' import sys a,b,c,d=sys.argv[1:5] print(f'''<html><body style="margin:0;background:#221449;color:#f3ecff;font:16px sans-serif;padding:16px"> <div style="display:flex;gap:24px;align-items:center">{a}{b}</div> <p>Фактический размер (36×24):</p> <div style="display:flex;gap:16px;align-items:center"><span style="border:3px solid #b8a6e8;padding:7px 8px;display:inline-flex">{c}</span><span style="border:3px solid #b8a6e8;padding:7px 8px;display:inline-flex">{d}</span></div> </body></html>''') EOF bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -1 > "$TMPDIR/bopen.json"; S=$(~/hackatonproject/.venv/bin/python -c "import json;d=json.load(open('$TMPDIR/bopen.json'));print(d.get('sessionId') or d.get('id'))"); echo $S > $TMPDIR/bsess; ~/hackatonproject/.venv/bin/python -c "import json;d=json.load(open('$TMPDIR/bopen.json'));print(d.get('previewDirective',''))"; H=$(~/hackatonproject/.venv/bin/python -c "import json,sys;print(json.dumps(open(sys.argv[1]).read()))" "$TMPDIR/eyes.html"); bb browser-automation run $S --timeout 60s --json --script "const p = await browser.getPage('main'); await p.setViewport({width: 520, height: 300, deviceScaleFactor: 2}); await p.setContent($H); await p.shot({type: 'jpeg', quality: 85}); console.log('ok');" 2>&1 | ~/hackatonproject/.venv/bin/python -c 'import json,sys;d=json.load(sys.stdin);print(d.get("text"));[print(i["path"]) for i in d.get("images",[])]' (3s)
+    $ E1=$(cat templates/includes/icon_eye.html | sed 's/width="36" height="24"/width="216" height="144"/' | tr -d '\n'); E2=$(cat templates/includes/icon_eye_off.html | sed 's/width="36" height="24"/width="216" height="144"/' | tr -d '\n'); E3=$(cat templates/includes/icon_eye.html | tr -d '\n'); E4=$(cat templates/includes/icon_eye_off.html | tr -d '\n'); ~/hackatonproject/.venv/bin/python - "$E1" "$E2" "$E3" "$E4" > "$TMPDIR/eyes.html" <<'EOF'
+  import sys
+  a,b,c,d=sys.argv[1:5]
+  print(f'''<html><body style="margin:0;background:#221449;color:#f3ecff;font:16px sans-serif;padding:16px">
+  <div style="display:flex;gap:24px;align-items:center">{a}{b}</div>
+  <p>Фактический размер (36×24):</p>
+  <div style="display:flex;gap:16px;align-items:center"><span style="border:3px solid #b8a6e8;padding:7px 8px;display:inline-flex">{c}</span><span style="border:3px solid #b8a6e8;padding:7px 8px;display:inline-flex">{d}</span></div>
+  </body></html>''')
+  EOF
+  bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -1 > "$TMPDIR/bopen.json"; S=$(~/hackatonproject/.venv/bin/python -c "import json;d=json.load(open('$TMPDIR/bopen.json'));print(d.get('sessionId') or d.get('id'))"); echo $S > $TMPDIR/bsess; ~/hackatonproject/.venv/bin/python -c "import json;d=json.load(open('$TMPDIR/bopen.json'));print(d.get('previewDirective',''))"; H=$(~/hackatonproject/.venv/bin/python -c "import json,sys;print(json.dumps(open(sys.argv[1]).read()))" "$TMPDIR/eyes.html"); bb browser-automation run $S --timeout 60s --json --script "const p = await browser.getPage('main'); await p.setViewport({width: 520, height: 300, deviceScaleFactor: 2}); await p.setContent($H); await p.shot({type: 'jpeg', quality: 85}); console.log('ok');" 2>&1 | ~/hackatonproject/.venv/bin/python -c 'import json,sys;d=json.load(sys.stdin);print(d.get("text"));[print(i["path"]) for i in d.get("images",[])]'
+    ::browser-preview{session="e8668824-2c87-4038-acea-f9386980814c"}
+    ok
+
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-1ZG3ZS/db-np5lru/tmp/shot-1795253870857-1.jpg
+
+── Assistant ───────────────────────────────────────────────
+You've hit your 5-hour limit · resets 5:30am (America/Los_Angeles)
+
+── Error ───────────────────────────────────────────────────
+  Provider rate limit reached
+  You've hit your 5-hour limit · resets 5:30am (America/Los_Angeles)
+
+── Provider authorization failed ───────────────────────────
+
+── Assistant ───────────────────────────────────────────────
+::browser-preview{session="e8668824-2c87-4038-acea-f9386980814c"}
+
+── Explored 1 file, ran 1 command ──────────────────────────
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-1ZG3ZS/db-np5lru/tmp/shot-1795253870857-1.jpg
+  ── Thought for 6ms
+    I suspect the browser session has expired and the tmp directory was cleared, so I'll re-render the page to get things working again.
+  ── Ran ls "$TMPDIR/eyes.html" 2>&1; bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -1 > "$TMPDIR/bopen.json"; S=$(~/hackatonproject/.venv/bin/python -c "import json;d=json.load(open('$TMPDIR/bopen.json'));print(d.get('sessionId') or d.get('id'))"); echo $S > $TMPDIR/bsess; ~/hackatonproject/.venv/bin/python -c "import json;d=json.load(open('$TMPDIR/bopen.json'));print(d.get('previewDirective',''))"; H=$(~/hackatonproject/.venv/bin/python -c "import json,sys;print(json.dumps(open(sys.argv[1]).read()))" "$TMPDIR/eyes.html"); bb browser-automation run $S --timeout 60s --json --script "const p = await browser.getPage('main'); await p.setViewport({width: 520, height: 300, deviceScaleFactor: 2}); await p.setContent($H); await p.shot({type: 'jpeg', quality: 85}); console.log('ok');" 2>&1 | ~/hackatonproject/.venv/bin/python -c 'import json,sys;d=json.load(sys.stdin);print(d.get("text"));[print(i["path"]) for i in d.get("images",[])]' (4s)
+    $ ls "$TMPDIR/eyes.html" 2>&1; bb browser-automation open --backend local --headless --machine host_cuvmpv75p3 --json 2>&1 | tail -1 > "$TMPDIR/bopen.json"; S=$(~/hackatonproject/.venv/bin/python -c "import json;d=json.load(open('$TMPDIR/bopen.json'));print(d.get('sessionId') or d.get('id'))"); echo $S > $TMPDIR/bsess; ~/hackatonproject/.venv/bin/python -c "import json;d=json.load(open('$TMPDIR/bopen.json'));print(d.get('previewDirective',''))"; H=$(~/hackatonproject/.venv/bin/python -c "import json,sys;print(json.dumps(open(sys.argv[1]).read()))" "$TMPDIR/eyes.html"); bb browser-automation run $S --timeout 60s --json --script "const p = await browser.getPage('main'); await p.setViewport({width: 520, height: 300, deviceScaleFactor: 2}); await p.setContent($H); await p.shot({type: 'jpeg', quality: 85}); console.log('ok');" 2>&1 | ~/hackatonproject/.venv/bin/python -c 'import json,sys;d=json.load(sys.stdin);print(d.get("text"));[print(i["path"]) for i in d.get("images",[])]'
+    /tmp/claude-501/eyes.html
+    ::browser-preview{session="a2ec1e18-fc5e-491c-8844-b555473787db"}
+    ok
+
+    /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-G3j7k3/db-0sdtSN/tmp/shot-1795267870772-1.jpg
+
+── Assistant ───────────────────────────────────────────────
+::browser-preview{session="a2ec1e18-fc5e-491c-8844-b555473787db"}
+
+── Explored 1 file ─────────────────────────────────────────
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-G3j7k3/db-0sdtSN/tmp/shot-1795267870772-1.jpg
+  ── Thought for 9ms
+    The eye is clearly readable now, even though the crossed-out one has no pupil and is just an outline with a slash, so I'll keep it as is. Next I'm saving this render as a process screenshot for the icons, then running the tests, committing and pushing, and deploying: pulling, collecting static templates, rendering and installing the systemd unit, reloading the daemon, restarting, and checking the result.
+
+── Running 2 commands ──────────────────────────────────────
+  ── Ran cp /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-G3j7k3/db-0sdtSN/tmp/shot-1795267870772-1.jpg docs/process/screenshots/2026-11-21_81_eye-icons-redrawn.jpg && .venv/bin/python - <<'EOF' p='docs/process/README.md' s=open(p,encoding='utf-8').read() anchor=[l for l in s.split('\n') if l.startswith('| `2026-11-21_80_')][0] s=s.replace(anchor, anchor+'\n| `2026-11-21_81_eye-icons-redrawn.jpg` | 21.11.2026 | После TASK-016-FIX | Перерисованный глаз (сетка 18×12): миндалевидный, с круглым зрачком и бликом; «пароль виден» — контур с косой чертой. Вверху увеличено в 6 раз, внизу фактический размер в рамке кнопки. Сравните со снимком 76 |') open(p,'w',encoding='utf-8').write(s) EOF bb browser-automation stop $(cat $TMPDIR/bsess) >/dev/null 2>&1; rm -f "$TMPDIR/eyes.html"; L=$(cat $TMPDIR/lead16fixlog); until grep -q "^midnight=" "$L"; do sleep 5; done; grep -E "^(Ran|OK|FAILED)|=[0-9a-z-]+$" "$L"; TZ=Europe/Moscow date (3s)
+    $ cp /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-G3j7k3/db-0sdtSN/tmp/shot-1795267870772-1.jpg docs/process/screenshots/2026-11-21_81_eye-icons-redrawn.jpg && .venv/bin/python - <<'EOF'
+  p='docs/process/README.md'
+  s=open(p,encoding='utf-8').read()
+  anchor=[l for l in s.split('\n') if l.startswith('| `2026-11-21_80_')][0]
+  s=s.replace(anchor, anchor+'\n| `2026-11-21_81_eye-icons-redrawn.jpg` | 21.11.2026 | После TASK-016-FIX | Перерисованный глаз (сетка 18×12): миндалевидный, с круглым зрачком и бликом; «пароль виден» — контур с косой чертой. Вверху увеличено в 6 раз, внизу фактический размер в рамке кнопки. Сравните со снимком 76 |')
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  bb browser-automation stop $(cat $TMPDIR/bsess) >/dev/null 2>&1; rm -f "$TMPDIR/eyes.html"; L=$(cat $TMPDIR/lead16fixlog); until grep -q "^midnight=" "$L"; do sleep 5; done; grep -E "^(Ran|OK|FAILED)|=[0-9a-z-]+$" "$L"; TZ=Europe/Moscow date
+    deploy-check=0
+    makemigrations=0
+    ruff=0
+    Ran 1217 tests in 79.264s
+    OK
+    parallel=0
+    Ran 1217 tests in 153.502s
+    OK
+    midnight=0
+    Sat Nov 21 16:31:23 MSK 2026
+  ── Running .venv/bin/python - <<'EOF' p='CHANGELOG.md' s=open(p,encoding='utf-8').read() anchor='## 2026-11-21\n### TASK-017:' entry='''## 2026-11-21 ### TASK-016-FIX: глаз, страница ошибки CSRF, служба без пробной папки - Глаз показа пароля перерисован: миндалевидный, с круглым зрачком и бликом; в состоянии «пароль виден» — чёткая косая черта. - Своя страница ошибки CSRF в стиле сайта (встроенная страница Django под строгим CSP была без оформления). - systemd: служба запускается, даже если после 28.11 удалить папку пробных файлов. - Тест: при отправке формы входа пароль снова скрывается. - Исполнитель — Кодер интерфейса. Ревью: 1 раунд, без замечаний (5 из 5 мутаций пойманы). Всего тестов: 1217. ### TASK-017:''' assert s.count(anchor)==1 s=s.replace(anchor, entry) open(p,'w',encoding='utf-8').write(s) p='plan.md' s=open(p,encoding='utf-8').read() row=[l for l in s.split('\n') if l.startswith('| TASK-016-FIX |')][0] assert row.endswith('| В работе |') s=s.replace(row, row[:-len('| В работе |')]+'| Готово |') open(p,'w',encoding='utf-8').write(s) EOF O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && { printf '# Pentester dialog\n\nRun 1 of PENTEST-1 (medium reasoning) is first; the thread context was then cleared and run 2 (max reasoning) follows.\n\n## Run 1 (before context clear, 2026-11-19/20)\n\n'; cat ~/.bb/thread-storage/thr_4izdzwetb4/pentest/pentester-run1-dialog.md; printf '\n\n## Run 2 (after context clear, 2026-11-20)\n\n'; bb thread log thr_kqfp9kn6jk --all --format verbose; } > "$O/06-pentester.md" && .venv/bin/python -I - "$O" <<'EOF' import os,re,sys d=sys.argv[1]; out='docs/process/dialogs' for f in sorted(os.listdir(d)):     t=open(os.path.join(d,f),encoding='utf-8').read()     t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)     t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)     t=t.replace('[id скрыт]','[id скрыт]')     t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')     t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)     t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')     t=t.replace('[IP пользователя скрыт]','[IP пользователя скрыт]')     bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~','[IP пользователя скрыт]') if k in t]     assert not bad,(f,bad)     assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f     assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f     assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f     assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f     assert not re.search(r'Demo-[0-9a-f]{12}',t),f     open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB') EOF rm -rf "$O"; git add -A . && git status --short | grep -v "^[AMDR] "; git commit -q -F - <<'EOF' TASK-016-FIX: redrawn eye icon, themed CSRF failure page, systemd without the trial folder - Eye icons redrawn on an 18x12 grid: almond eye with a round pupil and   highlight; the "shown" state is the outline with a clean slash. - templates/403_csrf.html in the site theme (Django's built-in page used   inline CSS, blocked by the CSP). - systemd ReadWritePaths entries are optional ("-"). - Test: the login form resets the password field to hidden on submit. - Process docs: screenshot 81, CHANGELOG, plan, dialogs. Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com> EOF git log --oneline -1; git status --short | wc -l; GIT_TERMINAL_PROMPT=0 git push -q origin main 2>&1 | tail -1; git rev-list --count origin/main..main (Outside of sandbox)
+    $ .venv/bin/python - <<'EOF'
+  p='CHANGELOG.md'
+  s=open(p,encoding='utf-8').read()
+  anchor='## 2026-11-21\n### TASK-017:'
+  entry='''## 2026-11-21
+  ### TASK-016-FIX: глаз, страница ошибки CSRF, служба без пробной папки
+  - Глаз показа пароля перерисован: миндалевидный, с круглым зрачком и бликом; в состоянии «пароль виден» — чёткая косая черта.
+  - Своя страница ошибки CSRF в стиле сайта (встроенная страница Django под строгим CSP была без оформления).
+  - systemd: служба запускается, даже если после 28.11 удалить папку пробных файлов.
+  - Тест: при отправке формы входа пароль снова скрывается.
+  - Исполнитель — Кодер интерфейса. Ревью: 1 раунд, без замечаний (5 из 5 мутаций пойманы). Всего тестов: 1217.
+
+  ### TASK-017:'''
+  assert s.count(anchor)==1
+  s=s.replace(anchor, entry)
+  open(p,'w',encoding='utf-8').write(s)
+  p='plan.md'
+  s=open(p,encoding='utf-8').read()
+  row=[l for l in s.split('\n') if l.startswith('| TASK-016-FIX |')][0]
+  assert row.endswith('| В работе |')
+  s=s.replace(row, row[:-len('| В работе |')]+'| Готово |')
+  open(p,'w',encoding='utf-8').write(s)
+  EOF
+  O="$TMPDIR/dialogs-$(date +%s)" && mkdir -p "$O" && for p in "thr_4izdzwetb4:01-team-lead" "thr_2imsg4kck2:02-planner" "thr_ng6cbgatm6:03-coder-deepseek" "thr_cpuae9aqw3:04-reviewer" "thr_pgcwc2dwnn:05-ui-coder"; do id=${p%%:*}; n=${p#*:}; bb thread log $id --all --format verbose > "$O/$n.md"; done && { printf '# Pentester dialog\n\nRun 1 of PENTEST-1 (medium reasoning) is first; the thread context was then cleared and run 2 (max reasoning) follows.\n\n## Run 1 (before context clear, 2026-11-19/20)\n\n'; cat ~/.bb/thread-storage/thr_4izdzwetb4/pentest/pentester-run1-dialog.md; printf '\n\n## Run 2 (after context clear, 2026-11-20)\n\n'; bb thread log thr_kqfp9kn6jk --all --format verbose; } > "$O/06-pentester.md" && .venv/bin/python -I - "$O" <<'EOF'
+  import os,re,sys
+  d=sys.argv[1]; out='docs/process/dialogs'
+  for f in sorted(os.listdir(d)):
+      t=open(os.path.join(d,f),encoding='utf-8').read()
+      t=re.sub(r'[A-Za-z0-9._%+-]+@gmail\.com','[email скрыт]',t)
+      t=re.sub(r'\d{6,}\+[логин скрыт][\w-]*@users\.noreply\.github(\.com)?','[email скрыт]',t)
+      t=t.replace('[id скрыт]','[id скрыт]')
+      t=t.replace('[ФИО скрыто]','[ФИО скрыто]').replace('[ФИО скрыто]','[ФИО скрыто]')
+      t=re.sub(r'[логин скрыт][\w-]*','[логин скрыт]',t)
+      t=t.replace('[фамилия скрыта]','[фамилия скрыта]').replace('~','~')
+      t=t.replace('[IP пользователя скрыт]','[IP пользователя скрыт]')
+      bad=[k for k in ('[логин скрыт]','[фамилия скрыта]','~','[IP пользователя скрыт]') if k in t]
+      assert not bad,(f,bad)
+      assert not re.search(r'\d{6,}\+[^@\s]*@users\.noreply',t),f
+      assert not re.search(r'[A-Za-z0-9._%+-]+@gmail\.com',t),f
+      assert not re.search(r'sk-[A-Za-z0-9]{20,}',t),f
+      assert not re.search(r'BEGIN [A-Z ]*PRIVATE KEY',t),f
+      assert not re.search(r'Demo-[0-9a-f]{12}',t),f
+      open(os.path.join(out,f),'w',encoding='utf-8').write(t); print(f, len(t)//1024,'KB')
+  EOF
+  rm -rf "$O"; git add -A . && git status --short | grep -v "^[AMDR] "; git commit -q -F - <<'EOF'
+  TASK-016-FIX: redrawn eye icon, themed CSRF failure page, systemd without the trial folder
+
+  - Eye icons redrawn on an 18x12 grid: almond eye with a round pupil and
+    highlight; the "shown" state is the outline with a clean slash.
+  - templates/403_csrf.html in the site theme (Django's built-in page used
+    inline CSS, blocked by the CSP).
+  - systemd ReadWritePaths entries are optional ("-").
+  - Test: the login form resets the password field to hidden on submit.
+  - Process docs: screenshot 81, CHANGELOG, plan, dialogs.
+
+  Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+  EOF
+  git log --oneline -1; git status --short | wc -l; GIT_TERMINAL_PROMPT=0 git push -q origin main 2>&1 | tail -1; git rev-list --count origin/main..main

@@ -25,7 +25,8 @@ ProtectKernelTunables=true
 ProtectControlGroups=true
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 CapabilityBoundingSet=
-ReadWritePaths=/srv/deanery/private_media /srv/deanery/private_media_trial
+# "-": a missing directory (e.g. private_media_trial removed after 2026-11-28) is skipped.
+ReadWritePaths=-/srv/deanery/private_media -/srv/deanery/private_media_trial
 
 [Install]
 WantedBy=multi-user.target
