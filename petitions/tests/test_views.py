@@ -254,7 +254,7 @@ class FormTests(FrozenClockMixin, TestCase):
             self.client.post(self.url, {"comment": ""})
         resp = self.client.post(self.url, {"comment": ""})
         self.assertEqual(resp.status_code, 200)
-        self.assertIn("открытые заявки", resp.content.decode())
+        self.assertIn("3 документа этого вида в работе", resp.content.decode())
 
     def test_csrf_enforced(self):
         client = Client(enforce_csrf_checks=True)
@@ -297,14 +297,14 @@ class StudentPagesTests(FrozenClockMixin, TestCase):
         self.petition.delete()
         self.client.force_login(self.student.user)
         resp = self.client.get(reverse("petitions:my_list"))
-        self.assertIn("Заявок пока нет", resp.content.decode())
+        self.assertIn("Документов пока нет", resp.content.decode())
 
     def test_catalog_link_on_list_with_requests(self):
         self.client.force_login(self.student.user)
         resp = self.client.get(reverse("petitions:my_list"))
         content = resp.content.decode()
         self.assertEqual(content.count('href="/requests/new/"'), 1)
-        self.assertIn("Подать заявку", content)
+        self.assertIn("Оформить документ", content)
 
     def test_catalog_link_on_empty_list(self):
         self.petition.delete()
@@ -312,7 +312,7 @@ class StudentPagesTests(FrozenClockMixin, TestCase):
         resp = self.client.get(reverse("petitions:my_list"))
         content = resp.content.decode()
         self.assertEqual(content.count('href="/requests/new/"'), 1)
-        self.assertIn("Заявок пока нет.", content)
+        self.assertIn("Документов пока нет.", content)
 
     def test_detail_shows_history_comments_attachments(self):
         store_attachment(self.petition, ContentFile(b"%PDF-1.4\n%%EOF"), "a.pdf", 12)
@@ -396,7 +396,7 @@ class StaffPagesTests(FrozenClockMixin, TestCase):
         Petition.objects.all().delete()
         self.client.force_login(self.staff)
         resp = self.client.get(reverse("petitions:staff_queue"))
-        self.assertIn("Заявок нет", resp.content.decode())
+        self.assertIn("Документов нет", resp.content.decode())
 
     def test_detail_shows_student_info_and_actions(self):
         self.client.force_login(self.staff)
@@ -476,7 +476,7 @@ class StaffActionTests(FrozenClockMixin, TestCase):
             {"expected_status": "submitted", "new_status": "issued"},
             follow=True,
         )
-        self.assertIn("Нельзя перевести заявку", resp.content.decode())
+        self.assertIn("Нельзя перевести документ", resp.content.decode())
         self.petition.refresh_from_db()
         self.assertEqual(self.petition.status, "submitted")
 
@@ -488,7 +488,7 @@ class StaffActionTests(FrozenClockMixin, TestCase):
             {"expected_status": "submitted", "new_status": "ready"},
             follow=True,
         )
-        self.assertIn("Заявка уже изменена, обновите страницу", resp.content.decode())
+        self.assertIn("Документ уже изменён, обновите страницу", resp.content.decode())
         self.petition.refresh_from_db()
         self.assertEqual(self.petition.status, "in_progress")
 

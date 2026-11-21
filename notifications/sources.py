@@ -19,19 +19,13 @@ from accounts.models import StudentProfile
 from chat.constants import FEED_PREVIEW_CHARS
 from chat.models import AuthorRole, Message
 from petitions.models import PetitionComment, PetitionStatusChange
+from petitions.wording import notification_title
 from schedule.models import LessonChange
 
 from .constants import LESSON_CHANGE_HORIZON_DAYS
 from .dates import relative_day_label
 from .models import Announcement
 from .selectors import announcements_for_student
-
-STATUS_TITLES = {
-    "in_progress": "Заявка «{name}» взята в работу",
-    "ready": "Заявка «{name}» готова — заберите документ в деканате",
-    "issued": "Заявка «{name}» выдана",
-    "rejected": "Заявка «{name}» отклонена",
-}
 
 
 @dataclass(frozen=True)
@@ -131,7 +125,7 @@ class NewsSource(FeedSource):
 
 class PetitionStatusSource(FeedSource):
     kind = "petition_status"
-    tag = "Заявка"
+    tag = "Документы"
     event_field = "created_at"
     related = ("petition__request_type",)
 
@@ -141,10 +135,8 @@ class PetitionStatusSource(FeedSource):
         )
 
     def to_item(self, obj: PetitionStatusChange, ctx: FeedContext) -> FeedItem:
-        name = obj.petition.request_type.name
-        title = STATUS_TITLES.get(obj.to_status, "").format(name=name)
-        if not title:
-            title = f"Заявка «{name}»: статус «{obj.get_to_status_display()}»"
+        request_type = obj.petition.request_type
+        title = notification_title(obj.to_status, request_type.kind, request_type.name)
         return FeedItem(
             key=f"petition-status-{obj.pk}",
             kind=self.kind,
@@ -158,7 +150,7 @@ class PetitionStatusSource(FeedSource):
 
 class PetitionCommentSource(FeedSource):
     kind = "petition_comment"
-    tag = "Заявка"
+    tag = "Документы"
     event_field = "created_at"
     related = ("petition__request_type",)
 
@@ -174,7 +166,7 @@ class PetitionCommentSource(FeedSource):
             kind=self.kind,
             tag=self.tag,
             timestamp=obj.created_at,
-            title=f"Комментарий деканата к заявке «{name}»",
+            title=f"Комментарий деканата: «{name}»",
             body=obj.text,
             url=reverse("petitions:detail", kwargs={"public_id": obj.petition.public_id}),
         )

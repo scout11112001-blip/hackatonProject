@@ -48,7 +48,7 @@ class PetitionsDemoTests(FrozenClockMixin, TestCase):
             ("Справка для стипендиального отдела", "certificate", 3, True, False),
             ("Заявление на повторную промежуточную аттестацию", "application", 10, True, False),
             ("Заявление на академический отпуск", "application", 15, True, False),
-            ("Справка в военкомат", "certificate", 3, True, False),
+            ("Справка о поступлении", "certificate", 3, False, False),
             ("Другая справка", "certificate", 5, True, True),
             ("Другое заявление", "application", 5, True, True),
         }

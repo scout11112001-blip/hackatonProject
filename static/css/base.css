@@ -935,3 +935,43 @@ section[id] {
 p > .btn {
   margin-inline: 6px;
 }
+
+/* Password field with the show/hide toggle (TASK-017). */
+.password-field {
+  display: flex;
+  gap: var(--space-2);
+  align-items: stretch;
+}
+
+.password-field input {
+  flex: 1 1 auto;
+}
+
+.password-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+}
+
+/* Same height as the field: no margin of the primary form button. */
+.form .password-toggle {
+  margin: 0;
+  padding: 0 var(--space-2);
+}
+
+.password-toggle[hidden] {
+  display: none;
+}
+
+.password-toggle .icon-eye-off,
+.password-toggle[aria-pressed="true"] .icon-eye {
+  display: none;
+}
+
+.password-toggle[aria-pressed="true"] .icon-eye-off {
+  display: block;
+}

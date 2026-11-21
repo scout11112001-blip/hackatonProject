@@ -1,9 +1,10 @@
 {% extends "base.html" %}
+{% load petition_wording %}
 {% block content %}
-  <h1>Заявка подана</h1>
+  <h1>{{ petition.request_type.kind|kind_text:"submitted_title" }}</h1>
   <p>{{ petition.display_name }}</p>
   <p>№ {{ petition.short_id }}</p>
   <p>Ожидаемая дата готовности: {{ petition.expected_ready_date|date:"j E Y" }}</p>
-  <p><a href="{% url 'petitions:detail' petition.public_id %}">К заявке</a></p>
-  <p><a href="{% url 'petitions:my_list' %}">Мои заявки</a></p>
+  <p><a href="{% url 'petitions:detail' petition.public_id %}">{{ petition.request_type.kind|kind_text:"back_link" }}</a></p>
+  <p><a href="{% url 'petitions:my_list' %}">Мои документы</a></p>
 {% endblock %}

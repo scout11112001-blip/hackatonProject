@@ -1,14 +1,15 @@
 {% extends "base.html" %}
+{% load petition_wording %}
 {% block content %}
-  <h1>Заявка № {{ petition.short_id }}</h1>
+  <h1>{{ petition.request_type.kind|kind_text:"noun" }} № {{ petition.short_id }}</h1>
   <h2>Студент</h2>
   <p>{{ petition.student.full_name }}</p>
   <p>{{ petition.student.group.name }}</p>
   <p>№ зачётной книжки: {{ petition.student.record_number }}</p>
-  <h2>Заявка</h2>
+  <h2>Документ</h2>
   <p>{{ petition.display_name }}</p>
-  <p class="status status--{{ petition.status }}">{{ petition.get_status_display }}</p>
-  <p>Подана: {{ petition.created_at|date:"j E Y H:i" }}</p>
+  <p class="status status--{{ petition.status }}">{{ petition.status|status_for:petition.request_type.kind }}</p>
+  <p>{{ "submitted"|status_for:petition.request_type.kind }}: {{ petition.created_at|date:"j E Y H:i" }}</p>
   <p>Ожидаемая дата готовности: {{ petition.expected_ready_date|date:"j E Y" }}</p>
   {% if petition.comment %}<p>{{ petition.comment }}</p>{% endif %}
   {% include "petitions/includes/attachments.html" %}

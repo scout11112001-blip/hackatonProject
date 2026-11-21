@@ -223,7 +223,7 @@ class HomeOtherRolesTests(FrozenClockMixin, TestCase):
         self.client.force_login(self.staff)
         content = self.client.get("/").content.decode()
         self.assertIn("<h1>Деканат</h1>", content)
-        requests = content.index('<a class="btn" href="/staff/requests/">Заявки</a>')
+        requests = content.index('<a class="btn" href="/staff/requests/">Документы</a>')
         chats = content.index('<a class="btn" href="/staff/chats/">Чаты</a>')
         ann = content.index('<a class="btn" href="/staff/announcements/">Объявления</a>')
         self.assertLess(requests, chats)

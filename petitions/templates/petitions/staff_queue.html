@@ -1,6 +1,7 @@
 {% extends "base.html" %}
+{% load petition_wording %}
 {% block content %}
-  <h1>Заявки</h1>
+  <h1>Документы</h1>
   <form method="get" class="form">
     <p>
       <label for="status">Статус</label>
@@ -11,7 +12,7 @@
       </select>
     </p>
     <p>
-      <label for="type">Вид заявки</label>
+      <label for="type">Вид документа</label>
       <select name="type" id="type">
         <option value="">Все</option>
         {% for t in types %}
@@ -27,11 +28,11 @@
         <li class="petition">
           <a class="petition-title" href="{% url 'petitions:staff_detail' petition.public_id %}">{{ petition.student.full_name }}</a>
           <p class="petition-subject">{{ petition.display_name }}</p>
-          <p class="petition-meta"><span class="meta-item">{{ petition.student.group.name }}&nbsp;·</span> <span class="meta-item">{{ petition.created_at|date:"j E Y" }}&nbsp;·</span> <span class="meta-item"><span class="status status--{{ petition.status }}">{{ petition.get_status_display }}</span>&nbsp;·</span> <span class="meta-item">файлов: {{ petition.attachment_count }}</span></p>
+          <p class="petition-meta"><span class="meta-item">{{ petition.student.group.name }}&nbsp;·</span> <span class="meta-item">{{ petition.created_at|date:"j E Y" }}&nbsp;·</span> <span class="meta-item"><span class="status status--{{ petition.status }}">{{ petition.status|status_for:petition.request_type.kind }}</span>&nbsp;·</span> <span class="meta-item">файлов: {{ petition.attachment_count }}</span></p>
         </li>
       {% endfor %}
     </ul>
   {% else %}
-    <p>Заявок нет.</p>
+    <p>Документов нет.</p>
   {% endif %}
 {% endblock %}

@@ -18,12 +18,6 @@ TRANSITIONS: dict[str, tuple[str, ...]] = {
 
 OPEN_STATUSES = frozenset({SUBMITTED, IN_PROGRESS})
 COMMENT_REQUIRED_FOR = frozenset({REJECTED})
-ACTION_LABELS = {
-    IN_PROGRESS: "Взять в работу",
-    READY: "Отметить готовой",
-    ISSUED: "Отметить выданной",
-    REJECTED: "Отклонить",
-}
 
 
 def allowed_transitions(status: str) -> tuple[str, ...]:

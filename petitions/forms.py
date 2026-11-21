@@ -3,6 +3,7 @@
 from django import forms
 from django.utils.html import escape
 
+from petitions import wording
 from petitions.files import validate_attachments
 from petitions.models import MAX_COMMENT_LENGTH, SUBJECT_MAX_LENGTH, PetitionStatus, RequestType
 
@@ -46,7 +47,10 @@ class PetitionForm(forms.Form):
         self.fields["comment"].required = request_type.comment_required
         # Django renders help_text without escaping; the hint is admin-entered text.
         self.fields["comment"].help_text = escape(request_type.comment_hint)
-        if not request_type.subject_required:
+        if request_type.subject_required:
+            example = wording.text(request_type.kind, "subject_example")
+            self.fields["subject"].help_text = f"Что именно нужно, например: «{example}»."
+        else:
             del self.fields["subject"]
 
     def clean_subject(self):
@@ -58,7 +62,7 @@ class PetitionForm(forms.Form):
     def clean_comment(self):
         comment = (self.cleaned_data.get("comment") or "").strip()
         if self.request_type.comment_required and not comment:
-            raise forms.ValidationError("Для этой заявки комментарий обязателен.")
+            raise forms.ValidationError(wording.text(self.request_type.kind, "comment_required"))
         return comment
 
     def clean_files(self):

@@ -1,10 +1,21 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Вход — Цифровой деканат будущего{% endblock %}
+{% block extra_head %}<script src="{% static 'js/password-toggle.js' %}" defer></script>{% endblock %}
 {% block content %}
   <h1>Вход</h1>
   <form method="post" class="form">
     {% csrf_token %}
-    {{ form }}
+    {{ form.non_field_errors }}
+    <div>{{ form.username.as_field_group }}</div>
+    <div>
+      {{ form.password.label_tag }}
+      {{ form.password.errors }}
+      <div class="password-field">
+        {{ form.password }}
+        <button type="button" class="password-toggle" data-password-toggle aria-controls="{{ form.password.id_for_label }}" aria-pressed="false" aria-label="Показать пароль" hidden>{% include "includes/icon_eye.html" %}{% include "includes/icon_eye_off.html" %}</button>
+      </div>
+    </div>
     <input type="hidden" name="next" value="{{ next }}">
     <button type="submit">Войти</button>
   </form>

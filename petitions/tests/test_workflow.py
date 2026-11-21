@@ -1,7 +1,7 @@
 from django.test import SimpleTestCase
 
+from petitions.wording import ACTION_LABELS
 from petitions.workflow import (
-    ACTION_LABELS,
     OPEN_STATUSES,
     TRANSITIONS,
     allowed_transitions,
@@ -53,8 +53,10 @@ class WorkflowTests(SimpleTestCase):
 
     def test_every_target_has_label(self):
         targets = {t for ts in TRANSITIONS.values() for t in ts}
-        for t in targets:
-            self.assertIn(t, ACTION_LABELS)
+        # TASK-017: the labels live in petitions.wording, one set per kind.
+        for labels in ACTION_LABELS.values():
+            for t in targets:
+                self.assertIn(t, labels)
 
     def test_open_statuses_exact(self):
         self.assertEqual(OPEN_STATUSES, frozenset({"submitted", "in_progress"}))

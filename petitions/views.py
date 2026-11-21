@@ -25,7 +25,8 @@ from petitions.models import (
 )
 from petitions.selectors import attachments_visible_to, petitions_visible_to
 from petitions.services import add_staff_comment, change_status, submit_petition
-from petitions.workflow import ACTION_LABELS, OPEN_STATUSES, allowed_transitions
+from petitions.wording import action_label, status_label
+from petitions.workflow import OPEN_STATUSES, allowed_transitions
 
 logger = logging.getLogger(__name__)
 
@@ -176,7 +177,8 @@ class StaffPetitionDetailView(StaffRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         petition = self.object
         context["actions"] = [
-            (status, ACTION_LABELS[status]) for status in allowed_transitions(petition.status)
+            (status, action_label(status, petition.request_type.kind))
+            for status in allowed_transitions(petition.status)
         ]
         context["transition_form"] = TransitionForm(initial={"expected_status": petition.status})
         context["comment_form"] = StaffCommentForm()
@@ -209,7 +211,8 @@ class StaffTransitionView(StaffRequiredMixin, View):
         except ValidationError as exc:
             messages.error(request, " ".join(exc.messages))
             return redirect("petitions:staff_detail", public_id=petition.public_id)
-        messages.success(request, f"Статус изменён: {dict(PetitionStatus.choices)[new.status]}.")
+        label = status_label(new.status, new.request_type.kind)
+        messages.success(request, f"Статус изменён: {label}.")
         return redirect("petitions:staff_detail", public_id=petition.public_id)
 
 

@@ -693,3 +693,19 @@ html {
     background: var(--color-scroll-thumb-hover);
   }
 }
+
+/* Password toggle: panel button, not the orange primary (TASK-017). */
+.form .password-toggle {
+  border: var(--frame-width) solid var(--color-field-border);
+  background: var(--color-panel);
+  box-shadow: none;
+  color: var(--color-text);
+}
+
+.form .password-toggle:focus-visible {
+  outline-offset: 3px;
+}
+
+.form .password-toggle:hover {
+  border-color: var(--color-text);
+}

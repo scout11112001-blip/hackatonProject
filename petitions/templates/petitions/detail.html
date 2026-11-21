@@ -1,9 +1,10 @@
 {% extends "base.html" %}
+{% load petition_wording %}
 {% block content %}
   <h1>{{ petition.display_name }}</h1>
-  <p class="status status--{{ petition.status }}">{{ petition.get_status_display }}</p>
+  <p class="status status--{{ petition.status }}">{{ petition.status|status_for:petition.request_type.kind }}</p>
   <p>№ {{ petition.short_id }}</p>
-  <p>Подана: {{ petition.created_at|date:"j E Y H:i" }}</p>
+  <p>{{ "submitted"|status_for:petition.request_type.kind }}: {{ petition.created_at|date:"j E Y H:i" }}</p>
   <p>Ожидаемая дата готовности: {{ petition.expected_ready_date|date:"j E Y" }}</p>
   {% if petition.comment %}<p>{{ petition.comment }}</p>{% endif %}
   {% include "petitions/includes/attachments.html" %}

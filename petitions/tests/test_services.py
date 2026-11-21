@@ -178,7 +178,10 @@ class SubmitTests(FrozenClockMixin, TestCase):
             submit_petition(self.student, self.type, "", [])
         with self.assertRaises(ValidationError) as cm:
             submit_petition(self.student, self.type, "", [])
-        self.assertTrue(any("открытые заявки" in m for m in cm.exception.messages))
+        self.assertIn(
+            "У вас уже 3 документа этого вида в работе. Дождитесь их выполнения.",
+            cm.exception.messages,
+        )
         other = make_type(name="Заявление", kind="application", days=5)
         submit_petition(self.student, other, "", [])
         p = Petition.objects.filter(student=self.student, request_type=self.type).first()
@@ -297,7 +300,7 @@ class TransitionTests(FrozenClockMixin, TestCase):
         change_status(self.petition, self.staff_x, "submitted", "in_progress")
         with self.assertRaises(StaleStatusError) as cm:
             change_status(self.petition, self.staff_x, "submitted", "ready")
-        self.assertIn("Заявка уже изменена, обновите страницу.", cm.exception.messages)
+        self.assertIn("Документ уже изменён, обновите страницу.", cm.exception.messages)
         self.petition.refresh_from_db()
         self.assertEqual(self.petition.status, "in_progress")
         self.assertEqual(self.petition.history.count(), 2)

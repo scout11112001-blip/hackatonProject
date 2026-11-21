@@ -10,6 +10,7 @@ from accounts.access import get_profile_for_role
 from accounts.models import StudentProfile, User
 from core import clock
 from core.storage import get_private_storage
+from petitions import wording
 from petitions.files import store_attachment, validate_attachments
 from petitions.models import (
     MAX_COMMENT_LENGTH,
@@ -25,7 +26,7 @@ MAX_OPEN_PER_TYPE = 3
 
 
 class StaleStatusError(ValidationError):
-    default_message = "Заявка уже изменена, обновите страницу."
+    default_message = "Документ уже изменён, обновите страницу."
 
 
 def _status_label(status: str) -> str:
@@ -63,11 +64,11 @@ def submit_petition(
     subject = " ".join((subject or "").split()) if request_type.subject_required else ""
     errors: list[str] = []
     if not request_type.is_active:
-        errors.append("Этот вид заявки сейчас недоступен.")
+        errors.append("Этот вид документа сейчас недоступен.")
     if len(comment) > MAX_COMMENT_LENGTH:
         errors.append("Комментарий слишком длинный.")
     if request_type.comment_required and not comment:
-        errors.append("Для этой заявки комментарий обязателен.")
+        errors.append(wording.text(request_type.kind, "comment_required"))
     if request_type.subject_required and not subject:
         errors.append("Укажите, что именно нужно.")
     if len(subject) > SUBJECT_MAX_LENGTH:
@@ -88,8 +89,9 @@ def submit_petition(
             ).count()
             if open_count >= MAX_OPEN_PER_TYPE:
                 raise ValidationError(
-                    f"У вас уже {MAX_OPEN_PER_TYPE} открытые заявки этого вида. "
-                    "Дождитесь их выполнения."
+                    f"У вас уже {MAX_OPEN_PER_TYPE} "
+                    f"{wording.plural_ru(MAX_OPEN_PER_TYPE, wording.DOCUMENT_FORMS)} "
+                    "этого вида в работе. Дождитесь их выполнения."
                 )
             now = clock.now()
             petition = Petition.objects.create(
@@ -140,7 +142,7 @@ def change_status(
             raise StaleStatusError(StaleStatusError.default_message)
         if not can_transition(locked.status, new_status):
             raise ValidationError(
-                f"Нельзя перевести заявку из «{_status_label(locked.status)}» "
+                f"Нельзя перевести документ из «{_status_label(locked.status)}» "
                 f"в «{_status_label(new_status)}»."
             )
         if new_status in COMMENT_REQUIRED_FOR and not comment:

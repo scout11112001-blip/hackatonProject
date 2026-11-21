@@ -22,11 +22,13 @@ class RequestKind(models.TextChoices):
 
 
 class PetitionStatus(models.TextChoices):
-    SUBMITTED = "submitted", "Подана"
+    # Generic labels agree with "документ" (mixed kinds: filters, admin). Pages about one
+    # document use petitions.wording.status_label() (TASK-017).
+    SUBMITTED = "submitted", "Подан"
     IN_PROGRESS = "in_progress", "В работе"
-    READY = "ready", "Готова"
-    ISSUED = "issued", "Выдана"
-    REJECTED = "rejected", "Отклонена"
+    READY = "ready", "Готов"
+    ISSUED = "issued", "Выдан"
+    REJECTED = "rejected", "Отклонён"
 
 
 STATUS_VALUES = [s.value for s in PetitionStatus]
@@ -44,7 +46,7 @@ class RequestType(models.Model):
         "подсказка к комментарию", max_length=255, blank=True, default=""
     )
     subject_required = models.BooleanField("нужно поле «Тип»", default=False)
-    is_active = models.BooleanField("доступна для подачи", default=True)
+    is_active = models.BooleanField("доступен для подачи", default=True)
 
     class Meta:
         ordering = ["kind", "name"]
@@ -58,8 +60,8 @@ class RequestType(models.Model):
                 name="petitions_type_subject_needs_comment",
             ),
         ]
-        verbose_name = "вид заявки"
-        verbose_name_plural = "виды заявок"
+        verbose_name = "вид документа"
+        verbose_name_plural = "виды документов"
 
     def __str__(self) -> str:
         return self.name
@@ -87,14 +89,17 @@ class Petition(models.Model):
         verbose_name="студент",
     )
     request_type = models.ForeignKey(
-        RequestType, on_delete=models.PROTECT, related_name="petitions", verbose_name="вид заявки"
+        RequestType,
+        on_delete=models.PROTECT,
+        related_name="petitions",
+        verbose_name="вид документа",
     )
     subject = models.CharField("тип", max_length=SUBJECT_MAX_LENGTH, blank=True, default="")
     comment = models.TextField("комментарий", blank=True, default="", max_length=MAX_COMMENT_LENGTH)
     status = models.CharField(
         "статус", max_length=16, choices=PetitionStatus.choices, default=PetitionStatus.SUBMITTED
     )
-    created_at = models.DateTimeField("подана", default=now)
+    created_at = models.DateTimeField("дата подачи", default=now)
     status_changed_at = models.DateTimeField("статус изменён", default=now)
     expected_ready_date = models.DateField("ожидаемая дата готовности")
     seed_key = models.SlugField(max_length=40, blank=True, default="", editable=False)
@@ -114,8 +119,8 @@ class Petition(models.Model):
                 name="petitions_unique_seed_key",
             ),
         ]
-        verbose_name = "заявка"
-        verbose_name_plural = "заявки"
+        verbose_name = "документ"
+        verbose_name_plural = "документы"
 
     def __str__(self) -> str:
         return f"{self.request_type} — {self.student} ({self.get_status_display()})"
@@ -134,7 +139,7 @@ class Petition(models.Model):
 class PetitionAttachment(models.Model):
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     petition = models.ForeignKey(
-        Petition, on_delete=models.CASCADE, related_name="attachments", verbose_name="заявка"
+        Petition, on_delete=models.CASCADE, related_name="attachments", verbose_name="документ"
     )
     file = models.FileField(
         upload_to=attachment_upload_to, storage=get_private_storage, max_length=100, unique=True
@@ -145,8 +150,8 @@ class PetitionAttachment(models.Model):
 
     class Meta:
         ordering = ["uploaded_at", "pk"]
-        verbose_name = "приложение к заявке"
-        verbose_name_plural = "приложения к заявкам"
+        verbose_name = "файл к документу"
+        verbose_name_plural = "файлы к документам"
 
     def __str__(self) -> str:
         return self.original_name
@@ -154,7 +159,7 @@ class PetitionAttachment(models.Model):
 
 class PetitionStatusChange(models.Model):
     petition = models.ForeignKey(
-        Petition, on_delete=models.CASCADE, related_name="history", verbose_name="заявка"
+        Petition, on_delete=models.CASCADE, related_name="history", verbose_name="документ"
     )
     from_status = models.CharField(
         max_length=16, choices=PetitionStatus.choices, blank=True, default=""
@@ -181,7 +186,7 @@ class PetitionStatusChange(models.Model):
 
 class PetitionComment(models.Model):
     petition = models.ForeignKey(
-        Petition, on_delete=models.CASCADE, related_name="staff_comments", verbose_name="заявка"
+        Petition, on_delete=models.CASCADE, related_name="staff_comments", verbose_name="документ"
     )
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,

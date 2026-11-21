@@ -190,7 +190,7 @@ class ExternalResourceTests(SimpleTestCase):
                 self.assertNotIn("fonts.googleapis", text)
                 self.assertNotIn("fonts.gstatic", text)
 
-    def test_scripts_only_in_chat(self):
+    def test_scripts_only_where_expected(self):
         with_script = {
             str(path.relative_to(BASE))
             for path in _project_templates()
@@ -198,9 +198,13 @@ class ExternalResourceTests(SimpleTestCase):
         }
         self.assertEqual(
             with_script,
-            {"chat/templates/chat/student.html", "chat/templates/chat/staff_dialog.html"},
+            {
+                "chat/templates/chat/student.html",
+                "chat/templates/chat/staff_dialog.html",
+                "accounts/templates/accounts/login.html",  # TASK-017: password toggle
+            },
         )
-        self.assertEqual(sorted(os.listdir(BASE / "static/js")), ["chat.js"])
+        self.assertEqual(sorted(os.listdir(BASE / "static/js")), ["chat.js", "password-toggle.js"])
 
     def test_no_admin_templates(self):
         self.assertFalse((BASE / "templates/admin").exists())

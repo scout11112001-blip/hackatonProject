@@ -9896,3 +9896,1508 @@ TASK-014-FIX готова вместе с поправкой 1, отчёт от�
 /compact
 
 ── Context compacted ───────────────────────────────────────
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_2imsg4kck2]
+
+[TASK-017] Planner -> UI coder: TASK
+Spec: docs/tasks/TASK-017.md (base HEAD 16399ea).
+- Login: show/hide password toggle (hidden button + external static/js/password-toggle.js, pixel eye icons, aria-pressed, fixed name "Показать пароль" - see D4).
+- "Заявки" -> "Документы" everywhere: one wording module petitions/wording.py + template filters; status labels agree with the kind (certificate feminine, application neuter, mixed masculine - D2).
+- "Справка в военкомат" -> "Справка о поступлении" by an in-place data migration (0005) + generated label migration (0004); "Тип" hint by kind.
+All code is given exactly (it passed 1212 tests on a copy). The icons and CSS values are a reference: tune them in the visual check (section 8) within D5/D6 and the tests. Expected 1181 -> 1212 tests. Do not touch plan.md; never read .env.
+
+── Ran 2 commands, explored 1 file ─────────────────────────
+  ── Thought for 8ms
+    I'm going to start by reading through the spec to see what it requires.
+  ── Ran git status --short && git log --oneline -1 && wc -l docs/tasks/TASK-017.md
+    $ git status --short && git log --oneline -1 && wc -l docs/tasks/TASK-017.md
+    M plan.md
+    ?? docs/tasks/TASK-017.md
+    16399ea TASK-016: security hardening from PENTEST-1
+        1825 docs/tasks/TASK-017.md
+  ── Read ~/hackatonproject/docs/tasks/TASK-017.md
+  ── Thought
+    The spec is long and full of diffs, so I'm considering applying them with the `patch` utility instead of editing by hand. The spec forbids git commands, but `patch` isn't one, and extracting the diffs and applying them with `patch -p1` would be both efficient and exact. Before committing to that, I want to read the rest of the spec.
+  ── Read ~/hackatonproject/docs/tasks/TASK-017.md
+  ── Thought for 1s
+    I have exact diffs to work from, so I'll pull the diff blocks and new-file blocks out of the spec and apply them with `patch -p1`, starting with a dry run. Fuzz may cover small line offsets. The `git archive HEAD` step in verification only reads, so it's fine, though I need to keep in mind that git commands must not change history.
+
+    Now I'm checking the archive step in verification, which only reads from git, so it's fine as long as nothing changes history. Next I'll pull the diffs out and run them through a dry-run patch.
+  ── Ran mkdir -p $TMPDIR/t017 && python3 - <<'EOF' import re,os t=open("docs/tasks/TASK-017.md",encoding="utf-8").read() blocks=re.findall(r"````(\w+)\n(.*?)````\n",t,re.S) print([(k,len(b)) for k,b in blocks]) d=os.environ["TMPDIR"]+"/t017" diffs=[b for k,b in blocks if k=="diff"] open(d+"/all.diff","w",encoding="utf-8").write("".join(diffs)) for i,(k,b) in enumerate(blocks):     open(f"{d}/b{i:02d}.{k}","w",encoding="utf-8").write(b) EOF ls $TMPDIR/t017; patch -p1 --dry-run < $TMPDIR/t017/all.diff (2s)
+    $ mkdir -p $TMPDIR/t017 && python3 - <<'EOF'
+  import re,os
+  t=open("docs/tasks/TASK-017.md",encoding="utf-8").read()
+  blocks=re.findall(r"````(\w+)\n(.*?)````\n",t,re.S)
+  print([(k,len(b)) for k,b in blocks])
+  d=os.environ["TMPDIR"]+"/t017"
+  diffs=[b for k,b in blocks if k=="diff"]
+  open(d+"/all.diff","w",encoding="utf-8").write("".join(diffs))
+  for i,(k,b) in enumerate(blocks):
+      open(f"{d}/b{i:02d}.{k}","w",encoding="utf-8").write(b)
+  EOF
+  ls $TMPDIR/t017; patch -p1 --dry-run < $TMPDIR/t017/all.diff
+    [('python', 3336), ('python', 481), ('diff', 2037), ('diff', 503), ('diff', 304), ('diff', 1655), ('diff', 557), ('diff', 811), ('diff', 850), ('diff', 1171), ('diff', 1785), ('diff', 1172), ('diff', 4408), ('diff', 242), ('diff', 2387), ('diff', 1329), ('diff', 1533), ('diff', 390), ('python', 1429), ('diff', 439), ('diff', 2158), ('diff', 353), ('django', 946), ('javascript', 937), ('html', 525), ('html', 851), ('diff', 733), ('diff', 438), ('python', 13521), ('python', 3261), ('python', 4332), ('diff', 623), ('diff', 1109), ('diff', 634), ('diff', 1315), ('diff', 2904), ('diff', 824)]
+    CHANGELOG.md
+    README.md
+    academics
+    accounts
+    all.diff
+    b00.python
+    b01.python
+    b02.diff
+    b03.diff
+    b04.diff
+    b05.diff
+    b06.diff
+    b07.diff
+    b08.diff
+    b09.diff
+    b10.diff
+    b11.diff
+    b12.diff
+    b13.diff
+    b14.diff
+    b15.diff
+    b16.diff
+    b17.diff
+    b18.python
+    b19.diff
+    b20.diff
+    b21.diff
+    b22.django
+    b23.javascript
+    b24.html
+    b25.html
+    b26.diff
+    b27.diff
+    b28.python
+    b29.python
+    b30.python
+    b31.diff
+    b32.diff
+    b33.diff
+    b34.diff
+    b35.diff
+    b36.diff
+    campusmap
+    chat
+    config
+    core
+    db.sqlite3
+    deploy
+    docs
+    manage.py
+    notifications
+    opencode.json
+    petitions
+    plan.md
+    pyproject.toml
+    requirements-dev.txt
+    requirements.txt
+    rs.log
+    schedule
+    scripts
+    shot.js
+    static
+    templates
+    toggle.js
+    toggle.out
+    university
+    patching file 'templates/includes/site_nav_items.html'
+    patching file 'core/templates/core/home.html'
+    patching file 'petitions/templates/petitions/catalog.html'
+    patching file 'petitions/templates/petitions/my_list.html'
+    patching file 'petitions/templates/petitions/form.html'
+    patching file 'petitions/templates/petitions/submitted.html'
+    patching file 'petitions/templates/petitions/detail.html'
+    patching file 'petitions/templates/petitions/staff_detail.html'
+    patching file 'petitions/templates/petitions/staff_queue.html'
+    patching file 'petitions/templates/petitions/includes/history.html'
+    patching file 'petitions/models.py'
+    patching file 'petitions/apps.py'
+    patching file 'petitions/services.py'
+    patching file 'petitions/forms.py'
+    patching file 'petitions/views.py'
+    patching file 'petitions/workflow.py'
+    patching file 'petitions/demo.py'
+    patching file 'notifications/sources.py'
+    patching file 'chat/demo.py'
+    patching file 'static/css/base.css'
+    patching file 'static/css/theme.css'
+    patching file 'core/tests/test_home.py'
+    patching file 'core/tests/test_design.py'
+    patching file 'petitions/tests/test_demo.py'
+    patching file 'petitions/tests/test_services.py'
+    patching file 'petitions/tests/test_views.py'
+    patching file 'petitions/tests/test_workflow.py'
+
+── Assistant ───────────────────────────────────────────────
+You've hit your 5-hour limit · resets 6:40pm (America/Los_Angeles)
+
+── Error ───────────────────────────────────────────────────
+  Provider rate limit reached
+  You've hit your 5-hour limit · resets 6:40pm (America/Los_Angeles)
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Thought for 2s
+    I'm noticing that $TMPDIR/t017 already holds a project copy, probably the Planner's, with CHANGELOG.md and db.sqlite3 in it. I had dropped my b*.files and all.diff in there too, which I shouldn't have done. I'll move my extract files into a separate directory such as $TMPDIR/ui017 so I'm not touching their copy.
+
+    I'm moving my b*.* and all.diff files out of the shared copy into their own directory, since they're only mine. The dry run went through cleanly with no fuzz, so I'm going ahead and applying the patch.
+  ── Thought for 5ms
+    Код по спецификации TASK-017 применён, дифы проходят без конфликтов. Далее создам новые файлы, миграции и тесты, затем проведу визуальную проверку.
+  ── Ran W=$TMPDIR/ui017 && mkdir -p $W && mv $TMPDIR/t017/b??.* $TMPDIR/t017/all.diff $W/ && patch -p1 < $W/all.diff && find . -name "*.orig" -newer docs/tasks/TASK-017.md -not -path "./.venv/*" ; find . -name "*.rej" -not -path "./.venv/*" (3s)
+    $ W=$TMPDIR/ui017 && mkdir -p $W && mv $TMPDIR/t017/b??.* $TMPDIR/t017/all.diff $W/ && patch -p1 < $W/all.diff && find . -name "*.orig" -newer docs/tasks/TASK-017.md -not -path "./.venv/*" ; find . -name "*.rej" -not -path "./.venv/*"
+    patching file 'templates/includes/site_nav_items.html'
+    patching file 'core/templates/core/home.html'
+    patching file 'petitions/templates/petitions/catalog.html'
+    patching file 'petitions/templates/petitions/my_list.html'
+    patching file 'petitions/templates/petitions/form.html'
+    patching file 'petitions/templates/petitions/submitted.html'
+    patching file 'petitions/templates/petitions/detail.html'
+    patching file 'petitions/templates/petitions/staff_detail.html'
+    patching file 'petitions/templates/petitions/staff_queue.html'
+    patching file 'petitions/templates/petitions/includes/history.html'
+    patching file 'petitions/models.py'
+    patching file 'petitions/apps.py'
+    patching file 'petitions/services.py'
+    patching file 'petitions/forms.py'
+    patching file 'petitions/views.py'
+    patching file 'petitions/workflow.py'
+    patching file 'petitions/demo.py'
+    patching file 'notifications/sources.py'
+    patching file 'chat/demo.py'
+    patching file 'static/css/base.css'
+    patching file 'static/css/theme.css'
+    patching file 'core/tests/test_home.py'
+    patching file 'core/tests/test_design.py'
+    patching file 'petitions/tests/test_demo.py'
+    patching file 'petitions/tests/test_services.py'
+    patching file 'petitions/tests/test_views.py'
+    patching file 'petitions/tests/test_workflow.py'
+
+── Assistant ───────────────────────────────────────────────
+Now the new files from the spec blocks.
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Ran W=$TMPDIR/ui017 && head -2 $W/b28.python $W/b29.python $W/b30.python $W/b18.python | head -20 && cp $W/b00.python petitions/wording.py && : > petitions/templatetags/__init__.py 2>/dev/null || { mkdir petitions/templatetags && : > petitions/templatetags/__init__.py; } && cp $W/b01.python petitions/templatetags/petition_wording.py && cp $W/b22.django accounts/templates/accounts/login.html && cp $W/b23.javascript static/js/password-toggle.js && printf '%s' "$(cat $W/b24.html)" > templates/includes/icon_eye.html && echo >> templates/includes/icon_eye.html && printf '%s' "$(cat $W/b25.html)" > templates/includes/icon_eye_off.html && echo >> templates/includes/icon_eye_off.html && cp $W/b28.python petitions/tests/test_wording.py && cp $W/b29.python petitions/tests/test_migrations.py && cp $W/b30.python accounts/tests/test_login_page.py && ls petitions/templatetags accounts/tests/test_login_page.py && cat templates/includes/icon_bell.html | head -3 (1s)
+    $ W=$TMPDIR/ui017 && head -2 $W/b28.python $W/b29.python $W/b30.python $W/b18.python | head -20 &&
+  cp $W/b00.python petitions/wording.py &&
+  : > petitions/templatetags/__init__.py 2>/dev/null || { mkdir petitions/templatetags && : > petitions/templatetags/__init__.py; } &&
+  cp $W/b01.python petitions/templatetags/petition_wording.py &&
+  cp $W/b22.django accounts/templates/accounts/login.html &&
+  cp $W/b23.javascript static/js/password-toggle.js &&
+  printf '%s' "$(cat $W/b24.html)" > templates/includes/icon_eye.html && echo >> templates/includes/icon_eye.html &&
+  printf '%s' "$(cat $W/b25.html)" > templates/includes/icon_eye_off.html && echo >> templates/includes/icon_eye_off.html &&
+  cp $W/b28.python petitions/tests/test_wording.py && cp $W/b29.python petitions/tests/test_migrations.py && cp $W/b30.python accounts/tests/test_login_page.py &&
+  ls petitions/templatetags accounts/tests/test_login_page.py && cat templates/includes/icon_bell.html | head -3
+    ==> /tmp/claude-501/ui017/b28.python <==
+    """TASK-017: "Документы" wording that agrees with the kind of a document."""
+
+
+    ==> /tmp/claude-501/ui017/b29.python <==
+    """TASK-017: data migration 0005 renames "Справка в военкомат" in place."""
+
+
+    ==> /tmp/claude-501/ui017/b30.python <==
+    """TASK-017: show/hide password toggle on the login page."""
+
+
+    ==> /tmp/claude-501/ui017/b18.python <==
+    """TASK-017: "Справка в военкомат" becomes "Справка о поступлении" (rename in place)."""
+
+    (eval):3: no such file or directory: petitions/templatetags/__init__.py
+    accounts/tests/test_login_page.py
+
+    petitions/templatetags:
+    __init__.py
+    petition_wording.py
+    <svg class="icon-bell" viewBox="0 0 8 9" width="14" height="16" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><g fill="currentColor"><rect x="3" y="0" width="2" height="1"/><rect x="2" y="1" width="4" height="1"/><rect x="1" y="2" width="6" height="4"/><rect x="0" y="6" width="8" height="1"/><rect x="3" y="8" width="2" height="1"/></g></svg>
+  ── Thought for 7ms
+    I'm comparing the original login.html with the new version to see whether the old login had the same structure, including an extra_head block in the base template. I'll check the git diff for login.html and confirm base.html defines that block.
+  ── Ran git diff accounts/templates/accounts/login.html; grep -n "extra_head\|block title" templates/base.html chat/templates/chat/student.html | head
+    $ git diff accounts/templates/accounts/login.html; grep -n "extra_head\|block title" templates/base.html chat/templates/chat/student.html | head
+    diff --git a/accounts/templates/accounts/login.html b/accounts/templates/accounts/login.html
+    index da93d97..54c716f 100644
+    --- a/accounts/templates/accounts/login.html
+    +++ b/accounts/templates/accounts/login.html
+    @@ -1,10 +1,21 @@
+     {% extends "base.html" %}
+    +{% load static %}
+     {% block title %}Вход — Цифровой деканат будущего{% endblock %}
+    +{% block extra_head %}<script src="{% static 'js/password-toggle.js' %}" defer></script>{% endblock %}
+     {% block content %}
+       <h1>Вход</h1>
+       <form method="post" class="form">
+         {% csrf_token %}
+    -    {{ form }}
+    +    {{ form.non_field_errors }}
+    +    <div>{{ form.username.as_field_group }}</div>
+    +    <div>
+    +      {{ form.password.label_tag }}
+    +      {{ form.password.errors }}
+    +      <div class="password-field">
+    +        {{ form.password }}
+    +        <button type="button" class="password-toggle" data-password-toggle aria-controls="{{ form.password.id_for_label }}" aria-pressed="false" aria-label="Показать пароль" hidden>{% include "includes/icon_eye.html" %}{% include "includes/icon_eye_off.html" %}</button>
+    +      </div>
+    +    </div>
+         <input type="hidden" name="next" value="{{ next }}">
+         <button type="submit">Войти</button>
+       </form>
+    chat/templates/chat/student.html:3:{% block title %}Чат с деканатом{% endblock %}
+    chat/templates/chat/student.html:4:{% block extra_head %}<script src="{% static 'js/chat.js' %}" defer></script>{% endblock %}
+    templates/base.html:6:  <title>{% block title %}Цифровой деканат будущего{% endblock %}</title>
+    templates/base.html:11:  {% block extra_head %}{% endblock %}
+
+── Assistant ───────────────────────────────────────────────
+Now generate migration 0004 and add 0005.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran source .venv/bin/activate && W=$TMPDIR/ui017 && export DATABASE_URL="sqlite:///$W/gen.sqlite3" PRIVATE_MEDIA_ROOT="$W/media" && python manage.py makemigrations petitions --name documents_wording && cp $W/b18.python petitions/migrations/0005_admission_certificate.py && grep -c "migrations\.Alter" petitions/migrations/0004_documents_wording.py && grep -oE "migrations\.\w+" petitions/migrations/0004_documents_wording.py | sort | uniq -c && python manage.py sqlmigrate petitions 0004 | grep -vE '^(CREATE TABLE "new__|INSERT INTO "new__|DROP TABLE|ALTER TABLE "new__.*RENAME|CREATE (UNIQUE )?INDEX|BEGIN|COMMIT|--)' | head (2s)
+    $ source .venv/bin/activate && W=$TMPDIR/ui017 && export DATABASE_URL="sqlite:///$W/gen.sqlite3" PRIVATE_MEDIA_ROOT="$W/media" && python manage.py makemigrations petitions --name documents_wording && cp $W/b18.python petitions/migrations/0005_admission_certificate.py && grep -c "migrations\.Alter" petitions/migrations/0004_documents_wording.py && grep -oE "migrations\.\w+" petitions/migrations/0004_documents_wording.py | sort | uniq -c && python manage.py sqlmigrate petitions 0004 | grep -vE '^(CREATE TABLE "new__|INSERT INTO "new__|DROP TABLE|ALTER TABLE "new__.*RENAME|CREATE (UNIQUE )?INDEX|BEGIN|COMMIT|--)' | head
+    Migrations for 'petitions':
+      petitions/migrations/0004_documents_wording.py
+        ~ Change Meta options on petition
+        ~ Change Meta options on petitionattachment
+        ~ Change Meta options on requesttype
+        ~ Alter field created_at on petition
+        ~ Alter field request_type on petition
+        ~ Alter field status on petition
+        ~ Alter field petition on petitionattachment
+        ~ Alter field petition on petitioncomment
+        ~ Alter field from_status on petitionstatuschange
+        ~ Alter field petition on petitionstatuschange
+        ~ Alter field to_status on petitionstatuschange
+        ~ Alter field is_active on requesttype
+    12
+       9 migrations.AlterField
+       3 migrations.AlterModelOptions
+       1 migrations.Migration
+  ── Thought for 5ms
+    The sqlmigrate check filtered down to nothing but table rebuilds, so that looks fine. Next I'll run ruff format on the changed Python files and then the test suite.
+
+── Assistant ───────────────────────────────────────────────
+12 operations, SQL only rebuilds tables. Now ruff and the tests.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran source .venv/bin/activate && F=$(git status --short | awk '{print $2}' | grep '\.py$'; ls petitions/templatetags/*.py) ; echo $F; ruff format $F; ruff check . && ruff format --check . | tail -2 (2s)
+    $ source .venv/bin/activate && F=$(git status --short | awk '{print $2}' | grep '\.py$'; ls petitions/templatetags/*.py) ; echo $F; ruff format $F; ruff check . && ruff format --check . | tail -2
+    chat/demo.py
+    core/tests/test_design.py
+    core/tests/test_home.py
+    notifications/sources.py
+    petitions/apps.py
+    petitions/demo.py
+    petitions/forms.py
+    petitions/models.py
+    petitions/services.py
+    petitions/tests/test_demo.py
+    petitions/tests/test_services.py
+    petitions/tests/test_views.py
+    petitions/tests/test_workflow.py
+    petitions/views.py
+    petitions/workflow.py
+    accounts/tests/test_login_page.py
+    petitions/migrations/0004_documents_wording.py
+    petitions/migrations/0005_admission_certificate.py
+    petitions/tests/test_migrations.py
+    petitions/tests/test_wording.py
+    petitions/wording.py
+    petitions/templatetags/__init__.py
+    petitions/templatetags/petition_wording.py
+    error: Failed to format chat/demo.py
+    core/tests/test_design.py
+    core/tests/test_home.py
+    notifications/sources.py
+    petitions/apps.py
+    petitions/demo.py
+    petitions/forms.py
+    petitions/models.py
+    petitions/services.py
+    petitions/tests/test_demo.py
+    petitions/tests/test_services.py
+    petitions/tests/test_views.py
+    petitions/tests/test_workflow.py
+    petitions/views.py
+    petitions/workflow.py
+    accounts/tests/test_login_page.py
+    petitions/migrations/0004_documents_wording.py
+    petitions/migrations/0005_admission_certificate.py
+    petitions/tests/test_migrations.py
+    petitions/tests/test_wording.py
+    petitions/wording.py
+    petitions/templatetags/__init__.py
+    petitions/templatetags/petition_wording.py: No such file or directory (os error 2)
+    All checks passed!
+    202 files already formatted
+  ── Thought for 5ms
+    The ruff formatter check passed with all 202 files already formatted, so that's fine. The git status output also looks right, with the new test files showing up as untracked. Next I'll run the full test suite in parallel.
+
+── Assistant ───────────────────────────────────────────────
+Ruff is clean (the failed call was a bad argument list; `ruff format --check .` reports everything formatted). Running the full suite.
+
+── Ran 1 command, explored 1 list, 1 file ──────────────────
+  ── Ran source .venv/bin/activate && L="$TMPDIR/test-017-full-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"; python manage.py test --parallel > "$L" 2>&1; echo $L; tail -4 "$L"; grep -E "^(FAIL|ERROR):" "$L" | head -20 (2h 3m 58s)
+    $ source .venv/bin/activate && L="$TMPDIR/test-017-full-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log"; python manage.py test --parallel > "$L" 2>&1; echo $L; tail -4 "$L"; grep -E "^(FAIL|ERROR):" "$L" | head -20
+    Command did not complete within its 600s timeout and was moved to the background (ID: bxkq0blyw). Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/bxkq0blyw.output. You will be notified when it completes. If it is still running after 30m in the background, it will be stopped and you will be notified. It is running now: do not start a second copy while it runs. If it is no longer needed, stop it with TaskStop. No output had been read from it when it was moved. A program that buffers its output, or a pipe into one such as tail, can keep the output file empty until the command finishes. To check interim output, use Read on that file path.
+  ── Thought for 7ms
+    The run has gone past 600 seconds, which is much longer than the roughly three minutes the earlier full run took with parallel set to 1. It could be hanging, possibly in the TransactionTestCase migration tests under parallel execution, or it could be waiting on something. I'll check the log.
+  ── Listed files in $TMPDIR/test-017-full-*.log
+  ── Thought for 4ms
+    The test run finished with 1212 passing in 53 seconds, but the process then sat hung for over 10 minutes during teardown, possibly while destroying the test databases. It has exited now. The timestamp in the log file name doesn't line up with what I'd expect, so my session may have been paused, much like before. I'll check the output file to see when the run actually finished.
+  ── Read /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/bxkq0blyw.output
+  ── Thought for 1s
+    I'm checking the log's timestamp against the machine's timezone and Moscow time to work out when the run actually finished. The numbers don't line up yet, so I'm wondering whether the session was paused partway through.
+
+    I'll run the tests with two parallel workers, then do a frozen run, a check, makemigrations, and a grep, all in one background script.
+
+── Assistant ───────────────────────────────────────────────
+1212 tests OK. Now the other verification commands from section 8.
+
+── Ran source .venv/bin/activate && T=$TMPDIR; S=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) echo "start $(TZ=Europe/Moscow date +%H:%M)" python manage.py test --parallel 2 > $T/test-017-p2-$S.log 2>&1; echo "p2: $(grep -E '^(Ran|OK|FAILED)' $T/test-017-p2-$S.log | tr '\n' ' ') $(TZ=Europe/Moscow date +%H:%M)" python scripts/run_tests_at.py 2027-03-01T12:00:00 > $T/test-017-frozen-$S.log 2>&1; echo "frozen: $(grep -E '^(Ran|OK|FAILED)' $T/test-017-frozen-$S.log | tr '\n' ' ') $(TZ=Europe/Moscow date +%H:%M)" { echo "== check"; python manage.py check; echo "== makemigrations"; python manage.py makemigrations --check --dry-run; echo "== ruff"; ruff check . && ruff format --check .; echo "== grep"; grep -rnE "[Зз]аявк|[Зз]аявок" --include='*.html' --include='*.js' templates */templates static/js || echo NO_OLD_WORD; } > $T/verify-017-checks-$S.log 2>&1 cat $T/verify-017-checks-$S.log; echo logs: $T/test-017-p2-$S.log $T/test-017-frozen-$S.log
+  $ source .venv/bin/activate && T=$TMPDIR; S=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S)
+echo "start $(TZ=Europe/Moscow date +%H:%M)"
+python manage.py test --parallel 2 > $T/test-017-p2-$S.log 2>&1; echo "p2: $(grep -E '^(Ran|OK|FAILED)' $T/test-017-p2-$S.log | tr '\n' ' ') $(TZ=Europe/Moscow date +%H:%M)"
+python scripts/run_tests_at.py 2027-03-01T12:00:00 > $T/test-017-frozen-$S.log 2>&1; echo "frozen: $(grep -E '^(Ran|OK|FAILED)' $T/test-017-frozen-$S.log | tr '\n' ' ') $(TZ=Europe/Moscow date +%H:%M)"
+{ echo "== check"; python manage.py check; echo "== makemigrations"; python manage.py makemigrations --check --dry-run; echo "== ruff"; ruff check . && ruff format --check .; echo "== grep"; grep -rnE "[Зз]аявк|[Зз]аявок" --include='*.html' --include='*.js' templates */templates static/js || echo NO_OLD_WORD; } > $T/verify-017-checks-$S.log 2>&1
+cat $T/verify-017-checks-$S.log; echo logs: $T/test-017-p2-$S.log $T/test-017-frozen-$S.log
+  Command running in background with ID: b8z7ui7vp. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/b8z7ui7vp.output. You will be notified when it completes. To check interim output, use Read on that file path.
+
+── Claude Code API retry 1/10 after 554ms: unknown ─────────
+
+── Thought for 9ms ─────────────────────────────────────────
+  I'm getting the migrations-before-database check and the visual check ready while the tests run. The migration check will extract HEAD into a temp directory with git archive, which only reads from the repo, and I'll use the demo password from my role. Since that runs in its own directory against its own database, it shouldn't collide with the test suite.
+
+── Assistant ───────────────────────────────────────────────
+While the tests run, I'll check the migrations on a database seeded with the base commit.
+
+── Ran 1 command, explored 1 file, 1 list ──────────────────
+  ── Ran W=$TMPDIR/ui017 && mkdir -p $W/before && git archive HEAD | tar -x -C $W/before && export DATABASE_URL="sqlite:///$W/vis.sqlite3" PRIVATE_MEDIA_ROOT="$W/media" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true SECRET_KEY=dummy-local-ui017 && PY=~/hackatonproject/.venv/bin/python && (cd $W/before && $PY manage.py migrate -v0 && $PY manage.py seed_demo | tail -3 && $PY manage.py shell -c "from petitions.models import RequestType as R; print(sorted(R.objects.values_list('name', flat=True)))") && echo "--- after" && $PY manage.py migrate | tail -3 && $PY manage.py seed_demo | grep Requests && $PY manage.py seed_demo | grep Requests && $PY manage.py shell -c " from petitions.models import RequestType as R, Petition as P print(R.objects.count(), P.objects.count(), sorted(R.objects.values_list('name', flat=True))) r=R.objects.get(name='Справка о поступлении'); print(r.comment_required, r.comment_hint, r.description, r.processing_days, r.is_active)" (9s)
+    $ W=$TMPDIR/ui017 && mkdir -p $W/before && git archive HEAD | tar -x -C $W/before && export DATABASE_URL="sqlite:///$W/vis.sqlite3" PRIVATE_MEDIA_ROOT="$W/media" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true SECRET_KEY=dummy-local-ui017 && PY=~/hackatonproject/.venv/bin/python && (cd $W/before && $PY manage.py migrate -v0 && $PY manage.py seed_demo | tail -3 && $PY manage.py shell -c "from petitions.models import RequestType as R; print(sorted(R.objects.values_list('name', flat=True)))") && echo "--- after" && $PY manage.py migrate | tail -3 && $PY manage.py seed_demo | grep Requests && $PY manage.py seed_demo | grep Requests && $PY manage.py shell -c "
+  from petitions.models import RequestType as R, Petition as P
+  print(R.objects.count(), P.objects.count(), sorted(R.objects.values_list('name', flat=True)))
+  r=R.objects.get(name='Справка о поступлении'); print(r.comment_required, r.comment_hint, r.description, r.processing_days, r.is_active)"
+    Requests ready: 7 types, 8 requests, 3 attachments.
+    Notifications ready: 9 announcements.
+    Chat ready: 3 dialogs, 8 messages.
+    31 objects imported automatically (use -v 2 for details).
+
+    ['Другая справка', 'Другое заявление', 'Заявление на академический отпуск', 'Заявление на повторную промежуточную аттестацию', 'Справка в военкомат', 'Справка для стипендиального отдела', 'Справка об обучении']
+    --- after
+    Running migrations:
+      Applying petitions.0004_documents_wording... OK
+      Applying petitions.0005_admission_certificate... OK
+    Requests ready: 7 types, 0 requests, 0 attachments.
+    Requests ready: 7 types, 0 requests, 0 attachments.
+    31 objects imported automatically (use -v 2 for details).
+
+    7 8 ['Другая справка', 'Другое заявление', 'Заявление на академический отпуск', 'Заявление на повторную промежуточную аттестацию', 'Справка для стипендиального отдела', 'Справка о поступлении', 'Справка об обучении']
+    False Можно указать, куда нужна справка. Подтверждает зачисление в университет. 3 True
+  ── Read /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/b8z7ui7vp.output
+  ── Thought for 4ms
+    The p2 log didn't show up, and the reason is that zsh's no-match glob made the whole `ls -t` fail before it listed anything. I'll redo the listing without relying on that glob.
+  ── Listed files in $TMPDIR
+  ── Thought for 59s
+    I'm working out when the p2 run actually died: it was killed after the 30-minute background limit, but the timestamps don't quite add up yet. The log's last write is at 00:37 local, and I'm converting that to MSK, which should put it at 11:37.
+
+    I'm checking the timestamps again: the log was last written at 11:37 MSK, and the run was killed around 11:38, which would mean it hung for over an hour. The "leaked semaphore" warning at the end also fits a killed process, so I'm going to look at how many dots made it into the log before it stopped.
+
+── Assistant ───────────────────────────────────────────────
+The `--parallel 2` run hung and was stopped by the time limit. Checking how far it got.
+
+── Ran 3 commands ──────────────────────────────────────────
+  ── Ran f=$TMPDIR/test-017-p2-20261121-103801.log; head -5 $f; tr -cd '.' < $f | wc -c; grep -nE "^(FAIL|ERROR)|Error|Traceback" $f | head; grep -n "Ran\|test_" $f | head; f2=$TMPDIR/test-017-full-20261121-083253.log; head -3 $f2; grep -n "Ran " $f2
+    $ f=$TMPDIR/test-017-p2-20261121-103801.log; head -5 $f; tr -cd '.' < $f | wc -c; grep -nE "^(FAIL|ERROR)|Error|Traceback" $f | head; grep -n "Ran\|test_" $f | head; f2=$TMPDIR/test-017-full-20261121-083253.log; head -3 $f2; grep -n "Ran " $f2
+    Creating test database for alias 'default'...
+    Cloning test database for alias 'default'...
+    Cloning test database for alias 'default'...
+    Found 1212 test(s).
+    System check identified no issues (0 silenced).
+         343
+    11:Traceback (most recent call last):
+    28:Traceback (most recent call last):
+    45:Traceback (most recent call last):
+    65:Traceback (most recent call last):
+    82:Traceback (most recent call last):
+    99:Traceback (most recent call last):
+    117:Traceback (most recent call last):
+    134:Traceback (most recent call last):
+    151:Traceback (most recent call last):
+    168:Traceback (most recent call last):
+    Creating test database for alias 'default'...
+    Cloning test database for alias 'default'...
+    Cloning test database for alias 'default'...
+    1185:Ran 1212 tests in 53.585s
+  ── Thought for 2s
+    I'm checking whether the Forbidden tracebacks in the logs are normal, then looking at what's around line 10. The p2 run got through some tests and then stalled, and I suspect the migration TransactionTestCase, maybe a SQLite lock contention issue with the cloned DB files under parallel execution.
+
+    I'm wondering whether the setup time, the DB creation and cloning, might be what pushed the run past the limit, but that doesn't quite fit since the timing excludes setup. I'll run the migration tests serially on their own first, with a time limit wrapped around them since `timeout` may not exist on macOS, to see whether they hang.
+  ── Ran source .venv/bin/activate && sed -n 6,12p $TMPDIR/test-017-p2-20261121-103801.log; S=$(TZ=Europe/Moscow date +%H%M%S); time python manage.py test petitions.tests.test_migrations -v2 > $TMPDIR/test-017-mig-$S.log 2>&1; tail -12 $TMPDIR/test-017-mig-$S.log (2s)
+    $ source .venv/bin/activate && sed -n 6,12p $TMPDIR/test-017-p2-20261121-103801.log; S=$(TZ=Europe/Moscow date +%H%M%S); time python manage.py test petitions.tests.test_migrations -v2 > $TMPDIR/test-017-mig-$S.log 2>&1; tail -12 $TMPDIR/test-017-mig-$S.log
+    ~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py:61: UserWarning: No directory at: ~/hackatonproject/staticfiles/
+      mw_instance = middleware(adapted_handler)
+    ~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/base.py:61: UserWarning: No directory at: ~/hackatonproject/staticfiles/
+      mw_instance = middleware(adapted_handler)
+    ..............................................................................................2026-11-21 10:54:54,260 WARNING django.request Forbidden (Permission denied): /grades/
+    Traceback (most recent call last):
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    python manage.py test petitions.tests.test_migrations -v2 >  2>&1  1.69s user 0.11s system 98% cpu 1.820 total
+      Applying university.0004_remove_room_map_cell...test_backwards (petitions.tests.test_migrations.AdmissionCertificateMigrationTests.test_backwards) ... ok
+    test_new_name_taken_hides_old (petitions.tests.test_migrations.AdmissionCertificateMigrationTests.test_new_name_taken_hides_old) ... ok
+    test_no_old_type_is_noop (petitions.tests.test_migrations.AdmissionCertificateMigrationTests.test_no_old_type_is_noop) ... ok
+    test_rename_in_place (petitions.tests.test_migrations.AdmissionCertificateMigrationTests.test_rename_in_place) ... ok
+
+    ----------------------------------------------------------------------
+    Ran 4 tests in 0.457s
+
+    OK
+    Destroying test database for alias 'default' ('file:memorydb_default?mode=memory&cache=shared')...
+     OK
+    System check identified no issues (0 silenced).
+  ── Thought for 12ms
+    The run began at 10:38, but the first test dots didn't appear until 10:54, so creating and cloning the databases took about 16 minutes. That's far slower than the earlier run of 1134 tests, which finished in 3 minutes with parallel set to 1. The machine may be busy with other agents or tests running at the same time, or the session may have been suspended. I'll check the load average next.
+  ── Ran uptime; sysctl -n hw.ncpu; vm_stat | head -5
+    $ uptime; sysctl -n hw.ncpu; vm_stat | head -5
+    0:39  2 users, load averages: 7.76 8.24 5.53
+    sysctl: sysctl fmt -1 1024 1: Operation not permitted
+    Mach Virtual Memory Statistics: (page size of 16384 bytes)
+    Pages free:                               19058.
+    Pages active:                            378500.
+    Pages inactive:                          369470.
+    Pages speculative:                         8556.
+  ── Thought for 519ms
+    The machine is heavily loaded, so tests are probably slow from other agents running too. I'll rerun the p2 and frozen checks in the background with a long timeout, since running them alongside the visual check would only add to the load. Starting the verification now.
+
+── Assistant ───────────────────────────────────────────────
+The machine is heavily loaded (load ≈ 8), so DB setup was slow, not a test hang: the first dots in the p2 log appeared 16 minutes after the start. Restarting the remaining runs with a long limit.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran source .venv/bin/activate && T=$TMPDIR; S=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) echo "start $(TZ=Europe/Moscow date +%H:%M)" python manage.py test --parallel 2 > $T/test-017-p2-$S.log 2>&1; echo "p2: $(grep -E '^(Ran|OK|FAILED)' $T/test-017-p2-$S.log | tr '\n' ' ') end $(TZ=Europe/Moscow date +%H:%M)" python scripts/run_tests_at.py 2027-03-01T12:00:00 > $T/test-017-frozen-$S.log 2>&1; echo "frozen: $(grep -E '^(Ran|OK|FAILED)' $T/test-017-frozen-$S.log | tr '\n' ' ') end $(TZ=Europe/Moscow date +%H:%M)" { echo "== check"; python manage.py check; echo "== makemigrations"; python manage.py makemigrations --check --dry-run; echo "== ruff"; ruff check . && ruff format --check .; echo "== grep"; grep -rnE "[Зз]аявк|[Зз]аявок" --include='*.html' --include='*.js' templates */templates static/js || echo NO_OLD_WORD; } > $T/verify-017-checks-$S.log 2>&1 cat $T/verify-017-checks-$S.log; echo logs: $T/test-017-p2-$S.log $T/test-017-frozen-$S.log $T/verify-017-checks-$S.log
+    $ source .venv/bin/activate && T=$TMPDIR; S=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S)
+  echo "start $(TZ=Europe/Moscow date +%H:%M)"
+  python manage.py test --parallel 2 > $T/test-017-p2-$S.log 2>&1; echo "p2: $(grep -E '^(Ran|OK|FAILED)' $T/test-017-p2-$S.log | tr '\n' ' ') end $(TZ=Europe/Moscow date +%H:%M)"
+  python scripts/run_tests_at.py 2027-03-01T12:00:00 > $T/test-017-frozen-$S.log 2>&1; echo "frozen: $(grep -E '^(Ran|OK|FAILED)' $T/test-017-frozen-$S.log | tr '\n' ' ') end $(TZ=Europe/Moscow date +%H:%M)"
+  { echo "== check"; python manage.py check; echo "== makemigrations"; python manage.py makemigrations --check --dry-run; echo "== ruff"; ruff check . && ruff format --check .; echo "== grep"; grep -rnE "[Зз]аявк|[Зз]аявок" --include='*.html' --include='*.js' templates */templates static/js || echo NO_OLD_WORD; } > $T/verify-017-checks-$S.log 2>&1
+  cat $T/verify-017-checks-$S.log; echo logs: $T/test-017-p2-$S.log $T/test-017-frozen-$S.log $T/verify-017-checks-$S.log
+    Command running in background with ID: bk1w5mm5h. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/bk1w5mm5h.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Thought for 1s
+    I'm setting up the visual check: a dev database at $W/vis.sqlite3, migrated and seeded, then superuser and SessionStore sessions for student1, staff1 and admin. Next I'll start the runserver on port 8770 with a long timeout, and I'm checking whether static files need collectstatic or whether DEBUG runserver already serves them.
+
+    I'm checking whether the seed data has an application-kind petition, since I'll need one with the "Другое заявление" subject for the form, and I'm looking at which petition kinds the seed defines. I also want DEBUG set to true so runserver serves the static files on port 8770.
+
+── Assistant ───────────────────────────────────────────────
+Meanwhile I'm preparing the visual check: sessions and the server on the temporary database.
+
+── Ran 3 commands ──────────────────────────────────────────
+  ── Ran W=$TMPDIR/ui017 && export DATABASE_URL="sqlite:///$W/vis.sqlite3" PRIVATE_MEDIA_ROOT="$W/media" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true SECRET_KEY=dummy-local-ui017 && .venv/bin/python manage.py shell -c " from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY from django.contrib.sessions.backends.db import SessionStore from petitions.models import Petition U=get_user_model() if not U.objects.filter(username='uiadmin').exists(): U.objects.create_superuser('uiadmin', password='Ui-Admin-Pass-2026!') out={} for name in ('student1','staff1','uiadmin'):     u=U.objects.get(username=name); s=SessionStore()     s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create(); out[name]=s.session_key print(out) for p in Petition.objects.select_related('request_type','student__user'):     print(p.student.user.username, p.request_type.kind, p.status, p.public_id, p.request_type.name) from petitions.models import RequestType as R print([(r.pk,r.name) for r in R.objects.all()]) " 2>&1 | grep -v imported (1s)
+    $ W=$TMPDIR/ui017 && export DATABASE_URL="sqlite:///$W/vis.sqlite3" PRIVATE_MEDIA_ROOT="$W/media" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true SECRET_KEY=dummy-local-ui017 && .venv/bin/python manage.py shell -c "
+  from django.contrib.auth import get_user_model, SESSION_KEY, BACKEND_SESSION_KEY, HASH_SESSION_KEY
+  from django.contrib.sessions.backends.db import SessionStore
+  from petitions.models import Petition
+  U=get_user_model()
+  if not U.objects.filter(username='uiadmin').exists(): U.objects.create_superuser('uiadmin', password='Ui-Admin-Pass-2026!')
+  out={}
+  for name in ('student1','staff1','uiadmin'):
+      u=U.objects.get(username=name); s=SessionStore()
+      s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]='django.contrib.auth.backends.ModelBackend'; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create(); out[name]=s.session_key
+  print(out)
+  for p in Petition.objects.select_related('request_type','student__user'):
+      print(p.student.user.username, p.request_type.kind, p.status, p.public_id, p.request_type.name)
+  from petitions.models import RequestType as R
+  print([(r.pk,r.name) for r in R.objects.all()])
+  " 2>&1 | grep -v imported
+    {'student1': 'ohe3olwbah4yajsxk9nrmqr4czm35p2b', 'staff1': '7c8vco7ivkupdw1jrx67vprakd4asecd', 'uiadmin': 't6k8g0jv454br6t2xztojuvwed976vci'}
+    student2 certificate submitted c8a6a7e3-0bdf-4995-859f-e5302f1cb96e Справка об обучении
+    student1 certificate submitted 9cf53d46-a2b0-4c49-8a39-712e9029eac0 Справка об обучении
+    student1 certificate in_progress 08b7c800-c4f6-4fdb-b80c-2244cf091879 Другая справка
+    student1 certificate in_progress 172330df-2037-4e1b-97ea-cfa2c80226f4 Справка для стипендиального отдела
+    student2 certificate in_progress 16a7c12a-7fb6-40de-a3d3-a4b58eeaf92d Справка для стипендиального отдела
+    student3 application ready 1fd1a722-65fc-4af0-bf6b-372cbb5e844d Заявление на повторную промежуточную аттестацию
+    student3 application rejected 7faf4afe-1949-4e3e-bb72-c376c32feb7e Заявление на академический отпуск
+    student1 certificate issued de87a92d-6686-4135-a966-d42b2b82bd3a Справка об обучении
+    [(7, 'Другое заявление'), (4, 'Заявление на академический отпуск'), (3, 'Заявление на повторную промежуточную аттестацию'), (6, 'Другая справка'), (2, 'Справка для стипендиального отдела'), (5, 'Справка о поступлении'), (1, 'Справка об обучении')]
+  ── Thought for 9ms
+    I'm going to submit an application as student1 through the browser form ("Другое заявление") for the visual check, since student1 doesn't have one yet. That will also cover the submitted page, and then staff can move it forward with a flash message. Next, I'll start the server.
+  ── Ran W=$TMPDIR/ui017 && export DATABASE_URL="sqlite:///$W/vis.sqlite3" PRIVATE_MEDIA_ROOT="$W/media" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true SECRET_KEY=dummy-local-ui017 && exec .venv/bin/python manage.py runserver 127.0.0.1:8770 --noreload > $W/server.log 2>&1 (2s)
+    $ W=$TMPDIR/ui017 && export DATABASE_URL="sqlite:///$W/vis.sqlite3" PRIVATE_MEDIA_ROOT="$W/media" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true SECRET_KEY=dummy-local-ui017 && exec .venv/bin/python manage.py runserver 127.0.0.1:8770 --noreload > $W/server.log 2>&1
+    Command running in background with ID: bk5xp2i2r. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/bk5xp2i2r.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran sleep 5; curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8770/accounts/login/ ; curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8770/login/; cat $TMPDIR/ui017/server.log | tail -3; bb browser-automation open --backend local --machine host_cuvmpv75p3 --headless --json (8s)
+    $ sleep 5; curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8770/accounts/login/ ; curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8770/login/; cat $TMPDIR/ui017/server.log | tail -3; bb browser-automation open --backend local --machine host_cuvmpv75p3 --headless --json
+    404
+    200
+    2026-11-21 11:40:19,408 WARNING django.request Not Found: /accounts/login/
+    2026-11-21 11:40:19,408 WARNING django.server "GET /accounts/login/ HTTP/1.1" 404 12773
+    2026-11-21 11:40:19,440 INFO django.server "GET /login/ HTTP/1.1" 200 4104
+    {"id":"69f9056d-fe71-4c5a-9ae6-6ff6e35e290d","threadId":"thr_pgcwc2dwnn","hostId":"host_cuvmpv75p3","backend":"local","state":"ready","createdAt":1795250419925,"expiresAt":1795252219925,"previewDirective":"::browser-preview{session=\"69f9056d-fe71-4c5a-9ae6-6ff6e35e290d\"}"}
+
+── Assistant ───────────────────────────────────────────────
+::browser-preview{session="69f9056d-fe71-4c5a-9ae6-6ff6e35e290d"}
+
+── Ran W=$TMPDIR/ui017; mkdir -p $W/shots; sed -e 's/^S=.*/S=69f9056d-fe71-4c5a-9ae6-6ff6e35e290d/' -e 's#student1:"[a-z0-9]*",staff1:"[a-z0-9]*"#student1:"ohe3olwbah4yajsxk9nrmqr4czm35p2b",staff1:"7c8vco7ivkupdw1jrx67vprakd4asecd",uiadmin:"t6k8g0jv454br6t2xztojuvwed976vci"#' -e "s#OUT=.*#OUT=$W/last.json#" /tmp/claude-501/ui/run.sh > $W/run.sh 2>/dev/null || echo "no old run.sh"; chmod +x $W/run.sh; grep -n "S=\|SID\|OUT=" $W/run.sh
+  $ W=$TMPDIR/ui017; mkdir -p $W/shots; sed -e 's/^S=.*/S=69f9056d-fe71-4c5a-9ae6-6ff6e35e290d/' -e 's#student1:"[a-z0-9]*",staff1:"[a-z0-9]*"#student1:"ohe3olwbah4yajsxk9nrmqr4czm35p2b",staff1:"7c8vco7ivkupdw1jrx67vprakd4asecd",uiadmin:"t6k8g0jv454br6t2xztojuvwed976vci"#' -e "s#OUT=.*#OUT=$W/last.json#" /tmp/claude-501/ui/run.sh > $W/run.sh 2>/dev/null || echo "no old run.sh"; chmod +x $W/run.sh; grep -n "S=\|SID\|OUT=" $W/run.sh
+  3:S=69f9056d-fe71-4c5a-9ae6-6ff6e35e290d
+  4:PRE='const SID={student1:"ohe3olwbah4yajsxk9nrmqr4czm35p2b",staff1:"7c8vco7ivkupdw1jrx67vprakd4asecd",uiadmin:"t6k8g0jv454br6t2xztojuvwed976vci"};
+  8: if(user&&SID[user]) await p.setCookie({name:"sessionid",value:SID[user],url:B});
+  16:OUT=/tmp/claude-501/ui017/last.json
+
+── Assistant ───────────────────────────────────────────────
+Login page first: both states, keyboard, CSP, at 360 and 1024.
+
+── Ran 1 command, explored 3 files ─────────────────────────
+  ── Ran W=$TMPDIR/ui017; cat > $W/login.js <<'EOF' const out=[]; const errs=[]; p.on && p.on("console", m=>{ if(m.type()==="error"||/Content Security Policy|CSP/i.test(m.text())) errs.push(m.text()); }); for (const w of [360,1024]) {   const r=await go(null,"/login/",w,w===360?780:768);   const st=()=>p.evaluate(()=>{const b=document.querySelector("[data-password-toggle]");const i=document.getElementById("id_password");const rb=b.getBoundingClientRect();const ri=i.getBoundingClientRect();const vis=[...b.querySelectorAll("svg")].filter(s=>getComputedStyle(s).display!=="none").map(s=>s.getAttribute("class"));const svg=b.querySelector("svg:not([style*=none])").getBoundingClientRect();return {hidden:b.hidden,type:i.type,pressed:b.getAttribute("aria-pressed"),label:b.getAttribute("aria-label"),btn:[Math.round(rb.width),Math.round(rb.height)],input:[Math.round(ri.width),Math.round(ri.height)],vis,focus:document.activeElement===b,outline:getComputedStyle(b).outlineStyle+" "+getComputedStyle(b).outlineWidth,color:getComputedStyle(b).color,bg:getComputedStyle(b).backgroundColor}});   await p.type("#id_password","Secret-123");   const s0=await st();   // keyboard: focus username, Tab to password, Tab to toggle   await p.focus("#id_password"); await p.keyboard.press("Tab");   const s1=await st();   if(w===360){ await shot(false); }   await p.keyboard.press("Space"); const s2=await st();   if(w===360){ await shot(false); }   await p.keyboard.press("Enter"); const s3=await st();   await p.keyboard.press("Enter"); const s4=await st();   if(w===1024){ await shot(false); }   out.push({w,r,s0,s1,s2,s3,s4}); } return JSON.stringify({out,errs},null,1); EOF $W/run.sh $W/login.js (3s)
+    $ W=$TMPDIR/ui017; cat > $W/login.js <<'EOF'
+  const out=[]; const errs=[];
+  p.on && p.on("console", m=>{ if(m.type()==="error"||/Content Security Policy|CSP/i.test(m.text())) errs.push(m.text()); });
+  for (const w of [360,1024]) {
+    const r=await go(null,"/login/",w,w===360?780:768);
+    const st=()=>p.evaluate(()=>{const b=document.querySelector("[data-password-toggle]");const i=document.getElementById("id_password");const rb=b.getBoundingClientRect();const ri=i.getBoundingClientRect();const vis=[...b.querySelectorAll("svg")].filter(s=>getComputedStyle(s).display!=="none").map(s=>s.getAttribute("class"));const svg=b.querySelector("svg:not([style*=none])").getBoundingClientRect();return {hidden:b.hidden,type:i.type,pressed:b.getAttribute("aria-pressed"),label:b.getAttribute("aria-label"),btn:[Math.round(rb.width),Math.round(rb.height)],input:[Math.round(ri.width),Math.round(ri.height)],vis,focus:document.activeElement===b,outline:getComputedStyle(b).outlineStyle+" "+getComputedStyle(b).outlineWidth,color:getComputedStyle(b).color,bg:getComputedStyle(b).backgroundColor}});
+    await p.type("#id_password","Secret-123");
+    const s0=await st();
+    // keyboard: focus username, Tab to password, Tab to toggle
+    await p.focus("#id_password"); await p.keyboard.press("Tab");
+    const s1=await st();
+    if(w===360){ await shot(false); }
+    await p.keyboard.press("Space"); const s2=await st();
+    if(w===360){ await shot(false); }
+    await p.keyboard.press("Enter"); const s3=await st();
+    await p.keyboard.press("Enter"); const s4=await st();
+    if(w===1024){ await shot(false); }
+    out.push({w,r,s0,s1,s2,s3,s4});
+  }
+  return JSON.stringify({out,errs},null,1);
+  EOF
+  $W/run.sh $W/login.js
+    {
+     "out": [
+      {
+       "w": 360,
+       "r": {
+        "url": "/login/",
+        "sw": 360,
+        "cw": 360,
+        "h": 780,
+        "title": "Вход — Цифровой деканат будущего"
+       },
+       "s0": {
+        "hidden": false,
+        "type": "password",
+        "pressed": "false",
+        "label": "Показать пароль",
+        "btn": [
+         62,
+         44
+        ],
+        "input": [
+         196,
+         56
+        ],
+        "vis": [
+         "icon-eye"
+        ],
+        "focus": false,
+        "outline": "none 3px",
+        "color": "rgb(243, 236, 255)",
+        "bg": "rgba(36, 22, 78, 0.88)"
+       },
+       "s1": {
+        "hidden": false,
+        "type": "password",
+        "pressed": "false",
+        "label": "Показать пароль",
+        "btn": [
+         62,
+         44
+        ],
+        "input": [
+         196,
+         56
+        ],
+        "vis": [
+         "icon-eye"
+        ],
+        "focus": true,
+        "outline": "solid 3px",
+        "color": "rgb(243, 236, 255)",
+        "bg": "rgba(36, 22, 78, 0.88)"
+       },
+       "s2": {
+        "hidden": false,
+        "type": "text",
+        "pressed": "true",
+        "label": "Показать пароль",
+        "btn": [
+         62,
+         44
+        ],
+        "input": [
+         196,
+         56
+        ],
+        "vis": [
+         "icon-eye-off"
+        ],
+        "focus": true,
+        "outline": "solid 3px",
+        "color": "rgb(243, 236, 255)",
+        "bg": "rgba(36, 22, 78, 0.88)"
+       },
+       "s3": {
+        "hidden": false,
+        "type": "password",
+        "pressed": "false",
+        "label": "Показать пароль",
+        "btn": [
+         62,
+         44
+        ],
+        "input": [
+         196,
+         56
+        ],
+        "vis": [
+         "icon-eye"
+        ],
+        "focus": true,
+        "outline": "solid 3px",
+        "color": "rgb(243, 236, 255)",
+        "bg": "rgba(36, 22, 78, 0.88)"
+       },
+       "s4": {
+        "hidden": false,
+        "type": "text",
+        "pressed": "true",
+        "label": "Показать пароль",
+        "btn": [
+         62,
+         44
+        ],
+        "input": [
+         196,
+         56
+        ],
+        "vis": [
+         "icon-eye-off"
+        ],
+        "focus": true,
+        "outline": "solid 3px",
+        "color": "rgb(243, 236, 255)",
+        "bg": "rgba(36, 22, 78, 0.88)"
+       }
+      },
+      {
+       "w": 1024,
+       "r": {
+        "url": "/login/",
+        "sw": 1024,
+        "cw": 1024,
+        "h": 768,
+        "title": "Вход — Цифровой деканат будущего"
+       },
+       "s0": {
+        "hidden": false,
+        "type": "password",
+        "pressed": "false",
+        "label": "Показать пароль",
+        "btn": [
+         62,
+         44
+        ],
+        "input": [
+         780,
+         56
+        ],
+        "vis": [
+         "icon-eye"
+        ],
+        "focus": false,
+        "outline": "none 3px",
+        "color": "rgb(243, 236, 255)",
+        "bg": "rgba(36, 22, 78, 0.88)"
+       },
+       "s1": {
+        "hidden": false,
+        "type": "password",
+        "pressed": "false",
+        "label": "Показать пароль",
+        "btn": [
+         62,
+         44
+        ],
+        "input": [
+         780,
+         56
+        ],
+        "vis": [
+         "icon-eye"
+        ],
+        "focus": true,
+        "outline": "solid 3px",
+        "color": "rgb(243, 236, 255)",
+        "bg": "rgba(36, 22, 78, 0.88)"
+       },
+       "s2": {
+        "hidden": false,
+        "type": "text",
+        "pressed": "true",
+        "label": "Показать пароль",
+        "btn": [
+         62,
+         44
+        ],
+        "input": [
+         780,
+         56
+        ],
+        "vis": [
+         "icon-eye-off"
+        ],
+        "focus": true,
+        "outline": "solid 3px",
+        "color": "rgb(243, 236, 255)",
+        "bg": "rgba(36, 22, 78, 0.88)"
+       },
+       "s3": {
+        "hidden": false,
+        "type": "password",
+        "pressed": "false",
+        "label": "Показать пароль",
+        "btn": [
+         62,
+         44
+        ],
+        "input": [
+         780,
+         56
+        ],
+        "vis": [
+         "icon-eye"
+        ],
+        "focus": true,
+        "outline": "solid 3px",
+        "color": "rgb(243, 236, 255)",
+        "bg": "rgba(36, 22, 78, 0.88)"
+       },
+       "s4": {
+        "hidden": false,
+        "type": "text",
+        "pressed": "true",
+        "label": "Показать пароль",
+        "btn": [
+         62,
+         44
+        ],
+        "input": [
+         780,
+         56
+        ],
+        "vis": [
+         "icon-eye-off"
+        ],
+        "focus": true,
+        "outline": "solid 3px",
+        "color": "rgb(243, 236, 255)",
+        "bg": "rgba(36, 22, 78, 0.88)"
+       }
+      }
+     ],
+     "errs": []
+    }
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-dsmvIT/tmp/shot-1795250439927-1.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-dsmvIT/tmp/shot-1795250439983-2.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-dsmvIT/tmp/shot-1795250440107-3.jpg 1024 768
+  ── Thought for 10ms
+    The button measures 44 pixels tall while the input is 56, which is odd since stretch should equalize them. I'm wondering whether the input carries a margin or the button has a fixed height or align-self override. I'll check the screenshots to see the actual layout.
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-dsmvIT/tmp/shot-1795250439927-1.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-dsmvIT/tmp/shot-1795250439983-2.jpg
+  ── Thought for 28s
+    I'm noting two issues: the eye icon is too small at 24×16 to read clearly, so I could render it larger, around 36×24. The button also seems to have a double frame from an outer box-shadow, and its 44px height doesn't match the 56px input beside it.
+
+    Next I'm checking whether the button's visual height matches the input once the outer shadow is counted, and I'll look at the CSS for `.form button` to see where the double frame comes from. Then I'll render the icons at 36×24 so the crossed eye reads more clearly.
+
+    Still working out the pixel grid for the crossed-eye icon, row by row.
+
+    Still sorting out the icon design: the diagonal slash makes the 24×16 version hard to read, so I'm considering a finer grid or a slash that runs from top-left to bottom-right.
+
+    Still working out the grid for the crossed-eye icon, planning the slash and which outline cells to drop so the cut reads clearly.
+
+    I'm sketching the crossed eye on the 12×8 grid: an open-eye outline with a diagonal slash running from top-left to bottom-right. I'm thinking about whether to drop the pupil to cut clutter, or keep a small one clear of the slash, and which outline cells next to the slash should be left out so the cut reads.
+
+    Still weighing whether a 12×8 grid at 36×24 holds up, since each grid cell would be a crisp 3px block, or whether a finer grid is needed for the diagonal slash.
+
+    I'm settling on the slash for the crossed eye: running from top-left to bottom-right across the 12×8 grid, starting around column 2 on the top row and ending past the bottom-right corner of the outline. I'm checking whether that slash collides with the bottom outline row before I commit to the cell positions.
+
+    I'm settling the grid for the crossed eye: a diagonal slash from top-left to bottom-right, with the outline cells beside it removed so the cut stands out. I'm still deciding whether to drop the pupil entirely or keep a small one clear of the slash.
+
+    Still weighing whether to keep the slash as a plain overlay or cut gaps into the outline beside it, since removing cells fragments the eye.
+
+    I'm going to scale both icons up to 36×24 and take a zoomed screenshot to check how the crossed eye reads at that size.
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-dsmvIT/tmp/shot-1795250440107-3.jpg
+  ── Thought for 21s
+    I'm going back to the icons, which look too small and muddy around the crossed eye, so I'll redraw them on a 12×8 grid rendered at 36×24 with 3px cells. The eye-off version needs a clean diagonal slash with gaps. At 36px wide the icon should fit the button's minimum width, though the button itself seems to land near 62px, and I still need to work out why.
+
+    I'm sketching the eye-off icon on the same 12×8 grid, with a diagonal slash running from the top-left toward the bottom-right and the outline cut where the slash crosses it. The slash risks merging into the top edge of the eye, so I'm weighing whether the eye should be drawn smaller in the off version or the slash should go corner to corner instead.
+
+    I'm working out a non-45° diagonal slash on the 12×8 grid, stepping about 1.5 cells per row so it reads as a continuous two-cell-wide stroke from corner to corner. Where it crosses the eye's outline at the top-left and bottom-right, the slash and outline end up overlapping, which I'm still deciding is acceptable.
+
+    I'm weighing a 24×16 grid at 48×32 for finer detail, though that could push the button taller than 44px. For now I'll stick with the 12×8 grid at 36×24 and try a 1.5-cell step slash, letting it reach its last stretch.
+
+    I'm checking which outline cells sit next to the slash so I can open small gaps between them, starting with the overlaps at the top-left and bottom-right.
+
+    I'm checking the outline cells next to the slash, and the stroke from (3,2) to (8,5) will read as a line through the eye, so I'll decide whether to keep part of the pupil in the off version.
+
+    I'm checking which pupil cells would still touch the slash, and the clutter at this size makes me lean toward dropping the pupil altogether in the off version.
+
+    I'm going to build a scratch HTML page and render three candidates at 36×24 on the panel background, plus the open eye for comparison, so I can compare them side by side and pick one.
+
+── Assistant ───────────────────────────────────────────────
+The icons are too small at 24×16, and the crossed eye is hard to read. The spec allows redrawing them (D6). I'll compare variants at 36×24 (3 px per grid cell).
+
+── Ran 2 commands, explored 2 files ────────────────────────
+  ── Ran W=$TMPDIR/ui017 && python3 - <<'EOF' import os,re W=os.environ["TMPDIR"]+"/ui017" eye=open("templates/includes/icon_eye.html").read().strip() off=open("templates/includes/icon_eye_off.html").read().strip() def svg(cells,cls):     r="".join(f'<rect x="{x}" y="{y}" width="{w}" height="{h}"/>' for x,y,w,h in cells)     return f'<svg class="{cls}" viewBox="0 0 12 8" width="36" height="24" shape-rendering="crispEdges"><g fill="currentColor">{r}</g></svg>' outline=[(3,0,6,1),(1,1,2,1),(9,1,2,1),(0,2,1,4),(11,2,1,4),(1,6,2,1),(9,6,2,1),(3,7,6,1)] # B: slope-1.5 slash corner to corner, no pupil sl=[(0,0,2,1),(1,1,2,1),(3,2,2,1),(4,3,2,1),(6,4,2,1),(7,5,2,1),(9,6,2,1),(10,7,2,1)] B=svg(outline+sl,"b") # C: same slash, small pupil cut: pupil pieces away from slash C=svg(outline+sl+[(6,2,2,1),(7,3,1,1),(4,5,1,1),(4,4,1,1)],"c") # D: 45deg slash (1,0)->(8,7) with outline gaps at crossings, no pupil s45=[(1+i,i,1,1) for i in range(8)] o2=[(4,0,5,1),(9,1,2,1),(0,2,1,4),(11,2,1,4),(1,6,1,1),(9,6,2,1),(3,7,4,1)] D=svg(o2+s45,"d") big=lambda s:s.replace('width="24" height="16"','width="36" height="24"') row=lambda items:"".join(f'<div class="cell"><div class="btn">{s}</div><small>{n}</small></div>' for n,s in items) html=f'''<!doctype html><meta charset=utf-8><style>body{{background:#1b1140;color:#f3ecff;font:12px sans-serif;padding:16px}} .cell{{display:inline-block;margin:10px;text-align:center}}.btn{{background:rgba(36,22,78,.88);border:3px solid #7a5cd6;padding:10px 12px;display:inline-flex}}small{{display:block;margin-top:4px}}</style> <div>{row([("ref eye 24x16",eye),("ref off 24x16",off),("ref eye 36x24",big(eye)),("ref off 36x24",big(off))])}</div> <div>{row([("B",B),("C",C),("D",D)])}</div>''' open(W+"/icons.html","w").write(html) EOF cat > $W/icons.js <<EOF await p.setViewport({width:700,height:260,deviceScaleFactor:1}); await p.goto("file://$W/icons.html"); await shot(false); return "ok"; EOF $W/run.sh $W/icons.js (2s)
+    $ W=$TMPDIR/ui017 && python3 - <<'EOF'
+  import os,re
+  W=os.environ["TMPDIR"]+"/ui017"
+  eye=open("templates/includes/icon_eye.html").read().strip()
+  off=open("templates/includes/icon_eye_off.html").read().strip()
+  def svg(cells,cls):
+      r="".join(f'<rect x="{x}" y="{y}" width="{w}" height="{h}"/>' for x,y,w,h in cells)
+      return f'<svg class="{cls}" viewBox="0 0 12 8" width="36" height="24" shape-rendering="crispEdges"><g fill="currentColor">{r}</g></svg>'
+  outline=[(3,0,6,1),(1,1,2,1),(9,1,2,1),(0,2,1,4),(11,2,1,4),(1,6,2,1),(9,6,2,1),(3,7,6,1)]
+  # B: slope-1.5 slash corner to corner, no pupil
+  sl=[(0,0,2,1),(1,1,2,1),(3,2,2,1),(4,3,2,1),(6,4,2,1),(7,5,2,1),(9,6,2,1),(10,7,2,1)]
+  B=svg(outline+sl,"b")
+  # C: same slash, small pupil cut: pupil pieces away from slash
+  C=svg(outline+sl+[(6,2,2,1),(7,3,1,1),(4,5,1,1),(4,4,1,1)],"c")
+  # D: 45deg slash (1,0)->(8,7) with outline gaps at crossings, no pupil
+  s45=[(1+i,i,1,1) for i in range(8)]
+  o2=[(4,0,5,1),(9,1,2,1),(0,2,1,4),(11,2,1,4),(1,6,1,1),(9,6,2,1),(3,7,4,1)]
+  D=svg(o2+s45,"d")
+  big=lambda s:s.replace('width="24" height="16"','width="36" height="24"')
+  row=lambda items:"".join(f'<div class="cell"><div class="btn">{s}</div><small>{n}</small></div>' for n,s in items)
+  html=f'''<!doctype html><meta charset=utf-8><style>body{{background:#1b1140;color:#f3ecff;font:12px sans-serif;padding:16px}}
+  .cell{{display:inline-block;margin:10px;text-align:center}}.btn{{background:rgba(36,22,78,.88);border:3px solid #7a5cd6;padding:10px 12px;display:inline-flex}}small{{display:block;margin-top:4px}}</style>
+  <div>{row([("ref eye 24x16",eye),("ref off 24x16",off),("ref eye 36x24",big(eye)),("ref off 36x24",big(off))])}</div>
+  <div>{row([("B",B),("C",C),("D",D)])}</div>'''
+  open(W+"/icons.html","w").write(html)
+  EOF
+  cat > $W/icons.js <<EOF
+  await p.setViewport({width:700,height:260,deviceScaleFactor:1}); await p.goto("file://$W/icons.html"); await shot(false); return "ok";
+  EOF
+  $W/run.sh $W/icons.js
+    ok
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-dsmvIT/tmp/shot-1795250514269-4.jpg 700 260
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-dsmvIT/tmp/shot-1795250514269-4.jpg
+  ── Thought for 9ms
+    I'm going to render a 3x zoomed crop to compare the B eye against the reference, since the 1x screenshot is too small to judge the shape well. I also want to check how it looks at 1x, because that's what users actually see, and B already reads most clearly as a crossed eye while the open eye at 36x24 seems fine.
+  ── Ran W=$TMPDIR/ui017; cat > $W/icons.js <<EOF await p.setViewport({width:360,height:200,deviceScaleFactor:3}); await p.goto("file://$W/icons.html"); await shot(false); return "ok"; EOF $W/run.sh $W/icons.js
+    $ W=$TMPDIR/ui017; cat > $W/icons.js <<EOF
+  await p.setViewport({width:360,height:200,deviceScaleFactor:3}); await p.goto("file://$W/icons.html"); await shot(false); return "ok";
+  EOF
+  $W/run.sh $W/icons.js
+    ok
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-dsmvIT/tmp/shot-1795250521933-5.jpg 360 200
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-dsmvIT/tmp/shot-1795250521933-5.jpg
+  ── Thought for 1s
+    The downsized shot is fine for this, so I'm going with option B, the clear crossed eye. The open-eye reference uses a 4x4 pupil that reads as an eye at 36x24, so I'll keep that as it is.
+
+    I'm checking that the slash still reads as distinct from the other options. Next I'll write the icons at 36 by 24, since the tests only check the attributes. After that I want to confirm the button size and alignment, and 36 by 24 also clears the 24 by 16 minimum from D6.
+
+── Assistant ───────────────────────────────────────────────
+I'm using variant B: a clean diagonal from corner to corner without the pupil, which reads clearly as a crossed eye. The open eye stays as in the reference. Both icons render at 36×24.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran sed -i '' 's/width="24" height="16"/width="36" height="24"/' templates/includes/icon_eye.html && cat > templates/includes/icon_eye_off.html <<'EOF' <svg class="icon-eye-off" viewBox="0 0 12 8" width="36" height="24" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><g fill="currentColor"><rect x="3" y="0" width="6" height="1"/><rect x="1" y="1" width="2" height="1"/><rect x="9" y="1" width="2" height="1"/><rect x="0" y="2" width="1" height="4"/><rect x="11" y="2" width="1" height="4"/><rect x="1" y="6" width="2" height="1"/><rect x="9" y="6" width="2" height="1"/><rect x="3" y="7" width="6" height="1"/><rect x="0" y="0" width="2" height="1"/><rect x="3" y="2" width="2" height="1"/><rect x="4" y="3" width="2" height="1"/><rect x="6" y="4" width="2" height="1"/><rect x="7" y="5" width="2" height="1"/><rect x="10" y="7" width="2" height="1"/></g></svg> EOF cat templates/includes/icon_eye.html; grep -n "password-toggle\|\.form button\b" -A8 static/css/theme.css | grep -n "padding\|min-\|height" | head; grep -nE "^\.form button|^\.form input" -A12 static/css/base.css static/css/theme.css | grep -E "padding|height|min-" | head (1s)
+    $ sed -i '' 's/width="24" height="16"/width="36" height="24"/' templates/includes/icon_eye.html && cat > templates/includes/icon_eye_off.html <<'EOF'
+  <svg class="icon-eye-off" viewBox="0 0 12 8" width="36" height="24" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><g fill="currentColor"><rect x="3" y="0" width="6" height="1"/><rect x="1" y="1" width="2" height="1"/><rect x="9" y="1" width="2" height="1"/><rect x="0" y="2" width="1" height="4"/><rect x="11" y="2" width="1" height="4"/><rect x="1" y="6" width="2" height="1"/><rect x="9" y="6" width="2" height="1"/><rect x="3" y="7" width="6" height="1"/><rect x="0" y="0" width="2" height="1"/><rect x="3" y="2" width="2" height="1"/><rect x="4" y="3" width="2" height="1"/><rect x="6" y="4" width="2" height="1"/><rect x="7" y="5" width="2" height="1"/><rect x="10" y="7" width="2" height="1"/></g></svg>
+  EOF
+  cat templates/includes/icon_eye.html; grep -n "password-toggle\|\.form button\b" -A8 static/css/theme.css | grep -n "padding\|min-\|height" | head; grep -nE "^\.form button|^\.form input" -A12 static/css/base.css static/css/theme.css | grep -E "padding|height|min-" | head
+    <svg class="icon-eye" viewBox="0 0 12 8" width="36" height="24" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><g fill="currentColor"><rect x="3" y="0" width="6" height="1"/><rect x="1" y="1" width="2" height="1"/><rect x="9" y="1" width="2" height="1"/><rect x="0" y="2" width="1" height="4"/><rect x="11" y="2" width="1" height="4"/><rect x="4" y="2" width="4" height="4"/><rect x="1" y="6" width="2" height="1"/><rect x="9" y="6" width="2" height="1"/><rect x="3" y="7" width="6" height="1"/></g></svg>
+    static/css/theme.css-130-  padding: var(--space-2) var(--space-3);
+    static/css/base.css-697-  min-height: 2.75rem;
+    static/css/base.css-698-  padding: var(--space-2);
+    static/css/base.css-704-  height: 1.5rem;
+    static/css/base.css-713-  padding: 6px;
+    static/css/base.css-718-  min-height: 2.75rem;
+    static/css/base.css-720-  padding: 0 var(--space-2);
+    static/css/base.css-725-  min-height: 2.75rem;
+    static/css/base.css-727-  padding: 0.625rem 1rem;
+  ── Thought for 692ms
+    I'm checking the height mismatch between the button and the input, since the button's box-shadow may account for the visual difference. After reloading, I'll measure the frame and rerun the login check with the new icons, plus a no-JavaScript pass and a real login submit to confirm the button switches back to password.
+
+    I'm also weighing the login throttling, so I'll run the real submit with the student1 credentials just once.
+
+── Assistant ───────────────────────────────────────────────
+Re-checking the login page: new icons, alignment, JS turned off, and a real login with the password shown.
+
+── Ran 3 commands ──────────────────────────────────────────
+  ── Ran W=$TMPDIR/ui017; cat > $W/login2.js <<'EOF' const errs=[]; p.on("console", m=>{ if(m.type()==="error"||/Content Security Policy/i.test(m.text())) errs.push(m.text()); }); const res={}; const geo=()=>p.evaluate(()=>{const b=document.querySelector("[data-password-toggle]");const i=document.getElementById("id_password");const rb=b.getBoundingClientRect(),ri=i.getBoundingClientRect();const svg=[...b.querySelectorAll("svg")].find(s=>getComputedStyle(s).display!=="none");const rs=svg?svg.getBoundingClientRect():null;return {hidden:b.hidden,disp:getComputedStyle(b).display,btn:[rb.top,rb.bottom,rb.width],input:[ri.top,ri.bottom],shadow:getComputedStyle(b).boxShadow.slice(0,80),svg:rs&&[rs.width,rs.height],type:i.type,sw:document.documentElement.scrollWidth}}); for (const w of [360,1024]) {   await go(null,"/login/",w,w===360?780:768);   await p.type("#id_password","Secret-123");   res["w"+w+"_hidden"]=await geo(); await shot(false);   await p.click("[data-password-toggle]"); res["w"+w+"_shown"]=await geo(); await shot(false); } // JS disabled await p.setJavaScriptEnabled(false); await go(null,"/login/",360,780); res.nojs=await geo(); await shot(false); await p.setJavaScriptEnabled(true); // real login with the password shown await go(null,"/login/",360,780); await p.type("#id_username","student1"); await p.type("#id_password","Local-Demo-Pass-2026!"); await p.click("[data-password-toggle]"); res.beforeSubmit=await p.evaluate(()=>document.getElementById("id_password").type); await Promise.all([p.waitForNavigation({waitUntil:"load"}), p.click("button[type=submit]")]); res.after=await p.evaluate(()=>location.pathname); res.errs=errs; return JSON.stringify(res); EOF $W/run.sh $W/login2.js (3s)
+    $ W=$TMPDIR/ui017; cat > $W/login2.js <<'EOF'
+  const errs=[]; p.on("console", m=>{ if(m.type()==="error"||/Content Security Policy/i.test(m.text())) errs.push(m.text()); });
+  const res={};
+  const geo=()=>p.evaluate(()=>{const b=document.querySelector("[data-password-toggle]");const i=document.getElementById("id_password");const rb=b.getBoundingClientRect(),ri=i.getBoundingClientRect();const svg=[...b.querySelectorAll("svg")].find(s=>getComputedStyle(s).display!=="none");const rs=svg?svg.getBoundingClientRect():null;return {hidden:b.hidden,disp:getComputedStyle(b).display,btn:[rb.top,rb.bottom,rb.width],input:[ri.top,ri.bottom],shadow:getComputedStyle(b).boxShadow.slice(0,80),svg:rs&&[rs.width,rs.height],type:i.type,sw:document.documentElement.scrollWidth}});
+  for (const w of [360,1024]) {
+    await go(null,"/login/",w,w===360?780:768);
+    await p.type("#id_password","Secret-123");
+    res["w"+w+"_hidden"]=await geo(); await shot(false);
+    await p.click("[data-password-toggle]"); res["w"+w+"_shown"]=await geo(); await shot(false);
+  }
+  // JS disabled
+  await p.setJavaScriptEnabled(false); await go(null,"/login/",360,780); res.nojs=await geo(); await shot(false); await p.setJavaScriptEnabled(true);
+  // real login with the password shown
+  await go(null,"/login/",360,780);
+  await p.type("#id_username","student1"); await p.type("#id_password","Local-Demo-Pass-2026!");
+  await p.click("[data-password-toggle]"); res.beforeSubmit=await p.evaluate(()=>document.getElementById("id_password").type);
+  await Promise.all([p.waitForNavigation({waitUntil:"load"}), p.click("button[type=submit]")]);
+  res.after=await p.evaluate(()=>location.pathname);
+  res.errs=errs; return JSON.stringify(res);
+  EOF
+  $W/run.sh $W/login2.js
+    {
+      "ok": false,
+      "error": {
+        "code": "screenshot_limit",
+        "message": "At most four screenshots may be returned per script",
+        "hint": "Return at most 4 JPEG screenshots per run, 500 KB combined."
+      }
+    }
+    At most four screenshots may be returned per script (Return at most 4 JPEG screenshots per run, 500 KB combined.)
+  ── Ran W=$TMPDIR/ui017; sed -i '' 's/res\["w"+w+"_hidden"\]=await geo(); await shot(false);/res["w"+w+"_hidden"]=await geo(); if(w===360) await shot(false);/' $W/login2.js && $W/run.sh $W/login2.js (1s)
+    $ W=$TMPDIR/ui017; sed -i '' 's/res\["w"+w+"_hidden"\]=await geo(); await shot(false);/res["w"+w+"_hidden"]=await geo(); if(w===360) await shot(false);/' $W/login2.js && $W/run.sh $W/login2.js
+    {
+      "ok": false,
+      "error": {
+        "code": "session_unavailable",
+        "message": "Session stopped or expired; open a new session",
+        "hint": "Open a new session with `bb browser-automation open --backend <desktop|local> --machine <host-id>`."
+      }
+    }
+    Session stopped or expired; open a new session (Open a new session with `bb browser-automation open --backend <desktop|local> --machine <host-id>`.)
+  ── Ran W=$TMPDIR/ui017; J=$(bb browser-automation open --backend local --machine host_cuvmpv75p3 --headless --json); echo "$J"; SID=$(echo "$J" | python3 -c "import json,sys;print(json.load(sys.stdin)['id'])"); sed -i '' "s/^S=.*/S=$SID/" $W/run.sh && $W/run.sh $W/login2.js (5s)
+    $ W=$TMPDIR/ui017; J=$(bb browser-automation open --backend local --machine host_cuvmpv75p3 --headless --json); echo "$J"; SID=$(echo "$J" | python3 -c "import json,sys;print(json.load(sys.stdin)['id'])"); sed -i '' "s/^S=.*/S=$SID/" $W/run.sh && $W/run.sh $W/login2.js
+    {"id":"4155b457-a80f-4a8a-8873-1fba17fdfd27","threadId":"thr_pgcwc2dwnn","hostId":"host_cuvmpv75p3","backend":"local","state":"ready","createdAt":1795250571841,"expiresAt":1795252371841,"previewDirective":"::browser-preview{session=\"4155b457-a80f-4a8a-8873-1fba17fdfd27\"}"}
+    {"w360_hidden":{"hidden":false,"disp":"flex","btn":[296,340,62],"input":[290,346],"shadow":"rgb(23, 13, 51) 0px 0px 0px 3px, rgb(90, 63, 163) 0px 0px 0px 6px","svg":[24,16],"type":"password","sw":360},"w360_shown":{"hidden":false,"disp":"flex","btn":[296,340,62],"input":[290,346],"shadow":"rgb(23, 13, 51) 0px 0px 0px 3px, rgb(90, 63, 163) 0px 0px 0px 6px","svg":[24,16],"type":"text","sw":360},"w1024_hidden":{"hidden":false,"disp":"flex","btn":[329,373,62],"input":[323,379],"shadow":"rgb(23, 13, 51) 0px 0px 0px 3px, rgb(90, 63, 163) 0px 0px 0px 6px","svg":[24,16],"type":"password","sw":1024},"w1024_shown":{"hidden":false,"disp":"flex","btn":[329,373,62],"input":[323,379],"shadow":"rgb(23, 13, 51) 0px 0px 0px 3px, rgb(90, 63, 163) 0px 0px 0px 6px","svg":[24,16],"type":"text","sw":1024},"nojs":{"hidden":true,"disp":"none","btn":[0,0,0],"input":[290,334],"shadow":"rgb(23, 13, 51) 0px 0px 0px 3px, rgb(90, 63, 163) 0px 0px 0px 6px","svg":[0,0],"type":"password","sw":360},"beforeSubmit":"text","after":"/profile/","errs":[]}
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-EN6jiq/tmp/shot-1795250574634-1.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-EN6jiq/tmp/shot-1795250574698-2.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-EN6jiq/tmp/shot-1795250574847-3.jpg 1024 768
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-EN6jiq/tmp/shot-1795250574931-4.jpg 360 780
+  ── Thought for 5s
+    The SVG still renders at 24x16, which suggests the server is caching templates, so I'll need to restart it. The button's display is flex rather than inline-flex, which is fine since it's blockified inside a flex container. The input is 44px tall without JS but 56px with it, and that's because align-items: stretch makes the input fill the row, which is set by the button's height.
+
+    The button's margin explains the extra height: it sits 6px in from each side, so the input stretches to the full 56px row. The 44px versus 56px difference only appears with JS, and stretching keeps the two aligned, which looks intentional. Centering the input would leave it shorter than the button frame, so I'll keep the current behavior.
+
+── Assistant ───────────────────────────────────────────────
+The SVG still renders at 24×16 because the server caches templates under `--noreload`. I'll restart it through the background task, without leaving the sandbox.
+
+── Ran 1 tool, ran 6 commands, explored 4 files, 2 searches
+  ── Stopped task
+    {"message":"Successfully stopped task: bk5xp2i2r (W=$TMPDIR/ui017 && export DATABASE_URL=\"sqlite:///$W/vis.sqlite3\" PRIVATE_MEDIA_ROOT=\"$W/media\" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true SECRET_KEY=dummy-local-ui017 && exec .venv/bin/python manage.py runserver 127.0.0.1:8770 --noreload > $W/server.log 2>&1)","task_id":"bk5xp2i2r","task_type":"local_bash","command":"W=$TMPDIR/ui017 && export DATABASE_URL=\"sqlite:///$W/vis.sqlite3\" PRIVATE_MEDIA_ROOT=\"$W/media\" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true SECRET_KEY=dummy-local-ui017 && exec .venv/bin/python manage.py runserver 127.0.0.1:8770 --noreload > $W/server.log 2>&1"}
+  ── Ran W=$TMPDIR/ui017 && export DATABASE_URL="sqlite:///$W/vis.sqlite3" PRIVATE_MEDIA_ROOT="$W/media" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true SECRET_KEY=dummy-local-ui017 && exec .venv/bin/python manage.py runserver 127.0.0.1:8770 --noreload > $W/server.log 2>&1
+    $ W=$TMPDIR/ui017 && export DATABASE_URL="sqlite:///$W/vis.sqlite3" PRIVATE_MEDIA_ROOT="$W/media" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true SECRET_KEY=dummy-local-ui017 && exec .venv/bin/python manage.py runserver 127.0.0.1:8770 --noreload > $W/server.log 2>&1
+    Command running in background with ID: be5cuz0v3. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/be5cuz0v3.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Thought for 8ms
+    I'm going to add a submit-time type check by attaching a listener after the script's own form listener, so it runs later. Then I'll store the type in window.name, since that survives navigation within the same tab, rather than sessionStorage.
+  ── Ran W=$TMPDIR/ui017; sleep 4; python3 - <<EOF import os W=os.environ["TMPDIR"]+"/ui017" s=open(W+"/login2.js").read() s=s.replace('await p.click("[data-password-toggle]"); res.beforeSubmit=','await p.click("[data-password-toggle]"); await p.evaluate(()=>{const f=document.querySelector("form.form");f.addEventListener("submit",()=>{window.name="atSubmit:"+document.getElementById("id_password").type;});}); res.beforeSubmit=') s=s.replace('res.after=await p.evaluate(()=>location.pathname);','res.after=await p.evaluate(()=>location.pathname+" "+window.name);') open(W+"/login2.js","w").write(s) EOF $W/run.sh $W/login2.js (6s)
+    $ W=$TMPDIR/ui017; sleep 4; python3 - <<EOF
+  import os
+  W=os.environ["TMPDIR"]+"/ui017"
+  s=open(W+"/login2.js").read()
+  s=s.replace('await p.click("[data-password-toggle]"); res.beforeSubmit=','await p.click("[data-password-toggle]"); await p.evaluate(()=>{const f=document.querySelector("form.form");f.addEventListener("submit",()=>{window.name="atSubmit:"+document.getElementById("id_password").type;});}); res.beforeSubmit=')
+  s=s.replace('res.after=await p.evaluate(()=>location.pathname);','res.after=await p.evaluate(()=>location.pathname+" "+window.name);')
+  open(W+"/login2.js","w").write(s)
+  EOF
+  $W/run.sh $W/login2.js
+    {"w360_hidden":{"hidden":false,"disp":"flex","btn":[296,346,74],"input":[290,352],"shadow":"rgb(23, 13, 51) 0px 0px 0px 3px, rgb(90, 63, 163) 0px 0px 0px 6px","svg":[36,24],"type":"password","sw":360},"w360_shown":{"hidden":false,"disp":"flex","btn":[296,346,74],"input":[290,352],"shadow":"rgb(23, 13, 51) 0px 0px 0px 3px, rgb(90, 63, 163) 0px 0px 0px 6px","svg":[36,24],"type":"text","sw":360},"w1024_hidden":{"hidden":false,"disp":"flex","btn":[329,379,74],"input":[323,385],"shadow":"rgb(23, 13, 51) 0px 0px 0px 3px, rgb(90, 63, 163) 0px 0px 0px 6px","svg":[36,24],"type":"password","sw":1024},"w1024_shown":{"hidden":false,"disp":"flex","btn":[329,379,74],"input":[323,385],"shadow":"rgb(23, 13, 51) 0px 0px 0px 3px, rgb(90, 63, 163) 0px 0px 0px 6px","svg":[36,24],"type":"text","sw":1024},"nojs":{"hidden":true,"disp":"none","btn":[0,0,0],"input":[290,334],"shadow":"rgb(23, 13, 51) 0px 0px 0px 3px, rgb(90, 63, 163) 0px 0px 0px 6px","svg":[0,0],"type":"password","sw":360},"beforeSubmit":"text","after":"/profile/ atSubmit:password","errs":[]}
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-EN6jiq/tmp/shot-1795250614790-5.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-EN6jiq/tmp/shot-1795250614842-6.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-EN6jiq/tmp/shot-1795250614943-7.jpg 1024 768
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-EN6jiq/tmp/shot-1795250615009-8.jpg 360 780
+  ── Thought for 2ms
+    The button now measures about 50px tall, so the row is 62px and the password input stretches to match. That leaves it taller than the username field, which looks off, so I want to check the screenshots.
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-EN6jiq/tmp/shot-1795250614842-6.jpg
+  ── Thought for 11s
+    I've confirmed the crossed eye issue, but the password field is taller than the username field, which looks off. I'm weighing whether to center the password field or shrink the button's vertical padding so the button's outer frame matches the 44px input height.
+
+    I'm weighing whether removing the toggle's vertical margin would let the button fit within the input's 44px height, even though the shadow frame would poke out a few pixels. The other route is overriding the button's theme padding with a specific selector in the base stylesheet, so the button height comes out at 44 rather than 62.
+
+    I'm weighing whether to drop the toggle's double-frame shadow and use a plain border like the inputs, so the button's height matches the 44px field exactly while still keeping the panel background.
+
+    I'm checking the CSS for where the 6px margin on the toggle comes from, since a `.form button` rule may be setting it.
+  ── Thought
+    The crossed eye reads clearly now, but the 6 px frame and margin on `.form button` leave the password field 62 px tall against the login field's 44 px. I'm checking where that margin and shadow come from.
+  ── Searched for ^[^{]*\.form button[^{]*\{ in static/css/theme.css
+  ── Searched for \.form button in static/css/theme.css
+  ── Read static/css/theme.css
+  ── Read /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/bk1w5mm5h.output
+  ── Thought for 9s
+    Tests all pass; the icon change shouldn't affect them, but I'll re-run after the CSS tweaks. Now I'm tracking down where the button's top margin comes from: the `.form button` rule sets it to `var(--space-3)`, and the button sits 6px below the input, which would explain the row height.
+
+    Now I'm working through the numbers: the button's top sits 6px below the input, but the 50px button height doesn't fully explain the row's 62px. I'm planning to zero the toggle's margin and adjust its padding in base.css, then checking the look in theme.css.
+
+    I'm planning to drop the toggle's box-shadow and keep a plain frame border, so it reads as a square input-style button. In base.css I'll zero its margin, and since the input is 44px tall, a min-height of 44px should line the row up with it. For focus, I'll set a 3px outline offset on the toggle, overriding the broader 8px rule.
+
+    I'm checking whether the regex in the test still matches the toggle's rule after my base.css edits, and it does since that rule's min-width is untouched. Next is applying the changes.
+  ── Thought for 12ms
+    All checks are green on the code, so I'm moving on to the CSS fix: removing the toggle's outer frame and margin so it lines up with the 44 px field.
+  ── Read static/css/base.css
+  ── Ran python3 - <<'EOF' p="static/css/base.css"; s=open(p).read() s=s.replace("""  min-height: 2.75rem;   padding: 0; } .password-toggle[hidden] {""","""  min-height: 2.75rem;   padding: 0; } /* Same height as the field: no margin of the primary form button. */ .form .password-toggle {   margin: 0;   padding: 0 var(--space-2); } .password-toggle[hidden] {""") open(p,"w").write(s) p="static/css/theme.css"; s=open(p).read() s=s.replace("""  background: var(--color-panel);   color: var(--color-text); } .form .password-toggle:hover {""","""  background: var(--color-panel);   box-shadow: none;   color: var(--color-text); } .form .password-toggle:focus-visible {   outline-offset: 3px; } .form .password-toggle:hover {""") open(p,"w").write(s) EOF git diff --stat static/css (1s)
+    $ python3 - <<'EOF'
+  p="static/css/base.css"; s=open(p).read()
+  s=s.replace("""  min-height: 2.75rem;
+    padding: 0;
+  }
+
+  .password-toggle[hidden] {""","""  min-height: 2.75rem;
+    padding: 0;
+  }
+
+  /* Same height as the field: no margin of the primary form button. */
+  .form .password-toggle {
+    margin: 0;
+    padding: 0 var(--space-2);
+  }
+
+  .password-toggle[hidden] {""")
+  open(p,"w").write(s)
+  p="static/css/theme.css"; s=open(p).read()
+  s=s.replace("""  background: var(--color-panel);
+    color: var(--color-text);
+  }
+
+  .form .password-toggle:hover {""","""  background: var(--color-panel);
+    box-shadow: none;
+    color: var(--color-text);
+  }
+
+  .form .password-toggle:focus-visible {
+    outline-offset: 3px;
+  }
+
+  .form .password-toggle:hover {""")
+  open(p,"w").write(s)
+  EOF
+  git diff --stat static/css
+    static/css/base.css  | 40 ++++++++++++++++++++++++++++++++++++++++
+     static/css/theme.css | 16 ++++++++++++++++
+     2 files changed, 56 insertions(+)
+  ── Thought for 8ms
+    I'm checking whether the DEBUG runserver serves CSS fresh, since that would rule out the server as the cause. The open question is whether the browser is holding on to an old stylesheet, or whether manifest storage is changing the file names under DEBUG. I'll rerun login2 to see if the earlier CSS changes actually show up.
+  ── Ran W=$TMPDIR/ui017; sed -i '' 's#const res={};#const res={}; await p.setCacheEnabled(false);#' $W/login2.js; python3 - <<EOF import os W=os.environ["TMPDIR"]+"/ui017" s=open(W+"/login2.js").read() s=s.replace('return {hidden','const u=document.getElementById("id_username").getBoundingClientRect();return {user:[u.top,u.bottom],hidden') s=s.replace('// real login','await p.setJavaScriptEnabled(true); await go(null,"/login/",360,780); await p.focus("#id_password"); await p.keyboard.press("Tab"); res.focus=await geo(); await shot(false);\n// real login') open(W+"/login2.js","w").write(s) EOF grep -c shot $W/login2.js; $W/run.sh $W/login2.js (3s)
+    $ W=$TMPDIR/ui017; sed -i '' 's#const res={};#const res={}; await p.setCacheEnabled(false);#' $W/login2.js; python3 - <<EOF
+  import os
+  W=os.environ["TMPDIR"]+"/ui017"
+  s=open(W+"/login2.js").read()
+  s=s.replace('return {hidden','const u=document.getElementById("id_username").getBoundingClientRect();return {user:[u.top,u.bottom],hidden')
+  s=s.replace('// real login','await p.setJavaScriptEnabled(true); await go(null,"/login/",360,780); await p.focus("#id_password"); await p.keyboard.press("Tab"); res.focus=await geo(); await shot(false);\n// real login')
+  open(W+"/login2.js","w").write(s)
+  EOF
+  grep -c shot $W/login2.js; $W/run.sh $W/login2.js
+    4
+    {
+      "ok": false,
+      "error": {
+        "code": "screenshot_limit",
+        "message": "At most four screenshots may be returned per script",
+        "hint": "Return at most 4 JPEG screenshots per run, 500 KB combined."
+      }
+    }
+    At most four screenshots may be returned per script (Return at most 4 JPEG screenshots per run, 500 KB combined.)
+  ── Thought for 13ms
+    I'm tallying the screenshots: the 360 hidden shot, the loop shown shot taken twice, the nojs shot, and the focus shot, which makes five. The nojs shot is going, so I'm dropping it from the list.
+  ── Ran W=$TMPDIR/ui017; sed -i '' 's/res.nojs=await geo(); await shot(false);/res.nojs=await geo();/' $W/login2.js; $W/run.sh $W/login2.js (1s)
+    $ W=$TMPDIR/ui017; sed -i '' 's/res.nojs=await geo(); await shot(false);/res.nojs=await geo();/' $W/login2.js; $W/run.sh $W/login2.js
+    {
+      "ok": false,
+      "error": {
+        "code": "session_unavailable",
+        "message": "Session stopped or expired; open a new session",
+        "hint": "Open a new session with `bb browser-automation open --backend <desktop|local> --machine <host-id>`."
+      }
+    }
+    Session stopped or expired; open a new session (Open a new session with `bb browser-automation open --backend <desktop|local> --machine <host-id>`.)
+  ── Thought for 3ms
+    I'm wondering whether a failed script is what's ending the session, so I'm thinking about adding an "open" helper to run.sh that reopens the session whenever it's unavailable.
+  ── Ran W=$TMPDIR/ui017; J=$(bb browser-automation open --backend local --machine host_cuvmpv75p3 --headless --json); SID=$(echo "$J" | python3 -c "import json,sys;print(json.load(sys.stdin)['id'])"); echo $SID; sed -i '' "s/^S=.*/S=$SID/" $W/run.sh && $W/run.sh $W/login2.js (4s)
+    $ W=$TMPDIR/ui017; J=$(bb browser-automation open --backend local --machine host_cuvmpv75p3 --headless --json); SID=$(echo "$J" | python3 -c "import json,sys;print(json.load(sys.stdin)['id'])"); echo $SID; sed -i '' "s/^S=.*/S=$SID/" $W/run.sh && $W/run.sh $W/login2.js
+    1a6b240b-b13c-4794-b659-16980f7a9844
+    {"w360_hidden":{"user":[202,246],"hidden":false,"disp":"flex","btn":[290,334,58],"input":[290,334],"shadow":"none","svg":[36,24],"type":"password","sw":360},"w360_shown":{"user":[202,246],"hidden":false,"disp":"flex","btn":[290,334,58],"input":[290,334],"shadow":"none","svg":[36,24],"type":"text","sw":360},"w1024_hidden":{"user":[235,279],"hidden":false,"disp":"flex","btn":[323,367,58],"input":[323,367],"shadow":"none","svg":[36,24],"type":"password","sw":1024},"w1024_shown":{"user":[235,279],"hidden":false,"disp":"flex","btn":[323,367,58],"input":[323,367],"shadow":"none","svg":[36,24],"type":"text","sw":1024},"nojs":{"user":[202,246],"hidden":true,"disp":"none","btn":[0,0,0],"input":[290,334],"shadow":"none","svg":[0,0],"type":"password","sw":360},"focus":{"user":[202,246],"hidden":false,"disp":"flex","btn":[290,334,58],"input":[290,334],"shadow":"none","svg":[36,24],"type":"password","sw":360},"beforeSubmit":"text","after":"/profile/ atSubmit:password","errs":[]}
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp/shot-1795250681677-1.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp/shot-1795250681725-2.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp/shot-1795250681824-3.jpg 1024 768
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp/shot-1795250681932-4.jpg 360 780
+  ── Thought for 12ms
+    Next I'm lining up the username input at 44 pixels high, with the button at 58 by 44 so they sit even. I'll check the screenshots, starting with shot 2 at 360 where it's shown, then shot 4 in focus, then shot 3.
+
+── Assistant ───────────────────────────────────────────────
+The field and toggle are both 44 px now, the same as the login field. Checking the screenshots.
+
+── Explored 3 files ────────────────────────────────────────
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp/shot-1795250681725-2.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp/shot-1795250681932-4.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp/shot-1795250681824-3.jpg
+  ── Thought for 3s
+    I've confirmed the toggle border and contrast look fine, so I'll save the screenshots to the shots folder and copy the files over. Next I need to cover the student and staff pages at 360 and 1024 widths, starting with an application for student1 through the "Другое заявление" form, then checking the submitted page.
+
+    Next I'll set up a generic check helper and run through the student pages at 360px: the "Другое заявление" form with submission, the certificate request, and the catalog. I'm planning to take screenshots only at key points to stay within the shot limit.
+
+── Assistant ───────────────────────────────────────────────
+Login page is done: both states, focus, no JS, a real login, no CSP errors. I'm saving the screenshots and moving on to the student pages.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran W=$TMPDIR/ui017; D=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp; cp $D/shot-1795250681677-1.jpg $W/shots/01-login-360-hidden.jpg; cp $D/shot-1795250681725-2.jpg $W/shots/02-login-360-shown.jpg; cp $D/shot-1795250681824-3.jpg $W/shots/03-login-1024-shown.jpg; cp $D/shot-1795250681932-4.jpg $W/shots/04-login-360-focus.jpg cat > $W/info.js <<'EOF' async function info(){ return await p.evaluate(()=>{const q=s=>[...document.querySelectorAll(s)].map(e=>e.textContent.trim().replace(/\s+/g," "));return {path:location.pathname,sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth,h1:q("main h1"),h2:q("main h2"),nav:q('[aria-current="page"]'),status:q("main .status"),btn:q("main button"),help:q("main .helptext"),msgs:q(".messages li, .message"),first:q("main p").slice(0,6),links:q("main a").slice(0,8)}}); } EOF cat > $W/student1.js <<'EOF' const R={}; for (const w of [1024,360]) {   await go("student1","/requests/",w,w===360?780:768); R["list"+w]=await info(); if(w===360) await shot(true);   await go("student1","/requests/new/",w,w===360?780:768); R["catalog"+w]=await info(); if(w===360) await shot(true);   await go("student1","/requests/new/1/",w); R["formCert"+w]=await info();   await go("student1","/requests/new/7/",w); R["formAppl"+w]=await info(); } await p.type("#id_subject","Заявление на перезачёт дисциплины"); await p.type("#id_comment","Проверка формы заявления"); await shot(true); await Promise.all([p.waitForNavigation({waitUntil:"load"}), p.click("main form button[type=submit]")]); R.submitted=await info(); await shot(false); return JSON.stringify(R); EOF cat $W/info.js $W/student1.js > $W/s1.js; $W/run.sh $W/s1.js (2s)
+    $ W=$TMPDIR/ui017; D=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp; cp $D/shot-1795250681677-1.jpg $W/shots/01-login-360-hidden.jpg; cp $D/shot-1795250681725-2.jpg $W/shots/02-login-360-shown.jpg; cp $D/shot-1795250681824-3.jpg $W/shots/03-login-1024-shown.jpg; cp $D/shot-1795250681932-4.jpg $W/shots/04-login-360-focus.jpg
+  cat > $W/info.js <<'EOF'
+  async function info(){ return await p.evaluate(()=>{const q=s=>[...document.querySelectorAll(s)].map(e=>e.textContent.trim().replace(/\s+/g," "));return {path:location.pathname,sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth,h1:q("main h1"),h2:q("main h2"),nav:q('[aria-current="page"]'),status:q("main .status"),btn:q("main button"),help:q("main .helptext"),msgs:q(".messages li, .message"),first:q("main p").slice(0,6),links:q("main a").slice(0,8)}}); }
+  EOF
+  cat > $W/student1.js <<'EOF'
+  const R={};
+  for (const w of [1024,360]) {
+    await go("student1","/requests/",w,w===360?780:768); R["list"+w]=await info(); if(w===360) await shot(true);
+    await go("student1","/requests/new/",w,w===360?780:768); R["catalog"+w]=await info(); if(w===360) await shot(true);
+    await go("student1","/requests/new/1/",w); R["formCert"+w]=await info();
+    await go("student1","/requests/new/7/",w); R["formAppl"+w]=await info();
+  }
+  await p.type("#id_subject","Заявление на перезачёт дисциплины");
+  await p.type("#id_comment","Проверка формы заявления");
+  await shot(true);
+  await Promise.all([p.waitForNavigation({waitUntil:"load"}), p.click("main form button[type=submit]")]);
+  R.submitted=await info(); await shot(false);
+  return JSON.stringify(R);
+  EOF
+  cat $W/info.js $W/student1.js > $W/s1.js; $W/run.sh $W/s1.js
+    {"list1024":{"path":"/requests/","sw":1024,"cw":1024,"h1":["Мои документы"],"h2":[],"nav":["Документы","Документы"],"status":["Подана","В работе","В работе","Выдана"],"btn":[],"help":[],"msgs":[],"first":["Оформить документ","№ 9cf53d46 · 19 ноября 2026 · Подана · готовность: 24 ноября 2026","№ 08b7c800 · 18 ноября 2026 · В работе · готовность: 25 ноября 2026","№ 172330df · 17 ноября 2026 · В работе · готовность: 20 ноября 2026","№ de87a92d · 1 ноября 2026 · Выдана · готовность: 4 ноября 2026"],"links":["Оформить документ","Справка об обучении","Другая справка: Справка о периоде обучения","Справка для стипендиального отдела","Справка об обучении"]},"catalog1024":{"path":"/requests/new/","sw":1024,"cw":1024,"h1":["Оформить документ"],"h2":["Справки","Заявления"],"nav":[],"status":[],"btn":[],"help":[],"msgs":[],"first":["Справка для оформления стипендий и иных выплат.","Срок: до 3 рабочих дней","Подтверждает зачисление в университет.","Срок: до 3 рабочих дней","Справка, подтверждающая факт обучения в университете.","Срок: до 3 рабочих дней"],"links":["Справка для стипендиального отдела","Справка о поступлении","Справка об обучении","Другая справка","Заявление на академический отпуск","Заявление на повторную промежуточную аттестацию","Другое заявление"]},"formCert1024":{"path":"/requests/new/1/","sw":1024,"cw":1024,"h1":["Справка об обучении"],"h2":[],"nav":[],"status":[],"btn":["Заказать справку"],"help":["Можно указать, куда нужна справка."],"msgs":[],"first":["Справка, подтверждающая факт обучения в университете.","Комментарий: Можно указать, куда нужна справка.","PDF-файлы (необязательно, до 3 файлов по 5 МБ):"],"links":[]},"formAppl1024":{"path":"/requests/new/7/","sw":1024,"cw":1024,"h1":["Другое заявление"],"h2":[],"nav":[],"status":[],"btn":["Подать заявление"],"help":["Что именно нужно, например: «Заявление на индивидуальный учебный план».","Опишите, что нужно и для чего."],"msgs":[],"first":["Если нужного заявления нет в списке.","Тип: Что именно нужно, например: «Заявление на индивидуальный учебный план».","Комментарий: Опишите, что нужно и для чего.","PDF-файлы (необязательно, до 3 файлов по 5 МБ):"],"links":[]},"list360":{"path":"/requests/","sw":360,"cw":360,"h1":["Мои документы"],"h2":[],"nav":["Документы","Документы"],"status":["Подана","В работе","В работе","Выдана"],"btn":[],"help":[],"msgs":[],"first":["Оформить документ","№ 9cf53d46 · 19 ноября 2026 · Подана · готовность: 24 ноября 2026","№ 08b7c800 · 18 ноября 2026 · В работе · готовность: 25 ноября 2026","№ 172330df · 17 ноября 2026 · В работе · готовность: 20 ноября 2026","№ de87a92d · 1 ноября 2026 · Выдана · готовность: 4 ноября 2026"],"links":["Оформить документ","Справка об обучении","Другая справка: Справка о периоде обучения","Справка для стипендиального отдела","Справка об обучении"]},"catalog360":{"path":"/requests/new/","sw":360,"cw":360,"h1":["Оформить документ"],"h2":["Справки","Заявления"],"nav":[],"status":[],"btn":[],"help":[],"msgs":[],"first":["Справка для оформления стипендий и иных выплат.","Срок: до 3 рабочих дней","Подтверждает зачисление в университет.","Срок: до 3 рабочих дней","Справка, подтверждающая факт обучения в университете.","Срок: до 3 рабочих дней"],"links":["Справка для стипендиального отдела","Справка о поступлении","Справка об обучении","Другая справка","Заявление на академический отпуск","Заявление на повторную промежуточную аттестацию","Другое заявление"]},"formCert360":{"path":"/requests/new/1/","sw":360,"cw":360,"h1":["Справка об обучении"],"h2":[],"nav":[],"status":[],"btn":["Заказать справку"],"help":["Можно указать, куда нужна справка."],"msgs":[],"first":["Справка, подтверждающая факт обучения в университете.","Комментарий: Можно указать, куда нужна справка.","PDF-файлы (необязательно, до 3 файлов по 5 МБ):"],"links":[]},"formAppl360":{"path":"/requests/new/7/","sw":360,"cw":360,"h1":["Другое заявление"],"h2":[],"nav":[],"status":[],"btn":["Подать заявление"],"help":["Что именно нужно, например: «Заявление на индивидуальный учебный план».","Опишите, что нужно и для чего."],"msgs":[],"first":["Если нужного заявления нет в списке.","Тип: Что именно нужно, например: «Заявление на индивидуальный учебный план».","Комментарий: Опишите, что нужно и для чего.","PDF-файлы (необязательно, до 3 файлов по 5 МБ):"],"links":[]},"submitted":{"path":"/requests/9526da0e-85cc-45dd-b61a-528f615af47d/submitted/","sw":360,"cw":360,"h1":["Заявление подано"],"h2":[],"nav":[],"status":[],"btn":[],"help":[],"msgs":[],"first":["Другое заявление: Заявление на перезачёт дисциплины","№ 9526da0e","Ожидаемая дата готовности: 27 ноября 2026","К заявлению","Мои документы"],"links":["К заявлению","Мои документы"]}}
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp/shot-1795250702428-5.jpg 360 1188
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp/shot-1795250702498-6.jpg 360 1312
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp/shot-1795250702660-7.jpg 360 970
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp/shot-1795250702795-8.jpg 360 780
+  ── Thought for 14ms
+    The certificate form's hint about where the certificate is needed is its own existing text, so nothing to change there. Next I'm going to glance at the screenshots of the list and the application form.
+
+── Assistant ───────────────────────────────────────────────
+All the texts match the spec. A quick look at the screenshots:
+
+── Explored 4 files, 3 searches, ran 4 commands ────────────
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp/shot-1795250702428-5.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp/shot-1795250702660-7.jpg
+  ── Thought for 945ms
+    Next I'm checking the staff side: the queue with its 1024 and 360 entries, the new application 9526da0e and its actions, then moving it to in progress and then ready. Then the certificate 9cf53d46 for the "Взять в работу" action, plus certificate 08b7c800 for "Отметить готовой". After that I'll switch to the student view to verify the application's status, history, and the certificate and notifications.
+
+    Last up is the admin side, after I finish checking the student-facing notifications and the staff home page.
+  ── Ran W=$TMPDIR/ui017; D=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp; cp $D/shot-1795250702428-5.jpg $W/shots/05-student-list-360.jpg; cp $D/shot-1795250702498-6.jpg $W/shots/06-catalog-360.jpg; cp $D/shot-1795250702660-7.jpg $W/shots/07-form-application-360.jpg; cp $D/shot-1795250702795-8.jpg $W/shots/08-submitted-application-360.jpg cat > $W/staff1.js <<'EOF' const R={}; const A="9526da0e-85cc-45dd-b61a-528f615af47d", C="08b7c800-c4f6-4fdb-b80c-2244cf091879"; await go("staff1","/",360); R.home360=await info(); R.homeBtns=await p.evaluate(()=>[...document.querySelectorAll("main .btn")].map(a=>a.textContent.trim())); await go("staff1","/",1024,768); R.home1024sw=await info(); for (const w of [1024,360]) { await go("staff1","/staff/requests/",w,w===360?780:768); R["queue"+w]=await info(); R["opts"+w]=await p.evaluate(()=>[...document.querySelectorAll("#status option")].map(o=>o.textContent.trim())); R["lbl"+w]=await p.evaluate(()=>[...document.querySelectorAll("main label")].map(o=>o.textContent.trim())); if(w===360) await shot(true); } await go("staff1","/staff/requests/"+A+"/",360); R.appl0=await info(); await Promise.all([p.waitForNavigation({waitUntil:"load"}), p.evaluate(()=>{[...document.querySelectorAll("main button")].find(b=>b.textContent.trim()==="Взять в работу").click();})]); R.appl1=await info(); await Promise.all([p.waitForNavigation({waitUntil:"load"}), p.evaluate(()=>{[...document.querySelectorAll("main button")].find(b=>b.textContent.trim()==="Отметить готовым").click();})]); R.appl2=await info(); await shot(true); await go("staff1","/staff/requests/"+C+"/",1024,768); R.cert1024=await info(); await shot(false); await go("staff1","/staff/requests/"+C+"/",360); R.cert360=await info(); await shot(true); return JSON.stringify(R); EOF cat $W/info.js $W/staff1.js > $W/s2.js; $W/run.sh $W/s2.js (2s)
+    $ W=$TMPDIR/ui017; D=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp; cp $D/shot-1795250702428-5.jpg $W/shots/05-student-list-360.jpg; cp $D/shot-1795250702498-6.jpg $W/shots/06-catalog-360.jpg; cp $D/shot-1795250702660-7.jpg $W/shots/07-form-application-360.jpg; cp $D/shot-1795250702795-8.jpg $W/shots/08-submitted-application-360.jpg
+  cat > $W/staff1.js <<'EOF'
+  const R={}; const A="9526da0e-85cc-45dd-b61a-528f615af47d", C="08b7c800-c4f6-4fdb-b80c-2244cf091879";
+  await go("staff1","/",360); R.home360=await info(); R.homeBtns=await p.evaluate(()=>[...document.querySelectorAll("main .btn")].map(a=>a.textContent.trim()));
+  await go("staff1","/",1024,768); R.home1024sw=await info();
+  for (const w of [1024,360]) { await go("staff1","/staff/requests/",w,w===360?780:768); R["queue"+w]=await info(); R["opts"+w]=await p.evaluate(()=>[...document.querySelectorAll("#status option")].map(o=>o.textContent.trim())); R["lbl"+w]=await p.evaluate(()=>[...document.querySelectorAll("main label")].map(o=>o.textContent.trim())); if(w===360) await shot(true); }
+  await go("staff1","/staff/requests/"+A+"/",360); R.appl0=await info();
+  await Promise.all([p.waitForNavigation({waitUntil:"load"}), p.evaluate(()=>{[...document.querySelectorAll("main button")].find(b=>b.textContent.trim()==="Взять в работу").click();})]);
+  R.appl1=await info();
+  await Promise.all([p.waitForNavigation({waitUntil:"load"}), p.evaluate(()=>{[...document.querySelectorAll("main button")].find(b=>b.textContent.trim()==="Отметить готовым").click();})]);
+  R.appl2=await info(); await shot(true);
+  await go("staff1","/staff/requests/"+C+"/",1024,768); R.cert1024=await info(); await shot(false);
+  await go("staff1","/staff/requests/"+C+"/",360); R.cert360=await info(); await shot(true);
+  return JSON.stringify(R);
+  EOF
+  cat $W/info.js $W/staff1.js > $W/s2.js; $W/run.sh $W/s2.js
+    {"home360":{"path":"/","sw":360,"cw":360,"h1":["Деканат"],"h2":[],"nav":[],"status":[],"btn":[],"help":[],"msgs":[],"first":[],"links":["Документы","Чаты","Объявления"]},"homeBtns":["Документы","Чаты","Объявления"],"home1024sw":{"path":"/","sw":1024,"cw":1024,"h1":["Деканат"],"h2":[],"nav":[],"status":[],"btn":[],"help":[],"msgs":[],"first":[],"links":["Документы","Чаты","Объявления"]},"queue1024":{"path":"/staff/requests/","sw":1024,"cw":1024,"h1":["Документы"],"h2":[],"nav":["Документы","Документы"],"status":["В работе","В работе","Подана","Подано"],"btn":["Показать"],"help":[],"msgs":[],"first":["Статус Открытые Все Подан В работе Готов Выдан Отклонён","Вид документа Все Другое заявление Заявление на академический отпуск Заявление на повторную промежуточную аттестацию Другая справка Справка для стипендиального отдела Справка о поступлении Справка об обучении","Справка для стипендиального отдела","ЦД-101 · 17 ноября 2026 · В работе · файлов: 0","Другая справка: Справка о периоде обучения","ЦД-101 · 18 ноября 2026 · В работе · файлов: 0"],"links":["Соколова Анна Петровна","Соколова Анна Петровна","Соколова Анна Петровна","Соколова Анна Петровна"]},"opts1024":["Открытые","Все","Подан","В работе","Готов","Выдан","Отклонён"],"lbl1024":["Статус","Вид документа"],"queue360":{"path":"/staff/requests/","sw":360,"cw":360,"h1":["Документы"],"h2":[],"nav":["Документы","Документы"],"status":["В работе","В работе","Подана","Подано"],"btn":["Показать"],"help":[],"msgs":[],"first":["Статус Открытые Все Подан В работе Готов Выдан Отклонён","Вид документа Все Другое заявление Заявление на академический отпуск Заявление на повторную промежуточную аттестацию Другая справка Справка для стипендиального отдела Справка о поступлении Справка об обучении","Справка для стипендиального отдела","ЦД-101 · 17 ноября 2026 · В работе · файлов: 0","Другая справка: Справка о периоде обучения","ЦД-101 · 18 ноября 2026 · В работе · файлов: 0"],"links":["Соколова Анна Петровна","Соколова Анна Петровна","Соколова Анна Петровна","Соколова Анна Петровна"]},"opts360":["Открытые","Все","Подан","В работе","Готов","Выдан","Отклонён"],"lbl360":["Статус","Вид документа"],"appl0":{"path":"/staff/requests/9526da0e-85cc-45dd-b61a-528f615af47d/","sw":360,"cw":360,"h1":["Заявление № 9526da0e"],"h2":["Студент","Документ","Действия","Комментарий"],"nav":[],"status":["Подано"],"btn":["Взять в работу","Отклонить","Добавить комментарий"],"help":[],"msgs":[],"first":["Соколова Анна Петровна","ЦД-101","№ зачётной книжки: ST-2026-0001","Другое заявление: Заявление на перезачёт дисциплины","Подано","Подано: 21 ноября 2026 11:45"],"links":[]},"appl1":{"path":"/staff/requests/9526da0e-85cc-45dd-b61a-528f615af47d/","sw":360,"cw":360,"h1":["Заявление № 9526da0e"],"h2":["Студент","Документ","Действия","Комментарий"],"nav":[],"status":["В работе"],"btn":["Отметить готовым","Отклонить","Добавить комментарий"],"help":[],"msgs":["Статус изменён: В работе."],"first":["Соколова Анна Петровна","ЦД-101","№ зачётной книжки: ST-2026-0001","Другое заявление: Заявление на перезачёт дисциплины","В работе","Подано: 21 ноября 2026 11:45"],"links":[]},"appl2":{"path":"/staff/requests/9526da0e-85cc-45dd-b61a-528f615af47d/","sw":360,"cw":360,"h1":["Заявление № 9526da0e"],"h2":["Студент","Документ","Действия","Комментарий"],"nav":[],"status":["Готово"],"btn":["Отметить выданным","Добавить комментарий"],"help":[],"msgs":["Статус изменён: Готово."],"first":["Соколова Анна Петровна","ЦД-101","№ зачётной книжки: ST-2026-0001","Другое заявление: Заявление на перезачёт дисциплины","Готово","Подано: 21 ноября 2026 11:45"],"links":[]},"cert1024":{"path":"/staff/requests/08b7c800-c4f6-4fdb-b80c-2244cf091879/","sw":1024,"cw":1024,"h1":["Справка № 08b7c800"],"h2":["Студент","Документ","Действия","Комментарий"],"nav":[],"status":["В работе"],"btn":["Отметить готовой","Отклонить","Добавить комментарий"],"help":[],"msgs":[],"first":["Соколова Анна Петровна","ЦД-101","№ зачётной книжки: ST-2026-0001","Другая справка: Справка о периоде обучения","В работе","Подана: 18 ноября 2026 11:38"],"links":[]},"cert360":{"path":"/staff/requests/08b7c800-c4f6-4fdb-b80c-2244cf091879/","sw":360,"cw":360,"h1":["Справка № 08b7c800"],"h2":["Студент","Документ","Действия","Комментарий"],"nav":[],"status":["В работе"],"btn":["Отметить готовой","Отклонить","Добавить комментарий"],"help":[],"msgs":[],"first":["Соколова Анна Петровна","ЦД-101","№ зачётной книжки: ST-2026-0001","Другая справка: Справка о периоде обучения","В работе","Подана: 18 ноября 2026 11:38"],"links":[]}}
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp/shot-1795250720908-9.jpg 360 1446
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp/shot-1795250721104-10.jpg 360 1491
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp/shot-1795250721212-11.jpg 1024 768
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp/shot-1795250721319-12.jpg 360 1568
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp/shot-1795250721104-10.jpg
+  ── Thought for 12ms
+    Next I'll save the screenshots, then check the student details and feed, followed by the admin view. I also need to look at the notifications tagged "Документы".
+  ── Ran W=$TMPDIR/ui017; D=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp; cp $D/shot-1795250720908-9.jpg $W/shots/09-staff-queue-360.jpg; cp $D/shot-1795250721104-10.jpg $W/shots/10-staff-application-ready-flash-360.jpg; cp $D/shot-1795250721212-11.jpg $W/shots/11-staff-certificate-1024.jpg; cp $D/shot-1795250721319-12.jpg $W/shots/12-staff-certificate-360.jpg cat > $W/student2.js <<'EOF' const R={}; const A="9526da0e-85cc-45dd-b61a-528f615af47d", C="9cf53d46-a2b0-4c49-8a39-712e9029eac0"; for (const w of [1024,360]) {   await go("student1","/requests/"+A+"/",w,w===360?780:768); R["appl"+w]=await info(); R["hist"+w]=await p.evaluate(()=>[...document.querySelectorAll("main ol li")].map(l=>l.textContent.trim().replace(/\s+/g," "))); if(w===360) await shot(true);   await go("student1","/requests/"+C+"/",w,w===360?780:768); R["cert"+w]=await info();   await go("student1","/notifications/",w,w===360?780:768); R["feed"+w]=await p.evaluate(()=>({sw:document.documentElement.scrollWidth,items:[...document.querySelectorAll("main li")].map(l=>l.textContent.trim().replace(/\s+/g," ")).filter(t=>/Документы|Справк|Заявлен|Комментарий деканата/.test(t)).slice(0,8)}));   if(w===360) await shot(true); } await go("student1","/requests/",1024,768); await shot(false); return JSON.stringify(R); EOF cat $W/info.js $W/student2.js > $W/s3.js; $W/run.sh $W/s3.js (2s)
+    $ W=$TMPDIR/ui017; D=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp; cp $D/shot-1795250720908-9.jpg $W/shots/09-staff-queue-360.jpg; cp $D/shot-1795250721104-10.jpg $W/shots/10-staff-application-ready-flash-360.jpg; cp $D/shot-1795250721212-11.jpg $W/shots/11-staff-certificate-1024.jpg; cp $D/shot-1795250721319-12.jpg $W/shots/12-staff-certificate-360.jpg
+  cat > $W/student2.js <<'EOF'
+  const R={}; const A="9526da0e-85cc-45dd-b61a-528f615af47d", C="9cf53d46-a2b0-4c49-8a39-712e9029eac0";
+  for (const w of [1024,360]) {
+    await go("student1","/requests/"+A+"/",w,w===360?780:768); R["appl"+w]=await info(); R["hist"+w]=await p.evaluate(()=>[...document.querySelectorAll("main ol li")].map(l=>l.textContent.trim().replace(/\s+/g," "))); if(w===360) await shot(true);
+    await go("student1","/requests/"+C+"/",w,w===360?780:768); R["cert"+w]=await info();
+    await go("student1","/notifications/",w,w===360?780:768); R["feed"+w]=await p.evaluate(()=>({sw:document.documentElement.scrollWidth,items:[...document.querySelectorAll("main li")].map(l=>l.textContent.trim().replace(/\s+/g," ")).filter(t=>/Документы|Справк|Заявлен|Комментарий деканата/.test(t)).slice(0,8)}));
+    if(w===360) await shot(true);
+  }
+  await go("student1","/requests/",1024,768); await shot(false);
+  return JSON.stringify(R);
+  EOF
+  cat $W/info.js $W/student2.js > $W/s3.js; $W/run.sh $W/s3.js
+    {"appl1024":{"path":"/requests/9526da0e-85cc-45dd-b61a-528f615af47d/","sw":1024,"cw":1024,"h1":["Другое заявление: Заявление на перезачёт дисциплины"],"h2":[],"nav":[],"status":["Готово"],"btn":[],"help":[],"msgs":[],"first":["Готово","№ 9526da0e","Подано: 21 ноября 2026 11:45","Ожидаемая дата готовности: 27 ноября 2026","Проверка формы заявления","Файлов нет."],"links":[]},"hist1024":["21 ноября 2026 11:45 · Подано · Студент","21 ноября 2026 11:45 · Подано → В работе · Миронова Елена Викторовна","21 ноября 2026 11:45 · В работе → Готово · Миронова Елена Викторовна"],"cert1024":{"path":"/requests/9cf53d46-a2b0-4c49-8a39-712e9029eac0/","sw":1024,"cw":1024,"h1":["Справка об обучении"],"h2":[],"nav":[],"status":["Подана"],"btn":[],"help":[],"msgs":[],"first":["Подана","№ 9cf53d46","Подана: 19 ноября 2026 11:38","Ожидаемая дата готовности: 24 ноября 2026","Для предоставления по месту требования.","Комментариев нет."],"links":["spravka-zapros.pdf"]},"feed1024":{"sw":1024,"items":["Новое · Документы · 21.11.2026 11:45 «Другое заявление» готово — заберите его в деканате","Новое · Документы · 21.11.2026 11:45 «Другое заявление» взято в работу","Новое · Чат · 21.11.2026 08:38 Новое сообщение от деканата Да, можно. Подайте заявку «Справка об обучении» и укажите это в комментарии.","Новое · Документы · 19.11.2026 07:38 «Другая справка» взята в работу","Новое · Документы · 19.11.2026 03:38 Комментарий деканата: «Справка для стипендиального отдела» Справка будет готова к пятнице.","Новое · Документы · 18.11.2026 07:38 «Справка для стипендиального отдела» взята в работу","Новое · Документы · 03.11.2026 23:38 «Справка об обучении» выдана","Новое · Документы · 03.11.2026 03:38 «Справка об обучении» готова — заберите её в деканате"]},"appl360":{"path":"/requests/9526da0e-85cc-45dd-b61a-528f615af47d/","sw":360,"cw":360,"h1":["Другое заявление: Заявление на перезачёт дисциплины"],"h2":[],"nav":[],"status":["Готово"],"btn":[],"help":[],"msgs":[],"first":["Готово","№ 9526da0e","Подано: 21 ноября 2026 11:45","Ожидаемая дата готовности: 27 ноября 2026","Проверка формы заявления","Файлов нет."],"links":[]},"hist360":["21 ноября 2026 11:45 · Подано · Студент","21 ноября 2026 11:45 · Подано → В работе · Миронова Елена Викторовна","21 ноября 2026 11:45 · В работе → Готово · Миронова Елена Викторовна"],"cert360":{"path":"/requests/9cf53d46-a2b0-4c49-8a39-712e9029eac0/","sw":360,"cw":360,"h1":["Справка об обучении"],"h2":[],"nav":[],"status":["Подана"],"btn":[],"help":[],"msgs":[],"first":["Подана","№ 9cf53d46","Подана: 19 ноября 2026 11:38","Ожидаемая дата готовности: 24 ноября 2026","Для предоставления по месту требования.","Комментариев нет."],"links":["spravka-zapros.pdf"]},"feed360":{"sw":360,"items":["Документы · 21.11.2026 11:45 «Другое заявление» готово — заберите его в деканате","Документы · 21.11.2026 11:45 «Другое заявление» взято в работу","Чат · 21.11.2026 08:38 Новое сообщение от деканата Да, можно. Подайте заявку «Справка об обучении» и укажите это в комментарии.","Документы · 19.11.2026 07:38 «Другая справка» взята в работу","Документы · 19.11.2026 03:38 Комментарий деканата: «Справка для стипендиального отдела» Справка будет готова к пятнице.","Документы · 18.11.2026 07:38 «Справка для стипендиального отдела» взята в работу","Документы · 03.11.2026 23:38 «Справка об обучении» выдана","Документы · 03.11.2026 03:38 «Справка об обучении» готова — заберите её в деканате"]}}
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp/shot-1795250733556-13.jpg 360 913
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp/shot-1795250733714-14.jpg 179 2400
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp/shot-1795250733835-15.jpg 1024 768
+  ── Thought for 849ms
+    I'm checking the old chat text ("Подайте заявку") that still shows in the existing demo rows, since this database was seeded before the change, so I'll leave it out of scope and note it in the report. Next I need to find the admin URL and confirm that the superuser uiadmin can log in at /admin/.
+  ── Thought for 13ms
+    Всё совпадает со спецификацией, но старое сообщение в чате «Подайте заявку…» осталось: по разделу 2 seed_demo не обновляет существующие строки, а эта база заполнена старым кодом. Теперь проверю админку.
+  ── Ran W=$TMPDIR/ui017; D=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp; cp $D/shot-1795250733556-13.jpg $W/shots/13-student-application-detail-360.jpg; cp $D/shot-1795250733714-14.jpg $W/shots/14-student-feed-360.jpg; cp $D/shot-1795250733835-15.jpg $W/shots/15-student-list-1024.jpg cd ~/hackatonproject && grep -rn "admin.site.urls" config/urls.py
+    $ W=$TMPDIR/ui017; D=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp; cp $D/shot-1795250733556-13.jpg $W/shots/13-student-application-detail-360.jpg; cp $D/shot-1795250733714-14.jpg $W/shots/14-student-feed-360.jpg; cp $D/shot-1795250733835-15.jpg $W/shots/15-student-list-1024.jpg
+  cd ~/hackatonproject && grep -rn "admin.site.urls" config/urls.py
+    config/urls.py:8:    path(settings.ADMIN_URL, admin.site.urls),
+  ── Searched for ADMIN_URL in config/settings/*.py
+  ── Searched for ADMIN_URL in config/
+  ── Read config/env_utils.py
+  ── Thought for 9ms
+    I'm wondering whether the .env file sets ADMIN_URL, since settings may load it through env, and I can't read the file directly. My own DEBUG=true is set, but other values could still come in. I'll just try /admin/.
+  ── Ran W=$TMPDIR/ui017; cat > $W/admin.js <<'EOF' const R={}; let r=await go("uiadmin","/admin/",1024,768); R.index=await p.evaluate(()=>({path:location.pathname,caps:[...document.querySelectorAll("caption, .module h2")].map(e=>e.textContent.trim()),models:[...document.querySelectorAll(".module th a, .module th")].map(e=>e.textContent.trim()).slice(0,40)})); await shot(false); await go("uiadmin","/admin/petitions/petition/",1024,768); R.list=await p.evaluate(()=>({title:document.querySelector("h1")?.textContent.trim(),filters:[...document.querySelectorAll("#changelist-filter li a")].map(e=>e.textContent.trim()).slice(0,12),cells:[...document.querySelectorAll("#result_list tbody tr")].slice(0,3).map(t=>t.textContent.trim().replace(/\s+/g," "))})); await shot(false); return JSON.stringify(R); EOF $W/run.sh $W/admin.js (2s)
+    $ W=$TMPDIR/ui017; cat > $W/admin.js <<'EOF'
+  const R={};
+  let r=await go("uiadmin","/admin/",1024,768); R.index=await p.evaluate(()=>({path:location.pathname,caps:[...document.querySelectorAll("caption, .module h2")].map(e=>e.textContent.trim()),models:[...document.querySelectorAll(".module th a, .module th")].map(e=>e.textContent.trim()).slice(0,40)}));
+  await shot(false);
+  await go("uiadmin","/admin/petitions/petition/",1024,768); R.list=await p.evaluate(()=>({title:document.querySelector("h1")?.textContent.trim(),filters:[...document.querySelectorAll("#changelist-filter li a")].map(e=>e.textContent.trim()).slice(0,12),cells:[...document.querySelectorAll("#result_list tbody tr")].slice(0,3).map(t=>t.textContent.trim().replace(/\s+/g," "))}));
+  await shot(false);
+  return JSON.stringify(R);
+  EOF
+  $W/run.sh $W/admin.js
+    {"index":{"path":"/admin/","caps":["Документы","Пользователи","Пользователи и группы","Расписание","Уведомления","Университет","Успеваемость","Чат","Последние действия"],"models":["Имя модели","Добавить","Просмотреть или редактировать","Виды документов","Виды документов","Документы","Документы","Имя модели","Добавить","Просмотреть или редактировать","Блокировки входа","Блокировки входа","Пользователи","Пользователи","Профили сотрудников","Профили сотрудников","Профили студентов","Профили студентов","Имя модели","Добавить","Просмотреть или редактировать","Группы","Группы","Имя модели","Добавить","Просмотреть или редактировать","Занятия (еженедельные)","Занятия (еженедельные)","Изменения расписания","Изменения расписания","Имя модели","Добавить","Просмотреть или редактировать","Объявления","Объявления","Имя модели","Добавить","Просмотреть или редактировать","Аудитории","Аудитории"]},"list":{"title":"Выберите документ для просмотра","filters":["Все","Подан","В работе","Готов","Выдан","Отклонён","Все","Другое заявление","Заявление на академический отпуск","Заявление на повторную промежуточную аттестацию","Другая справка","Справка для стипендиального отдела"],"cells":["9526da0e-85cc-45dd-b61a-528f615af47dДругое заявлениеЗаявление на перезачёт дисциплиныСоколова Анна ПетровнаГотов21 ноября 2026 г. 11:45","c8a6a7e3-0bdf-4995-859f-e5302f1cb96eСправка об обучении-Белов МаксимПодан20 ноября 2026 г. 11:38","9cf53d46-a2b0-4c49-8a39-712e9029eac0Справка об обучении-Соколова Анна ПетровнаПодан19 ноября 2026 г. 11:38"]}}
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp/shot-1795250755659-16.jpg 1024 768
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp/shot-1795250755846-17.jpg 1024 768
+  ── Thought for 15ms
+    I'm checking whether "Файлы к документам" shows up in the admin at all. PetitionAttachment may only be registered as an inline on the Petition admin, so I'll look at admin.py to see what the inline heading says.
+  ── Searched for register\|Inline\|class  in petitions/admin.py
+
+── Assistant ───────────────────────────────────────────────
+Admin check: the attachments appear as an inline on the document page. I'll check that heading and save the screenshots.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran W=$TMPDIR/ui017; D=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp; cp $D/shot-1795250755659-16.jpg $W/shots/16-admin-index-1024.jpg; cp $D/shot-1795250755846-17.jpg $W/shots/17-admin-documents-1024.jpg cat > $W/admin2.js <<'EOF' await go("uiadmin","/admin/petitions/petition/",1024,768); const href=await p.evaluate(()=>[...document.querySelectorAll("#result_list tbody tr th a")].map(a=>a.getAttribute("href")).find(Boolean)); await go("uiadmin",href,1024,768); return JSON.stringify(await p.evaluate(()=>({h1:document.querySelector("h1")?.textContent.trim(),inl:[...document.querySelectorAll(".inline-group h2")].map(e=>e.textContent.trim()),labels:[...document.querySelectorAll("label, .readonly")].map(e=>e.textContent.trim()).filter(t=>/док|дата|Вид/i.test(t)).slice(0,10)}))); EOF $W/run.sh $W/admin2.js (1s)
+    $ W=$TMPDIR/ui017; D=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-Sqpcg5/tmp; cp $D/shot-1795250755659-16.jpg $W/shots/16-admin-index-1024.jpg; cp $D/shot-1795250755846-17.jpg $W/shots/17-admin-documents-1024.jpg
+  cat > $W/admin2.js <<'EOF'
+  await go("uiadmin","/admin/petitions/petition/",1024,768);
+  const href=await p.evaluate(()=>[...document.querySelectorAll("#result_list tbody tr th a")].map(a=>a.getAttribute("href")).find(Boolean));
+  await go("uiadmin",href,1024,768);
+  return JSON.stringify(await p.evaluate(()=>({h1:document.querySelector("h1")?.textContent.trim(),inl:[...document.querySelectorAll(".inline-group h2")].map(e=>e.textContent.trim()),labels:[...document.querySelectorAll("label, .readonly")].map(e=>e.textContent.trim()).filter(t=>/док|дата|Вид/i.test(t)).slice(0,10)})));
+  EOF
+  $W/run.sh $W/admin2.js
+    {"h1":"Просмотреть документ","inl":["Изменения статуса","Комментарии сотрудников","Файлы к документам"],"labels":["Вид документа:","Дата подачи:","Ожидаемая дата готовности:"]}
+  ── Thought for 5ms
+    Admin is finished, so next I'll shut down the browser session and stop the server. Since I changed the CSS and icons, I'll rerun the full test suite in parallel in the background with a long timeout, since the tests check those. The browser gets closed with the `bb browser-automation close` command using its id.
+
+── Assistant ───────────────────────────────────────────────
+Admin is done. I'm closing the browser and the server, then running the tests again after the CSS and icon changes.
+
+── Ran 2 commands, ran 1 tool ──────────────────────────────
+  ── Ran bb browser-automation close 1a6b240b-b13c-4794-b659-16980f7a9844 2>&1 | tail -1; bb browser-automation close 4155b457-a80f-4a8a-8873-1fba17fdfd27 2>&1 | tail -1; bb browser-automation close 69f9056d-fe71-4c5a-9ae6-6ff6e35e290d 2>&1 | tail -1; ls $TMPDIR/ui017/shots (3s)
+    $ bb browser-automation close 1a6b240b-b13c-4794-b659-16980f7a9844 2>&1 | tail -1; bb browser-automation close 4155b457-a80f-4a8a-8873-1fba17fdfd27 2>&1 | tail -1; bb browser-automation close 69f9056d-fe71-4c5a-9ae6-6ff6e35e290d 2>&1 | tail -1; ls $TMPDIR/ui017/shots
+    {"id":"1a6b240b-b13c-4794-b659-16980f7a9844","threadId":"thr_pgcwc2dwnn","hostId":"host_cuvmpv75p3","backend":"local","state":"closed","createdAt":1795250679685,"expiresAt":1795252566204}
+    {"id":"4155b457-a80f-4a8a-8873-1fba17fdfd27","threadId":"thr_pgcwc2dwnn","hostId":"host_cuvmpv75p3","backend":"local","state":"closed","createdAt":1795250571841,"expiresAt":1795252468925}
+    {"id":"69f9056d-fe71-4c5a-9ae6-6ff6e35e290d","threadId":"thr_pgcwc2dwnn","hostId":"host_cuvmpv75p3","backend":"local","state":"closed","createdAt":1795250419925,"expiresAt":1795252345285}
+    01-login-360-hidden.jpg
+    02-login-360-shown.jpg
+    03-login-1024-shown.jpg
+    04-login-360-focus.jpg
+    05-student-list-360.jpg
+    06-catalog-360.jpg
+    07-form-application-360.jpg
+    08-submitted-application-360.jpg
+    09-staff-queue-360.jpg
+    10-staff-application-ready-flash-360.jpg
+    11-staff-certificate-1024.jpg
+    12-staff-certificate-360.jpg
+    13-student-application-detail-360.jpg
+    14-student-feed-360.jpg
+    15-student-list-1024.jpg
+    16-admin-index-1024.jpg
+    17-admin-documents-1024.jpg
+  ── Stopped task (3s)
+    {"message":"Successfully stopped task: be5cuz0v3 (W=$TMPDIR/ui017 && export DATABASE_URL=\"sqlite:///$W/vis.sqlite3\" PRIVATE_MEDIA_ROOT=\"$W/media\" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true SECRET_KEY=dummy-local-ui017 && exec .venv/bin/python manage.py runserver 127.0.0.1:8770 --noreload > $W/server.log 2>&1)","task_id":"be5cuz0v3","task_type":"local_bash","command":"W=$TMPDIR/ui017 && export DATABASE_URL=\"sqlite:///$W/vis.sqlite3\" PRIVATE_MEDIA_ROOT=\"$W/media\" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true SECRET_KEY=dummy-local-ui017 && exec .venv/bin/python manage.py runserver 127.0.0.1:8770 --noreload > $W/server.log 2>&1"}
+  ── Ran source .venv/bin/activate && T=$TMPDIR; S=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S); echo "start $(TZ=Europe/Moscow date +%H:%M)" python manage.py test --parallel > $T/test-017-final-$S.log 2>&1; echo "final: $(grep -E '^(Ran|OK|FAILED)' $T/test-017-final-$S.log | tr '\n' ' ') end $(TZ=Europe/Moscow date +%H:%M)"; grep -E "^(FAIL|ERROR):" $T/test-017-final-$S.log | head { echo "== check"; python manage.py check; echo "== makemigrations"; python manage.py makemigrations --check --dry-run; echo "== ruff"; ruff check . && ruff format --check .; echo "== grep"; grep -rnE "[Зз]аявк|[Зз]аявок" --include='*.html' --include='*.js' templates */templates static/js || echo NO_OLD_WORD; } > $T/verify-017-final-checks-$S.log 2>&1; cat $T/verify-017-final-checks-$S.log echo logs: $T/test-017-final-$S.log $T/verify-017-final-checks-$S.log; git status --short
+    $ source .venv/bin/activate && T=$TMPDIR; S=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S); echo "start $(TZ=Europe/Moscow date +%H:%M)"
+  python manage.py test --parallel > $T/test-017-final-$S.log 2>&1; echo "final: $(grep -E '^(Ran|OK|FAILED)' $T/test-017-final-$S.log | tr '\n' ' ') end $(TZ=Europe/Moscow date +%H:%M)"; grep -E "^(FAIL|ERROR):" $T/test-017-final-$S.log | head
+  { echo "== check"; python manage.py check; echo "== makemigrations"; python manage.py makemigrations --check --dry-run; echo "== ruff"; ruff check . && ruff format --check .; echo "== grep"; grep -rnE "[Зз]аявк|[Зз]аявок" --include='*.html' --include='*.js' templates */templates static/js || echo NO_OLD_WORD; } > $T/verify-017-final-checks-$S.log 2>&1; cat $T/verify-017-final-checks-$S.log
+  echo logs: $T/test-017-final-$S.log $T/verify-017-final-checks-$S.log; git status --short
+    Command running in background with ID: bdvut1nq9. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/bdvut1nq9.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Thought for 1s
+    I'm drafting the report while I wait, listing my deviations: the 36x24 icons with a redrawn eye-off, the added CSS for the toggle's margin and padding, the theme's box-shadow removal, and the 3px focus outline offset. I'm also weighing whether to copy the screenshots into thread storage, since the reviewer can read the $TMPDIR paths on this machine anyway. I'm checking the contrast of the toggle's border against the panel.
+
+    I'm checking whether the toggle's border meets the 3:1 non-text contrast requirement against the panel, since the icon color matches body text and should be fine. I also need to settle whether the input's field-border is the right comparison point, so I'm getting the actual token values to compute the ratio.
+
+── Assistant ───────────────────────────────────────────────
+While the final run is going, I'm checking the contrast of the toggle colours for the report.
+
+── Explored 1 search, ran 2 commands ───────────────────────
+  ── Searched for \-\-color-(frame|panel|text|field-border|bg|focus)\b|--color-(frame|panel|text|field-border|bg|focus): in static/css/tokens.css
+  ── Thought for 1s
+    I'm checking the contrast of the toggle icon against the panel background. The icon is very light on a dark purple, so that looks fine. I'm about to work out the ratio for the border color, and I'm also wondering whether the button boundary needs a contrast check at all, since the icon alone may be enough to identify it.
+
+    I'm checking whether the toggle border's light purple from the screenshot matches the dark #5a3fa3 in the theme, and I'm wondering if a hover state on the button explains the difference. I'll compute the contrast ratio for both colors to settle it.
+  ── Ran python3 -c " def L(h):   c=[int(h[i:i+2],16)/255 for i in (1,3,5)]; c=[x/12.92 if x<=0.03928 else ((x+0.055)/1.055)**2.4 for x in c]; return 0.2126*c[0]+0.7152*c[1]+0.0722*c[2] def mix(a,b,t):    A=[int(a[i:i+2],16) for i in (1,3,5)];B=[int(b[i:i+2],16) for i in (1,3,5)]; return '#'+''.join('%02x'%round(x*t+y*(1-t)) for x,y in zip(A,B)) def cr(a,b): x,y=sorted([L(a),L(b)],reverse=True); return round((x+0.05)/(y+0.05),2) p1=mix('#24164e','#120a2a',0.88); p2=mix('#24164e',p1,0.88) print(p2, 'text',cr('#f3ecff',p2),'frame',cr('#5a3fa3',p2),'fieldborder',cr('#a58cf0',p2),'focus',cr('#ffd25e',p2))" (2s)
+    $ python3 -c "
+  def L(h):
+    c=[int(h[i:i+2],16)/255 for i in (1,3,5)]; c=[x/12.92 if x<=0.03928 else ((x+0.055)/1.055)**2.4 for x in c]; return 0.2126*c[0]+0.7152*c[1]+0.0722*c[2]
+  def mix(a,b,t): 
+    A=[int(a[i:i+2],16) for i in (1,3,5)];B=[int(b[i:i+2],16) for i in (1,3,5)]; return '#'+''.join('%02x'%round(x*t+y*(1-t)) for x,y in zip(A,B))
+  def cr(a,b): x,y=sorted([L(a),L(b)],reverse=True); return round((x+0.05)/(y+0.05),2)
+  p1=mix('#24164e','#120a2a',0.88); p2=mix('#24164e',p1,0.88)
+  print(p2, 'text',cr('#f3ecff',p2),'frame',cr('#5a3fa3',p2),'fieldborder',cr('#a58cf0',p2),'focus',cr('#ffd25e',p2))"
+    #24164e text 14.04 frame 2.06 fieldborder 5.85 focus 11.26
+  ── Thought for 6s
+    The border measures about 2.06:1 against the background, which falls short of the 3:1 non-text contrast guideline. The screenshot makes it look lighter than that number suggests, so I want to check the computed border color directly. My guess is that a theme rule for the password toggle is overriding the button's border, though the light purple in the screenshot doesn't match a dark override. The mouse was over the toggle after the click, so the hover state might be what I'm seeing.
+
+    I'm checking the focus and 1024px screenshots, where the toggle looked dark-edged when focused and was hovered after the click, so the default border is the darker #5a3fa3 at 2.06:1. The icon already identifies the button at 14:1, but for consistency with the inputs I'm considering switching the default border to the field-border color (5.85:1) and using the text color on hover. That departs from the frame-color spec, so I'll note it as a deviation.
+  ── Thought
+    The toggle border in `--color-frame` is only 2.06:1 against the panel, though the icon itself is still clearly visible at 14:1. I'm switching the border to `--color-field-border` (5.85:1) to match the adjacent input, with `--color-text` on hover.
+  ── Ran python3 - <<'EOF' p="static/css/theme.css"; s=open(p).read() old=""".form .password-toggle {   border: var(--frame-width) solid var(--color-frame);""" new=""".form .password-toggle {   border: var(--frame-width) solid var(--color-field-border);""" assert old in s; s=s.replace(old,new) old2=""".form .password-toggle:hover {   border-color: var(--color-field-border);""" assert old2 in s; s=s.replace(old2,""".form .password-toggle:hover {   border-color: var(--color-text);""") open(p,"w").write(s) EOF tail -20 static/css/theme.css (2s)
+    $ python3 - <<'EOF'
+  p="static/css/theme.css"; s=open(p).read()
+  old=""".form .password-toggle {
+    border: var(--frame-width) solid var(--color-frame);"""
+  new=""".form .password-toggle {
+    border: var(--frame-width) solid var(--color-field-border);"""
+  assert old in s; s=s.replace(old,new)
+  old2=""".form .password-toggle:hover {
+    border-color: var(--color-field-border);"""
+  assert old2 in s; s=s.replace(old2,""".form .password-toggle:hover {
+    border-color: var(--color-text);""")
+  open(p,"w").write(s)
+  EOF
+  tail -20 static/css/theme.css
+    ::-webkit-scrollbar-thumb:active {
+        background: var(--color-scroll-thumb-hover);
+      }
+    }
+
+    /* Password toggle: panel button, not the orange primary (TASK-017). */
+    .form .password-toggle {
+      border: var(--frame-width) solid var(--color-field-border);
+      background: var(--color-panel);
+      box-shadow: none;
+      color: var(--color-text);
+    }
+
+    .form .password-toggle:focus-visible {
+      outline-offset: 3px;
+    }
+
+    .form .password-toggle:hover {
+      border-color: var(--color-text);
+    }
+  ── Thought for 15ms
+    The final test run is already going in the background, and since this is a CSS-only change, the tests that check base.css aren't affected by it. Once it finishes, I still want a screenshot of the default state with the new border, so I'm starting the server and browser now while the tests run.
+
+── Assistant ───────────────────────────────────────────────
+I'm taking one more screenshot of the default state with the new border.
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Ran W=$TMPDIR/ui017 && export DATABASE_URL="sqlite:///$W/vis.sqlite3" PRIVATE_MEDIA_ROOT="$W/media" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true SECRET_KEY=dummy-local-ui017 && exec .venv/bin/python manage.py runserver 127.0.0.1:8770 --noreload > $W/server.log 2>&1 (5s)
+    $ W=$TMPDIR/ui017 && export DATABASE_URL="sqlite:///$W/vis.sqlite3" PRIVATE_MEDIA_ROOT="$W/media" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true SECRET_KEY=dummy-local-ui017 && exec .venv/bin/python manage.py runserver 127.0.0.1:8770 --noreload > $W/server.log 2>&1
+    Command running in background with ID: bo2fs1vai. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/bo2fs1vai.output. You will be notified when it completes. To check interim output, use Read on that file path.
+  ── Ran W=$TMPDIR/ui017; sleep 4; J=$(bb browser-automation open --backend local --machine host_cuvmpv75p3 --headless --json); echo "$J"; SID=$(echo "$J" | python3 -c "import json,sys;print(json.load(sys.stdin)['id'])"); sed -i '' "s/^S=.*/S=$SID/" $W/run.sh cat > $W/login3.js <<'EOF' await p.setCacheEnabled(false); const R={}; const errs=[]; p.on("console",m=>{if(m.type()==="error")errs.push(m.text())}); const g=()=>p.evaluate(()=>{const b=document.querySelector("[data-password-toggle]");const cs=getComputedStyle(b);const r=b.getBoundingClientRect();const i=document.getElementById("id_password").getBoundingClientRect();return {border:cs.borderTopColor,shadow:cs.boxShadow,btn:[r.top,r.bottom,r.width],input:[i.top,i.bottom],sw:document.documentElement.scrollWidth}}); await go(null,"/login/",360,780); await p.type("#id_password","Secret-123"); R.d360=await g(); await shot(false); await go(null,"/login/",1024,768); await p.type("#id_password","Secret-123"); await p.focus("#id_password"); await p.keyboard.press("Tab"); await p.keyboard.press("Enter"); R.d1024=await g(); await shot(false); R.errs=errs; return JSON.stringify(R); EOF $W/run.sh $W/login3.js (9s)
+    $ W=$TMPDIR/ui017; sleep 4; J=$(bb browser-automation open --backend local --machine host_cuvmpv75p3 --headless --json); echo "$J"; SID=$(echo "$J" | python3 -c "import json,sys;print(json.load(sys.stdin)['id'])"); sed -i '' "s/^S=.*/S=$SID/" $W/run.sh
+  cat > $W/login3.js <<'EOF'
+  await p.setCacheEnabled(false); const R={}; const errs=[]; p.on("console",m=>{if(m.type()==="error")errs.push(m.text())});
+  const g=()=>p.evaluate(()=>{const b=document.querySelector("[data-password-toggle]");const cs=getComputedStyle(b);const r=b.getBoundingClientRect();const i=document.getElementById("id_password").getBoundingClientRect();return {border:cs.borderTopColor,shadow:cs.boxShadow,btn:[r.top,r.bottom,r.width],input:[i.top,i.bottom],sw:document.documentElement.scrollWidth}});
+  await go(null,"/login/",360,780); await p.type("#id_password","Secret-123"); R.d360=await g(); await shot(false);
+  await go(null,"/login/",1024,768); await p.type("#id_password","Secret-123"); await p.focus("#id_password"); await p.keyboard.press("Tab"); await p.keyboard.press("Enter"); R.d1024=await g(); await shot(false);
+  R.errs=errs; return JSON.stringify(R);
+  EOF
+  $W/run.sh $W/login3.js
+    {"id":"cab9ac2f-c354-4452-8964-7300b6d78b28","threadId":"thr_pgcwc2dwnn","hostId":"host_cuvmpv75p3","backend":"local","state":"ready","createdAt":1795250822091,"expiresAt":1795252622091,"previewDirective":"::browser-preview{session=\"cab9ac2f-c354-4452-8964-7300b6d78b28\"}"}
+    {"d360":{"border":"rgb(165, 140, 240)","shadow":"none","btn":[290,334,58],"input":[290,334],"sw":360},"d1024":{"border":"rgb(165, 140, 240)","shadow":"none","btn":[323,367,58],"input":[323,367],"sw":1024},"errs":[]}
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-n1LEJF/tmp/shot-1795250824875-1.jpg 360 780
+    IMG /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-n1LEJF/tmp/shot-1795250825019-2.jpg 1024 768
+
+── Assistant ───────────────────────────────────────────────
+::browser-preview{session="cab9ac2f-c354-4452-8964-7300b6d78b28"}
+
+── Explored 3 files, ran 1 command, ran 1 tool ─────────────
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-n1LEJF/tmp/shot-1795250824875-1.jpg
+  ── Read /private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-n1LEJF/tmp/shot-1795250825019-2.jpg
+  ── Thought for 15ms
+    I'm swapping in the new screenshots for shots 01 and 03, with 01 set to hidden by default and 03 shown at 1024 via keyboard Enter while focused. Then I'll close the browser and the server.
+  ── Ran W=$TMPDIR/ui017; D=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-n1LEJF/tmp; cp $D/shot-1795250824875-1.jpg $W/shots/01-login-360-hidden.jpg; cp $D/shot-1795250825019-2.jpg $W/shots/03-login-1024-shown-keyboard.jpg; rm -f $W/shots/03-login-1024-shown.jpg; bb browser-automation close cab9ac2f-c354-4452-8964-7300b6d78b28 | head -c 120; echo (3s)
+    $ W=$TMPDIR/ui017; D=/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-Zh17Aa/db-n1LEJF/tmp; cp $D/shot-1795250824875-1.jpg $W/shots/01-login-360-hidden.jpg; cp $D/shot-1795250825019-2.jpg $W/shots/03-login-1024-shown-keyboard.jpg; rm -f $W/shots/03-login-1024-shown.jpg; bb browser-automation close cab9ac2f-c354-4452-8964-7300b6d78b28 | head -c 120; echo
+    {"id":"cab9ac2f-c354-4452-8964-7300b6d78b28","threadId":"thr_pgcwc2dwnn","hostId":"host_cuvmpv75p3","backend":"local","s
+  ── Stopped task (3s)
+    {"message":"Successfully stopped task: bo2fs1vai (W=$TMPDIR/ui017 && export DATABASE_URL=\"sqlite:///$W/vis.sqlite3\" PRIVATE_MEDIA_ROOT=\"$W/media\" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true SECRET_KEY=dummy-local-ui017 && exec .venv/bin/python manage.py runserver 127.0.0.1:8770 --noreload > $W/server.log 2>&1)","task_id":"bo2fs1vai","task_type":"local_bash","command":"W=$TMPDIR/ui017 && export DATABASE_URL=\"sqlite:///$W/vis.sqlite3\" PRIVATE_MEDIA_ROOT=\"$W/media\" DEMO_PASSWORD='Local-Demo-Pass-2026!' DEBUG=true SECRET_KEY=dummy-local-ui017 && exec .venv/bin/python manage.py runserver 127.0.0.1:8770 --noreload > $W/server.log 2>&1"}
+  ── Read /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/ff83f5cf-68c2-4004-8df7-1a61e25f181c/tasks/bdvut1nq9.output
+  ── Thought for 14ms
+    I'm checking whether the theme.css border change landed after the final run started at 11:46, since the run read base.css at that time and base hasn't changed since. The theme edit only touched color tokens, and I used var() rather than hex values, but I want to be sure, so I'll rerun the core CSS and design tests along with the login tests.
+
+── Assistant ───────────────────────────────────────────────
+The final run passed: 1212 OK. The border change came after that run started, so I'm re-running the CSS, design and login tests.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran source .venv/bin/activate && L=$TMPDIR/test-017-css-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log; python manage.py test core.tests.test_css core.tests.test_design accounts.tests.test_login_page core.tests.test_middleware > $L 2>&1; echo $L; grep -E "^(Ran|OK|FAILED)" $L; TZ=Europe/Moscow date +%H:%M; ls petitions/templatetags; git diff --stat | tail -1 (3s)
+    $ source .venv/bin/activate && L=$TMPDIR/test-017-css-$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S).log; python manage.py test core.tests.test_css core.tests.test_design accounts.tests.test_login_page core.tests.test_middleware > $L 2>&1; echo $L; grep -E "^(Ran|OK|FAILED)" $L; TZ=Europe/Moscow date +%H:%M; ls petitions/templatetags; git diff --stat | tail -1
+    /tmp/claude-501/test-017-css-20261121-114727.log
+    Ran 58 tests in 0.918s
+    OK
+    11:47
+    __init__.py
+    __pycache__
+    petition_wording.py
+     29 files changed, 180 insertions(+), 97 deletions(-)
+  ── Thought for 14ms
+    I'm checking the test timeline: the 58-test run at 11:47 looks off against when the border change landed, but either way the current files pass because this run came after all the edits. Next I'll write the report for the Reviewer and decide whether to copy the screenshots into $TMPDIR/ui017/shots, which looks like a fine stable spot.
+
+── Assistant ───────────────────────────────────────────────
+All green. I'm writing the REPORT for the Reviewer.
+
+── Ran W=$TMPDIR/ui017; cat > $W/report-017.md <<'EOF' [TASK-017] UI coder -> Reviewer: REPORT Spec: docs/tasks/TASK-017.md (base HEAD 16399ea). ## What was done - F1–F7, F8 (login.html), F9 (password-toggle.js), F12/F13 (tests): the spec code applied exactly (the spec diffs applied with `patch -p1`, no fuzz, no rejects; new files copied verbatim from the spec blocks). `ruff format` changed nothing in them. - Migration 0004 generated with `makemigrations petitions --name documents_wording`: 12 operations (3 AlterModelOptions + 9 AlterField); `sqlmigrate petitions 0004` = SQLite table rebuilds only, no data statements. 0005 by hand, exactly F5. - Visual tuning inside D5/D6 (the only deviations from the reference code):   1. Icons (D6): both rendered at 36 × 24 (was 24 × 16; 12 × 8 grid, 3 CSS px per cell, still rects only/crispEdges/currentColor/aria-hidden/focusable="false"). At 24 × 16 the crossed eye was not readable at 360 px. `icon_eye_off.html` redrawn: the same eye outline, no pupil, one diagonal stroke corner to corner (2-cell steps). `icon_eye.html` = reference drawing, only the size changed.   2. Toggle height (D5): with the primary `.form button` margin and the outer 6 px frame shadow the flex row was 62 px, so the password input stretched to 62 px (the username input is 44 px). base.css: `.form .password-toggle { margin: 0; padding: 0 var(--space-2); }`; theme.css: `box-shadow: none`. Now input and toggle are both 44 px high and aligned (toggle 58 × 44).   3. Toggle border (contrast): `--color-frame` (#5a3fa3) gives 2.06:1 against the panel; changed to `--color-field-border` (5.85:1, the same border as the input next to it); hover `--color-text`. Icon `--color-text` 14.04:1, focus ring 11.26:1.   4. Focus: `.form .password-toggle:focus-visible { outline-offset: 3px; }` (the primary 8 px offset was for the outer frame, which the toggle no longer has). The project 3 px `--color-focus` outline is visible.   The selectors and values the tests check are unchanged (`.password-toggle` min-width/min-height 2.75rem, `[hidden]`, aria-pressed icon rules). ## Changed files Modified (28): accounts/templates/accounts/login.html, chat/demo.py, core/templates/core/home.html, core/tests/test_design.py, core/tests/test_home.py, notifications/sources.py, petitions/{apps,demo,forms,models,services,views,workflow}.py, petitions/templates/petitions/{catalog,detail,form,my_list,staff_detail,staff_queue,submitted}.html, petitions/templates/petitions/includes/history.html, petitions/tests/{test_demo,test_services,test_views,test_workflow}.py, static/css/base.css, static/css/theme.css, templates/includes/site_nav_items.html. New: petitions/wording.py, petitions/templatetags/{__init__,petition_wording}.py, petitions/migrations/0004_documents_wording.py, petitions/migrations/0005_admission_certificate.py, static/js/password-toggle.js, templates/includes/icon_eye.html, templates/includes/icon_eye_off.html, petitions/tests/test_wording.py, petitions/tests/test_migrations.py, accounts/tests/test_login_page.py. Unexpected changes: none (` M plan.md` is the Team lead's; `?? docs/tasks/TASK-017.md` is the spec). ## Test runs (Moscow time, 21.11) - `manage.py test --parallel`: Ran 1212, OK (log /tmp/claude-501/test-017-full-20261121-083253.log). Note: the machine load average was ~8 (other agents), so setup took long and the shell command ran past my 10 min foreground limit; the run itself finished OK, no failure. - `--parallel 2`, first try (started 10:38): **interrupted, not failed** — the background command reached my 30 min limit while the run was still going (DB setup alone took ~16 min under the load; first test dots 10:54); no FAIL/ERROR in the partial log /tmp/claude-501/test-017-p2-20261121-103801.log. Re-run with a longer limit: Ran 1212, OK (11:39–11:41, /tmp/claude-501/test-017-p2-20261121-113956.log). - `scripts/run_tests_at.py 2027-03-01T12:00:00`: Ran 1212, OK (11:44, /tmp/claude-501/test-017-frozen-20261121-113956.log). - `petitions.tests.test_migrations` alone: 4 OK (/tmp/claude-501/test-017-mig-*.log). - After the CSS/icon tuning: full `--parallel` Ran 1212, OK (11:46–11:47, /tmp/claude-501/test-017-final-20261121-114620.log); after the last theme.css border change: `core.tests.test_css core.tests.test_design accounts.tests.test_login_page core.tests.test_middleware` Ran 58, OK (/tmp/claude-501/test-017-css-20261121-114727.log). - `check` no issues; `makemigrations --check --dry-run` No changes detected; `ruff check .` passed; `ruff format --check .` 202 files already formatted; grep for the old word → NO_OLD_WORD (/tmp/claude-501/verify-017-final-checks-20261121-114620.log). - No failing test in any run. Baseline 1181 → 1212 (+31). ## Migrations on a database seeded before the change `git archive HEAD` → /tmp/claude-501/ui017/before; temp DB /tmp/claude-501/ui017/vis.sqlite3: migrate + seed_demo with HEAD code → 7 types incl. "Справка в военкомат". Then with the new code: `migrate` → 0004 OK, 0005 OK; `seed_demo` twice → "7 types" both times; 7 types, 8 petitions; names: Другая справка, Другое заявление, Заявление на академический отпуск, Заявление на повторную промежуточную аттестацию, Справка для стипендиального отдела, Справка о поступлении, Справка об обучении (no "Справка в военкомат"). Renamed row: comment_required False, hint "Можно указать, куда нужна справка.", description "Подтверждает зачисление в университет.", 3 days, active. ## Visual check (runserver on that DB, headless Chromium) - Login 360 × 780 and 1024 × 768: with JS the toggle is visible; mouse click and keyboard (Tab from the password field to the toggle, focus ring visible; Space and Enter) switch type password ↔ text, aria-pressed false ↔ true, icon eye ↔ crossed eye; aria-label stays "Показать пароль". JS disabled: toggle hidden (display none), input 44 px, form as before. Real login as student1 with the password shown: at submit the field type was "password" (probe listener after the script's), redirect to /profile/. Console: 0 errors, 0 CSP violations. No horizontal scroll. - Student 360/1024: nav "Документы" (aria-current), h1 "Мои документы", "Оформить документ"; list statuses Подана / В работе / Выдана (all certificates); catalog h1 "Оформить документ", "Справка о поступлении" listed; certificate form button "Заказать справку"; "Другое заявление" form: button "Подать заявление", hint «Заявление на индивидуальный учебный план»; submitted via the form → "Заявление подано", "К заявлению", "Мои документы". Application detail: "Готово", "Подано: …", history "Подано → В работе", "В работе → Готово"; certificate detail "Подана", "Подана: …". Feed: tag "Документы", «Другое заявление» взято в работу / готово — заберите его в деканате, «Другая справка» взята в работу, «Справка об обучении» готова — заберите её…, "Комментарий деканата: «…»". - Staff 360/1024: home buttons Документы / Чаты / Объявления; queue h1 "Документы", "Вид документа", status filter Подан/В работе/Готов/Выдан/Отклонён, rows "Подана" (certificate) and "Подано" (application); application detail h1 "Заявление № 9526da0e", h2 "Документ", "Взять в работу" → flash "Статус изменён: В работе." → "Отметить готовым" → flash "Статус изменён: Готово." → "Отметить выданным"; certificate detail h1 "Справка № 08b7c800", "Отметить готовой". - Admin (temp superuser on the temp DB): app "Документы", models "Виды документов", "Документы"; list "Выберите документ для просмотра", filter Подан…Отклонён; change page inlines "Изменения статуса", "Комментарии сотрудников", "Файлы к документам"; fields "Вид документа", "Дата подачи". - Expected leftover (spec §2): the existing demo chat row still says «Подайте заявку…» on this pre-seeded DB (seed_demo never updates rows). - scrollWidth = viewport width on every page checked. Screenshots: /tmp/claude-501/ui017/shots/ (17 JPEGs: login 360 hidden / shown / focus, login 1024 shown via keyboard, student list 360 and 1024, catalog 360, application form 360, submitted 360, staff queue 360, staff application after "Готово" with flash 360, staff certificate 360 and 1024, student application detail 360, feed 360, admin index and documents list 1024). Server and browser are closed. ## What remains Nothing in scope. EOF bb thread tell thr_cpuae9aqw3 --message-file $W/report-017.md
+  $ W=$TMPDIR/ui017; cat > $W/report-017.md <<'EOF'
+[TASK-017] UI coder -> Reviewer: REPORT
+Spec: docs/tasks/TASK-017.md (base HEAD 16399ea).
+
+## What was done
+- F1–F7, F8 (login.html), F9 (password-toggle.js), F12/F13 (tests): the spec code applied exactly (the spec diffs applied with `patch -p1`, no fuzz, no rejects; new files copied verbatim from the spec blocks). `ruff format` changed nothing in them.
+- Migration 0004 generated with `makemigrations petitions --name documents_wording`: 12 operations (3 AlterModelOptions + 9 AlterField); `sqlmigrate petitions 0004` = SQLite table rebuilds only, no data statements. 0005 by hand, exactly F5.
+- Visual tuning inside D5/D6 (the only deviations from the reference code):
+  1. Icons (D6): both rendered at 36 × 24 (was 24 × 16; 12 × 8 grid, 3 CSS px per cell, still rects only/crispEdges/currentColor/aria-hidden/focusable="false"). At 24 × 16 the crossed eye was not readable at 360 px. `icon_eye_off.html` redrawn: the same eye outline, no pupil, one diagonal stroke corner to corner (2-cell steps). `icon_eye.html` = reference drawing, only the size changed.
+  2. Toggle height (D5): with the primary `.form button` margin and the outer 6 px frame shadow the flex row was 62 px, so the password input stretched to 62 px (the username input is 44 px). base.css: `.form .password-toggle { margin: 0; padding: 0 var(--space-2); }`; theme.css: `box-shadow: none`. Now input and toggle are both 44 px high and aligned (toggle 58 × 44).
+  3. Toggle border (contrast): `--color-frame` (#5a3fa3) gives 2.06:1 against the panel; changed to `--color-field-border` (5.85:1, the same border as the input next to it); hover `--color-text`. Icon `--color-text` 14.04:1, focus ring 11.26:1.
+  4. Focus: `.form .password-toggle:focus-visible { outline-offset: 3px; }` (the primary 8 px offset was for the outer frame, which the toggle no longer has). The project 3 px `--color-focus` outline is visible.
+  The selectors and values the tests check are unchanged (`.password-toggle` min-width/min-height 2.75rem, `[hidden]`, aria-pressed icon rules).
+
+## Changed files
+Modified (28): accounts/templates/accounts/login.html, chat/demo.py, core/templates/core/home.html, core/tests/test_design.py, core/tests/test_home.py, notifications/sources.py, petitions/{apps,demo,forms,models,services,views,workflow}.py, petitions/templates/petitions/{catalog,detail,form,my_list,staff_detail,staff_queue,submitted}.html, petitions/templates/petitions/includes/history.html, petitions/tests/{test_demo,test_services,test_views,test_workflow}.py, static/css/base.css, static/css/theme.css, templates/includes/site_nav_items.html.
+New: petitions/wording.py, petitions/templatetags/{__init__,petition_wording}.py, petitions/migrations/0004_documents_wording.py, petitions/migrations/0005_admission_certificate.py, static/js/password-toggle.js, templates/includes/icon_eye.html, templates/includes/icon_eye_off.html, petitions/tests/test_wording.py, petitions/tests/test_migrations.py, accounts/tests/test_login_page.py.
+Unexpected changes: none (` M plan.md` is the Team lead's; `?? docs/tasks/TASK-017.md` is the spec).
+
+## Test runs (Moscow time, 21.11)
+- `manage.py test --parallel`: Ran 1212, OK (log /tmp/claude-501/test-017-full-20261121-083253.log). Note: the machine load average was ~8 (other agents), so setup took long and the shell command ran past my 10 min foreground limit; the run itself finished OK, no failure.
+- `--parallel 2`, first try (started 10:38): **interrupted, not failed** — the background command reached my 30 min limit while the run was still going (DB setup alone took ~16 min under the load; first test dots 10:54); no FAIL/ERROR in the partial log /tmp/claude-501/test-017-p2-20261121-103801.log. Re-run with a longer limit: Ran 1212, OK (11:39–11:41, /tmp/claude-501/test-017-p2-20261121-113956.log).
+- `scripts/run_tests_at.py 2027-03-01T12:00:00`: Ran 1212, OK (11:44, /tmp/claude-501/test-017-frozen-20261121-113956.log).
+- `petitions.tests.test_migrations` alone: 4 OK (/tmp/claude-501/test-017-mig-*.log).
+- After the CSS/icon tuning: full `--parallel` Ran 1212, OK (11:46–11:47, /tmp/claude-501/test-017-final-20261121-114620.log); after the last theme.css border change: `core.tests.test_css core.tests.test_design accounts.tests.test_login_page core.tests.test_middleware` Ran 58, OK (/tmp/claude-501/test-017-css-20261121-114727.log).
+- `check` no issues; `makemigrations --check --dry-run` No changes detected; `ruff check .` passed; `ruff format --check .` 202 files already formatted; grep for the old word → NO_OLD_WORD (/tmp/claude-501/verify-017-final-checks-20261121-114620.log).
+- No failing test in any run. Baseline 1181 → 1212 (+31).
+
+## Migrations on a database seeded before the change
+`git archive HEAD` → /tmp/claude-501/ui017/before; temp DB /tmp/claude-501/ui017/vis.sqlite3: migrate + seed_demo with HEAD code → 7 types incl. "Справка в военкомат". Then with the new code: `migrate` → 0004 OK, 0005 OK; `seed_demo` twice → "7 types" both times; 7 types, 8 petitions; names: Другая справка, Другое заявление, Заявление на академический отпуск, Заявление на повторную промежуточную аттестацию, Справка для стипендиального отдела, Справка о поступлении, Справка об обучении (no "Справка в военкомат"). Renamed row: comment_required False, hint "Можно указать, куда нужна справка.", description "Подтверждает зачисление в университет.", 3 days, active.
+
+## Visual check (runserver on that DB, headless Chromium)
+- Login 360 × 780 and 1024 × 768: with JS the toggle is visible; mouse click and keyboard (Tab from the password field to the toggle, focus ring visible; Space and Enter) switch type password ↔ text, aria-pressed false ↔ true, icon eye ↔ crossed eye; aria-label stays "Показать пароль". JS disabled: toggle hidden (display none), input 44 px, form as before. Real login as student1 with the password shown: at submit the field type was "password" (probe listener after the script's), redirect to /profile/. Console: 0 errors, 0 CSP violations. No horizontal scroll.
+- Student 360/1024: nav "Документы" (aria-current), h1 "Мои документы", "Оформить документ"; list statuses Подана / В работе / Выдана (all certificates); catalog h1 "Оформить документ", "Справка о поступлении" listed; certificate form button "Заказать справку"; "Другое заявление" form: button "Подать заявление", hint «Заявление на индивидуальный учебный план»; submitted via the form → "Заявление подано", "К заявлению", "Мои документы". Application detail: "Готово", "Подано: …", history "Подано → В работе", "В работе → Готово"; certificate detail "Подана", "Подана: …". Feed: tag "Документы", «Другое заявление» взято в работу / готово — заберите его в деканате, «Другая справка» взята в работу, «Справка об обучении» готова — заберите её…, "Комментарий деканата: «…»".
+- Staff 360/1024: home buttons Документы / Чаты / Объявления; queue h1 "Документы", "Вид документа", status filter Подан/В работе/Готов/Выдан/Отклонён, rows "Подана" (certificate) and "Подано" (application); application detail h1 "Заявление № 9526da0e", h2 "Документ", "Взять в работу" → flash "Статус изменён: В работе." → "Отметить готовым" → flash "Статус изменён: Готово." → "Отметить выданным"; certificate detail h1 "Справка № 08b7c800", "Отметить готовой".
+- Admin (temp superuser on the temp DB): app "Документы", models "Виды документов", "Документы"; list "Выберите документ для просмотра", filter Подан…Отклонён; change page inlines "Изменения статуса", "Комментарии сотрудников", "Файлы к документам"; fields "Вид документа", "Дата подачи".
+- Expected leftover (spec §2): the existing demo chat row still says «Подайте заявку…» on this pre-seeded DB (seed_demo never updates rows).
+- scrollWidth = viewport width on every page checked.
+
+Screenshots: /tmp/claude-501/ui017/shots/ (17 JPEGs: login 360 hidden / shown / focus, login 1024 shown via keyboard, student list 360 and 1024, catalog 360, application form 360, submitted 360, staff queue 360, staff application after "Готово" with flash 360, staff certificate 360 and 1024, student application detail 360, feed 360, admin index and documents list 1024).
+Server and browser are closed.
+
+## What remains
+Nothing in scope.
+EOF
+bb thread tell thr_cpuae9aqw3 --message-file $W/report-017.md
+  Thread thr_cpuae9aqw3 steered
+
+── Assistant ───────────────────────────────────────────────
+TASK-017 готова, отчёт отправлен Ревьюеру (@thread:thr_cpuae9aqw3). Все 1212 тестов прошли (было 1181). Проверки чистые: `check`, миграции, ruff, поиск слова «заявк».
+
+**Что сделано:**
+- **Вход:** у поля пароля есть кнопка «показать/скрыть» с пиксельным глазом. Без JavaScript кнопка скрыта, и форма работает как раньше. При отправке поле снова становится скрытым паролем. Вход с показанным паролем я проверил: он работает. Ошибок CSP нет.
+- **«Заявки» → «Документы»:** заменил везде. Статусы согласуются с видом документа: справка «Подана», заявление «Подано», общий фильтр «Подан». Кнопки сотрудников тоже согласуются: «Отметить готовой» или «Отметить готовым».
+- **«Справка о поступлении»:** миграция переименовала прежнюю справку. На базе со старыми данными осталось 7 видов, старого названия нет. Два запуска `seed_demo` подряд ничего не изменили.
+- **Подсказка «Тип»:** для заявлений теперь пример «Заявление на индивидуальный учебный план».
+
+**Отступления от образца спецификации** (спецификация разрешает такие правки):
+- Иконки стали крупнее: 36×24 вместо 24×16. При 24×16 перечёркнутый глаз на 360 px не читался, поэтому я его перерисовал.
+- Кнопка теперь той же высоты, что и поле: 44 px. Раньше поле пароля растягивалось до 62 px и было выше поля логина.
+- Рамка кнопки стала светлее. Старая рамка давала контраст 2,06:1, новая даёт 5,85:1.
+
+**Что пошло не так:**
+- Машина была сильно загружена: средняя нагрузка около 8. Первый прогон с `--parallel 2` упёрся в лимит времени фоновой команды и был прерван. Это не падение: ни одной ошибки в логе нет. Повторный прогон прошёл.
+- Сервер я останавливал через остановку фоновой задачи, без выхода из песочницы.
+
+Сервер и браузер закрыты, 17 скриншотов лежат в `/tmp/claude-501/ui017/shots/`. Жду ответа Ревьюера.
