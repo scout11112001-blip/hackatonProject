@@ -42,4 +42,4 @@ Small defects are not deferred to a backlog. After every successful commit:
 ## Pentester
 - The Pentester (Claude Opus, `.claude/agents/pentester.md`) gets requests `PENTEST-N` from the Team lead only, after user approval: local app testing on a temporary database; production testing of `digital-student-services.ru` / `136.148.83.222` only after HTTPS is live and within the rules of engagement in its role file.
 - Its `REPORT` goes to the Team lead with `docs/security/PENTEST-N.md`. Report the findings to the user in Russian with a recommendation per finding; approved fixes become `TASK-NNN` requests to the Planner. Commit the report file with the next commit.
-- Do not clear or compact the Pentester (Claude thread). Remove any objects it created on production before the final database switch on 2026-11-22.
+- A second Pentester thread thr_yykm3ug9d7 (same role, Opus, max reasoning) runs a PENTEST in parallel when the user approves it (21.11). Do not clear or compact the Pentester threads. Remove any objects it created on production before the final database switch on 2026-11-22.
