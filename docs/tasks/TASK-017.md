@@ -1792,7 +1792,7 @@ Migrations on a database seeded **before** the change (never on the project `db.
 ```bash
 mkdir -p "$TMPDIR/t017-before" && git archive HEAD | tar -x -C "$TMPDIR/t017-before"
 export DATABASE_URL="sqlite:///$TMPDIR/t017.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t017-media" DEMO_PASSWORD=Local-Demo-Pass-2026 DEBUG=true SECRET_KEY=dummy-local
-(cd "$TMPDIR/t017-before" && /Users/andreyorlov/hackatonproject/.venv/bin/python manage.py migrate -v0 && /Users/andreyorlov/hackatonproject/.venv/bin/python manage.py seed_demo)
+(cd "$TMPDIR/t017-before" && ~/hackatonproject/.venv/bin/python manage.py migrate -v0 && ~/hackatonproject/.venv/bin/python manage.py seed_demo)
 .venv/bin/python manage.py migrate && .venv/bin/python manage.py seed_demo && .venv/bin/python manage.py seed_demo
 .venv/bin/python manage.py shell -c "from petitions.models import RequestType as R; print(sorted(R.objects.values_list('name', flat=True)))"
 unset DATABASE_URL PRIVATE_MEDIA_ROOT DEMO_PASSWORD

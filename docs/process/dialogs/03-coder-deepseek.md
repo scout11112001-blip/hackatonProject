@@ -1508,9 +1508,9 @@ Summary:
 
       ```
       total 40
-      drwxr-xr-x  11 andreyorlov  staff   352 Nov 11 23:22 .
+      drwxr-xr-x  11 [user]  staff   352 Nov 11 23:22 .
       ...
-      -rw-------@  1 andreyorlov  staff    55 Nov 10 15:11 .env
+      -rw-------@  1 [user]  staff    55 Nov 10 15:11 .env
       ...
       ```
 
@@ -29098,7 +29098,7 @@ Spec amendment: docs/tasks/TASK-005-FIX.md, section "Amendment 1" (approved by t
     ── Ran cd ~/hackatonproject && git status --short db.sqlite3; echo "db_status_above (empty=untracked-ignored, not deleted)"; ls -la db.sqlite3 2>&1 | head -1
       $ cd ~/hackatonproject && git status --short db.sqlite3; echo "db_status_above (empty=untracked-ignored, not deleted)"; ls -la db.sqlite3 2>&1 | head -1
       db_status_above (empty=untracked-ignored, not deleted)
-      -rw-r--r--@ 1 andreyorlov  staff  462848 Nov 13 15:18 db.sqlite3
+      -rw-r--r--@ 1 [user]  staff  462848 Nov 13 15:18 db.sqlite3
     ── Ran cd ~/hackatonproject && bb thread tell thr_cpuae9aqw3 --message-file - <<'EOF' [TASK-005-FIX] Coder -> Reviewer: REPORT (Amendment 1) Spec: docs/tasks/TASK-005-FIX.md, "Amendment 1" (A1-A5). Implemented on top of the existing TASK-005-FIX work; nothing reverted. ## A2 (ruff exclude) — done first - pyproject.toml `extend-exclude` now `["*/migrations/*", ".venv", "staticfiles", "docs/process"]`. - `ruff format --check .` -> clean. docs/process untouched. - Note: `docs/tasks/TASK-005-FIX.md` had one unformatted code block (blank line after a local import in A1.5); since only docs/process is excluded, I applied a trivial `ruff format` to that one doc block so the check passes. Semantically neutral. ## A1.2-A1.5 (edit path of the "restored occurrence" defect) - `schedule/validation.py`:   - `restored_occurrence_conflicts(change, prefix="Нельзя удалить изменение")` — prefix kwarg, used in both messages. Existing callers/tests unchanged.   - `released_occurrence_errors(old, new)` — computes identity_changed/hides/restores; one lock over old+new rooms/groups first; restored conflicts (prefix "Нельзя так изменить запись") when `restores`, delete guards (`run_change_guards(old, deleting=True)`) when `identity_changed`.   - `change_conflicts` — added `if change.pk is not None and item.change is not None and item.change.pk == change.pk: continue` (A1.4 self-conflict skip). - `academics/services.py` `attendance_change_guard` — non-deleting branch now applies to every kind: CANCELLED message unchanged; then `effective = new_date if MOVED else original_date`; if `effective > today` -> MOVED message (unchanged) or the new "занятие окажется в будущем" message otherwise. - `schedule/models.py` `LessonChange.clean()` — added the A1.5 block (fetch old, call `released_occurrence_errors`, raise non-field) before the new-state guard and `change_conflicts`. ## Tests - New `schedule/tests/test_change_edit.py` (EditLessonChangeTests, 9 tests). - `academics/tests/test_change_guard.py` + 3 tests (edit move original_date -> future, edit move -> room_changed -> future, edit reason allowed). ## Regression evidence (A5 step 2, confirmed BEFORE implementing A1.2-A1.5) - Running the new tests against the pre-amendment code -> `FAILED (failures=8, errors=2)`: edit tests 1-4, 7, 8 failed (ValidationError not raised / no admin error), edit test 9 + allowed_edits errored, guard tests 10 & 11 failed. - After implementation -> all pass. ## Verification (section 9) - `ruff check . && ruff format --check .` -> clean (105 files). - `python manage.py check` -> no issues; `makemigrations --check --dry-run` -> No changes. - `python manage.py test` -> `Ran 409 tests ... OK` (397 + 12). - `run_tests_at.py` at 2026-11-17T23:59:59, 2026-11-18T00:00:00, 2027-03-01T12:00:00 -> all `Ran 409 ... OK`. - deploy check -> `System check identified no issues (1 silenced).` exit 0; `yaml ok`. - `grep -rn "academics" schedule --include='*.py' | grep -v /tests/` -> empty (AC4). - Seed checks via temporary DB (A3): `DATABASE_URL=sqlite:///$TMPDIR/seedcheck.sqlite3 python manage.py migrate` + `seed_demo` twice -> both succeed (249 attendance records, idempotent); temp DB removed. `db.sqlite3` was NOT deleted (still present, gitignored). ## Changed files - pyproject.toml (A2) - schedule/validation.py, schedule/models.py, academics/services.py (A1.2-A1.5) - schedule/tests/test_change_edit.py (new), academics/tests/test_change_guard.py (+3) - docs/tasks/TASK-005-FIX.md (trivial ruff format of one code block) No migrations. Not committed (Team lead commits). EOF (6s)
       $ cd ~/hackatonproject && bb thread tell thr_cpuae9aqw3 --message-file - <<'EOF'
     [TASK-005-FIX] Coder -> Reviewer: REPORT (Amendment 1)
@@ -41428,8 +41428,8 @@ Verification in section 8 (seed with temporary DATABASE_URL and PRIVATE_MEDIA_RO
       ls: private_media: No such file or directory
       --- TMPDIR private ---
       total 0
-      drwxr-x---@   3 andreyorlov  staff    96 Nov 14 12:43 .
-      drwx------@ 190 andreyorlov  staff  6080 Nov 14 12:43 ..
+      drwxr-x---@   3 [user]  staff    96 Nov 14 12:43 .
+      drwx------@ 190 [user]  staff  6080 Nov 14 12:43 ..
     ── Thought for 9s
       Now the seed check writes to $TMPDIR/task006fix2-private (NOT repo/private_media). So the env var IS respected.
 
@@ -41561,8 +41561,8 @@ Verification in section 8 (seed with temporary DATABASE_URL and PRIVATE_MEDIA_RO
 
       Actually, the earlier `ls -laR private_media/` output showed:
       ```
-      drwxr-x---@  3 andreyorlov  staff    96 Nov 14 04:14 .
-      drwxr-xr-x  34 andreyorlov  staff  1088 Nov 14 04:15 ..
+      drwxr-x---@  3 [user]  staff    96 Nov 14 04:14 .
+      drwxr-xr-x  34 [user]  staff  1088 Nov 14 04:15 ..
       ```
 
       And the files were "Nov 14 04:14".
@@ -80489,8 +80489,8 @@ Spec: docs/tasks/TASK-011.md (base d9d8e55; includes the Team lead's amendment: 
       Now chmod 755 for backup.sh and manage.sh.
     ── Ran cd ~/hackatonproject && chmod 755 deploy/backup.sh deploy/manage.sh && ls -l deploy/backup.sh deploy/manage.sh
       $ cd ~/hackatonproject && chmod 755 deploy/backup.sh deploy/manage.sh && ls -l deploy/backup.sh deploy/manage.sh
-      -rwxr-xr-x@ 1 andreyorlov  staff  678 Nov 17 02:32 deploy/backup.sh
-      -rwxr-xr-x@ 1 andreyorlov  staff  294 Nov 17 02:32 deploy/manage.sh
+      -rwxr-xr-x@ 1 [user]  staff  678 Nov 17 02:32 deploy/backup.sh
+      -rwxr-xr-x@ 1 [user]  staff  294 Nov 17 02:32 deploy/manage.sh
     ── Thought for 3s
       Now the CI changes. Let me update ci.yml:
       1. In the `test` job, add after "Install dependencies":

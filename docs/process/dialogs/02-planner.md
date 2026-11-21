@@ -9840,7 +9840,7 @@ Now the baseline run on the real tree (with saved logs).
     No changes detected
     Ran 735 tests in 120.746s
     OK
-    Command did not complete within its 600s timeout and was moved to the background (ID: bulwg4yip). Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bulwg4yip.output. You will be notified when it completes. If it is still running after 30m in the background, it will be stopped and you will be notified. It is running now: do not start a second copy while it runs. If it is no longer needed, stop it with TaskStop. To check interim output, use Read on that file path.
+    Command did not complete within its 600s timeout and was moved to the background (ID: bulwg4yip). Output is being written to: /private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bulwg4yip.output. You will be notified when it completes. If it is still running after 30m in the background, it will be stopped and you will be notified. It is running now: do not start a second copy while it runs. If it is no longer needed, stop it with TaskStop. To check interim output, use Read on that file path.
   ── Thought for 4ms
     I'm going to write the spec while the run goes. For the five fix tests, I'll freeze the clock at 2026-11-11 12:00 so any real-time leak makes them fail, and I'll put them in petitions/tests/test_services.py under ServiceClockTests. The make_petition helper already passes created_at, so that's fine. Last, I'm checking where Teacher.short_name is used: it shows up only in the template and the sources, so I'm treating that as settled.
   ── Created docs/tasks/TASK-007-FIX.md +175
@@ -10039,8 +10039,8 @@ Now the baseline run on the real tree (with saved logs).
 Waiting for the background verification to finish.
 
 ── Ran 3 commands ──────────────────────────────────────────
-  ── Ran F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bulwg4yip.output; until grep -q "Notifications ready" "$F" && [ $(grep -c "Notifications ready" "$F") -ge 2 ] || grep -qE "Traceback|Error|FAILED" "$F"; do sleep 5; done; grep -v " ready:" "$F" | tail -20 (1m 46s)
-    $ F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bulwg4yip.output; until grep -q "Notifications ready" "$F" && [ $(grep -c "Notifications ready" "$F") -ge 2 ] || grep -qE "Traceback|Error|FAILED" "$F"; do sleep 5; done; grep -v " ready:" "$F" | tail -20
+  ── Ran F=/private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bulwg4yip.output; until grep -q "Notifications ready" "$F" && [ $(grep -c "Notifications ready" "$F") -ge 2 ] || grep -qE "Traceback|Error|FAILED" "$F"; do sleep 5; done; grep -v " ready:" "$F" | tail -20 (1m 46s)
+    $ F=/private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bulwg4yip.output; until grep -q "Notifications ready" "$F" && [ $(grep -c "Notifications ready" "$F") -ge 2 ] || grep -qE "Traceback|Error|FAILED" "$F"; do sleep 5; done; grep -v " ready:" "$F" | tail -20
     MSK 20261115-134337
     System check identified no issues (0 silenced).
     No changes detected
@@ -10056,8 +10056,8 @@ Waiting for the background verification to finish.
     yaml ok
 
     [exited with code 0]
-  ── Ran F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bulwg4yip.output; grep -c "Notifications ready" $F; grep "Notifications ready\|Requests ready" $F | tail -4; cd ~/hackatonproject && python3 - <<'EOF' p="docs/tasks/TASK-007-FIX.md"; s=open(p,encoding="utf-8").read() a="### 6a. Verification results on the current tree\nSee the hand-off message (filled after the background runs finish).\n" b="""### 6a. Verification results on the current tree - `check` → no issues; `makemigrations --check --dry-run` → «No changes detected». - `test` → `Ran 735 tests … OK`; `run_tests_at.py 2026-11-17T23:59:59` → 735 OK; `run_tests_at.py 2026-11-18T00:00:00` → 735 OK. No failed runs. - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` → all passed; `ruff format --check .` → 149 files already formatted; CI YAML ok. - `seed_demo` twice on a temporary DB and PRIVATE_MEDIA_ROOT → OK (second run: «Notifications ready: 0 announcements.», «0 requests»). """ assert s.count(a)==1; s=s.replace(a,b); open(p,"w",encoding="utf-8").write(s) EOF (1s)
-    $ F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bulwg4yip.output; grep -c "Notifications ready" $F; grep "Notifications ready\|Requests ready" $F | tail -4; cd ~/hackatonproject && python3 - <<'EOF'
+  ── Ran F=/private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bulwg4yip.output; grep -c "Notifications ready" $F; grep "Notifications ready\|Requests ready" $F | tail -4; cd ~/hackatonproject && python3 - <<'EOF' p="docs/tasks/TASK-007-FIX.md"; s=open(p,encoding="utf-8").read() a="### 6a. Verification results on the current tree\nSee the hand-off message (filled after the background runs finish).\n" b="""### 6a. Verification results on the current tree - `check` → no issues; `makemigrations --check --dry-run` → «No changes detected». - `test` → `Ran 735 tests … OK`; `run_tests_at.py 2026-11-17T23:59:59` → 735 OK; `run_tests_at.py 2026-11-18T00:00:00` → 735 OK. No failed runs. - `check --deploy --fail-level WARNING` → no issues (1 silenced); `ruff check .` → all passed; `ruff format --check .` → 149 files already formatted; CI YAML ok. - `seed_demo` twice on a temporary DB and PRIVATE_MEDIA_ROOT → OK (second run: «Notifications ready: 0 announcements.», «0 requests»). """ assert s.count(a)==1; s=s.replace(a,b); open(p,"w",encoding="utf-8").write(s) EOF (1s)
+    $ F=/private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bulwg4yip.output; grep -c "Notifications ready" $F; grep "Notifications ready\|Requests ready" $F | tail -4; cd ~/hackatonproject && python3 - <<'EOF'
   p="docs/tasks/TASK-007-FIX.md"; s=open(p,encoding="utf-8").read()
   a="### 6a. Verification results on the current tree\nSee the hand-off message (filled after the background runs finish).\n"
   b="""### 6a. Verification results on the current tree
@@ -10072,8 +10072,8 @@ Waiting for the background verification to finish.
     Notifications ready: 9 announcements.
     Notifications ready: 0 announcements.
     [This command modified 1 file you've previously read: docs/tasks/TASK-007-FIX.md. Call Read before editing.]
-  ── Ran grep -n "Requests ready" /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bulwg4yip.output | tail -2; bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF' [TASK-007-FIX] Planner -> Coder: TASK Spec: docs/tasks/TASK-007-FIX.md (base 4608e59). Six small fixes, regression tests first (section 5.2 marks which must fail before the fix). - Home: heading «Новости»; news exclude only the deadlines shown on home (`home_summary`, fetch HOME_ITEMS + len(shown), filter by key `news-<uuid>`). - Form label «Весь факультет» (drop the unused `faculty` kwarg from AnnouncementForm, its view call and 7 test calls); `audience_label` faculty branch → faculty name only. - `Teacher.short_name` with U+00A0 (`NBSP` constant), update `test_teacher_short_name`. - Petitions: defaults → `core.clock.now`, services use `clock.now()` explicitly (incl. `add_staff_comment`); generate `petitions/0002_alter_petition_created_at_and_more.py`. - Move the `relative_day_label` import in `notifications/feed.py` to module level. Verification in section 8 with `tee` logs (baseline 735 tests). Do not commit. EOF
-    $ grep -n "Requests ready" /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bulwg4yip.output | tail -2; bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF'
+  ── Ran grep -n "Requests ready" /private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bulwg4yip.output | tail -2; bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF' [TASK-007-FIX] Planner -> Coder: TASK Spec: docs/tasks/TASK-007-FIX.md (base 4608e59). Six small fixes, regression tests first (section 5.2 marks which must fail before the fix). - Home: heading «Новости»; news exclude only the deadlines shown on home (`home_summary`, fetch HOME_ITEMS + len(shown), filter by key `news-<uuid>`). - Form label «Весь факультет» (drop the unused `faculty` kwarg from AnnouncementForm, its view call and 7 test calls); `audience_label` faculty branch → faculty name only. - `Teacher.short_name` with U+00A0 (`NBSP` constant), update `test_teacher_short_name`. - Petitions: defaults → `core.clock.now`, services use `clock.now()` explicitly (incl. `add_staff_comment`); generate `petitions/0002_alter_petition_created_at_and_more.py`. - Move the `relative_day_label` import in `notifications/feed.py` to module level. Verification in section 8 with `tee` logs (baseline 735 tests). Do not commit. EOF
+    $ grep -n "Requests ready" /private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bulwg4yip.output | tail -2; bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF'
   [TASK-007-FIX] Planner -> Coder: TASK
   Spec: docs/tasks/TASK-007-FIX.md (base 4608e59). Six small fixes, regression tests first (section 5.2 marks which must fail before the fix).
   - Home: heading «Новости»; news exclude only the deadlines shown on home (`home_summary`, fetch HOME_ITEMS + len(shown), filter by key `news-<uuid>`).
@@ -10561,7 +10561,7 @@ All existing verification commands pass (check, deploy check, makemigrations --c
     Ограничения работают: миграция прошла на демо-базе, и все 7 демо-аудиторий соответствуют локальной. Дальше запускаю базовые проверки в фоне и пишу спецификацию.
   ── Ran source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t008-feas.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t008-feas-at-2359.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t008-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t008/seed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t008/seed-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t008/seed.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; echo DONE
     $ source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t008-feas.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t008-feas-at-2359.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t008-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t008/seed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t008/seed-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t008/seed.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; echo DONE
-    Command running in background with ID: b2lu337b9. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/b2lu337b9.output. You will be notified when it completes. To check interim output, use Read on that file path.
+    Command running in background with ID: b2lu337b9. Output is being written to: /private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/b2lu337b9.output. You will be notified when it completes. To check interim output, use Read on that file path.
   ── Thought for 2ms
     I'm checking whether the schedule query-count tests around lines 205 and 237 will be affected, since adding links shouldn't change the query count. I'll also search the schedule view tests for assertions on room markup like `data-room-code` or the room span class.
 
@@ -10627,7 +10627,7 @@ All existing verification commands pass (check, deploy check, makemigrations --c
     I'm adding a CSS test that checks the map highlight rule exists in the stylesheet and that its color token is defined, and I'm updating the room helper so the floor is taken from the room number when it isn't given. I'm also settling the floor-parameter question: an invalid floor will return a 404, and I'm noting the reasoning for that.
 
     I'm settling the floor parameter: a floor with no rooms, or one that isn't a real floor, returns a 404, while bare `/map/` falls back to the lowest floor. I'm writing the plan out now, then I'll fill in the feasibility check once the background run finishes.
-  ── Read /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/b2lu337b9.output
+  ── Read /private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/b2lu337b9.output
 
 ── Created 1 file ──────────────────────────────────────────
   ── Created docs/tasks/TASK-008.md +617
@@ -11176,14 +11176,14 @@ All existing verification commands pass (check, deploy check, makemigrations --c
     Спецификация TASK-008 готова; дальше запишу результаты базового прогона тестов и передам задачу Кодеру.
 
 ── Ran 1 command ───────────────────────────────────────────
-  ── Ran F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/b2lu337b9.output; until grep -q "^DONE" "$F"; do sleep 10; done; grep -v " ready:" "$F"; grep "Notifications ready" "$F" (23m 9s)
-    $ F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/b2lu337b9.output; until grep -q "^DONE" "$F"; do sleep 10; done; grep -v " ready:" "$F"; grep "Notifications ready" "$F"
-    Command did not complete within its 600s timeout and was moved to the background (ID: bdzimmg1r). Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bdzimmg1r.output. You will be notified when it completes. If it is still running after 30m in the background, it will be stopped and you will be notified. It is running now: do not start a second copy while it runs. If it is no longer needed, stop it with TaskStop. No output had been read from it when it was moved. A program that buffers its output, or a pipe into one such as tail, can keep the output file empty until the command finishes. To check interim output, use Read on that file path.
+  ── Ran F=/private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/b2lu337b9.output; until grep -q "^DONE" "$F"; do sleep 10; done; grep -v " ready:" "$F"; grep "Notifications ready" "$F" (23m 9s)
+    $ F=/private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/b2lu337b9.output; until grep -q "^DONE" "$F"; do sleep 10; done; grep -v " ready:" "$F"; grep "Notifications ready" "$F"
+    Command did not complete within its 600s timeout and was moved to the background (ID: bdzimmg1r). Output is being written to: /private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bdzimmg1r.output. You will be notified when it completes. If it is still running after 30m in the background, it will be stopped and you will be notified. It is running now: do not start a second copy while it runs. If it is no longer needed, stop it with TaskStop. No output had been read from it when it was moved. A program that buffers its output, or a pipe into one such as tail, can keep the output file empty until the command finishes. To check interim output, use Read on that file path.
   ── Thought for 5ms
     The baseline background job hit its 20-minute timeout and was killed. I need to see how much of it actually finished before deciding what to do next.
 
 ── Explored 1 search ───────────────────────────────────────
-  ── Searched for  ready: in /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/b2lu337b9.output
+  ── Searched for  ready: in /private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/b2lu337b9.output
   ── Thought for 4ms
     I think the run_tests_at test at 23:59:59 hung rather than failed: the log stopped at 16:36:40 and the process was killed around 16:52. I need to work out which test was stuck under the frozen clock. I also need to check whether the bdzimmg1r waiter is still running, since it loops forever when DONE never appears, so I should stop it with TaskStop.
 
@@ -11191,7 +11191,7 @@ All existing verification commands pass (check, deploy check, makemigrations --c
 
 ── Ran 1 tool ──────────────────────────────────────────────
   ── Stopped task
-    {"message":"Successfully stopped task: bdzimmg1r (F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/b2lu337b9.output; until grep -q \"^DONE\" \"$F\"; do sleep 10; done; grep -v \" ready:\" \"$F\"; grep \"Notifications ready\" \"$F\")","task_id":"bdzimmg1r","task_type":"local_bash","command":"F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/b2lu337b9.output; until grep -q \"^DONE\" \"$F\"; do sleep 10; done; grep -v \" ready:\" \"$F\"; grep \"Notifications ready\" \"$F\""}
+    {"message":"Successfully stopped task: bdzimmg1r (F=/private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/b2lu337b9.output; until grep -q \"^DONE\" \"$F\"; do sleep 10; done; grep -v \" ready:\" \"$F\"; grep \"Notifications ready\" \"$F\")","task_id":"bdzimmg1r","task_type":"local_bash","command":"F=/private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/b2lu337b9.output; until grep -q \"^DONE\" \"$F\"; do sleep 10; done; grep -v \" ready:\" \"$F\"; grep \"Notifications ready\" \"$F\""}
   ── Thought for 5s
     I'm checking whether the run at bf09738 actually hung or was just cut off by the 20-minute background timeout. The last log line is at 16:36:40 and the kill happened around 16:52, so I'm lining up the timeline against the earlier passing baseline.
 
@@ -12041,7 +12041,7 @@ All existing verification commands pass (check, deploy check, makemigrations --c
     I'm planning the baseline verification now: running the suite a couple of times, starting it in the background with a long timeout, and writing the spec while it runs.
   ── Ran source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t008fix-feas.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t008fix-feas-at-2359.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t008fix-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t008/fixseed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t008/fixseed-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t008/fixseed.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; echo DONE
     $ source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t008fix-feas.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t008fix-feas-at-2359.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t008fix-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t008/fixseed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t008/fixseed-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t008/fixseed.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; echo DONE
-    Command running in background with ID: bdcf1zldu. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bdcf1zldu.output. You will be notified when it completes. To check interim output, use Read on that file path.
+    Command running in background with ID: bdcf1zldu. Output is being written to: /private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bdcf1zldu.output. You will be notified when it completes. To check interim output, use Read on that file path.
   ── Thought
     Базовые проверки идут в фоне, а я пишу спецификацию TASK-008-FIX для нестабильного теста, подписи на карте и компактного меню.
   ── Created docs/tasks/TASK-008-FIX.md +291
@@ -12355,15 +12355,15 @@ All existing verification commands pass (check, deploy check, makemigrations --c
     41:        pk_a = self.student_a.student_profile.pk
     73:        self.client.force_login(self.student_a)
     27:class AccessViewsTests(TestCase):
-  ── Ran sed -i '' 's|5. `accounts/tests/test_views.py` (the test with `full_content`, line 176)|5. `accounts/tests/test_views.py::AccessViewsTests::test_staff_list_empty_state_markup` (line 176)|' docs/tasks/TASK-008-FIX.md && grep -n "test_staff_list_empty_state_markup" docs/tasks/TASK-008-FIX.md; F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bdcf1zldu.output; grep -v " ready:" $F (1s)
-    $ sed -i '' 's|5. `accounts/tests/test_views.py` (the test with `full_content`, line 176)|5. `accounts/tests/test_views.py::AccessViewsTests::test_staff_list_empty_state_markup` (line 176)|' docs/tasks/TASK-008-FIX.md && grep -n "test_staff_list_empty_state_markup" docs/tasks/TASK-008-FIX.md; F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bdcf1zldu.output; grep -v " ready:" $F
+  ── Ran sed -i '' 's|5. `accounts/tests/test_views.py` (the test with `full_content`, line 176)|5. `accounts/tests/test_views.py::AccessViewsTests::test_staff_list_empty_state_markup` (line 176)|' docs/tasks/TASK-008-FIX.md && grep -n "test_staff_list_empty_state_markup" docs/tasks/TASK-008-FIX.md; F=/private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bdcf1zldu.output; grep -v " ready:" $F (1s)
+    $ sed -i '' 's|5. `accounts/tests/test_views.py` (the test with `full_content`, line 176)|5. `accounts/tests/test_views.py::AccessViewsTests::test_staff_list_empty_state_markup` (line 176)|' docs/tasks/TASK-008-FIX.md && grep -n "test_staff_list_empty_state_markup" docs/tasks/TASK-008-FIX.md; F=/private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bdcf1zldu.output; grep -v " ready:" $F
     77:5. `accounts/tests/test_views.py::AccessViewsTests::test_staff_list_empty_state_markup` (line 176): replace `assertIn("<li>", full_content)` with `assertIn(f'href="{reverse("accounts:staff_student_detail", args=[self.student_a.student_profile.pk])}"', full_content)` (`student_a` is in `group_x` of `staff_x`'s faculty).
     MSK 20261115-182607
     System check identified no issues (0 silenced).
     No changes detected
     [This command modified 1 file you've previously read: docs/tasks/TASK-008-FIX.md. Call Read before editing.]
-  ── Ran F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bdcf1zldu.output; until grep -q "^DONE" "$F"; do sleep 15; done; grep -v " ready:" "$F"; grep "Notifications ready" "$F" (4m 31s)
-    $ F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bdcf1zldu.output; until grep -q "^DONE" "$F"; do sleep 15; done; grep -v " ready:" "$F"; grep "Notifications ready" "$F"
+  ── Ran F=/private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bdcf1zldu.output; until grep -q "^DONE" "$F"; do sleep 15; done; grep -v " ready:" "$F"; grep "Notifications ready" "$F" (4m 31s)
+    $ F=/private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bdcf1zldu.output; until grep -q "^DONE" "$F"; do sleep 15; done; grep -v " ready:" "$F"; grep "Notifications ready" "$F"
     MSK 20261115-182607
     System check identified no issues (0 silenced).
     No changes detected
@@ -12802,7 +12802,7 @@ All existing verification commands pass (check, deploy check, makemigrations --c
     Нужные запросы Django работают на текущей версии, и оба выполняются одним запросом. Сейчас запускаю базовые проверки и пишу спецификацию чата.
   ── Ran source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t009-feas.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t009-feas-at-2359.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t009-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t009seed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t009seed-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t009seed.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; echo DONE
     $ source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t009-feas.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t009-feas-at-2359.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t009-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t009seed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t009seed-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t009seed.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; echo DONE
-    Command running in background with ID: ba9yvifs6. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/ba9yvifs6.output. You will be notified when it completes. To check interim output, use Read on that file path.
+    Command running in background with ID: ba9yvifs6. Output is being written to: /private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/ba9yvifs6.output. You will be notified when it completes. To check interim output, use Read on that file path.
 
 ── Explored 1 file ─────────────────────────────────────────
   ── Read accounts/models.py
@@ -13172,14 +13172,14 @@ All existing verification commands pass (check, deploy check, makemigrations --c
 
     I'm going with a captured original as the `side_effect` under `autospec=True`, so the spy calls through without recursing. I'll also drop the confusing PostgreSQL remark, since CaptureQueriesContext on SQLite doesn't show FOR UPDATE anyway. The `_form.html` token should stay the same on a re-render after an error and only be regenerated otherwise. The test count gets filled in once I have the baseline.
 
-── Ran python3 - <<'EOF' p="docs/tasks/TASK-009.md"; s=open(p,encoding="utf-8").read() a="- `test_send_locks_dialog` (`CaptureQueriesContext` on PostgreSQL is not available; assert with `mock.patch.object(QuerySet, \"select_for_update\", autospec=True, side_effect=…wraps…)` that `select_for_update` is called once per send)" b="- `test_send_locks_dialog` (SQLite drops `FOR UPDATE` from the SQL, so assert the call instead: `orig = QuerySet.select_for_update`; `with mock.patch.object(QuerySet, \"select_for_update\", autospec=True, side_effect=orig) as spy:` send one student and one staff message → `spy.call_count == 2`)" assert s.count(a)==1; s=s.replace(a,b); open(p,"w",encoding="utf-8").write(s) EOF F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/ba9yvifs6.output; until grep -q "^DONE" "$F"; do sleep 15; done; grep -v " ready:" "$F"; grep "Notifications ready" "$F" (1m 32s)
+── Ran python3 - <<'EOF' p="docs/tasks/TASK-009.md"; s=open(p,encoding="utf-8").read() a="- `test_send_locks_dialog` (`CaptureQueriesContext` on PostgreSQL is not available; assert with `mock.patch.object(QuerySet, \"select_for_update\", autospec=True, side_effect=…wraps…)` that `select_for_update` is called once per send)" b="- `test_send_locks_dialog` (SQLite drops `FOR UPDATE` from the SQL, so assert the call instead: `orig = QuerySet.select_for_update`; `with mock.patch.object(QuerySet, \"select_for_update\", autospec=True, side_effect=orig) as spy:` send one student and one staff message → `spy.call_count == 2`)" assert s.count(a)==1; s=s.replace(a,b); open(p,"w",encoding="utf-8").write(s) EOF F=/private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/ba9yvifs6.output; until grep -q "^DONE" "$F"; do sleep 15; done; grep -v " ready:" "$F"; grep "Notifications ready" "$F" (1m 32s)
   $ python3 - <<'EOF'
 p="docs/tasks/TASK-009.md"; s=open(p,encoding="utf-8").read()
 a="- `test_send_locks_dialog` (`CaptureQueriesContext` on PostgreSQL is not available; assert with `mock.patch.object(QuerySet, \"select_for_update\", autospec=True, side_effect=…wraps…)` that `select_for_update` is called once per send)"
 b="- `test_send_locks_dialog` (SQLite drops `FOR UPDATE` from the SQL, so assert the call instead: `orig = QuerySet.select_for_update`; `with mock.patch.object(QuerySet, \"select_for_update\", autospec=True, side_effect=orig) as spy:` send one student and one staff message → `spy.call_count == 2`)"
 assert s.count(a)==1; s=s.replace(a,b); open(p,"w",encoding="utf-8").write(s)
 EOF
-F=/private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/ba9yvifs6.output; until grep -q "^DONE" "$F"; do sleep 15; done; grep -v " ready:" "$F"; grep "Notifications ready" "$F"
+F=/private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/ba9yvifs6.output; until grep -q "^DONE" "$F"; do sleep 15; done; grep -v " ready:" "$F"; grep "Notifications ready" "$F"
   MSK 20261115-202032
   System check identified no issues (0 silenced).
   No changes detected
@@ -13447,7 +13447,7 @@ All existing verification commands pass (check, deploy check, makemigrations --c
     I'm going to write the spec now, but I'll kick off the baseline test run in the background first so I can see the current failures.
   ── Ran source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t009fix-feas.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t009fix-feas-at-2359.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t009fix-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; node --check static/js/chat.js && echo "js syntax ok"; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t009fix.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t009fix-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t009fix.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; echo DONE (2s)
     $ source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t009fix-feas.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t009fix-feas-at-2359.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t009fix-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; node --check static/js/chat.js && echo "js syntax ok"; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t009fix.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t009fix-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t009fix.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; echo DONE
-    Command running in background with ID: b346ew7cw. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/b346ew7cw.output. You will be notified when it completes. To check interim output, use Read on that file path.
+    Command running in background with ID: b346ew7cw. Output is being written to: /private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/b346ew7cw.output. You will be notified when it completes. To check interim output, use Read on that file path.
   ── Read chat/views.py
   ── Thought for 3ms
     I'm also checking the test classes in chat/tests/test_views.py, ViewTests and UpdatesViewTests, so I can reference them correctly. I also need to find existing tests that use `context["messages"]` and will have to be renamed.
@@ -14167,7 +14167,7 @@ All existing verification commands pass (check, deploy check, makemigrations --c
   ── Ran source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && (echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t010-feas.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t010-feas-at-2359.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t010-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; node --check static/js/chat.js && echo "js syntax ok"; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t010/seed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t010/seed-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t010/seed.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; echo DONE) > "$TMPDIR/t010/baseline.out" 2>&1 & echo started
     $ source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && (echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t010-feas.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t010-feas-at-2359.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t010-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; node --check static/js/chat.js && echo "js syntax ok"; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t010/seed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t010/seed-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t010/seed.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; echo DONE) > "$TMPDIR/t010/baseline.out" 2>&1 &
   echo started
-    Command running in background with ID: blv0biso6. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/blv0biso6.output. You will be notified when it completes. To check interim output, use Read on that file path.
+    Command running in background with ID: blv0biso6. Output is being written to: /private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/blv0biso6.output. You will be notified when it completes. To check interim output, use Read on that file path.
   ── Thought for 4ms
     I'm running the command in the background with `&` and `run_in_background`, which means it exits right away while the output goes to a file I can poll later. For the migration prototype, the baseline already seeds a shared DB, so I'll use a separate one, mig.sqlite3. I'll seed it with the current code, then run makemigrations and migrate in a temp copy where the model has no map_cell.
   ── Ran source .venv/bin/activate && export DEBUG=true DATABASE_URL="sqlite:///$TMPDIR/t010/mig.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t010/mig-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!' && rm -rf "$TMPDIR/t010/mig.sqlite3" "$TMPDIR/t010/copy" && python manage.py migrate -v0 && python manage.py seed_demo | grep -i "schedule" && mkdir -p "$TMPDIR/t010/copy" && git archive HEAD | tar -x -C "$TMPDIR/t010/copy" && cd "$TMPDIR/t010/copy" && python - <<'EOF' import re p = "university/models.py"; s = open(p).read() s = re.sub(r"\n    map_cell = models\.CharField\(.*?\n    \)\n", "\n", s, flags=re.S) s = re.sub(r"\n            models\.CheckConstraint\(\n                condition=models\.Q\(map_cell__in=.*?\n            \),", "", s, flags=re.S) s = re.sub(r"\n            models\.UniqueConstraint\(\n                fields=\[\"floor\", \"map_cell\"\],.*?\n            \),", "", s, flags=re.S) s = re.sub(r"\n        if self\.map_cell and .*?\)\n", "\n", s, flags=re.S) open(p, "w").write(s) EOF grep -n "map_cell" university/models.py; python manage.py makemigrations university --name remove_room_map_cell 2>&1 | tail -5; python manage.py migrate university 2>&1 | tail -1; python manage.py shell -c "from university.models import Room; print(Room.objects.count(), sorted(Room.objects.values_list('number', flat=True)))" 2>&1 | tail -1 (5s)
@@ -14942,7 +14942,7 @@ All existing verification commands pass (check, deploy check, makemigrations --c
     Could not fetch URL https://pypi.org/simple/pip/: There was a problem confirming the ssl certificate: ('OSStatus -26276',) - skipping
     WARNING: The directory '~/Library/Caches/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.
     Could not fetch URL https://pypi.org/simple/pip/: There was a problem confirming the ssl certificate: ('OSStatus -26276',) - skipping
-    Command did not complete within its 120s timeout and was moved to the background (ID: bo3hbw6uc). Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bo3hbw6uc.output. You will be notified when it completes. If it is still running after 30m in the background, it will be stopped and you will be notified. It is running now: do not start a second copy while it runs. If it is no longer needed, stop it with TaskStop. To check interim output, use Read on that file path.
+    Command did not complete within its 120s timeout and was moved to the background (ID: bo3hbw6uc). Output is being written to: /private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bo3hbw6uc.output. You will be notified when it completes. If it is still running after 30m in the background, it will be stopped and you will be notified. It is running now: do not start a second copy while it runs. If it is no longer needed, stop it with TaskStop. To check interim output, use Read on that file path.
 
 ── User ────────────────────────────────────────────────────
 [bb message from thread:thr_4izdzwetb4]
@@ -15112,7 +15112,7 @@ steer
     2
   ── Ran source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && (echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t011-feas.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t011-feas-at-2359.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t011-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; node --check static/js/chat.js && echo "js syntax ok"; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t011/seed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t011/seed-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t011/seed.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; echo DONE) > "$TMPDIR/t011/baseline.out" 2>&1; echo finished (6s)
     $ source .venv/bin/activate && export DEBUG=true && TS=$(TZ=Europe/Moscow date +%Y%m%d-%H%M%S) && (echo "MSK $TS" && python manage.py check 2>&1 | tail -1 && python manage.py makemigrations --check --dry-run 2>&1 | tail -1 && python manage.py test 2>&1 | tee "$TMPDIR/test-$TS-t011-feas.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-17T23:59:59 2>&1 | tee "$TMPDIR/test-$TS-t011-feas-at-2359.log" | grep -E "^Ran|^OK|^FAILED"; python scripts/run_tests_at.py 2026-11-18T00:00:00 2>&1 | tee "$TMPDIR/test-$TS-t011-feas-at-0000.log" | grep -E "^Ran|^OK|^FAILED"; DEBUG=false SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop ALLOWED_HOSTS=example.com ADMIN_URL=staff-panel/ python manage.py check --deploy --fail-level WARNING 2>&1 | tail -1; ruff check . | tail -1; ruff format --check . | tail -1; node --check static/js/chat.js && echo "js syntax ok"; python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('yaml ok')"; export DATABASE_URL="sqlite:///$TMPDIR/t011/seed.sqlite3" PRIVATE_MEDIA_ROOT="$TMPDIR/t011/seed-priv" DEMO_PASSWORD='Local-Demo-Pass-2026!'; rm -f "$TMPDIR/t011/seed.sqlite3"; python manage.py migrate -v0 && python manage.py seed_demo | tail -1 && python manage.py seed_demo | tail -1; echo DONE) > "$TMPDIR/t011/baseline.out" 2>&1; echo finished
-    Command running in background with ID: bq6hk0czl. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bq6hk0czl.output. You will be notified when it completes. To check interim output, use Read on that file path.
+    Command running in background with ID: bq6hk0czl. Output is being written to: /private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bq6hk0czl.output. You will be notified when it completes. To check interim output, use Read on that file path.
   ── Thought for 958ms
     I've got a stray gunicorn process still running on port 8765, started from that earlier command, and pkill can't see it from here. The sandbox only lets me signal processes I started in the same command, so I'll try to find its PID in the log file instead.
 
@@ -15937,10 +15937,10 @@ All existing verification commands pass (check, deploy check, makemigrations --c
           21 static/css/tokens.css
          444 total
     total 248
-    drwxr-xr-x@ 4 andreyorlov  staff     128 Nov 17 12:24 .
-    drwxr-xr-x@ 5 andreyorlov  staff     160 Nov 17 12:24 ..
-    -rw-r--r--@ 1 andreyorlov  staff    4413 Nov 17 12:24 OFL.txt
-    -rw-r--r--@ 1 andreyorlov  staff  118204 Nov 17 12:24 PressStart2P-Regular.ttf
+    drwxr-xr-x@ 4 [user]  staff     128 Nov 17 12:24 .
+    drwxr-xr-x@ 5 [user]  staff     160 Nov 17 12:24 ..
+    -rw-r--r--@ 1 [user]  staff    4413 Nov 17 12:24 OFL.txt
+    -rw-r--r--@ 1 [user]  staff  118204 Nov 17 12:24 PressStart2P-Regular.ttf
   ── Read docs/design/home-mockup.html
   ── Thought for 5ms
     I'm going to look at the JPG mockup first, then go through the current CSS files, base.html, the nav items, the core home view and template, and the notifications template.
@@ -19914,7 +19914,7 @@ Zoom buttons, route finding, new features.
     2
   ── Ran source .venv/bin/activate && W="$TMPDIR/t013fix2" && DEBUG=true DATABASE_URL="sqlite:///$W/db.sqlite3" PRIVATE_MEDIA_ROOT="$W/private" python manage.py runserver 127.0.0.1:8771 --noreload > "$W/server.log" 2>&1 (2s)
     $ source .venv/bin/activate && W="$TMPDIR/t013fix2" && DEBUG=true DATABASE_URL="sqlite:///$W/db.sqlite3" PRIVATE_MEDIA_ROOT="$W/private" python manage.py runserver 127.0.0.1:8771 --noreload > "$W/server.log" 2>&1
-    Command running in background with ID: bhvg5fzrg. Output is being written to: /private/tmp/claude-501/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bhvg5fzrg.output. You will be notified when it completes. To check interim output, use Read on that file path.
+    Command running in background with ID: bhvg5fzrg. Output is being written to: /private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/bhvg5fzrg.output. You will be notified when it completes. To check interim output, use Read on that file path.
   ── Ran sleep 4; curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8771/health/; bb browser-automation open --backend local --headless --json 2>&1 | tail -5 (6s)
     $ sleep 4; curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8771/health/; bb browser-automation open --backend local --headless --json 2>&1 | tail -5
     200
@@ -19973,14 +19973,14 @@ Zoom buttons, route finding, new features.
 
     Name                  Role    ID               Type        Status        Provider       Last seen
     --------------------  ------  ---------------  ----------  ------------  -------------  ---------
-    MacBook Air — Andrey  server  host_cuvmpv75p3  persistent  connected     user-enrolled  just now
+    MacBook Air — [имя скрыто]  server  host_cuvmpv75p3  persistent  connected     user-enrolled  just now
     --------------------  ------  ---------------  ----------  ------------  -------------  ---------
     Pushka                        host_j9sh7k6286  persistent  disconnected  manual         4d ago
 
 
     Name                  Role    ID               Type        Status        Provider       Last seen
     --------------------  ------  ---------------  ----------  ------------  -------------  ---------
-    MacBook Air — Andrey  server  host_cuvmpv75p3  persistent  connected     user-enrolled  just now
+    MacBook Air — [имя скрыто]  server  host_cuvmpv75p3  persistent  connected     user-enrolled  just now
     --------------------  ------  ---------------  ----------  ------------  -------------  ---------
     Pushka                        host_j9sh7k6286  persistent  disconnected  manual         4d ago
   ── Ran bb browser-automation open --backend local --machine host_cuvmpv75p3 --headless --json 2>&1 | tail -15 (4s)
@@ -22205,10 +22205,10 @@ TASK-015 go (user decision). TASK-014-FIX is committed (afed2a1) and the tree is
 ── Ran 6 commands, explored 1 search, 3 files ──────────────
   ── Thought for 7ms
     I'm going to pull up the original TASK-015 request from the transcript, so I'm searching the transcript JSONL for that task ID.
-  ── Ran cd ~/hackatonproject; python3 - <<'EOF' 2>/dev/null import json p="~/.claude/projects/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d.jsonl" for line in open(p):     try: d=json.loads(line)     except: continue     m=d.get("message",{})     if m.get("role")!="user": continue     c=m.get("content")     texts=[c] if isinstance(c,str) else [x.get("text","") for x in c if isinstance(x,dict) and x.get("type")=="text"]     for t in texts:         if "[TASK-015]" in t:             print("=====",d.get("timestamp")); print(t[:6000]) EOF (2s)
+  ── Ran cd ~/hackatonproject; python3 - <<'EOF' 2>/dev/null import json p="~/.claude/projects/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d.jsonl" for line in open(p):     try: d=json.loads(line)     except: continue     m=d.get("message",{})     if m.get("role")!="user": continue     c=m.get("content")     texts=[c] if isinstance(c,str) else [x.get("text","") for x in c if isinstance(x,dict) and x.get("type")=="text"]     for t in texts:         if "[TASK-015]" in t:             print("=====",d.get("timestamp")); print(t[:6000]) EOF (2s)
     $ cd ~/hackatonproject; python3 - <<'EOF' 2>/dev/null
   import json
-  p="~/.claude/projects/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d.jsonl"
+  p="~/.claude/projects/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d.jsonl"
   for line in open(p):
       try: d=json.loads(line)
       except: continue
@@ -22407,7 +22407,7 @@ TASK-015 go (user decision). TASK-014-FIX is committed (afed2a1) and the tree is
     I'm going to make a clean copy from git archive in a temp directory without any `.env` file, and set dummy environment variables there, so the measurement doesn't depend on whatever the app would read from `.env`.
   ── Ran set -e; D=$TMPDIR/t015; rm -rf "$D"; mkdir -p "$D"; cd ~/hackatonproject; git archive HEAD | tar -x -C "$D"; cd "$D"; export DEBUG=true SECRET_KEY=dummy-key-for-local-check DATABASE_URL=sqlite:///$D/db.sqlite3 PRIVATE_MEDIA_ROOT=$D/pm DEMO_PASSWORD=demo-pass-123 ALLOWED_HOSTS=localhost,127.0.0.1; ~/hackatonproject/.venv/bin/python manage.py migrate -v0; ~/hackatonproject/.venv/bin/python manage.py seed_demo >/dev/null; ls -la db.sqlite3 (5s)
     $ set -e; D=$TMPDIR/t015; rm -rf "$D"; mkdir -p "$D"; cd ~/hackatonproject; git archive HEAD | tar -x -C "$D"; cd "$D"; export DEBUG=true SECRET_KEY=dummy-key-for-local-check DATABASE_URL=sqlite:///$D/db.sqlite3 PRIVATE_MEDIA_ROOT=$D/pm DEMO_PASSWORD=demo-pass-123 ALLOWED_HOSTS=localhost,127.0.0.1; ~/hackatonproject/.venv/bin/python manage.py migrate -v0; ~/hackatonproject/.venv/bin/python manage.py seed_demo >/dev/null; ls -la db.sqlite3
-    -rw-r--r--@ 1 andreyorlov  wheel  663552 Nov 19 14:16 db.sqlite3
+    -rw-r--r--@ 1 [user]  wheel  663552 Nov 19 14:16 db.sqlite3
     Shell cwd was reset to ~/hackatonproject
   ── Thought for 5ms
     I'm clearing out my own temp directory, which is safe since it's freshly created. The timestamp looks off, but that doesn't matter for this. Next I'll start gunicorn with five workers on port 8765, load a few pages, and check its memory usage.
@@ -25292,7 +25292,7 @@ Now I write the prototype code into the temporary copy.
   ── Ran C=$TMPDIR/t016; cd $C; export DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop; L=$TMPDIR/test-t016-code-$(date +%Y%m%d-%H%M%S).log; ~/hackatonproject/.venv/bin/python manage.py test --parallel 2>&1 > $L 2>&1; grep -E "^Ran |^OK|^FAILED|^(FAIL|ERROR):" $L; echo $L; TZ=Europe/Moscow date +%H:%M (52s)
     $ C=$TMPDIR/t016; cd $C; export DEBUG=true SECRET_KEY=ci-dummy-secret-key-not-for-production-0123456789abcdefghijklmnop; L=$TMPDIR/test-t016-code-$(date +%Y%m%d-%H%M%S).log; ~/hackatonproject/.venv/bin/python manage.py test --parallel 2>&1 > $L 2>&1; grep -E "^Ran |^OK|^FAILED|^(FAIL|ERROR):" $L; echo $L; TZ=Europe/Moscow date +%H:%M
     <persisted-output>
-    Output too large (86KB). Full output saved to: ~/.claude/projects/-Users-andreyorlov-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tool-results/b3gczi4j0.txt
+    Output too large (86KB). Full output saved to: ~/.claude/projects/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tool-results/b3gczi4j0.txt
 
     Preview (first 2KB):
     Creating test database for alias 'default'...
@@ -31247,3 +31247,2685 @@ Error during compaction: You've hit your 5-hour limit · resets 5:30am (America/
 - **TASK-015, TASK-016, TASK-017** закоммичены, по ним от меня ничего не нужно.
 
 Новую задачу я начну, когда тимлид её пришлёт.
+
+── User ────────────────────────────────────────────────────
+/compact
+
+── Context compacted ───────────────────────────────────────
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-018] Team lead -> Planner: TASK
+Requested by the user (21.11). Write the spec `docs/tasks/TASK-018.md` and hand it to the UI coder.
+Assignee: UI coder (thr_pgcwc2dwnn)
+
+## Context
+Two small user-requested fixes. Apply your "Feasibility check" and "Test plan" sections. Two Pentester threads run security tests at the same time (PENTEST-2 on production, PENTEST-3 on a `git archive` copy of HEAD); they do not touch the working tree.
+
+## Items
+1. Stars on wide screens. User: on the desktop the stars look very strange - they sit only at the edges and form a "ladder". Cause (`static/css/theme.css:30-95`): `body::before` / `body::after` put all side stars into two 3-4 px wide columns at `left: 4px` / `right: 5px` with x offsets of 0-3 px, so on a wide screen they read as two vertical zig-zag lines at the window edges; the header stars are hidden from 48rem. Redraw the stars for wide screens: scattered irregularly over the whole free side margins on both sides (varied x and y, no visible rows, columns, diagonals or ladders), the same two colours and pixel style, still pure CSS, never over the content column, header or footer text or controls (D13 from TASK-012 stays). Choose the breakpoints from the real content width. Check 1024, 1280, 1440 and 1920 px (and that 360 px is unchanged or better). No JavaScript, no images, no inline styles (CSP).
+2. Staff chat counter in the menu. Students see "Чат (n)" (`templates/includes/site_nav_items.html:8`, `chat/templatetags/chat_tags.py`, `chat/selectors.py::student_unread_count`). Staff see only "Чаты" (`site_nav_items.html:13`). Show "Чаты (n)" for staff, where n = unread student messages in the dialogs this staff member can see: the same rule as the "new" counts of the staff chat list (`chat/selectors.py::staff_dialog_list`: `author_role` student, `id > dialog.staff_read_id`, dialogs from `dialogs_visible_to`). Same cap and hiding as for students (`CHAT_BADGE_CAP`, "N+", nothing when 0); computed on page load like the student badge (no polling); one query, no N+1. The read marker is shared by the faculty's staff (shared inbox, decision 15.11): when one staff member opens a dialog, the count drops for all of them - keep that. The student badge stays unchanged; superusers and anonymous users get no badge.
+
+## Verification
+All existing verification commands. Tests for item 2: count for own faculty only, staff and own messages excluded, read marker lowers the count, cap, hidden at 0, student badge unchanged, query count. Item 1: a visual check with screenshots at the widths above (both pages with short and long content), and a test that the stars stay CSS-only (no new markup or inline style).
+
+── Ran 1 command, explored 2 files, 2 searches ─────────────
+  ── Thought for 8ms
+    I'm starting on TASK-018 and want to look at the relevant code first.
+  ── Ran git log --oneline -3 && git status --short && sed -n 1,140p static/css/theme.css && cat templates/includes/site_nav_items.html && cat chat/templatetags/chat_tags.py && grep -n "def \|CHAT_BADGE_CAP" -r chat/selectors.py chat/*.py | head -50
+    $ git log --oneline -3 && git status --short && sed -n 1,140p static/css/theme.css && cat templates/includes/site_nav_items.html && cat chat/templatetags/chat_tags.py && grep -n "def \|CHAT_BADGE_CAP" -r chat/selectors.py chat/*.py | head -50
+    094dd55 Plan: pentest plan to the deadline (2 critical + 1 optional), work cutoff 21.11 23:59, compaction rule
+    0371b96 Plan: TASK-016-FIX on the server
+    cd7fbac TASK-016-FIX: redrawn eye icon, themed CSRF failure page, systemd without the trial folder
+    /* Visual theme layer: "night pixel" (TASK-012). Colours come only from tokens.css. */
+
+    @font-face {
+      font-family: "Press Start 2P";
+      src: url("../fonts/PressStart2P-Regular.ttf") format("truetype");
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    /* Page: night sky gradient. Native widgets (date picker, select arrow) use their dark look. */
+    html {
+      background: var(--color-bg);
+      color-scheme: dark;
+    }
+
+    body {
+      position: relative;
+      min-height: 100vh;
+      background: linear-gradient(
+        180deg,
+        var(--color-sky-1) 0%,
+        var(--color-sky-2) 40%,
+        var(--color-sky-3) 75%,
+        var(--color-sky-4) 100%
+      );
+      color: var(--color-text);
+    }
+
+    /* Stars (D13): pixels in the side margins and in the header, never over content. */
+    body::before,
+    body::after,
+    .site-header::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      width: 3px;
+      height: 3px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::before {
+      left: 4px;
+      box-shadow:
+        0 140px 0 0 var(--color-star-lilac),
+        2px 330px 0 0 var(--color-star-yellow),
+        0 520px 0 0 var(--color-star-lilac),
+        3px 700px 0 0 var(--color-star-yellow),
+        1px 910px 0 0 var(--color-star-lilac),
+        0 1130px 0 0 var(--color-star-yellow),
+        2px 1360px 0 0 var(--color-star-lilac),
+        0 1600px 0 0 var(--color-star-yellow);
+    }
+
+    body::after {
+      right: 5px;
+      box-shadow:
+        0 210px 0 0 var(--color-star-yellow),
+        -1px 420px 0 0 var(--color-star-lilac),
+        0 640px 0 0 var(--color-star-yellow),
+        -2px 820px 0 0 var(--color-star-lilac),
+        0 1040px 0 0 var(--color-star-yellow),
+        -1px 1250px 0 0 var(--color-star-lilac),
+        0 1480px 0 0 var(--color-star-yellow);
+    }
+
+    .site-header::after {
+      right: 14px;
+      box-shadow:
+        0 10px 0 0 var(--color-star-yellow),
+        -28px 30px 0 0 var(--color-star-lilac),
+        -70px 12px 0 0 var(--color-star-yellow),
+        -112px 34px 0 0 var(--color-star-lilac),
+        -150px 16px 0 0 var(--color-star-yellow);
+    }
+
+    .site-header,
+    .site-main,
+    .site-footer {
+      position: relative;
+      z-index: 1;
+    }
+
+    .site-header {
+      z-index: 2;
+      border-bottom: 4px solid var(--color-frame);
+    }
+
+    /* The wide header has no free space for header stars: keep only the side stars. */
+    @media (min-width: 48rem) {
+      .site-header::after {
+        display: none;
+      }
+    }
+
+    /* Links and focus. */
+    a {
+      color: var(--color-link);
+    }
+
+    a:hover {
+      text-decoration-thickness: 3px;
+    }
+
+    a:focus-visible,
+    button:focus-visible,
+    summary:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible,
+    [tabindex]:focus-visible {
+      outline: 3px solid var(--color-focus);
+      outline-offset: 3px;
+    }
+
+    .btn:focus-visible,
+    .site-menu-toggle:focus-visible,
+    .form button:focus-visible,
+    .action-form button:focus-visible {
+      outline-offset: 8px;
+    }
+
+    input[type="file"]:focus-visible::file-selector-button {
+      outline: 3px solid var(--color-focus);
+    }
+
+    .skip-link:focus {
+      z-index: 20;
+      padding: var(--space-2) var(--space-3);
+      background: var(--color-frame-gap);
+      color: var(--color-link);
+    }
+
+    /* Headings (D8). */
+    h1,
+    h2,
+    .site-title,
+    .card-title {
+      font-family: var(--font-pixel);
+    <ul class="site-nav-list">
+      {% url 'accounts:profile' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Профиль</a></li>
+      {% if user.is_student %}
+      {% url 'schedule:today' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Расписание</a></li>
+      {% url 'campusmap:map' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Карта</a></li>
+      {% url 'academics:my_grades' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Успеваемость</a></li>
+      {% url 'petitions:my_list' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Документы</a></li>
+      {% url 'chat:student' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Чат{% if chat_badge %} ({{ chat_badge }}){% endif %}</a></li>
+      {% elif user.is_deanery_staff %}
+      {% url 'schedule:staff_groups' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Расписание</a></li>
+      {% url 'campusmap:map' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Карта</a></li>
+      {% url 'petitions:staff_queue' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Документы</a></li>
+      {% url 'chat:staff_list' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Чаты</a></li>
+      {% url 'notifications:staff_announcements' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Объявления</a></li>
+      {% endif %}
+      {% if user.is_deanery_staff %}
+      {% url 'accounts:staff_student_list' as nav_url %}<li><a href="{{ nav_url }}"{% if request.path == nav_url %} aria-current="page"{% endif %}>Студенты</a></li>
+      {% endif %}
+      <li>
+        <form class="site-nav-logout" method="post" action="{% url 'accounts:logout' %}">
+          {% csrf_token %}
+          <button type="submit">Выйти</button>
+        </form>
+      </li>
+    </ul>
+    from django import template
+
+    from chat.constants import CHAT_BADGE_CAP
+    from chat.selectors import student_unread_count
+
+    register = template.Library()
+
+
+    @register.simple_tag(takes_context=True)
+    def chat_unread_badge(context) -> str:
+        request = context.get("request")
+        if request is None:
+            return ""
+        count = student_unread_count(request.user)
+        if count == 0:
+            return ""
+        if count > CHAT_BADGE_CAP:
+            return f"{CHAT_BADGE_CAP}+"
+        return str(count)
+    chat/selectors.py:18:def dialogs_visible_to(user: AbstractBaseUser | AnonymousUser) -> QuerySet[Dialog]:
+    chat/selectors.py:28:def staff_dialog_list(user: AbstractBaseUser | AnonymousUser) -> QuerySet[Dialog]:
+    chat/selectors.py:52:def student_unread_count(user: AbstractBaseUser | AnonymousUser) -> int:
+    chat/demo.py:87:def seed_chat_demo(today: date) -> ChatSeedSummary:
+    chat/admin.py:12:    def has_add_permission(self, request, obj=None):
+    chat/admin.py:22:    def has_add_permission(self, request):
+    chat/admin.py:25:    def has_change_permission(self, request, obj=None):
+    chat/admin.py:28:    def has_delete_permission(self, request, obj=None):
+    chat/constants.py:10:CHAT_BADGE_CAP = 99
+    chat/models.py:38:    def __str__(self) -> str:
+    chat/models.py:86:    def __str__(self) -> str:
+    chat/selectors.py:18:def dialogs_visible_to(user: AbstractBaseUser | AnonymousUser) -> QuerySet[Dialog]:
+    chat/selectors.py:28:def staff_dialog_list(user: AbstractBaseUser | AnonymousUser) -> QuerySet[Dialog]:
+    chat/selectors.py:52:def student_unread_count(user: AbstractBaseUser | AnonymousUser) -> int:
+    chat/forms.py:15:    def clean_text(self):
+    chat/services.py:24:def normalize_text(text: str) -> str:
+    chat/services.py:28:def text_errors(text: str) -> list[str]:
+    chat/services.py:36:def _idempotent_message(dialog: Dialog, author: User, client_token: UUID | None) -> Message | None:
+    chat/services.py:42:def send_student_message(student: StudentProfile, text: str, client_token: UUID | None) -> Message:
+    chat/services.py:83:def send_staff_message(
+    chat/services.py:119:def mark_read(dialog_id: int, side: str, up_to_id: int) -> None:
+    chat/services.py:126:def load_history(dialog: Dialog) -> tuple[list[Message], bool]:
+    chat/services.py:134:def messages_after(dialog: Dialog, after_id: int) -> list[Message]:
+    chat/views.py:37:def _history_context(dialog, viewer_is_student, poll_url, refresh_url) -> dict:
+    chat/views.py:53:def _empty_history(viewer_is_student, poll_url, refresh_url, student_name="") -> dict:
+    chat/views.py:73:    def get_context_data(self, **kwargs):
+    chat/views.py:90:    def get(self, request, *args, **kwargs):
+    chat/views.py:97:    def post(self, request, *args, **kwargs):
+    chat/views.py:117:    def get(self, request, *args, **kwargs):
+    chat/views.py:141:    def get_context_data(self, **kwargs):
+    chat/views.py:152:    def get_object(self):
+    chat/views.py:160:    def get_context_data(self, **kwargs):
+    chat/views.py:173:    def get(self, request, *args, **kwargs):
+    chat/views.py:179:    def post(self, request, *args, **kwargs):
+    chat/views.py:208:    def get(self, request, *args, **kwargs):
+  ── Read chat/selectors.py
+  ── Searched for chat_unread_badge\|chat_badge\|student_unread_count in .
+  ── Read templates/base.html
+  ── Thought for 48s
+    I'm working out the layout constraints: the content area tops out at 960px including its 24px padding, and I need to confirm the base font size is 16px through the --font-size-base variable. The header and footer both run full width, so any stars positioned within the header's height would sit behind it, and the wide nav may hide them entirely.
+
+    I still need to check the footer's text alignment, since the side stars could overlap its text on short pages. I also want to see how the header lays out on wide screens to know whether the stars near the top would be hidden behind it.
+
+    I'm weighing two ways to place the stars in the side margins: a fixed box-shadow set with media queries for each breakpoint, or a pseudo-element sized to the margin width with percentage-positioned gradient layers, which would adapt to any viewport.
+
+    I'm weighing percentage-based gradient layers that scale with the margin width, so the stars spread across the whole side area at any viewport size. The catch is that a fixed vertical pattern would repeat into visible columns on long pages, so I'd need a tile tall enough that the repeat isn't noticeable.
+
+    I'm considering a conic-gradient trick: a single gradient layer that paints a small 3px square at the top-left of each tile, so the tile can repeat vertically without needing a separate element per star.
+
+    Still working out the conic-gradient corner trick for a single dot: the quadrant to the up-left of the point, sweeping from 270° to 360°, so the gradient paints only the top-left corner of each tile.
+
+    I'm going to use a single background layer per star, positioned with a percentage across the margin and a pixel offset down the page, so the stars scale with the side space. The pseudo-element can run the full height of the body, and anything below that edge just gets clipped, so the scroll area won't change.
+
+    I'm now weighing placing the stars on the content column itself rather than on the full body, since the header is full-width and its brand sits inside the margin zone. A pseudo-element on the main column, offset to its left and sized to the margin, would keep the stars clear of the header's vertical range, though the 100vw width calculation might spill slightly past the scrollbar.
+
+    I'm checking whether the stars should sit on the content column rather than the body, since a 100vw width could push a pseudo-element past the viewport edge and cause horizontal scrolling. Anchoring the stars to the main element would also keep them between the header and footer automatically.
+
+    I'm checking whether the right-hand pseudo-element would overflow the viewport, since `50vw` counts the scrollbar while percentages are measured against the content column. The extra width should only spill a few pixels past the edge and stay out of normal scrolling.
+
+    I'm checking the right-hand pseudo-element against the scrollbar: `50vw` includes the scrollbar width, so it would overflow by a few pixels and cause horizontal scrolling. I'm considering trimming the width with a small fixed offset so the star layer stays inside the viewport, with stars kept clear of the edge.
+
+    I'm going to check whether the header has its own background, since an opaque header would hide any stars placed beneath it anyway. I also want to find the D13 requirement in TASK-012 that says stars should never sit over content. Scoping the pseudo-elements to the main column might clash with the pseudo-elements it already uses, so I'll look at that too.
+
+    I'm checking whether `.site-main` has an overflow setting that would clip pseudo-elements placed outside its box. I also need to decide how to space the stars vertically: percentage positions would compress them on short pages and spread them out on long ones, while a fixed pixel spacing with a tile that repeats would keep their density steady.
+
+    I'm considering a repeating-gradient layer for the star tiles: each layer would be a narrow strip with a small dot at the top, repeated vertically with a period that differs per layer so the pattern doesn't line up into obvious columns. The tile height would need to stay large enough to avoid a visible repeat on long pages.
+
+    I'm settling on a single background layer per star, with each layer's horizontal position set as a percentage so the dots scale with the margin, and a tile height around 1600px so the vertical repeat stays out of view on most screens.
+
+    I'm settling the breakpoint question: the margin only exists once the viewport passes about 960px plus the scrollbar, so below roughly 1000px the side stars would be squeezed into a few pixels. I'm considering a minimum width for showing them, around 1056px, and checking whether the 1024px case still leaves enough room.
+
+    I'm settling on a breakpoint for the scattered stars: the side margin only opens up past about 960px, so on narrow screens I'll keep the existing thin edge columns as they are, since they already work at 360px. The new scatter would only kick in above roughly 1024px, where there's enough room beside the content.
+
+    I'm weighing whether the header and footer have their own backgrounds, since an opaque header would hide stars placed beneath it anyway. I also want to check the footer's styling and find the D13 rule in TASK-012 about stars never sitting over content.
+  ── Searched for D13 in docs/tasks/TASK-012.md
+
+── Assistant ───────────────────────────────────────────────
+Пишу спецификацию TASK-018: изучаю CSS звёзд и счётчик чата. Потом проверю решение на копии проекта.
+
+── Explored 4 files, 1 search, ran 1 command ───────────────
+  ── Read static/css/base.css
+  ── Thought for 2m 23s
+    The header is transparent and spans the full width, with the brand on the left, nav in the middle, and actions on the right. The footer is full width with its text at the left. So the stars in the margins need to stay within the main content's vertical range, and a `::before`/`::after` on `.site-main` positioned at top and bottom zero looks like the cleanest way to do that. I'm checking whether `.site-main` already uses pseudo-elements and whether it has overflow set that would clip them.
+
+    I'm weighing whether `left: 100%` with a width on the pseudo-element can overflow horizontally, since `100vw` would count the classic scrollbar. Using full-bleed edge offsets with `left` and `right` calc values looks safer, and star positions could be fixed distances from the viewport edges so they stay out of the content column.
+
+    I'm checking whether horizontal overflow is actually a problem here, since 100vw includes a classic scrollbar on Windows but not on macOS overlay scrollbars. The project's thin scrollbar styling may also change the numbers, so I'll look at that before deciding whether a safeguard like overflow-x: clip is worth the risk to sticky elements.
+
+    I'm weighing whether `overflow-x: clip` on body is safe, but propagating it to the viewport effectively turns on hidden horizontal scrolling, which could clip legitimately wide content like tables on mobile. That makes a global overflow change too risky. I'm looking for a way to size the star layers without relying on `100vw`, which counts the scrollbar.
+
+    I'm sizing the left star layer with `right: 100%` and a width of `50vw - 50%`, so it spills into the margin on the left side, where negative overflow is clipped and can't add a scrollbar. The right side is harder, since `left: 100%` plus that same width would push past the viewport edge on classic scrollbars, so I'm considering subtracting a small fixed amount to cover the scrollbar width.
+
+    I'm weighing whether a 10px safety margin on the right-side star layer is enough to keep the absolutely positioned box from adding horizontal scroll, since its border box still counts toward scrollable overflow even when it's visually empty.
+
+    I'm considering an alternative that avoids `100vw` entirely, since the right-side layer is the hard part. I could use one layer that overflows to the left, which negative overflow clips harmlessly, and only worry about sizing the side that would push past the viewport edge.
+
+    I'm considering using the body's pseudo-elements instead, sized as half the body width minus 30rem, which would give exact margins without relying on `100vw`. The open question is the vertical range, since the header's height depends on whether the brand title and nav wrap at wider breakpoints.
+
+    I'm checking the vertical range now: the header's height at wide breakpoints should be roughly fixed, so I'll measure it in the browser and start the stars just below it. The footer's height depends on whether its disclaimer wraps, so I still need to confirm that before deciding where the stars should stop at the bottom.
+
+    I'm checking the bottom edge now: the footer's height shifts between one and two lines of disclaimer text, so I'll pin the stars' bottom offset to a fixed value that clears the tallest case.
+
+    Since the body's pseudo-elements can take exact margin widths from `50%` and `--content-max-width`, I'm moving toward that approach, with the vertical range fixed to the header and footer heights. I still need to measure the header in the browser to confirm it stays one row at wide breakpoints.
+
+    Since the body's pseudo-elements can be sized exactly from `50%` and `--content-max-width`, I'm planning to tile the background stars along the vertical span between the header and footer, with the top and bottom offsets set from those measured heights.
+
+    I'm working out where the star layers should sit vertically, so they start clear of the header and stop above the footer's tallest wrapped case. I'll pin the top and bottom offsets to measured heights and use a fixed pixel position for the star tiles, so each star lands at a predictable spot.
+
+    I'm checking whether `body::before` can be sized from `50%` minus half the content max width, which would give exact margins without `100vw`. That only works if the vertical range is fixed, so I need the header height at wide breakpoints, and I'll set the bottom offset to clear the footer's tallest wrapped case. The narrow-screen box-shadow stars stay as they are, and the wide-screen version replaces them.
+
+    I'm settling on a breakpoint around 64rem, where the side margins are wide enough to hold the stars, and I'll keep the existing narrow-screen stars below that as they are.
+
+    I'm weighing a second, denser set of stars for wider margins, since at 1920px there's room for more, while at 1024px the narrow band would only fit a few in a tall column.
+
+    I'm settling on two breakpoints for the wider star layers: one at 64rem, where the margins first hold a usable band, and a denser set at 80rem, where there's room for more stars without crowding.
+
+    Since the background-image list doesn't cycle the way the other properties do, I'll need a separate color for each layer written out explicitly, with the size and position values repeating across them.
+
+    Working out whether the star layers can use percentage positions and still land on whole pixels, since a fractional offset could blur the edges. I'm also weighing `cqw` container units for the box-shadow offsets, though making body a size container might disturb its layout, so the background-gradient approach looks safer.
+
+    I'm checking whether fractional background positions will blur the star edges, since percentage offsets can land between pixels. I'll test it in Chrome to see whether the background tiles snap to the pixel grid.
+
+    I'm sticking with the tiled star pattern, though a single 1600px period would make the whole field repeat at the same spacing, so I'm thinking about varying the layers to break that up.
+
+    I'm thinking about the bottom offset now: the footer's text sits at the left, and at 1024px its disclaimer should fit on a single line, so I'm checking whether `bottom: 7rem` clears it, and I'll use a similar `top` offset for the header.
+
+    The footer sits right after main, not pinned to the viewport bottom, so on short pages there's empty body space below it. A `bottom` offset measured from the body would then leave the star layer running past the footer's text on those pages, which I'd need to handle.
+
+    I'm going back to anchoring the star layers on `.site-main` so their vertical extent matches the main column exactly, since a body-based offset would run past the footer on short pages. That brings back the viewport-width problem, so I'm checking whether `50vw` minus half the main width can position the side pseudo-elements without causing horizontal overflow. The left edge works out to roughly half the scrollbar width below zero, which should be harmless.
+
+    I'm settling the side layers' width as `50vw - 50% - 1rem`, so each one hugs the content column from outside and stops short of the window edge. The left layer gets its outer edge at about 16px, and the right one ends just inside the viewport, so neither causes horizontal overflow.
+
+    I'm weighing whether to avoid the overflow problem by clipping, but that would also clip the star pseudo-elements I need, so I'm leaning toward keeping the width math alone.
+
+    I'm considering whether `box-shadow` or `border-image-outset` on `.site-main` could paint the star layers outside the column without adding scrollable overflow, since both are ink overflow rather than scrollable overflow. Offsets could be built from `vw`, which avoids the percentage problem.
+
+    I'm weighing whether box-shadow offsets can use vw-based calc to place the star layers outside the column without creating scroll overflow. The catch is that box-shadow can't repeat, so I'd need to list stars down the length of the page, and on short pages those shadows would spill past the main box and over the footer.
+
+    I'm considering clipping the pseudo-element vertically to the main column's height while letting its box-shadow stars spill sideways, using `clip-path` with horizontal insets of -100vw so the side stars stay visible without extending past the footer.
+
+    I'm checking whether a full-height pseudo-element with box-shadow stars can clip vertically to the main column, but box-shadow copies the element's shape, so a tall element would turn every star into a bar. I'm going back to a background-based approach on the pseudo-element instead.
+
+    I'm going back to the full-height pseudo-element on `.site-main`, but the vw-based width still bothers me. I'm checking whether there's a way to place the stars without it, and whether any test checks for horizontal overflow.
+
+    I'm going to check the scrollbar width first, using `window.innerWidth` against `document.documentElement.clientWidth`, so I know whether the overflow math has to account for it. On the left side, a layer sized to `100vw` and positioned past the edge would be wider than the margin, so percentage background positions wouldn't line up with the gap I need. I'm leaning toward the simpler `left: 100%` pseudo-element with a `calc(50vw - 50% - 1rem)` width.
+
+    I'm weighing the scrollbar question: newer Chrome may exclude the scrollbar from `100vw` when `scrollbar-gutter: stable` is set on the root, but that isn't reliable enough to depend on. I'll keep the left band at `calc(50vw - 50%)`, which may extend slightly past the edge, and leave the right band's width as it is.
+
+    I'm weighing symmetric bands against the scrollbar: on the left, the band's outer part could fall off-screen, so stars near the edge might be clipped. I'm leaning toward making both bands match so the star distribution stays even.
+
+    I'm settling the right band at the same width as the left, `calc(50vw - 50% - 0.75rem)`, so both bands stay clear of the window edge. The idea is that the star bands hug the main column's border box, and I'm checking whether the main padding keeps any gap from the card frames.
+
+    I'm thinking about whether the star bands at 1024px are wide enough to read as stars rather than a thin ladder, since the band would only be about 16px there.
+
+    I'm settling the star bands at two density tiers: a sparser set at 64rem where the margin is only about 32px, and a fuller set from 80rem up, where the bands are wide enough to scatter stars properly.
+
+    I'm settling the star density with a few tiers rather than one fixed count, since the margin width changes a lot between 1024 and 1920px. At 64rem the bands are only about 16px, so a sparse set of six stars per side should do, and from 80rem up a denser set of fourteen per side fills the wider bands. I'll prototype that and check the screenshots, then adjust the y positions so they don't repeat in a visible pattern.
+
+    Next I'm writing the star layers as CSS background gradients, one per star, so each star is a small colored band at the top of a tile. I'm checking the gradient syntax for the 3px yellow strip before I lay out the full list.
+
+    Next I'm settling the star layers as CSS custom properties on the pseudo-element, one gradient for the yellow band and one for the left-side stars, then wiring them into `background-image` with a repeat-y size of 3px by 1600px. I'll check whether fractional percentage x positions render crisply at zoom, and if not, try `round()` to snap them.
+
+    I'm settling the z-index question: the pseudo-elements are inside main's stacking context, and since the star bands sit outside the main box, they won't collide with content. I'll leave z-index low enough that the header dropdown, which sits above main, still covers them.
+
+    I'm checking whether `z-index: -1` on the pseudo-elements keeps the stars beneath the content inside `.site-main`, since `main` already forms its own stacking context. Content that overflows sideways into the margin would sit above them, which is fine. I'm also confirming the pseudo-elements aren't already used anywhere in the stylesheet, which a quick search suggests they aren't.
+
+    Checking that the old body stars hide cleanly at 64rem and up. Next I'm writing a Python helper that counts unread messages for staff, returning zero for anyone who isn't an active, authenticated staff user.
+
+    I'm checking how `StaffProfile` links to the user, since a single join through the faculty relationship could filter dialogs without loading the profile first and adding an extra query.
+
+    I'm sketching the query for staff unread counts as a single filter on messages, with a fallback to check whether the faculty-level join can stand in for the visibility helper. That would avoid an extra profile lookup, but it also means repeating the visibility rule in a second place, which goes against routing every dialog lookup through `dialogs_visible_to`. So I'm looking for a way to keep that helper and still get one query, perhaps by using it as a subquery.
+
+    I'm weighing whether the staff unread count can stay a single query: reusing the visibility helper means the staff profile gets loaded first, which would make it two queries, unless I can cache it on the request user. I'm leaning toward accepting at most two queries rather than duplicating the visibility rule in a second place.
+
+    Checking whether the staff unread count can go through the visibility helper without an extra query: `dialogs_visible_to` reads `request.user.staff_profile`, which is cached on the user object after the first access. So the badge adds one COUNT query, plus at most one profile lookup on pages that don't already load it.
+
+    I'm going to measure the actual query counts in the existing staff tests before deciding. Reusing `dialogs_visible_to` loads the staff profile and the faculty row, which could mean two queries, against the one I was aiming for.
+
+    Checking the profile lookup cost here: `students_visible_to` reads `profile.faculty`, which may cost an extra query, so filtering on `faculty_id` instead would trim it. The badge would then add one COUNT plus the cached profile load. I'll measure the query counts in the staff tests to confirm before changing anything.
+
+    I'm weighing the count query against the visibility rule: if the staff profile is already loaded on the request user, the badge costs just one COUNT, and on a fresh user it's two. I'm planning tests that check the query count stays flat as the number of dialogs grows, and I'll flag to the lead that "one query" really means one COUNT plus a shared profile lookup, since routing through `dialogs_visible_to` is the project's security rule.
+
+    I'm weighing a single-query subquery on StaffProfile inside students_visible_to, which would cut it to one query for every caller, but it changes a security-critical shared selector and could break exact query-count assertions elsewhere. I'm leaning toward keeping the change minimal and accepting up to two queries on a fresh user, with one when the profile is already cached.
+
+    I'm going to check whether swapping `profile.faculty` for `profile.faculty_id` saves a query, then measure the counts. For the template tag, I'm thinking of a `chat_unread_count(user)` helper that picks student or staff logic, with base.html adding an `elif` branch for deanery staff.
+
+    I'm checking whether the base template overrides the nav block anywhere. The staff header has eight items, and the TASK-013 note says they fit on one line at 1024px, so adding "(99+)" to the chat link could break that, and I'll need to verify it visually at that width.
+
+    I'm noting that the staff unread badge will skip the inactive-student filter, since `students_visible_to` excludes messages from deactivated accounts, and I want to confirm whether that matches what staff should see. I also need to check that adding "(99+)" to the staff nav keeps all eight items on one line at 1024px.
+
+    I'm going to check whether any existing tests pin query counts on staff page renders, since adding the badge query could break them. I also want to see if any test asserts the exact nav text "Чаты", because the count suffix would change that string whenever there are unread messages.
+
+    I'm checking the navigation tests next, to see whether any of them pin the exact text of the chat link.
+  ── Read accounts/models.py
+  ── Thought for 8ms
+    The staff chat list test caps queries at 6 and the dialog test at 10, so adding badge queries could push them over. I'll measure that in the prototype. There's also a `assertNumQueries(14)` at core/tests/test_home.py:270, and I need to find out which user that one is for. Setting up the prototype copy now.
+  ── Read core/tests/test_home.py
+  ── Thought for 5ms
+    I'm checking the query count for staff_dialog_list on the cached test user, noting that make_world already cached the profile and faculty objects. Next I want to measure the counts on a fresh user pulled from the database, then look at make_world to see which fixtures are available before writing the prototype.
+  ── Searched for def make_world in notifications/tests/helpers.py
+  ── Read chat/tests/test_views.py
+  ── Thought for 4ms
+    I checked the home page button "Чаты" at core/tests/test_home.py:227; it's not in the nav, so this change doesn't touch it. Next I'll prototype item 2 in the $TMPDIR/t018 directory.
+  ── Ran cd "$TMPDIR/t018" && python3 - <<'EOF' import re p='chat/selectors.py' s=open(p).read() s=s.replace('''def student_unread_count(user: AbstractBaseUser | AnonymousUser) -> int:''','''def student_unread_count(user: AbstractBaseUser | AnonymousUser) -> int:''') s+=''' def staff_unread_count(user: AbstractBaseUser | AnonymousUser) -> int:     """Unread student messages in the dialogs this staff member can see.     Same rule as the "new" count of ``staff_dialog_list``: student messages after the     shared read marker ``staff_read_id`` (one marker per dialog for all staff of the faculty).     """     if not user.is_authenticated or not user.is_active or user.role != User.Role.STAFF:         return 0     return Message.objects.filter(         dialog__in=dialogs_visible_to(user),         author_role=AuthorRole.STUDENT,         id__gt=F("dialog__staff_read_id"),     ).count() def chat_unread_count(user: AbstractBaseUser | AnonymousUser) -> int:     """Count for the "Чат (n)" / "Чаты (n)" menu item; 0 for every other role."""     if not user.is_authenticated or not user.is_active:         return 0     if user.role == User.Role.STUDENT:         return student_unread_count(user)     if user.role == User.Role.STAFF:         return staff_unread_count(user)     return 0 ''' open(p,'w').write(s) p='chat/templatetags/chat_tags.py' s=open(p).read() s=s.replace('from chat.selectors import student_unread_count','from chat.selectors import chat_unread_count') s=s.replace('    count = student_unread_count(request.user)','    count = chat_unread_count(request.user)') open(p,'w').write(s) p='templates/base.html' s=open(p).read() old='{% if user.is_student %}{% notifications_badge as badge %}{% chat_unread_badge as chat_badge %}{% endif %}' assert old in s s=s.replace(old,'{% if user.is_student %}{% notifications_badge as badge %}{% chat_unread_badge as chat_badge %}{% elif user.is_deanery_staff %}{% chat_unread_badge as chat_badge %}{% endif %}') open(p,'w').write(s) p='templates/includes/site_nav_items.html' s=open(p).read() old='>Чаты</a></li>' assert s.count(old)==1 s=s.replace(old,'>Чаты{% if chat_badge %} ({{ chat_badge }}){% endif %}</a></li>') open(p,'w').write(s) EOF cat > "$TMPDIR/q.py" <<'EOF' from django.db import connection from django.test.utils import CaptureQueriesContext from accounts.models import User from chat.selectors import staff_unread_count, dialogs_visible_to u=User.objects.filter(role="staff").first() u=User.objects.get(pk=u.pk) with CaptureQueriesContext(connection) as c:     n=staff_unread_count(u) print(n,len(c.captured_queries)) for q in c.captured_queries: print(q['sql'][:300]) with CaptureQueriesContext(connection) as c:     n=staff_unread_count(u) print(n,len(c.captured_queries)) EOF export DATABASE_URL="sqlite:///$TMPDIR/t018.sqlite3"; rm -f "$TMPDIR/t018.sqlite3"; cp "$TMPDIR/t018base/.env" . 2>/dev/null; ls -a | grep env; ~/hackatonproject/.venv/bin/python manage.py migrate -v0 && ~/hackatonproject/.venv/bin/python manage.py seed_demo 2>&1 | tail -3; ~/hackatonproject/.venv/bin/python manage.py shell < "$TMPDIR/q.py" (1s, error)
+    $ cd "$TMPDIR/t018" && python3 - <<'EOF'
+  import re
+  p='chat/selectors.py'
+  s=open(p).read()
+  s=s.replace('''def student_unread_count(user: AbstractBaseUser | AnonymousUser) -> int:''','''def student_unread_count(user: AbstractBaseUser | AnonymousUser) -> int:''')
+  s+='''
+
+  def staff_unread_count(user: AbstractBaseUser | AnonymousUser) -> int:
+      """Unread student messages in the dialogs this staff member can see.
+
+      Same rule as the "new" count of ``staff_dialog_list``: student messages after the
+      shared read marker ``staff_read_id`` (one marker per dialog for all staff of the faculty).
+      """
+      if not user.is_authenticated or not user.is_active or user.role != User.Role.STAFF:
+          return 0
+      return Message.objects.filter(
+          dialog__in=dialogs_visible_to(user),
+          author_role=AuthorRole.STUDENT,
+          id__gt=F("dialog__staff_read_id"),
+      ).count()
+
+
+  def chat_unread_count(user: AbstractBaseUser | AnonymousUser) -> int:
+      """Count for the "Чат (n)" / "Чаты (n)" menu item; 0 for every other role."""
+      if not user.is_authenticated or not user.is_active:
+          return 0
+      if user.role == User.Role.STUDENT:
+          return student_unread_count(user)
+      if user.role == User.Role.STAFF:
+          return staff_unread_count(user)
+      return 0
+  '''
+  open(p,'w').write(s)
+  p='chat/templatetags/chat_tags.py'
+  s=open(p).read()
+  s=s.replace('from chat.selectors import student_unread_count','from chat.selectors import chat_unread_count')
+  s=s.replace('    count = student_unread_count(request.user)','    count = chat_unread_count(request.user)')
+  open(p,'w').write(s)
+  p='templates/base.html'
+  s=open(p).read()
+  old='{% if user.is_student %}{% notifications_badge as badge %}{% chat_unread_badge as chat_badge %}{% endif %}'
+  assert old in s
+  s=s.replace(old,'{% if user.is_student %}{% notifications_badge as badge %}{% chat_unread_badge as chat_badge %}{% elif user.is_deanery_staff %}{% chat_unread_badge as chat_badge %}{% endif %}')
+  open(p,'w').write(s)
+  p='templates/includes/site_nav_items.html'
+  s=open(p).read()
+  old='>Чаты</a></li>'
+  assert s.count(old)==1
+  s=s.replace(old,'>Чаты{% if chat_badge %} ({{ chat_badge }}){% endif %}</a></li>')
+  open(p,'w').write(s)
+  EOF
+  cat > "$TMPDIR/q.py" <<'EOF'
+  from django.db import connection
+  from django.test.utils import CaptureQueriesContext
+  from accounts.models import User
+  from chat.selectors import staff_unread_count, dialogs_visible_to
+  u=User.objects.filter(role="staff").first()
+  u=User.objects.get(pk=u.pk)
+  with CaptureQueriesContext(connection) as c:
+      n=staff_unread_count(u)
+  print(n,len(c.captured_queries))
+  for q in c.captured_queries: print(q['sql'][:300])
+  with CaptureQueriesContext(connection) as c:
+      n=staff_unread_count(u)
+  print(n,len(c.captured_queries))
+  EOF
+  export DATABASE_URL="sqlite:///$TMPDIR/t018.sqlite3"; rm -f "$TMPDIR/t018.sqlite3"; cp "$TMPDIR/t018base/.env" . 2>/dev/null; ls -a | grep env; ~/hackatonproject/.venv/bin/python manage.py migrate -v0 && ~/hackatonproject/.venv/bin/python manage.py seed_demo 2>&1 | tail -3; ~/hackatonproject/.venv/bin/python manage.py shell < "$TMPDIR/q.py"
+    Exit code 1
+    .env.example
+    .env.production.example
+    Traceback (most recent call last):
+      File "/private/tmp/claude-501/t018/manage.py", line 23, in <module>
+        main()
+      File "/private/tmp/claude-501/t018/manage.py", line 19, in main
+        execute_from_command_line(sys.argv)
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/management/__init__.py", line 442, in execute_from_command_line
+        utility.execute()
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/management/__init__.py", line 436, in execute
+        self.fetch_command(subcommand).run_from_argv(self.argv)
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/management/base.py", line 412, in run_from_argv
+        parser = self.create_parser(argv[0], argv[1])
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/management/base.py", line 375, in create_parser
+        self.add_arguments(parser)
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/management/commands/migrate.py", line 45, in add_arguments
+        choices=tuple(connections),
+                ^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/utils/connection.py", line 73, in __iter__
+        return iter(self.settings)
+                    ^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/utils/functional.py", line 47, in __get__
+        res = instance.__dict__[self.name] = self.func(instance)
+                                             ^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/utils/connection.py", line 45, in settings
+        self._settings = self.configure_settings(self._settings)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/db/utils.py", line 148, in configure_settings
+        databases = super().configure_settings(databases)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/utils/connection.py", line 50, in configure_settings
+        settings = getattr(django_settings, self.settings_name)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/conf/__init__.py", line 81, in __getattr__
+        self._setup(name)
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/conf/__init__.py", line 68, in _setup
+        self._wrapped = Settings(settings_module)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/conf/__init__.py", line 166, in __init__
+        mod = importlib.import_module(self.SETTINGS_MODULE)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/opt/homebrew/Cellar/python@3.12/3.12.16/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py", line 90, in import_module
+        return _bootstrap._gcd_import(name[level:], package, level)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+      File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+      File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+      File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+      File "<frozen importlib._bootstrap_external>", line 999, in exec_module
+      File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+      File "/private/tmp/claude-501/t018/config/settings.py", line 18, in <module>
+        SECRET_KEY = resolve_secret_key(env.str("SECRET_KEY", default=""), DEBUG)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/private/tmp/claude-501/t018/config/env_utils.py", line 21, in resolve_secret_key
+        raise ImproperlyConfigured("SECRET_KEY environment variable is required when DEBUG is false.")
+    django.core.exceptions.ImproperlyConfigured: SECRET_KEY environment variable is required when DEBUG is false.
+    Automatic imports are disabled since settings are not configured.
+    DJANGO_SETTINGS_MODULE value is 'config.settings'.
+    HINT: Ensure that the settings module is configured and set.
+
+    Traceback (most recent call last):
+      File "/private/tmp/claude-501/t018/manage.py", line 23, in <module>
+        main()
+      File "/private/tmp/claude-501/t018/manage.py", line 19, in main
+        execute_from_command_line(sys.argv)
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/management/__init__.py", line 442, in execute_from_command_line
+        utility.execute()
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/management/__init__.py", line 436, in execute
+        self.fetch_command(subcommand).run_from_argv(self.argv)
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/management/base.py", line 420, in run_from_argv
+        self.execute(*args, **cmd_options)
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/management/base.py", line 464, in execute
+        output = self.handle(*args, **options)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/core/management/commands/shell.py", line 257, in handle
+        exec(sys.stdin.read(), {**globals(), **self.get_namespace(**options)})
+      File "<string>", line 3, in <module>
+      File "/private/tmp/claude-501/t018/accounts/models.py", line 2, in <module>
+        from django.contrib.auth.models import AbstractUser
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/contrib/auth/models.py", line 5, in <module>
+        from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/contrib/auth/base_user.py", line 43, in <module>
+        class AbstractBaseUser(models.Model):
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/db/models/base.py", line 131, in __new__
+        app_config = apps.get_containing_app_config(module)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/apps/registry.py", line 260, in get_containing_app_config
+        self.check_apps_ready()
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/apps/registry.py", line 137, in check_apps_ready
+        settings.INSTALLED_APPS
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/conf/__init__.py", line 81, in __getattr__
+        self._setup(name)
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/conf/__init__.py", line 68, in _setup
+        self._wrapped = Settings(settings_module)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "~/hackatonproject/.venv/lib/python3.12/site-packages/django/conf/__init__.py", line 166, in __init__
+        mod = importlib.import_module(self.SETTINGS_MODULE)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/opt/homebrew/Cellar/python@3.12/3.12.16/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py", line 90, in import_module
+        return _bootstrap._gcd_import(name[level:], package, level)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/private/tmp/claude-501/t018/config/settings.py", line 18, in <module>
+        SECRET_KEY = resolve_secret_key(env.str("SECRET_KEY", default=""), DEBUG)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      File "/private/tmp/claude-501/t018/config/env_utils.py", line 21, in resolve_secret_key
+        raise ImproperlyConfigured("SECRET_KEY environment variable is required when DEBUG is false.")
+    django.core.exceptions.ImproperlyConfigured: SECRET_KEY environment variable is required when DEBUG is false.
+    exit 1
+  ── Thought for 6ms
+    I need to set the DEBUG environment variable to 1, since I previously used DEBUG=true. I might also need to set DEMO_PASSWORD.
+
+── Assistant ───────────────────────────────────────────────
+Проверяю счётчик чата для сотрудников на временной базе. Сначала задаю переменные окружения для копии.
+
+── Ran 8 commands ──────────────────────────────────────────
+  ── Ran cd "$TMPDIR/t018" && export DEBUG=1 DATABASE_URL="sqlite:///$TMPDIR/t018.sqlite3" DEMO_PASSWORD='Demo-Pass-2026!'; P=~/hackatonproject/.venv/bin/python; rm -f "$TMPDIR/t018.sqlite3"; $P manage.py migrate -v0 && $P manage.py seed_demo 2>&1 | tail -3; $P manage.py shell < "$TMPDIR/q.py" (5s)
+    $ cd "$TMPDIR/t018" && export DEBUG=1 DATABASE_URL="sqlite:///$TMPDIR/t018.sqlite3" DEMO_PASSWORD='Demo-Pass-2026!'; P=~/hackatonproject/.venv/bin/python; rm -f "$TMPDIR/t018.sqlite3"; $P manage.py migrate -v0 && $P manage.py seed_demo 2>&1 | tail -3; $P manage.py shell < "$TMPDIR/q.py"
+    Requests ready: 7 types, 8 requests, 3 attachments.
+    Notifications ready: 9 announcements.
+    Chat ready: 3 dialogs, 8 messages.
+    31 objects imported automatically (use -v 2 for details).
+
+    1 3
+    SELECT "accounts_staffprofile"."id", "accounts_staffprofile"."user_id", "accounts_staffprofile"."last_name", "accounts_staffprofile"."first_name", "accounts_staffprofile"."middle_name", "accounts_staffprofile"."position", "accounts_staffprofile"."faculty_id" FROM "accounts_staffprofile" WHERE "accou
+    SELECT "university_faculty"."id", "university_faculty"."code", "university_faculty"."name" FROM "university_faculty" WHERE "university_faculty"."id" = 1 LIMIT 21
+    SELECT COUNT(*) AS "__count" FROM "chat_message" INNER JOIN "chat_dialog" ON ("chat_message"."dialog_id" = "chat_dialog"."id") WHERE ("chat_message"."author_role" = 'student' AND "chat_message"."dialog_id" IN (SELECT V0."id" FROM "chat_dialog" V0 WHERE V0."student_id" IN (SELECT U0."id" FROM "accoun
+    1 1
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 7s
+    I'm checking how many queries a fresh user triggers versus a cached one, and which staff pages already load the profile and faculty. Switching the filter to `faculty_id` would drop the faculty fetch for every caller, but some code might still read `profile.faculty` later, such as the profile page showing the faculty name.
+
+    I'm checking whether the page cost holds up: on /staff/chats/ the visibility rule's profile and faculty lookups are already cached on request.user, so the badge would add just the one count query there, and at most three on pages that don't touch the profile. The count itself stays flat no matter how many dialogs or messages there are.
+
+    I'm going with reusing the visibility rule's lookups for the badge count, since that keeps it in line with the security model; the query count stays at one count query, plus the cached profile and faculty lookups that are already loaded on the page.
+  ── Ran cd "$TMPDIR/t018" && export DEBUG=1; unset DATABASE_URL; P=~/hackatonproject/.venv/bin/python; L="$TMPDIR/test-t018-proto1-$(date +%Y%m%d-%H%M%S).log"; $P manage.py test chat core accounts --parallel > "$L" 2>&1; tail -4 "$L"; grep -E "^(FAIL|ERROR):" "$L" | head (25s)
+    $ cd "$TMPDIR/t018" && export DEBUG=1; unset DATABASE_URL; P=~/hackatonproject/.venv/bin/python; L="$TMPDIR/test-t018-proto1-$(date +%Y%m%d-%H%M%S).log"; $P manage.py test chat core accounts --parallel > "$L" 2>&1; tail -4 "$L"; grep -E "^(FAIL|ERROR):" "$L" | head
+    Destroying test database for alias 'default'...
+    Destroying test database for alias 'default'...
+    Destroying test database for alias 'default'...
+    Destroying test database for alias 'default'...
+    Shell cwd was reset to ~/hackatonproject
+  ── Ran cd "$TMPDIR" && L=$(ls -t test-t018-proto1-*.log | head -1); grep -E "^Ran|^OK|FAILED" "$L"
+    $ cd "$TMPDIR" && L=$(ls -t test-t018-proto1-*.log | head -1); grep -E "^Ran|^OK|FAILED" "$L"
+    Ran 421 tests in 23.326s
+    OK
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 5s
+    Tests are passing, so next I'm measuring page query counts for the staff chats and profile pages before and after the change, with the tests to follow later. On the stars item, I'm planning a tile period of 1600px, with a sparser set of star positions at the 64rem breakpoint and a fuller set at 80rem, and I'll check the design in the browser.
+
+    Still working out the star layout: I'm thinking a sparser set of about seven stars per side for the 64rem to 80rem range, since the narrow band makes a fuller set look like a wobbly column. I'll generate positions with a fixed seed and keep them clear of the header.
+  ── Ran mkdir -p "$TMPDIR/t018work" && cat > "$TMPDIR/t018work/gen.py" <<'EOF' import random, math, itertools P=1600 def gen(seed, n):     r=random.Random(seed)     pts=[]     tries=0     while len(pts)<n:         tries+=1         x=r.uniform(4,96); y=r.uniform(24,P-24)         # distance in a 300px-wide band metric, wrap in y         ok=True         for (a,b) in pts:             dy=min(abs(y-b),P-abs(y-b)); dx=(x-a)*3             if math.hypot(dx,dy)<P/n*0.75: ok=False;break         if ok: pts.append((x,y))     return [(round(x),int(round(y/2)*2)) for x,y in pts] for side,seed in (("left",7),("right",11)):     pts=sorted(gen(seed,14),key=lambda p:p[1])     print(side,pts) EOF python3 "$TMPDIR/t018work/gen.py"
+    $ mkdir -p "$TMPDIR/t018work" && cat > "$TMPDIR/t018work/gen.py" <<'EOF'
+  import random, math, itertools
+  P=1600
+  def gen(seed, n):
+      r=random.Random(seed)
+      pts=[]
+      tries=0
+      while len(pts)<n:
+          tries+=1
+          x=r.uniform(4,96); y=r.uniform(24,P-24)
+          # distance in a 300px-wide band metric, wrap in y
+          ok=True
+          for (a,b) in pts:
+              dy=min(abs(y-b),P-abs(y-b)); dx=(x-a)*3
+              if math.hypot(dx,dy)<P/n*0.75: ok=False;break
+          if ok: pts.append((x,y))
+      return [(round(x),int(round(y/2)*2)) for x,y in pts]
+  for side,seed in (("left",7),("right",11)):
+      pts=sorted(gen(seed,14),key=lambda p:p[1])
+      print(side,pts)
+  EOF
+  python3 "$TMPDIR/t018work/gen.py"
+    left [(94, 96), (64, 136), (10, 164), (34, 258), (15, 370), (83, 474), (46, 490), (53, 592), (67, 688), (7, 698), (9, 812), (21, 926), (43, 1308), (62, 1494)]
+    right [(18, 48), (68, 88), (21, 400), (46, 456), (13, 494), (7, 744), (89, 746), (21, 818), (46, 892), (64, 980), (62, 1254), (12, 1280), (45, 1332), (94, 1522)]
+  ── Thought for 6ms
+    The current spacing leaves a big gap on the left side, so I'm considering a stratified, jittered approach instead: split the y-range into strata, pick a random y within each, and choose x values that stay at least 20 away from the last two points.
+  ── Ran cat > "$TMPDIR/t018work/gen.py" <<'EOF' import random P=1600 def gen(seed,n):     r=random.Random(seed); pts=[]     h=P/n     for i in range(n):         y=int(i*h+r.uniform(0.15,0.85)*h)//2*2         while True:             x=r.randint(5,95)             if all(abs(x-p[0])>=22 for p in pts[-2:]):                  # avoid 3 collinear-ish with last two                 if len(pts)>=2:                     (x1,y1),(x2,y2)=pts[-2],pts[-1]                     # predicted x at y on line through last two                     px=x2+(x2-x1)*(y-y2)/max(1,(y2-y1))                     if abs(px-x)<12: continue                 break         pts.append((x,y))     return pts for side,seed in (("left",3),("right",5)):     pts=gen(seed,14)     cols=random.Random(seed+1)     c=[ "Y" if cols.random()<0.5 else "L" for _ in pts]     print(side,[(x,y,k) for (x,y),k in zip(pts,c)]) EOF python3 "$TMPDIR/t018work/gen.py"
+    $ cat > "$TMPDIR/t018work/gen.py" <<'EOF'
+  import random
+  P=1600
+  def gen(seed,n):
+      r=random.Random(seed); pts=[]
+      h=P/n
+      for i in range(n):
+          y=int(i*h+r.uniform(0.15,0.85)*h)//2*2
+          while True:
+              x=r.randint(5,95)
+              if all(abs(x-p[0])>=22 for p in pts[-2:]): 
+                  # avoid 3 collinear-ish with last two
+                  if len(pts)>=2:
+                      (x1,y1),(x2,y2)=pts[-2],pts[-1]
+                      # predicted x at y on line through last two
+                      px=x2+(x2-x1)*(y-y2)/max(1,(y2-y1))
+                      if abs(px-x)<12: continue
+                  break
+          pts.append((x,y))
+      return pts
+  for side,seed in (("left",3),("right",5)):
+      pts=gen(seed,14)
+      cols=random.Random(seed+1)
+      c=[ "Y" if cols.random()<0.5 else "L" for _ in pts]
+      print(side,[(x,y,k) for (x,y),k in zip(pts,c)])
+  EOF
+  python3 "$TMPDIR/t018work/gen.py"
+    left [(74, 36, 'Y'), (13, 140, 'Y'), (38, 294, 'Y'), (74, 404, 'Y'), (6, 540, 'Y'), (43, 642, 'Y'), (65, 764, 'L'), (17, 864, 'L'), (91, 934, 'L'), (43, 1080, 'Y'), (20, 1192, 'L'), (86, 1278, 'Y'), (49, 1466, 'Y'), (7, 1566, 'Y')]
+    right [(50, 66, 'L'), (88, 194, 'L'), (8, 318, 'Y'), (36, 426, 'Y'), (74, 526, 'Y'), (6, 596, 'L'), (40, 760, 'Y'), (84, 830, 'L'), (5, 980, 'Y'), (31, 1122, 'L'), (74, 1220, 'Y'), (7, 1344, 'L'), (38, 1416, 'L'), (91, 1508, 'Y')]
+  ── Thought for 8s
+    I'm settling on alternating colors for the star layout, roughly balancing seven of each per side, and I'll make a few manual swaps to keep it even. For the narrow band from 64rem to 80rem, I'm picking every other star and checking that their left-side positions still alternate cleanly at 16px.
+
+    Still writing the media query styles...
+
+    Next I'm checking the mirrored band: it sits just outside the main column, and its width works out to the viewport half minus the column half and a gap. Since `z-index: -1` keeps the stars behind the content but above the background, they should stay visible without covering anything. I'll add these rules to theme.css after the 48rem header-star block, then check both a short page and a long one for horizontal overflow.
+
+    I'm comparing scrollWidth against clientWidth on both pages to confirm nothing overflows horizontally.
+  ── Ran cat > "$TMPDIR/t018work/css.py" <<'EOF' import sys left=[(74,36,'Y'),(13,140,'L'),(38,294,'Y'),(74,404,'L'),(6,540,'L'),(43,642,'Y'),(65,764,'L'),(17,864,'Y'),(91,934,'Y'),(43,1080,'L'),(20,1192,'Y'),(86,1278,'L'),(49,1466,'L'),(7,1566,'Y')] right=[(50,66,'L'),(88,194,'Y'),(8,318,'Y'),(36,426,'L'),(74,526,'Y'),(6,596,'L'),(40,760,'Y'),(84,830,'L'),(5,980,'L'),(31,1122,'Y'),(74,1220,'L'),(7,1344,'Y'),(38,1416,'Y'),(91,1508,'L')] name={'Y':'var(--star-yellow)','L':'var(--star-lilac)'} def block(sel,pts,ind="  "):     out=[f"{ind}{sel} {{"]     out.append(f"{ind}  background-image:")     out.append(",\n".join(f"{ind}    {name[k]}" for x,y,k in pts)+";")     out.append(f"{ind}  background-position:")     out.append(",\n".join(f"{ind}    {x}% {y}px" for x,y,k in pts)+";")     out.append(f"{ind}}}")     return "\n".join(out) css=''' /* Wide screens (TASK-018): the side stars are scattered over the free margins on both sides    of the content column. Each margin is a layer beside .site-main (so never beside the header    or the footer); every star is a 3 px background tile, x in % of the margin width, y in px,    repeated every 1600 px down the page. The 1rem kept free at the window edge keeps the layer    inside the viewport also with a classic scrollbar (100vw includes it). From 64rem the margin    is at least 1rem wide: half of the stars; from 80rem (margin >= 9rem): all stars. */ @media (min-width: 64rem) {   body::before,   body::after {     display: none;   }   .site-main::before,   .site-main::after {     --star-yellow: linear-gradient(var(--color-star-yellow) 0 3px, transparent 3px);     --star-lilac: linear-gradient(var(--color-star-lilac) 0 3px, transparent 3px);     content: "";     position: absolute;     top: 0;     bottom: 0;     width: calc(50vw - 50% - 1rem);     pointer-events: none;     z-index: -1;     background-size: 3px 1600px;     background-repeat: no-repeat repeat;   }   .site-main::before {     right: 100%;   }   .site-main::after {     left: 100%;   } '''+block(".site-main::before",left[0::2])+"\n\n"+block(".site-main::after",right[0::2])+''' } @media (min-width: 80rem) { '''+block(".site-main::before",left)+"\n\n"+block(".site-main::after",right)+''' } ''' print(css) EOF python3 "$TMPDIR/t018work/css.py" > "$TMPDIR/t018work/stars.css"; wc -l "$TMPDIR/t018work/stars.css"; cd "$TMPDIR/t018" && python3 - <<'EOF' import os p='static/css/theme.css' s=open(p).read() anchor='''@media (min-width: 48rem) {   .site-header::after {     display: none;   } } ''' assert anchor in s add=open(os.environ['TMPDIR']+'/t018work/stars.css').read().rstrip('\n')+'\n' s=s.replace(anchor,anchor+add) open(p,'w').write(s) EOF sed -n 88,200p static/css/theme.css
+    $ cat > "$TMPDIR/t018work/css.py" <<'EOF'
+  import sys
+  left=[(74,36,'Y'),(13,140,'L'),(38,294,'Y'),(74,404,'L'),(6,540,'L'),(43,642,'Y'),(65,764,'L'),(17,864,'Y'),(91,934,'Y'),(43,1080,'L'),(20,1192,'Y'),(86,1278,'L'),(49,1466,'L'),(7,1566,'Y')]
+  right=[(50,66,'L'),(88,194,'Y'),(8,318,'Y'),(36,426,'L'),(74,526,'Y'),(6,596,'L'),(40,760,'Y'),(84,830,'L'),(5,980,'L'),(31,1122,'Y'),(74,1220,'L'),(7,1344,'Y'),(38,1416,'Y'),(91,1508,'L')]
+  name={'Y':'var(--star-yellow)','L':'var(--star-lilac)'}
+  def block(sel,pts,ind="  "):
+      out=[f"{ind}{sel} {{"]
+      out.append(f"{ind}  background-image:")
+      out.append(",\n".join(f"{ind}    {name[k]}" for x,y,k in pts)+";")
+      out.append(f"{ind}  background-position:")
+      out.append(",\n".join(f"{ind}    {x}% {y}px" for x,y,k in pts)+";")
+      out.append(f"{ind}}}")
+      return "\n".join(out)
+  css='''
+  /* Wide screens (TASK-018): the side stars are scattered over the free margins on both sides
+     of the content column. Each margin is a layer beside .site-main (so never beside the header
+     or the footer); every star is a 3 px background tile, x in % of the margin width, y in px,
+     repeated every 1600 px down the page. The 1rem kept free at the window edge keeps the layer
+     inside the viewport also with a classic scrollbar (100vw includes it). From 64rem the margin
+     is at least 1rem wide: half of the stars; from 80rem (margin >= 9rem): all stars. */
+  @media (min-width: 64rem) {
+    body::before,
+    body::after {
+      display: none;
+    }
+
+    .site-main::before,
+    .site-main::after {
+      --star-yellow: linear-gradient(var(--color-star-yellow) 0 3px, transparent 3px);
+      --star-lilac: linear-gradient(var(--color-star-lilac) 0 3px, transparent 3px);
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: calc(50vw - 50% - 1rem);
+      pointer-events: none;
+      z-index: -1;
+      background-size: 3px 1600px;
+      background-repeat: no-repeat repeat;
+    }
+
+    .site-main::before {
+      right: 100%;
+    }
+
+    .site-main::after {
+      left: 100%;
+    }
+
+  '''+block(".site-main::before",left[0::2])+"\n\n"+block(".site-main::after",right[0::2])+'''
+  }
+
+  @media (min-width: 80rem) {
+  '''+block(".site-main::before",left)+"\n\n"+block(".site-main::after",right)+'''
+  }
+  '''
+  print(css)
+  EOF
+  python3 "$TMPDIR/t018work/css.py" > "$TMPDIR/t018work/stars.css"; wc -l "$TMPDIR/t018work/stars.css"; cd "$TMPDIR/t018" && python3 - <<'EOF'
+  import os
+  p='static/css/theme.css'
+  s=open(p).read()
+  anchor='''@media (min-width: 48rem) {
+    .site-header::after {
+      display: none;
+    }
+  }
+  '''
+  assert anchor in s
+  add=open(os.environ['TMPDIR']+'/t018work/stars.css').read().rstrip('\n')+'\n'
+  s=s.replace(anchor,anchor+add)
+  open(p,'w').write(s)
+  EOF
+  sed -n 88,200p static/css/theme.css
+    143 /tmp/claude-501/t018work/stars.css
+    }
+
+    /* The wide header has no free space for header stars: keep only the side stars. */
+    @media (min-width: 48rem) {
+      .site-header::after {
+        display: none;
+      }
+    }
+
+    /* Wide screens (TASK-018): the side stars are scattered over the free margins on both sides
+       of the content column. Each margin is a layer beside .site-main (so never beside the header
+       or the footer); every star is a 3 px background tile, x in % of the margin width, y in px,
+       repeated every 1600 px down the page. The 1rem kept free at the window edge keeps the layer
+       inside the viewport also with a classic scrollbar (100vw includes it). From 64rem the margin
+       is at least 1rem wide: half of the stars; from 80rem (margin >= 9rem): all stars. */
+    @media (min-width: 64rem) {
+      body::before,
+      body::after {
+        display: none;
+      }
+
+      .site-main::before,
+      .site-main::after {
+        --star-yellow: linear-gradient(var(--color-star-yellow) 0 3px, transparent 3px);
+        --star-lilac: linear-gradient(var(--color-star-lilac) 0 3px, transparent 3px);
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: calc(50vw - 50% - 1rem);
+        pointer-events: none;
+        z-index: -1;
+        background-size: 3px 1600px;
+        background-repeat: no-repeat repeat;
+      }
+
+      .site-main::before {
+        right: 100%;
+      }
+
+      .site-main::after {
+        left: 100%;
+      }
+
+      .site-main::before {
+        background-image:
+          var(--star-yellow),
+          var(--star-yellow),
+          var(--star-lilac),
+          var(--star-lilac),
+          var(--star-yellow),
+          var(--star-yellow),
+          var(--star-lilac);
+        background-position:
+          74% 36px,
+          38% 294px,
+          6% 540px,
+          65% 764px,
+          91% 934px,
+          20% 1192px,
+          49% 1466px;
+      }
+
+      .site-main::after {
+        background-image:
+          var(--star-lilac),
+          var(--star-yellow),
+          var(--star-yellow),
+          var(--star-yellow),
+          var(--star-lilac),
+          var(--star-lilac),
+          var(--star-yellow);
+        background-position:
+          50% 66px,
+          8% 318px,
+          74% 526px,
+          40% 760px,
+          5% 980px,
+          74% 1220px,
+          38% 1416px;
+      }
+    }
+
+    @media (min-width: 80rem) {
+      .site-main::before {
+        background-image:
+          var(--star-yellow),
+          var(--star-lilac),
+          var(--star-yellow),
+          var(--star-lilac),
+          var(--star-lilac),
+          var(--star-yellow),
+          var(--star-lilac),
+          var(--star-yellow),
+          var(--star-yellow),
+          var(--star-lilac),
+          var(--star-yellow),
+          var(--star-lilac),
+          var(--star-lilac),
+          var(--star-yellow);
+        background-position:
+          74% 36px,
+          13% 140px,
+          38% 294px,
+          74% 404px,
+          6% 540px,
+          43% 642px,
+          65% 764px,
+          17% 864px,
+          91% 934px,
+          43% 1080px,
+          20% 1192px,
+          86% 1278px,
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 497ms
+    I'll fold the duplicate `.site-main::before` blocks into the star rules to tidy things up. Then I'm starting runserver on port 8795 against the temp DB, with DEBUG on so static files are served, and creating sessions for the student and staff accounts for the browser check.
+  ── Thought for 2ms
+    Звёзды для широких экранов готовы в прототипе. Сейчас запускаю сервер на копии и снимаю скриншоты при ширине 1024–1920 px.
+  ── Ran cd "$TMPDIR/t018" && export DEBUG=1 DATABASE_URL="sqlite:///$TMPDIR/t018.sqlite3"; P=~/hackatonproject/.venv/bin/python; nohup $P manage.py runserver 127.0.0.1:8795 --noreload > "$TMPDIR/t018work/server.log" 2>&1 & sleep 0; cat > "$TMPDIR/t018work/sess.py" <<'EOF' from django.contrib.sessions.backends.db import SessionStore from django.contrib.auth import HASH_SESSION_KEY, SESSION_KEY, BACKEND_SESSION_KEY from accounts.models import User for role in ("student","staff"):     u=User.objects.filter(role=role, is_active=True).order_by("pk").first()     s=SessionStore(); s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]="django.contrib.auth.backends.ModelBackend"; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create()     print(role,u.username,s.session_key) EOF $P manage.py shell < "$TMPDIR/t018work/sess.py" 2>/dev/null | grep -v imported (1s)
+    $ cd "$TMPDIR/t018" && export DEBUG=1 DATABASE_URL="sqlite:///$TMPDIR/t018.sqlite3"; P=~/hackatonproject/.venv/bin/python; nohup $P manage.py runserver 127.0.0.1:8795 --noreload > "$TMPDIR/t018work/server.log" 2>&1 &
+  sleep 0; cat > "$TMPDIR/t018work/sess.py" <<'EOF'
+  from django.contrib.sessions.backends.db import SessionStore
+  from django.contrib.auth import HASH_SESSION_KEY, SESSION_KEY, BACKEND_SESSION_KEY
+  from accounts.models import User
+  for role in ("student","staff"):
+      u=User.objects.filter(role=role, is_active=True).order_by("pk").first()
+      s=SessionStore(); s[SESSION_KEY]=str(u.pk); s[BACKEND_SESSION_KEY]="django.contrib.auth.backends.ModelBackend"; s[HASH_SESSION_KEY]=u.get_session_auth_hash(); s.create()
+      print(role,u.username,s.session_key)
+  EOF
+  $P manage.py shell < "$TMPDIR/t018work/sess.py" 2>/dev/null | grep -v imported
+    (eval):1: nice(5) failed: operation not permitted
+
+    student student1 wsi98yidoyys5hbxya2joc9i8u9muf70
+    staff staff1 wwh0a8q2pavg908xxg7iwiktn4mbk9ld
+    Shell cwd was reset to ~/hackatonproject
+  ── Ran curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8795/login/; tail -3 "$TMPDIR/t018work/server.log"; bb browser-automation open --backend local --machine host_cuvmpv75p3 --headless --json 2>&1 | tail -5 (2s)
+    $ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8795/login/; tail -3 "$TMPDIR/t018work/server.log"; bb browser-automation open --backend local --machine host_cuvmpv75p3 --headless --json 2>&1 | tail -5
+    000
+    nohup: can't detach from console: Inappropriate ioctl for device
+    {"id":"be12295d-aaf9-4022-94f4-20aa1a11a809","threadId":"thr_2imsg4kck2","hostId":"host_cuvmpv75p3","backend":"local","state":"ready","createdAt":1795286299984,"expiresAt":1795288099984,"previewDirective":"::browser-preview{session=\"be12295d-aaf9-4022-94f4-20aa1a11a809\"}"}
+
+── Assistant ───────────────────────────────────────────────
+::browser-preview{session="be12295d-aaf9-4022-94f4-20aa1a11a809"}
+
+── Ran 5 commands, explored 2 files ────────────────────────
+  ── Ran cd "$TMPDIR/t018" && export DEBUG=1 DATABASE_URL="sqlite:///$TMPDIR/t018.sqlite3"; ~/hackatonproject/.venv/bin/python manage.py runserver 127.0.0.1:8795 --noreload > "$TMPDIR/t018work/server.log" 2>&1 (2s)
+    $ cd "$TMPDIR/t018" && export DEBUG=1 DATABASE_URL="sqlite:///$TMPDIR/t018.sqlite3"; ~/hackatonproject/.venv/bin/python manage.py runserver 127.0.0.1:8795 --noreload > "$TMPDIR/t018work/server.log" 2>&1
+    Command running in background with ID: beyu2z34p. Output is being written to: /private/tmp/claude-501/-Users-[user]-hackatonproject/80e7800e-1748-444e-824e-6605c2223c6d/tasks/beyu2z34p.output. You will be notified when it completes. To check interim output, use Read on that file path.
+    Session cwd remains ~/hackatonproject; directory changes made by the backgrounded command do not apply to subsequent commands.
+  ── Ran for i in 1 2 3 4 5 6 7 8 9 10; do c=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8795/login/); [ "$c" = 200 ] && break; done; echo $c; grep -n "staff\|student" -i /dev/null; cd ~/hackatonproject && grep -rn "path(" chat/urls.py accounts/urls.py academics/urls.py | head -20
+    $ for i in 1 2 3 4 5 6 7 8 9 10; do c=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8795/login/); [ "$c" = 200 ] && break; done; echo $c; grep -n "staff\|student" -i /dev/null; cd ~/hackatonproject && grep -rn "path(" chat/urls.py accounts/urls.py academics/urls.py | head -20
+    000
+    accounts/urls.py:8:    path("login/", views.DeaneryLoginView.as_view(), name="login"),
+    accounts/urls.py:9:    path("logout/", auth_views.LogoutView.as_view(), name="logout"),
+    accounts/urls.py:10:    path("profile/", views.ProfileView.as_view(), name="profile"),
+    accounts/urls.py:11:    path("staff/students/", views.StaffStudentListView.as_view(), name="staff_student_list"),
+    accounts/urls.py:12:    path(
+    chat/urls.py:7:    path("chat/", views.StudentChatView.as_view(), name="student"),
+    chat/urls.py:8:    path("chat/updates/", views.StudentChatUpdatesView.as_view(), name="student_updates"),
+    chat/urls.py:9:    path("staff/chats/", views.StaffChatListView.as_view(), name="staff_list"),
+    chat/urls.py:10:    path("staff/chats/<uuid:public_id>/", views.StaffDialogView.as_view(), name="staff_dialog"),
+    chat/urls.py:11:    path(
+    academics/urls.py:7:    path("grades/", views.StudentGradesView.as_view(), name="my_grades"),
+    academics/urls.py:8:    path("grades/<slug:term_code>/", views.StudentGradesView.as_view(), name="my_grades_term"),
+    academics/urls.py:9:    path(
+    academics/urls.py:14:    path(
+  ── Read $TMPDIR/t018work/server.log
+  ── Thought for 1s
+    I'm setting up a browser script that covers each of the widths 1024, 1280, 1440, 1920, and 360. It will visit the login, grades, staff students, and profile pages, and I'm planning to set the viewport height to 900 and take screenshots, scrolling on the longer pages. I also want to check for horizontal overflow by comparing scroll width against client width.
+
+    I'm writing a script that sets the viewport, cookie, navigates to the page, and returns metrics, with screenshots as a separate step after the run. I'll make it generic and parameterized per case, using a separate file for each one.
+  ── Ran mkdir -p "$TMPDIR/t018work/js" && cat > "$TMPDIR/t018work/mk.sh" <<'EOF' # usage: mk.sh name width height path session cat > "$TMPDIR/t018work/js/$1.js" <<JS const page = await browser.getPage("main"); await page.setViewport({width: $2, height: $3, deviceScaleFactor: 1}); const client = await page.target().createCDPSession(); await page.deleteCookie({name: "sessionid", url: "http://127.0.0.1:8795"}); if ("$5") await page.setCookie({name: "sessionid", value: "$5", url: "http://127.0.0.1:8795"}); await page.goto("http://127.0.0.1:8795$4", {waitUntil: "load"}); return await page.evaluate(() => {   const m = document.querySelector(".site-main");   const b = getComputedStyle(m, "::before"), a = getComputedStyle(m, "::after");   const r = m.getBoundingClientRect();   return {sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth, iw: innerWidth,     main: [r.left, r.top, r.width, r.height], bw: b.width, bd: b.display, aw: a.width, bodyH: document.body.scrollHeight,     header: document.querySelector(".site-header").getBoundingClientRect().height,     bodyBefore: getComputedStyle(document.body, "::before").display}; }); JS EOF chmod +x "$TMPDIR/t018work/mk.sh"; S=wsi98yidoyys5hbxya2joc9i8u9muf70; T=wwh0a8q2pavg908xxg7iwiktn4mbk9ld; B=be12295d-aaf9-4022-94f4-20aa1a11a809 cd "$TMPDIR/t018work" for w in 1024 1280 1440 1920; do   sh mk.sh "login$w" $w 900 /login/ ""   bb browser-automation run $B --script-file js/login$w.js --script-host host_cuvmpv75p3 2>&1 | tail -2   bb browser-automation screenshot $B --json 2>&1 | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('path') or d)"  done (5s)
+    $ mkdir -p "$TMPDIR/t018work/js" && cat > "$TMPDIR/t018work/mk.sh" <<'EOF'
+  # usage: mk.sh name width height path session
+  cat > "$TMPDIR/t018work/js/$1.js" <<JS
+  const page = await browser.getPage("main");
+  await page.setViewport({width: $2, height: $3, deviceScaleFactor: 1});
+  const client = await page.target().createCDPSession();
+  await page.deleteCookie({name: "sessionid", url: "http://127.0.0.1:8795"});
+  if ("$5") await page.setCookie({name: "sessionid", value: "$5", url: "http://127.0.0.1:8795"});
+  await page.goto("http://127.0.0.1:8795$4", {waitUntil: "load"});
+  return await page.evaluate(() => {
+    const m = document.querySelector(".site-main");
+    const b = getComputedStyle(m, "::before"), a = getComputedStyle(m, "::after");
+    const r = m.getBoundingClientRect();
+    return {sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth, iw: innerWidth,
+      main: [r.left, r.top, r.width, r.height], bw: b.width, bd: b.display, aw: a.width, bodyH: document.body.scrollHeight,
+      header: document.querySelector(".site-header").getBoundingClientRect().height,
+      bodyBefore: getComputedStyle(document.body, "::before").display};
+  });
+  JS
+  EOF
+  chmod +x "$TMPDIR/t018work/mk.sh"; S=wsi98yidoyys5hbxya2joc9i8u9muf70; T=wwh0a8q2pavg908xxg7iwiktn4mbk9ld; B=be12295d-aaf9-4022-94f4-20aa1a11a809
+  cd "$TMPDIR/t018work"
+  for w in 1024 1280 1440 1920; do
+    sh mk.sh "login$w" $w 900 /login/ ""
+    bb browser-automation run $B --script-file js/login$w.js --script-host host_cuvmpv75p3 2>&1 | tail -2
+    bb browser-automation screenshot $B --json 2>&1 | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('path') or d)" 
+  done
+    {"text":"{\n  \"sw\": 1024,\n  \"cw\": 1024,\n  \"iw\": 1024,\n  \"main\": [\n    32,\n    96,\n    960,\n    410\n  ],\n  \"bw\": \"16px\",\n  \"bd\": \"block\",\n  \"aw\": \"16px\",\n  \"bodyH\": 900,\n  \"header\": 96,\n  \"bodyBefore\": \"none\"\n}","images":[],"exitCode":0,"hostId":"host_cuvmpv75p3"}
+    {'text': '', 'images': [{'path': '/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-gNHZXA/db-OEaah9/tmp/shot-1795286322097-1.jpg', 'mimeType': 'image/jpeg', 'width': 960, 'height': 844}], 'exitCode': 0, 'hostId': 'host_cuvmpv75p3'}
+    {"text":"{\n  \"sw\": 1280,\n  \"cw\": 1280,\n  \"iw\": 1280,\n  \"main\": [\n    160,\n    96,\n    960,\n    410\n  ],\n  \"bw\": \"144px\",\n  \"bd\": \"block\",\n  \"aw\": \"144px\",\n  \"bodyH\": 900,\n  \"header\": 96,\n  \"bodyBefore\": \"none\"\n}","images":[],"exitCode":0,"hostId":"host_cuvmpv75p3"}
+    {'text': '', 'images': [{'path': '/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-gNHZXA/db-OEaah9/tmp/shot-1795286323064-2.jpg', 'mimeType': 'image/jpeg', 'width': 960, 'height': 675}], 'exitCode': 0, 'hostId': 'host_cuvmpv75p3'}
+    {"text":"{\n  \"sw\": 1440,\n  \"cw\": 1440,\n  \"iw\": 1440,\n  \"main\": [\n    240,\n    96,\n    960,\n    410\n  ],\n  \"bw\": \"224px\",\n  \"bd\": \"block\",\n  \"aw\": \"224px\",\n  \"bodyH\": 900,\n  \"header\": 96,\n  \"bodyBefore\": \"none\"\n}","images":[],"exitCode":0,"hostId":"host_cuvmpv75p3"}
+    {'text': '', 'images': [{'path': '/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-gNHZXA/db-OEaah9/tmp/shot-1795286323981-3.jpg', 'mimeType': 'image/jpeg', 'width': 960, 'height': 600}], 'exitCode': 0, 'hostId': 'host_cuvmpv75p3'}
+    {"text":"{\n  \"sw\": 1920,\n  \"cw\": 1920,\n  \"iw\": 1920,\n  \"main\": [\n    480,\n    96,\n    960,\n    410\n  ],\n  \"bw\": \"464px\",\n  \"bd\": \"block\",\n  \"aw\": \"464px\",\n  \"bodyH\": 900,\n  \"header\": 96,\n  \"bodyBefore\": \"none\"\n}","images":[],"exitCode":0,"hostId":"host_cuvmpv75p3"}
+    {'text': '', 'images': [{'path': '/private/var/folders/0k/rjl1vx1s5tbbbrcrtnwnv4b00000gn/T/bb-host-browser-automation-gNHZXA/db-OEaah9/tmp/shot-1795286324928-4.jpg', 'mimeType': 'image/jpeg', 'width': 960, 'height': 450}], 'exitCode': 0, 'hostId': 'host_cuvmpv75p3'}
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 5s
+    I'm weighing whether to take a screenshot with puppeteer's `page.screenshot` and save it to a PNG at a path I control, since the downscaled screenshots lose the detail I need, like the 3px stars. I'm also considering returning a base64 clip instead, though saving to a file looks simpler.
+
+    I'm checking the login page layout now: the main block is only 410px tall, so the stars sit within roughly the first 410px, about three per side. Short pages will look sparse, but six stars on a 1920-wide page may be enough, and I could raise the density to around 18 per side if needed. I'll take full-resolution screenshots first to judge it.
+  ── Ran cd "$TMPDIR/t018work" && cat > js/shot.js <<'JS' const page = await browser.getPage("main"); await page.screenshot({path: "/private/tmp/claude-501/t018work/shot.png", fullPage: true}); return "ok"; JS bb browser-automation run be12295d-aaf9-4022-94f4-20aa1a11a809 --script-file js/shot.js --script-host host_cuvmpv75p3 2>&1 | tail -1; ls -la shot.png
+    $ cd "$TMPDIR/t018work" && cat > js/shot.js <<'JS'
+  const page = await browser.getPage("main");
+  await page.screenshot({path: "/private/tmp/claude-501/t018work/shot.png", fullPage: true});
+  return "ok";
+  JS
+  bb browser-automation run be12295d-aaf9-4022-94f4-20aa1a11a809 --script-file js/shot.js --script-host host_cuvmpv75p3 2>&1 | tail -1; ls -la shot.png
+    {"text":"ok","images":[],"exitCode":0,"hostId":"host_cuvmpv75p3"}
+    -rw-r--r--@ 1 [user]  wheel  43783 Nov 21 10:38 shot.png
+    Shell cwd was reset to ~/hackatonproject
+  ── Read /private/tmp/claude-501/t018work/shot.png
+  ── Thought for 16s
+    I'm checking which star sits near y≈404 at the 74% position, since the ones near the footer line don't match the background tiling.
+
+    I'm working out where the stars should go: the side-band placement is fine, but the lower part of short pages is empty below the footer. I'm considering denser star counts at wide breakpoints, and whether the footer's empty strip on the right could hold some stars without colliding with its text.
+
+    I'm weighing whether to move the stars into full-height body layers in the side margins, with the header and footer areas carved out. The footer text runs left to about x=781 at 1920, so it overlaps the left margin band, and I'd need to check whether stars could land under or over that text.
+
+    I'm settling on more star density for wide screens, around 20 per side per 1600px at the largest breakpoint and 8 per side for mid-size ones, so that the short-page band gets a few more stars without crowding the content column.
+
+    I'm settling on a third tier for the widest screens, at about 30 stars per side, so the denser placement scales with how much of the margin is actually visible. I'm generating the star positions with a best-candidate method so that any subset, the first 8 or 16, still spreads evenly.
+
+    I'm checking the generation order so that tiers are prefixes of the best-candidate sequence, then sorting each tier by y for readability. I'm also confirming there are no duplicate x values or tight collinear runs within a tier, and that the first star starts at y≥24 so the tile wraps cleanly.
+  ── Ran cat > "$TMPDIR/t018work/gen2.py" <<'EOF' import random, math, json P=1600; W=360  # metric: band width taken as 360 px def dist(a,b):     dx=(a[0]-b[0])/100*W; dy=abs(a[1]-b[1]); dy=min(dy,P-dy)     return math.hypot(dx,dy) def mitchell(seed,n,k=40):     r=random.Random(seed); pts=[]     for i in range(n):         best=None;bd=-1         for _ in range(k):             c=(r.randint(4,96), r.randint(12,P//2-12)*2)             d=min((dist(c,p) for p in pts),default=1e9)             if d>bd: bd=d;best=c         pts.append(best)     return pts res={} for side,seed in (("left",21),("right",42)):     pts=mitchell(seed,26)     r=random.Random(seed+7)     cols=[]     for i,p in enumerate(pts): cols.append("Y" if i%2==0 else "L")     res[side]=[(x,y,c,i) for i,((x,y),c) in enumerate(zip(pts,cols))]     for t in (8,16,26):         sub=sorted(res[side][:t],key=lambda p:p[1])         print(side,t,[(x,y) for x,y,c,i in sub]) json.dump(res,open("/private/tmp/claude-501/t018work/stars.json","w")) EOF python3 "$TMPDIR/t018work/gen2.py"
+    $ cat > "$TMPDIR/t018work/gen2.py" <<'EOF'
+  import random, math, json
+  P=1600; W=360  # metric: band width taken as 360 px
+  def dist(a,b):
+      dx=(a[0]-b[0])/100*W; dy=abs(a[1]-b[1]); dy=min(dy,P-dy)
+      return math.hypot(dx,dy)
+  def mitchell(seed,n,k=40):
+      r=random.Random(seed); pts=[]
+      for i in range(n):
+          best=None;bd=-1
+          for _ in range(k):
+              c=(r.randint(4,96), r.randint(12,P//2-12)*2)
+              d=min((dist(c,p) for p in pts),default=1e9)
+              if d>bd: bd=d;best=c
+          pts.append(best)
+      return pts
+  res={}
+  for side,seed in (("left",21),("right",42)):
+      pts=mitchell(seed,26)
+      r=random.Random(seed+7)
+      cols=[]
+      for i,p in enumerate(pts): cols.append("Y" if i%2==0 else "L")
+      res[side]=[(x,y,c,i) for i,((x,y),c) in enumerate(zip(pts,cols))]
+      for t in (8,16,26):
+          sub=sorted(res[side][:t],key=lambda p:p[1])
+          print(side,t,[(x,y) for x,y,c,i in sub])
+  json.dump(res,open("/private/tmp/claude-501/t018work/stars.json","w"))
+  EOF
+  python3 "$TMPDIR/t018work/gen2.py"
+    left 8 [(79, 52), (6, 176), (67, 472), (94, 778), (25, 880), (51, 1076), (94, 1230), (25, 1464)]
+    left 16 [(79, 52), (6, 176), (86, 260), (5, 418), (67, 472), (24, 616), (78, 628), (94, 778), (25, 880), (90, 1008), (5, 1068), (51, 1076), (94, 1230), (42, 1268), (95, 1442), (25, 1464)]
+    left 26 [(79, 52), (32, 74), (6, 176), (44, 230), (86, 260), (8, 296), (49, 356), (5, 418), (67, 472), (33, 490), (24, 616), (78, 628), (13, 746), (94, 778), (53, 782), (25, 880), (91, 890), (60, 946), (90, 1008), (5, 1068), (51, 1076), (94, 1230), (42, 1268), (59, 1392), (95, 1442), (25, 1464)]
+    right 8 [(85, 252), (24, 386), (62, 670), (94, 916), (21, 1066), (26, 1284), (94, 1316), (4, 1502)]
+    right 16 [(39, 116), (85, 252), (24, 386), (84, 456), (15, 594), (62, 670), (73, 796), (7, 820), (94, 916), (40, 920), (21, 1066), (68, 1128), (26, 1284), (94, 1316), (4, 1502), (72, 1554)]
+    right 26 [(86, 86), (39, 116), (26, 248), (85, 252), (59, 382), (24, 386), (84, 456), (40, 540), (15, 594), (62, 670), (31, 722), (73, 796), (7, 820), (94, 916), (40, 920), (6, 964), (21, 1066), (95, 1080), (68, 1128), (5, 1182), (26, 1284), (94, 1316), (51, 1400), (88, 1444), (4, 1502), (72, 1554)]
+  ── Thought for 11s
+    I'm checking the star placement on the right side at 1024 width, where a short page would leave one star there. The x values Mitchell tends to pick cluster near the extremes, and at 1920 a 95% x sits about 16px from the window edge, which seems acceptable. I also want to note that a near-horizontal pair of points at the bottom left is fine. The color alternation by generation index is the next thing on my mind.
+
+    I'm settling on three tiers for the stars at 64rem, 80rem and 100rem, which would make the CSS long if each tier repeated the full background list. Instead I'm considering custom properties for groups of stars, so each tier can just concatenate the groups it needs.
+
+    I'm laying out the CSS as custom property groups so each breakpoint can just concatenate the groups it needs, with the colors alternating by index inside each group.
+
+    Still writing the media query breakpoints...
+
+    Now I'm checking the media query breakpoints at 100rem, with the band width working out to 304px there and 26 stars in the right tier.
+
+── Assistant ───────────────────────────────────────────────
+Делаю звёзды гуще. Три уровня по ширине: 8, 16 и 26 звёзд с каждой стороны.
+
+── Ran 4 commands, explored 2 files ────────────────────────
+  ── Ran cat > "$TMPDIR/t018work/css2.py" <<'EOF' import json d=json.load(open("/private/tmp/claude-501/t018work/stars.json")) groups=(("a",0,8),("b",8,16),("c",16,26)) name={"Y":"var(--star-yellow)","L":"var(--star-lilac)"} def side(sel,extra,pts):     out=[f"  {sel} {{",f"    {extra}"]     for g,s,e in groups:         sub=sorted(pts[s:e],key=lambda p:p[1])         out.append(f"    --stars-{g}-image:")         out.append(",\n".join(f"      {name[c]}" for x,y,c,i in sub)+";")         out.append(f"    --stars-{g}-position:")         out.append(",\n".join(f"      {x}% {y}px" for x,y,c,i in sub)+";")     out.append("  }")     return "\n".join(out) css=''' /* Wide screens (TASK-018): the side stars are scattered over the free margins on both sides    of the content column. Each margin is a layer beside .site-main, so stars are never beside    the header or the footer. A star is a 3 px background tile: x in % of the margin width    (counted from the window edge), y in px from the top of the content column, repeated every    1600 px down the page. The 1rem kept free at the window edge keeps the layer inside the    viewport also with a classic scrollbar (100vw includes it). Breakpoints come from the    60rem content column: from 64rem the margin layer is at least 1rem wide (8 stars per side    in 1600 px), from 80rem at least 9rem (16 stars), from 100rem at least 19rem (26 stars).    The groups a, b and c are nested, so a wider screen only adds stars. */ @media (min-width: 64rem) {   body::before,   body::after {     display: none;   }   .site-main::before,   .site-main::after {     --star-yellow: linear-gradient(var(--color-star-yellow) 0 3px, transparent 3px);     --star-lilac: linear-gradient(var(--color-star-lilac) 0 3px, transparent 3px);     content: "";     position: absolute;     top: 0;     bottom: 0;     width: calc(50vw - 50% - 1rem);     pointer-events: none;     z-index: -1;     background-image: var(--stars-a-image);     background-position: var(--stars-a-position);     background-size: 3px 1600px;     background-repeat: no-repeat repeat;   } '''+side(".site-main::before","right: 100%;",d["left"])+"\n\n"+side(".site-main::after","left: 100%;",d["right"])+''' } @media (min-width: 80rem) {   .site-main::before,   .site-main::after {     background-image: var(--stars-a-image), var(--stars-b-image);     background-position: var(--stars-a-position), var(--stars-b-position);   } } @media (min-width: 100rem) {   .site-main::before,   .site-main::after {     background-image: var(--stars-a-image), var(--stars-b-image), var(--stars-c-image);     background-position: var(--stars-a-position), var(--stars-b-position), var(--stars-c-position);   } } ''' print(css,end="") EOF python3 "$TMPDIR/t018work/css2.py" > "$TMPDIR/t018work/stars2.css" && cd "$TMPDIR/t018" && cp "$TMPDIR/t018base/static/css/theme.css" static/css/theme.css && python3 - <<'EOF' import os p='static/css/theme.css' s=open(p).read() anchor='''@media (min-width: 48rem) {   .site-header::after {     display: none;   } } ''' assert anchor in s s=s.replace(anchor,anchor+open(os.environ['TMPDIR']+'/t018work/stars2.css').read()) open(p,'w').write(s) EOF awk 'length>100' static/css/theme.css; wc -l static/css/theme.css
+    $ cat > "$TMPDIR/t018work/css2.py" <<'EOF'
+  import json
+  d=json.load(open("/private/tmp/claude-501/t018work/stars.json"))
+  groups=(("a",0,8),("b",8,16),("c",16,26))
+  name={"Y":"var(--star-yellow)","L":"var(--star-lilac)"}
+  def side(sel,extra,pts):
+      out=[f"  {sel} {{",f"    {extra}"]
+      for g,s,e in groups:
+          sub=sorted(pts[s:e],key=lambda p:p[1])
+          out.append(f"    --stars-{g}-image:")
+          out.append(",\n".join(f"      {name[c]}" for x,y,c,i in sub)+";")
+          out.append(f"    --stars-{g}-position:")
+          out.append(",\n".join(f"      {x}% {y}px" for x,y,c,i in sub)+";")
+      out.append("  }")
+      return "\n".join(out)
+  css='''
+  /* Wide screens (TASK-018): the side stars are scattered over the free margins on both sides
+     of the content column. Each margin is a layer beside .site-main, so stars are never beside
+     the header or the footer. A star is a 3 px background tile: x in % of the margin width
+     (counted from the window edge), y in px from the top of the content column, repeated every
+     1600 px down the page. The 1rem kept free at the window edge keeps the layer inside the
+     viewport also with a classic scrollbar (100vw includes it). Breakpoints come from the
+     60rem content column: from 64rem the margin layer is at least 1rem wide (8 stars per side
+     in 1600 px), from 80rem at least 9rem (16 stars), from 100rem at least 19rem (26 stars).
+     The groups a, b and c are nested, so a wider screen only adds stars. */
+  @media (min-width: 64rem) {
+    body::before,
+    body::after {
+      display: none;
+    }
+
+    .site-main::before,
+    .site-main::after {
+      --star-yellow: linear-gradient(var(--color-star-yellow) 0 3px, transparent 3px);
+      --star-lilac: linear-gradient(var(--color-star-lilac) 0 3px, transparent 3px);
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: calc(50vw - 50% - 1rem);
+      pointer-events: none;
+      z-index: -1;
+      background-image: var(--stars-a-image);
+      background-position: var(--stars-a-position);
+      background-size: 3px 1600px;
+      background-repeat: no-repeat repeat;
+    }
+
+  '''+side(".site-main::before","right: 100%;",d["left"])+"\n\n"+side(".site-main::after","left: 100%;",d["right"])+'''
+  }
+
+  @media (min-width: 80rem) {
+    .site-main::before,
+    .site-main::after {
+      background-image: var(--stars-a-image), var(--stars-b-image);
+      background-position: var(--stars-a-position), var(--stars-b-position);
+    }
+  }
+
+  @media (min-width: 100rem) {
+    .site-main::before,
+    .site-main::after {
+      background-image: var(--stars-a-image), var(--stars-b-image), var(--stars-c-image);
+      background-position: var(--stars-a-position), var(--stars-b-position), var(--stars-c-position);
+    }
+  }
+  '''
+  print(css,end="")
+  EOF
+  python3 "$TMPDIR/t018work/css2.py" > "$TMPDIR/t018work/stars2.css" && cd "$TMPDIR/t018" && cp "$TMPDIR/t018base/static/css/theme.css" static/css/theme.css && python3 - <<'EOF'
+  import os
+  p='static/css/theme.css'
+  s=open(p).read()
+  anchor='''@media (min-width: 48rem) {
+    .site-header::after {
+      display: none;
+    }
+  }
+  '''
+  assert anchor in s
+  s=s.replace(anchor,anchor+open(os.environ['TMPDIR']+'/t018work/stars2.css').read())
+  open(p,'w').write(s)
+  EOF
+  awk 'length>100' static/css/theme.css; wc -l static/css/theme.css
+    884 static/css/theme.css
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 8ms
+    I'm going to take full-page PNG screenshots at each width, covering a short page (login) and long pages (the staff students list and student grades). I'm also checking whether runserver with --noreload serves static files fresh from disk, and whether the browser might cache the CSS, so I'm considering disabling the cache on reload.
+
+    I'm writing a script that runs each case and saves its screenshot to the given path.
+  ── Ran cd "$TMPDIR/t018work" && cat > mk2.sh <<'EOF' # usage: mk2.sh name width height path session scale cat > "js/$1.js" <<JS const page = await browser.getPage("main"); await page.setCacheEnabled(false); await page.setViewport({width: $2, height: $3, deviceScaleFactor: ${6:-1}}); await page.deleteCookie({name: "sessionid", url: "http://127.0.0.1:8795"}); if ("$5") await page.setCookie({name: "sessionid", value: "$5", url: "http://127.0.0.1:8795"}); await page.goto("http://127.0.0.1:8795$4", {waitUntil: "load"}); await page.screenshot({path: "/private/tmp/claude-501/t018work/$1.png", fullPage: true}); return await page.evaluate(() => {   const m = document.querySelector(".site-main");   const r = m.getBoundingClientRect();   return JSON.stringify({sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth,     main: [r.left, Math.round(r.top), r.width, Math.round(r.height)], bw: getComputedStyle(m, "::before").width,     bodyBefore: getComputedStyle(document.body, "::before").display}); }); JS bb browser-automation run be12295d-aaf9-4022-94f4-20aa1a11a809 --script-file "js/$1.js" --script-host host_cuvmpv75p3 2>&1 | python3 -c "import sys,json; print('$1', json.load(sys.stdin)['text'])" EOF S=wsi98yidoyys5hbxya2joc9i8u9muf70; T=wwh0a8q2pavg908xxg7iwiktn4mbk9ld for w in 1024 1280 1440 1920; do sh mk2.sh login$w $w 900 /login/ ""; sh mk2.sh stud$w $w 900 /staff/students/ $T; done (5s)
+    $ cd "$TMPDIR/t018work" && cat > mk2.sh <<'EOF'
+  # usage: mk2.sh name width height path session scale
+  cat > "js/$1.js" <<JS
+  const page = await browser.getPage("main");
+  await page.setCacheEnabled(false);
+  await page.setViewport({width: $2, height: $3, deviceScaleFactor: ${6:-1}});
+  await page.deleteCookie({name: "sessionid", url: "http://127.0.0.1:8795"});
+  if ("$5") await page.setCookie({name: "sessionid", value: "$5", url: "http://127.0.0.1:8795"});
+  await page.goto("http://127.0.0.1:8795$4", {waitUntil: "load"});
+  await page.screenshot({path: "/private/tmp/claude-501/t018work/$1.png", fullPage: true});
+  return await page.evaluate(() => {
+    const m = document.querySelector(".site-main");
+    const r = m.getBoundingClientRect();
+    return JSON.stringify({sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth,
+      main: [r.left, Math.round(r.top), r.width, Math.round(r.height)], bw: getComputedStyle(m, "::before").width,
+      bodyBefore: getComputedStyle(document.body, "::before").display});
+  });
+  JS
+  bb browser-automation run be12295d-aaf9-4022-94f4-20aa1a11a809 --script-file "js/$1.js" --script-host host_cuvmpv75p3 2>&1 | python3 -c "import sys,json; print('$1', json.load(sys.stdin)['text'])"
+  EOF
+  S=wsi98yidoyys5hbxya2joc9i8u9muf70; T=wwh0a8q2pavg908xxg7iwiktn4mbk9ld
+  for w in 1024 1280 1440 1920; do sh mk2.sh login$w $w 900 /login/ ""; sh mk2.sh stud$w $w 900 /staff/students/ $T; done
+    login1024 {"sw":1024,"cw":1024,"main":[32,96,960,410],"bw":"16px","bodyBefore":"none"}
+    stud1024 {"sw":1024,"cw":1024,"main":[32,96,960,260],"bw":"16px","bodyBefore":"none"}
+    login1280 {"sw":1280,"cw":1280,"main":[160,96,960,410],"bw":"144px","bodyBefore":"none"}
+    stud1280 {"sw":1280,"cw":1280,"main":[160,96,960,260],"bw":"144px","bodyBefore":"none"}
+    login1440 {"sw":1440,"cw":1440,"main":[240,96,960,410],"bw":"224px","bodyBefore":"none"}
+    stud1440 {"sw":1440,"cw":1440,"main":[240,96,960,260],"bw":"224px","bodyBefore":"none"}
+    login1920 {"sw":1920,"cw":1920,"main":[480,96,960,410],"bw":"464px","bodyBefore":"none"}
+    stud1920 {"sw":1920,"cw":1920,"main":[480,96,960,260],"bw":"464px","bodyBefore":"none"}
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 6ms
+    I'm checking why the staff students list main area is only 260px tall. It could be that the session is invalid and I'm being redirected, or that the demo has only a few students. I'll look for a longer page instead, so I'm opening the student grades view.
+  ── Read /private/tmp/claude-501/t018work/stud1920.png
+  ── Thought for 31s
+    I'm noting that the staff badge is showing. The stars are scattered, but on short pages most of the screen below the footer stays empty, so the user would see a mostly bare sky. I'm considering putting a few stars in that space below the footer as well, maybe through a footer pseudo-element.
+
+    Since the next thinking is a continuation of the footer pseudo-element code I was already sketching, I'll keep it short.
+
+    Working through the footer pseudo-element approach...
+
+    I'm weighing body-level backgrounds as a place for the stars, since they'd sit under the header and footer text. The footer pseudo-element would add scrollable height, and `overflow: clip` doesn't fix that. I'm still looking for a way to reach the empty area below the footer without changing the layout.
+
+    I'm weighing whether the stars should also fill the empty strip below the footer on short pages, since right now that area looks bare. The old version had a few edge stars there, so the thinner look is a change. The brief only asked for the side margins, so I'll note it as a risk rather than force stars into that region, though a sparse login page at 1920 may still read as too empty.
+
+    Still weighing whether the stars could reach the bare strip below the footer through the main area's height, so the empty sky isn't left so stark on short pages.
+
+    Checking whether the stars can reach the empty strip below the footer by extending the main area's background layer downward. The footer text sits in the left margin, so stars on the right side would not collide with it at common widths.
+
+    Right now I'm weighing a different idea for the strip below the footer: the right-hand band could extend down to the bottom of the page without colliding with the footer text, since that text ends well before the right margin. But that would leave the left and right sides behaving differently, which looks odd.
+
+    I'm weighing a different layout: anchoring a star layer to the main area's bottom, then a second layer positioned just below the footer, with its height set from the viewport so it extends the scrollable area only when the page is long.
+
+    I'm checking whether a body-level pseudo-element with `bottom: 0` could cover the empty area below the footer without extending the scroll height. The main-area pseudo can't do it, since its containing block is the main element itself.
+
+    I'm still ruling out a body-level layer for the strip below the footer, since covering the whole body would mean either letting the margin stars sit over the header and footer text or painting opaque bands that would look visibly wrong against the sky. Making the stars sit beside the main area alone seems the cleaner choice. Short pages will show fewer stars than long ones, which may read as sparse, but it keeps the layout honest.
+
+    I'm checking the star counts per tier against the main area height at 1920 and 1280, and the numbers come out to about 13 stars at 1920 and 6 at 1280. That's enough density for short pages, so I'm moving on to the screenshot count.
+
+    I'm going through the remaining screenshots next, the other login widths and a long page like the student grades or staff chat. I'll check the page heights on those too.
+  ── Ran cd "$TMPDIR/t018work" && S=wsi98yidoyys5hbxya2joc9i8u9muf70; T=wwh0a8q2pavg908xxg7iwiktn4mbk9ld; for p in /grades/ /schedule/ /notifications/ /chat/ /requests/ /; do sh mk2.sh probe 1280 900 $p $S; done 2>&1 | cut -c1-200; grep -rn "path(\"" schedule/urls.py notifications/urls.py petitions/urls.py core/urls.py 2>/dev/null | head; cd ~/hackatonproject && grep -rhn "path(\"" schedule/urls.py notifications/urls.py petitions/urls.py core/urls.py | head -20 (4s)
+    $ cd "$TMPDIR/t018work" && S=wsi98yidoyys5hbxya2joc9i8u9muf70; T=wwh0a8q2pavg908xxg7iwiktn4mbk9ld; for p in /grades/ /schedule/ /notifications/ /chat/ /requests/ /; do sh mk2.sh probe 1280 900 $p $S; done 2>&1 | cut -c1-200; grep -rn "path(\"" schedule/urls.py notifications/urls.py petitions/urls.py core/urls.py 2>/dev/null | head; cd ~/hackatonproject && grep -rhn "path(\"" schedule/urls.py notifications/urls.py petitions/urls.py core/urls.py | head -20
+    probe {"sw":1280,"cw":1280,"main":[160,108,960,908],"bw":"144px","bodyBefore":"none"}
+    probe {"sw":1280,"cw":1280,"main":[160,108,960,286],"bw":"144px","bodyBefore":"none"}
+    probe {"sw":1280,"cw":1280,"main":[160,108,960,3446],"bw":"144px","bodyBefore":"none"}
+    probe {"sw":1280,"cw":1280,"main":[160,108,960,798],"bw":"144px","bodyBefore":"none"}
+    probe {"sw":1280,"cw":1280,"main":[160,108,960,696],"bw":"144px","bodyBefore":"none"}
+    probe {"sw":1280,"cw":1280,"main":[160,108,960,780],"bw":"144px","bodyBefore":"none"}
+    7:    path("", views.HomeView.as_view(), name="home"),
+    8:    path("health/", views.health, name="health"),
+    7:    path("notifications/", views.NotificationsView.as_view(), name="feed"),
+    10:    path("schedule/", views.TodayView.as_view(), name="today"),
+    11:    path("schedule/week/", views.StudentWeekView.as_view(), name="week"),
+    12:    path("schedule/week/<isodate:day>/", views.StudentWeekView.as_view(), name="week_of"),
+    13:    path("staff/schedule/", views.StaffGroupListView.as_view(), name="staff_groups"),
+    7:    path("requests/", views.MyPetitionsView.as_view(), name="my_list"),
+    8:    path("requests/new/", views.CatalogView.as_view(), name="catalog"),
+    9:    path("requests/new/<int:type_id>/", views.SubmitPetitionView.as_view(), name="submit"),
+    10:    path("requests/<uuid:public_id>/", views.StudentPetitionDetailView.as_view(), name="detail"),
+    11:    path("requests/<uuid:public_id>/submitted/", views.SubmittedView.as_view(), name="submitted"),
+    17:    path("staff/requests/", views.StaffQueueView.as_view(), name="staff_queue"),
+  ── Thought
+    The notifications page is long, so full-page screenshots at four widths would produce images too large to read well. I'll switch to viewport-height captures instead, and add a toggle to the script so I can choose between full-page and viewport modes.
+  ── Ran cd "$TMPDIR/t018work" && S=wsi98yidoyys5hbxya2joc9i8u9muf70; for w in 1024 1280 1440 1920; do sed 's/fullPage: true/fullPage: false/' mk2.sh > mk3.sh; sh mk3.sh notif$w $w 1800 /notifications/ $S; done (3s)
+    $ cd "$TMPDIR/t018work" && S=wsi98yidoyys5hbxya2joc9i8u9muf70; for w in 1024 1280 1440 1920; do sed 's/fullPage: true/fullPage: false/' mk2.sh > mk3.sh; sh mk3.sh notif$w $w 1800 /notifications/ $S; done
+    notif1024 {"sw":1024,"cw":1024,"main":[32,108,960,3279],"bw":"16px","bodyBefore":"none"}
+    notif1280 {"sw":1280,"cw":1280,"main":[160,108,960,3279],"bw":"144px","bodyBefore":"none"}
+    notif1440 {"sw":1440,"cw":1440,"main":[240,108,960,3279],"bw":"224px","bodyBefore":"none"}
+    notif1920 {"sw":1920,"cw":1920,"main":[480,108,960,3279],"bw":"464px","bodyBefore":"none"}
+    Shell cwd was reset to ~/hackatonproject
+  ── Read /private/tmp/claude-501/t018work/notif1920.png
+  ── Thought for 4ms
+    The starry sky looks good at 1920 on the long page, though I'm wondering whether the stars bunching near the outer edge of the left band could be a problem. The left band's x range of 40 to 455 looks fine to me. Next I'll check 1280 and 1024, since the screenshot itself is downscaled from 1920×1800.
+
+── Assistant ───────────────────────────────────────────────
+Широкая страница при 1920 px выглядит как звёздное небо. Проверяю 1280 и 1024 px.
+
+── Explored 3 files, ran 1 command ─────────────────────────
+  ── Read /private/tmp/claude-501/t018work/notif1280.png
+  ── Read /private/tmp/claude-501/t018work/notif1024.png
+  ── Thought for 3s
+    I'm checking the 1024 layout: the stars sit in narrow 16px bands on each side, which looks somewhat column-like but irregular, and that's unavoidable at 32px margins, so I'll explain it rather than change it. The 1280 render looks good. Next I want a zoomed crop of the 1440 notification at full resolution to check crispness at scale 2 and fractional positions, and I'm wondering whether PIL is available in the .venv.
+
+    I'm thinking about a quick zoomed check of the 1440 crispness: I could crop with PIL if it's in the venv, or fall back to sips, but taking a puppeteer screenshot with a clip and scale may be simpler. I'm leaning toward a 100×100 clip of the left band at 1440, scale 1 with DPR 2.
+  ── Ran cd "$TMPDIR/t018work" && cat > js/zoom.js <<'JS' const page = await browser.getPage("main"); await page.setViewport({width: 1440, height: 900, deviceScaleFactor: 2}); await page.goto("http://127.0.0.1:8795/notifications/", {waitUntil: "load"}); const out = await page.evaluate(() => {   const m = document.querySelector(".site-main").getBoundingClientRect();   return [m.left, m.top]; }); await page.screenshot({path: "/private/tmp/claude-501/t018work/zoom.png", clip: {x: 0, y: out[1], width: 240, height: 420, scale: 3}}); return JSON.stringify(out); JS bb browser-automation run be12295d-aaf9-4022-94f4-20aa1a11a809 --script-file js/zoom.js --script-host host_cuvmpv75p3 2>&1 | tail -1 (1s)
+    $ cd "$TMPDIR/t018work" && cat > js/zoom.js <<'JS'
+  const page = await browser.getPage("main");
+  await page.setViewport({width: 1440, height: 900, deviceScaleFactor: 2});
+  await page.goto("http://127.0.0.1:8795/notifications/", {waitUntil: "load"});
+  const out = await page.evaluate(() => {
+    const m = document.querySelector(".site-main").getBoundingClientRect();
+    return [m.left, m.top];
+  });
+  await page.screenshot({path: "/private/tmp/claude-501/t018work/zoom.png", clip: {x: 0, y: out[1], width: 240, height: 420, scale: 3}});
+  return JSON.stringify(out);
+  JS
+  bb browser-automation run be12295d-aaf9-4022-94f4-20aa1a11a809 --script-file js/zoom.js --script-host host_cuvmpv75p3 2>&1 | tail -1
+    {"text":"[240,108]","images":[],"exitCode":0,"hostId":"host_cuvmpv75p3"}
+    Shell cwd was reset to ~/hackatonproject
+  ── Read /private/tmp/claude-501/t018work/zoom.png
+  ── Thought for 4ms
+    The stars are rendering as crisp squares with no blur, which looks right. The 360px layout shouldn't change since there's no CSS change below 64rem, so I still need to confirm the body stars appear there. For the staff header at 1024px, the "Чаты (99+)" badge needs at least 100 unread student messages, so I'll seed some into the temp database and screenshot the staff view, making sure they come from students in the staff member's faculty.
+
+── Assistant ───────────────────────────────────────────────
+Звёзды чёткие, без размытия. Теперь проверяю шапку сотрудника при 1024 px с «Чаты (99+)».
+
+── Ran 1 command, explored 1 file ──────────────────────────
+  ── Ran cd "$TMPDIR/t018" && export DEBUG=1 DATABASE_URL="sqlite:///$TMPDIR/t018.sqlite3"; cat > "$TMPDIR/t018work/many.py" <<'EOF' from accounts.models import User from chat.models import Dialog, Message, AuthorRole from chat.selectors import dialogs_visible_to, staff_unread_count from django.utils import timezone st=User.objects.filter(role="staff").order_by("pk").first() d=dialogs_visible_to(st).first() for i in range(120):     Message.objects.create(dialog=d, author=d.student.user, author_role=AuthorRole.STUDENT, text=f"m{i}", created_at=timezone.now()) print(staff_unread_count(User.objects.get(pk=st.pk))) EOF ~/hackatonproject/.venv/bin/python manage.py shell < "$TMPDIR/t018work/many.py" 2>/dev/null | tail -1 cd "$TMPDIR/t018work" && T=wwh0a8q2pavg908xxg7iwiktn4mbk9ld; sed 's/fullPage: true/fullPage: false/' mk2.sh > mk3.sh; sh mk3.sh staff1024 1024 300 /staff/chats/ $T; sh mk3.sh staff360 360 300 /staff/chats/ $T (2s)
+    $ cd "$TMPDIR/t018" && export DEBUG=1 DATABASE_URL="sqlite:///$TMPDIR/t018.sqlite3"; cat > "$TMPDIR/t018work/many.py" <<'EOF'
+  from accounts.models import User
+  from chat.models import Dialog, Message, AuthorRole
+  from chat.selectors import dialogs_visible_to, staff_unread_count
+  from django.utils import timezone
+  st=User.objects.filter(role="staff").order_by("pk").first()
+  d=dialogs_visible_to(st).first()
+  for i in range(120):
+      Message.objects.create(dialog=d, author=d.student.user, author_role=AuthorRole.STUDENT, text=f"m{i}", created_at=timezone.now())
+  print(staff_unread_count(User.objects.get(pk=st.pk)))
+  EOF
+  ~/hackatonproject/.venv/bin/python manage.py shell < "$TMPDIR/t018work/many.py" 2>/dev/null | tail -1
+  cd "$TMPDIR/t018work" && T=wwh0a8q2pavg908xxg7iwiktn4mbk9ld; sed 's/fullPage: true/fullPage: false/' mk2.sh > mk3.sh; sh mk3.sh staff1024 1024 300 /staff/chats/ $T; sh mk3.sh staff360 360 300 /staff/chats/ $T
+    121
+    staff1024 {"sw":1024,"cw":1024,"main":[32,96,960,328],"bw":"16px","bodyBefore":"none"}
+    staff360 {"sw":360,"cw":360,"main":[0,152,360,351],"bw":"auto","bodyBefore":"block"}
+    Shell cwd was reset to ~/hackatonproject
+  ── Read /private/tmp/claude-501/t018work/staff1024.png
+  ── Thought for 6s
+    The menu fits on one line, and item 2's 360 layout is in the compact menu, so that's fine. Nothing changes at 360 because the CSS has no edits below 64rem. I'll confirm that with a static check: the star rules on `.site-main::before` should only appear inside the min-width media queries for 64rem, 80rem, and 100rem.
+
+    I'm planning the static checks for the star rules: they should only appear inside the min-width media queries, with `content: ""` and `pointer-events: none`, and no inline styles or star classes in the templates. I'm also working out a scatter test so that star x-positions don't line up into a visible ladder, checking the gaps between neighbouring stars in each tier.
+
+── Assistant ───────────────────────────────────────────────
+Шапка сотрудника с «Чаты (99+)» помещается в одну строку при 1024 px. Теперь смотрю существующие тесты темы.
+
+── Explored 2 searches, 5 files, ran 5 commands ────────────
+  ── Searched for star\|body::before in .
+  ── Read core/tests/test_design.py
+  ── Thought for 3ms
+    I'm checking whether the `transparent` keyword in the gradient gets caught by the colour literal test, which only looks for hex and rgb values, so that's fine. Next I'm looking for theme tests that cover z-index or pseudo-elements, like the "test_stars" case in test_design, and I'll grep for "D13" to find them.
+  ── Searched for D13\|pointer-events\|class .*Tests\|def test in core/tests/test_design.py
+  ── Thought for 17s
+    I'm writing the tests now, starting with a new test file for the wide-screen stars CSS. The first check is that the base `body::before` rule outside the media queries still sets `left: 4px`, since I can't diff against HEAD from inside the test.
+
+    I'm writing the stars tests now: one checks the narrow-screen `body::before` rule still has its box-shadow and that the side stars stay out of the media queries, and another checks that the wide stars only appear inside the 64rem, 80rem and 100rem blocks, with the body pseudo-elements hidden at 64rem. I'm also planning a test that confirms each star layer is pure decoration, meaning no pointer events, a negative z-index, and no image URLs.
+
+    I'm checking that the stars are scattered rather than lined up: for each side's full set of 26, the x values should spread at least 80 points within a tier, and no three consecutive stars by height should sit on a straight line.
+
+    I'm checking the window-edge stars next: on the left side, several stars sit near the same x value at different heights, which could line up into a near-vertical column.
+
+    I'm fixing the column problem by making the generator reject any two stars within 400px vertically that sit within 5 points horizontally. The checks I'm writing encode that same rule, plus a row check for stars that line up horizontally.
+
+    I'm planning a check that no three stars with y values within a 40px window line up, and a check that the middle star of any three consecutive stars (by y) bends at least 8 points away from the line through its neighbours so it doesn't form a zig-zag ladder. Then I'll write a generator that uses best-candidate placement and rejects any candidate that breaks the column rule, and verify every tier against all the checks, retrying seeds until they pass.
+  ── Thought for 4ms
+    Нашёл проблему: три звезды у края окна выстроились в один столбик. Перегенерирую их с проверками на столбцы, ряды и диагонали, и те же проверки добавлю в тест.
+  ── Ran cat > "$TMPDIR/t018work/gen3.py" <<'EOF' import random, math, json P=1600; W=360 TIERS=(8,16,26) def dy(a,b):     d=abs(a-b); return min(d,P-d) def dist(a,b): return math.hypot((a[0]-b[0])/100*W, dy(a[1],b[1])) def column_ok(c,pts): return all(not(dy(c[1],p[1])<400 and abs(c[0]-p[0])<6) for p in pts) def checks(pts):     errs=[]     for i,a in enumerate(pts):         for b in pts[i+1:]:             if dy(a[1],b[1])<400 and abs(a[0]-b[0])<6: errs.append(("column",a,b))     s=sorted(pts,key=lambda p:p[1])     for i in range(len(s)-2):         a,b,c=s[i],s[i+1],s[i+2]         if c[1]-a[1]<48: errs.append(("row",a,b,c))         t=(b[1]-a[1])/(c[1]-a[1]) if c[1]!=a[1] else 0.5         if abs(a[0]+(c[0]-a[0])*t-b[0])<10: errs.append(("line",a,b,c))     return errs def mitchell(seed,n,k=60):     r=random.Random(seed); pts=[]     for i in range(n):         best=None;bd=-1         for _ in range(k):             c=(r.randint(3,97), r.randint(12,P//2-12)*2)             if not column_ok(c,pts): continue             d=min((dist(c,p) for p in pts),default=1e9)             if d>bd: bd=d;best=c         if best is None: return None         pts.append(best)     return pts res={} for side,seed0 in (("left",100),("right",200)):     seed=seed0     while True:         pts=mitchell(seed,26)         if pts and all(not checks(pts[:t]) for t in TIERS): break         seed+=1     print(side,"seed",seed)     res[side]=[(x,y,"Y" if i%2==0 else "L",i) for i,(x,y) in enumerate(pts)]     for t in TIERS: print(t,sorted([(x,y) for x,y,c,i in res[side][:t]],key=lambda p:p[1])) json.dump(res,open("/private/tmp/claude-501/t018work/stars.json","w")) EOF python3 "$TMPDIR/t018work/gen3.py" (1s)
+    $ cat > "$TMPDIR/t018work/gen3.py" <<'EOF'
+  import random, math, json
+  P=1600; W=360
+  TIERS=(8,16,26)
+  def dy(a,b):
+      d=abs(a-b); return min(d,P-d)
+  def dist(a,b): return math.hypot((a[0]-b[0])/100*W, dy(a[1],b[1]))
+  def column_ok(c,pts): return all(not(dy(c[1],p[1])<400 and abs(c[0]-p[0])<6) for p in pts)
+  def checks(pts):
+      errs=[]
+      for i,a in enumerate(pts):
+          for b in pts[i+1:]:
+              if dy(a[1],b[1])<400 and abs(a[0]-b[0])<6: errs.append(("column",a,b))
+      s=sorted(pts,key=lambda p:p[1])
+      for i in range(len(s)-2):
+          a,b,c=s[i],s[i+1],s[i+2]
+          if c[1]-a[1]<48: errs.append(("row",a,b,c))
+          t=(b[1]-a[1])/(c[1]-a[1]) if c[1]!=a[1] else 0.5
+          if abs(a[0]+(c[0]-a[0])*t-b[0])<10: errs.append(("line",a,b,c))
+      return errs
+  def mitchell(seed,n,k=60):
+      r=random.Random(seed); pts=[]
+      for i in range(n):
+          best=None;bd=-1
+          for _ in range(k):
+              c=(r.randint(3,97), r.randint(12,P//2-12)*2)
+              if not column_ok(c,pts): continue
+              d=min((dist(c,p) for p in pts),default=1e9)
+              if d>bd: bd=d;best=c
+          if best is None: return None
+          pts.append(best)
+      return pts
+  res={}
+  for side,seed0 in (("left",100),("right",200)):
+      seed=seed0
+      while True:
+          pts=mitchell(seed,26)
+          if pts and all(not checks(pts[:t]) for t in TIERS): break
+          seed+=1
+      print(side,"seed",seed)
+      res[side]=[(x,y,"Y" if i%2==0 else "L",i) for i,(x,y) in enumerate(pts)]
+      for t in TIERS: print(t,sorted([(x,y) for x,y,c,i in res[side][:t]],key=lambda p:p[1]))
+  json.dump(res,open("/private/tmp/claude-501/t018work/stars.json","w"))
+  EOF
+  python3 "$TMPDIR/t018work/gen3.py"
+    left seed 136
+    8 [(94, 80), (10, 118), (87, 458), (13, 572), (76, 902), (3, 1014), (25, 1298), (85, 1458)]
+    16 [(94, 80), (10, 118), (57, 224), (26, 332), (87, 458), (50, 562), (13, 572), (96, 702), (28, 738), (76, 902), (3, 1014), (69, 1092), (91, 1272), (25, 1298), (85, 1458), (32, 1544)]
+    26 [(94, 80), (10, 118), (57, 224), (26, 332), (66, 344), (34, 428), (87, 458), (50, 562), (13, 572), (96, 702), (28, 738), (63, 780), (76, 902), (37, 910), (3, 1014), (44, 1024), (69, 1092), (19, 1154), (59, 1218), (9, 1226), (91, 1272), (25, 1298), (52, 1344), (45, 1430), (85, 1458), (32, 1544)]
+    right seed 270
+    8 [(6, 182), (82, 378), (34, 518), (25, 756), (96, 1020), (4, 1194), (25, 1468), (96, 1518)]
+    16 [(38, 32), (90, 80), (6, 182), (59, 194), (82, 378), (34, 518), (55, 668), (88, 748), (25, 756), (19, 976), (96, 1020), (69, 1136), (4, 1194), (75, 1284), (25, 1468), (96, 1518)]
+    26 [(38, 32), (90, 80), (6, 182), (59, 194), (76, 272), (26, 306), (82, 378), (48, 402), (34, 518), (96, 570), (9, 638), (55, 668), (88, 748), (25, 756), (78, 868), (46, 894), (19, 976), (96, 1020), (31, 1090), (69, 1136), (4, 1194), (75, 1284), (10, 1318), (50, 1394), (25, 1468), (96, 1518)]
+  ── Thought for 1s
+    I'm checking that the text sits far enough from the window and main edges at each breakpoint: about 30px at 1920 and around 16px at 1024, which leaves it clear of the 24px main padding. I'm also confirming the wrap-around column check across the tile boundary is already covered.
+
+    I've confirmed the wrap-around check across the tile boundary is handled by the dy wrap, so that part is settled. Next I'm regenerating the CSS and rechecking the layout at 1920 and 1440.
+  ── Ran python3 "$TMPDIR/t018work/css2.py" > "$TMPDIR/t018work/stars2.css" && cd "$TMPDIR/t018" && cp "$TMPDIR/t018base/static/css/theme.css" static/css/theme.css && python3 - <<'EOF' import os p='static/css/theme.css' s=open(p).read() anchor='''@media (min-width: 48rem) {   .site-header::after {     display: none;   } } ''' s=s.replace(anchor,anchor+open(os.environ['TMPDIR']+'/t018work/stars2.css').read()) open(p,'w').write(s) EOF cd "$TMPDIR/t018work" && S=wsi98yidoyys5hbxya2joc9i8u9muf70; for w in 1024 1280 1440 1920; do sh mk3.sh notif$w $w 1800 /notifications/ $S; sh mk2.sh login$w $w 900 /login/ ""; done (6s)
+    $ python3 "$TMPDIR/t018work/css2.py" > "$TMPDIR/t018work/stars2.css" && cd "$TMPDIR/t018" && cp "$TMPDIR/t018base/static/css/theme.css" static/css/theme.css && python3 - <<'EOF'
+  import os
+  p='static/css/theme.css'
+  s=open(p).read()
+  anchor='''@media (min-width: 48rem) {
+    .site-header::after {
+      display: none;
+    }
+  }
+  '''
+  s=s.replace(anchor,anchor+open(os.environ['TMPDIR']+'/t018work/stars2.css').read())
+  open(p,'w').write(s)
+  EOF
+  cd "$TMPDIR/t018work" && S=wsi98yidoyys5hbxya2joc9i8u9muf70; for w in 1024 1280 1440 1920; do sh mk3.sh notif$w $w 1800 /notifications/ $S; sh mk2.sh login$w $w 900 /login/ ""; done
+    notif1024 {"sw":1024,"cw":1024,"main":[32,108,960,3279],"bw":"16px","bodyBefore":"none"}
+    login1024 {"sw":1024,"cw":1024,"main":[32,96,960,410],"bw":"16px","bodyBefore":"none"}
+    notif1280 {"sw":1280,"cw":1280,"main":[160,108,960,3279],"bw":"144px","bodyBefore":"none"}
+    login1280 {"sw":1280,"cw":1280,"main":[160,96,960,410],"bw":"144px","bodyBefore":"none"}
+    notif1440 {"sw":1440,"cw":1440,"main":[240,108,960,3279],"bw":"224px","bodyBefore":"none"}
+    login1440 {"sw":1440,"cw":1440,"main":[240,96,960,410],"bw":"224px","bodyBefore":"none"}
+    notif1920 {"sw":1920,"cw":1920,"main":[480,108,960,3279],"bw":"464px","bodyBefore":"none"}
+    login1920 {"sw":1920,"cw":1920,"main":[480,96,960,410],"bw":"464px","bodyBefore":"none"}
+    Shell cwd was reset to ~/hackatonproject
+  ── Read /private/tmp/claude-501/t018work/notif1920.png
+  ── Read /private/tmp/claude-501/t018work/notif1440.png
+  ── Thought for 5ms
+    I'm going to check the login page at 1024 and 360 widths as a quick baseline. The 360 layout should be unchanged since the CSS changes only apply at 64rem and up. Next I'll look at the short page at 1920.
+  ── Read /private/tmp/claude-501/t018work/login1920.png
+  ── Thought for 27s
+    I'm treating the empty lower section as a known limitation for the Risks note, with the stars only beside the content column, since the footer's position isn't knowable in CSS. I'll report this to the lead as a design decision. I still need to confirm the scale-2 crispness, and I can't verify the classic scrollbar case in headless mode, which uses overlay scrollbars, so I'm relying on the 16px safety margin math for that.
+
+    I'm writing the unread-count tests now: the selector cases cover counting student messages within the staff member's own faculty, excluding staff messages, the shared read marker, and inactive students. The view tests will check that non-staff roles get zero without extra queries.
+
+    I'm writing the remaining unread-count tests: query counts for a fresh user (three queries the first time, one on a repeat call) and that the count stays constant as dialogs and messages grow. I'm also checking that the dispatch helper returns the student count for students, the staff count for staff, and zero for root. For the nav, I'm adding checks that the staff profile page shows "Чаты (2)" in both nav variants, shows plain "Чаты" when there's nothing unread, and caps the label at "99+" when there are 100 messages.
+
+    I'm now drafting the test for staff messages from other faculties not appearing in the count, then a check that the count resets once another staff member opens the dialog. I still need to confirm the dialog view marks messages as read. For the superuser case, I'm considering a direct check of the badge tag with a fake request, since the profile page may not exist for root.
+
+    I'm checking the remaining nav and query tests for the staff badge, including whether a student's badge stays unaffected by staff-side unread messages and whether the staff page query count holds steady as dialogs grow.
+
+    I'm wrapping up the remaining query-count and nav checks, and I'm moving the stars tests into a new file, core/tests/test_stars.py, as a dedicated WideStarsTests class.
+
+    I'm defining the test module's constants next: the tile size, the media query tiers with their star groups, and the group sizes. I'm also adding a helper that reads the theme CSS with comments stripped out.
+
+    Writing the helpers that split the theme CSS into its media blocks and top-level rules, and one that reads a declaration's value out of a rule body...
+
+    I'm now planning the narrow-screen test: confirming the base `body::before` and `body::after` rules outside any media query keep their existing offsets, and that no side-star rule for the content column appears outside the wide breakpoint.
+
+    I'm moving on to the tests that check the stars' CSS layout. One test will confirm the wide-screen edge layers are hidden below the breakpoint, and another will check the shared star layer's declarations and that no images are referenced. The last ones will confirm the per-tier background images and the star set definitions.
+
+    I'm writing the stars test module, and I'm planning a check that no template carries a star class or inline styles.
+
+    Next I'm checking how the staff dialog view handles GET requests and whether it marks messages as read, then I'll write the selector and nav tests.
+  ── Thought for 5ms
+    Решение проверено в браузере, и стартовые тесты готовы. Сейчас смотрю, как открытие диалога сбрасывает метку прочтения, а затем пишу тесты.
+  ── Read chat/views.py
+  ── Thought for 2ms
+    I'm writing the tests now: a new `StaffUnreadCountTests` class for the selectors, nav and query-count tests in the chat views, and stars tests in core. I also want to tidy up the `chat_unread_count` selector code, and I'm considering whether the module docstring needs updating.
+  ── Ran cd "$TMPDIR/t018" && python3 - <<'EOF' p='chat/tests/test_selectors.py' s=open(p).read() s=s.replace('''from django.contrib.auth.models import AnonymousUser from django.test import TestCase from chat.models import AuthorRole from chat.selectors import dialogs_visible_to, staff_dialog_list, student_unread_count from chat.tests.helpers import add_message, make_dialog ''','''from django.contrib.auth.models import AnonymousUser from django.test import TestCase from accounts.models import User from accounts.tests.helpers import make_staff from chat.models import AuthorRole from chat.selectors import (     chat_unread_count,     dialogs_visible_to,     staff_dialog_list,     staff_unread_count,     student_unread_count, ) from chat.tests.helpers import add_message, make_dialog ''') s+=''' class StaffUnreadCountTests(FrozenClockMixin, TestCase):     """TASK-018: the "Чаты (n)" count, same rule as the "new" count of the staff chat list."""     frozen_now = NOW     @classmethod     def setUpTestData(cls):         cls.w = make_world()         cls.ax_dialog = make_dialog(cls.w.ax_profile)         cls.bx_dialog = make_dialog(cls.w.bx_profile)         cls.ay_dialog = make_dialog(cls.w.ay_profile)     def test_counts_own_faculty_only(self):         add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)         add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)         add_message(self.bx_dialog, self.w.bx, AuthorRole.STUDENT)         for _ in range(4):             add_message(self.ay_dialog, self.w.ay, AuthorRole.STUDENT)         self.assertEqual(staff_unread_count(self.w.sx), 3)         self.assertEqual(staff_unread_count(self.w.sy), 4)     def test_staff_messages_not_counted(self):         add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)         add_message(self.ax_dialog, self.w.sx, AuthorRole.STAFF)         sx2 = make_staff("sx2", self.w.fx)         add_message(self.bx_dialog, sx2, AuthorRole.STAFF)         self.assertEqual(staff_unread_count(self.w.sx), 1)         self.assertEqual(staff_unread_count(sx2), 1)     def test_same_as_staff_list(self):         add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)         reply = add_message(self.ax_dialog, self.w.sx, AuthorRole.STAFF)         add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)         add_message(self.bx_dialog, self.w.bx, AuthorRole.STUDENT)         self.ax_dialog.staff_read_id = reply.pk         self.ax_dialog.save(update_fields=["staff_read_id"])         listed = sum(d.unread for d in staff_dialog_list(self.w.sx))         self.assertEqual(listed, 2)         self.assertEqual(staff_unread_count(self.w.sx), listed)     def test_shared_read_marker(self):         sx2 = make_staff("sx2", self.w.fx)         first = add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)         self.assertEqual(staff_unread_count(self.w.sx), 1)         self.assertEqual(staff_unread_count(sx2), 1)         # One staff member reads the dialog: the count drops for every staff member of the faculty.         self.ax_dialog.staff_read_id = first.pk         self.ax_dialog.save(update_fields=["staff_read_id"])         self.assertEqual(staff_unread_count(self.w.sx), 0)         self.assertEqual(staff_unread_count(sx2), 0)         add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)         self.assertEqual(staff_unread_count(self.w.sx), 1)     def test_inactive_student_not_counted(self):         add_message(self.bx_dialog, self.w.bx, AuthorRole.STUDENT)         self.w.bx.is_active = False         self.w.bx.save(update_fields=["is_active"])         self.assertEqual(staff_unread_count(self.w.sx), 0)     def test_staff_without_profile_zero(self):         orphan = User.objects.create_user(username="orphan", role=User.Role.STAFF)         add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)         self.assertEqual(staff_unread_count(orphan), 0)     def test_other_roles_zero_without_query(self):         add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)         for user in (self.w.ax, self.w.root, AnonymousUser()):             with self.subTest(user=str(user)), self.assertNumQueries(0):                 self.assertEqual(staff_unread_count(user), 0)     def test_one_count_query(self):         add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)         user = User.objects.get(pk=self.w.sx.pk)         # Fresh user: the visibility rule loads the staff profile and its faculty once.         with self.assertNumQueries(3):             self.assertEqual(staff_unread_count(user), 1)         # Later calls in the same request reuse them: one COUNT query.         with self.assertNumQueries(1):             self.assertEqual(staff_unread_count(user), 1)     def test_query_count_independent_of_dialogs(self):         add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)         user = User.objects.get(pk=self.w.sx.pk)         staff_unread_count(user)         for i in range(5):             dialog = make_dialog(make_student_profile(f"extra{i}", self.w.gx1))             add_message(dialog, dialog.student.user, AuthorRole.STUDENT)         with self.assertNumQueries(1):             self.assertEqual(staff_unread_count(user), 6)     def test_chat_unread_count_by_role(self):         add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)         add_message(self.bx_dialog, self.w.sx, AuthorRole.STAFF)         self.assertEqual(chat_unread_count(self.w.sx), 1)         self.assertEqual(chat_unread_count(self.w.bx), 1)         self.assertEqual(chat_unread_count(self.w.ax), 0)         with self.assertNumQueries(0):             self.assertEqual(chat_unread_count(self.w.root), 0)             self.assertEqual(chat_unread_count(AnonymousUser()), 0) ''' open(p,'w').write(s) EOF grep -n "def make_student" -A12 accounts/tests/helpers.py
+    $ cd "$TMPDIR/t018" && python3 - <<'EOF'
+  p='chat/tests/test_selectors.py'
+  s=open(p).read()
+  s=s.replace('''from django.contrib.auth.models import AnonymousUser
+  from django.test import TestCase
+
+  from chat.models import AuthorRole
+  from chat.selectors import dialogs_visible_to, staff_dialog_list, student_unread_count
+  from chat.tests.helpers import add_message, make_dialog
+  ''','''from django.contrib.auth.models import AnonymousUser
+  from django.test import TestCase
+
+  from accounts.models import User
+  from accounts.tests.helpers import make_staff
+  from chat.models import AuthorRole
+  from chat.selectors import (
+      chat_unread_count,
+      dialogs_visible_to,
+      staff_dialog_list,
+      staff_unread_count,
+      student_unread_count,
+  )
+  from chat.tests.helpers import add_message, make_dialog
+  ''')
+  s+='''
+
+  class StaffUnreadCountTests(FrozenClockMixin, TestCase):
+      """TASK-018: the "Чаты (n)" count, same rule as the "new" count of the staff chat list."""
+
+      frozen_now = NOW
+
+      @classmethod
+      def setUpTestData(cls):
+          cls.w = make_world()
+          cls.ax_dialog = make_dialog(cls.w.ax_profile)
+          cls.bx_dialog = make_dialog(cls.w.bx_profile)
+          cls.ay_dialog = make_dialog(cls.w.ay_profile)
+
+      def test_counts_own_faculty_only(self):
+          add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+          add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+          add_message(self.bx_dialog, self.w.bx, AuthorRole.STUDENT)
+          for _ in range(4):
+              add_message(self.ay_dialog, self.w.ay, AuthorRole.STUDENT)
+          self.assertEqual(staff_unread_count(self.w.sx), 3)
+          self.assertEqual(staff_unread_count(self.w.sy), 4)
+
+      def test_staff_messages_not_counted(self):
+          add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+          add_message(self.ax_dialog, self.w.sx, AuthorRole.STAFF)
+          sx2 = make_staff("sx2", self.w.fx)
+          add_message(self.bx_dialog, sx2, AuthorRole.STAFF)
+          self.assertEqual(staff_unread_count(self.w.sx), 1)
+          self.assertEqual(staff_unread_count(sx2), 1)
+
+      def test_same_as_staff_list(self):
+          add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+          reply = add_message(self.ax_dialog, self.w.sx, AuthorRole.STAFF)
+          add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+          add_message(self.bx_dialog, self.w.bx, AuthorRole.STUDENT)
+          self.ax_dialog.staff_read_id = reply.pk
+          self.ax_dialog.save(update_fields=["staff_read_id"])
+          listed = sum(d.unread for d in staff_dialog_list(self.w.sx))
+          self.assertEqual(listed, 2)
+          self.assertEqual(staff_unread_count(self.w.sx), listed)
+
+      def test_shared_read_marker(self):
+          sx2 = make_staff("sx2", self.w.fx)
+          first = add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+          self.assertEqual(staff_unread_count(self.w.sx), 1)
+          self.assertEqual(staff_unread_count(sx2), 1)
+          # One staff member reads the dialog: the count drops for every staff member of the faculty.
+          self.ax_dialog.staff_read_id = first.pk
+          self.ax_dialog.save(update_fields=["staff_read_id"])
+          self.assertEqual(staff_unread_count(self.w.sx), 0)
+          self.assertEqual(staff_unread_count(sx2), 0)
+          add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+          self.assertEqual(staff_unread_count(self.w.sx), 1)
+
+      def test_inactive_student_not_counted(self):
+          add_message(self.bx_dialog, self.w.bx, AuthorRole.STUDENT)
+          self.w.bx.is_active = False
+          self.w.bx.save(update_fields=["is_active"])
+          self.assertEqual(staff_unread_count(self.w.sx), 0)
+
+      def test_staff_without_profile_zero(self):
+          orphan = User.objects.create_user(username="orphan", role=User.Role.STAFF)
+          add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+          self.assertEqual(staff_unread_count(orphan), 0)
+
+      def test_other_roles_zero_without_query(self):
+          add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+          for user in (self.w.ax, self.w.root, AnonymousUser()):
+              with self.subTest(user=str(user)), self.assertNumQueries(0):
+                  self.assertEqual(staff_unread_count(user), 0)
+
+      def test_one_count_query(self):
+          add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+          user = User.objects.get(pk=self.w.sx.pk)
+          # Fresh user: the visibility rule loads the staff profile and its faculty once.
+          with self.assertNumQueries(3):
+              self.assertEqual(staff_unread_count(user), 1)
+          # Later calls in the same request reuse them: one COUNT query.
+          with self.assertNumQueries(1):
+              self.assertEqual(staff_unread_count(user), 1)
+
+      def test_query_count_independent_of_dialogs(self):
+          add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+          user = User.objects.get(pk=self.w.sx.pk)
+          staff_unread_count(user)
+          for i in range(5):
+              dialog = make_dialog(make_student_profile(f"extra{i}", self.w.gx1))
+              add_message(dialog, dialog.student.user, AuthorRole.STUDENT)
+          with self.assertNumQueries(1):
+              self.assertEqual(staff_unread_count(user), 6)
+
+      def test_chat_unread_count_by_role(self):
+          add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+          add_message(self.bx_dialog, self.w.sx, AuthorRole.STAFF)
+          self.assertEqual(chat_unread_count(self.w.sx), 1)
+          self.assertEqual(chat_unread_count(self.w.bx), 1)
+          self.assertEqual(chat_unread_count(self.w.ax), 0)
+          with self.assertNumQueries(0):
+              self.assertEqual(chat_unread_count(self.w.root), 0)
+              self.assertEqual(chat_unread_count(AnonymousUser()), 0)
+  '''
+  open(p,'w').write(s)
+  EOF
+  grep -n "def make_student" -A12 accounts/tests/helpers.py
+    16:def make_student(username: str, group: StudyGroup, record_number: str) -> User:
+    17-    user = User.objects.create_user(username=username, role=User.Role.STUDENT)
+    18-    StudentProfile.objects.create(
+    19-        user=user,
+    20-        last_name=f"{username}-last",
+    21-        first_name=f"{username}-first",
+    22-        group=group,
+    23-        record_number=record_number,
+    24-    )
+    25-    return user
+    26-
+    27-
+    28-def make_staff(username: str, faculty: Faculty) -> User:
+    Shell cwd was reset to ~/hackatonproject
+  ── Ran cd "$TMPDIR/t018" && python3 - <<'EOF' p='chat/tests/test_selectors.py' s=open(p).read() s=s.replace('from accounts.tests.helpers import make_staff\n','from accounts.tests.helpers import make_staff, make_student\n') s=s.replace('''            dialog = make_dialog(make_student_profile(f"extra{i}", self.w.gx1))             add_message(dialog, dialog.student.user, AuthorRole.STUDENT)''','''            student = make_student(f"extra{i}", self.w.gx1, f"ST-EX-{i}")             dialog = make_dialog(student.student_profile)             add_message(dialog, student, AuthorRole.STUDENT)''') open(p,'w').write(s) p='chat/tests/test_views.py' s=open(p).read() old='''    def test_badge_includes_chat_reply(self):''' new='''    def test_staff_chat_count(self):         # TASK-018: "Чаты (n)" for staff, in the wide and the compact menu.         dialog = make_dialog(self.w.ax_profile)         add_message(dialog, self.w.ax, AuthorRole.STUDENT)         add_message(dialog, self.w.ax, AuthorRole.STUDENT)         add_message(dialog, self.w.sx, AuthorRole.STAFF)         self.client.force_login(self.w.sx)         content = self.client.get("/profile/").content.decode()         self.assertEqual(content.count(">Чаты (2)</a>"), 2)     def test_staff_chat_without_count(self):         dialog = make_dialog(self.w.ax_profile)         add_message(dialog, self.w.sx, AuthorRole.STAFF)         self.client.force_login(self.w.sx)         content = self.client.get("/profile/").content.decode()         self.assertEqual(content.count(">Чаты</a>"), 2)     def test_staff_chat_other_faculty_not_counted(self):         dialog = make_dialog(self.w.ay_profile)         add_message(dialog, self.w.ay, AuthorRole.STUDENT)         self.client.force_login(self.w.sx)         content = self.client.get("/profile/").content.decode()         self.assertEqual(content.count(">Чаты</a>"), 2)     def test_staff_chat_count_cap(self):         dialog = make_dialog(self.w.ax_profile)         Message.objects.bulk_create(             Message(dialog=dialog, author=self.w.ax, author_role=AuthorRole.STUDENT, text=f"m{i}")             for i in range(CHAT_BADGE_CAP + 1)         )         self.client.force_login(self.w.sx)         content = self.client.get("/profile/").content.decode()         self.assertEqual(content.count(f">Чаты ({CHAT_BADGE_CAP}+)</a>"), 2)     def test_staff_chat_count_drops_when_colleague_reads(self):         sx2 = make_staff("sx2", self.w.fx)         dialog = make_dialog(self.w.ax_profile)         add_message(dialog, self.w.ax, AuthorRole.STUDENT)         self.client.force_login(self.w.sx)         self.assertEqual(self.client.get("/profile/").content.decode().count(">Чаты (1)</a>"), 2)         other = Client()         other.force_login(sx2)         self.assertEqual(other.get(f"/staff/chats/{dialog.public_id}/").status_code, 200)         self.assertEqual(self.client.get("/profile/").content.decode().count(">Чаты</a>"), 2)     def test_student_badge_ignores_unread_for_staff(self):         dialog = make_dialog(self.w.ax_profile)         add_message(dialog, self.w.ax, AuthorRole.STUDENT)         self.client.force_login(self.w.ax)         content = self.client.get("/profile/").content.decode()         self.assertEqual(content.count(">Чат</a>"), 2)     def test_badge_tag_empty_for_superuser(self):         dialog = make_dialog(self.w.ax_profile)         add_message(dialog, self.w.ax, AuthorRole.STUDENT)         request = RequestFactory().get("/")         request.user = self.w.root         rendered = Template("{% load chat_tags %}[{% chat_unread_badge %}]").render(             RequestContext(request)         )         self.assertEqual(rendered, "[]")     def test_badge_includes_chat_reply(self):''' assert old in s s=s.replace(old,new,1) old='''    def test_header_staff_no_chat_query(self):''' new='''    def test_staff_page_constant_in_dialogs(self):         # TASK-018: the staff badge is one COUNT query, independent of dialogs and messages.         self.client.force_login(self.w.sx)         add_message(self.dialog, self.w.ax, AuthorRole.STUDENT)         one = _query_count(lambda: self.client.get("/profile/"))         for i in range(5):             student = make_student(f"badge{i}", self.w.gx1, f"REC-B-{i}")             d = make_dialog(student.student_profile)             add_message(d, student, AuthorRole.STUDENT)             add_message(d, student, AuthorRole.STUDENT)         six = _query_count(lambda: self.client.get("/profile/"))         self.assertEqual(one, six)     def test_header_staff_no_chat_query(self):''' assert old in s s=s.replace(old,new,1) s=s.replace('from django.test import Client, TestCase\n','from django.template import RequestContext, Template\nfrom django.test import Client, RequestFactory, TestCase\n') s=s.replace('from chat.constants import RATE_LIMIT_MESSAGES\n','from chat.constants import CHAT_BADGE_CAP, RATE_LIMIT_MESSAGES\n') open(p,'w').write(s) EOF grep -n "^from\|^import" chat/tests/test_views.py
+    $ cd "$TMPDIR/t018" && python3 - <<'EOF'
+  p='chat/tests/test_selectors.py'
+  s=open(p).read()
+  s=s.replace('from accounts.tests.helpers import make_staff\n','from accounts.tests.helpers import make_staff, make_student\n')
+  s=s.replace('''            dialog = make_dialog(make_student_profile(f"extra{i}", self.w.gx1))
+              add_message(dialog, dialog.student.user, AuthorRole.STUDENT)''','''            student = make_student(f"extra{i}", self.w.gx1, f"ST-EX-{i}")
+              dialog = make_dialog(student.student_profile)
+              add_message(dialog, student, AuthorRole.STUDENT)''')
+  open(p,'w').write(s)
+
+  p='chat/tests/test_views.py'
+  s=open(p).read()
+  old='''    def test_badge_includes_chat_reply(self):'''
+  new='''    def test_staff_chat_count(self):
+          # TASK-018: "Чаты (n)" for staff, in the wide and the compact menu.
+          dialog = make_dialog(self.w.ax_profile)
+          add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+          add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+          add_message(dialog, self.w.sx, AuthorRole.STAFF)
+          self.client.force_login(self.w.sx)
+          content = self.client.get("/profile/").content.decode()
+          self.assertEqual(content.count(">Чаты (2)</a>"), 2)
+
+      def test_staff_chat_without_count(self):
+          dialog = make_dialog(self.w.ax_profile)
+          add_message(dialog, self.w.sx, AuthorRole.STAFF)
+          self.client.force_login(self.w.sx)
+          content = self.client.get("/profile/").content.decode()
+          self.assertEqual(content.count(">Чаты</a>"), 2)
+
+      def test_staff_chat_other_faculty_not_counted(self):
+          dialog = make_dialog(self.w.ay_profile)
+          add_message(dialog, self.w.ay, AuthorRole.STUDENT)
+          self.client.force_login(self.w.sx)
+          content = self.client.get("/profile/").content.decode()
+          self.assertEqual(content.count(">Чаты</a>"), 2)
+
+      def test_staff_chat_count_cap(self):
+          dialog = make_dialog(self.w.ax_profile)
+          Message.objects.bulk_create(
+              Message(dialog=dialog, author=self.w.ax, author_role=AuthorRole.STUDENT, text=f"m{i}")
+              for i in range(CHAT_BADGE_CAP + 1)
+          )
+          self.client.force_login(self.w.sx)
+          content = self.client.get("/profile/").content.decode()
+          self.assertEqual(content.count(f">Чаты ({CHAT_BADGE_CAP}+)</a>"), 2)
+
+      def test_staff_chat_count_drops_when_colleague_reads(self):
+          sx2 = make_staff("sx2", self.w.fx)
+          dialog = make_dialog(self.w.ax_profile)
+          add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+          self.client.force_login(self.w.sx)
+          self.assertEqual(self.client.get("/profile/").content.decode().count(">Чаты (1)</a>"), 2)
+          other = Client()
+          other.force_login(sx2)
+          self.assertEqual(other.get(f"/staff/chats/{dialog.public_id}/").status_code, 200)
+          self.assertEqual(self.client.get("/profile/").content.decode().count(">Чаты</a>"), 2)
+
+      def test_student_badge_ignores_unread_for_staff(self):
+          dialog = make_dialog(self.w.ax_profile)
+          add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+          self.client.force_login(self.w.ax)
+          content = self.client.get("/profile/").content.decode()
+          self.assertEqual(content.count(">Чат</a>"), 2)
+
+      def test_badge_tag_empty_for_superuser(self):
+          dialog = make_dialog(self.w.ax_profile)
+          add_message(dialog, self.w.ax, AuthorRole.STUDENT)
+          request = RequestFactory().get("/")
+          request.user = self.w.root
+          rendered = Template("{% load chat_tags %}[{% chat_unread_badge %}]").render(
+              RequestContext(request)
+          )
+          self.assertEqual(rendered, "[]")
+
+      def test_badge_includes_chat_reply(self):'''
+  assert old in s
+  s=s.replace(old,new,1)
+  old='''    def test_header_staff_no_chat_query(self):'''
+  new='''    def test_staff_page_constant_in_dialogs(self):
+          # TASK-018: the staff badge is one COUNT query, independent of dialogs and messages.
+          self.client.force_login(self.w.sx)
+          add_message(self.dialog, self.w.ax, AuthorRole.STUDENT)
+          one = _query_count(lambda: self.client.get("/profile/"))
+          for i in range(5):
+              student = make_student(f"badge{i}", self.w.gx1, f"REC-B-{i}")
+              d = make_dialog(student.student_profile)
+              add_message(d, student, AuthorRole.STUDENT)
+              add_message(d, student, AuthorRole.STUDENT)
+          six = _query_count(lambda: self.client.get("/profile/"))
+          self.assertEqual(one, six)
+
+      def test_header_staff_no_chat_query(self):'''
+  assert old in s
+  s=s.replace(old,new,1)
+  s=s.replace('from django.test import Client, TestCase\n','from django.template import RequestContext, Template\nfrom django.test import Client, RequestFactory, TestCase\n')
+  s=s.replace('from chat.constants import RATE_LIMIT_MESSAGES\n','from chat.constants import CHAT_BADGE_CAP, RATE_LIMIT_MESSAGES\n')
+  open(p,'w').write(s)
+  EOF
+  grep -n "^from\|^import" chat/tests/test_views.py
+    3:import re
+    4:import uuid
+    5:from unittest import mock
+    7:from django.contrib.messages import constants
+    8:from django.contrib.messages.storage.base import Message as FrameworkMessage
+    9:from django.db import connection
+    10:from django.template import RequestContext, Template
+    11:from django.test import Client, RequestFactory, TestCase
+    12:from django.test.utils import CaptureQueriesContext
+    13:from django.urls import reverse
+    15:from accounts.models import User
+    16:from accounts.tests.helpers import make_staff, make_student
+    17:from chat.constants import CHAT_BADGE_CAP, RATE_LIMIT_MESSAGES
+    18:from chat.models import AuthorRole, Dialog, Message
+    19:from chat.selectors import student_unread_count
+    20:from chat.tests.helpers import add_message, make_dialog
+    21:from core.testing import FrozenClockMixin
+    22:from notifications.feed import badge_for_user
+    23:from notifications.models import Audience
+    24:from notifications.tests.helpers import make_announcement, make_world
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 2ms
+    I'm checking whether bulk_create needs a created_at value and what default Message.created_at has. I also need to confirm whether the superuser has a role for rendering, and that chat_unread_count returning 0 produces an empty tag. Then I'll move on to the stars test file.
+  ── Ran cd "$TMPDIR/t018" && grep -n "created_at" chat/models.py | head -3; cat > core/tests/test_stars.py <<'EOF' """Side stars on wide screens (TASK-018): CSS only, beside the content column, scattered.""" import re from pathlib import Path from django.conf import settings from django.test import SimpleTestCase BASE = Path(settings.BASE_DIR) TILE = 1600 WIDE = ("(min-width: 64rem)", "(min-width: 80rem)", "(min-width: 100rem)") GROUP_SIZES = {"a": 8, "b": 8, "c": 10} TIERS = {"(min-width: 64rem)": "a", "(min-width: 80rem)": "ab", "(min-width: 100rem)": "abc"} STAR_IMAGES = {"var(--star-yellow)", "var(--star-lilac)"} SIDES = (".site-main::before", ".site-main::after") def _css() -> str:     text = (BASE / "static/css/theme.css").read_text(encoding="utf-8")     return re.sub(r"/\*.*?\*/", "", text, flags=re.S) def _media_blocks(css: str) -> tuple[list[tuple[str, str]], str]:     """Return ([(condition, body)] of the top-level @media blocks, the CSS outside them)."""     blocks, outside, i = [], [], 0     while True:         start = css.find("@media", i)         if start == -1:             outside.append(css[i:])             return blocks, "".join(outside)         outside.append(css[i:start])         open_brace = css.index("{", start)         depth = 0         for j in range(open_brace, len(css)):             if css[j] == "{":                 depth += 1             elif css[j] == "}":                 depth -= 1                 if depth == 0:                     break         blocks.append((css[start + len("@media") : open_brace].strip(), css[open_brace + 1 : j]))         i = j + 1 def _rules(css: str) -> list[tuple[list[str], str]]:     return [         ([part.strip() for part in sel.split(",")], body)         for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css)     ] def _decl(body: str, name: str) -> str | None:     match = re.search(rf"(?:^|[;{{\s]){re.escape(name)}\s*:\s*([^;]+);", body)     return " ".join(match.group(1).split()) if match else None def _block(condition: str) -> str:     blocks, _ = _media_blocks(_css())     bodies = [body for cond, body in blocks if cond == condition]     if not bodies:         raise AssertionError(f"no @media {condition} block")     return "\n".join(bodies) def _rule_in(css: str, selector: str, alone: bool = False) -> str:     return "\n".join(         body         for selectors, body in _rules(css)         if selector in selectors and (not alone or selectors == [selector])     ) def _stars(side: str) -> dict[str, list[tuple[str, int, int]]]:     body = _rule_in(_block(WIDE[0]), side, alone=True)     groups = {}     for group in GROUP_SIZES:         images = _decl(body, f"--stars-{group}-image")         positions = _decl(body, f"--stars-{group}-position")         if images is None or positions is None:             raise AssertionError(f"{side}: group {group} missing")         image_list = [part.strip() for part in images.split(",")]         position_list = [part.strip() for part in positions.split(",")]         if len(image_list) != len(position_list):             raise AssertionError(f"{side}: group {group} image/position counts differ")         stars = []         for image, position in zip(image_list, position_list, strict=True):             match = re.fullmatch(r"(\d+)% (\d+)px", position)             if not match:                 raise AssertionError(f"{side}: bad position {position!r}")             stars.append((image, int(match.group(1)), int(match.group(2))))         groups[group] = stars     return groups def _dy(a: int, b: int) -> int:     d = abs(a - b)     return min(d, TILE - d) class WideStarsPlacementTests(SimpleTestCase):     def test_narrow_screens_keep_edge_stars(self):         blocks, outside = _media_blocks(_css())         self.assertIn("left: 4px", _rule_in(outside, "body::before"))         self.assertIn("box-shadow", _rule_in(outside, "body::before"))         self.assertIn("right: 5px", _rule_in(outside, "body::after"))         for side in SIDES:             with self.subTest(side=side):                 self.assertEqual(_rule_in(outside, side), "")                 for condition, body in blocks:                     if condition not in WIDE:                         self.assertEqual(_rule_in(body, side), "", condition)     def test_wide_screens_hide_edge_columns(self):         block = _block(WIDE[0])         for selector in ("body::before", "body::after"):             with self.subTest(selector=selector):                 self.assertEqual(_decl(_rule_in(block, selector), "display"), "none")     def test_layers_beside_content_column(self):         block = _block(WIDE[0])         shared = "\n".join(             body for selectors, body in _rules(block) if selectors == list(SIDES)         )         expected = {             "content": '""',             "position": "absolute",             "top": "0",             "bottom": "0",             "width": "calc(50vw - 50% - 1rem)",             "pointer-events": "none",             "z-index": "-1",             "background-size": "3px 1600px",             "background-repeat": "no-repeat repeat",         }         for name, value in expected.items():             with self.subTest(declaration=name):                 self.assertEqual(_decl(shared, name), value)         self.assertEqual(_decl(_rule_in(block, SIDES[0], alone=True), "right"), "100%")         self.assertEqual(_decl(_rule_in(block, SIDES[1], alone=True), "left"), "100%")     def test_stars_are_token_coloured_gradients(self):         shared = _rule_in(_block(WIDE[0]), SIDES[0])         self.assertEqual(             _decl(shared, "--star-yellow"),             "linear-gradient(var(--color-star-yellow) 0 3px, transparent 3px)",         )         self.assertEqual(             _decl(shared, "--star-lilac"),             "linear-gradient(var(--color-star-lilac) 0 3px, transparent 3px)",         )         for condition in WIDE:             with self.subTest(condition=condition):                 self.assertNotIn("url(", _block(condition))     def test_breakpoints_add_groups(self):         for condition, groups in TIERS.items():             body = _rule_in(_block(condition), SIDES[0])             with self.subTest(condition=condition):                 self.assertEqual(                     _decl(body, "background-image"),                     ", ".join(f"var(--stars-{g}-image)" for g in groups),                 )                 self.assertEqual(                     _decl(body, "background-position"),                     ", ".join(f"var(--stars-{g}-position)" for g in groups),                 )     def test_no_star_markup_or_inline_style(self):         base = (BASE / "templates/base.html").read_text(encoding="utf-8")         self.assertNotRegex(base, r'class="[^"]*\bstar')         self.assertNotIn("style=", base) class WideStarsScatterTests(SimpleTestCase):     """The stars of every breakpoint form no column, row or straight line (the old "ladder")."""     def test_group_sizes_and_values(self):         for side in SIDES:             for group, stars in _stars(side).items():                 with self.subTest(side=side, group=group):                     self.assertEqual(len(stars), GROUP_SIZES[group])                     self.assertTrue({image for image, _, _ in stars} <= STAR_IMAGES)                     self.assertEqual({image for image, _, _ in stars}, STAR_IMAGES)                     for _, x, y in stars:                         self.assertTrue(0 <= x <= 100 and 0 <= y < TILE, (x, y))     def _tiers(self):         for side in SIDES:             groups = _stars(side)             for condition, names in TIERS.items():                 yield side, condition, [(x, y) for n in names for _, x, y in groups[n]]     def test_no_columns(self):         # Two stars closer than 400 px vertically are at least 6 % of the margin apart.         for side, condition, stars in self._tiers():             with self.subTest(side=side, condition=condition):                 for i, a in enumerate(stars):                     for b in stars[i + 1 :]:                         if _dy(a[1], b[1]) < 400:                             self.assertGreaterEqual(abs(a[0] - b[0]), 6, (a, b))     def test_no_rows_or_lines(self):         for side, condition, stars in self._tiers():             ordered = sorted(stars, key=lambda s: s[1])             with self.subTest(side=side, condition=condition):                 for a, b, c in zip(ordered, ordered[1:], ordered[2:]):                     # Three neighbours never share a 48 px band (a row) ...                     self.assertGreaterEqual(c[1] - a[1], 48, (a, b, c))                     # ... and the middle one is off the line through the outer two (no ladder).                     t = (b[1] - a[1]) / (c[1] - a[1])                     self.assertGreaterEqual(abs(a[0] + (c[0] - a[0]) * t - b[0]), 10, (a, b, c))     def test_spread_over_whole_margin(self):         for side, condition, stars in self._tiers():             xs = [x for x, _ in stars]             ys = sorted(y for _, y in stars)             with self.subTest(side=side, condition=condition):                 self.assertLessEqual(min(xs), 10)                 self.assertGreaterEqual(max(xs), 90)                 gaps = [b - a for a, b in zip(ys, ys[1:])] + [ys[0] + TILE - ys[-1]]                 self.assertLessEqual(max(gaps), 400) EOF P=~/hackatonproject/.venv/bin/python; export DEBUG=1; L="$TMPDIR/test-t018-new-$(date +%Y%m%d-%H%M%S).log"; $P manage.py test core.tests.test_stars chat.tests.test_selectors chat.tests.test_views > "$L" 2>&1; grep -E "^Ran|^OK|FAILED|^(FAIL|ERROR):" "$L"; grep -B2 -A12 "^FAIL\|^ERROR" "$L" | head -80 (5s)
+    $ cd "$TMPDIR/t018" && grep -n "created_at" chat/models.py | head -3; cat > core/tests/test_stars.py <<'EOF'
+  """Side stars on wide screens (TASK-018): CSS only, beside the content column, scattered."""
+
+  import re
+  from pathlib import Path
+
+  from django.conf import settings
+  from django.test import SimpleTestCase
+
+  BASE = Path(settings.BASE_DIR)
+  TILE = 1600
+  WIDE = ("(min-width: 64rem)", "(min-width: 80rem)", "(min-width: 100rem)")
+  GROUP_SIZES = {"a": 8, "b": 8, "c": 10}
+  TIERS = {"(min-width: 64rem)": "a", "(min-width: 80rem)": "ab", "(min-width: 100rem)": "abc"}
+  STAR_IMAGES = {"var(--star-yellow)", "var(--star-lilac)"}
+  SIDES = (".site-main::before", ".site-main::after")
+
+
+  def _css() -> str:
+      text = (BASE / "static/css/theme.css").read_text(encoding="utf-8")
+      return re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+
+
+  def _media_blocks(css: str) -> tuple[list[tuple[str, str]], str]:
+      """Return ([(condition, body)] of the top-level @media blocks, the CSS outside them)."""
+      blocks, outside, i = [], [], 0
+      while True:
+          start = css.find("@media", i)
+          if start == -1:
+              outside.append(css[i:])
+              return blocks, "".join(outside)
+          outside.append(css[i:start])
+          open_brace = css.index("{", start)
+          depth = 0
+          for j in range(open_brace, len(css)):
+              if css[j] == "{":
+                  depth += 1
+              elif css[j] == "}":
+                  depth -= 1
+                  if depth == 0:
+                      break
+          blocks.append((css[start + len("@media") : open_brace].strip(), css[open_brace + 1 : j]))
+          i = j + 1
+
+
+  def _rules(css: str) -> list[tuple[list[str], str]]:
+      return [
+          ([part.strip() for part in sel.split(",")], body)
+          for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css)
+      ]
+
+
+  def _decl(body: str, name: str) -> str | None:
+      match = re.search(rf"(?:^|[;{{\s]){re.escape(name)}\s*:\s*([^;]+);", body)
+      return " ".join(match.group(1).split()) if match else None
+
+
+  def _block(condition: str) -> str:
+      blocks, _ = _media_blocks(_css())
+      bodies = [body for cond, body in blocks if cond == condition]
+      if not bodies:
+          raise AssertionError(f"no @media {condition} block")
+      return "\n".join(bodies)
+
+
+  def _rule_in(css: str, selector: str, alone: bool = False) -> str:
+      return "\n".join(
+          body
+          for selectors, body in _rules(css)
+          if selector in selectors and (not alone or selectors == [selector])
+      )
+
+
+  def _stars(side: str) -> dict[str, list[tuple[str, int, int]]]:
+      body = _rule_in(_block(WIDE[0]), side, alone=True)
+      groups = {}
+      for group in GROUP_SIZES:
+          images = _decl(body, f"--stars-{group}-image")
+          positions = _decl(body, f"--stars-{group}-position")
+          if images is None or positions is None:
+              raise AssertionError(f"{side}: group {group} missing")
+          image_list = [part.strip() for part in images.split(",")]
+          position_list = [part.strip() for part in positions.split(",")]
+          if len(image_list) != len(position_list):
+              raise AssertionError(f"{side}: group {group} image/position counts differ")
+          stars = []
+          for image, position in zip(image_list, position_list, strict=True):
+              match = re.fullmatch(r"(\d+)% (\d+)px", position)
+              if not match:
+                  raise AssertionError(f"{side}: bad position {position!r}")
+              stars.append((image, int(match.group(1)), int(match.group(2))))
+          groups[group] = stars
+      return groups
+
+
+  def _dy(a: int, b: int) -> int:
+      d = abs(a - b)
+      return min(d, TILE - d)
+
+
+  class WideStarsPlacementTests(SimpleTestCase):
+      def test_narrow_screens_keep_edge_stars(self):
+          blocks, outside = _media_blocks(_css())
+          self.assertIn("left: 4px", _rule_in(outside, "body::before"))
+          self.assertIn("box-shadow", _rule_in(outside, "body::before"))
+          self.assertIn("right: 5px", _rule_in(outside, "body::after"))
+          for side in SIDES:
+              with self.subTest(side=side):
+                  self.assertEqual(_rule_in(outside, side), "")
+                  for condition, body in blocks:
+                      if condition not in WIDE:
+                          self.assertEqual(_rule_in(body, side), "", condition)
+
+      def test_wide_screens_hide_edge_columns(self):
+          block = _block(WIDE[0])
+          for selector in ("body::before", "body::after"):
+              with self.subTest(selector=selector):
+                  self.assertEqual(_decl(_rule_in(block, selector), "display"), "none")
+
+      def test_layers_beside_content_column(self):
+          block = _block(WIDE[0])
+          shared = "\n".join(
+              body for selectors, body in _rules(block) if selectors == list(SIDES)
+          )
+          expected = {
+              "content": '""',
+              "position": "absolute",
+              "top": "0",
+              "bottom": "0",
+              "width": "calc(50vw - 50% - 1rem)",
+              "pointer-events": "none",
+              "z-index": "-1",
+              "background-size": "3px 1600px",
+              "background-repeat": "no-repeat repeat",
+          }
+          for name, value in expected.items():
+              with self.subTest(declaration=name):
+                  self.assertEqual(_decl(shared, name), value)
+          self.assertEqual(_decl(_rule_in(block, SIDES[0], alone=True), "right"), "100%")
+          self.assertEqual(_decl(_rule_in(block, SIDES[1], alone=True), "left"), "100%")
+
+      def test_stars_are_token_coloured_gradients(self):
+          shared = _rule_in(_block(WIDE[0]), SIDES[0])
+          self.assertEqual(
+              _decl(shared, "--star-yellow"),
+              "linear-gradient(var(--color-star-yellow) 0 3px, transparent 3px)",
+          )
+          self.assertEqual(
+              _decl(shared, "--star-lilac"),
+              "linear-gradient(var(--color-star-lilac) 0 3px, transparent 3px)",
+          )
+          for condition in WIDE:
+              with self.subTest(condition=condition):
+                  self.assertNotIn("url(", _block(condition))
+
+      def test_breakpoints_add_groups(self):
+          for condition, groups in TIERS.items():
+              body = _rule_in(_block(condition), SIDES[0])
+              with self.subTest(condition=condition):
+                  self.assertEqual(
+                      _decl(body, "background-image"),
+                      ", ".join(f"var(--stars-{g}-image)" for g in groups),
+                  )
+                  self.assertEqual(
+                      _decl(body, "background-position"),
+                      ", ".join(f"var(--stars-{g}-position)" for g in groups),
+                  )
+
+      def test_no_star_markup_or_inline_style(self):
+          base = (BASE / "templates/base.html").read_text(encoding="utf-8")
+          self.assertNotRegex(base, r'class="[^"]*\bstar')
+          self.assertNotIn("style=", base)
+
+
+  class WideStarsScatterTests(SimpleTestCase):
+      """The stars of every breakpoint form no column, row or straight line (the old "ladder")."""
+
+      def test_group_sizes_and_values(self):
+          for side in SIDES:
+              for group, stars in _stars(side).items():
+                  with self.subTest(side=side, group=group):
+                      self.assertEqual(len(stars), GROUP_SIZES[group])
+                      self.assertTrue({image for image, _, _ in stars} <= STAR_IMAGES)
+                      self.assertEqual({image for image, _, _ in stars}, STAR_IMAGES)
+                      for _, x, y in stars:
+                          self.assertTrue(0 <= x <= 100 and 0 <= y < TILE, (x, y))
+
+      def _tiers(self):
+          for side in SIDES:
+              groups = _stars(side)
+              for condition, names in TIERS.items():
+                  yield side, condition, [(x, y) for n in names for _, x, y in groups[n]]
+
+      def test_no_columns(self):
+          # Two stars closer than 400 px vertically are at least 6 % of the margin apart.
+          for side, condition, stars in self._tiers():
+              with self.subTest(side=side, condition=condition):
+                  for i, a in enumerate(stars):
+                      for b in stars[i + 1 :]:
+                          if _dy(a[1], b[1]) < 400:
+                              self.assertGreaterEqual(abs(a[0] - b[0]), 6, (a, b))
+
+      def test_no_rows_or_lines(self):
+          for side, condition, stars in self._tiers():
+              ordered = sorted(stars, key=lambda s: s[1])
+              with self.subTest(side=side, condition=condition):
+                  for a, b, c in zip(ordered, ordered[1:], ordered[2:]):
+                      # Three neighbours never share a 48 px band (a row) ...
+                      self.assertGreaterEqual(c[1] - a[1], 48, (a, b, c))
+                      # ... and the middle one is off the line through the outer two (no ladder).
+                      t = (b[1] - a[1]) / (c[1] - a[1])
+                      self.assertGreaterEqual(abs(a[0] + (c[0] - a[0]) * t - b[0]), 10, (a, b, c))
+
+      def test_spread_over_whole_margin(self):
+          for side, condition, stars in self._tiers():
+              xs = [x for x, _ in stars]
+              ys = sorted(y for _, y in stars)
+              with self.subTest(side=side, condition=condition):
+                  self.assertLessEqual(min(xs), 10)
+                  self.assertGreaterEqual(max(xs), 90)
+                  gaps = [b - a for a, b in zip(ys, ys[1:])] + [ys[0] + TILE - ys[-1]]
+                  self.assertLessEqual(max(gaps), 400)
+  EOF
+  P=~/hackatonproject/.venv/bin/python; export DEBUG=1; L="$TMPDIR/test-t018-new-$(date +%Y%m%d-%H%M%S).log"; $P manage.py test core.tests.test_stars chat.tests.test_selectors chat.tests.test_views > "$L" 2>&1; grep -E "^Ran|^OK|FAILED|^(FAIL|ERROR):" "$L"; grep -B2 -A12 "^FAIL\|^ERROR" "$L" | head -80
+    24:    created_at = models.DateTimeField("создан", default=clock.now, editable=False)
+    54:    created_at = models.DateTimeField("отправлено", default=clock.now, editable=False)
+    62:            models.Index(fields=["author", "created_at"], name="chat_msg_author_time_idx"),
+    Ran 120 tests in 3.082s
+    OK
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 1s
+    All the tier-a checks pass, including the 400-pixel max gap and the x ≤ 10 minimum for the 8 stars. Next I want to run the new tests against a HEAD copy to see them fail as expected, then try a few mutations, like shrinking the x range so the column test should break, starting with putting the right star at the same x as the neighbor.
+
+    Next I'll put the mutation checks through: if the right star sits at the same x as its neighbour, the column test should fail, and dropping the `.site-main::before` rule from the 64rem breakpoint should also break something. After that come ruff, the full suite run serially and with parallel 2, and a makemigrations check before I review the spec.
+
+── Assistant ───────────────────────────────────────────────
+Новые тесты проходят (120 OK). Теперь прогоняю новые тесты на HEAD: они должны упасть.
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Ran rm -rf "$TMPDIR/t018head" && mkdir "$TMPDIR/t018head" && cd ~/hackatonproject && git archive HEAD | tar -x -C "$TMPDIR/t018head" && cd "$TMPDIR/t018head" && cp "$TMPDIR/t018/core/tests/test_stars.py" core/tests/ && cp "$TMPDIR/t018/chat/tests/test_selectors.py" "$TMPDIR/t018/chat/tests/test_views.py" chat/tests/ && P=~/hackatonproject/.venv/bin/python; export DEBUG=1; L="$TMPDIR/test-t018-newtests-on-head-$(date +%Y%m%d-%H%M%S).log"; $P manage.py test core.tests.test_stars chat.tests.test_views > "$L" 2>&1; echo "$L"; grep -E "^Ran|^OK|FAILED|^(FAIL|ERROR):" "$L"; $P manage.py test chat.tests.test_selectors 2>&1 | grep -E "Error|^Ran|FAILED" | head -3 (5s)
+    $ rm -rf "$TMPDIR/t018head" && mkdir "$TMPDIR/t018head" && cd ~/hackatonproject && git archive HEAD | tar -x -C "$TMPDIR/t018head" && cd "$TMPDIR/t018head" && cp "$TMPDIR/t018/core/tests/test_stars.py" core/tests/ && cp "$TMPDIR/t018/chat/tests/test_selectors.py" "$TMPDIR/t018/chat/tests/test_views.py" chat/tests/ && P=~/hackatonproject/.venv/bin/python; export DEBUG=1; L="$TMPDIR/test-t018-newtests-on-head-$(date +%Y%m%d-%H%M%S).log"; $P manage.py test core.tests.test_stars chat.tests.test_views > "$L" 2>&1; echo "$L"; grep -E "^Ran|^OK|FAILED|^(FAIL|ERROR):" "$L"; $P manage.py test chat.tests.test_selectors 2>&1 | grep -E "Error|^Ran|FAILED" | head -3
+    /tmp/claude-501/test-t018-newtests-on-head-20261121-104413.log
+    FAIL: test_staff_chat_count (chat.tests.test_views.NavTests.test_staff_chat_count)
+    FAIL: test_staff_chat_count_cap (chat.tests.test_views.NavTests.test_staff_chat_count_cap)
+    FAIL: test_staff_chat_count_drops_when_colleague_reads (chat.tests.test_views.NavTests.test_staff_chat_count_drops_when_colleague_reads)
+    FAIL: test_breakpoints_add_groups (core.tests.test_stars.WideStarsPlacementTests.test_breakpoints_add_groups)
+    FAIL: test_layers_beside_content_column (core.tests.test_stars.WideStarsPlacementTests.test_layers_beside_content_column)
+    FAIL: test_stars_are_token_coloured_gradients (core.tests.test_stars.WideStarsPlacementTests.test_stars_are_token_coloured_gradients)
+    FAIL: test_wide_screens_hide_edge_columns (core.tests.test_stars.WideStarsPlacementTests.test_wide_screens_hide_edge_columns)
+    FAIL: test_group_sizes_and_values (core.tests.test_stars.WideStarsScatterTests.test_group_sizes_and_values)
+    FAIL: test_no_columns (core.tests.test_stars.WideStarsScatterTests.test_no_columns)
+    FAIL: test_no_rows_or_lines (core.tests.test_stars.WideStarsScatterTests.test_no_rows_or_lines)
+    FAIL: test_spread_over_whole_margin (core.tests.test_stars.WideStarsScatterTests.test_spread_over_whole_margin)
+    Ran 100 tests in 2.507s
+    FAILED (failures=11)
+    ImportError: Failed to import test module: test_selectors
+    ImportError: cannot import name 'chat_unread_count' from 'chat.selectors' (/private/tmp/claude-501/t018head/chat/selectors.py)
+    Ran 1 test in 0.000s
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 2s
+    I'm checking which of the new tests already pass on the current HEAD: the regression guards should, and the badge-constant cases too since HEAD has no badge. Next I want to make sure the scatter test actually catches the old ladder layout, so I'm planning a mutation run that puts the x values back into a narrow 0–3% band.
+
+    I'm planning a mutation on the prototype: moving one star's x so it forms a column with a neighbor, which should make the scatter check fail. I'll also drop the author_role filter to see the unread-count test catch it.
+  ── Ran cd "$TMPDIR/t018" && P=~/hackatonproject/.venv/bin/python; export DEBUG=1; cp static/css/theme.css "$TMPDIR/t018work/theme.bak"; cp chat/selectors.py "$TMPDIR/t018work/sel.bak" grep -n "94% 80px" static/css/theme.css | head -2 sed -i '' 's/      94% 80px,/      10% 80px,/' static/css/theme.css; $P manage.py test core.tests.test_stars 2>&1 | grep -E "^FAIL:|^Ran|^OK"; cp "$TMPDIR/t018work/theme.bak" static/css/theme.css sed -i '' '/author_role=AuthorRole.STUDENT,/{N;/id__gt=F("dialog__staff_read_id")/s/author_role=AuthorRole.STUDENT,//;}' chat/selectors.py; diff "$TMPDIR/t018work/sel.bak" chat/selectors.py; $P manage.py test chat.tests.test_selectors 2>&1 | grep -E "^FAIL:|^Ran|^OK"; cp "$TMPDIR/t018work/sel.bak" chat/selectors.py; $P manage.py test core.tests.test_stars chat.tests.test_selectors 2>&1 | tail -1 (5s)
+    $ cd "$TMPDIR/t018" && P=~/hackatonproject/.venv/bin/python; export DEBUG=1; cp static/css/theme.css "$TMPDIR/t018work/theme.bak"; cp chat/selectors.py "$TMPDIR/t018work/sel.bak"
+  grep -n "94% 80px" static/css/theme.css | head -2
+  sed -i '' 's/      94% 80px,/      10% 80px,/' static/css/theme.css; $P manage.py test core.tests.test_stars 2>&1 | grep -E "^FAIL:|^Ran|^OK"; cp "$TMPDIR/t018work/theme.bak" static/css/theme.css
+  sed -i '' '/author_role=AuthorRole.STUDENT,/{N;/id__gt=F("dialog__staff_read_id")/s/author_role=AuthorRole.STUDENT,//;}' chat/selectors.py; diff "$TMPDIR/t018work/sel.bak" chat/selectors.py; $P manage.py test chat.tests.test_selectors 2>&1 | grep -E "^FAIL:|^Ran|^OK"; cp "$TMPDIR/t018work/sel.bak" chat/selectors.py; $P manage.py test core.tests.test_stars chat.tests.test_selectors 2>&1 | tail -1
+    141:      94% 80px,
+    FAIL: test_no_columns (core.tests.test_stars.WideStarsScatterTests.test_no_columns) (side='.site-main::before', condition='(min-width: 64rem)')
+    FAIL: test_no_columns (core.tests.test_stars.WideStarsScatterTests.test_no_columns) (side='.site-main::before', condition='(min-width: 80rem)')
+    FAIL: test_no_columns (core.tests.test_stars.WideStarsScatterTests.test_no_columns) (side='.site-main::before', condition='(min-width: 100rem)')
+    FAIL: test_no_rows_or_lines (core.tests.test_stars.WideStarsScatterTests.test_no_rows_or_lines) (side='.site-main::before', condition='(min-width: 64rem)')
+    FAIL: test_spread_over_whole_margin (core.tests.test_stars.WideStarsScatterTests.test_spread_over_whole_margin) (side='.site-main::before', condition='(min-width: 64rem)')
+    Ran 10 tests in 0.016s
+    72c72
+    <         author_role=AuthorRole.STUDENT,
+    ---
+    >         
+    FAIL: test_chat_unread_count_by_role (chat.tests.test_selectors.StaffUnreadCountTests.test_chat_unread_count_by_role)
+    FAIL: test_staff_messages_not_counted (chat.tests.test_selectors.StaffUnreadCountTests.test_staff_messages_not_counted)
+    Ran 20 tests in 0.468s
+    System check identified no issues (0 silenced).
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 6ms
+    I'll take the "System check..." line as passing, since the tail output showed it, and run the full suite anyway. Next I'm running ruff check and format on the prototype and the full suite.
+
+── Assistant ───────────────────────────────────────────────
+Мутационные проверки работают. Запускаю ruff и полный набор тестов на прототипе.
+
+── Ran 4 commands, explored 2 files ────────────────────────
+  ── Ran cd "$TMPDIR/t018" && R=~/hackatonproject/.venv/bin/ruff; $R format core/tests/test_stars.py chat/tests/test_selectors.py chat/tests/test_views.py chat/selectors.py chat/templatetags/chat_tags.py; $R check . && $R format --check . | tail -2; P=~/hackatonproject/.venv/bin/python; export DEBUG=1; L="$TMPDIR/test-t018-full-$(date +%Y%m%d-%H%M%S).log"; $P manage.py test --parallel > "$L" 2>&1; echo $L; grep -E "^Ran|^OK|FAILED" "$L"; L2="$TMPDIR/test-t018-p2-$(date +%Y%m%d-%H%M%S).log"; $P manage.py test --parallel 2 > "$L2" 2>&1; echo $L2; grep -E "^Ran|^OK|FAILED" "$L2"; $P manage.py makemigrations --check --dry-run; $P manage.py check | tail -1; TZ=Europe/Moscow date (37s)
+    $ cd "$TMPDIR/t018" && R=~/hackatonproject/.venv/bin/ruff; $R format core/tests/test_stars.py chat/tests/test_selectors.py chat/tests/test_views.py chat/selectors.py chat/templatetags/chat_tags.py; $R check . && $R format --check . | tail -2; P=~/hackatonproject/.venv/bin/python; export DEBUG=1; L="$TMPDIR/test-t018-full-$(date +%Y%m%d-%H%M%S).log"; $P manage.py test --parallel > "$L" 2>&1; echo $L; grep -E "^Ran|^OK|FAILED" "$L"; L2="$TMPDIR/test-t018-p2-$(date +%Y%m%d-%H%M%S).log"; $P manage.py test --parallel 2 > "$L2" 2>&1; echo $L2; grep -E "^Ran|^OK|FAILED" "$L2"; $P manage.py makemigrations --check --dry-run; $P manage.py check | tail -1; TZ=Europe/Moscow date
+    1 file reformatted, 4 files left unchanged
+    B905 `zip()` without an explicit `strict=` parameter
+       --> core/tests/test_stars.py:204:32
+        |
+    202 |             ordered = sorted(stars, key=lambda s: s[1])
+    203 |             with self.subTest(side=side, condition=condition):
+    204 |                 for a, b, c in zip(ordered, ordered[1:], ordered[2:]):
+        |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    205 |                     # Three neighbours never share a 48 px band (a row) ...
+    206 |                     self.assertGreaterEqual(c[1] - a[1], 48, (a, b, c))
+        |
+    help: Add explicit value for parameter `strict=`
+        |
+    203 |             with self.subTest(side=side, condition=condition):
+        -                 for a, b, c in zip(ordered, ordered[1:], ordered[2:]):
+    204 +                 for a, b, c in zip(ordered, ordered[1:], ordered[2:], strict=False):
+    205 |                     # Three neighbours never share a 48 px band (a row) ...
+        |
+    note: This is an unsafe fix and may change runtime behavior
+
+    B905 `zip()` without an explicit `strict=` parameter
+       --> core/tests/test_stars.py:218:43
+        |
+    216 |                 self.assertLessEqual(min(xs), 10)
+    217 |                 self.assertGreaterEqual(max(xs), 90)
+    218 |                 gaps = [b - a for a, b in zip(ys, ys[1:])] + [ys[0] + TILE - ys[-1]]
+        |                                           ^^^^^^^^^^^^^^^
+    219 |                 self.assertLessEqual(max(gaps), 400)
+        |
+    help: Add explicit value for parameter `strict=`
+        |
+    217 |                 self.assertGreaterEqual(max(xs), 90)
+        -                 gaps = [b - a for a, b in zip(ys, ys[1:])] + [ys[0] + TILE - ys[-1]]
+    218 +                 gaps = [b - a for a, b in zip(ys, ys[1:], strict=False)] + [ys[0] + TILE - ys[-1]]
+    219 |                 self.assertLessEqual(max(gaps), 400)
+        |
+    note: This is an unsafe fix and may change runtime behavior
+
+    Found 2 errors.
+    2 unsafe fixes available with `--fix --unsafe-fixes`.
+    /tmp/claude-501/test-t018-full-20261121-104437.log
+    /tmp/claude-501/test-t018-p2-20261121-104442.log
+    No changes detected
+    System check identified no issues (0 silenced).
+    Sat Nov 21 21:45:13 MSK 2026
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 3ms
+    I'm checking whether the full test log grep came back empty, so I'll look at the log tails. The timestamps disagree on the timezone (10:44 UTC versus 21:45 MSK), so I'm not trusting the system TZ here and will use `TZ=Europe/Moscow date` when reporting times. For the zip fix, I'm switching to `itertools.pairwise` for the gaps and `zip(..., strict=False)` for the triples.
+  ── Read test-t018-full-20261121-104437.log
+  ── Thought for 595ms
+    A parallel test run failed with a pickling error, so I'm running the suite serially to find which test is responsible. I'm wondering whether a DATABASE_URL setting from earlier is involved, but this command doesn't set it and shell state doesn't carry over, so that seems unlikely.
+  ── Thought for 3ms
+    Полный прогон с `--parallel` упал с ошибкой pickle, значит какой-то тест падает. Сейчас запущу набор последовательно, чтобы найти этот тест.
+  ── Ran cd "$TMPDIR/t018" && P=~/hackatonproject/.venv/bin/python; export DEBUG=1; L="$TMPDIR/test-t018-serial-$(date +%Y%m%d-%H%M%S).log"; $P manage.py test > "$L" 2>&1; echo $L; grep -E "^Ran|^OK|FAILED|^(FAIL|ERROR):" "$L"; grep -A25 "^FAIL:\|^ERROR:" "$L" | head -60 (2m 59s)
+    $ cd "$TMPDIR/t018" && P=~/hackatonproject/.venv/bin/python; export DEBUG=1; L="$TMPDIR/test-t018-serial-$(date +%Y%m%d-%H%M%S).log"; $P manage.py test > "$L" 2>&1; echo $L; grep -E "^Ran|^OK|FAILED|^(FAIL|ERROR):" "$L"; grep -A25 "^FAIL:\|^ERROR:" "$L" | head -60
+    /tmp/claude-501/test-t018-serial-20261121-104522.log
+    FAIL: test_queries_constant (campusmap.tests.test_views.MapQueryTests.test_queries_constant)
+    Ran 1245 tests in 176.563s
+    FAILED (failures=1)
+    FAIL: test_queries_constant (campusmap.tests.test_views.MapQueryTests.test_queries_constant)
+    ----------------------------------------------------------------------
+    Traceback (most recent call last):
+      File "/private/tmp/claude-501/t018/campusmap/tests/test_views.py", line 366, in test_queries_constant
+        self.assertLessEqual(count4, 4)
+    AssertionError: 6 not less than or equal to 4
+
+    ----------------------------------------------------------------------
+    Ran 1245 tests in 176.563s
+
+    FAILED (failures=1)
+    Destroying test database for alias 'default'...
+    Found 1245 test(s).
+    System check identified no issues (0 silenced).
+    Demo data ready: 2 faculties, 2 programs, 2 groups, 3 students, 2 staff.
+    Schedule ready: 39 rooms, 6 teachers, 6 disciplines, 18 weekly lessons, 8 changes.
+    Academics ready: 2 terms, 17 curriculum items, 13 final results, 70 marks, 228 attendance records.
+    Requests ready: 7 types, 8 requests, 3 attachments.
+    Notifications ready: 9 announcements.
+    Chat ready: 3 dialogs, 8 messages.
+    Demo data ready: 2 faculties, 2 programs, 2 groups, 3 students, 2 staff.
+    Schedule ready: 39 rooms, 6 teachers, 6 disciplines, 18 weekly lessons, 8 changes.
+    Academics ready: 2 terms, 17 curriculum items, 13 final results, 70 marks, 232 attendance records.
+    Requests ready: 7 types, 0 requests, 0 attachments.
+    Notifications ready: 0 announcements.
+    Chat ready: 0 dialogs, 0 messages.
+    Shell cwd was reset to ~/hackatonproject
+  ── Read campusmap/tests/test_views.py
+  ── Thought for 8s
+    I'm checking the query count on the staff map page, which was at most four queries and would rise with the badge's extra lookups. The earlier page-level query budget test is the concern, and I'm weighing whether to raise its limit or cut the badge down to a single query.
+
+    Next I'm weighing a one-query version that filters directly on the staff membership through the faculty join, which removes the profile fetch and keeps the query count fixed on every page. That sidesteps raising the budget, though it repeats the visibility rule, so I'm considering a subquery that reuses the visibility logic instead, with a test checking the counts match the dialog list for several users, including inactive ones.
+
+    I'm weighing the badge query against the page budget, and leaning toward a single query that filters through the faculty's staff membership instead. I'm still unsure whether duplicating the visibility rule breaks the module's lookup rule, though counting messages only exposes a number, so I'm inclined to accept that and add an equivalence test across all users.
+  ── Thought for 13ms
+    Тест `MapQueryTests` падает: на странице без профиля сотрудника счётчик насчитывает 3 лишних запроса при лимите 4. Сейчас переписываю это на один JOIN по факультету и проверю правило видимости отдельным тестом.
+  ── Ran cd "$TMPDIR/t018" && python3 - <<'EOF' p='chat/selectors.py' s=open(p).read() old=s[s.index('def staff_unread_count'):s.index('def chat_unread_count')] new='''def staff_unread_count(user: AbstractBaseUser | AnonymousUser) -> int:     """Unread student messages in the dialogs this staff member can see (TASK-018).     Same rule as the "new" count of ``staff_dialog_list``: student messages after the shared     read marker ``staff_read_id``. The dialog filter is the rule of ``dialogs_visible_to``     (active students of the staff member's faculty) written as joins, so the menu badge is one     COUNT query on every page; ``StaffUnreadCountTests.test_matches_visibility_rule`` keeps     the two in step.     """     if not user.is_authenticated or not user.is_active or user.role != User.Role.STAFF:         return 0     return Message.objects.filter(         dialog__student__group__program__faculty__staff_members__user_id=user.pk,         dialog__student__user__is_active=True,         author_role=AuthorRole.STUDENT,         id__gt=F("dialog__staff_read_id"),     ).count() ''' s=s.replace(old,new) open(p,'w').write(s) p='chat/tests/test_selectors.py' s=open(p).read() old=s[s.index('    def test_one_count_query(self):'):s.index('    def test_chat_unread_count_by_role(self):')] new='''    def test_matches_visibility_rule(self):         sx2 = make_staff("sx2", self.w.fx)         orphan = User.objects.create_user(username="orphan", role=User.Role.STAFF)         cx_dialog = make_dialog(self.w.cx_profile)         add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)         add_message(self.bx_dialog, self.w.bx, AuthorRole.STUDENT)         add_message(cx_dialog, self.w.cx, AuthorRole.STUDENT)         add_message(cx_dialog, self.w.sx, AuthorRole.STAFF)         add_message(self.ay_dialog, self.w.ay, AuthorRole.STUDENT)         self.w.bx.is_active = False         self.w.bx.save(update_fields=["is_active"])         for user in (self.w.sx, sx2, self.w.sy, orphan):             expected = Message.objects.filter(                 dialog__in=dialogs_visible_to(user),                 author_role=AuthorRole.STUDENT,                 id__gt=F("dialog__staff_read_id"),             ).count()             with self.subTest(user=user.username):                 self.assertEqual(staff_unread_count(user), expected)         self.assertEqual(staff_unread_count(self.w.sx), 2)     def test_one_query(self):         add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)         user = User.objects.get(pk=self.w.sx.pk)         with self.assertNumQueries(1):             self.assertEqual(staff_unread_count(user), 1)         for i in range(5):             student = make_student(f"extra{i}", self.w.gx1, f"ST-EX-{i}")             dialog = make_dialog(student.student_profile)             add_message(dialog, student, AuthorRole.STUDENT)         user = User.objects.get(pk=self.w.sx.pk)         with self.assertNumQueries(1):             self.assertEqual(staff_unread_count(user), 6) ''' s=s.replace(old,new) s=s.replace('from django.test import TestCase\n','from django.db.models import F\nfrom django.test import TestCase\n') s=s.replace('from chat.models import AuthorRole\n','from chat.models import AuthorRole, Message\n') open(p,'w').write(s) p='core/tests/test_stars.py' s=open(p).read() s=s.replace('import re\nfrom pathlib import Path\n','import re\nfrom itertools import pairwise\nfrom pathlib import Path\n') s=s.replace('zip(ordered, ordered[1:], ordered[2:])','zip(ordered, ordered[1:], ordered[2:], strict=False)') s=s.replace('[b - a for a, b in zip(ys, ys[1:])]','[b - a for a, b in pairwise(ys)]') open(p,'w').write(s) EOF R=~/hackatonproject/.venv/bin/ruff; $R format chat core >/dev/null; $R check . && $R format --check . | tail -1; P=~/hackatonproject/.venv/bin/python; export DEBUG=1; $P manage.py test chat campusmap core.tests.test_stars 2>&1 | grep -E "^Ran|^OK|FAILED|^(FAIL|ERROR):" (23s)
+    $ cd "$TMPDIR/t018" && python3 - <<'EOF'
+  p='chat/selectors.py'
+  s=open(p).read()
+  old=s[s.index('def staff_unread_count'):s.index('def chat_unread_count')]
+  new='''def staff_unread_count(user: AbstractBaseUser | AnonymousUser) -> int:
+      """Unread student messages in the dialogs this staff member can see (TASK-018).
+
+      Same rule as the "new" count of ``staff_dialog_list``: student messages after the shared
+      read marker ``staff_read_id``. The dialog filter is the rule of ``dialogs_visible_to``
+      (active students of the staff member's faculty) written as joins, so the menu badge is one
+      COUNT query on every page; ``StaffUnreadCountTests.test_matches_visibility_rule`` keeps
+      the two in step.
+      """
+      if not user.is_authenticated or not user.is_active or user.role != User.Role.STAFF:
+          return 0
+      return Message.objects.filter(
+          dialog__student__group__program__faculty__staff_members__user_id=user.pk,
+          dialog__student__user__is_active=True,
+          author_role=AuthorRole.STUDENT,
+          id__gt=F("dialog__staff_read_id"),
+      ).count()
+
+
+  '''
+  s=s.replace(old,new)
+  open(p,'w').write(s)
+
+  p='chat/tests/test_selectors.py'
+  s=open(p).read()
+  old=s[s.index('    def test_one_count_query(self):'):s.index('    def test_chat_unread_count_by_role(self):')]
+  new='''    def test_matches_visibility_rule(self):
+          sx2 = make_staff("sx2", self.w.fx)
+          orphan = User.objects.create_user(username="orphan", role=User.Role.STAFF)
+          cx_dialog = make_dialog(self.w.cx_profile)
+          add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+          add_message(self.bx_dialog, self.w.bx, AuthorRole.STUDENT)
+          add_message(cx_dialog, self.w.cx, AuthorRole.STUDENT)
+          add_message(cx_dialog, self.w.sx, AuthorRole.STAFF)
+          add_message(self.ay_dialog, self.w.ay, AuthorRole.STUDENT)
+          self.w.bx.is_active = False
+          self.w.bx.save(update_fields=["is_active"])
+          for user in (self.w.sx, sx2, self.w.sy, orphan):
+              expected = Message.objects.filter(
+                  dialog__in=dialogs_visible_to(user),
+                  author_role=AuthorRole.STUDENT,
+                  id__gt=F("dialog__staff_read_id"),
+              ).count()
+              with self.subTest(user=user.username):
+                  self.assertEqual(staff_unread_count(user), expected)
+          self.assertEqual(staff_unread_count(self.w.sx), 2)
+
+      def test_one_query(self):
+          add_message(self.ax_dialog, self.w.ax, AuthorRole.STUDENT)
+          user = User.objects.get(pk=self.w.sx.pk)
+          with self.assertNumQueries(1):
+              self.assertEqual(staff_unread_count(user), 1)
+          for i in range(5):
+              student = make_student(f"extra{i}", self.w.gx1, f"ST-EX-{i}")
+              dialog = make_dialog(student.student_profile)
+              add_message(dialog, student, AuthorRole.STUDENT)
+          user = User.objects.get(pk=self.w.sx.pk)
+          with self.assertNumQueries(1):
+              self.assertEqual(staff_unread_count(user), 6)
+
+  '''
+  s=s.replace(old,new)
+  s=s.replace('from django.test import TestCase\n','from django.db.models import F\nfrom django.test import TestCase\n')
+  s=s.replace('from chat.models import AuthorRole\n','from chat.models import AuthorRole, Message\n')
+  open(p,'w').write(s)
+
+  p='core/tests/test_stars.py'
+  s=open(p).read()
+  s=s.replace('import re\nfrom pathlib import Path\n','import re\nfrom itertools import pairwise\nfrom pathlib import Path\n')
+  s=s.replace('zip(ordered, ordered[1:], ordered[2:])','zip(ordered, ordered[1:], ordered[2:], strict=False)')
+  s=s.replace('[b - a for a, b in zip(ys, ys[1:])]','[b - a for a, b in pairwise(ys)]')
+  open(p,'w').write(s)
+  EOF
+  R=~/hackatonproject/.venv/bin/ruff; $R format chat core >/dev/null; $R check . && $R format --check . | tail -1; P=~/hackatonproject/.venv/bin/python; export DEBUG=1; $P manage.py test chat campusmap core.tests.test_stars 2>&1 | grep -E "^Ran|^OK|FAILED|^(FAIL|ERROR):"
+    All checks passed!
+    203 files already formatted
+    Ran 208 tests in 20.660s
+    OK
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 5ms
+    I'm reviewing the test that used to check query count across dialogs, which has already been replaced by a single-query test and removed. Next I'll check the state of the selector diff, then verify the tests catch a regression: removing the is_active filter should make the visibility rule and inactive-case tests fail. After that I'll run the full suite.
+  ── Ran cd "$TMPDIR/t018" && P=~/hackatonproject/.venv/bin/python; export DEBUG=1; cp chat/selectors.py "$TMPDIR/t018work/sel.bak"; sed -i '' '/dialog__student__user__is_active=True,/d' chat/selectors.py; $P manage.py test chat.tests.test_selectors 2>&1 | grep -E "^FAIL:|^Ran"; cp "$TMPDIR/t018work/sel.bak" chat/selectors.py; L="$TMPDIR/test-t018-full-$(date +%Y%m%d-%H%M%S).log"; $P manage.py test --parallel > "$L" 2>&1; echo $L; grep -E "^Ran|^OK|FAILED" "$L"; TZ=Europe/Moscow date +%H:%M; L2="$TMPDIR/test-t018-p2-$(date +%Y%m%d-%H%M%S).log"; $P manage.py test --parallel 2 > "$L2" 2>&1; echo $L2; grep -E "^Ran|^OK|FAILED" "$L2"; TZ=Europe/Moscow date +%H:%M; $P manage.py makemigrations --check --dry-run; $P manage.py check | tail -1 (2m 38s)
+    $ cd "$TMPDIR/t018" && P=~/hackatonproject/.venv/bin/python; export DEBUG=1; cp chat/selectors.py "$TMPDIR/t018work/sel.bak"; sed -i '' '/dialog__student__user__is_active=True,/d' chat/selectors.py; $P manage.py test chat.tests.test_selectors 2>&1 | grep -E "^FAIL:|^Ran"; cp "$TMPDIR/t018work/sel.bak" chat/selectors.py; L="$TMPDIR/test-t018-full-$(date +%Y%m%d-%H%M%S).log"; $P manage.py test --parallel > "$L" 2>&1; echo $L; grep -E "^Ran|^OK|FAILED" "$L"; TZ=Europe/Moscow date +%H:%M; L2="$TMPDIR/test-t018-p2-$(date +%Y%m%d-%H%M%S).log"; $P manage.py test --parallel 2 > "$L2" 2>&1; echo $L2; grep -E "^Ran|^OK|FAILED" "$L2"; TZ=Europe/Moscow date +%H:%M; $P manage.py makemigrations --check --dry-run; $P manage.py check | tail -1
+    FAIL: test_inactive_student_not_counted (chat.tests.test_selectors.StaffUnreadCountTests.test_inactive_student_not_counted)
+    FAIL: test_matches_visibility_rule (chat.tests.test_selectors.StaffUnreadCountTests.test_matches_visibility_rule) (user='sx')
+    FAIL: test_matches_visibility_rule (chat.tests.test_selectors.StaffUnreadCountTests.test_matches_visibility_rule) (user='sx2')
+    FAIL: test_matches_visibility_rule (chat.tests.test_selectors.StaffUnreadCountTests.test_matches_visibility_rule)
+    Ran 20 tests in 0.482s
+    /tmp/claude-501/test-t018-full-20261121-104934.log
+    Ran 1245 tests in 63.654s
+    OK
+    21:50
+    /tmp/claude-501/test-t018-p2-20261121-105040.log
+    Ran 1245 tests in 86.414s
+    OK
+    21:52
+    No changes detected
+    System check identified no issues (0 silenced).
+    Shell cwd was reset to ~/hackatonproject
+
+── Assistant ───────────────────────────────────────────────
+You've hit your 5-hour limit · resets 3:30pm (America/Los_Angeles)
+
+── Error ───────────────────────────────────────────────────
+  Provider rate limit reached
+  You've hit your 5-hour limit · resets 3:30pm (America/Los_Angeles)
+
+── Ran 3 commands, created 1 file ──────────────────────────
+  ── Thought for 4s
+    I'm double-checking the test count, which is unclear right now: the earlier figure was 1217 after the TASK-016-FIX change, and the prototype now reaches 1245, so I'm working out how many of the difference come from the new star tests.
+
+    I'm checking the test math: 1217 plus the 28 new tests (10 star tests, 10 unread-count selector tests, and 8 view tests) comes to 1245, which matches the prototype count. Next I'll gather the changed files from base to prototype and see whether the README covers the stars design.
+  ── Thought for 51ms
+    Сервер разработки остановлен по лимиту времени, а полный набор на прототипе прошёл: 1245 тестов OK. Теперь собираю диффы для спецификации.
+  ── Ran cd "$TMPDIR" && diff -rq t018base t018 -x __pycache__ -x '*.sqlite3' -x staticfiles 2>/dev/null; grep -n -i "звёзд\|звезд\|star" ~/hackatonproject/README.md | head; diff -u t018base/chat/selectors.py t018/chat/selectors.py; diff -u t018base/templates/base.html t018/templates/base.html; diff -u t018base/chat/templatetags/chat_tags.py t018/chat/templatetags/chat_tags.py (2s)
+    $ cd "$TMPDIR" && diff -rq t018base t018 -x __pycache__ -x '*.sqlite3' -x staticfiles 2>/dev/null; grep -n -i "звёзд\|звезд\|star" ~/hackatonproject/README.md | head; diff -u t018base/chat/selectors.py t018/chat/selectors.py; diff -u t018base/templates/base.html t018/templates/base.html; diff -u t018base/chat/templatetags/chat_tags.py t018/chat/templatetags/chat_tags.py
+    Only in t018: .ruff_cache
+    Files t018base/chat/selectors.py and t018/chat/selectors.py differ
+    Files t018base/chat/templatetags/chat_tags.py and t018/chat/templatetags/chat_tags.py differ
+    Files t018base/chat/tests/test_selectors.py and t018/chat/tests/test_selectors.py differ
+    Files t018base/chat/tests/test_views.py and t018/chat/tests/test_views.py differ
+    Only in t018/core/tests: test_stars.py
+    Only in t018: private_media
+    Files t018base/static/css/theme.css and t018/static/css/theme.css differ
+    Files t018base/templates/base.html and t018/templates/base.html differ
+    Files t018base/templates/includes/site_nav_items.html and t018/templates/includes/site_nav_items.html differ
+    205:The interface uses the "night pixel" theme: a dark violet night sky with pixel stars, panels with a double pixel frame, orange primary buttons and a yellow focus outline.
+    209:- Font: "Press Start 2P" (file `static/fonts/PressStart2P-Regular.ttf`) for the site title, page and card headings, buttons and tags only; body text uses the system font. Licence: SIL Open Font License, Version 1.1, Reserved Font Name "Press Start 2P", full text in `static/fonts/OFL.txt`. The font file is used unmodified and is served from this site (no external font services).
+    --- t018base/chat/selectors.py	2026-11-21 10:32:14
+    +++ t018/chat/selectors.py	2026-11-21 10:49:34
+    @@ -57,3 +57,33 @@
+             author_role=AuthorRole.STAFF,
+             id__gt=F("dialog__student_read_id"),
+         ).count()
+    +
+    +
+    +def staff_unread_count(user: AbstractBaseUser | AnonymousUser) -> int:
+    +    """Unread student messages in the dialogs this staff member can see (TASK-018).
+    +
+    +    Same rule as the "new" count of ``staff_dialog_list``: student messages after the shared
+    +    read marker ``staff_read_id``. The dialog filter is the rule of ``dialogs_visible_to``
+    +    (active students of the staff member's faculty) written as joins, so the menu badge is one
+    +    COUNT query on every page; ``StaffUnreadCountTests.test_matches_visibility_rule`` keeps
+    +    the two in step.
+    +    """
+    +    if not user.is_authenticated or not user.is_active or user.role != User.Role.STAFF:
+    +        return 0
+    +    return Message.objects.filter(
+    +        dialog__student__group__program__faculty__staff_members__user_id=user.pk,
+    +        dialog__student__user__is_active=True,
+    +        author_role=AuthorRole.STUDENT,
+    +        id__gt=F("dialog__staff_read_id"),
+    +    ).count()
+    +
+    +
+    +def chat_unread_count(user: AbstractBaseUser | AnonymousUser) -> int:
+    +    """Count for the "Чат (n)" / "Чаты (n)" menu item; 0 for every other role."""
+    +    if not user.is_authenticated or not user.is_active:
+    +        return 0
+    +    if user.role == User.Role.STUDENT:
+    +        return student_unread_count(user)
+    +    if user.role == User.Role.STAFF:
+    +        return staff_unread_count(user)
+    +    return 0
+    --- t018base/templates/base.html	2026-11-21 10:32:14
+    +++ t018/templates/base.html	2026-11-21 10:35:29
+    @@ -14,7 +14,7 @@
+       <a class="skip-link" href="#main">Перейти к содержимому</a>
+       <header class="site-header">
+         <a class="site-brand" href="{% url 'core:home' %}">{% include "includes/icon_cap.html" %}<span class="site-title"><span class="site-title-line">Цифровой</span> <span class="site-title-line">деканат</span></span></a>
+    -    {% if user.is_student %}{% notifications_badge as badge %}{% chat_unread_badge as chat_badge %}{% endif %}
+    +    {% if user.is_student %}{% notifications_badge as badge %}{% chat_unread_badge as chat_badge %}{% elif user.is_deanery_staff %}{% chat_unread_badge as chat_badge %}{% endif %}
+         <nav class="site-nav site-nav--wide" aria-label="Основная навигация">
+           {% block nav %}{% if user.is_authenticated %}{% include "includes/site_nav_items.html" %}{% endif %}{% endblock %}
+         </nav>
+    --- t018base/chat/templatetags/chat_tags.py	2026-11-21 10:32:14
+    +++ t018/chat/templatetags/chat_tags.py	2026-11-21 10:35:29
+    @@ -1,7 +1,7 @@
+     from django import template
+     
+     from chat.constants import CHAT_BADGE_CAP
+    -from chat.selectors import student_unread_count
+    +from chat.selectors import chat_unread_count
+     
+     register = template.Library()
+     
+    @@ -11,7 +11,7 @@
+         request = context.get("request")
+         if request is None:
+             return ""
+    -    count = student_unread_count(request.user)
+    +    count = chat_unread_count(request.user)
+         if count == 0:
+             return ""
+         if count > CHAT_BADGE_CAP:
+  ── Thought for 7ms
+    I'm checking whether the private_media file in t018 was created by the tests, though it looks like the copy's own and that's fine. I also need to decide whether the chat/selectors.py docstring, which says every dialog lookup must go through dialogs_visible_to, needs an exception line, and the staff_unread_count docstring seems to cover that already. Next I'll write the spec template and fill it with a Python script, saving the template to thread-storage.
+  ── Created ~/.bb/thread-storage/t018_spec_template.md +233
+    --- /dev/null
+    +++ b~/.bb/thread-storage/t018_spec_template.md
+    +# TASK-018: scattered side stars on wide screens, "Чаты (n)" for staff
+    +
+    +Author: Planner. Assignee: UI coder. Status: ready for implementation.
+    +Base: HEAD 094dd55 (clean tree). Two Pentester threads work on copies and production; they do not touch the
+    +working tree. Do not touch `plan.md`.
+    +
+    +## 1. Goal
+    +
+    +Two user requests (21.11).
+    +
+    +1. On the desktop the side stars sit only at the window edges and read as two zig-zag "ladders"
+    +   (`static/css/theme.css`: `body::before` / `body::after` put every side star into a 3–4 px column at
+    +   `left: 4px` / `right: 5px`). Wide screens get stars scattered over the whole free side margins.
+    +2. Staff see "Чаты" without a count. They get "Чаты (n)": unread student messages in the dialogs they can see.
+    +
+    +### Acceptance criteria
+    +
+    +| ID | Criterion |
+    +|---|---|
+    +| AC1 | From 64rem (1024 px) the side stars are scattered irregularly over both free side margins beside the content column (varied x and y; no column, row, straight line or ladder), same two token colours, 3 px square pixels, pure CSS (no markup, no JavaScript, no image, no inline style). |
+    +| AC2 | The stars are never over the content column, the header or the footer (D13 of TASK-012 stays): the star layers stand beside `.site-main` only, below the content (`z-index: -1`), `pointer-events: none`, no horizontal scroll. |
+    +| AC3 | Below 64rem nothing changes (the TASK-012 edge stars and header stars stay as they are; 360 px is identical). |
+    +| AC4 | Staff (`role=staff`) see "Чаты (n)" in both menus (wide and compact), n = student messages with `id > dialog.staff_read_id` in the dialogs of active students of their faculty — the "new" rule of the staff chat list. Cap "99+", nothing at 0, computed on page load (no polling), one COUNT query, independent of the number of dialogs and messages. |
+    +| AC5 | The read marker stays shared by the faculty's staff: when one staff member opens a dialog, the count drops for all of them. The student badge is unchanged; superusers and anonymous users get no badge. |
+    +| AC6 | All verification commands pass; visual check reported (section 8). |
+    +
+    +## 2. Out of scope
+    +
+    +Polling or live update of the staff badge; the staff chat list page; the notifications badge (students only);
+    +the header stars (`.site-header::after`, hidden from 48rem); stars below the footer on short pages (see D3);
+    +any migration; `README.md` (its theme section says "pixel stars" without positions — still true).
+    +
+    +## 3. Design decisions
+    +
+    +- **D1. Star layers are `.site-main::before` (left margin) and `.site-main::after` (right margin).** `.site-main`
+    +  is the content column (`max-width: var(--content-max-width)` = 60rem, `position: relative`, `z-index: 1`), so a
+    +  layer with `top: 0; bottom: 0` spans exactly the content height and is never beside the header or the footer
+    +  (the footer text starts 24 px from the left window edge and runs ~760 px, so it lies inside the left margin
+    +  at every wide width; anchoring to `body` would put stars over it on short pages). `.site-main` has no
+    +  other pseudo-elements. `z-index: -1` paints the layer above the page background and below everything inside
+    +  the column.
+    +- **D2. Width `calc(50vw - 50% - 1rem)`, placed at `right: 100%` / `left: 100%`.** `50%` is half the column
+    +  width, so `50vw - 50%` is the margin. `100vw` includes a classic (non-overlay) scrollbar; the `1rem` kept free at
+    +  the window edge keeps the right layer inside the viewport for scrollbars up to 32 px (otherwise the
+    +  absolutely positioned layer would add a horizontal scrollbar). Checked: `scrollWidth == clientWidth` at 1024,
+    +  1280, 1440 and 1920.
+    +- **D3. A star is one background layer**: `linear-gradient(<colour> 0 3px, transparent 3px)` with
+    +  `background-size: 3px 1600px` and `background-repeat: no-repeat repeat`, so the 3 × 3 px pixel repeats every
+    +  1600 px down the page (long pages stay starry, the repeat is never visible inside one screen). `x` is a
+    +  percentage of the margin width (the star spreads with the margin), `y` is px from the top of the column. The
+    +  pixels are crisp at deviceScaleFactor 1 and 2 (checked with an 3× zoomed screenshot). On short pages (login:
+    +  column 410 px high) there are stars only beside the column; the sky below the footer stays empty — the footer
+    +  position is unknown to CSS, and stars there could cover the footer text.
+    +- **D4. Breakpoints from the 60rem column.** From 64rem the margin layer is ≥ 1rem wide (16 px at 1024): group
+    +  `a`, 8 stars per side per 1600 px. From 80rem (1280, layer ≥ 9rem): groups `a + b`, 16 stars. From 100rem
+    +  (1600, layer ≥ 19rem): groups `a + b + c`, 26 stars. Groups are nested, so a wider screen only adds stars and
+    +  the density stays even. The lists live in custom properties (`--stars-a-image`, `--stars-a-position`, …) on
+    +  each layer; the 80rem and 100rem blocks only join them. At 1024 the margin is only 32 px, so the stars there
+    +  still stand in a narrow band, but with irregular x over 16 px instead of the old 0–3 px.
+    +- **D5. Positions were generated, then frozen.** Best-candidate (blue-noise) sampling with the rules of the
+    +  scatter tests: two stars closer than 400 px vertically are ≥ 6 % of the margin apart (no column), no three
+    +  neighbours in a 48 px band (no row), the middle of three neighbours is ≥ 10 % off the line through the outer two
+    +  (no diagonal / ladder), every breakpoint covers x ≤ 10 % … ≥ 90 % and has no vertical gap over 400 px. Colours
+    +  alternate in generation order (both colours in every group). The values are in F1; do not change them by hand
+    +  without running `core/tests/test_stars.py`.
+    +- **D6. Staff count as one query with joins.** `staff_unread_count` filters messages by
+    +  `dialog__student__group__program__faculty__staff_members__user_id=user.pk` and
+    +  `dialog__student__user__is_active=True` — the rule of `dialogs_visible_to` / `students_visible_to` for staff
+    +  written as joins. Reusing `dialogs_visible_to(user)` would load the staff profile and its faculty first
+    +  (3 queries on pages that do not use them, e.g. the map: `campusmap/tests/test_views.py::MapQueryTests::
+    +  test_queries_constant` allows ≤ 4 and fails with 6). `StaffProfile.user` is one-to-one, so the join adds no
+    +  duplicate rows; a staff user without a profile gets 0. `test_matches_visibility_rule` compares the result with
+    +  the `dialogs_visible_to` count for four staff users (own faculty, colleague, other faculty, no profile) and an
+    +  inactive student, so the two rules cannot drift apart silently.
+    +- **D7. One tag for both roles.** `chat_unread_count(user)` returns the student count, the staff count or 0;
+    +  `chat_unread_badge` keeps its cap/hiding logic and now calls it. `base.html` computes `chat_badge` for staff
+    +  too (`{% elif user.is_deanery_staff %}`), the nav item shows it like the student item. Superusers have role
+    +  `admin` → no query, no badge. The staff header with "Чаты (99+)" still fits on one line at 1024 px (checked).
+    +
+    +## 4. Files and functions
+    +
+    +Change: `static/css/theme.css`, `chat/selectors.py`, `chat/templatetags/chat_tags.py`, `templates/base.html`,
+    +`templates/includes/site_nav_items.html`, `chat/tests/test_selectors.py`, `chat/tests/test_views.py`. Create:
+    +`core/tests/test_stars.py`. Diffs are against HEAD 094dd55; edit by hand, no git commands.
+    +
+    +### F1. `static/css/theme.css` (new block after the 48rem header-star block, nothing else changes)
+    +
+    +````diff
+    +{{DIFF:static/css/theme.css}}
+    +````
+    +
+    +### F2. `chat/selectors.py`
+    +
+    +````diff
+    +{{DIFF:chat/selectors.py}}
+    +````
+    +
+    +### F3. `chat/templatetags/chat_tags.py`
+    +
+    +````diff
+    +{{DIFF:chat/templatetags/chat_tags.py}}
+    +````
+    +
+    +### F4. Templates
+    +
+    +````diff
+    +{{DIFF:templates/base.html}}
+    +````
+    +
+    +````diff
+    +{{DIFF:templates/includes/site_nav_items.html}}
+    +````
+    +
+    +### F5. Tests
+    +
+    +`core/tests/test_stars.py` (new):
+    +
+    +````python
+    +{{FILE:core/tests/test_stars.py}}
+    +````
+    +
+    +`chat/tests/test_selectors.py` (new class `StaffUnreadCountTests`):
+    +
+    +````diff
+    +{{DIFF:chat/tests/test_selectors.py}}
+    +````
+    +
+    +`chat/tests/test_views.py` (`NavTests`: 7 new tests; `QueryCountTests`: 1 new test):
+    +
+    +````diff
+    +{{DIFF:chat/tests/test_views.py}}
+    +````
+    +
+    +## 5. Feasibility check
+    +
+    +1. **Baseline** — HEAD 094dd55 has 1217 tests (TASK-016-FIX count).
+    +2. **Full change applied** (copy `$TMPDIR/t018`): `manage.py test --parallel` → `Ran 1245 tests … OK`
+    +   (`$TMPDIR/test-t018-full-20261121-104934.log`, 21:50 MSK 21.11); `--parallel 2` → 1245 OK
+    +   (`$TMPDIR/test-t018-p2-20261121-105040.log`, 21:52 MSK). `ruff check .`, `ruff format --check .` clean;
+    +   `makemigrations --check` → No changes; `check` → no issues.
+    +3. **First variant failed one existing test** (reported for the record): with `staff_unread_count` built on
+    +   `dialogs_visible_to`, the serial run (`$TMPDIR/test-t018-serial-20261121-104522.log`, 21:45 MSK) failed
+    +   `campusmap.tests.test_views.MapQueryTests.test_queries_constant` — `AssertionError: 6 not less than or equal
+    +   to 4` (staff profile + faculty + COUNT). The parallel run of the same variant only showed
+    +   `TypeError: cannot pickle 'traceback' object` (a failing test under `--parallel`; run serially to see it).
+    +   D6 fixed it; the final runs above are green.
+    +4. **New tests on HEAD** (`$TMPDIR/test-t018-newtests-on-head-20261121-104413.log`): 11 failures, all expected —
+    +   the 8 star tests that need the new CSS, `NavTests::test_staff_chat_count`, `::test_staff_chat_count_cap`,
+    +   `::test_staff_chat_count_drops_when_colleague_reads`; `test_selectors.py` does not import (`chat_unread_count`
+    +   missing). The others pass on HEAD by design (regression guards: narrow stars unchanged, no star markup,
+    +   other faculty / no unread → "Чаты", student badge, superuser tag, constant page queries).
+    +5. **Mutations**: moving one star to `10% 80px` (a column with `10% 118px`) fails `test_no_columns`,
+    +   `test_no_rows_or_lines` and `test_spread_over_whole_margin`; removing the `author_role` filter fails
+    +   `test_staff_messages_not_counted` and `test_chat_unread_count_by_role`; removing the `is_active` filter fails
+    +   `test_inactive_student_not_counted` and `test_matches_visibility_rule`.
+    +6. **Browser** (runserver on a seeded temporary database, headless Chrome): login (column 410 px) and
+    +   notifications (column 3279 px) at 1024, 1280, 1440, 1920 — stars scattered on both sides, none over the
+    +   column, header or footer; `scrollWidth == clientWidth` everywhere; `body::before` is `display: none` from
+    +   1024; crisp 3 px squares at deviceScaleFactor 2. 360 px: the layers are not generated (`width: auto`, `body::before`
+    +   shown) — unchanged.
+    +7. **Staff badge in the browser**: staff1 with 1 unread → "Чаты (1)"; after 120 more student messages →
+    +   "Чаты (99+)", the staff header still on one line at 1024 px.
+    +8. **Existing query budgets**: `chat/tests/test_views.py::QueryCountTests` (staff list ≤ 6, staff dialog ≤ 10),
+    +   `core/tests/test_home.py::…::test_exact_queries` (student, 14) and `MapQueryTests` (≤ 4) pass unchanged.
+    +9. **Django**: the reverse name `staff_members` (`StaffProfile.faculty`, `related_name="staff_members"`) and
+    +   `RequestContext` rendering of the tag were run on the copy; `bulk_create` of messages uses the model default
+    +   `created_at` (`clock.now`).
+    +10. **Safety** — no `.env` read; temporary databases only; the project tree was not modified by this check.
+    +
+    +## 6. Implementation order
+    +
+    +F2 + F3 + F4 with the chat tests → F1 with `core/tests/test_stars.py` → `ruff format` on the changed Python
+    +files (never on `docs/`) → verification and visual check.
+    +
+    +## 7. Test plan
+    +
+    +| AC | Tests |
+    +|---|---|
+    +| AC1 | `core/tests/test_stars.py::WideStarsScatterTests::test_group_sizes_and_values`, `::test_no_columns`, `::test_no_rows_or_lines`, `::test_spread_over_whole_margin`; `WideStarsPlacementTests::test_stars_are_token_coloured_gradients` (token colours, no `url(`), `::test_breakpoints_add_groups`, `::test_no_star_markup_or_inline_style`; `core/tests/test_middleware.py::TemplatesFitPolicyTests` and `core/tests/test_design.py::TokenTests::test_no_colour_literals_outside_tokens` (unchanged) |
+    +| AC2 | `WideStarsPlacementTests::test_layers_beside_content_column` (absolute, top/bottom 0, `right/left: 100%`, width, `pointer-events: none`, `z-index: -1`, `content: ""`), `::test_wide_screens_hide_edge_columns` |
+    +| AC3 | `WideStarsPlacementTests::test_narrow_screens_keep_edge_stars` (old edge stars outside media; the new layers only inside the 64/80/100rem blocks) |
+    +| AC4 | `chat/tests/test_selectors.py::StaffUnreadCountTests::test_counts_own_faculty_only`, `::test_staff_messages_not_counted`, `::test_same_as_staff_list`, `::test_inactive_student_not_counted`, `::test_staff_without_profile_zero`, `::test_matches_visibility_rule`, `::test_one_query`; `chat/tests/test_views.py::NavTests::test_staff_chat_count`, `::test_staff_chat_without_count`, `::test_staff_chat_other_faculty_not_counted`, `::test_staff_chat_count_cap`; `QueryCountTests::test_staff_page_constant_in_dialogs` |
+    +| AC5 | `StaffUnreadCountTests::test_shared_read_marker`, `::test_other_roles_zero_without_query`, `::test_chat_unread_count_by_role`; `NavTests::test_staff_chat_count_drops_when_colleague_reads`, `::test_student_badge_ignores_unread_for_staff`, `::test_badge_tag_empty_for_superuser`; existing `NavTests::test_student_chat_count`, `::test_student_chat_without_count`, `QueryCountTests::test_header_student_four_queries`, `::test_header_staff_no_chat_query` (unchanged) |
+    +
+    +Access matrix for the badge:
+    +
+    +| User | Badge | Queries |
+    +|---|---|---|
+    +| Student | "Чат (n)", staff messages after `student_read_id` (unchanged) | 1 |
+    +| Staff with profile | "Чаты (n)", student messages after `staff_read_id`, active students of own faculty | 1 |
+    +| Staff without profile | none (0) | 1 |
+    +| Superuser / admin role, anonymous | none | 0 |
+    +
+    +Edge cases: 0 → no "( )"; 99 → "(99)"; 100 → "(99+)"; a colleague opens the dialog → drops for everyone;
+    +inactive student → excluded; other faculty → excluded; staff's own replies → excluded; a margin of 16 px
+    +(1024) and 464 px (1920); a page shorter than one tile.
+    +
+    +Test count: 1217 → 1245 (+28: stars 10, selectors 10, views 8).
+    +
+    +## 8. Verification (UI coder, then Reviewer)
+    +
+    +```bash
+    +.venv/bin/python manage.py test --parallel 2>&1 | tee "$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log" | tail -3
+    +.venv/bin/python manage.py test --parallel 2 2>&1 | tee "$TMPDIR/test-p2-$(date +%Y%m%d-%H%M%S).log" | tail -3
+    +.venv/bin/ruff check . && .venv/bin/ruff format --check .
+    +.venv/bin/python manage.py check
+    +.venv/bin/python manage.py makemigrations --check --dry-run
+    +git status --short
+    +```
+    +
+    +If a `--parallel` run ends with `TypeError: cannot pickle 'traceback' object`, a test failed: run
+    +`manage.py test` serially to get its name and report it.
+    +
+    +Visual check (temporary seeded database, `runserver`, headless browser; report screenshots):
+    +- Widths 1024, 1280, 1440, 1920 (height 900; long page also 1800): a short page (`/login/`) and a long page
+    +  (`/notifications/` as a student). Stars scattered on both sides, none over the column, header or footer, no
+    +  column/row/ladder; `document.documentElement.scrollWidth === clientWidth`. One zoomed shot at
+    +  deviceScaleFactor 2: crisp squares.
+    +- 360 × 780: identical to HEAD (edge stars and header stars).
+    +- Staff at 1024 and 360 (compact menu): "Чаты (n)"; with ≥ 100 unread student messages "Чаты (99+)", the wide
+    +  header stays on one line at 1024.
+    +
+    +Report test counts, log paths and Moscow times; report every failing run with the test name and a traceback
+    +excerpt. Never read `.env`; do not touch `plan.md`.
+    +
+    +## 9. Risks
+    +
+    +- Taste: star density and positions are a design choice; a change means new frozen positions that still pass
+    +  `core/tests/test_stars.py`.
+    +- Short pages have stars only beside the content column (D3).
+    +- The staff count duplicates the visibility rule as joins (D6); a future change to `students_visible_to` must
+    +  also change `staff_unread_count` — `test_matches_visibility_rule` fails until it does.
+    +- With a classic scrollbar wider than 32 px the right layer would overflow; common scrollbars are 11–17 px.
+  ── Thought for 5ms
+    I'm checking the access matrix claim that the student header test uses four queries, and I think the unread count is just one query, so that holds. I also confirm the failure tally: eight star tests plus three nav ones, matching the eleven I reported.
+  ── Ran cd "$TMPDIR" && python3 - <<'EOF' import re, subprocess, os T=os.environ['TMPDIR'] tpl=open('~/.bb/thread-storage/t018_spec_template.md').read() def diff(p):     out=subprocess.run(['diff','-u',f'{T}/t018base/{p}',f'{T}/t018/{p}'],capture_output=True,text=True).stdout     lines=out.splitlines()     lines[0]=f'--- a/{p}'; lines[1]=f'+++ b/{p}'     lines=[re.sub(r'\t.*$','',l) if l.startswith(('---','+++')) else l for l in lines]     return "\n".join(lines) tpl=re.sub(r'\{\{DIFF:([^}]+)\}\}',lambda m:diff(m.group(1)),tpl) tpl=re.sub(r'\{\{FILE:([^}]+)\}\}',lambda m:open(f'{T}/t018/{m.group(1)}').read().rstrip('\n'),tpl) assert '{{' not in tpl open('~/hackatonproject/docs/tasks/TASK-018.md','w').write(tpl) EOF wc -l ~/hackatonproject/docs/tasks/TASK-018.md; grep -c '^````' ~/hackatonproject/docs/tasks/TASK-018.md; cd ~/hackatonproject && git status --short
+    $ cd "$TMPDIR" && python3 - <<'EOF'
+  import re, subprocess, os
+  T=os.environ['TMPDIR']
+  tpl=open('~/.bb/thread-storage/t018_spec_template.md').read()
+  def diff(p):
+      out=subprocess.run(['diff','-u',f'{T}/t018base/{p}',f'{T}/t018/{p}'],capture_output=True,text=True).stdout
+      lines=out.splitlines()
+      lines[0]=f'--- a/{p}'; lines[1]=f'+++ b/{p}'
+      lines=[re.sub(r'\t.*$','',l) if l.startswith(('---','+++')) else l for l in lines]
+      return "\n".join(lines)
+  tpl=re.sub(r'\{\{DIFF:([^}]+)\}\}',lambda m:diff(m.group(1)),tpl)
+  tpl=re.sub(r'\{\{FILE:([^}]+)\}\}',lambda m:open(f'{T}/t018/{m.group(1)}').read().rstrip('\n'),tpl)
+  assert '{{' not in tpl
+  open('~/hackatonproject/docs/tasks/TASK-018.md','w').write(tpl)
+  EOF
+  wc -l ~/hackatonproject/docs/tasks/TASK-018.md; grep -c '^````' ~/hackatonproject/docs/tasks/TASK-018.md; cd ~/hackatonproject && git status --short
+    Traceback (most recent call last):
+      File "<stdin>", line 12, in <module>
+    AssertionError
+    wc: ~/hackatonproject/docs/tasks/TASK-018.md: open: No such file or directory
+    ugrep: warning: ~/hackatonproject/docs/tasks/TASK-018.md: No such file or directory
+  ── Thought for 4ms
+    I'm checking whether the `'{{'` assertion is too strict, since that string shows up in the site_nav diff as `{{ chat_badge }}`. I'm thinking the check should look for `'{{DIFF'` or `'{{FILE'` instead.
+  ── Ran cd "$TMPDIR" && python3 - <<'EOF' import re, subprocess, os T=os.environ['TMPDIR'] tpl=open('~/.bb/thread-storage/t018_spec_template.md').read() def diff(p):     out=subprocess.run(['diff','-u',f'{T}/t018base/{p}',f'{T}/t018/{p}'],capture_output=True,text=True).stdout     lines=out.splitlines()     lines[0]=f'--- a/{p}'; lines[1]=f'+++ b/{p}'     return "\n".join(lines) tpl=re.sub(r'\{\{DIFF:([^}]+)\}\}',lambda m:diff(m.group(1)),tpl) tpl=re.sub(r'\{\{FILE:([^}]+)\}\}',lambda m:open(f'{T}/t018/{m.group(1)}').read().rstrip('\n'),tpl) assert '{{DIFF' not in tpl and '{{FILE' not in tpl open('~/hackatonproject/docs/tasks/TASK-018.md','w').write(tpl) EOF F=~/hackatonproject/docs/tasks/TASK-018.md; wc -l $F; grep -c '^````' $F; grep -n "^+++ \|^--- " $F; cd ~/hackatonproject && git status --short (1s)
+    $ cd "$TMPDIR" && python3 - <<'EOF'
+  import re, subprocess, os
+  T=os.environ['TMPDIR']
+  tpl=open('~/.bb/thread-storage/t018_spec_template.md').read()
+  def diff(p):
+      out=subprocess.run(['diff','-u',f'{T}/t018base/{p}',f'{T}/t018/{p}'],capture_output=True,text=True).stdout
+      lines=out.splitlines()
+      lines[0]=f'--- a/{p}'; lines[1]=f'+++ b/{p}'
+      return "\n".join(lines)
+  tpl=re.sub(r'\{\{DIFF:([^}]+)\}\}',lambda m:diff(m.group(1)),tpl)
+  tpl=re.sub(r'\{\{FILE:([^}]+)\}\}',lambda m:open(f'{T}/t018/{m.group(1)}').read().rstrip('\n'),tpl)
+  assert '{{DIFF' not in tpl and '{{FILE' not in tpl
+  open('~/hackatonproject/docs/tasks/TASK-018.md','w').write(tpl)
+  EOF
+  F=~/hackatonproject/docs/tasks/TASK-018.md; wc -l $F; grep -c '^````' $F; grep -n "^+++ \|^--- " $F; cd ~/hackatonproject && git status --short
+    957 ~/hackatonproject/docs/tasks/TASK-018.md
+    16
+    89:--- a/static/css/theme.css
+    90:+++ b/static/css/theme.css
+    276:--- a/chat/selectors.py
+    277:+++ b/chat/selectors.py
+    317:--- a/chat/templatetags/chat_tags.py
+    318:+++ b/chat/templatetags/chat_tags.py
+    342:--- a/templates/base.html
+    343:+++ b/templates/base.html
+    356:--- a/templates/includes/site_nav_items.html
+    357:+++ b/templates/includes/site_nav_items.html
+    599:--- a/chat/tests/test_selectors.py
+    600:+++ b/chat/tests/test_selectors.py
+    747:--- a/chat/tests/test_views.py
+    748:+++ b/chat/tests/test_views.py
+    ?? docs/tasks/TASK-018.md
+  ── Thought
+    I'll check that the spec diffs apply cleanly by patching a fresh copy of HEAD and comparing the result against the prototype.
+
+── Assistant ───────────────────────────────────────────────
+Проверяю, что диффы из спецификации чисто накладываются на HEAD.
+
+── Ran cd "$TMPDIR" && rm -rf t018apply && mkdir t018apply && cd ~/hackatonproject && git archive HEAD | tar -x -C "$TMPDIR/t018apply" && cd "$TMPDIR/t018apply" && python3 - <<'EOF' import re s=open('~/hackatonproject/docs/tasks/TASK-018.md').read() blocks=re.findall(r'````diff\n(.*?)\n````',s,flags=re.S) open('all.patch','w').write("\n".join(blocks)+"\n") py=re.search(r'````python\n(.*?)\n````',s,flags=re.S).group(1) open('core/tests/test_stars.py','w').write(py+"\n") EOF patch -p1 < all.patch | tail -8; rm all.patch; for f in static/css/theme.css chat/selectors.py chat/templatetags/chat_tags.py templates/base.html templates/includes/site_nav_items.html chat/tests/test_selectors.py chat/tests/test_views.py core/tests/test_stars.py; do cmp -s $f "$TMPDIR/t018/$f" && echo "same $f" || echo "DIFF $f"; done
+  $ cd "$TMPDIR" && rm -rf t018apply && mkdir t018apply && cd ~/hackatonproject && git archive HEAD | tar -x -C "$TMPDIR/t018apply" && cd "$TMPDIR/t018apply" && python3 - <<'EOF'
+import re
+s=open('~/hackatonproject/docs/tasks/TASK-018.md').read()
+blocks=re.findall(r'````diff\n(.*?)\n````',s,flags=re.S)
+open('all.patch','w').write("\n".join(blocks)+"\n")
+py=re.search(r'````python\n(.*?)\n````',s,flags=re.S).group(1)
+open('core/tests/test_stars.py','w').write(py+"\n")
+EOF
+patch -p1 < all.patch | tail -8; rm all.patch; for f in static/css/theme.css chat/selectors.py chat/templatetags/chat_tags.py templates/base.html templates/includes/site_nav_items.html chat/tests/test_selectors.py chat/tests/test_views.py core/tests/test_stars.py; do cmp -s $f "$TMPDIR/t018/$f" && echo "same $f" || echo "DIFF $f"; done
+  patching file 'static/css/theme.css'
+  patching file 'chat/selectors.py'
+  patching file 'chat/templatetags/chat_tags.py'
+  patching file 'templates/base.html'
+  patching file 'templates/includes/site_nav_items.html'
+  patching file 'chat/tests/test_selectors.py'
+  patching file 'chat/tests/test_views.py'
+  same static/css/theme.css
+  same chat/selectors.py
+  same chat/templatetags/chat_tags.py
+  same templates/base.html
+  same templates/includes/site_nav_items.html
+  same chat/tests/test_selectors.py
+  same chat/tests/test_views.py
+  same core/tests/test_stars.py
+  Shell cwd was reset to ~/hackatonproject
+
+── Assistant ───────────────────────────────────────────────
+Спецификация воспроизводима. Передаю её UI-кодеру и сообщаю тимлиду об отклонении от запроса.
+
+── Ran bb thread tell thr_pgcwc2dwnn --message-file - <<'EOF' [TASK-018] Planner -> UI coder: TASK Spec: docs/tasks/TASK-018.md (base HEAD 094dd55). Two items: 1. Wide-screen stars (from 64rem): two layers .site-main::before/::after beside the content column, each star a 3 px background tile repeated every 1600 px, x in % of the margin, groups a/b/c added at 64/80/100rem. Below 64rem nothing changes. 2. "Чаты (n)" for staff: new chat/selectors.py::staff_unread_count (one COUNT query with joins, see D6) and chat_unread_count; chat_unread_badge calls it; base.html computes chat_badge for staff; nav item shows it. All code and tests are in the spec as exact diffs / whole files (F1-F5); they apply cleanly to HEAD and give 1245 tests OK on a copy (1217 -> 1245). Star positions are frozen (D5): keep them unless core/tests/test_stars.py stays green. Section 8: verification commands and the visual check (1024/1280/1440/1920 short + long page, 360 unchanged, staff badge incl. 99+ at 1024). Send your REPORT to the Reviewer. Do not touch plan.md; never read .env. EOF bb thread tell thr_4izdzwetb4 --message-file - <<'EOF' [TASK-018] Planner -> Team lead: REPORT Spec docs/tasks/TASK-018.md is with the UI coder. Two decisions deviate from or refine the request: 1. Staff badge "one query": staff_unread_count writes the dialogs_visible_to rule as joins (faculty -> staff_members -> user_id, active students) instead of calling dialogs_visible_to. Calling it costs profile + faculty + COUNT = 3 queries on pages that do not load the profile; that variant failed campusmap MapQueryTests::test_queries_constant (6 > 4, serial run 21:45 MSK, $TMPDIR/test-t018-serial-20261121-104522.log). The join version is 1 query everywhere; test_matches_visibility_rule compares it with the dialogs_visible_to count (own faculty, colleague, other faculty, no profile, inactive student), so the rules cannot drift silently. 2. Stars stand only beside the content column (.site-main pseudo-elements), so on short pages (login) the sky below the footer has no stars: the footer text lies inside the left margin at every wide width and its position is unknown to CSS. Long pages are starry everywhere beside the column. Verified on a copy: 1245 tests OK (--parallel and --parallel 2, 21:50/21:52 MSK), ruff clean, screenshots at 1024/1280/1440/1920, no horizontal scroll, staff header with "Чаты (99+)" on one line at 1024. EOF (1s)
+  $ bb thread tell thr_pgcwc2dwnn --message-file - <<'EOF'
+[TASK-018] Planner -> UI coder: TASK
+Spec: docs/tasks/TASK-018.md (base HEAD 094dd55). Two items:
+1. Wide-screen stars (from 64rem): two layers .site-main::before/::after beside the content column, each star a 3 px background tile repeated every 1600 px, x in % of the margin, groups a/b/c added at 64/80/100rem. Below 64rem nothing changes.
+2. "Чаты (n)" for staff: new chat/selectors.py::staff_unread_count (one COUNT query with joins, see D6) and chat_unread_count; chat_unread_badge calls it; base.html computes chat_badge for staff; nav item shows it.
+All code and tests are in the spec as exact diffs / whole files (F1-F5); they apply cleanly to HEAD and give 1245 tests OK on a copy (1217 -> 1245). Star positions are frozen (D5): keep them unless core/tests/test_stars.py stays green.
+Section 8: verification commands and the visual check (1024/1280/1440/1920 short + long page, 360 unchanged, staff badge incl. 99+ at 1024). Send your REPORT to the Reviewer. Do not touch plan.md; never read .env.
+EOF
+bb thread tell thr_4izdzwetb4 --message-file - <<'EOF'
+[TASK-018] Planner -> Team lead: REPORT
+Spec docs/tasks/TASK-018.md is with the UI coder. Two decisions deviate from or refine the request:
+1. Staff badge "one query": staff_unread_count writes the dialogs_visible_to rule as joins (faculty -> staff_members -> user_id, active students) instead of calling dialogs_visible_to. Calling it costs profile + faculty + COUNT = 3 queries on pages that do not load the profile; that variant failed campusmap MapQueryTests::test_queries_constant (6 > 4, serial run 21:45 MSK, $TMPDIR/test-t018-serial-20261121-104522.log). The join version is 1 query everywhere; test_matches_visibility_rule compares it with the dialogs_visible_to count (own faculty, colleague, other faculty, no profile, inactive student), so the rules cannot drift silently.
+2. Stars stand only beside the content column (.site-main pseudo-elements), so on short pages (login) the sky below the footer has no stars: the footer text lies inside the left margin at every wide width and its position is unknown to CSS. Long pages are starry everywhere beside the column.
+Verified on a copy: 1245 tests OK (--parallel and --parallel 2, 21:50/21:52 MSK), ruff clean, screenshots at 1024/1280/1440/1920, no horizontal scroll, staff header with "Чаты (99+)" on one line at 1024.
+EOF
+  Thread thr_pgcwc2dwnn steered
+  Thread thr_4izdzwetb4 steered
+
+── Assistant ───────────────────────────────────────────────
+Я написал спецификацию TASK-018 и передал её UI-кодеру. Решение проверено на копии проекта: 1245 тестов проходят, ruff без ошибок.
+
+**Звёзды на широких экранах.** Звёзды заполняют всё свободное поле по бокам от колонки с текстом. Столбцов, рядов и «лесенки» больше нет.
+- Чем шире экран, тем больше звёзд: от 1024 px — 8 с каждой стороны, от 1280 px — 16, от 1600 px — 26.
+- Только CSS: без разметки, скриптов и картинок.
+- Звёзды не заходят на текст, шапку и подвал. Горизонтальной прокрутки нет.
+- Скриншоты сделаны при 1024, 1280, 1440 и 1920 px, на короткой и длинной странице. При 360 px ничего не изменилось.
+- При 1024 px поле узкое (32 px), поэтому звёзды там стоят узкой полосой. Но теперь они разбросаны по 16 px, а не по 3 px.
+- Ограничение: на коротких страницах (например, вход) звёзды есть только рядом с колонкой. Ниже подвала небо пустое. Иначе звёзды могли бы попасть на текст подвала.
+- Новый тест проверяет, что звёзды не стоят столбиком, рядом или по прямой. Если в позициях звёзд появляется столбик, тест падает.
+
+**«Чаты (n)» для сотрудников.**
+- n — число непрочитанных сообщений студентов в диалогах факультета сотрудника. Правило то же, что у «новых» в списке чатов.
+- Действуют лимит «99+» и скрытие при нуле. Когда один сотрудник открывает диалог, счётчик падает у всех сотрудников факультета.
+- Студенческий счётчик не изменился. Суперпользователь и гость счётчика не видят.
+- Шапка сотрудника с «Чаты (99+)» помещается в одну строку при 1024 px.
+
+**Отклонение от запроса.** Тимлиду я отправил о нём отчёт.
+- Счётчик сотрудника считается одним запросом с JOIN, без общей функции проверки видимости.
+- Общая функция добавляла 3 запроса на страницах, где профиль сотрудника не загружен. С ней падал существующий тест бюджета запросов карты (`MapQueryTests`: 6 запросов при лимите 4).
+- Отдельный тест сверяет оба правила. Если правило видимости изменится, а счётчик нет, тест упадёт.
+
+Временный сервер для скриншотов остановился по лимиту времени. Проверки к этому моменту были закончены.
+
+Спецификация: [TASK-018](docs/tasks/TASK-018.md). Жду вопросов от UI-кодера.
