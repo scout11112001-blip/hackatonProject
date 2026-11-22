@@ -33929,3 +33929,933 @@ EOF
 Временный сервер для скриншотов остановился по лимиту времени. Проверки к этому моменту были закончены.
 
 Спецификация: [TASK-018](docs/tasks/TASK-018.md). Жду вопросов от UI-кодера.
+
+── User ────────────────────────────────────────────────────
+[bb message from thread:thr_4izdzwetb4]
+
+[TASK-019] Team lead -> Planner: TASK
+Decided by the Team lead (the user delegated fixes of pentest findings on 22.11). Write the spec `docs/tasks/TASK-019.md` and hand it to the Coder (DeepSeek, thr_ng6cbgatm6). Keep the spec short: three small, independent items.
+
+## Context
+Small items from `docs/security/PENTEST-3.md` (no Critical/High/Medium) and one test-environment problem found during TASK-018. Apply your "Feasibility check" and "Test plan" sections.
+
+## Items
+1. PT3-F7: `deploy/nginx/deanery.conf` - the catch-all `443 default_server` block has `ssl_reject_handshake on` but no `return 444;`, so a request with SNI = our domain and a foreign `Host` lands in that block and gets nginx's default answer. Add `return 444;` to it (like the port-80 catch-all). Update the deploy test.
+2. PT3-F6: `deploy/backup.sh`
+   - It sources the env file with `set -a`, so every variable (`SECRET_KEY`, `DEMO_PASSWORD`, ...) is exported to `pg_dump`, `gzip`, `tar` and `find`. Export only what the children need (the `PG*` variables built from `DATABASE_URL`); the other values stay unexported shell variables or are not read at all.
+   - A failed `pg_dump` or `tar` leaves an empty or partial `db-*.sql.gz` / `media-*.tar.gz`. Write to a temporary name in the same directory and rename only on success; remove the temporary file on failure; the existing exit codes and output stay.
+   - Keep all existing behaviour and tests (password never on the command line, works from any directory, `KEEP_DAYS` cleanup).
+3. `core/tests/test_deploy.py::_secret_scan_paths()` reads every file under `deploy/` as UTF-8, so a macOS Finder `.DS_Store` file (git-ignored) makes 5 tests error with `UnicodeDecodeError`. Make the scan ignore files that git ignores (or at least `.DS_Store`) without weakening it for tracked files; a tracked binary file must still fail loudly, not be skipped silently.
+
+## Verification
+All existing verification commands, `bash -n deploy/backup.sh`, tests for each item (item 2: a failing `pg_dump` stub leaves no `db-*.sql.gz`; the child process environment has no `SECRET_KEY`).
+
+── Ran 2 commands, explored 2 files ────────────────────────
+  ── Ran git log --oneline -4 && git status --short && cat deploy/backup.sh && grep -n "default_server\|ssl_reject\|return 444" -n deploy/nginx/deanery.conf && grep -n "F6\|F7" docs/security/PENTEST-3.md | head
+    $ git log --oneline -4 && git status --short && cat deploy/backup.sh && grep -n "default_server\|ssl_reject\|return 444" -n deploy/nginx/deanery.conf && grep -n "F6\|F7" docs/security/PENTEST-3.md | head
+    edf673d Plan: trial data deleted; PENTEST-2 to be run by the user in the morning via a packaged runner
+    5df4eae TASK-018: stars across the wide side margins, "Чаты (n)" for staff
+    4bcf717 Plan: the report does not mention PENTEST-4 or dwell on gaps
+    67eddf9 Security: PENTEST-3 report; final database switched; dialogs re-exported with wider redaction
+    #!/usr/bin/env bash
+    # Daily backup: gzip-compressed pg_dump + tar.gz of PRIVATE_MEDIA_ROOT; keeps KEEP_DAYS days.
+    set -euo pipefail
+    umask 077
+    # Start from / so the script works from any directory (find restores the start directory).
+    cd /
+    BACKUP_DIR="${BACKUP_DIR:-/srv/deanery/backups}"
+    KEEP_DAYS="${KEEP_DAYS:-7}"
+    # DEANERY_ENV_FILE overrides the env file path (used by the tests).
+    ENV_FILE="${DEANERY_ENV_FILE:-/etc/deanery/deanery.env}"
+    set -a
+    . "$ENV_FILE"
+    set +a
+    # The password goes to pg_dump through the libpq environment, never on the command line (PT1-F13).
+    DB_URL_RE='^postgres(ql)?://([^:/@]+):([^@]+)@([^:/@]+):([0-9]+)/([^/?]+)$'
+    if [[ ! "$DATABASE_URL" =~ $DB_URL_RE ]]; then
+        echo "backup failed: DATABASE_URL must look like postgres://user:password@host:port/name" >&2
+        exit 1
+    fi
+    export PGUSER="${BASH_REMATCH[2]}" PGPASSWORD="${BASH_REMATCH[3]}" PGHOST="${BASH_REMATCH[4]}"
+    export PGPORT="${BASH_REMATCH[5]}" PGDATABASE="${BASH_REMATCH[6]}"
+    unset DATABASE_URL
+    STAMP="$(date +%Y%m%d-%H%M%S)"
+    mkdir -p "$BACKUP_DIR"
+    pg_dump --no-owner --no-privileges | gzip -9 > "$BACKUP_DIR/db-$STAMP.sql.gz"
+    tar -czf "$BACKUP_DIR/media-$STAMP.tar.gz" -C "$(dirname "$PRIVATE_MEDIA_ROOT")" "$(basename "$PRIVATE_MEDIA_ROOT")"
+    find "$BACKUP_DIR" -maxdepth 1 -type f \( -name 'db-*.sql.gz' -o -name 'media-*.tar.gz' \) -mtime +"$((KEEP_DAYS - 1))" -delete
+    echo "backup ok: $STAMP"
+    16:    listen 80 default_server;
+    17:    listen [::]:80 default_server;
+    20:    return 444;
+    24:    listen 443 ssl http2 default_server;
+    25:    listen [::]:443 ssl http2 default_server;
+    28:    ssl_reject_handshake on;
+    28:| PT3-F6 | Info | `backup.sh` exports every env-file variable to all child processes and leaves an empty dump when `pg_dump` fails | local (stub `pg_dump`) |
+    29:| PT3-F7 | Info | nginx: catch-all 443 server without `return`; limits keyed per full address | predicted from `deploy/nginx/deanery.conf` |
+    35:| PT1-F1 Medium, login form exhausts the CPU | Fixed in the config (prediction) | nginx limits POST to every path that ends in `/login/` (10 r/min, burst 10, 429) and keeps at most 20 connections per address. The location regex matches every path that reaches the site or the admin login view: 23 path variants checked against Django routing with an emulation of nginx URI normalisation (case, `%xx`, `%2F`, `//`, `./`, `..`, `;`, no trailing slash). `PUT`/`PATCH`/`DELETE /login/` never check a password and never count a failure. Not measured: nginx is not installed. Residual risk: PT3-F7 |
+    38:| PT1-F4 Low, no catch-all server | Fixed in the config (prediction) | Catch-all `default_server` blocks (`return 444`, `ssl_reject_handshake on`); the HTTP redirect uses the fixed domain. The Django part is unchanged: 16 Host variants give the same results as in PENTEST-1. Remark: PT3-F7 item 1 |
+    40:| PT1-F6 Low, server privilege boundaries | Partly fixed, rest accepted | Runbook: service account with `/usr/sbin/nologin`, no SSH key for it, step 21 for the existing server (config review). The rest was accepted. The public dialogs show that root SSH login with a key is in use (PT3-F2) |
+    41:| PT1-F7 Info, raw HTML hint | Fixed | An HTML `comment_hint` set as a superuser would is shown escaped once (`&` not double-escaped). The original value was restored |
+    47:| PT1-F13 Info, deployment hardening | Partly fixed | `backup.sh`: no password on the command line (PT3-F6 for the rest). gunicorn trusts only `X-Forwarded-Proto` (tested). systemd sandbox options added (review, section 5.1). TLS ciphers, OCSP and the HSTS raise were accepted |
+    152:(PT1-F6, accepted so far). Shut down the previous server if it still runs. In future exports, also
+    244:### PT3-F6 — Info — `backup.sh` environment and failure handling
+    275:### PT3-F7 — Info — nginx: catch-all 443 server and per-address limits
+  ── Read docs/security/PENTEST-3.md
+  ── Read core/tests/test_deploy.py
+  ── Thought for 57s
+    I'm weighing whether to use `git ls-files` when a repo is present, since CI checkouts have git but archive copies don't. That leaves me with a fallback path either way. I'm leaning toward a simpler approach: scanning everything except a small explicit ignore list that mirrors the common .gitignore entries for OS and tool junk.
+
+    I'm checking whether git's tracked-plus-untracked file listing will cover the scan, since it respects `.gitignore` and still picks up the coder's uncommitted files. Without git, I'd fall back to a directory walk that skips the junk names. I'm also wondering whether `git` will run cleanly in the test sandbox, since ownership warnings could get in the way.
+
+    I'm considering whether the git-based file listing has a problem with files deleted from the working tree but still tracked, which would make reads fail, so I'll filter to actual files. I'm also asking whether the git approach is overkill when a simpler ignore list would do, though I'm settling on git with the fallback, and I'm thinking about how to test it with a temporary repo.
+
+    I'm going to cover the tests for the git-based file listing: a temporary repo with a tracked text file, a tracked binary, a gitignored `.DS_Store`, and an untracked new file, checking that the binary read fails loudly. I'll also cover the fallback case without `.git`, and keep the env example and deploy doc in the scan list. For item 1, I'm planning to replace the brittle count of `return 444;` with a helper that parses the `default_server` blocks and checks each one.
+
+    I'm moving on to item 2 now, rewriting the backup script with safer defaults: strict shell options, a restrictive umask, and a `cd /` so it runs from any directory. I'm keeping the backup directory and retention days configurable through environment variables, and leaving room for an env-file override.
+
+    I'm checking how the backup script reads its settings: the env file's `DATABASE_URL` and `PRIVATE_MEDIA_ROOT` lines, pulled out with a sed-based helper so nothing from the file gets exported. I'm also wondering whether the env file uses plain `KEY=value` lines the way systemd's EnvironmentFile does, without quotes.
+
+    I'm checking whether the env file quotes its values, since a sed-based read would keep the quotes. Sourcing it with `.` and leaving `set -a` off seems simpler, as long as nothing gets exported that shouldn't be. I want to confirm that a variable defined only in the env file stays out of the child environment.
+
+    I'm weighing whether the env file can just be sourced instead of parsed with sed, since that keeps the same quoting rules the other scripts use. Sourcing would leave the values as plain shell variables, not exported ones, which is what I want. The worry is that an already-exported variable of the same name, such as from `sudo -E`, would stay exported with the new value.
+
+    Next I'm weighing whether to drop the `export -n` loop for the env-file variables, since it adds complexity, though it would keep inherited exported values from leaking into the child environment.
+
+    I'm sourcing the env file in a subshell that prints only the two values the backup needs, so nothing else from it reaches the main shell. Children of the script still inherit any variables the caller already exported, which is the caller's doing rather than the script's.
+
+    I'm switching to running `PGUSER` and `PGPASSWORD` as prefix assignments on the `pg_dump` call only, so they never get exported to gzip, tar, or find.
+
+    Writing test stubs for the env check...
+
+    I'm writing the test assertions for the environment check: the gzip, tar, and find stubs should not see the secrets, while pg_dump should get the PG variables without the app secrets. I'm also starting to name the temporary dump and media files under the backup directory, with a `.part` suffix while they are being written.
+
+    I'm wrapping the backup in a trap that cleans up any partial `.part` files on exit, then dumping the database and archiving the media into those partial files before moving them into place. I'm also checking that the `.part` suffix keeps the retention find from matching unfinished files, and that `pipefail` makes a failed `pg_dump` fail the whole pipeline.
+
+    I'm going to have the PG variables set as prefix assignments inside a small `dump` function, so the password only reaches pg_dump. That changes the command lines the existing test looks for, so I'll need to update that test to match on "pg_dump" appearing in the line rather than at its start.
+
+    Now I'm weighing a simpler test change: matching on the command name anywhere in the line, while skipping comment lines so a comment mentioning "find" doesn't trip the check.
+
+    Next I'm working out how a failed `pg_dump` or `tar` should behave: the partial `.part` file should be cleaned up, a valid database backup kept, and the script should exit nonzero without deleting older backups. I'm planning a test where a stubbed `pg_dump` writes a partial dump and exits with an error, then checking that no dump file, no `.part` leftovers, and no "backup ok" message remain.
+
+    I'm checking what happens when the env file lacks PRIVATE_MEDIA_ROOT, since an empty value would make the tar call fail. I'm also going over the subshell read and the umask so the partial backup files stay private.
+
+    I'm checking the order of the validation checks: the DATABASE_URL check has to run before any PRIVATE_MEDIA_ROOT check, so the existing bad-URL test still gets its expected message.
+
+    Writing env reader function...
+
+    I'm making sure the env file's `DATABASE_URL` doesn't leak through, since if the caller already exported it, assigning it in the main shell would keep it exported to the child commands. The current check expects `pg_dump` to see no `DATABASE_URL`, so I need to handle that case too.
+
+    I'm moving the PG values into lowercase shell variables, then passing them as prefix assignments on the `pg_dump` line so they don't get exported to the other commands.
+
+    Splitting the pg_dump line with a backslash continuation keeps the PG variables as prefix assignments, so the password reaches only pg_dump. I'm also wondering about a caller's inherited PGPASSWORD, which would still leak into gzip's environment.
+
+    I'm settling on the prefix-assignment approach for `pg_dump`, so the PG variables are exported only to that one command and not to gzip, tar, or find. The password stays out of the command line too, since environment assignments don't show up in argv. I also need to add a cleanup trap for the `.part` files and handle tar failing partway through.
+
+    I'm going to set up a prototype copy from commit edf673d in a temporary directory.
+  ── Ran git status --short; cat .env.production.example | grep -v "^#" | head -30 | sed -E 's/=.*/=…/'; bash --version | head -1; ls /bin/bash; rm -rf "$TMPDIR/t019base" "$TMPDIR/t019"; mkdir -p "$TMPDIR/t019base" "$TMPDIR/t019"; git archive HEAD | tar -x -C "$TMPDIR/t019base"; git archive HEAD | tar -x -C "$TMPDIR/t019"; grep -rn "backup.sh\|\.part" docs/DEPLOY.md | head (2s)
+    $ git status --short; cat .env.production.example | grep -v "^#" | head -30 | sed -E 's/=.*/=…/'; bash --version | head -1; ls /bin/bash; rm -rf "$TMPDIR/t019base" "$TMPDIR/t019"; mkdir -p "$TMPDIR/t019base" "$TMPDIR/t019"; git archive HEAD | tar -x -C "$TMPDIR/t019base"; git archive HEAD | tar -x -C "$TMPDIR/t019"; grep -rn "backup.sh\|\.part" docs/DEPLOY.md | head
+    DEBUG=…
+    SECRET_KEY=…
+    ALLOWED_HOSTS=…
+    CSRF_TRUSTED_ORIGINS=…
+    ADMIN_URL=…
+    DATABASE_URL=…
+    PRIVATE_MEDIA_ROOT=…
+    CLIENT_IP_HEADER=…
+    SECURE_SSL_REDIRECT=…
+    SECURE_HSTS_SECONDS=…
+    SECURE_HSTS_INCLUDE_SUBDOMAINS=…
+    SECURE_HSTS_PRELOAD=…
+    LOG_LEVEL=…
+    DEMO_PASSWORD=…
+    LOGIN_FAILURE_LIMIT=…
+    LOGIN_LOCKOUT_SECONDS=…
+    GUNICORN_WORKERS=…
+    GUNICORN_BIND=…
+    GNU bash, version 3.2.57(1)-release (arm64-apple-darwin24)
+    /bin/bash
+    docs/DEPLOY.md:191:sudo -u "$APP_USER" /srv/deanery/app/deploy/backup.sh
+    docs/DEPLOY.md:357:and run `sudo -u "$APP_USER" /srv/deanery/app/deploy/backup.sh` once.
+
+── Assistant ───────────────────────────────────────────────
+Пишу прототип `backup.sh` на копии.
+
+── Ran 2 commands ──────────────────────────────────────────
+  ── Ran cd "$TMPDIR/t019" && cat > deploy/backup.sh <<'EOF' #!/usr/bin/env bash # Daily backup: gzip-compressed pg_dump + tar.gz of PRIVATE_MEDIA_ROOT; keeps KEEP_DAYS days. set -euo pipefail umask 077 # Start from / so the script works from any directory (find restores the start directory). cd / BACKUP_DIR="${BACKUP_DIR:-/srv/deanery/backups}" KEEP_DAYS="${KEEP_DAYS:-7}" # DEANERY_ENV_FILE overrides the env file path (used by the tests). ENV_FILE="${DEANERY_ENV_FILE:-/etc/deanery/deanery.env}" # One value of the env file, read in a subshell: the other values (SECRET_KEY, ...) never # reach this shell, and nothing from the file is exported to the children (PT3-F6). env_value() {     (         set +u         . "$ENV_FILE" > /dev/null         printf '%s' "${!1-}"     ) } db_url="$(env_value DATABASE_URL)" media_root="$(env_value PRIVATE_MEDIA_ROOT)" DB_URL_RE='^postgres(ql)?://([^:/@]+):([^@]+)@([^:/@]+):([0-9]+)/([^/?]+)$' if [[ ! "$db_url" =~ $DB_URL_RE ]]; then     echo "backup failed: DATABASE_URL must look like postgres://user:password@host:port/name" >&2     exit 1 fi pg_user="${BASH_REMATCH[2]}" pg_password="${BASH_REMATCH[3]}" pg_host="${BASH_REMATCH[4]}" pg_port="${BASH_REMATCH[5]}" pg_database="${BASH_REMATCH[6]}" if [[ -z "$media_root" ]]; then     echo "backup failed: PRIVATE_MEDIA_ROOT is not set in the env file" >&2     exit 1 fi STAMP="$(date +%Y%m%d-%H%M%S)" db_file="$BACKUP_DIR/db-$STAMP.sql.gz" media_file="$BACKUP_DIR/media-$STAMP.tar.gz" mkdir -p "$BACKUP_DIR" # Write to *.part and rename only after success; a failed step leaves no partial file (PT3-F6). trap 'rm -f -- "$db_file.part" "$media_file.part"' EXIT # The PG* values go to pg_dump only, through the libpq environment, never on the command line # (PT1-F13); gzip, tar and find do not get them. PGUSER="$pg_user" PGPASSWORD="$pg_password" PGHOST="$pg_host" PGPORT="$pg_port" \     PGDATABASE="$pg_database" pg_dump --no-owner --no-privileges | gzip -9 > "$db_file.part" mv -- "$db_file.part" "$db_file" tar -czf "$media_file.part" -C "$(dirname "$media_root")" "$(basename "$media_root")" mv -- "$media_file.part" "$media_file" find "$BACKUP_DIR" -maxdepth 1 -type f \( -name 'db-*.sql.gz' -o -name 'media-*.tar.gz' \) -mtime +"$((KEEP_DAYS - 1))" -delete echo "backup ok: $STAMP" EOF bash -n deploy/backup.sh && echo syntax ok; ls -l deploy/backup.sh; diff <(cd "$TMPDIR/t019base" && stat -f %p deploy/backup.sh) <(stat -f %p deploy/backup.sh) (error)
+    $ cd "$TMPDIR/t019" && cat > deploy/backup.sh <<'EOF'
+  #!/usr/bin/env bash
+  # Daily backup: gzip-compressed pg_dump + tar.gz of PRIVATE_MEDIA_ROOT; keeps KEEP_DAYS days.
+  set -euo pipefail
+  umask 077
+  # Start from / so the script works from any directory (find restores the start directory).
+  cd /
+  BACKUP_DIR="${BACKUP_DIR:-/srv/deanery/backups}"
+  KEEP_DAYS="${KEEP_DAYS:-7}"
+  # DEANERY_ENV_FILE overrides the env file path (used by the tests).
+  ENV_FILE="${DEANERY_ENV_FILE:-/etc/deanery/deanery.env}"
+
+  # One value of the env file, read in a subshell: the other values (SECRET_KEY, ...) never
+  # reach this shell, and nothing from the file is exported to the children (PT3-F6).
+  env_value() {
+      (
+          set +u
+          . "$ENV_FILE" > /dev/null
+          printf '%s' "${!1-}"
+      )
+  }
+  db_url="$(env_value DATABASE_URL)"
+  media_root="$(env_value PRIVATE_MEDIA_ROOT)"
+
+  DB_URL_RE='^postgres(ql)?://([^:/@]+):([^@]+)@([^:/@]+):([0-9]+)/([^/?]+)$'
+  if [[ ! "$db_url" =~ $DB_URL_RE ]]; then
+      echo "backup failed: DATABASE_URL must look like postgres://user:password@host:port/name" >&2
+      exit 1
+  fi
+  pg_user="${BASH_REMATCH[2]}"
+  pg_password="${BASH_REMATCH[3]}"
+  pg_host="${BASH_REMATCH[4]}"
+  pg_port="${BASH_REMATCH[5]}"
+  pg_database="${BASH_REMATCH[6]}"
+  if [[ -z "$media_root" ]]; then
+      echo "backup failed: PRIVATE_MEDIA_ROOT is not set in the env file" >&2
+      exit 1
+  fi
+
+  STAMP="$(date +%Y%m%d-%H%M%S)"
+  db_file="$BACKUP_DIR/db-$STAMP.sql.gz"
+  media_file="$BACKUP_DIR/media-$STAMP.tar.gz"
+  mkdir -p "$BACKUP_DIR"
+  # Write to *.part and rename only after success; a failed step leaves no partial file (PT3-F6).
+  trap 'rm -f -- "$db_file.part" "$media_file.part"' EXIT
+  # The PG* values go to pg_dump only, through the libpq environment, never on the command line
+  # (PT1-F13); gzip, tar and find do not get them.
+  PGUSER="$pg_user" PGPASSWORD="$pg_password" PGHOST="$pg_host" PGPORT="$pg_port" \
+      PGDATABASE="$pg_database" pg_dump --no-owner --no-privileges | gzip -9 > "$db_file.part"
+  mv -- "$db_file.part" "$db_file"
+  tar -czf "$media_file.part" -C "$(dirname "$media_root")" "$(basename "$media_root")"
+  mv -- "$media_file.part" "$media_file"
+  find "$BACKUP_DIR" -maxdepth 1 -type f \( -name 'db-*.sql.gz' -o -name 'media-*.tar.gz' \) -mtime +"$((KEEP_DAYS - 1))" -delete
+  echo "backup ok: $STAMP"
+  EOF
+  bash -n deploy/backup.sh && echo syntax ok; ls -l deploy/backup.sh; diff <(cd "$TMPDIR/t019base" && stat -f %p deploy/backup.sh) <(stat -f %p deploy/backup.sh)
+    Exit code 2
+    syntax ok
+    -rwxr-xr-x@ 1 [user]  wheel  2226 Nov 22 01:12 deploy/backup.sh
+    diff: /dev/fd/11: Operation not permitted
+    exit 2
+  ── Thought for 20s
+    I'm checking the old test's `find` line, which is fine as it is, and noting that the `pg_dump` line now begins with the `PGDATABASE=` assignment, so the test needs a different match for it. I'll check for `pg_dump ` anywhere in the line and skip the comment that begins with the `PG*` values.
+
+    Next I'm working through the test changes in test_deploy.py: the nginx catch-all test gets updated to expect two `return 444;` lines and a new check that each default server block closes the connection. Then the backup tests get a static check that backup.sh never exports the env file, and the run helper gets refactored so a new test can confirm the child commands receive no secret values from the env file.
+
+    I'm adding three more backup tests: one where pg_dump fails and should leave no partial file while the old backup survives, one where tar fails partway and should leave no media file, and one where the env file lacks PRIVATE_MEDIA_ROOT and the script should exit with an error before creating any backups directory. The existing password-not-on-command test stays as it is.
+
+    I'm refactoring the secret-scan helper into a `_deploy_files` function that takes a repo root and subdirectory, using git's view of tracked and non-ignored files when a checkout exists and skipping OS and cache junk otherwise.
+
+    Still writing the deploy-file helper...
+
+    Checking that git failures will surface loudly rather than quietly weakening the scan, which seems right. Next I'm writing a test class for the scan file list.
+
+    I'm setting up a temporary git repo with a `.gitignore`, a text file and a binary file that get staged, plus untracked files including `.DS_Store` and a `__pycache__` entry that should be excluded. The test will check that only the expected files remain, and that reading the binary file raises an error.
+
+    Now I'm thinking about the archive copy case, where a test should confirm that only OS and cache junk gets skipped. I'll also check that a real deploy directory still yields backup.sh and the nginx config. The remaining question is how to show the original problem: a `.DS_Store` in a copy of the deploy folder that has no `.git` directory.
+
+    I'm planning a verification step: cloning the repo into a temp directory so I can add a `.DS_Store` file and run the deploy tests against a real git checkout, without touching the project's own working tree.
+  ── Ran cd "$TMPDIR/t019" && python3 - <<'EOF' p='deploy/nginx/deanery.conf' s=open(p).read() old='''    ssl_reject_handshake on; }''' assert s.count(old)==1 s=s.replace(old,'''    ssl_reject_handshake on;     # SNI = the domain with a foreign Host header still lands here: close it too (PT3-F7).     return 444; }''') open(p,'w').write(s) p='core/tests/test_deploy.py' s=open(p).read() # nginx test old='''            "listen [::]:80 default_server;",             "return 444;",             "listen 443 ssl http2 default_server;",''' new='''            "listen [::]:80 default_server;",             "listen 443 ssl http2 default_server;",''' assert old in s; s=s.replace(old,new) old='''        self.assertEqual(text.count("server_name _;"), 2) ''' new='''        self.assertEqual(text.count("server_name _;"), 2)         self.assertEqual(text.count("return 444;"), 2)     def test_every_catch_all_server_closes_connection(self):         # TASK-019 (PT3-F7): SNI = the domain with a foreign Host reaches the 443 catch-all.         blocks = [b for b in _server_blocks(_read(NGINX_CONF)) if "default_server" in b]         self.assertEqual(len(blocks), 2)         for block in blocks:             with self.subTest(block=block.split(";")[0]):                 self.assertIn("server_name _;", block)                 self.assertIn("return 444;", block)                 self.assertNotIn("proxy_pass", block) ''' assert old in s; s=s.replace(old,new,1) old='''class NginxTemplateTests(SimpleTestCase):''' new='''def _server_blocks(text: str) -> list[str]:     """Bodies of the top-level ``server { ... }`` blocks (brace matching, comments removed)."""     text = re.sub(r"#[^\\n]*", "", text)     blocks = []     for match in re.finditer(r"^server\\s*\\{", text, flags=re.M):         depth = 0         for i in range(match.end() - 1, len(text)):             if text[i] == "{":                 depth += 1             elif text[i] == "}":                 depth -= 1                 if depth == 0:                     blocks.append(text[match.end() : i])                     break     return blocks class NginxTemplateTests(SimpleTestCase):''' assert old in s; s=s.replace(old,new,1) # backup runs from root: pg_dump line now starts with PG* assignments old='''        for command in ("pg_dump", "tar -czf", "find "):             first = next(i for i, line in enumerate(lines) if line.startswith(command))             self.assertLess(cd_index, first, command) ''' new='''        commands = [(i, line) for i, line in enumerate(lines) if line and not line.startswith("#")]         for command in ("pg_dump ", "tar -czf", "find "):             first = next(i for i, line in commands if command in line)             self.assertLess(cd_index, first, command)     def test_backup_exports_nothing_from_env_file(self):         # TASK-019 (PT3-F6): no "set -a", no "export"; the PG* values are pg_dump's prefix.         backup = _read(BACKUP_SH)         self.assertNotIn("set -a", backup)         self.assertIsNone(re.search(r"^\\s*export\\b", backup, flags=re.M))         self.assertIn('PGPASSWORD="$pg_password"', backup) ''' assert old in s; s=s.replace(old,new,1) # secret scan paths old=s[s.index('def _secret_scan_paths() -> list[Path]:'):s.index('class SecretScanTests(SimpleTestCase):')] new='''def _repo_files(repo: Path, subdir: str) -> list[Path]:     """Files under ``repo/subdir`` that belong to the project (TASK-019).     In a git checkout: the tracked files plus the untracked files git does not ignore     (``git ls-files --cached --others --exclude-standard``), so a Finder ``.DS_Store`` or a     ``__pycache__`` is skipped while a new, not yet committed file is still scanned. Without a     checkout (a ``git archive`` copy): every file except ``.DS_Store``, ``__pycache__`` and     ``*.pyc``. Listed files are read as UTF-8, so a project binary file fails loudly.     """     git = shutil.which("git")     if git is not None and (repo / ".git").exists():         result = subprocess.run(  # noqa: S603             [git, "-C", str(repo), "ls-files", "-z", "--cached", "--others", "--exclude-standard"]             + ["--", subdir],             capture_output=True,             check=True,         )         names = [name for name in result.stdout.decode("utf-8").split("\\0") if name]         return sorted(path for path in (repo / name for name in names) if path.is_file())     return sorted(         path         for path in (repo / subdir).rglob("*")         if path.is_file()         and "__pycache__" not in path.parts         and path.suffix != ".pyc"         and path.name != ".DS_Store"     ) def _secret_scan_paths() -> list[Path]:     paths = _repo_files(BASE_DIR, "deploy")     paths.extend([ENV_EXAMPLE, DEPLOY_MD])     return paths class ScanFileListTests(SimpleTestCase):     """TASK-019: OS junk next to the deploy files does not break the scans; project files count."""     def _tree(self, root: Path) -> None:         (root / ".gitignore").write_text(".DS_Store\\n__pycache__/\\n*.pyc\\n", encoding="utf-8")         deploy = root / "deploy"         (deploy / "nginx").mkdir(parents=True)         (deploy / "__pycache__").mkdir()         (deploy / "a.conf").write_text("server {}\\n", encoding="utf-8")         (deploy / "blob.bin").write_bytes(b"\\xff\\xfe\\x00binary")     def _junk_and_new_file(self, root: Path) -> None:         deploy = root / "deploy"         (deploy / ".DS_Store").write_bytes(b"\\x00\\x00\\x00\\x01Bud1\\xff")         (deploy / "nginx" / ".DS_Store").write_bytes(b"\\x00\\x00\\x00\\x01Bud1\\xff")         (deploy / "__pycache__" / "x.cpython-312.pyc").write_bytes(b"\\xff\\x00")         (deploy / "new.sh").write_text("echo new\\n", encoding="utf-8")     def _names(self, root: Path) -> list[str]:         return [path.relative_to(root).as_posix() for path in _repo_files(root, "deploy")]     def test_git_checkout_skips_ignored_files(self):         git = shutil.which("git")         if git is None:             self.skipTest("git not available")         with tempfile.TemporaryDirectory() as tmp:             root = Path(tmp)             self._tree(root)             for args in (["init", "-q"], ["add", ".gitignore", "deploy/a.conf", "deploy/blob.bin"]):                 subprocess.run([git, "-C", str(root), *args], check=True)  # noqa: S603             self._junk_and_new_file(root)             self.assertEqual(                 self._names(root), ["deploy/a.conf", "deploy/blob.bin", "deploy/new.sh"]             )     def test_archive_copy_skips_os_junk(self):         with tempfile.TemporaryDirectory() as tmp:             root = Path(tmp)             self._tree(root)             self._junk_and_new_file(root)             self.assertEqual(                 self._names(root), ["deploy/a.conf", "deploy/blob.bin", "deploy/new.sh"]             )     def test_project_binary_fails_loudly(self):         with tempfile.TemporaryDirectory() as tmp:             root = Path(tmp)             self._tree(root)             blob = next(p for p in _repo_files(root, "deploy") if p.name == "blob.bin")             with self.assertRaises(UnicodeDecodeError):                 _read(blob)     def test_real_scan_covers_deploy_files(self):         names = {path.relative_to(BASE_DIR).as_posix() for path in _secret_scan_paths()}         for name in (             "deploy/backup.sh",             "deploy/manage.sh",             "deploy/gunicorn.conf.py",             "deploy/nginx/deanery.conf",             "deploy/systemd/deanery.service",             ".env.production.example",             "docs/DEPLOY.md",         ):             self.assertIn(name, names)         self.assertFalse(any("__pycache__" in name or name.endswith(".DS_Store") for name in names)) ''' s=s.replace(old,new) open(p,'w').write(s) EOF grep -n "^class BackupScriptRunTests" core/tests/test_deploy.py
+    $ cd "$TMPDIR/t019" && python3 - <<'EOF'
+  p='deploy/nginx/deanery.conf'
+  s=open(p).read()
+  old='''    ssl_reject_handshake on;
+  }'''
+  assert s.count(old)==1
+  s=s.replace(old,'''    ssl_reject_handshake on;
+      # SNI = the domain with a foreign Host header still lands here: close it too (PT3-F7).
+      return 444;
+  }''')
+  open(p,'w').write(s)
+
+  p='core/tests/test_deploy.py'
+  s=open(p).read()
+  # nginx test
+  old='''            "listen [::]:80 default_server;",
+              "return 444;",
+              "listen 443 ssl http2 default_server;",'''
+  new='''            "listen [::]:80 default_server;",
+              "listen 443 ssl http2 default_server;",'''
+  assert old in s; s=s.replace(old,new)
+  old='''        self.assertEqual(text.count("server_name _;"), 2)
+  '''
+  new='''        self.assertEqual(text.count("server_name _;"), 2)
+          self.assertEqual(text.count("return 444;"), 2)
+
+      def test_every_catch_all_server_closes_connection(self):
+          # TASK-019 (PT3-F7): SNI = the domain with a foreign Host reaches the 443 catch-all.
+          blocks = [b for b in _server_blocks(_read(NGINX_CONF)) if "default_server" in b]
+          self.assertEqual(len(blocks), 2)
+          for block in blocks:
+              with self.subTest(block=block.split(";")[0]):
+                  self.assertIn("server_name _;", block)
+                  self.assertIn("return 444;", block)
+                  self.assertNotIn("proxy_pass", block)
+  '''
+  assert old in s; s=s.replace(old,new,1)
+  old='''class NginxTemplateTests(SimpleTestCase):'''
+  new='''def _server_blocks(text: str) -> list[str]:
+      """Bodies of the top-level ``server { ... }`` blocks (brace matching, comments removed)."""
+      text = re.sub(r"#[^\\n]*", "", text)
+      blocks = []
+      for match in re.finditer(r"^server\\s*\\{", text, flags=re.M):
+          depth = 0
+          for i in range(match.end() - 1, len(text)):
+              if text[i] == "{":
+                  depth += 1
+              elif text[i] == "}":
+                  depth -= 1
+                  if depth == 0:
+                      blocks.append(text[match.end() : i])
+                      break
+      return blocks
+
+
+  class NginxTemplateTests(SimpleTestCase):'''
+  assert old in s; s=s.replace(old,new,1)
+
+  # backup runs from root: pg_dump line now starts with PG* assignments
+  old='''        for command in ("pg_dump", "tar -czf", "find "):
+              first = next(i for i, line in enumerate(lines) if line.startswith(command))
+              self.assertLess(cd_index, first, command)
+  '''
+  new='''        commands = [(i, line) for i, line in enumerate(lines) if line and not line.startswith("#")]
+          for command in ("pg_dump ", "tar -czf", "find "):
+              first = next(i for i, line in commands if command in line)
+              self.assertLess(cd_index, first, command)
+
+      def test_backup_exports_nothing_from_env_file(self):
+          # TASK-019 (PT3-F6): no "set -a", no "export"; the PG* values are pg_dump's prefix.
+          backup = _read(BACKUP_SH)
+          self.assertNotIn("set -a", backup)
+          self.assertIsNone(re.search(r"^\\s*export\\b", backup, flags=re.M))
+          self.assertIn('PGPASSWORD="$pg_password"', backup)
+  '''
+  assert old in s; s=s.replace(old,new,1)
+
+  # secret scan paths
+  old=s[s.index('def _secret_scan_paths() -> list[Path]:'):s.index('class SecretScanTests(SimpleTestCase):')]
+  new='''def _repo_files(repo: Path, subdir: str) -> list[Path]:
+      """Files under ``repo/subdir`` that belong to the project (TASK-019).
+
+      In a git checkout: the tracked files plus the untracked files git does not ignore
+      (``git ls-files --cached --others --exclude-standard``), so a Finder ``.DS_Store`` or a
+      ``__pycache__`` is skipped while a new, not yet committed file is still scanned. Without a
+      checkout (a ``git archive`` copy): every file except ``.DS_Store``, ``__pycache__`` and
+      ``*.pyc``. Listed files are read as UTF-8, so a project binary file fails loudly.
+      """
+      git = shutil.which("git")
+      if git is not None and (repo / ".git").exists():
+          result = subprocess.run(  # noqa: S603
+              [git, "-C", str(repo), "ls-files", "-z", "--cached", "--others", "--exclude-standard"]
+              + ["--", subdir],
+              capture_output=True,
+              check=True,
+          )
+          names = [name for name in result.stdout.decode("utf-8").split("\\0") if name]
+          return sorted(path for path in (repo / name for name in names) if path.is_file())
+      return sorted(
+          path
+          for path in (repo / subdir).rglob("*")
+          if path.is_file()
+          and "__pycache__" not in path.parts
+          and path.suffix != ".pyc"
+          and path.name != ".DS_Store"
+      )
+
+
+  def _secret_scan_paths() -> list[Path]:
+      paths = _repo_files(BASE_DIR, "deploy")
+      paths.extend([ENV_EXAMPLE, DEPLOY_MD])
+      return paths
+
+
+  class ScanFileListTests(SimpleTestCase):
+      """TASK-019: OS junk next to the deploy files does not break the scans; project files count."""
+
+      def _tree(self, root: Path) -> None:
+          (root / ".gitignore").write_text(".DS_Store\\n__pycache__/\\n*.pyc\\n", encoding="utf-8")
+          deploy = root / "deploy"
+          (deploy / "nginx").mkdir(parents=True)
+          (deploy / "__pycache__").mkdir()
+          (deploy / "a.conf").write_text("server {}\\n", encoding="utf-8")
+          (deploy / "blob.bin").write_bytes(b"\\xff\\xfe\\x00binary")
+
+      def _junk_and_new_file(self, root: Path) -> None:
+          deploy = root / "deploy"
+          (deploy / ".DS_Store").write_bytes(b"\\x00\\x00\\x00\\x01Bud1\\xff")
+          (deploy / "nginx" / ".DS_Store").write_bytes(b"\\x00\\x00\\x00\\x01Bud1\\xff")
+          (deploy / "__pycache__" / "x.cpython-312.pyc").write_bytes(b"\\xff\\x00")
+          (deploy / "new.sh").write_text("echo new\\n", encoding="utf-8")
+
+      def _names(self, root: Path) -> list[str]:
+          return [path.relative_to(root).as_posix() for path in _repo_files(root, "deploy")]
+
+      def test_git_checkout_skips_ignored_files(self):
+          git = shutil.which("git")
+          if git is None:
+              self.skipTest("git not available")
+          with tempfile.TemporaryDirectory() as tmp:
+              root = Path(tmp)
+              self._tree(root)
+              for args in (["init", "-q"], ["add", ".gitignore", "deploy/a.conf", "deploy/blob.bin"]):
+                  subprocess.run([git, "-C", str(root), *args], check=True)  # noqa: S603
+              self._junk_and_new_file(root)
+              self.assertEqual(
+                  self._names(root), ["deploy/a.conf", "deploy/blob.bin", "deploy/new.sh"]
+              )
+
+      def test_archive_copy_skips_os_junk(self):
+          with tempfile.TemporaryDirectory() as tmp:
+              root = Path(tmp)
+              self._tree(root)
+              self._junk_and_new_file(root)
+              self.assertEqual(
+                  self._names(root), ["deploy/a.conf", "deploy/blob.bin", "deploy/new.sh"]
+              )
+
+      def test_project_binary_fails_loudly(self):
+          with tempfile.TemporaryDirectory() as tmp:
+              root = Path(tmp)
+              self._tree(root)
+              blob = next(p for p in _repo_files(root, "deploy") if p.name == "blob.bin")
+              with self.assertRaises(UnicodeDecodeError):
+                  _read(blob)
+
+      def test_real_scan_covers_deploy_files(self):
+          names = {path.relative_to(BASE_DIR).as_posix() for path in _secret_scan_paths()}
+          for name in (
+              "deploy/backup.sh",
+              "deploy/manage.sh",
+              "deploy/gunicorn.conf.py",
+              "deploy/nginx/deanery.conf",
+              "deploy/systemd/deanery.service",
+              ".env.production.example",
+              "docs/DEPLOY.md",
+          ):
+              self.assertIn(name, names)
+          self.assertFalse(any("__pycache__" in name or name.endswith(".DS_Store") for name in names))
+
+
+  '''
+  s=s.replace(old,new)
+  open(p,'w').write(s)
+  EOF
+  grep -n "^class BackupScriptRunTests" core/tests/test_deploy.py
+    728:class BackupScriptRunTests(SimpleTestCase):
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 5m
+    I'm adding backup run tests right after the bad database URL test, with helper methods inside the class. The plan is a shared `_setup` helper that returns the env, plus wrappers for gzip, tar, and find that need real paths resolved with `shutil.which` before PATH is changed. For the tar failure case, I'm stubbing it to write partial output and exit with code 2.
+
+    Now I'm checking the tar stub's arguments: the second argument is the output file, so writing partial output there and exiting with code 2 lines up correctly.
+
+── Claude Code API retry 1/10 after 524ms: unknown ─────────
+
+── Ran cd "$TMPDIR/t019" && python3 - <<'EOF' p='core/tests/test_deploy.py' s=open(p).read() old='''class CiDependencyAuditTests(SimpleTestCase):''' new='''class BackupScriptEnvironmentTests(SimpleTestCase):     """TASK-019 (PT3-F6): children get no env-file values; a failed step leaves no partial file."""     PASSWORD = "0123abcd4567ef89dummydbpass"     SECRET = "dummy-secret-key-for-backup-env-test"     DEMO = "dummy-demo-password-for-backup-test"     ENV_FILE_NAMES = ("SECRET_KEY", "DEMO_PASSWORD", "DATABASE_URL", "PRIVATE_MEDIA_ROOT")     PG_NAMES = ("PGUSER", "PGPASSWORD", "PGHOST", "PGPORT", "PGDATABASE")     def setUp(self):         self.bash = shutil.which("bash")         self.real = {name: shutil.which(name) for name in ("gzip", "tar", "find")}         if self.bash is None or None in self.real.values():             self.skipTest("bash, gzip, tar or find not available")         self.root = Path(tempfile.mkdtemp())         self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)         (self.root / "bin").mkdir()         (self.root / "media" / "private_media").mkdir(parents=True)         (self.root / "media" / "private_media" / "a.pdf").write_bytes(b"%PDF-1.4")         self.backups = self.root / "backups"         self.backups.mkdir()         # An old backup: a failed run must not delete it.         self.old = self.backups / "db-20200101-000000.sql.gz"         self.old.write_bytes(b"old")         os.utime(self.old, (0, 0))         self.pg_dump('echo "-- dump"')         for name, real in self.real.items():             self._stub(name, f'env > "{self.root}/env-{name}"\\nexec "{real}" "$@"')     def _stub(self, name: str, body: str) -> None:         stub = self.root / "bin" / name         stub.write_text(f"#!/usr/bin/env bash\\n{body}\\n", encoding="utf-8")         stub.chmod(0o755)     def pg_dump(self, body: str) -> None:         self._stub("pg_dump", f'env > "{self.root}/env-pg_dump"\\n{body}')     def run_backup(self, media_line: bool = True) -> subprocess.CompletedProcess:         lines = [             f"SECRET_KEY={self.SECRET}",             f"DATABASE_URL=postgres://deanery:{self.PASSWORD}@localhost:5432/deanery_trial",             f"DEMO_PASSWORD={self.DEMO}",         ]         if media_line:             lines.append(f"PRIVATE_MEDIA_ROOT={self.root}/media/private_media")         env_file = self.root / "deanery.env"         env_file.write_text("\\n".join(lines) + "\\n", encoding="utf-8")         env = {             "PATH": f"{self.root / 'bin'}{os.pathsep}{os.environ['PATH']}",             "BACKUP_DIR": str(self.backups),             "DEANERY_ENV_FILE": str(env_file),         }         return subprocess.run(  # noqa: S603             [self.bash, str(BACKUP_SH)], env=env, capture_output=True, text=True, timeout=60         )     def child_env(self, name: str) -> dict[str, str]:         text = (self.root / f"env-{name}").read_text(encoding="utf-8")         return dict(line.split("=", 1) for line in text.splitlines() if "=" in line)     def names(self) -> list[str]:         return sorted(path.name for path in self.backups.iterdir())     def test_children_get_no_env_file_values(self):         result = self.run_backup()         self.assertEqual(result.returncode, 0, result.stderr)         pg_env = self.child_env("pg_dump")         self.assertEqual(pg_env["PGPASSWORD"], self.PASSWORD)         self.assertEqual(pg_env["PGDATABASE"], "deanery_trial")         for name in ("gzip", "tar", "find"):             env = self.child_env(name)             for variable in self.ENV_FILE_NAMES + self.PG_NAMES:                 with self.subTest(child=name, variable=variable):                     self.assertNotIn(variable, env)         for variable in self.ENV_FILE_NAMES:             with self.subTest(child="pg_dump", variable=variable):                 self.assertNotIn(variable, pg_env)         for name in ("pg_dump", "gzip", "tar", "find"):             text = (self.root / f"env-{name}").read_text(encoding="utf-8")             self.assertNotIn(self.SECRET, text)             self.assertNotIn(self.DEMO, text)         self.assertEqual(len(self.names()), 2)  # the old backup was removed by KEEP_DAYS     def test_failed_pg_dump_leaves_no_dump(self):         self.pg_dump('echo "-- partial"\\nexit 3')         result = self.run_backup()         self.assertNotEqual(result.returncode, 0)         self.assertNotIn("backup ok", result.stdout)         self.assertEqual(self.names(), [self.old.name])     def test_failed_tar_leaves_no_media_archive(self):         self._stub("tar", 'printf partial > "$2"\\nexit 2')         result = self.run_backup()         self.assertNotEqual(result.returncode, 0)         self.assertNotIn("backup ok", result.stdout)         names = self.names()         self.assertEqual(len(names), 2, names)         self.assertEqual(names[0], self.old.name)         self.assertTrue(names[1].startswith("db-") and names[1].endswith(".sql.gz"), names)         self.assertFalse(any(name.endswith(".part") for name in names))     def test_missing_media_root_fails_before_dump(self):         result = self.run_backup(media_line=False)         self.assertEqual(result.returncode, 1)         self.assertIn("PRIVATE_MEDIA_ROOT is not set", result.stderr)         self.assertEqual(self.names(), [self.old.name])         self.assertFalse((self.root / "env-pg_dump").exists()) class CiDependencyAuditTests(SimpleTestCase):''' assert old in s; s=s.replace(old,new,1) open(p,'w').write(s) EOF R=~/hackatonproject/.venv/bin/ruff; $R format core/tests/test_deploy.py; $R check core/tests/test_deploy.py; P=~/hackatonproject/.venv/bin/python; export DEBUG=1; $P manage.py test core.tests.test_deploy 2>&1 | grep -E "^Ran|^OK|FAILED|^(FAIL|ERROR):"; $P manage.py test core.tests.test_deploy 2>&1 | grep -A20 "^FAIL:\|^ERROR:" | head -60 (9s)
+  $ cd "$TMPDIR/t019" && python3 - <<'EOF'
+p='core/tests/test_deploy.py'
+s=open(p).read()
+old='''class CiDependencyAuditTests(SimpleTestCase):'''
+new='''class BackupScriptEnvironmentTests(SimpleTestCase):
+    """TASK-019 (PT3-F6): children get no env-file values; a failed step leaves no partial file."""
+
+    PASSWORD = "0123abcd4567ef89dummydbpass"
+    SECRET = "dummy-secret-key-for-backup-env-test"
+    DEMO = "dummy-demo-password-for-backup-test"
+    ENV_FILE_NAMES = ("SECRET_KEY", "DEMO_PASSWORD", "DATABASE_URL", "PRIVATE_MEDIA_ROOT")
+    PG_NAMES = ("PGUSER", "PGPASSWORD", "PGHOST", "PGPORT", "PGDATABASE")
+
+    def setUp(self):
+        self.bash = shutil.which("bash")
+        self.real = {name: shutil.which(name) for name in ("gzip", "tar", "find")}
+        if self.bash is None or None in self.real.values():
+            self.skipTest("bash, gzip, tar or find not available")
+        self.root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+        (self.root / "bin").mkdir()
+        (self.root / "media" / "private_media").mkdir(parents=True)
+        (self.root / "media" / "private_media" / "a.pdf").write_bytes(b"%PDF-1.4")
+        self.backups = self.root / "backups"
+        self.backups.mkdir()
+        # An old backup: a failed run must not delete it.
+        self.old = self.backups / "db-20200101-000000.sql.gz"
+        self.old.write_bytes(b"old")
+        os.utime(self.old, (0, 0))
+        self.pg_dump('echo "-- dump"')
+        for name, real in self.real.items():
+            self._stub(name, f'env > "{self.root}/env-{name}"\\nexec "{real}" "$@"')
+
+    def _stub(self, name: str, body: str) -> None:
+        stub = self.root / "bin" / name
+        stub.write_text(f"#!/usr/bin/env bash\\n{body}\\n", encoding="utf-8")
+        stub.chmod(0o755)
+
+    def pg_dump(self, body: str) -> None:
+        self._stub("pg_dump", f'env > "{self.root}/env-pg_dump"\\n{body}')
+
+    def run_backup(self, media_line: bool = True) -> subprocess.CompletedProcess:
+        lines = [
+            f"SECRET_KEY={self.SECRET}",
+            f"DATABASE_URL=postgres://deanery:{self.PASSWORD}@localhost:5432/deanery_trial",
+            f"DEMO_PASSWORD={self.DEMO}",
+        ]
+        if media_line:
+            lines.append(f"PRIVATE_MEDIA_ROOT={self.root}/media/private_media")
+        env_file = self.root / "deanery.env"
+        env_file.write_text("\\n".join(lines) + "\\n", encoding="utf-8")
+        env = {
+            "PATH": f"{self.root / 'bin'}{os.pathsep}{os.environ['PATH']}",
+            "BACKUP_DIR": str(self.backups),
+            "DEANERY_ENV_FILE": str(env_file),
+        }
+        return subprocess.run(  # noqa: S603
+            [self.bash, str(BACKUP_SH)], env=env, capture_output=True, text=True, timeout=60
+        )
+
+    def child_env(self, name: str) -> dict[str, str]:
+        text = (self.root / f"env-{name}").read_text(encoding="utf-8")
+        return dict(line.split("=", 1) for line in text.splitlines() if "=" in line)
+
+    def names(self) -> list[str]:
+        return sorted(path.name for path in self.backups.iterdir())
+
+    def test_children_get_no_env_file_values(self):
+        result = self.run_backup()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        pg_env = self.child_env("pg_dump")
+        self.assertEqual(pg_env["PGPASSWORD"], self.PASSWORD)
+        self.assertEqual(pg_env["PGDATABASE"], "deanery_trial")
+        for name in ("gzip", "tar", "find"):
+            env = self.child_env(name)
+            for variable in self.ENV_FILE_NAMES + self.PG_NAMES:
+                with self.subTest(child=name, variable=variable):
+                    self.assertNotIn(variable, env)
+        for variable in self.ENV_FILE_NAMES:
+            with self.subTest(child="pg_dump", variable=variable):
+                self.assertNotIn(variable, pg_env)
+        for name in ("pg_dump", "gzip", "tar", "find"):
+            text = (self.root / f"env-{name}").read_text(encoding="utf-8")
+            self.assertNotIn(self.SECRET, text)
+            self.assertNotIn(self.DEMO, text)
+        self.assertEqual(len(self.names()), 2)  # the old backup was removed by KEEP_DAYS
+
+    def test_failed_pg_dump_leaves_no_dump(self):
+        self.pg_dump('echo "-- partial"\\nexit 3')
+        result = self.run_backup()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("backup ok", result.stdout)
+        self.assertEqual(self.names(), [self.old.name])
+
+    def test_failed_tar_leaves_no_media_archive(self):
+        self._stub("tar", 'printf partial > "$2"\\nexit 2')
+        result = self.run_backup()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("backup ok", result.stdout)
+        names = self.names()
+        self.assertEqual(len(names), 2, names)
+        self.assertEqual(names[0], self.old.name)
+        self.assertTrue(names[1].startswith("db-") and names[1].endswith(".sql.gz"), names)
+        self.assertFalse(any(name.endswith(".part") for name in names))
+
+    def test_missing_media_root_fails_before_dump(self):
+        result = self.run_backup(media_line=False)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("PRIVATE_MEDIA_ROOT is not set", result.stderr)
+        self.assertEqual(self.names(), [self.old.name])
+        self.assertFalse((self.root / "env-pg_dump").exists())
+
+
+class CiDependencyAuditTests(SimpleTestCase):'''
+assert old in s; s=s.replace(old,new,1)
+open(p,'w').write(s)
+EOF
+R=~/hackatonproject/.venv/bin/ruff; $R format core/tests/test_deploy.py; $R check core/tests/test_deploy.py; P=~/hackatonproject/.venv/bin/python; export DEBUG=1; $P manage.py test core.tests.test_deploy 2>&1 | grep -E "^Ran|^OK|FAILED|^(FAIL|ERROR):"; $P manage.py test core.tests.test_deploy 2>&1 | grep -A20 "^FAIL:\|^ERROR:" | head -60
+  1 file left unchanged
+  All checks passed!
+  Ran 66 tests in 4.104s
+  OK
+  Shell cwd was reset to ~/hackatonproject
+
+── Assistant ───────────────────────────────────────────────
+You've hit your weekly limit · resets Nov 25 at 2pm (America/Los_Angeles)
+
+── Error ───────────────────────────────────────────────────
+  Provider rate limit reached
+  You've hit your weekly limit · resets Nov 25 at 2pm (America/Los_Angeles)
+
+── User ────────────────────────────────────────────────────
+Продолжай
+
+── Thought for 6ms ─────────────────────────────────────────
+  Next I'm checking the new tests against HEAD, where they should fail, and then reproducing the .DS_Store issue with a git clone and an archive copy. After that come the mutation checks, the full suite, the spec, and the handover. The ruff format output said "1 file left unchanged," so formatting is already clean. Now I'm copying test_deploy.py into the t019base copy to run it there.
+
+── Assistant ───────────────────────────────────────────────
+Тесты деплоя на прототипе проходят: 66 OK. Теперь проверяю новые тесты на HEAD и воспроизвожу ошибку с `.DS_Store`.
+
+── Ran 4 commands ──────────────────────────────────────────
+  ── Ran cd "$TMPDIR" && rm -rf t019head && mkdir t019head && cd ~/hackatonproject && git archive HEAD | tar -x -C "$TMPDIR/t019head" && cd "$TMPDIR/t019head" && cp "$TMPDIR/t019/core/tests/test_deploy.py" core/tests/ && P=~/hackatonproject/.venv/bin/python; export DEBUG=1; L="$TMPDIR/test-t019-newtests-on-head-$(date +%Y%m%d-%H%M%S).log"; $P manage.py test core.tests.test_deploy > "$L" 2>&1; echo $L; grep -E "^Ran|^OK|FAILED|^(FAIL|ERROR):" "$L"; TZ=Europe/Moscow date +%H:%M (7s)
+    $ cd "$TMPDIR" && rm -rf t019head && mkdir t019head && cd ~/hackatonproject && git archive HEAD | tar -x -C "$TMPDIR/t019head" && cd "$TMPDIR/t019head" && cp "$TMPDIR/t019/core/tests/test_deploy.py" core/tests/ && P=~/hackatonproject/.venv/bin/python; export DEBUG=1; L="$TMPDIR/test-t019-newtests-on-head-$(date +%Y%m%d-%H%M%S).log"; $P manage.py test core.tests.test_deploy > "$L" 2>&1; echo $L; grep -E "^Ran|^OK|FAILED|^(FAIL|ERROR):" "$L"; TZ=Europe/Moscow date +%H:%M
+    /tmp/claude-501/test-t019-newtests-on-head-20261122-012035.log
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='gzip', variable='SECRET_KEY')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='gzip', variable='DEMO_PASSWORD')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='gzip', variable='PRIVATE_MEDIA_ROOT')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='gzip', variable='PGUSER')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='gzip', variable='PGPASSWORD')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='gzip', variable='PGHOST')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='gzip', variable='PGPORT')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='gzip', variable='PGDATABASE')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='tar', variable='SECRET_KEY')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='tar', variable='DEMO_PASSWORD')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='tar', variable='PRIVATE_MEDIA_ROOT')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='tar', variable='PGUSER')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='tar', variable='PGPASSWORD')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='tar', variable='PGHOST')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='tar', variable='PGPORT')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='tar', variable='PGDATABASE')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='find', variable='SECRET_KEY')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='find', variable='DEMO_PASSWORD')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='find', variable='PRIVATE_MEDIA_ROOT')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='find', variable='PGUSER')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='find', variable='PGPASSWORD')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='find', variable='PGHOST')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='find', variable='PGPORT')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='find', variable='PGDATABASE')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='pg_dump', variable='SECRET_KEY')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='pg_dump', variable='DEMO_PASSWORD')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values) (child='pg_dump', variable='PRIVATE_MEDIA_ROOT')
+    FAIL: test_children_get_no_env_file_values (core.tests.test_deploy.BackupScriptEnvironmentTests.test_children_get_no_env_file_values)
+    FAIL: test_failed_pg_dump_leaves_no_dump (core.tests.test_deploy.BackupScriptEnvironmentTests.test_failed_pg_dump_leaves_no_dump)
+    FAIL: test_failed_tar_leaves_no_media_archive (core.tests.test_deploy.BackupScriptEnvironmentTests.test_failed_tar_leaves_no_media_archive)
+    FAIL: test_missing_media_root_fails_before_dump (core.tests.test_deploy.BackupScriptEnvironmentTests.test_missing_media_root_fails_before_dump)
+    FAIL: test_catch_all_servers (core.tests.test_deploy.NginxTemplateTests.test_catch_all_servers)
+    FAIL: test_every_catch_all_server_closes_connection (core.tests.test_deploy.NginxTemplateTests.test_every_catch_all_server_closes_connection) (block='\n    listen 443 ssl http2 default_server')
+    FAIL: test_backup_exports_nothing_from_env_file (core.tests.test_deploy.ShellScriptTests.test_backup_exports_nothing_from_env_file)
+    Ran 66 tests in 4.968s
+    FAILED (failures=34)
+    12:20
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 1s
+    Seven tests fail on HEAD: children_env, failed_pg_dump, failed_tar, missing_media_root, catch_all_servers, every_catch_all, and exports_nothing. The scan tests are a different story, since they import _repo_files from the new test file and so pass regardless. The real reproduction has to be a .DS_Store file showing up in a deploy of the HEAD copy, run with the HEAD test file.
+
+    I'll run the same check on both a plain archive copy and a git clone to cover the case with and without git metadata.
+  ── Thought for 4ms
+    Новые тесты на HEAD падают, как и ожидалось (7 тестов, 34 subTest-провала). Сейчас воспроизвожу ошибку с `.DS_Store` в копии без git и в клоне с git.
+  ── Ran P=~/hackatonproject/.venv/bin/python; export DEBUG=1; DS=$(printf '\x00\x00\x00\x01Bud1\xff\xfe');  # 1) HEAD tests + .DS_Store (archive copy) -> errors rm -rf "$TMPDIR/t019ds" && mkdir "$TMPDIR/t019ds" && cd ~/hackatonproject && git archive HEAD | tar -x -C "$TMPDIR/t019ds" && cd "$TMPDIR/t019ds" && printf '\x00\x00\x00\x01Bud1\xff\xfe' > deploy/.DS_Store && $P manage.py test core.tests.test_deploy 2>&1 | grep -E "^Ran|FAILED|^ERROR:" # 2) new tests + .DS_Store in prototype (archive copy, fallback path) cd "$TMPDIR/t019" && printf '\x00\x00\x00\x01Bud1\xff\xfe' > deploy/.DS_Store && printf '\x00\x01\xff' > deploy/nginx/.DS_Store && $P manage.py test core.tests.test_deploy 2>&1 | grep -E "^Ran|^OK|FAILED"; rm deploy/.DS_Store deploy/nginx/.DS_Store (6s)
+    $ P=~/hackatonproject/.venv/bin/python; export DEBUG=1; DS=$(printf '\x00\x00\x00\x01Bud1\xff\xfe'); 
+  # 1) HEAD tests + .DS_Store (archive copy) -> errors
+  rm -rf "$TMPDIR/t019ds" && mkdir "$TMPDIR/t019ds" && cd ~/hackatonproject && git archive HEAD | tar -x -C "$TMPDIR/t019ds" && cd "$TMPDIR/t019ds" && printf '\x00\x00\x00\x01Bud1\xff\xfe' > deploy/.DS_Store && $P manage.py test core.tests.test_deploy 2>&1 | grep -E "^Ran|FAILED|^ERROR:"
+  # 2) new tests + .DS_Store in prototype (archive copy, fallback path)
+  cd "$TMPDIR/t019" && printf '\x00\x00\x00\x01Bud1\xff\xfe' > deploy/.DS_Store && printf '\x00\x01\xff' > deploy/nginx/.DS_Store && $P manage.py test core.tests.test_deploy 2>&1 | grep -E "^Ran|^OK|FAILED"; rm deploy/.DS_Store deploy/nginx/.DS_Store
+    ERROR: test_no_old_server_values (core.tests.test_deploy.OldServerLimitsTests.test_no_old_server_values)
+    ERROR: test_no_long_random_strings (core.tests.test_deploy.SecretScanTests.test_no_long_random_strings)
+    ERROR: test_no_private_keys_or_known_tokens (core.tests.test_deploy.SecretScanTests.test_no_private_keys_or_known_tokens)
+    ERROR: test_no_real_ip_addresses (core.tests.test_deploy.SecretScanTests.test_no_real_ip_addresses)
+    ERROR: test_secret_like_assignments_are_placeholders (core.tests.test_deploy.SecretScanTests.test_secret_like_assignments_are_placeholders)
+    Ran 56 tests in 0.803s
+    FAILED (errors=5)
+    Ran 66 tests in 3.174s
+    OK
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 1s
+    Next I'm setting up the git route: cloning the repo into TMPDIR, applying the prototype changes, and staging a .DS_Store and a tracked binary with git add (no commit, since it's only in the clone) before running it.
+  ── Thought for 5ms
+    Ошибка воспроизводится на HEAD (5 ошибок), на прототипе всё в порядке; сейчас проверяю ветку во временном клоне репозитория, сам проект не трогаю.
+  ── Ran P=~/hackatonproject/.venv/bin/python; export DEBUG=1; rm -rf "$TMPDIR/t019git" && git clone -q ~/hackatonproject "$TMPDIR/t019git" && cd "$TMPDIR/t019git" && git log --oneline -1 && for f in deploy/backup.sh deploy/nginx/deanery.conf core/tests/test_deploy.py; do cp "$TMPDIR/t019/$f" "$f"; done && printf '\x00\x00\x00\x01Bud1\xff\xfe' > deploy/.DS_Store && printf 'echo new\n' > deploy/new-untracked.sh && $P manage.py test core.tests.test_deploy 2>&1 | grep -E "^Ran|^OK|FAILED"; $P -c " import django,os;os.environ['DJANGO_SETTINGS_MODULE']='config.settings';django.setup() from core.tests.test_deploy import _secret_scan_paths, BASE_DIR print(sorted(p.relative_to(BASE_DIR).as_posix() for p in _secret_scan_paths()))" # tracked binary must fail loudly printf '\xff\xfe\x00bin' > deploy/blob.bin && git add deploy/blob.bin && $P manage.py test core.tests.test_deploy 2>&1 | grep -E "^Ran|FAILED|^ERROR:|UnicodeDecodeError" | head -8 (10s)
+    $ P=~/hackatonproject/.venv/bin/python; export DEBUG=1; rm -rf "$TMPDIR/t019git" && git clone -q ~/hackatonproject "$TMPDIR/t019git" && cd "$TMPDIR/t019git" && git log --oneline -1 && for f in deploy/backup.sh deploy/nginx/deanery.conf core/tests/test_deploy.py; do cp "$TMPDIR/t019/$f" "$f"; done && printf '\x00\x00\x00\x01Bud1\xff\xfe' > deploy/.DS_Store && printf 'echo new\n' > deploy/new-untracked.sh && $P manage.py test core.tests.test_deploy 2>&1 | grep -E "^Ran|^OK|FAILED"; $P -c "
+  import django,os;os.environ['DJANGO_SETTINGS_MODULE']='config.settings';django.setup()
+  from core.tests.test_deploy import _secret_scan_paths, BASE_DIR
+  print(sorted(p.relative_to(BASE_DIR).as_posix() for p in _secret_scan_paths()))"
+  # tracked binary must fail loudly
+  printf '\xff\xfe\x00bin' > deploy/blob.bin && git add deploy/blob.bin && $P manage.py test core.tests.test_deploy 2>&1 | grep -E "^Ran|FAILED|^ERROR:|UnicodeDecodeError" | head -8
+    32ba5fc Plan: report draft docs/REPORT.md written, awaiting PENTEST-2 and user review
+    Ran 66 tests in 3.349s
+    OK
+    ['.env.production.example', 'deploy/backup.sh', 'deploy/cron/deanery-backup', 'deploy/gunicorn.conf.py', 'deploy/manage.sh', 'deploy/new-untracked.sh', 'deploy/nginx/deanery-bootstrap.conf', 'deploy/nginx/deanery.conf', 'deploy/ssh/10-deanery-hardening.conf', 'deploy/systemd/deanery.service', 'docs/DEPLOY.md']
+    ERROR: test_no_old_server_values (core.tests.test_deploy.OldServerLimitsTests.test_no_old_server_values)
+    UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte
+    ERROR: test_no_long_random_strings (core.tests.test_deploy.SecretScanTests.test_no_long_random_strings)
+    UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte
+    ERROR: test_no_private_keys_or_known_tokens (core.tests.test_deploy.SecretScanTests.test_no_private_keys_or_known_tokens)
+    UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte
+    ERROR: test_no_real_ip_addresses (core.tests.test_deploy.SecretScanTests.test_no_real_ip_addresses)
+    UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 862ms
+    I'm noticing the clone's HEAD has moved to 32ba5fc after the lead's extra "Plan" commits, so my base edf673d may be out of date. I want to check what changed in the deploy files and test_deploy between the two commits.
+  ── Thought for 4ms
+    Git-ветка работает: `.DS_Store` пропускается, новый файл сканируется, а бинарный отслеживаемый файл выдаёт явную ошибку. Сейчас проверяю, не менялись ли затронутые файлы после сдвига HEAD.
+  ── Ran git log --oneline -3 && git status --short && git diff --stat edf673d HEAD && git diff --quiet edf673d HEAD -- deploy core/tests/test_deploy.py docs/DEPLOY.md .env.production.example && echo "touched files unchanged"
+    $ git log --oneline -3 && git status --short && git diff --stat edf673d HEAD && git diff --quiet edf673d HEAD -- deploy core/tests/test_deploy.py docs/DEPLOY.md .env.production.example && echo "touched files unchanged"
+    32ba5fc Plan: report draft docs/REPORT.md written, awaiting PENTEST-2 and user review
+    edf673d Plan: trial data deleted; PENTEST-2 to be run by the user in the morning via a packaged runner
+    5df4eae TASK-018: stars across the wide side margins, "Чаты (n)" for staff
+    ?? docs/REPORT.md
+     plan.md | 1 +
+     1 file changed, 1 insertion(+)
+    touched files unchanged
+  ── Thought for 6ms
+    I'm running mutation checks on the base commit: first removing the trap to see whether a failed pg_dump leaves a .part file behind, then restoring the `set -a` export to confirm the children test catches it, and noting that the `return 444` removal already fails on HEAD.
+
+── Assistant ───────────────────────────────────────────────
+Мутационная проверка: убираю trap и возвращаю `set -a`.
+
+── Ran cd "$TMPDIR/t019" && P=~/hackatonproject/.venv/bin/python; export DEBUG=1; cp deploy/backup.sh "$TMPDIR/t019work-backup.bak"; sed -i '' "/^trap 'rm -f/d" deploy/backup.sh; $P manage.py test core.tests.test_deploy.BackupScriptEnvironmentTests 2>&1 | grep -E "^FAIL:|^Ran"; cp "$TMPDIR/t019work-backup.bak" deploy/backup.sh; sed -i '' 's/^pg_user="\${BASH_REMATCH\[2\]}"/export PGPASSWORD="${BASH_REMATCH[3]}"; pg_user="${BASH_REMATCH[2]}"/' deploy/backup.sh; grep -n "^export" deploy/backup.sh; $P manage.py test core.tests.test_deploy 2>&1 | grep -E "^FAIL:|^Ran" | sed 's/(core.tests[^)]*)//' | sort | uniq -c; cp "$TMPDIR/t019work-backup.bak" deploy/backup.sh; $P manage.py test core.tests.test_deploy 2>&1 | grep -E "^Ran|^OK" (11s)
+  $ cd "$TMPDIR/t019" && P=~/hackatonproject/.venv/bin/python; export DEBUG=1; cp deploy/backup.sh "$TMPDIR/t019work-backup.bak"; sed -i '' "/^trap 'rm -f/d" deploy/backup.sh; $P manage.py test core.tests.test_deploy.BackupScriptEnvironmentTests 2>&1 | grep -E "^FAIL:|^Ran"; cp "$TMPDIR/t019work-backup.bak" deploy/backup.sh; sed -i '' 's/^pg_user="\${BASH_REMATCH\[2\]}"/export PGPASSWORD="${BASH_REMATCH[3]}"; pg_user="${BASH_REMATCH[2]}"/' deploy/backup.sh; grep -n "^export" deploy/backup.sh; $P manage.py test core.tests.test_deploy 2>&1 | grep -E "^FAIL:|^Ran" | sed 's/(core.tests[^)]*)//' | sort | uniq -c; cp "$TMPDIR/t019work-backup.bak" deploy/backup.sh; $P manage.py test core.tests.test_deploy 2>&1 | grep -E "^Ran|^OK"
+  FAIL: test_failed_pg_dump_leaves_no_dump (core.tests.test_deploy.BackupScriptEnvironmentTests.test_failed_pg_dump_leaves_no_dump)
+  FAIL: test_failed_tar_leaves_no_media_archive (core.tests.test_deploy.BackupScriptEnvironmentTests.test_failed_tar_leaves_no_media_archive)
+  Ran 4 tests in 2.272s
+  29:export PGPASSWORD="${BASH_REMATCH[3]}"; pg_user="${BASH_REMATCH[2]}"
+     1 FAIL: test_backup_exports_nothing_from_env_file 
+     1 FAIL: test_children_get_no_env_file_values  (child='find', variable='PGPASSWORD')
+     1 FAIL: test_children_get_no_env_file_values  (child='gzip', variable='PGPASSWORD')
+     1 FAIL: test_children_get_no_env_file_values  (child='tar', variable='PGPASSWORD')
+     1 Ran 66 tests in 3.201s
+  Ran 66 tests in 3.317s
+  OK
+  Shell cwd was reset to ~/hackatonproject
+
+── Assistant ───────────────────────────────────────────────
+Мутации ловятся. Запускаю полный набор, ruff и остальные проверки.
+
+── Ran 1 command ───────────────────────────────────────────
+  ── Ran cd "$TMPDIR/t019" && P=~/hackatonproject/.venv/bin/python; R=~/hackatonproject/.venv/bin/ruff; export DEBUG=1; $R check . && $R format --check . | tail -1; bash -n deploy/backup.sh && echo "bash -n ok"; L="$TMPDIR/test-t019-full-$(date +%Y%m%d-%H%M%S).log"; $P manage.py test --parallel > "$L" 2>&1; echo $L; grep -E "^Ran|^OK|FAILED" "$L"; TZ=Europe/Moscow date +%H:%M; L2="$TMPDIR/test-t019-p2-$(date +%Y%m%d-%H%M%S).log"; $P manage.py test --parallel 2 > "$L2" 2>&1; echo $L2; grep -E "^Ran|^OK|FAILED" "$L2"; TZ=Europe/Moscow date +%H:%M; $P manage.py makemigrations --check --dry-run; $P manage.py check | tail -1 (2m 16s)
+    $ cd "$TMPDIR/t019" && P=~/hackatonproject/.venv/bin/python; R=~/hackatonproject/.venv/bin/ruff; export DEBUG=1; $R check . && $R format --check . | tail -1; bash -n deploy/backup.sh && echo "bash -n ok"; L="$TMPDIR/test-t019-full-$(date +%Y%m%d-%H%M%S).log"; $P manage.py test --parallel > "$L" 2>&1; echo $L; grep -E "^Ran|^OK|FAILED" "$L"; TZ=Europe/Moscow date +%H:%M; L2="$TMPDIR/test-t019-p2-$(date +%Y%m%d-%H%M%S).log"; $P manage.py test --parallel 2 > "$L2" 2>&1; echo $L2; grep -E "^Ran|^OK|FAILED" "$L2"; TZ=Europe/Moscow date +%H:%M; $P manage.py makemigrations --check --dry-run; $P manage.py check | tail -1
+    All checks passed!
+    203 files already formatted
+    bash -n ok
+    /tmp/claude-501/test-t019-full-20261122-012140.log
+    Ran 1255 tests in 49.259s
+    OK
+    12:22
+    /tmp/claude-501/test-t019-p2-20261122-012231.log
+    Ran 1255 tests in 82.263s
+    OK
+    12:23
+    No changes detected
+    System check identified no issues (0 silenced).
+    Shell cwd was reset to ~/hackatonproject
+  ── Thought for 8ms
+    I'm tallying the test count: the HEAD baseline of 1245 plus 10 new tests (nginx 1, shell 1, scan 4, backup env 4) gives 1255. I'm also checking the backup script's bash and GNU mv/rm flags, which look fine, and wondering whether the runbook should mention any of this.
+
+    I'm checking whether the runbook needs a note about the .part files, and deciding it doesn't, since PT3-F6 item 3 on percent-encoded passwords is out of scope. I'm also noting that the t019 base came from the same commit, edf673d, touching the same files, so the next step is writing a short spec with a template and diffs.
+
+── Assistant ───────────────────────────────────────────────
+Полный набор: 1255 OK (`--parallel` и `--parallel 2`). Пишу короткую спецификацию.
+
+── Created 1 file, ran 1 command ───────────────────────────
+  ── Created ~/.bb/thread-storage/t019_spec_template.md +137
+    --- /dev/null
+    +++ b~/.bb/thread-storage/t019_spec_template.md
+    +# TASK-019: nginx catch-all 443 closes, backup.sh without exported secrets and partial files, scan skips git-ignored files
+    +
+    +Author: Planner. Assignee: Coder. Status: ready for implementation.
+    +Base: HEAD 32ba5fc (the touched files are the same as in 5df4eae). Do not touch `plan.md` or `docs/REPORT.md`.
+    +
+    +## 1. Goal and acceptance criteria
+    +
+    +Three small, independent items: PT3-F7 and PT3-F6 from `docs/security/PENTEST-3.md`, and a test-environment
+    +problem found during TASK-018.
+    +
+    +| ID | Criterion |
+    +|---|---|
+    +| AC1 | `deploy/nginx/deanery.conf`: the catch-all `443 default_server` block ends with `return 444;` (like the port-80 catch-all). Both catch-all blocks have `server_name _;` and `return 444;`. |
+    +| AC2 | `deploy/backup.sh` exports nothing from the env file: `gzip`, `tar` and `find` get no `SECRET_KEY`, `DEMO_PASSWORD`, `DATABASE_URL`, `PRIVATE_MEDIA_ROOT` and no `PG*`; `pg_dump` gets only the five `PG*` values (no other env-file value). |
+    +| AC3 | `backup.sh` writes `db-*.sql.gz` and `media-*.tar.gz` as `*.part` in the same directory and renames them only after success; on failure the `.part` file is removed, no `backup ok` line, non-zero exit, old backups are not deleted. |
+    +| AC4 | Existing behaviour stays: password never on the command line, works from any directory (`cd /`), `KEEP_DAYS` cleanup, messages, exit codes; `bash -n` passes. A missing `PRIVATE_MEDIA_ROOT` now fails before the dump (exit 1, message without values). |
+    +| AC5 | The deploy file scans (`_secret_scan_paths`) skip files that git ignores (`.DS_Store`, `__pycache__`, `*.pyc`), still scan tracked and new untracked files, and a project binary file still fails loudly (`UnicodeDecodeError`). |
+    +| AC6 | All verification commands pass. |
+    +
+    +## 2. Out of scope
+    +
+    +PT3-F6 item 3 (percent-encoded password; the runbook generates hex passwords), PT3-F7 items 2–3 (IPv6 /64
+    +limits, a global login zone, `limit_conn 40`), `docs/DEPLOY.md` (commands do not change; `*.part` files never
+    +stay), any Django code.
+    +
+    +## 3. Design decisions
+    +
+    +- **D1. Env file read in a subshell.** `env_value NAME` sources the env file inside `( ... )` and prints one
+    +  value. The parsing is the same as before (`.` like `manage.sh`, quotes work), but `SECRET_KEY` and the
+    +  other values never reach the main shell, and nothing is exported. The values live in lower-case shell
+    +  variables (`db_url`, `media_root`, `pg_*`), so they cannot collide with inherited exported upper-case
+    +  names. `unset DATABASE_URL` is no longer needed.
+    +- **D2. `PG*` as a prefix of `pg_dump` only** (`PGUSER=… PGPASSWORD=… pg_dump …`): the values are in the
+    +  environment of `pg_dump` alone (not `export`), not on its command line (PT1-F13 stays: arguments are only
+    +  `--no-owner --no-privileges`).
+    +- **D3. `*.part` + `trap … EXIT`.** `set -euo pipefail` stops at the failing step; the `EXIT` trap removes
+    +  `"$db_file.part" "$media_file.part"` (no-op after a successful `mv`). The exit code is the failing command's;
+    +  the trap does not change it. The `find` cleanup patterns (`db-*.sql.gz`, `media-*.tar.gz`) never match
+    +  `*.part`, and cleanup runs only after both archives succeeded (old backups survive a failed run).
+    +- **D4. `PRIVATE_MEDIA_ROOT` check** right after the URL check: before, a missing value failed at `tar`
+    +  (unbound variable) after the dump was written. The URL check stays first, so `test_bad_database_url_fails`
+    +  is unchanged.
+    +- **D5. Scan list from git.** In a checkout, `git ls-files -z --cached --others --exclude-standard -- deploy`
+    +  lists tracked files plus untracked files that are not ignored — exactly ".gitignore minus junk", and a new
+    +  uncommitted deploy file (the Coder's work) is still scanned. Without `.git` (a `git archive` copy, used by
+    +  the Pentester and the Planner) the fallback is `rglob` minus `.DS_Store`, `__pycache__`, `*.pyc`. A git
+    +  error raises (`check=True`), so the scan never becomes silently empty. Listed binary files keep failing in
+    +  `_read` with `UnicodeDecodeError`.
+    +
+    +## 4. Files and functions
+    +
+    +Change: `deploy/nginx/deanery.conf`, `deploy/backup.sh` (keep it executable: edit in place), `core/tests/test_deploy.py`.
+    +Diffs are against HEAD; edit by hand, no git commands.
+    +
+    +### F1. `deploy/nginx/deanery.conf`
+    +
+    +````diff
+    +{{DIFF:deploy/nginx/deanery.conf}}
+    +````
+    +
+    +### F2. `deploy/backup.sh` (whole file)
+    +
+    +````bash
+    +{{FILE:deploy/backup.sh}}
+    +````
+    +
+    +### F3. `core/tests/test_deploy.py`
+    +
+    +New: `_server_blocks`, `NginxTemplateTests::test_every_catch_all_server_closes_connection`,
+    +`ShellScriptTests::test_backup_exports_nothing_from_env_file`, `_repo_files` (used by `_secret_scan_paths`),
+    +class `ScanFileListTests` (4 tests), class `BackupScriptEnvironmentTests` (4 tests). Changed:
+    +`test_catch_all_servers` (`return 444;` twice), `test_backup_runs_from_root_directory` (the `pg_dump` line now
+    +starts with the `PG*` prefix; comment lines are skipped).
+    +
+    +````diff
+    +{{DIFF:core/tests/test_deploy.py}}
+    +````
+    +
+    +## 5. Feasibility check
+    +
+    +1. **Full change applied** (copy `$TMPDIR/t019`): `manage.py test --parallel` → `Ran 1255 tests … OK`
+    +   (`$TMPDIR/test-t019-full-20261122-012140.log`, 12:22 MSK 22.11); `--parallel 2` → 1255 OK
+    +   (`$TMPDIR/test-t019-p2-20261122-012231.log`, 12:23 MSK). `ruff check .`, `ruff format --check .` clean;
+    +   `bash -n deploy/backup.sh` OK; `makemigrations --check` → No changes; `check` → no issues.
+    +2. **New tests on HEAD** (`$TMPDIR/test-t019-newtests-on-head-20261122-012035.log`): 7 tests fail as expected
+    +   (34 failures with subtests): `test_catch_all_servers`, `test_every_catch_all_server_closes_connection` (443
+    +   block), `test_backup_exports_nothing_from_env_file`, and all 4 `BackupScriptEnvironmentTests` (HEAD gives
+    +   `SECRET_KEY`, `DEMO_PASSWORD`, `PRIVATE_MEDIA_ROOT` and `PG*` to `gzip`/`tar`/`find`, leaves a partial dump).
+    +3. **`.DS_Store` reproduced**: HEAD copy + `deploy/.DS_Store` → 5 errors (`SecretScanTests` ×4,
+    +   `OldServerLimitsTests::test_no_old_server_values`, `UnicodeDecodeError`). Changed copy + `.DS_Store` in
+    +   `deploy/` and `deploy/nginx/` → 66 deploy tests OK (fallback path).
+    +4. **Git path** (a `git clone` of the repository in `$TMPDIR`, changes copied in): `.DS_Store` skipped, an
+    +   untracked new `deploy/new-untracked.sh` listed, deploy tests OK; a tracked (`git add`) binary
+    +   `deploy/blob.bin` → the scan tests error with `UnicodeDecodeError` (loud).
+    +5. **Mutations**: removing the `trap` line fails `test_failed_pg_dump_leaves_no_dump` and
+    +   `test_failed_tar_leaves_no_media_archive`; adding `export PGPASSWORD=…` fails
+    +   `test_backup_exports_nothing_from_env_file` and `test_children_get_no_env_file_values` (gzip, tar, find).
+    +6. **Shell**: bash 3.2 (macOS) runs every test; the constructs (`${!1-}`, `[[ =~ ]]`, `BASH_REMATCH`, prefix
+    +   assignments, `trap … EXIT`, `mv --`) are the same in bash 5 (server). nginx is not installed locally:
+    +   `return 444;` after `ssl_reject_handshake on;` in a `server` block is valid (both are server-level
+    +   directives); the Team lead runs `nginx -t` on install.
+    +7. **Safety**: no `.env` read; env files in tests are dummy values in temporary directories; the project tree
+    +   was not modified.
+    +
+    +## 6. Test plan
+    +
+    +| AC | Tests (`core/tests/test_deploy.py`) |
+    +|---|---|
+    +| AC1 | `NginxTemplateTests::test_catch_all_servers` (changed), `::test_every_catch_all_server_closes_connection` |
+    +| AC2 | `BackupScriptEnvironmentTests::test_children_get_no_env_file_values`; `ShellScriptTests::test_backup_exports_nothing_from_env_file` |
+    +| AC3 | `BackupScriptEnvironmentTests::test_failed_pg_dump_leaves_no_dump`, `::test_failed_tar_leaves_no_media_archive` |
+    +| AC4 | `BackupScriptRunTests::test_password_not_on_command_line`, `::test_bad_database_url_fails` (unchanged); `ShellScriptTests::test_bash_syntax`, `::test_scripts_executable`, `::test_backup_rules` (unchanged), `::test_backup_runs_from_root_directory` (changed); `BackupScriptEnvironmentTests::test_missing_media_root_fails_before_dump`; KEEP_DAYS cleanup: `test_children_get_no_env_file_values` (the 2020 backup is deleted after success) |
+    +| AC5 | `ScanFileListTests::test_git_checkout_skips_ignored_files`, `::test_archive_copy_skips_os_junk`, `::test_project_binary_fails_loudly`, `::test_real_scan_covers_deploy_files`; `SecretScanTests` and `OldServerLimitsTests` (unchanged, now via `_repo_files`) |
+    +
+    +Test count: 1245 → 1255 (+10).
+    +
+    +## 7. Verification (Coder, then Reviewer)
+    +
+    +```bash
+    +.venv/bin/python manage.py test --parallel 2>&1 | tee "$TMPDIR/test-$(date +%Y%m%d-%H%M%S).log" | tail -3
+    +.venv/bin/python manage.py test --parallel 2 2>&1 | tee "$TMPDIR/test-p2-$(date +%Y%m%d-%H%M%S).log" | tail -3
+    +.venv/bin/ruff check . && .venv/bin/ruff format --check .
+    +bash -n deploy/backup.sh && test -x deploy/backup.sh
+    +.venv/bin/python manage.py check
+    +.venv/bin/python manage.py makemigrations --check --dry-run
+    +git status --short
+    +```
+    +
+    +If a `--parallel` run ends with `TypeError: cannot pickle 'traceback' object`, a test failed: run
+    +`manage.py test core.tests.test_deploy` serially and report the test name. Report test counts, log paths and
+    +Moscow times. Never read `.env`; do not touch `plan.md` or `docs/REPORT.md`.
+    +
+    +## 8. Risks
+    +
+    +- `env_value` sources the env file twice (as before, the file is trusted: root-owned, 0640).
+    +- On the server, a stale `*.part` can only remain if the script is killed with SIGKILL; the next run ignores
+    +  it and `find` never deletes it (pattern). Harmless; remove by hand if seen.
+  ── Thought for 4ms
+    I need to check whether the env file really is root-owned with mode 0640, since that detail seems to come from the runbook and I'm not sure it's accurate. If I can't confirm it, I'll soften the line to say the file is trusted, as before. After that edit, I'll fill in the patch and check that it applies cleanly.
+  ── Ran cd "$TMPDIR" && python3 - <<'EOF' import re, subprocess, os T=os.environ['TMPDIR'] p='~/.bb/thread-storage/t019_spec_template.md' tpl=open(p).read() tpl=tpl.replace("(as before, the file is trusted: root-owned, 0640)","(it was sourced before too; the file is trusted)") open(p,'w').write(tpl) def diff(f):     out=subprocess.run(['diff','-u',f'{T}/t019base/{f}',f'{T}/t019/{f}'],capture_output=True,text=True).stdout.splitlines()     out[0]=f'--- a/{f}'; out[1]=f'+++ b/{f}'     return "\n".join(out) tpl=re.sub(r'\{\{DIFF:([^}]+)\}\}',lambda m:diff(m.group(1)),tpl) tpl=re.sub(r'\{\{FILE:([^}]+)\}\}',lambda m:open(f'{T}/t019/{m.group(1)}').read().rstrip('\n'),tpl) assert '{{DIFF' not in tpl and '{{FILE' not in tpl open('~/hackatonproject/docs/tasks/TASK-019.md','w').write(tpl) EOF rm -rf "$TMPDIR/t019apply" && mkdir "$TMPDIR/t019apply" && cd ~/hackatonproject && git archive HEAD | tar -x -C "$TMPDIR/t019apply" && cd "$TMPDIR/t019apply" && python3 - <<'EOF' import re s=open('~/hackatonproject/docs/tasks/TASK-019.md').read() open('all.patch','w').write("\n".join(re.findall(r'````diff\n(.*?)\n````',s,flags=re.S))+"\n") b=re.search(r'````bash\n(.*?)\n````',s,flags=re.S).group(1) open('deploy/backup.sh','w').write(b+"\n") EOF patch -p1 -s < all.patch && rm all.patch; for f in deploy/backup.sh deploy/nginx/deanery.conf core/tests/test_deploy.py; do cmp -s $f "$TMPDIR/t019/$f" && echo "same $f" || echo "DIFF $f"; done; wc -l ~/hackatonproject/docs/tasks/TASK-019.md; cd ~/hackatonproject && git status --short (1s)
+    $ cd "$TMPDIR" && python3 - <<'EOF'
+  import re, subprocess, os
+  T=os.environ['TMPDIR']
+  p='~/.bb/thread-storage/t019_spec_template.md'
+  tpl=open(p).read()
+  tpl=tpl.replace("(as before, the file is trusted: root-owned, 0640)","(it was sourced before too; the file is trusted)")
+  open(p,'w').write(tpl)
+  def diff(f):
+      out=subprocess.run(['diff','-u',f'{T}/t019base/{f}',f'{T}/t019/{f}'],capture_output=True,text=True).stdout.splitlines()
+      out[0]=f'--- a/{f}'; out[1]=f'+++ b/{f}'
+      return "\n".join(out)
+  tpl=re.sub(r'\{\{DIFF:([^}]+)\}\}',lambda m:diff(m.group(1)),tpl)
+  tpl=re.sub(r'\{\{FILE:([^}]+)\}\}',lambda m:open(f'{T}/t019/{m.group(1)}').read().rstrip('\n'),tpl)
+  assert '{{DIFF' not in tpl and '{{FILE' not in tpl
+  open('~/hackatonproject/docs/tasks/TASK-019.md','w').write(tpl)
+  EOF
+  rm -rf "$TMPDIR/t019apply" && mkdir "$TMPDIR/t019apply" && cd ~/hackatonproject && git archive HEAD | tar -x -C "$TMPDIR/t019apply" && cd "$TMPDIR/t019apply" && python3 - <<'EOF'
+  import re
+  s=open('~/hackatonproject/docs/tasks/TASK-019.md').read()
+  open('all.patch','w').write("\n".join(re.findall(r'````diff\n(.*?)\n````',s,flags=re.S))+"\n")
+  b=re.search(r'````bash\n(.*?)\n````',s,flags=re.S).group(1)
+  open('deploy/backup.sh','w').write(b+"\n")
+  EOF
+  patch -p1 -s < all.patch && rm all.patch; for f in deploy/backup.sh deploy/nginx/deanery.conf core/tests/test_deploy.py; do cmp -s $f "$TMPDIR/t019/$f" && echo "same $f" || echo "DIFF $f"; done; wc -l ~/hackatonproject/docs/tasks/TASK-019.md; cd ~/hackatonproject && git status --short
+    same deploy/backup.sh
+    same deploy/nginx/deanery.conf
+    same core/tests/test_deploy.py
+         502 ~/hackatonproject/docs/tasks/TASK-019.md
+    ?? docs/REPORT.md
+    ?? docs/tasks/TASK-019.md
+
+── Assistant ───────────────────────────────────────────────
+Спецификация чисто накладывается на HEAD. Передаю её кодеру.
+
+── Ran bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF' [TASK-019] Planner -> Coder: TASK Spec: docs/tasks/TASK-019.md (base HEAD 32ba5fc). Three small independent items: 1. deploy/nginx/deanery.conf: add `return 444;` to the catch-all 443 server (F1). 2. deploy/backup.sh: whole new file in F2 — env file read in a subshell (nothing exported), PG* values only as a prefix of pg_dump, archives written as *.part and renamed on success, EXIT trap removes partial files, PRIVATE_MEDIA_ROOT check. Edit the file in place so it stays executable. 3. core/tests/test_deploy.py: _secret_scan_paths uses git ls-files (fallback without .git skips .DS_Store/__pycache__/*.pyc) plus new tests (F3 diff). F1-F3 are exact and apply cleanly to HEAD; on a copy they give 1255 tests OK (1245 -> 1255). Run section 7 (including `bash -n deploy/backup.sh && test -x deploy/backup.sh`) and send your REPORT to the Reviewer. Do not touch plan.md or docs/REPORT.md; never read .env; no git commands that change the index or history. EOF
+  $ bb thread tell thr_ng6cbgatm6 --message-file - <<'EOF'
+[TASK-019] Planner -> Coder: TASK
+Spec: docs/tasks/TASK-019.md (base HEAD 32ba5fc). Three small independent items:
+1. deploy/nginx/deanery.conf: add `return 444;` to the catch-all 443 server (F1).
+2. deploy/backup.sh: whole new file in F2 — env file read in a subshell (nothing exported), PG* values only as a prefix of pg_dump, archives written as *.part and renamed on success, EXIT trap removes partial files, PRIVATE_MEDIA_ROOT check. Edit the file in place so it stays executable.
+3. core/tests/test_deploy.py: _secret_scan_paths uses git ls-files (fallback without .git skips .DS_Store/__pycache__/*.pyc) plus new tests (F3 diff).
+F1-F3 are exact and apply cleanly to HEAD; on a copy they give 1255 tests OK (1245 -> 1255). Run section 7 (including `bash -n deploy/backup.sh && test -x deploy/backup.sh`) and send your REPORT to the Reviewer. Do not touch plan.md or docs/REPORT.md; never read .env; no git commands that change the index or history.
+EOF
+  Thread thr_ng6cbgatm6 steered
+
+── Assistant ───────────────────────────────────────────────
+Я написал спецификацию TASK-019 и передал её кодеру (DeepSeek). На копии проекта все три пункта работают: 1255 тестов проходят.
+
+1. **Сервер-заглушка nginx на порту 443** (PT3-F7). В блок добавлена строка `return 444;`. Теперь запрос с нашим доменом в SNI и чужим `Host` получает закрытое соединение, а не ответ nginx по умолчанию. Новый тест проверяет оба сервера-заглушки: на портах 80 и 443.
+2. **Скрипт бэкапа `backup.sh`** (PT3-F6):
+   - Скрипт читает в файле окружения только два нужных значения. `SECRET_KEY`, `DEMO_PASSWORD` и остальные значения не попадают к `gzip`, `tar` и `find`.
+   - Пароль базы получает только `pg_dump`. В командную строку он, как и раньше, не попадает.
+   - Архивы сначала пишутся во временные файлы `*.part`. Скрипт переименовывает их только после успеха. При сбое временный файл удаляется, а старые бэкапы остаются.
+   - Без `PRIVATE_MEDIA_ROOT` скрипт останавливается до дампа базы. Раньше он падал уже после дампа.
+3. **Файл `.DS_Store` в `deploy/`**:
+   - Проверка секретов берёт список файлов из git и пропускает игнорируемые файлы. Новый, ещё не закоммиченный файл она проверяет.
+   - Если в `deploy/` закоммитить бинарный файл, проверка по-прежнему падает с явной ошибкой.
+   - В копии без git пропускаются только `.DS_Store`, `__pycache__` и `*.pyc`.
+
+**Проверка на копиях проекта:**
+- Полный набор тестов проходит в обоих режимах параллельного запуска.
+- Новые тесты на текущей версии проекта падают как ожидалось. Ошибку с `.DS_Store` я воспроизвёл: на текущей версии 5 ошибок, после исправления их нет.
+- Если в скрипте снова экспортировать пароль или убрать удаление временных файлов, тесты падают.
+- nginx локально не установлен. Поэтому строку `return 444;` проверяют только тесты по тексту конфига. На сервере нужно выполнить `nginx -t` при установке.
+
+Спецификация: [TASK-019](docs/tasks/TASK-019.md). Жду вопросов от кодера.

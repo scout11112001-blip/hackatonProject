@@ -83,6 +83,23 @@ class GunicornConfigTests(SimpleTestCase):
         self.assertEqual(self._load_config()["bind"], "127.0.0.1:8000")
 
 
+def _server_blocks(text: str) -> list[str]:
+    """Bodies of the top-level ``server { ... }`` blocks (brace matching, comments removed)."""
+    text = re.sub(r"#[^\n]*", "", text)
+    blocks = []
+    for match in re.finditer(r"^server\s*\{", text, flags=re.M):
+        depth = 0
+        for i in range(match.end() - 1, len(text)):
+            if text[i] == "{":
+                depth += 1
+            elif text[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    blocks.append(text[match.end() : i])
+                    break
+    return blocks
+
+
 class NginxTemplateTests(SimpleTestCase):
     def test_full_config_body_size(self):
         text = _read(NGINX_CONF)
@@ -123,13 +140,23 @@ class NginxTemplateTests(SimpleTestCase):
         for line in (
             "listen 80 default_server;",
             "listen [::]:80 default_server;",
-            "return 444;",
             "listen 443 ssl http2 default_server;",
             "listen [::]:443 ssl http2 default_server;",
             "ssl_reject_handshake on;",
         ):
             self.assertEqual(text.count(line), 1, line)
         self.assertEqual(text.count("server_name _;"), 2)
+        self.assertEqual(text.count("return 444;"), 2)
+
+    def test_every_catch_all_server_closes_connection(self):
+        # TASK-019 (PT3-F7): SNI = the domain with a foreign Host reaches the 443 catch-all.
+        blocks = [b for b in _server_blocks(_read(NGINX_CONF)) if "default_server" in b]
+        self.assertEqual(len(blocks), 2)
+        for block in blocks:
+            with self.subTest(block=block.split(";")[0]):
+                self.assertIn("server_name _;", block)
+                self.assertIn("return 444;", block)
+                self.assertNotIn("proxy_pass", block)
 
     def test_www_redirect_and_acme(self):
         text = _read(NGINX_CONF)
@@ -377,9 +404,17 @@ class ShellScriptTests(SimpleTestCase):
         lines = [line.strip() for line in _read(BACKUP_SH).splitlines()]
         self.assertIn("cd /", lines)
         cd_index = lines.index("cd /")
-        for command in ("pg_dump", "tar -czf", "find "):
-            first = next(i for i, line in enumerate(lines) if line.startswith(command))
+        commands = [(i, line) for i, line in enumerate(lines) if line and not line.startswith("#")]
+        for command in ("pg_dump ", "tar -czf", "find "):
+            first = next(i for i, line in commands if command in line)
             self.assertLess(cd_index, first, command)
+
+    def test_backup_exports_nothing_from_env_file(self):
+        # TASK-019 (PT3-F6): no "set -a", no "export"; the PG* values are pg_dump's prefix.
+        backup = _read(BACKUP_SH)
+        self.assertNotIn("set -a", backup)
+        self.assertIsNone(re.search(r"^\s*export\b", backup, flags=re.M))
+        self.assertIn('PGPASSWORD="$pg_password"', backup)
 
     def test_manage_uses_env_file(self):
         manage = _read(MANAGE_SH)
@@ -387,14 +422,106 @@ class ShellScriptTests(SimpleTestCase):
         self.assertIn("set -euo pipefail", manage)
 
 
+def _repo_files(repo: Path, subdir: str) -> list[Path]:
+    """Files under ``repo/subdir`` that belong to the project (TASK-019).
+
+    In a git checkout: the tracked files plus the untracked files git does not ignore
+    (``git ls-files --cached --others --exclude-standard``), so a Finder ``.DS_Store`` or a
+    ``__pycache__`` is skipped while a new, not yet committed file is still scanned. Without a
+    checkout (a ``git archive`` copy): every file except ``.DS_Store``, ``__pycache__`` and
+    ``*.pyc``. Listed files are read as UTF-8, so a project binary file fails loudly.
+    """
+    git = shutil.which("git")
+    if git is not None and (repo / ".git").exists():
+        result = subprocess.run(  # noqa: S603
+            [git, "-C", str(repo), "ls-files", "-z", "--cached", "--others", "--exclude-standard"]
+            + ["--", subdir],
+            capture_output=True,
+            check=True,
+        )
+        names = [name for name in result.stdout.decode("utf-8").split("\0") if name]
+        return sorted(path for path in (repo / name for name in names) if path.is_file())
+    return sorted(
+        path
+        for path in (repo / subdir).rglob("*")
+        if path.is_file()
+        and "__pycache__" not in path.parts
+        and path.suffix != ".pyc"
+        and path.name != ".DS_Store"
+    )
+
+
 def _secret_scan_paths() -> list[Path]:
-    paths = [
-        p
-        for p in DEPLOY_DIR.rglob("*")
-        if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc"
-    ]
+    paths = _repo_files(BASE_DIR, "deploy")
     paths.extend([ENV_EXAMPLE, DEPLOY_MD])
     return paths
+
+
+class ScanFileListTests(SimpleTestCase):
+    """TASK-019: OS junk next to the deploy files does not break the scans; project files count."""
+
+    def _tree(self, root: Path) -> None:
+        (root / ".gitignore").write_text(".DS_Store\n__pycache__/\n*.pyc\n", encoding="utf-8")
+        deploy = root / "deploy"
+        (deploy / "nginx").mkdir(parents=True)
+        (deploy / "__pycache__").mkdir()
+        (deploy / "a.conf").write_text("server {}\n", encoding="utf-8")
+        (deploy / "blob.bin").write_bytes(b"\xff\xfe\x00binary")
+
+    def _junk_and_new_file(self, root: Path) -> None:
+        deploy = root / "deploy"
+        (deploy / ".DS_Store").write_bytes(b"\x00\x00\x00\x01Bud1\xff")
+        (deploy / "nginx" / ".DS_Store").write_bytes(b"\x00\x00\x00\x01Bud1\xff")
+        (deploy / "__pycache__" / "x.cpython-312.pyc").write_bytes(b"\xff\x00")
+        (deploy / "new.sh").write_text("echo new\n", encoding="utf-8")
+
+    def _names(self, root: Path) -> list[str]:
+        return [path.relative_to(root).as_posix() for path in _repo_files(root, "deploy")]
+
+    def test_git_checkout_skips_ignored_files(self):
+        git = shutil.which("git")
+        if git is None:
+            self.skipTest("git not available")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._tree(root)
+            for args in (["init", "-q"], ["add", ".gitignore", "deploy/a.conf", "deploy/blob.bin"]):
+                subprocess.run([git, "-C", str(root), *args], check=True)  # noqa: S603
+            self._junk_and_new_file(root)
+            self.assertEqual(
+                self._names(root), ["deploy/a.conf", "deploy/blob.bin", "deploy/new.sh"]
+            )
+
+    def test_archive_copy_skips_os_junk(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._tree(root)
+            self._junk_and_new_file(root)
+            self.assertEqual(
+                self._names(root), ["deploy/a.conf", "deploy/blob.bin", "deploy/new.sh"]
+            )
+
+    def test_project_binary_fails_loudly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._tree(root)
+            blob = next(p for p in _repo_files(root, "deploy") if p.name == "blob.bin")
+            with self.assertRaises(UnicodeDecodeError):
+                _read(blob)
+
+    def test_real_scan_covers_deploy_files(self):
+        names = {path.relative_to(BASE_DIR).as_posix() for path in _secret_scan_paths()}
+        for name in (
+            "deploy/backup.sh",
+            "deploy/manage.sh",
+            "deploy/gunicorn.conf.py",
+            "deploy/nginx/deanery.conf",
+            "deploy/systemd/deanery.service",
+            ".env.production.example",
+            "docs/DEPLOY.md",
+        ):
+            self.assertIn(name, names)
+        self.assertFalse(any("__pycache__" in name or name.endswith(".DS_Store") for name in names))
 
 
 class SecretScanTests(SimpleTestCase):
@@ -675,6 +802,115 @@ class BackupScriptRunTests(SimpleTestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("DATABASE_URL must look like", result.stderr)
             self.assertFalse((Path(tmp) / "backups").exists())
+
+
+class BackupScriptEnvironmentTests(SimpleTestCase):
+    """TASK-019 (PT3-F6): children get no env-file values; a failed step leaves no partial file."""
+
+    PASSWORD = "0123abcd4567ef89dummydbpass"
+    SECRET = "dummy-secret-key-for-backup-env-test"
+    DEMO = "dummy-demo-password-for-backup-test"
+    ENV_FILE_NAMES = ("SECRET_KEY", "DEMO_PASSWORD", "DATABASE_URL", "PRIVATE_MEDIA_ROOT")
+    PG_NAMES = ("PGUSER", "PGPASSWORD", "PGHOST", "PGPORT", "PGDATABASE")
+
+    def setUp(self):
+        self.bash = shutil.which("bash")
+        self.real = {name: shutil.which(name) for name in ("gzip", "tar", "find")}
+        if self.bash is None or None in self.real.values():
+            self.skipTest("bash, gzip, tar or find not available")
+        self.root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+        (self.root / "bin").mkdir()
+        (self.root / "media" / "private_media").mkdir(parents=True)
+        (self.root / "media" / "private_media" / "a.pdf").write_bytes(b"%PDF-1.4")
+        self.backups = self.root / "backups"
+        self.backups.mkdir()
+        # An old backup: a failed run must not delete it.
+        self.old = self.backups / "db-20200101-000000.sql.gz"
+        self.old.write_bytes(b"old")
+        os.utime(self.old, (0, 0))
+        self.pg_dump('echo "-- dump"')
+        for name, real in self.real.items():
+            self._stub(name, f'env > "{self.root}/env-{name}"\nexec "{real}" "$@"')
+
+    def _stub(self, name: str, body: str) -> None:
+        stub = self.root / "bin" / name
+        stub.write_text(f"#!/usr/bin/env bash\n{body}\n", encoding="utf-8")
+        stub.chmod(0o755)
+
+    def pg_dump(self, body: str) -> None:
+        self._stub("pg_dump", f'env > "{self.root}/env-pg_dump"\n{body}')
+
+    def run_backup(self, media_line: bool = True) -> subprocess.CompletedProcess:
+        lines = [
+            f"SECRET_KEY={self.SECRET}",
+            f"DATABASE_URL=postgres://deanery:{self.PASSWORD}@localhost:5432/deanery_trial",
+            f"DEMO_PASSWORD={self.DEMO}",
+        ]
+        if media_line:
+            lines.append(f"PRIVATE_MEDIA_ROOT={self.root}/media/private_media")
+        env_file = self.root / "deanery.env"
+        env_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        env = {
+            "PATH": f"{self.root / 'bin'}{os.pathsep}{os.environ['PATH']}",
+            "BACKUP_DIR": str(self.backups),
+            "DEANERY_ENV_FILE": str(env_file),
+        }
+        return subprocess.run(  # noqa: S603
+            [self.bash, str(BACKUP_SH)], env=env, capture_output=True, text=True, timeout=60
+        )
+
+    def child_env(self, name: str) -> dict[str, str]:
+        text = (self.root / f"env-{name}").read_text(encoding="utf-8")
+        return dict(line.split("=", 1) for line in text.splitlines() if "=" in line)
+
+    def names(self) -> list[str]:
+        return sorted(path.name for path in self.backups.iterdir())
+
+    def test_children_get_no_env_file_values(self):
+        result = self.run_backup()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        pg_env = self.child_env("pg_dump")
+        self.assertEqual(pg_env["PGPASSWORD"], self.PASSWORD)
+        self.assertEqual(pg_env["PGDATABASE"], "deanery_trial")
+        for name in ("gzip", "tar", "find"):
+            env = self.child_env(name)
+            for variable in self.ENV_FILE_NAMES + self.PG_NAMES:
+                with self.subTest(child=name, variable=variable):
+                    self.assertNotIn(variable, env)
+        for variable in self.ENV_FILE_NAMES:
+            with self.subTest(child="pg_dump", variable=variable):
+                self.assertNotIn(variable, pg_env)
+        for name in ("pg_dump", "gzip", "tar", "find"):
+            text = (self.root / f"env-{name}").read_text(encoding="utf-8")
+            self.assertNotIn(self.SECRET, text)
+            self.assertNotIn(self.DEMO, text)
+        self.assertEqual(len(self.names()), 2)  # the old backup was removed by KEEP_DAYS
+
+    def test_failed_pg_dump_leaves_no_dump(self):
+        self.pg_dump('echo "-- partial"\nexit 3')
+        result = self.run_backup()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("backup ok", result.stdout)
+        self.assertEqual(self.names(), [self.old.name])
+
+    def test_failed_tar_leaves_no_media_archive(self):
+        self._stub("tar", 'printf partial > "$2"\nexit 2')
+        result = self.run_backup()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("backup ok", result.stdout)
+        names = self.names()
+        self.assertEqual(len(names), 2, names)
+        self.assertEqual(names[0], self.old.name)
+        self.assertTrue(names[1].startswith("db-") and names[1].endswith(".sql.gz"), names)
+        self.assertFalse(any(name.endswith(".part") for name in names))
+
+    def test_missing_media_root_fails_before_dump(self):
+        result = self.run_backup(media_line=False)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("PRIVATE_MEDIA_ROOT is not set", result.stderr)
+        self.assertEqual(self.names(), [self.old.name])
+        self.assertFalse((self.root / "env-pg_dump").exists())
 
 
 class CiDependencyAuditTests(SimpleTestCase):
